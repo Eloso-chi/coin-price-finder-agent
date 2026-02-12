@@ -1,0 +1,305 @@
+[
+  {
+    "query_id": "1971 eisenhower dollar_65_1770859242865",
+    "run_id": "1770859242865",
+    "mode": "new",
+    "run_date": "2026-02-12T01:20:42.865Z",
+    "cache": {
+      "manual_comps": [],
+      "manual_metrics": {
+        "total_sold_found": 0,
+        "total_used_after_filter": 0,
+        "median_sold_price": null,
+        "date_range": {
+          "start": null,
+          "end": null
+        }
+      },
+      "ebay_comps": [],
+      "ebay_metrics": {
+        "total_sold_found": 0,
+        "total_used_after_filter": 0,
+        "median_sold_price": null,
+        "date_range": {
+          "start": null,
+          "end": null
+        }
+      },
+      "greysheet": {
+        "accessible": false,
+        "comps": [],
+        "limitations": [
+          "Greysheet access requires user credentials and licensed API"
+        ]
+      },
+      "pcgs": {
+        "accessible": false,
+        "comps": [],
+        "limitations": [
+          "PCGS CoinFacts API not implemented; price guide only, no sold comps"
+        ]
+      },
+      "numista": {
+        "accessible": false,
+        "comps": [],
+        "limitations": [
+          "Numista API not implemented; catalog only, no market comps"
+        ]
+      },
+      "limitations": [
+        "eBay API credentials not provided",
+        "Greysheet access requires user credentials and licensed API",
+        "PCGS CoinFacts API not implemented; price guide only, no sold comps",
+        "Numista API not implemented; catalog only, no market comps"
+      ]
+    },
+    "query": {
+      "coin_name": "1971 eisenhower dollar",
+      "grade": "65",
+      "manual_evidence": ""
+    }
+  },
+  {
+    "query_id": "1959 D Lincoln Penny_MS65_1770859306993",
+    "run_id": "1770859306993",
+    "mode": "new",
+    "run_date": "2026-02-12T01:21:46.993Z",
+    "cache": {
+      "manual_comps": [],
+      "manual_metrics": {
+        "total_sold_found": 0,
+        "total_used_after_filter": 0,
+        "median_sold_price": null,
+        "date_range": {
+          "start": null,
+          "end": null
+        }
+      },
+      "ebay_comps": [],
+      "ebay_metrics": {
+        "total_sold_found": 0,
+        "total_used_after_filter": 0,
+        "median_sold_price": null,
+        "date_range": {
+          "start": null,
+          "end": null
+        }
+      },
+      "greysheet": {
+        "accessible": false,
+        "comps": [],
+        "limitations": [
+          "Greysheet access requires user credentials and licensed API"
+        ]
+      },
+      "pcgs": {
+        "accessible": false,
+        "comps": [],
+        "limitations": [
+          "PCGS CoinFacts API not implemented; price guide only, no sold comps"
+        ]
+      },
+      "numista": {
+        "accessible": false,
+        "comps": [],
+        "limitations": [
+          "Numista API not implemented; catalog only, no market comps"
+        ]
+      },
+      "limitations": [
+        "eBay API credentials not provided",
+        "Greysheet access requires user credentials and licensed API",
+        "PCGS CoinFacts API not implemented; price guide only, no sold comps",
+        "Numista API not implemented; catalog only, no market comps"
+      ]
+    },
+    "query": {
+      "coin_name": "1959 D Lincoln Penny",
+      "grade": "MS65",
+      "manual_evidence": ""
+    }
+  },
+  {
+    "query_id": "1971 eisenhower dollar_MS65_1770859743584",
+    "run_id": "1770859743584",
+    "mode": "new",
+    "run_date": "2026-02-12T01:29:03.584Z",
+    "cache": {
+      "manual_comps": [],
+      "manual_metrics": {
+        "total_sold_found": 0,
+        "total_used_after_filter": 0,
+        "median_sold_price": null,
+        "date_range": {
+          "start": null,
+          "end": null
+        }
+      },
+      "ebay_comps": [],
+      "ebay_metrics": {
+        "total_sold_found": 0,
+        "total_used_after_filter": 0,
+        "median_sold_price": null,
+        "date_range": {
+          "start": null,
+          "end": null
+        }
+      },
+      "greysheet": {
+        "accessible": false,
+        "comps": [],
+        "limitations": [
+          "Greysheet access requires user credentials and licensed API"
+        ]
+      },
+      "pcgs": {
+        "accessible": false,
+        "comps": [],
+        "limitations": [
+          "PCGS CoinFacts API not implemented; price guide only, no sold comps"
+        ]
+      },
+      "numista": {
+        "accessible": false,
+        "comps": [],
+        "limitations": [
+          "Numista API not implemented; catalog only, no market comps"
+        ]
+      },
+      "limitations": [
+        "eBay API error",
+        "Request failed with status code 500",
+        "Greysheet access requires user credentials and licensed API",
+        "PCGS CoinFacts API not implemented; price guide only, no sold comps",
+        "Numista API not implemented; catalog only, no market comps"
+      ]
+    },
+    "query": {
+      "coin_name": "1971 eisenhower dollar",
+      "grade": "MS65",
+      "manual_evidence": ""
+    }
+  },
+  {
+    "query_id": "1971 eisenhower dollar_MS65_1770859906394",
+    "run_id": "1770859906394",
+    "mode": "new",
+    "run_date": "2026-02-12T01:31:46.394Z",
+    "cache": {
+      "manual_comps": [],
+      "manual_metrics": {
+        "total_sold_found": 0,
+        "total_used_after_filter": 0,
+        "median_sold_price": null,
+        "date_range": {
+          "start": null,
+          "end": null
+        }
+      },
+      "ebay_comps": [],
+      "ebay_metrics": {
+        "total_sold_found": 0,
+        "total_used_after_filter": 0,
+        "median_sold_price": null,
+        "date_range": {
+          "start": null,
+          "end": null
+        }
+      },
+      "greysheet": {
+        "accessible": false,
+        "comps": [],
+        "limitations": [
+          "Greysheet access requires user credentials and licensed API"
+        ]
+      },
+      "pcgs": {
+        "accessible": false,
+        "comps": [],
+        "limitations": [
+          "PCGS CoinFacts API not implemented; price guide only, no sold comps"
+        ]
+      },
+      "numista": {
+        "accessible": false,
+        "comps": [],
+        "limitations": [
+          "Numista API not implemented; catalog only, no market comps"
+        ]
+      },
+      "limitations": [
+        "eBay API error",
+        "Request failed with status code 500",
+        "Greysheet access requires user credentials and licensed API",
+        "PCGS CoinFacts API not implemented; price guide only, no sold comps",
+        "Numista API not implemented; catalog only, no market comps"
+      ]
+    },
+    "query": {
+      "coin_name": "1971 eisenhower dollar",
+      "grade": "MS65",
+      "manual_evidence": ""
+    }
+  },
+  {
+    "query_id": "1971 eisenhower dollar_MS65_1770860056241",
+    "run_id": "1770860056241",
+    "mode": "new",
+    "run_date": "2026-02-12T01:34:16.241Z",
+    "cache": {
+      "manual_comps": [],
+      "manual_metrics": {
+        "total_sold_found": 0,
+        "total_used_after_filter": 0,
+        "median_sold_price": null,
+        "date_range": {
+          "start": null,
+          "end": null
+        }
+      },
+      "ebay_comps": [],
+      "ebay_metrics": {
+        "total_sold_found": 0,
+        "total_used_after_filter": 0,
+        "median_sold_price": null,
+        "date_range": {
+          "start": null,
+          "end": null
+        }
+      },
+      "greysheet": {
+        "accessible": false,
+        "comps": [],
+        "limitations": [
+          "Greysheet access requires user credentials and licensed API"
+        ]
+      },
+      "pcgs": {
+        "accessible": false,
+        "comps": [],
+        "limitations": [
+          "PCGS CoinFacts API not implemented; price guide only, no sold comps"
+        ]
+      },
+      "numista": {
+        "accessible": false,
+        "comps": [],
+        "limitations": [
+          "Numista API not implemented; catalog only, no market comps"
+        ]
+      },
+      "limitations": [
+        "eBay API error",
+        "Request failed with status code 500",
+        "Greysheet access requires user credentials and licensed API",
+        "PCGS CoinFacts API not implemented; price guide only, no sold comps",
+        "Numista API not implemented; catalog only, no market comps"
+      ]
+    },
+    "query": {
+      "coin_name": "1971 eisenhower dollar",
+      "grade": "MS65",
+      "manual_evidence": ""
+    }
+  }
+]
