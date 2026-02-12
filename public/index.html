@@ -315,6 +315,17 @@
     }
     .fmv-chip-key { background: var(--yellow-subtle); border-color: var(--yellow); color: var(--yellow); }
     .fmv-chip-melt { background: rgba(246,106,10,0.08); border-color: rgba(246,106,10,0.3); color: #f66a0a; }
+    /* ── Mintage Banner ────────────────────────────────────── */
+    .mintage-banner {
+      display: flex; align-items: center; justify-content: center; gap: 12px;
+      background: var(--surface); border: 1px solid var(--border-subtle);
+      border-radius: 12px; padding: 14px 20px; margin-bottom: 12px;
+      font-size: 1rem;
+    }
+    .mintage-banner .mintage-icon { font-size: 1.4rem; }
+    .mintage-banner .mintage-label { color: var(--text-secondary); font-size: 0.82rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+    .mintage-banner .mintage-value { font-size: 1.2rem; font-weight: 700; color: var(--text-primary); }
+    .mintage-banner .mintage-source { font-size: 0.72rem; color: var(--text-secondary); opacity: 0.7; }
 
     /* ── Collapsible PCGS Details ─────────────────────────── */
     .pcgs-details > summary {
@@ -544,7 +555,10 @@
               <option value="American Gold Eagle"><option value="American Gold Buffalo">
               <option value="St. Gaudens Double Eagle"><option value="Liberty Head Double Eagle">
               <option value="Indian Head Eagle"><option value="Liberty Half Eagle">
-              <option value="Indian Quarter Eagle">
+              <option value="Indian Quarter Eagle"><option value="Indian Head Cent">
+              <option value="Lincoln Cent"><option value="Jefferson Nickel">
+              <option value="Buffalo Nickel"><option value="Eisenhower Dollar">
+              <option value="Liberty Nickel"><option value="Shield Nickel">
               <option value="US Proof Set"><option value="US Mint Set">
               <option value="US Silver Proof Set"><option value="US Prestige Proof Set">
               <option value="US Premier Silver Proof Set">
@@ -1107,6 +1121,18 @@
       html += '</div>';
     }
 
+    // ── Mintage Banner (prominent, above FMV) ──────────────
+    const mintage = d.mintageData?.mintage || d.pcgs?.mintage;
+    const mintageSource = d.mintageData?.source || (d.pcgs?.mintage ? 'pcgs' : null);
+    if (mintage) {
+      html += '<div class="mintage-banner">';
+      html += '<span class="mintage-icon">\uD83C\uDFED</span>';
+      html += '<span class="mintage-label">Mintage</span>';
+      html += '<span class="mintage-value">' + Number(mintage).toLocaleString() + '</span>';
+      html += '<span class="mintage-source">' + (mintageSource || '') + '</span>';
+      html += '</div>';
+    }
+
     // ── FMV Hero ──────────────────────────────────────────
     html += '<div class="card fmv-hero">';
     html += '<div class="label">Fair Market Value</div>';
@@ -1119,8 +1145,6 @@
     const exactCount = usCompsAll.filter(c => c.matchQuality === 'exact').length;
     const closeCount = usCompsAll.filter(c => c.matchQuality === 'close').length;
     const pop = d.pcgs?.population;
-    const mintage = d.mintageData?.mintage || d.pcgs?.mintage;
-    const mintageSource = d.mintageData?.source || (d.pcgs?.mintage ? 'pcgs' : null);
     html += '<div class="fmv-meta">';
     if (meltInfo) html += '<span class="fmv-chip fmv-chip-melt" title="Melt value: ' + meltInfo.pureOzt.toFixed(4) + ' ozt pure @ spot $' + meltInfo.spot + '/ozt">\uD83D\uDD25 Melt: $' + meltInfo.melt.toFixed(2) + '</span>';
     if (mintage) html += '<span class="fmv-chip" title="Mintage for this year/mint (source: ' + mintageSource + ')">\uD83C\uDFED Mintage: ' + Number(mintage).toLocaleString() + '</span>';
@@ -1168,9 +1192,13 @@
       html += '<tr><th>Grade</th><td>' + (p.grade || '—') + '</td><th>Designation</th><td>' + (p.designation || '—') + '</td></tr>';
       html += '<tr><th>Price Guide</th><td>' + (p.priceGuide?.valueUsd != null ? $(p.priceGuide.valueUsd) : '—') + '</td>';
       html += '<th>Population</th><td>' + (p.population?.thisGrade ?? '—') + ' / ' + (p.population?.higher ?? '—') + ' higher</td></tr>';
+      if (mintage) html += '<tr><th>Mintage</th><td colspan="3">' + Number(mintage).toLocaleString() + ' <small style="opacity:.5">(' + (mintageSource || 'unknown') + ')</small></td></tr>';
       html += '</tbody></table>';
     } else {
-      html += '<p class="pcgs-empty">No PCGS data available for this query. Try entering a PCGS Coin # in Search Options.</p>';
+      html += '<table><tbody>';
+      if (mintage) html += '<tr><th>Mintage</th><td>' + Number(mintage).toLocaleString() + ' <small style="opacity:.5">(' + (mintageSource || 'unknown') + ')</small></td></tr>';
+      html += '</tbody></table>';
+      if (!mintage) html += '<p class="pcgs-empty">No PCGS data available for this query. Try entering a PCGS Coin # in Search Options.</p>';
     }
     html += '</details>';
 

@@ -405,7 +405,7 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
   let apiUsed = 'none';
   let usedFallback = false;
 
-  // ── Attempt 1: Marketplace Insights API (best: actual sold prices) ──
+  // ── Attempt 1: Marketplace Insights API (best: actual sold prices, US-only) ──
   if (!circuitTripped('insights')) {
     try {
       const insightComps = await insightsSearch(keywords, opts.timeWindowDays, PER_PAGE * opts.maxPages);
@@ -416,8 +416,9 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
         const { kept, removed } = applyFilters(scored, opts, expected);
         const prices = kept.map(c => c.totalUsd);
         usResult = { stats: stats.summarize(prices), comps: kept, removed, error: null };
-        globalResult = usResult;
-        console.log(`[ebay] Marketplace Insights: ${kept.length} comps`);
+        // NOTE: Insights is US-marketplace only — do NOT copy to globalResult.
+        // Global comps will come from Finding API (worldwide, no LocatedIn filter).
+        console.log(`[ebay] Marketplace Insights: ${kept.length} US comps`);
       }
     } catch (err) {
       console.warn(`[ebay] Marketplace Insights unavailable: ${err.response?.status || err.message}`);
@@ -425,15 +426,14 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
     }
   }
 
-  // ── Attempt 2: Finding API (if Insights didn't yield enough) ──
+  // ── Attempt 2: Finding API ──
+  // US tier: only if Insights didn't yield enough
   if ((!usResult || usResult.comps.length < opts.usMinComps) && !circuitTripped('finding')) {
     try {
-      // US tier
       const rawUS = await fetchFindingTier(keywords, opts.timeWindowDays, opts.maxPages, 'US');
       const dedupedUS = dedup(rawUS);
       const scoredUS = dedupedUS.map(c => scoreMatch(c, expected));
       const filterUS = applyFilters(scoredUS, opts, expected);
-      const usPrices = filterUS.kept.map(c => c.totalUsd);
 
       // Merge with any Insights comps
       const mergedUS = usResult ? dedup([...usResult.comps, ...filterUS.kept]) : filterUS.kept;
@@ -441,20 +441,28 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
 
       usResult = { stats: stats.summarize(mergedPrices), comps: mergedUS, removed: filterUS.removed, error: null };
       apiUsed = apiUsed === 'marketplace-insights' ? 'insights+finding' : 'finding';
+      console.log(`[ebay] Finding API US: ${mergedUS.length} comps`);
+    } catch (err) {
+      console.warn(`[ebay] Finding API US unavailable: ${err.response?.status || err.message}`);
+      tripCircuit('finding');
+      if (!usResult) usResult = { stats: null, comps: [], removed: {}, error: { message: err.message } };
+    }
+  }
 
-      // Global tier
+  // Global tier: always attempt so global is independent from US
+  if (!globalResult && !circuitTripped('finding')) {
+    try {
       const rawGlobal = await fetchFindingTier(keywords, opts.timeWindowDays, opts.maxPages, null);
       const dedupedGlobal = dedup(rawGlobal);
       const scoredGlobal = dedupedGlobal.map(c => scoreMatch(c, expected));
       const filterGlobal = applyFilters(scoredGlobal, opts, expected);
       const glPrices = filterGlobal.kept.map(c => c.totalUsd);
       globalResult = { stats: stats.summarize(glPrices), comps: filterGlobal.kept, removed: filterGlobal.removed, error: null };
-
-      console.log(`[ebay] Finding API: US ${mergedUS.length}, Global ${filterGlobal.kept.length} comps`);
+      if (apiUsed === 'none') apiUsed = 'finding';
+      else if (!apiUsed.includes('finding')) apiUsed += '+finding';
+      console.log(`[ebay] Finding API Global: ${filterGlobal.kept.length} comps`);
     } catch (err) {
-      console.warn(`[ebay] Finding API unavailable: ${err.response?.status || err.message}`);
-      tripCircuit('finding');
-      if (!usResult) usResult = { stats: null, comps: [], removed: {}, error: { message: err.message } };
+      console.warn(`[ebay] Finding API Global unavailable: ${err.response?.status || err.message}`);
       if (!globalResult) globalResult = { stats: null, comps: [], removed: {}, error: { message: err.message } };
     }
   }
@@ -482,9 +490,6 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
         removed,
         error: { message: `Browse API fallback used (active listings, not sold). Previous: ${usResult.error?.message || 'n/a'}` }
       };
-      if (globalResult.comps.length < opts.usMinComps) {
-        globalResult = usResult;
-      }
       apiUsed = apiUsed !== 'none' ? `${apiUsed}+browse` : 'browse';
       console.log(`[ebay] Browse API fallback: ${kept.length} active listing comps`);
     } catch (browseErr) {
