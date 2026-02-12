@@ -30,7 +30,8 @@ router.get('/', async (req, res) => {
 });
 
 // GET /api/metals/:metal?currency=USD  → single metal
-router.get('/:metal', async (req, res) => {
+// Express 5 uses path-to-regexp v8 syntax: {param} instead of :param
+router.get('/{:metal}', async (req, res) => {
   try {
     const metal    = req.params.metal.toUpperCase();
     const currency = (req.query.currency || 'USD').toUpperCase();

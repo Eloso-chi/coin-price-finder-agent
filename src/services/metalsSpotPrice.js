@@ -22,8 +22,33 @@ const METALS_API_BASE = () => process.env.METALS_API_BASE_URL || 'https://metals
  */
 const providers = [
   {
+    name: 'goldprice-org',
+    // Free, no-auth endpoint — always available as a baseline fallback
+    async fetch(metal, currency) {
+      const res = await axios.get('https://data-asg.goldprice.org/dbXRates/' + currency, {
+        timeout: 8000,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; CoinPriceAgent/1.0)',
+          'Accept': 'application/json',
+        },
+      });
+      const d = res.data;
+      // Response contains items[0].xauPrice, items[0].xagPrice, etc.
+      const item = (d.items || d.Items || [])[0] || d;
+      const key = metal.toLowerCase() + 'Price';     // 'xauPrice', 'xagPrice'
+      const price = item[key] ?? item[metal.toLowerCase() + 'Close'];
+      if (!price) throw new Error(`No ${metal} price in goldprice.org response`);
+      return {
+        price: parseFloat(price),
+        timestamp: new Date().toISOString(),
+        source: 'goldprice-org',
+      };
+    },
+  },
+  {
     name: 'goldapi',
     async fetch(metal, currency) {
+      if (!GOLDAPI_KEY()) throw new Error('GOLDAPI_KEY not configured');
       const url = `${GOLDAPI_BASE()}/${metal}/${currency}`;
       const res = await axios.get(url, {
         headers: { 'x-access-token': GOLDAPI_KEY() },
@@ -42,6 +67,7 @@ const providers = [
   {
     name: 'metals-api',
     async fetch(metal, currency) {
+      if (!METALS_API_KEY()) throw new Error('METALS_API_KEY not configured');
       const url = `${METALS_API_BASE()}/latest`;
       const res = await axios.get(url, {
         params: { access_key: METALS_API_KEY(), base: currency, symbols: metal },

@@ -19,6 +19,18 @@ const CACHE_TTL          = parseInt(process.env.EBAY_CACHE_TTL_MS || '3600000', 
 const US_MIN_COMPS       = parseInt(process.env.EBAY_US_MIN_COMPS || '8', 10);
 const THROTTLE_MS        = parseInt(process.env.EBAY_THROTTLE_MS || '1100', 10);     // min ms between API calls
 
+// ── Circuit breaker: skip APIs that have failed recently ────
+const _circuitBreaker = {};
+const CIRCUIT_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
+function circuitTripped(apiName) {
+  const ts = _circuitBreaker[apiName];
+  return ts && (Date.now() - ts) < CIRCUIT_COOLDOWN_MS;
+}
+function tripCircuit(apiName) {
+  _circuitBreaker[apiName] = Date.now();
+  console.warn(`[ebay] Circuit breaker tripped for ${apiName} — skipping for ${CIRCUIT_COOLDOWN_MS / 1000}s`);
+}
+
 // Long-lived cache: sold data doesn't change, so cache aggressively
 const path = require('path');
 const fs = require('fs');
@@ -71,7 +83,7 @@ async function getOAuthToken() {
 }
 
 // ── Exponential backoff retry wrapper ───────────────────────
-async function withRetry(fn, retries = 2, baseDelay = 1500) {
+async function withRetry(fn, retries = 2, baseDelay = 800) {
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       return await fn();
@@ -79,7 +91,7 @@ async function withRetry(fn, retries = 2, baseDelay = 1500) {
       const status = err.response?.status;
       const isRetryable = status === 429 || (status >= 500 && status < 600);
       if (isRetryable && attempt < retries) {
-        const delay = baseDelay * Math.pow(2, attempt) + Math.random() * 500;
+        const delay = baseDelay * (attempt + 1) + Math.random() * 300;
         console.warn(`[ebay] Retryable error ${status}, attempt ${attempt + 1}/${retries}, waiting ${Math.round(delay)}ms`);
         await new Promise(r => setTimeout(r, delay));
         continue;
@@ -252,6 +264,12 @@ function scoreMatch(comp, expected) {
 
   comp.matchScore = Math.min(100, score);
   comp.matchNotes = notes;
+
+  // Assign human-readable quality label
+  if (score >= 85) comp.matchQuality = 'exact';
+  else if (score >= 65) comp.matchQuality = 'close';
+  else comp.matchQuality = 'loose';
+
   return comp;
 }
 
@@ -388,24 +406,27 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
   let usedFallback = false;
 
   // ── Attempt 1: Marketplace Insights API (best: actual sold prices) ──
-  try {
-    const insightComps = await insightsSearch(keywords, opts.timeWindowDays, PER_PAGE * opts.maxPages);
-    if (insightComps.length > 0) {
-      apiUsed = 'marketplace-insights';
-      const deduped = dedup(insightComps);
-      const scored = deduped.map(c => scoreMatch(c, expected));
-      const { kept, removed } = applyFilters(scored, opts, expected);
-      const prices = kept.map(c => c.totalUsd);
-      usResult = { stats: stats.summarize(prices), comps: kept, removed, error: null };
-      globalResult = usResult; // Insights doesn't have a US/Global split; treat as both
-      console.log(`[ebay] Marketplace Insights: ${kept.length} comps`);
+  if (!circuitTripped('insights')) {
+    try {
+      const insightComps = await insightsSearch(keywords, opts.timeWindowDays, PER_PAGE * opts.maxPages);
+      if (insightComps.length > 0) {
+        apiUsed = 'marketplace-insights';
+        const deduped = dedup(insightComps);
+        const scored = deduped.map(c => scoreMatch(c, expected));
+        const { kept, removed } = applyFilters(scored, opts, expected);
+        const prices = kept.map(c => c.totalUsd);
+        usResult = { stats: stats.summarize(prices), comps: kept, removed, error: null };
+        globalResult = usResult;
+        console.log(`[ebay] Marketplace Insights: ${kept.length} comps`);
+      }
+    } catch (err) {
+      console.warn(`[ebay] Marketplace Insights unavailable: ${err.response?.status || err.message}`);
+      tripCircuit('insights');
     }
-  } catch (err) {
-    console.warn(`[ebay] Marketplace Insights unavailable: ${err.response?.status || err.message}`);
   }
 
   // ── Attempt 2: Finding API (if Insights didn't yield enough) ──
-  if (!usResult || usResult.comps.length < opts.usMinComps) {
+  if ((!usResult || usResult.comps.length < opts.usMinComps) && !circuitTripped('finding')) {
     try {
       // US tier
       const rawUS = await fetchFindingTier(keywords, opts.timeWindowDays, opts.maxPages, 'US');
@@ -432,10 +453,15 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
       console.log(`[ebay] Finding API: US ${mergedUS.length}, Global ${filterGlobal.kept.length} comps`);
     } catch (err) {
       console.warn(`[ebay] Finding API unavailable: ${err.response?.status || err.message}`);
+      tripCircuit('finding');
       if (!usResult) usResult = { stats: null, comps: [], removed: {}, error: { message: err.message } };
       if (!globalResult) globalResult = { stats: null, comps: [], removed: {}, error: { message: err.message } };
     }
   }
+
+  // Ensure usResult/globalResult are initialized before Browse fallback
+  if (!usResult) usResult = { stats: null, comps: [], removed: {}, error: { message: 'Insights + Finding skipped/unavailable' } };
+  if (!globalResult) globalResult = { stats: null, comps: [], removed: {}, error: { message: 'Insights + Finding skipped/unavailable' } };
 
   // ── Attempt 3: Browse API (active listings — last resort) ──
   if (usResult.comps.length < opts.usMinComps) {
@@ -478,14 +504,24 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
 
 /**
  * Build eBay search keywords from PCGS enrichment + raw query.
+ * @param {object} pcgsData
+ * @param {string} rawQuery
+ * @param {number} [weight]  e.g. 0.5, 1.5, 2 — omitted or 1 means standard 1 oz
  */
-function buildKeywords(pcgsData, rawQuery) {
+function buildKeywords(pcgsData, rawQuery, weight) {
   const parts = [];
   if (pcgsData?.year) parts.push(String(pcgsData.year));
   if (pcgsData?.mint) parts.push(`-${pcgsData.mint}`);
   if (pcgsData?.series) parts.push(pcgsData.series);
   if (pcgsData?.grade) parts.push(pcgsData.grade);
   if (pcgsData?.designation) parts.push(pcgsData.designation);
+  // Inject weight for non-1 oz bullion so eBay comps match the right size
+  if (weight && weight !== 1) {
+    const weightStr = [0.5,0.25,0.1,0.05].includes(weight)
+      ? ({ 0.5:'1/2', 0.25:'1/4', 0.1:'1/10', 0.05:'1/20' })[weight] + ' oz'
+      : weight + ' oz';
+    parts.push(weightStr);
+  }
   if (parts.length >= 2) return parts.join(' ').trim();
   // Fall back to raw query
   return rawQuery || '';

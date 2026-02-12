@@ -7,10 +7,12 @@ const router = express.Router();
 const pcgsService = require('../services/pcgsService');
 const ebayService = require('../services/ebayService');
 const { computeValuation } = require('../services/valuationService');
+const { lookupKeyDate } = require('../data/keyDates');
+const { lookupMintage } = require('../data/mintages');
 
 router.post('/', async (req, res) => {
   try {
-    const { query, askingPrice, options } = req.body || {};
+    const { query, askingPrice, options, coinData, weight: bodyWeight } = req.body || {};
     if (!query) {
       return res.status(400).json({ error: 'query field is required' });
     }
@@ -39,7 +41,8 @@ router.post('/', async (req, res) => {
     };
 
     // ── 2. Build eBay keywords ──
-    const ebayKeywords = ebayService.buildKeywords(pcgs, String(query));
+    const resolvedWeight = coinData?.weight || bodyWeight || identification.parsed?.weight || null;
+    const ebayKeywords = ebayService.buildKeywords(pcgs, String(query), resolvedWeight);
 
     // ── 3. Fetch eBay comps (US + Global) ──
     const expected = {
@@ -51,10 +54,44 @@ router.post('/', async (req, res) => {
     };
     const ebay = await ebayService.fetchSoldComps(ebayKeywords, opts, expected);
 
-    // ── 4. Valuation + Decisions ──
+    // ── 4. Key Date Detection ──
+    const keyDateSeries = coinData?.name || pcgs.series || identification.parsed?.series || '';
+    const keyDateYear   = coinData?.year || pcgs.year || identification.parsed?.year;
+    const keyDateMint   = coinData?.mintMark || pcgs.mint || identification.parsed?.mint || '';
+    const keyDateInfo   = lookupKeyDate(keyDateSeries, keyDateYear, keyDateMint);
+
+    // ── 5. Valuation + Decisions ──
     const { valuation, decisions } = computeValuation(pcgs, ebay, askingPrice || null);
 
-    // ── 5. Reproducibility ──
+    // ── 6. Static Mintage Fallback ──
+    let mintSeries = coinData?.name || pcgs.series || identification.parsed?.series || '';
+    const mintYear   = coinData?.year || pcgs.year || identification.parsed?.year;
+    let   mintMark   = coinData?.mintMark || pcgs.mint || identification.parsed?.mint || '';
+    const mintWeight = resolvedWeight;
+
+    // For proof/mint sets, build the correct lookup key
+    if (coinData?.setType) {
+      if (coinData.setType === 'mint-uncirculated') {
+        mintSeries = 'us mint set';
+        mintMark = mintMark || 'P'; // mint sets have P&D, use P as default
+      } else {
+        mintSeries = 'us proof set ' + coinData.setType;
+        mintMark = mintMark || 'S'; // proof sets are always S mint
+      }
+    }
+
+    const pcgsMintage = pcgs.mintage ? Number(pcgs.mintage) : null;
+    let resolvedMintage = pcgsMintage;
+    let mintageSource   = pcgsMintage ? 'pcgs' : null;
+    if (!resolvedMintage) {
+      const staticLookup = lookupMintage(mintSeries, mintYear, mintMark, mintWeight);
+      if (staticLookup.mintage) {
+        resolvedMintage = staticLookup.mintage;
+        mintageSource   = 'static';
+      }
+    }
+
+    // ── 7. Reproducibility ──
     const reproducibility = {
       pcgs: {
         certNumber: certMatch ? query : null,
@@ -70,8 +107,14 @@ router.post('/', async (req, res) => {
 
     // ── Response ──
     return res.json({
-      query: { input: query, askingPrice: askingPrice || null, options: opts },
+      query: { input: query, askingPrice: askingPrice || null, weight: resolvedWeight, setType: coinData?.setType || null, options: opts },
+      coinData: coinData || null,
+      keyDate: keyDateInfo,
       identification,
+      mintageData: {
+        mintage: resolvedMintage,
+        source: mintageSource
+      },
       pcgs: {
         verified: pcgs.verified,
         pcgsCoinNumber: pcgs.pcgsCoinNumber,
@@ -84,7 +127,10 @@ router.post('/', async (req, res) => {
         priceGuide: pcgs.priceGuide,
         population: pcgs.population,
         auction: pcgs.auction,
-        trueViewUrl: pcgs.trueViewUrl
+        trueViewUrl: pcgs.trueViewUrl,
+        mintage: pcgs.mintage || null,
+        metalContent: pcgs.metalContent || null,
+        country: pcgs.country || null
       },
       ebay: {
         keywords: ebayKeywords,

@@ -66,6 +66,10 @@ function failMetalsApi(status = 500) {
   });
 }
 
+function failGoldpriceOrg() {
+  mock.onGet(/goldprice\.org/).reply(500, 'error');
+}
+
 /* ── Tests ───────────────────────────────────────────────── */
 
 describe('metalsSpotPrice', () => {
@@ -123,10 +127,11 @@ describe('metalsSpotPrice', () => {
     expect(result.source).toBe('metals-api');
   });
 
-  // ── 4. Both providers fail → MetalsSpotPriceError ──
+  // ── 4. All providers fail → MetalsSpotPriceError ──
   test('throws MetalsSpotPriceError when all providers fail', async () => {
     failGoldApi('XAU', 'USD', 503);
     failMetalsApi(502);
+    failGoldpriceOrg();
 
     try {
       await getMetalsSpotPrice('XAU', 'USD');
@@ -134,8 +139,8 @@ describe('metalsSpotPrice', () => {
     } catch (err) {
       expect(err).toBeInstanceOf(MetalsSpotPriceError);
       expect(err.name).toBe('MetalsSpotPriceError');
-      expect(err.providersTried).toEqual(expect.arrayContaining(['goldapi', 'metals-api']));
-      expect(err.providersTried).toHaveLength(2);
+      expect(err.providersTried).toEqual(expect.arrayContaining(['goldapi', 'metals-api', 'goldprice-org']));
+      expect(err.providersTried).toHaveLength(3);
       expect(err.metal).toBe('XAU');
       expect(err.currency).toBe('USD');
       expect(err.lastStatus).toBeDefined();

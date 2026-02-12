@@ -170,15 +170,52 @@ function parseDescription(text) {
     result.grade = 'Proof';
   }
 
-  // Series heuristics (common U.S. series keywords)
+  // Weight: extract "1/2 oz", "1/4 oz", "1/10 oz", "1.5 oz", "5 oz", "10 oz", etc.
+  const weightMatch = t.match(/\b(\d+(?:\.\d+)?(?:\/\d+)?)\s*(?:troy\s*)?oz\b/i);
+  if (weightMatch) {
+    const raw = weightMatch[1];
+    if (raw.includes('/')) {
+      const [num, den] = raw.split('/');
+      result.weight = parseFloat(num) / parseFloat(den);
+    } else {
+      result.weight = parseFloat(raw);
+    }
+    result.weightRaw = weightMatch[0];
+  }
+
+  // Series heuristics — order matters: longer / more-specific phrases first
   const seriesKeywords = [
-    'morgan', 'peace', 'walking liberty', 'seated liberty',
-    'standing liberty', 'barber', 'mercury', 'roosevelt',
+    // World bullion — multi-word first
+    'canadian silver maple leaf', 'canadian gold maple leaf',
+    'silver maple leaf', 'gold maple leaf',
+    'canadian silver maple', 'canadian gold maple',
+    'silver maple', 'gold maple', 'maple leaf', 'maple',
+    'mexican silver libertad', 'mexican gold libertad',
+    'silver libertad', 'gold libertad', 'libertad',
+    'austrian silver philharmonic', 'austrian gold philharmonic',
+    'silver philharmonic', 'gold philharmonic', 'philharmonic',
+    'british silver britannia', 'british gold britannia',
+    'lunar britannia', 'britannia lunar', 'perth lunar', 'australian lunar',
+    'silver britannia', 'gold britannia', 'britannia',
+    'chinese silver panda', 'chinese gold panda',
+    'silver panda', 'gold panda', 'panda',
+    'silver kookaburra', 'kookaburra',
+    'gold kangaroo', 'kangaroo', 'nugget',
+    'silver krugerrand', 'gold krugerrand', 'krugerrand',
+    // US bullion & classic
+    'american silver eagle', 'american gold eagle',
+    'silver eagle', 'gold eagle',
+    'walking liberty', 'standing liberty',
+    'seated liberty', 'indian head', 'saint gaudens', 'st gaudens',
+    'liberty nickel', 'flowing hair', 'capped bust', 'draped bust',
+    'trade dollar',
+    'morgan', 'peace', 'barber', 'mercury', 'roosevelt',
     'washington', 'lincoln', 'jefferson', 'buffalo',
-    'indian head', 'saint gaudens', 'eisenhower', 'ike',
-    'kennedy', 'franklin', 'trade dollar', 'draped bust',
-    'flowing hair', 'capped bust', 'shield', 'liberty nickel',
-    'american silver eagle', 'ase', 'sae'
+    'eisenhower', 'ike', 'kennedy', 'franklin',
+    'shield', 'ase', 'sae',
+    // Denomination fallbacks (last resort)
+    'wheat penny', 'wheat cent', 'steel penny', 'steel cent',
+    'penny', 'cent',
   ];
   for (const kw of seriesKeywords) {
     if (t.toLowerCase().includes(kw)) {
@@ -194,42 +231,71 @@ function parseDescription(text) {
 function _mapResponse(data) {
   if (!data) return _empty('Empty PCGS response');
 
+  // Extract TrueView image from Images array if direct URL not present
+  let trueView = data.TrueViewURL || data.TrueViewUrl || null;
+  if (!trueView && data.HasTrueViewImage && Array.isArray(data.Images) && data.Images.length) {
+    trueView = data.Images[0].Fullsize || data.Images[0].Thumbnail || null;
+  }
+
   return {
     verified: true,
     pcgsCoinNumber: data.PCGSNo || data.pcgsNumber || null,
-    series: data.Series || data.Denomination || null,
+    series: data.SeriesName || data.Series || data.Denomination || data.Name || null,
     year: data.Year || null,
-    mint: data.MintMark || null,
+    mint: data.MintMark || data.MintLocation || null,
     grade: data.Grade || null,
     designation: data.Designation || null,
     variety: data.Variety || data.MajorVariety || null,
     priceGuide: _mapPriceGuide(data),
     population: {
-      thisGrade: data.PopulationThisGrade ?? data.PopsThisGrade ?? null,
-      higher: data.PopulationHigher ?? data.PopsHigher ?? null
+      thisGrade: data.Population ?? data.PopulationThisGrade ?? data.PopsThisGrade ?? null,
+      higher: data.PopHigher ?? data.PopulationHigher ?? data.PopsHigher ?? null
     },
     auction: _mapAuction(data),
-    trueViewUrl: data.TrueViewURL || data.TrueViewUrl || null,
+    trueViewUrl: trueView,
+    mintage: data.Mintage || null,
+    metalContent: data.MetalContent || null,
+    country: data.Country || null,
     limitations: []
   };
 }
 
 function _mapPriceGuide(data) {
   const guide = data.PriceGuide || data.priceGuide || {};
+  // PriceGuideValue is top-level in the actual PCGS API response
+  const value = data.PriceGuideValue ?? guide.Value ?? guide.PriceGuideValue ?? null;
   return {
     grade: data.Grade || null,
-    valueUsd: guide.Value ?? guide.PriceGuideValue ?? null,
+    valueUsd: (value && value > 0) ? value : null,
     adjacent: guide.AdjacentGrades || []
   };
 }
 
 function _mapAuction(data) {
-  const auc = data.AuctionData || data.auctionResults || null;
-  if (!auc) return { count: 0, medianUsd: null, highUsd: null };
+  // PCGS API uses AuctionList (array) not AuctionData
+  const list = data.AuctionList || data.AuctionData || data.auctionResults || null;
+  if (!list) return { count: 0, medianUsd: null, highUsd: null };
+
+  // If it's an array of auction records, compute stats
+  if (Array.isArray(list)) {
+    if (!list.length) return { count: 0, medianUsd: null, highUsd: null };
+    const prices = list.map(a => a.Price ?? a.SalePrice).filter(p => p != null && p > 0);
+    if (!prices.length) return { count: list.length, medianUsd: null, highUsd: null };
+    prices.sort((a, b) => a - b);
+    const mid = Math.floor(prices.length / 2);
+    const median = prices.length % 2 ? prices[mid] : (prices[mid - 1] + prices[mid]) / 2;
+    return {
+      count: prices.length,
+      medianUsd: +median.toFixed(2),
+      highUsd: prices[prices.length - 1]
+    };
+  }
+
+  // Object format
   return {
-    count: auc.TotalSales ?? auc.Count ?? 0,
-    medianUsd: auc.MedianPrice ?? auc.Median ?? null,
-    highUsd: auc.HighPrice ?? auc.High ?? null
+    count: list.TotalSales ?? list.Count ?? 0,
+    medianUsd: list.MedianPrice ?? list.Median ?? null,
+    highUsd: list.HighPrice ?? list.High ?? null
   };
 }
 
