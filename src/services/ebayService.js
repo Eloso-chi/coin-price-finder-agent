@@ -233,6 +233,9 @@ function normalizeItem(item) {
 
 // ── Match scoring ───────────────────────────────────────────
 function scoreMatch(comp, expected) {
+  // Delegate to bar-specific scorer when appropriate
+  if (expected.type === 'bar') return scoreBarMatch(comp, expected);
+
   let score = 50; // baseline
   const notes = [];
   const tLow = (comp.title || '').toLowerCase();
@@ -262,10 +265,86 @@ function scoreMatch(comp, expected) {
   // PCGS slab bonus
   if (/\bpcgs\b/i.test(tLow)) { score += 5; notes.push('pcgs-slab'); }
 
+  // Lunar series: zodiac animal match (5 pts)
+  if (expected.zodiacAnimal && tLow.includes(expected.zodiacAnimal.toLowerCase())) {
+    score += 5; notes.push('animal-match');
+  }
+
+  // Lunar series: "lunar" keyword (3 pts)
+  if (expected.isLunarCoin && /\blunar\b/i.test(tLow)) {
+    score += 3; notes.push('lunar-match');
+  }
+
   comp.matchScore = Math.min(100, score);
   comp.matchNotes = notes;
 
   // Assign human-readable quality label
+  if (score >= 85) comp.matchQuality = 'exact';
+  else if (score >= 65) comp.matchQuality = 'close';
+  else comp.matchQuality = 'loose';
+
+  return comp;
+}
+
+/**
+ * Bar-specific match scoring.
+ * Awards points for brand, size, metal, "bar" keyword, and condition.
+ */
+function scoreBarMatch(comp, expected) {
+  let score = 50; // baseline
+  const notes = [];
+  const tLow = (comp.title || '').toLowerCase();
+  const tNorm = tLow.replace(/\s+/g, '');
+
+  // Brand match (20 pts)
+  if (expected.brand) {
+    const brandLow = expected.brand.toLowerCase();
+    if (tLow.includes(brandLow)) { score += 20; notes.push('brand-match'); }
+  }
+
+  // Size match (15 pts) — normalize e.g. "1 oz" → "1oz"
+  if (expected.barSize) {
+    const sizeNorm = expected.barSize.toLowerCase().replace(/\s+/g, '');
+    if (tNorm.includes(sizeNorm)) { score += 15; notes.push('size-match'); }
+  }
+
+  // Metal match (10 pts)
+  if (expected.metal) {
+    if (tLow.includes(expected.metal.toLowerCase())) { score += 10; notes.push('metal-match'); }
+  }
+
+  // "bar" keyword (5 pts)
+  if (/\bbar\b/i.test(tLow)) { score += 5; notes.push('bar-keyword'); }
+
+  // Condition indicator — sealed / assay (5 pts)
+  if (expected.condition === 'sealed') {
+    if (/sealed|assay/i.test(tLow)) { score += 5; notes.push('sealed-match'); }
+  }
+
+  // Year match (5 pts)
+  if (expected.barYear && tLow.includes(String(expected.barYear))) {
+    score += 5; notes.push('year-match');
+  }
+
+  // Lunar series keyword (5 pts)
+  if (expected.isLunar) {
+    if (/\blunar\b/i.test(tLow)) { score += 5; notes.push('lunar-match'); }
+  }
+
+  // Zodiac animal match (5 pts) — Lunar series
+  if (expected.zodiacAnimal && tLow.includes(expected.zodiacAnimal.toLowerCase())) {
+    score += 5; notes.push('animal-match');
+  }
+
+  // Perth Lunar series number match (5 pts)
+  if (expected.perthSeriesNum) {
+    const snRe = new RegExp('series\\s*' + expected.perthSeriesNum + '\\b', 'i');
+    if (snRe.test(tLow)) { score += 5; notes.push('series-num-match'); }
+  }
+
+  comp.matchScore = Math.min(100, score);
+  comp.matchNotes = notes;
+
   if (score >= 85) comp.matchQuality = 'exact';
   else if (score >= 65) comp.matchQuality = 'close';
   else comp.matchQuality = 'loose';

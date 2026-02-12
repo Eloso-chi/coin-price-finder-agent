@@ -15,10 +15,12 @@ app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ── Routes ──────────────────────────────────────────────────
-const priceRoute  = require('./src/routes/priceRoute');
-const metalsRoute = require('./src/routes/metalsRoute');
+const priceRoute    = require('./src/routes/priceRoute');
+const metalsRoute   = require('./src/routes/metalsRoute');
+const barPriceRoute = require('./src/routes/barPriceRoute');
 app.use('/api/price', priceRoute);
 app.use('/api/metals', metalsRoute);
+app.use('/api/bar-price', barPriceRoute);
 
 // Health check
 app.get('/api/health', (_req, res) => {

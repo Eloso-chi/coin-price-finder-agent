@@ -152,6 +152,82 @@ const KEY_DATES = [
   { series: 'american silver eagle', year: 2021, mint: '',  tier: 'semi-key', note: 'Type 1 / Type 2 transition year; both collected' },
 
   // ═══════════════════════════════════════════════════════════
+  // CANADIAN SILVER MAPLE LEAF (key / semi-key issues)
+  // ═══════════════════════════════════════════════════════════
+  { series: 'canadian silver maple leaf', year: 1988, mint: '', tier: 'semi-key', note: 'First year issue; collector premium' },
+  { series: 'canadian silver maple leaf', year: 1989, mint: '', tier: 'semi-key', note: 'Second year; low mintage (1.1M)' },
+  { series: 'canadian silver maple leaf', year: 1998, mint: '', tier: 'semi-key', note: '10th anniversary; Titanic privy mark variety' },
+  { series: 'canadian silver maple leaf', year: 2003, mint: '', tier: 'semi-key', note: 'Low mintage year (684K)' },
+  { series: 'canadian silver maple leaf', year: 2014, mint: '', tier: 'semi-key', note: 'First year with micro-engraved security mark' },
+
+  // ═══════════════════════════════════════════════════════════
+  // SOUTH AFRICAN KRUGERRAND — SILVER (key issues)
+  // ═══════════════════════════════════════════════════════════
+  { series: 'silver krugerrand', year: 2017, mint: '', tier: 'semi-key', note: 'First year silver Krugerrand; 50th anniversary; 1M mintage' },
+  { series: 'silver krugerrand', year: 2018, mint: '', tier: 'semi-key', note: 'Second year; lower mintage (500K)' },
+
+  // ═══════════════════════════════════════════════════════════
+  // MEXICAN SILVER LIBERTAD (key / semi-key issues)
+  // ═══════════════════════════════════════════════════════════
+  { series: 'mexican silver libertad', year: 1982, mint: '', tier: 'semi-key', note: 'First year issue' },
+  { series: 'mexican silver libertad', year: 1996, mint: '', tier: 'semi-key', note: 'New design (Winged Victory); first year redesign' },
+  { series: 'mexican silver libertad', year: 1998, mint: '', tier: 'semi-key', note: 'Low mintage year' },
+  { series: 'mexican silver libertad', year: 2019, mint: '', tier: 'semi-key', note: 'Reverse proof variety; very limited' },
+  { series: 'mexican silver libertad', year: 2020, mint: '', tier: 'semi-key', note: 'Low mintage (450K); pandemic year' },
+  { series: 'mexican silver libertad', year: 2023, mint: '', tier: 'semi-key', note: 'Lowest mintage year (350K)' },
+
+  // ═══════════════════════════════════════════════════════════
+  // AUSTRIAN SILVER PHILHARMONIC (key issues)
+  // ═══════════════════════════════════════════════════════════
+  { series: 'austrian silver philharmonic', year: 2008, mint: '', tier: 'semi-key', note: 'First year issue; collector premium' },
+  { series: 'austrian silver philharmonic', year: 2009, mint: '', tier: 'semi-key', note: 'Second year; still relatively low mintage (7.6M)' },
+
+  // ═══════════════════════════════════════════════════════════
+  // BRITISH SILVER BRITANNIA (key / semi-key issues)
+  // ═══════════════════════════════════════════════════════════
+  { series: 'british silver britannia', year: 1997, mint: '', tier: 'semi-key', note: 'First year issue; only 80K minted' },
+  { series: 'british silver britannia', year: 1998, mint: '', tier: 'semi-key', note: 'Second year; low mintage (88K)' },
+  { series: 'british silver britannia', year: 1999, mint: '', tier: 'semi-key', note: 'Low mintage (69,913)' },
+  { series: 'british silver britannia', year: 2001, mint: '', tier: 'semi-key', note: 'Lowest mintage year (44,816)' },
+  { series: 'british silver britannia', year: 2002, mint: '', tier: 'semi-key', note: 'Low mintage (49,816)' },
+  { series: 'british silver britannia', year: 2011, mint: '', tier: 'semi-key', note: 'Last year .958 Britannia silver (before .999 switch)' },
+  { series: 'british silver britannia', year: 2013, mint: '', tier: 'semi-key', note: 'First year .999 fine silver; snake privy mark' },
+
+  // ═══════════════════════════════════════════════════════════
+  // CHINESE SILVER PANDA (key / semi-key issues)
+  // ═══════════════════════════════════════════════════════════
+  { series: 'chinese silver panda', year: 1983, mint: '', tier: 'key',      note: 'First year silver Panda; only 10K minted' },
+  { series: 'chinese silver panda', year: 1984, mint: '', tier: 'key',      note: 'Second year; only 10K minted' },
+  { series: 'chinese silver panda', year: 1985, mint: '', tier: 'key',      note: 'Only 10K minted' },
+  { series: 'chinese silver panda', year: 1986, mint: '', tier: 'key',      note: 'Only 10K minted' },
+  { series: 'chinese silver panda', year: 1987, mint: '', tier: 'key',      note: 'Only 10K minted; last of ultra-low mintage run' },
+  { series: 'chinese silver panda', year: 1995, mint: '', tier: 'semi-key', note: 'Low mintage (60K); micro-date variety is key' },
+  { series: 'chinese silver panda', year: 1996, mint: '', tier: 'semi-key', note: 'Low mintage (80K)' },
+  { series: 'chinese silver panda', year: 2000, mint: '', tier: 'semi-key', note: 'Millennium year; frosted ring variety' },
+  { series: 'chinese silver panda', year: 2016, mint: '', tier: 'semi-key', note: 'First year metric weight (30g instead of 1 oz)' },
+
+  // ═══════════════════════════════════════════════════════════
+  // AUSTRALIAN SILVER KOOKABURRA (key / semi-key issues)
+  // ═══════════════════════════════════════════════════════════
+  { series: 'australian silver kookaburra', year: 1990, mint: '', tier: 'semi-key', note: 'First year issue' },
+  { series: 'australian silver kookaburra', year: 1995, mint: '', tier: 'semi-key', note: 'Low mintage (107K)' },
+  { series: 'australian silver kookaburra', year: 2000, mint: '', tier: 'semi-key', note: 'Millennium year; low mintage (156K)' },
+  { series: 'australian silver kookaburra', year: 2001, mint: '', tier: 'semi-key', note: 'Low mintage (100K)' },
+  { series: 'australian silver kookaburra', year: 2003, mint: '', tier: 'semi-key', note: 'Low mintage (100K)' },
+
+  // ═══════════════════════════════════════════════════════════
+  // PERTH MINT AUSTRALIAN LUNAR — SILVER (key issues)
+  // Series I (1999–2010), Series II (2008–2019), Series III (2020–present)
+  // ═══════════════════════════════════════════════════════════
+  { series: 'australian lunar silver', year: 2020, mint: '', tier: 'semi-key', note: 'First year Series III; Year of the Mouse' },
+
+  // ═══════════════════════════════════════════════════════════
+  // BRITANNIA LUNAR — SILVER (Royal Mint, key issues)
+  // ═══════════════════════════════════════════════════════════
+  { series: 'britannia lunar silver', year: 2014, mint: '', tier: 'semi-key', note: 'First year issue; Year of the Horse; 88,880 mintage' },
+  { series: 'britannia lunar silver', year: 2024, mint: '', tier: 'semi-key', note: 'Year of the Dragon; popular design; high mintage' },
+
+  // ═══════════════════════════════════════════════════════════
   // GOLD — ST. GAUDENS DOUBLE EAGLES
   // ═══════════════════════════════════════════════════════════
   { series: 'st. gaudens',          year: 1907, mint: '',  tier: 'semi-key', note: 'High relief variety (11,250 minted) is major key' },

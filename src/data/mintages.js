@@ -1521,9 +1521,34 @@ const MINTAGE_DATA = {
   },
 
   // ══════════════════════════════════════════════════════════════
-  // AUSTRALIAN LUNAR — SILVER (Perth Mint, Series III 2020–present)
+  // AUSTRALIAN LUNAR — SILVER (Perth Mint)
+  // Series I (1999–2010), Series II (2008–2019), Series III (2020–present)
   // ══════════════════════════════════════════════════════════════
   'australian lunar silver': {
+    // Series I (1999–2010) — .999 fine, limited mintage
+    '1999-P': 50000,  // Year of the Rabbit
+    '2000-P': 100000, // Year of the Dragon
+    '2001-P': 100000, // Year of the Snake
+    '2002-P': 100000, // Year of the Horse
+    '2003-P': 100000, // Year of the Goat
+    '2004-P': 100000, // Year of the Monkey
+    '2005-P': 100000, // Year of the Rooster
+    '2006-P': 100000, // Year of the Dog
+    '2007-P': 100000, // Year of the Pig
+    // Series II (2008–2019) — .999 fine
+    '2008-P': 300000, // Year of the Mouse
+    '2009-P': 300000, // Year of the Ox
+    '2010-P': 300000, // Year of the Tiger
+    '2011-P': 300000, // Year of the Rabbit
+    '2012-P': 300000, // Year of the Dragon
+    '2013-P': 300000, // Year of the Snake
+    '2014-P': 300000, // Year of the Horse
+    '2015-P': 300000, // Year of the Goat
+    '2016-P': 300000, // Year of the Monkey
+    '2017-P': 300000, // Year of the Rooster
+    '2018-P': 300000, // Year of the Dog
+    '2019-P': 300000, // Year of the Pig
+    // Series III (2020–present) — .9999 fine
     '2020-P': 300000, // Year of the Mouse
     '2021-P': 300000, // Year of the Ox
     '2022-P': 300000, // Year of the Tiger
@@ -1533,11 +1558,69 @@ const MINTAGE_DATA = {
   },
 
   // ══════════════════════════════════════════════════════════════
-  // AUSTRALIAN LUNAR — GOLD (Perth Mint, Series III 2020–present)
+  // AUSTRALIAN LUNAR — GOLD (Perth Mint)
+  // Series I (1996–2007), Series II (2008–2019), Series III (2020–present)
   // ══════════════════════════════════════════════════════════════
   'australian lunar gold': {
+    // Series I (1996–2007)
+    '1996-P': 17578,  // Year of the Mouse (Rat)
+    '1997-P': 10592,  // Year of the Ox
+    '1998-P': 15032,  // Year of the Tiger
+    '1999-P': 12481,  // Year of the Rabbit
+    '2000-P': 30155,  // Year of the Dragon
+    '2001-P': 11205,  // Year of the Snake
+    '2002-P': 10792,  // Year of the Horse
+    '2003-P': 12209,  // Year of the Goat
+    '2004-P': 17484,  // Year of the Monkey
+    '2005-P': 19660,  // Year of the Rooster
+    '2006-P': 23789,  // Year of the Dog
+    '2007-P': 30203,  // Year of the Pig
+    // Series II (2008–2019)
+    '2008-P': 30000,  // Year of the Mouse
+    '2009-P': 30000,  // Year of the Ox
+    '2010-P': 30000,  // Year of the Tiger
+    '2011-P': 30000,  // Year of the Rabbit
+    '2012-P': 30000,  // Year of the Dragon
+    '2013-P': 30000,  // Year of the Snake
+    '2014-P': 30000,  // Year of the Horse
+    '2015-P': 30000,  // Year of the Goat
+    '2016-P': 30000,  // Year of the Monkey
+    '2017-P': 30000,  // Year of the Rooster
+    '2018-P': 30000,  // Year of the Dog
+    '2019-P': 30000,  // Year of the Pig
+    // Series III (2020–present)
     '2020-P': 30000, '2021-P': 30000, '2022-P': 30000,
     '2023-P': 30000, '2024-P': 30000, '2025-P': 30000,
+  },
+
+  // ══════════════════════════════════════════════════════════════
+  // ROYAL AUSTRALIAN MINT LUNAR — SILVER (2017–present, 1 oz)
+  // ══════════════════════════════════════════════════════════════
+  'royal australian mint lunar silver': {
+    '2017-P': 50000,  // Year of the Rooster
+    '2018-P': 50000,  // Year of the Dog
+    '2019-P': 50000,  // Year of the Pig
+    '2020-P': 50000,  // Year of the Rat
+    '2021-P': 50000,  // Year of the Ox
+    '2022-P': 50000,  // Year of the Tiger
+    '2023-P': 50000,  // Year of the Rabbit
+    '2024-P': 80000,  // Year of the Dragon
+    '2025-P': 80000,  // Year of the Snake
+  },
+
+  // ══════════════════════════════════════════════════════════════
+  // ROYAL AUSTRALIAN MINT LUNAR — GOLD (2017–present, 1 oz)
+  // ══════════════════════════════════════════════════════════════
+  'royal australian mint lunar gold': {
+    '2017-P': 5000,   // Year of the Rooster
+    '2018-P': 5000,   // Year of the Dog
+    '2019-P': 5000,   // Year of the Pig
+    '2020-P': 5000,   // Year of the Rat
+    '2021-P': 5000,   // Year of the Ox
+    '2022-P': 5000,   // Year of the Tiger
+    '2023-P': 5000,   // Year of the Rabbit
+    '2024-P': 7500,   // Year of the Dragon
+    '2025-P': 7500,   // Year of the Snake
   },
 
   // ══════════════════════════════════════════════════════════════
@@ -1716,6 +1799,39 @@ const MINTAGE_DATA = {
     '1833-P': 485000, '1834-P': 635000, '1835-P': 1410000,
     '1836-P': 1190000, '1837-P': 359500,
   },
+
+  // ══════════════════════════════════════════════════════════════
+  // AMERICAN PLATINUM EAGLE — 1 oz (1997–present)
+  // ══════════════════════════════════════════════════════════════
+  'american platinum eagle': {
+    '1997-W': 70250, '1998-W': 133002, '1999-W': 56707, '2000-W': 10003,
+    '2001-W': 14070, '2002-W': 11502, '2003-W': 8007, '2004-W': 7009,
+    '2005-W': 6310, '2006-W': 6000, '2007-W': 8000, '2008-W': 21800,
+    '2014-W': 4596, '2015-W': 4407, '2016-W': 17040, '2017-W': 10000,
+    '2018-W': 15000, '2019-W': 12000, '2020-W': 10000, '2021-W': 12000,
+    '2022-W': 15000, '2023-W': 14000, '2024-W': 12000,
+  },
+
+  // ── AMERICAN PLATINUM EAGLE — 1/2 oz ──
+  'american platinum eagle 1/2 oz': {
+    '1997-W': 25000, '1998-W': 33002, '1999-W': 32309, '2000-W': 18892,
+    '2001-W': 12815, '2002-W': 24005, '2003-W': 7044, '2004-W': 7009,
+    '2005-W': 5942, '2006-W': 4602, '2007-W': 6000, '2008-W': 14000,
+  },
+
+  // ── AMERICAN PLATINUM EAGLE — 1/4 oz ──
+  'american platinum eagle 1/4 oz': {
+    '1997-W': 27100, '1998-W': 38887, '1999-W': 39734, '2000-W': 20054,
+    '2001-W': 21815, '2002-W': 27405, '2003-W': 7044, '2004-W': 7009,
+    '2005-W': 7009, '2006-W': 5404, '2007-W': 8000, '2008-W': 22800,
+  },
+
+  // ── AMERICAN PLATINUM EAGLE — 1/10 oz ──
+  'american platinum eagle 1/10 oz': {
+    '1997-W': 70250, '1998-W': 39525, '1999-W': 55955, '2000-W': 34027,
+    '2001-W': 52017, '2002-W': 23005, '2003-W': 22007, '2004-W': 15010,
+    '2005-W': 14013, '2006-W': 11001, '2007-W': 13000, '2008-W': 17000,
+  },
 };
 
 // ── Series name normalization ─────────────────────────────────
@@ -1876,9 +1992,21 @@ const SERIES_ALIASES = {
   'australian lunar silver': 'australian lunar silver',
   'australian lunar gold': 'australian lunar gold',
   'perth lunar':         'australian lunar silver',
+  'perth lunar silver':  'australian lunar silver',
+  'perth lunar gold':    'australian lunar gold',
+  'perth mint lunar':    'australian lunar silver',
+  'perth mint lunar silver': 'australian lunar silver',
+  'perth mint lunar gold':   'australian lunar gold',
   'australian lunar':    'australian lunar silver',
   'lunar silver':        'australian lunar silver',
   'lunar gold':          'australian lunar gold',
+  // Royal Australian Mint Lunar
+  'royal australian mint lunar': 'royal australian mint lunar silver',
+  'royal australian mint lunar silver': 'royal australian mint lunar silver',
+  'royal australian mint lunar gold': 'royal australian mint lunar gold',
+  'ram lunar':           'royal australian mint lunar silver',
+  'ram lunar silver':    'royal australian mint lunar silver',
+  'ram lunar gold':      'royal australian mint lunar gold',
   // US Proof Sets & Mint Sets
   'us proof set':               'us proof set clad',
   'us clad proof set':          'us proof set clad',
@@ -1937,6 +2065,15 @@ const SERIES_ALIASES = {
   'indian cent':                'indian head cent',
   'indian penny':               'indian head cent',
   'indian head penny':          'indian head cent',
+  // American Platinum Eagle
+  'platinum eagle':             'american platinum eagle',
+  'american platinum eagle':    'american platinum eagle',
+  'ape':                        'american platinum eagle',
+  'american platinum eagle 1/2 oz':  'american platinum eagle 1/2 oz',
+  'american platinum eagle 1/4 oz':  'american platinum eagle 1/4 oz',
+  'american platinum eagle 1/10 oz': 'american platinum eagle 1/10 oz',
+  // South African Krugerrand (datalist name)
+  'south african krugerrand':   'krugerrand',
 };
 
 /**

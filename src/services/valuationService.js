@@ -75,6 +75,7 @@ function computeValuation(pcgs, ebay, askingPrice = null) {
   fmv = +fmv.toFixed(2);
 
   // ── Confidence ──
+  const isBar = !!(pcgs?._isBar);
   const confidence = computeConfidence({
     verified: isCertified,
     usCompCount: usPrices.length,
@@ -83,7 +84,8 @@ function computeValuation(pcgs, ebay, askingPrice = null) {
     avgMatchScore: usComps.length ? usComps.reduce((s, c) => s + (c.matchScore || 50), 0) / usComps.length : 50,
     usedFallback,
     hasPcgsGuide: pcgsGuide != null,
-    hasAuction: auctionMedian != null
+    hasAuction: auctionMedian != null,
+    isBar
   });
   explanation.push(`Confidence ${confidence}/100.`);
 
@@ -194,25 +196,46 @@ function computeWeightedMedian(comps) {
 
 /**
  * Confidence 0–100.
+ * When isBar is true, PCGS-related factors are redistributed to
+ * sample size, dispersion, and match quality — things that matter for
+ * commodity bullion.
  */
-function computeConfidence({ verified, usCompCount, glCompCount, dispersion, avgMatchScore, usedFallback, hasPcgsGuide, hasAuction }) {
+function computeConfidence({ verified, usCompCount, glCompCount, dispersion, avgMatchScore, usedFallback, hasPcgsGuide, hasAuction, isBar }) {
   let c = 0;
-  // Sample size (up to 30 pts)
-  c += Math.min(usCompCount / 15, 1) * 30;
-  // Low dispersion (up to 20 pts)
-  c += Math.max(0, 1 - Math.min(dispersion, 1)) * 20;
-  // Match quality (up to 15 pts)
-  c += (avgMatchScore / 100) * 15;
-  // Verified by PCGS (10 pts)
-  if (verified) c += 10;
-  // PCGS guide available (10 pts)
-  if (hasPcgsGuide) c += 10;
-  // Auction data (5 pts)
-  if (hasAuction) c += 5;
-  // Global fallback penalty
-  if (usedFallback) c -= 15;
-  // Low comps penalty
-  if (usCompCount < 5) c -= 10;
+
+  if (isBar) {
+    // ── Bar scoring (no PCGS axis) ──────────────────────────
+    // Sample size (up to 35 pts) — commodity, sample is king
+    c += Math.min(usCompCount / 12, 1) * 35;
+    // Low dispersion (up to 25 pts) — bars should cluster
+    c += Math.max(0, 1 - Math.min(dispersion, 1)) * 25;
+    // Match quality (up to 25 pts)
+    c += (avgMatchScore / 100) * 25;
+    // Sufficient comps bonus (15 pts when ≥ 20)
+    if (usCompCount >= 20) c += 15;
+    // Fallback penalty (mild — bars are searchable)
+    if (usedFallback) c -= 5;
+    // Low comps penalty
+    if (usCompCount < 5) c -= 10;
+  } else {
+    // ── Coin scoring (original) ─────────────────────────────
+    // Sample size (up to 30 pts)
+    c += Math.min(usCompCount / 15, 1) * 30;
+    // Low dispersion (up to 20 pts)
+    c += Math.max(0, 1 - Math.min(dispersion, 1)) * 20;
+    // Match quality (up to 15 pts)
+    c += (avgMatchScore / 100) * 15;
+    // Verified by PCGS (10 pts)
+    if (verified) c += 10;
+    // PCGS guide available (10 pts)
+    if (hasPcgsGuide) c += 10;
+    // Auction data (5 pts)
+    if (hasAuction) c += 5;
+    // Global fallback penalty
+    if (usedFallback) c -= 15;
+    // Low comps penalty
+    if (usCompCount < 5) c -= 10;
+  }
 
   return Math.max(0, Math.min(100, Math.round(c)));
 }

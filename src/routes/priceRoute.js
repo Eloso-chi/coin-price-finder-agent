@@ -9,6 +9,7 @@ const ebayService = require('../services/ebayService');
 const { computeValuation } = require('../services/valuationService');
 const { lookupKeyDate } = require('../data/keyDates');
 const { lookupMintage } = require('../data/mintages');
+const { buildLunarComparison } = require('../data/lunarReference');
 
 router.post('/', async (req, res) => {
   try {
@@ -42,7 +43,32 @@ router.post('/', async (req, res) => {
 
     // ── 2. Build eBay keywords ──
     const resolvedWeight = coinData?.weight || bodyWeight || identification.parsed?.weight || null;
-    const ebayKeywords = ebayService.buildKeywords(pcgs, String(query), resolvedWeight);
+    let ebayKeywords = ebayService.buildKeywords(pcgs, String(query), resolvedWeight);
+
+    // ── 2b. Lunar series enrichment ──
+    // If this is a Lunar coin, append zodiac animal + Perth series number for precision
+    const ZODIAC = ['Rat','Ox','Tiger','Rabbit','Dragon','Snake','Horse','Goat','Monkey','Rooster','Dog','Pig'];
+    const coinName = (coinData?.name || pcgs.series || identification.parsed?.series || '').toLowerCase();
+    const coinYear = coinData?.year || pcgs.year || identification.parsed?.year;
+    const isLunarCoin = /\blunar\b/i.test(coinName);
+    let zodiacAnimal = null;
+    let perthSeriesLabel = null;
+
+    if (isLunarCoin && coinYear && coinYear >= 1996) {
+      zodiacAnimal = ZODIAC[((coinYear - 2020) % 12 + 12) % 12];
+      if (zodiacAnimal && !ebayKeywords.toLowerCase().includes(zodiacAnimal.toLowerCase())) {
+        ebayKeywords += ' ' + zodiacAnimal;
+      }
+      // Perth Mint series numbering
+      if (/perth/i.test(coinName)) {
+        if (coinYear >= 1996 && coinYear <= 2007) perthSeriesLabel = 'Series I';
+        else if (coinYear >= 2008 && coinYear <= 2019) perthSeriesLabel = 'Series II';
+        else if (coinYear >= 2020 && coinYear <= 2031) perthSeriesLabel = 'Series III';
+        if (perthSeriesLabel && !ebayKeywords.toLowerCase().includes('series')) {
+          ebayKeywords += ' ' + perthSeriesLabel;
+        }
+      }
+    }
 
     // ── 3. Fetch eBay comps (US + Global) ──
     const expected = {
@@ -50,7 +76,10 @@ router.post('/', async (req, res) => {
       mint: pcgs.mint || identification.parsed?.mint,
       series: pcgs.series || identification.parsed?.series,
       grade: pcgs.grade || identification.parsed?.grade,
-      designation: pcgs.designation || identification.parsed?.designation
+      designation: pcgs.designation || identification.parsed?.designation,
+      zodiacAnimal: zodiacAnimal,
+      isLunarCoin: isLunarCoin,
+      perthSeriesLabel: perthSeriesLabel
     };
     const ebay = await ebayService.fetchSoldComps(ebayKeywords, opts, expected);
 
@@ -140,7 +169,8 @@ router.post('/', async (req, res) => {
       },
       valuation,
       decisions,
-      reproducibility
+      reproducibility,
+      lunarComparison: isLunarCoin ? buildLunarComparison(coinYear, coinName + ' ' + String(query)) : null
     });
   } catch (err) {
     console.error('[/api/price] Unhandled error:', err.message);

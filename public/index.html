@@ -180,14 +180,40 @@
     }
 
     /* ── FMV Hero ────────────────────────────────────────── */
-    .fmv-hero { text-align: center; padding: 32px 24px; }
+    .fmv-hero { padding: 28px 24px; text-align:center; }
+    .fmv-row { display:flex; align-items:center; gap:24px; text-align:left; }
+    .fmv-row .fmv-left { flex:1; min-width:0; }
+    .fmv-hero .coin-id { font-size:1.15rem; font-weight:700; color:var(--text-primary); margin-bottom:6px; line-height:1.3; word-wrap:break-word; }
+    .fmv-hero .fmv-left .confidence { font-size:0.88rem; margin-top:6px; }
+    .fmv-row .fmv-right { text-align:right; flex-shrink:0; }
     .fmv-hero .label { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-secondary); margin-bottom: 4px; }
     .fmv-hero .value {
       font-size: 2.8rem; font-weight: 800; color: var(--green);
       font-variant-numeric: tabular-nums;
     }
     .fmv-hero .range { font-size: 0.9rem; color: var(--text-secondary); margin-top: 6px; font-variant-numeric: tabular-nums; }
-    .fmv-hero .confidence { margin-top: 10px; font-size: 0.88rem; }
+    @media (max-width: 520px) { .fmv-row { flex-direction:column; text-align:center; } .fmv-row .fmv-right { text-align:center; } }
+
+    /* ── Lunar Comparison Panel ─────────────────────────── */
+    .lunar-panel { margin-top: 16px; }
+    .lunar-panel h3 { font-size: 1rem; font-weight: 700; margin: 0 0 12px; color: var(--text-primary); }
+    .lunar-panel .lunar-animal { color: var(--accent); }
+    .lunar-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    @media (max-width: 640px) { .lunar-grid { grid-template-columns: 1fr; } }
+    .lunar-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+    .lunar-card.premium-high   { border-left: 3px solid var(--green); }
+    .lunar-card.premium-medium { border-left: 3px solid var(--accent); }
+    .lunar-card.premium-low    { border-left: 3px solid var(--text-muted); }
+    .lunar-card.not-available  { opacity: 0.45; }
+    .lunar-card .lc-mint  { font-weight: 700; font-size: 0.95rem; margin-bottom: 6px; }
+    .lunar-card .lc-country { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 8px; }
+    .lunar-card .lc-row { display: flex; justify-content: space-between; font-size: 0.82rem; padding: 3px 0; }
+    .lunar-card .lc-row .lc-label { color: var(--text-secondary); }
+    .lunar-card .lc-row .lc-val { font-weight: 600; color: var(--text-primary); }
+    .lunar-card .lc-premium { display: inline-block; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; padding: 2px 8px; border-radius: 4px; margin-top: 8px; }
+    .lunar-card .lc-premium.high   { background: rgba(0,200,83,.15); color: var(--green); }
+    .lunar-card .lc-premium.medium { background: rgba(255,171,0,.15); color: var(--accent); }
+    .lunar-card .lc-premium.low    { background: rgba(150,150,150,.15); color: var(--text-muted); }
 
     /* ── Decision Grid ───────────────────────────────────── */
     .decision-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
@@ -279,6 +305,25 @@
     .melt-input-grid input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-subtle); }
 
     .melt-spot-status { font-size: 0.78rem; color: var(--yellow); margin-top: 2px; }
+
+    .melt-type-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .melt-type-row label { font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.04em; min-width: 80px; }
+    .melt-type-toggle { display: inline-flex; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); }
+    .melt-type-toggle button {
+      background: var(--surface); border: none; color: var(--text-muted); padding: 8px 20px;
+      font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all var(--transition);
+    }
+    .melt-type-toggle button[aria-pressed='true'] { background: var(--accent); color: #fff; }
+    .melt-type-toggle button:hover:not([aria-pressed='true']) { background: rgba(255,255,255,0.06); }
+
+    .melt-brand-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .melt-brand-row label { font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.04em; min-width: 80px; }
+    .melt-brand-row input {
+      flex: 1; min-width: 200px; background: var(--surface);
+      border: 1px solid var(--border); color: var(--text);
+      padding: 10px 12px; border-radius: var(--radius); font-size: 0.9rem;
+    }
+    .melt-brand-row input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-subtle); }
 
     #melt-results { margin-top: 16px; }
     .melt-info-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 0.88rem; flex-wrap: wrap; }
@@ -484,6 +529,37 @@
       display: flex; align-items: center; gap: 12px;
       margin-top: 6px; flex-wrap: wrap;
     }
+
+    /* ── Price Discovery Mode Toggle ─────────────────────── */
+    .pd-mode-bar {
+      display: flex; align-items: center; gap: 14px; margin-bottom: 16px;
+    }
+    .pd-mode-bar label { font-size: 0.82rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.04em; }
+    .pd-mode-toggle {
+      display: inline-flex; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border);
+    }
+    .pd-mode-toggle button {
+      background: var(--surface); border: none; color: var(--text-muted); padding: 8px 22px;
+      font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all var(--transition);
+    }
+    .pd-mode-toggle button[aria-pressed='true'] { background: var(--accent); color: #fff; }
+    .pd-mode-toggle button:hover:not([aria-pressed='true']) { background: rgba(255,255,255,0.06); }
+
+    /* ── Bar Form ─────────────────────────────────────────── */
+    .bar-form { display: flex; flex-direction: column; gap: 16px; }
+    .bar-form .field-grid-bar {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+    }
+    @media (max-width: 520px) { .bar-form .field-grid-bar { grid-template-columns: 1fr; } }
+    .bar-form .field label { font-size: 0.82rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 4px; display: block; }
+    .bar-form .field select,
+    .bar-form .field input {
+      width: 100%; background: var(--surface); border: 1px solid var(--border);
+      color: var(--text); padding: 10px 12px; border-radius: var(--radius); font-size: 0.9rem;
+    }
+    .bar-form .field select:focus,
+    .bar-form .field input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-subtle); }
+    .bar-form .hint { font-size: 0.72rem; color: var(--text-muted); margin-top: 3px; display: block; }
   </style>
 </head>
 <body>
@@ -504,6 +580,18 @@
   <!-- TAB 1 — Price Discovery                               -->
   <!-- ══════════════════════════════════════════════════════ -->
   <section id="panel-price" class="tab-panel" role="tabpanel" aria-labelledby="tab-price" aria-hidden="false">
+
+    <!-- Item type toggle: Coin vs Bar -->
+    <div class="pd-mode-bar">
+      <label>Pricing</label>
+      <div class="pd-mode-toggle" role="group" aria-label="Coin or Bar pricing">
+        <button type="button" id="pd-mode-coin" aria-pressed="true">Coin</button>
+        <button type="button" id="pd-mode-bar" aria-pressed="false">Bar / Bullion</button>
+      </div>
+    </div>
+
+    <!-- ════ COIN section (existing) ════ -->
+    <div id="pd-coin-section">
 
     <!-- Mode toggle -->
     <div class="form-mode-switch">
@@ -562,6 +650,27 @@
               <option value="US Proof Set"><option value="US Mint Set">
               <option value="US Silver Proof Set"><option value="US Prestige Proof Set">
               <option value="US Premier Silver Proof Set">
+              <option value="Perth Mint Lunar">
+              <option value="Royal Mint Lunar">
+              <option value="Royal Australian Mint Lunar">
+              <option value="Canadian Maple Leaf">
+              <option value="South African Krugerrand">
+              <option value="Silver Krugerrand">
+              <option value="British Gold Britannia">
+              <option value="British Silver Britannia">
+              <option value="Austrian Gold Philharmonic">
+              <option value="Austrian Silver Philharmonic">
+              <option value="Australian Gold Kangaroo">
+              <option value="Australian Silver Kookaburra">
+              <option value="Chinese Gold Panda">
+              <option value="Chinese Silver Panda">
+              <option value="Mexican Gold Libertad">
+              <option value="Mexican Silver Libertad">
+              <option value="American Platinum Eagle">
+              <option value="Australian Lunar Silver">
+              <option value="Australian Lunar Gold">
+              <option value="Britannia Lunar Silver">
+              <option value="Britannia Lunar Gold">
             </datalist>
             <div class="set-type-row" id="setTypeRow">
               <label for="setType">Set Type</label>
@@ -579,6 +688,7 @@
             <div class="field">
               <label for="coinYear">Year <span class="required" aria-hidden="true">*</span></label>
               <input id="coinYear" type="number" min="1792" max="2030" placeholder="e.g. 1921" required>
+              <span class="hint" id="coinZodiacHint" style="display:none"></span>
               <div class="field-error-msg">Enter a valid 4-digit year</div>
             </div>
             <div class="field">
@@ -676,6 +786,122 @@
       <div class="icon" aria-hidden="true">&#x1F50D;</div>
       <p>Fill in a coin's details above, or switch to <strong>Quick Search</strong> with a PCGS cert number, then tap <strong>Price It</strong>.</p>
     </div>
+
+    </div><!-- /pd-coin-section -->
+
+    <!-- ════ BAR section ════ -->
+    <div id="pd-bar-section" style="display:none">
+      <div class="coin-form bar-form">
+        <div class="fieldset">
+          <div class="fieldset-legend"><span class="fieldset-icon" aria-hidden="true">&#x1F9F1;</span> Bar Details</div>
+          <div class="field-grid-bar">
+            <div class="field">
+              <label for="barMetal">Metal <span class="required" aria-hidden="true">*</span></label>
+              <select id="barMetal">
+                <option value="gold">Gold</option>
+                <option value="silver">Silver</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="barSize">Size <span class="required" aria-hidden="true">*</span></label>
+              <select id="barSize">
+                <option value="1 gram">1 gram</option>
+                <option value="2.5 gram">2.5 gram</option>
+                <option value="5 gram">5 gram</option>
+                <option value="10 gram">10 gram</option>
+                <option value="20 gram">20 gram</option>
+                <option value="50 gram">50 gram</option>
+                <option value="100 gram">100 gram</option>
+                <option value="1 oz" selected>1 oz</option>
+                <option value="2 oz">2 oz</option>
+                <option value="5 oz">5 oz</option>
+                <option value="10 oz">10 oz</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="barBrand">Mint / Brand</label>
+              <input id="barBrand" type="text" list="bar-brand-list" placeholder="e.g. PAMP Suisse" autocomplete="off">
+              <datalist id="bar-brand-list">
+                <option value="PAMP Suisse">
+                <option value="Valcambi">
+                <option value="Credit Suisse">
+                <option value="Perth Mint">
+                <option value="Royal Mint">
+                <option value="Royal Australian Mint">
+                <option value="Royal Canadian Mint">
+                <option value="Johnson Matthey">
+                <option value="Engelhard">
+                <option value="Sunshine Minting">
+                <option value="Asahi Refining">
+                <option value="Republic Metals">
+                <option value="OPM Metals">
+                <option value="Scottsdale Mint">
+                <option value="Geiger Edelmetalle">
+                <option value="Argor-Heraeus">
+                <option value="Metalor">
+                <option value="Heraeus">
+                <option value="SilverTowne">
+                <option value="Generic">
+              </datalist>
+              <span class="hint">Leave blank for generic / all brands</span>
+            </div>
+            <div class="field">
+              <label for="barSeries">Series</label>
+              <select id="barSeries">
+                <option value="">None</option>
+                <option value="lunar">Lunar</option>
+              </select>
+              <span class="hint" id="barSeriesHint" style="display:none"></span>
+            </div>
+            <div class="field" id="barYearField">
+              <label for="barYear">Year</label>
+              <input id="barYear" type="number" min="1996" max="2035" placeholder="e.g. 2025">
+              <span class="hint" id="barZodiacHint" style="display:none"></span>
+            </div>
+            <div class="field">
+              <label for="barCondition">Condition</label>
+              <select id="barCondition">
+                <option value="">Any</option>
+                <option value="sealed">Sealed / In Assay</option>
+                <option value="loose">Loose / Secondary Market</option>
+              </select>
+              <span class="hint">Sealed bars often command a premium</span>
+            </div>
+          </div>
+        </div>
+        <div class="fieldset">
+          <div class="fieldset-legend"><span class="fieldset-icon" aria-hidden="true">&#x1F4B0;</span> Price</div>
+          <div class="field-grid-bar">
+            <div class="field">
+              <label for="barAskingPrice">Asking Price</label>
+              <input id="barAskingPrice" type="number" step="0.01" min="0" placeholder="$ amount being asked">
+              <span class="hint">Seller's asking price for buy/pass calc</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bar query preview -->
+        <div id="bar-query-preview" class="query-preview">
+          <span class="preview-label">Search</span>
+          <span class="preview-text" id="bar-preview-text">gold 1 oz bar</span>
+        </div>
+
+        <!-- Submit -->
+        <div class="submit-row">
+          <button id="bar-submit" class="btn" type="button">
+            <span>Price It</span>
+          </button>
+        </div>
+      </div>
+
+      <div id="bar-status" class="status-bar" role="status" aria-live="polite"></div>
+      <div id="bar-results" class="results"></div>
+
+      <div id="empty-bar" class="empty-state">
+        <div class="icon" aria-hidden="true">&#x1F9F1;</div>
+        <p>Select a metal, size, and optionally a brand above, then tap <strong>Price It</strong> to see eBay sold comps.</p>
+      </div>
+    </div><!-- /pd-bar-section -->
   </section>
 
   <!-- ══════════════════════════════════════════════════════ -->
@@ -685,16 +911,51 @@
     <div class="card">
       <h2>Melt Value Calculator</h2>
       <div class="melt-form">
-        <div class="melt-coin-row">
-          <label for="melt-coin">Coin</label>
-          <select id="melt-coin" aria-label="Select coin type"></select>
+        <div class="melt-type-row">
+          <label>Type</label>
+          <div class="melt-type-toggle" role="group" aria-label="Coin or Bar">
+            <button type="button" id="melt-type-coin" aria-pressed="true">Coin</button>
+            <button type="button" id="melt-type-gold-bar" aria-pressed="false">Gold Bar</button>
+            <button type="button" id="melt-type-silver-bar" aria-pressed="false">Silver Bar</button>
+          </div>
           <span id="melt-metal-badge" class="melt-badge" aria-live="polite"></span>
+        </div>
+        <div class="melt-coin-row">
+          <label for="melt-coin" id="melt-item-label">Coin</label>
+          <select id="melt-coin" aria-label="Select item type"></select>
+        </div>
+        <div class="melt-brand-row" id="melt-brand-row" style="display:none">
+          <label for="melt-brand">Mint / Brand</label>
+          <input id="melt-brand" type="text" list="melt-brand-list" placeholder="e.g. PAMP Suisse, Valcambi, Perth Mint...">
+          <datalist id="melt-brand-list">
+            <option value="PAMP Suisse">
+            <option value="Valcambi">
+            <option value="Credit Suisse">
+            <option value="Perth Mint">
+            <option value="Royal Canadian Mint">
+            <option value="Johnson Matthey">
+            <option value="Engelhard">
+            <option value="Sunshine Minting">
+            <option value="Asahi Refining">
+            <option value="Republic Metals">
+            <option value="OPM Metals">
+            <option value="Scottsdale Mint">
+            <option value="Geiger Edelmetalle">
+            <option value="Argor-Heraeus">
+            <option value="Metalor">
+            <option value="Heraeus">
+            <option value="Istanbul Gold Refinery">
+            <option value="Nadir Refining">
+            <option value="SilverTowne">
+            <option value="Elemetal">
+            <option value="Generic / Unbranded">
+          </datalist>
         </div>
         <div class="melt-input-grid">
           <div><label for="melt-spot">Spot ($/ozt)</label><input id="melt-spot" type="number" step="0.01" min="0" placeholder="loading..."></div>
-          <div><label for="melt-adj">Adjustment ($)</label><input id="melt-adj" type="number" step="0.01" value="0"></div>
+          <div><label for="melt-adj">Premium ($)</label><input id="melt-adj" type="number" step="0.01" value="0"></div>
           <div><label for="melt-qty">Quantity</label><input id="melt-qty" type="number" step="1" min="0" value="1"></div>
-          <div><label for="melt-roll">Coins / Roll</label><input id="melt-roll" type="number" step="1" min="1" value="20"></div>
+          <div id="melt-roll-wrap"><label for="melt-roll">Coins / Roll</label><input id="melt-roll" type="number" step="1" min="1" value="20"></div>
         </div>
         <div id="melt-spot-status" class="melt-spot-status" role="status" aria-live="polite"></div>
       </div>
@@ -744,6 +1005,25 @@
       panel.classList.toggle('open', !open);
     });
   })();
+
+  /* ─────────────────────────────────────────────────────────────
+   *  Lunar Series Helpers (shared by Coin + Bar forms)
+   * ───────────────────────────────────────────────────────────── */
+  const ZODIAC_ANIMALS = [
+    'Rat','Ox','Tiger','Rabbit','Dragon','Snake',
+    'Horse','Goat','Monkey','Rooster','Dog','Pig'
+  ];
+  function zodiacAnimal(year) {
+    if (!year || year < 1996) return null;
+    return ZODIAC_ANIMALS[((year - 2020) % 12 + 12) % 12];
+  }
+  function perthSeriesNum(year) {
+    if (!year) return null;
+    if (year >= 1996 && year <= 2007) return 'I';
+    if (year >= 2008 && year <= 2019) return 'II';
+    if (year >= 2020 && year <= 2031) return 'III';
+    return null;
+  }
 
   /* ═══════════════════════════════════════════════════════════
    *  COIN ENTRY FORM CONTROLLER
@@ -818,6 +1098,24 @@
         wrap.classList.add('empty');
         txt.textContent = 'Fill in coin details above';
       }
+      // Lunar zodiac hint on coin year field
+      const coinZH = document.getElementById('coinZodiacHint');
+      if (coinZH) {
+        const name = this.els.coinName.value.trim();
+        const yr = parseInt(this.els.coinYear.value, 10) || null;
+        if (/\blunar\b/i.test(name) && yr && yr >= 1996) {
+          const animal = zodiacAnimal(yr);
+          if (animal) {
+            let hint = '\uD83D\uDC09 Year of the ' + animal;
+            if (/perth/i.test(name)) {
+              const sn = perthSeriesNum(yr);
+              if (sn) hint += ' (Series ' + sn + ')';
+            }
+            coinZH.textContent = hint;
+            coinZH.style.display = '';
+          } else { coinZH.style.display = 'none'; }
+        } else { coinZH.style.display = 'none'; }
+      }
     },
 
     /* ── Set detection ────────────────────────────────────── */
@@ -871,6 +1169,18 @@
         if (name) parts.push(name);
         if (grade) parts.push(grade);
       }
+
+      // Lunar enrichment: append zodiac animal + Perth series number
+      const yearNum = parseInt(year, 10) || null;
+      if (/\blunar\b/i.test(name) && yearNum && yearNum >= 1996) {
+        const animal = zodiacAnimal(yearNum);
+        if (animal) parts.push(animal);
+        if (/perth/i.test(name)) {
+          const sn = perthSeriesNum(yearNum);
+          if (sn) parts.push('Series ' + sn);
+        }
+      }
+
       return parts.join(' ');
     },
 
@@ -949,6 +1259,294 @@
 
   // Boot CoinForm
   CoinForm.init();
+
+  /* ═══════════════════════════════════════════════════════════
+   *  PRICE DISCOVERY — Coin / Bar mode toggle
+   * ═══════════════════════════════════════════════════════════ */
+  (function initPDModeToggle() {
+    const btnCoin = document.getElementById('pd-mode-coin');
+    const btnBar  = document.getElementById('pd-mode-bar');
+    const coinSec = document.getElementById('pd-coin-section');
+    const barSec  = document.getElementById('pd-bar-section');
+
+    function setMode(mode) {
+      const isCoin = mode === 'coin';
+      btnCoin.setAttribute('aria-pressed', isCoin);
+      btnBar.setAttribute('aria-pressed',  !isCoin);
+      coinSec.style.display = isCoin ? '' : 'none';
+      barSec.style.display  = isCoin ? 'none' : '';
+    }
+    btnCoin.addEventListener('click', () => setMode('coin'));
+    btnBar.addEventListener('click',  () => setMode('bar'));
+  })();
+
+  /* ═══════════════════════════════════════════════════════════
+   *  BAR FORM CONTROLLER
+   * ═══════════════════════════════════════════════════════════ */
+  const BarForm = {
+    els: {},
+
+    init() {
+      this.els = {
+        metal:       document.getElementById('barMetal'),
+        size:        document.getElementById('barSize'),
+        brand:       document.getElementById('barBrand'),
+        series:      document.getElementById('barSeries'),
+        seriesHint:  document.getElementById('barSeriesHint'),
+        year:        document.getElementById('barYear'),
+        zodiacHint:  document.getElementById('barZodiacHint'),
+        condition:   document.getElementById('barCondition'),
+        asking:      document.getElementById('barAskingPrice'),
+        preview:     document.getElementById('bar-preview-text'),
+        submit:      document.getElementById('bar-submit'),
+        status:      document.getElementById('bar-status'),
+        results:     document.getElementById('bar-results'),
+        empty:       document.getElementById('empty-bar'),
+      };
+      this._bindPreview();
+      this._bindSubmit();
+    },
+
+    _isLunar() {
+      return this.els.series.value === 'lunar';
+    },
+
+    _isPerth() {
+      return /perth/i.test(this.els.brand.value);
+    },
+
+    _buildQuery() {
+      const brand  = this.els.brand.value.trim();
+      const size   = this.els.size.value;
+      const metal  = this.els.metal.value;
+      const year   = parseInt(this.els.year.value) || null;
+      const lunar  = this._isLunar();
+      const parts  = [];
+      if (year) parts.push(String(year));
+      if (brand) parts.push(brand);
+      parts.push(size, metal, 'bar');
+      // Lunar: inject "Lunar" keyword + Perth series number + zodiac animal
+      if (lunar) {
+        if (this._isPerth() && year) {
+          const sn = perthSeriesNum(year);
+          if (sn) parts.push('Lunar Series ' + sn);
+          else parts.push('Lunar');
+        } else {
+          parts.push('Lunar');
+        }
+        if (year) {
+          const animal = zodiacAnimal(year);
+          if (animal) parts.push(animal);
+        }
+      }
+      return parts.join(' ');
+    },
+
+    _bindPreview() {
+      ['metal','size','brand','series','condition','year'].forEach(k => {
+        if (!this.els[k]) return;
+        this.els[k].addEventListener('input',  () => this._updatePreview());
+        this.els[k].addEventListener('change', () => this._updatePreview());
+      });
+      this._updatePreview();
+    },
+
+    _updatePreview() {
+      const q = this._buildQuery();
+      const cond = this.els.condition.value;
+      this.els.preview.textContent = q + (cond === 'sealed' ? ' (sealed/assay)' : cond === 'loose' ? ' (secondary)' : '');
+      // Show zodiac hint when Lunar + year entered
+      const year = parseInt(this.els.year.value) || null;
+      if (this._isLunar() && year) {
+        const animal = zodiacAnimal(year);
+        this.els.zodiacHint.textContent = animal ? ('\uD83D\uDC09 Year of the ' + animal) : '';
+        this.els.zodiacHint.style.display = animal ? '' : 'none';
+      } else {
+        this.els.zodiacHint.style.display = 'none';
+      }
+      // Series hint (Perth series number)
+      if (this._isLunar() && this._isPerth() && year) {
+        const sn = perthSeriesNum(year);
+        this.els.seriesHint.textContent = sn ? ('Perth Mint Lunar Series ' + sn + ' (' + (sn === 'I' ? '1996\u20132007' : sn === 'II' ? '2008\u20132019' : '2020\u20132031') + ')') : '';
+        this.els.seriesHint.style.display = sn ? '' : 'none';
+      } else {
+        this.els.seriesHint.style.display = 'none';
+      }
+    },
+
+    _bindSubmit() {
+      this.els.submit.addEventListener('click', () => this._submit());
+      // Enter key in brand or asking price
+      ['barBrand','barAskingPrice'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('keydown', e => { if (e.key === 'Enter') this._submit(); });
+      });
+    },
+
+    async _submit() {
+      const status  = this.els.status;
+      const results = this.els.results;
+      const empty   = this.els.empty;
+      const btn     = this.els.submit;
+
+      btn.disabled = true;
+      status.className = 'status-bar loading';
+      status.innerHTML = '<div class="spinner"></div> Searching eBay for bar comps\u2026';
+      results.innerHTML = '';
+      empty.style.display = 'none';
+
+      const body = {
+        metal:      this.els.metal.value,
+        size:       this.els.size.value,
+        brand:      this.els.brand.value.trim() || null,
+        series:     this.els.series.value || null,
+        year:       parseInt(this.els.year.value) || null,
+        condition:  this.els.condition.value || null,
+        askingPrice: parseFloat(this.els.asking.value) || null,
+        options: {
+          timeWindowDays: 90,
+          usMinComps: 8,
+          maxPages: 3
+        }
+      };
+
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 45000);
+        const resp = await fetch('/api/bar-price', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || data.message || 'Request failed');
+        status.className = 'status-bar';
+        status.innerHTML = '';
+        this._renderBarResults(data, results);
+      } catch (err) {
+        status.className = 'status-bar error';
+        if (err.name === 'AbortError') {
+          status.textContent = 'Request timed out \u2014 eBay APIs may be slow. Try again.';
+        } else if (err.message === 'Failed to fetch') {
+          status.textContent = 'Network error \u2014 could not reach the server. Is it running?';
+        } else {
+          status.textContent = err.message;
+        }
+      } finally {
+        btn.disabled = false;
+      }
+    },
+
+    _renderBarResults(d, container) {
+      const v       = d.valuation || {};
+      const dec     = d.decisions || {};
+      const buy     = dec.buy || {};
+      const sell    = dec.sell || {};
+      const usStats = d.ebay?.us?.stats || {};
+      const glStats = d.ebay?.global?.stats || {};
+      const bar     = d.bar || {};
+      let html = '';
+
+      // \u2500\u2500 Bar info header
+      const brandLabel = bar.brand || 'Generic';
+      html += '<div class="card" style="text-align:center;padding:18px">';
+      html += '<div style="font-size:0.8rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:4px">';
+      html += (bar.metal === 'gold' ? '\uD83E\uDD47' : '\uD83E\uDD48') + ' ' + (bar.metal || '').toUpperCase() + ' BAR</div>';
+      html += '<div style="font-size:1.4rem;font-weight:800;color:var(--text)">' + brandLabel + ' ' + bar.size + '</div>';
+      html += '<div style="font-size:0.8rem;color:var(--text-muted);margin-top:4px">' + (bar.pureOzt || 0).toFixed(5) + ' troy oz pure</div>';
+      html += '</div>';
+
+      // \u2500\u2500 FMV Hero
+      html += '<div class="card fmv-hero">';
+      html += '<div class="label">Fair Market Value</div>';
+      html += '<div class="value">' + $(v.fmvCore) + '</div>';
+      html += '<div class="range">Range: ' + $(v.rangeLow) + ' \u2013 ' + $(v.rangeHigh) + '</div>';
+      html += '<div class="confidence">Confidence: ' + confTag(v.confidence) + '</div>';
+      const usCompsAll = d.ebay?.us?.comps || [];
+      const exactCount = usCompsAll.filter(c => c.matchQuality === 'exact').length;
+      const closeCount = usCompsAll.filter(c => c.matchQuality === 'close').length;
+      html += '<div class="fmv-meta">';
+      if (usCompsAll.length) html += '<span class="fmv-chip" title="eBay sold comps">\uD83D\uDCE6 Comps: ' + exactCount + ' exact \u00B7 ' + closeCount + ' close \u00B7 ' + usCompsAll.length + ' total</span>';
+      html += '</div>';
+      html += '</div>';
+
+      // \u2500\u2500 Decisions
+      html += '<div class="decision-grid">';
+      html += '<div class="card buy-card"><h2>Buy Decision</h2>';
+      if (buy.recommendation) {
+        html += '<div class="rec ' + buy.recommendation.toLowerCase() + '">' + buy.recommendation + '</div>';
+      }
+      html += '<table><tbody>';
+      html += '<tr><th>70% FMV</th><td>' + $(buy.max70) + '</td></tr>';
+      html += '<tr><th>75% FMV</th><td>' + $(buy.max75) + '</td></tr>';
+      html += '<tr><th>80% FMV</th><td>' + $(buy.max80) + '</td></tr>';
+      html += '<tr><th>Asking</th><td>'  + $(buy.askingPrice) + '</td></tr>';
+      html += '</tbody></table>';
+      if (buy.notes?.length) html += '<p class="card-notes">' + buy.notes.join(' ') + '</p>';
+      html += '</div>';
+
+      html += '<div class="card sell-card"><h2>Sell Decision</h2>';
+      html += '<table><tbody>';
+      html += '<tr><th>Fast</th><td>'        + $(sell.fast) + '</td></tr>';
+      html += '<tr><th>Normal</th><td>'      + $(sell.normal) + '</td></tr>';
+      html += '<tr><th>Premium</th><td>'     + $(sell.premium) + '</td></tr>';
+      html += '<tr><th>Offer Floor</th><td>' + $(sell.offerFloor) + '</td></tr>';
+      html += '</tbody></table>';
+      if (sell.notes?.length) html += '<p class="card-notes">' + sell.notes.join(' ') + '</p>';
+      html += '</div></div>';
+
+      // \u2500\u2500 eBay Stats
+      html += '<details class="card pcgs-details" open>';
+      html += '<summary>eBay Comps \u2014 "' + (d.ebay?.keywords || '') + '" ';
+      if (d.ebay?.usedFallback) html += '<span class="tag tag-yellow">fallback</span>';
+      html += '</summary>';
+      html += '<table><thead>';
+      html += '<tr><th></th><th>US</th><th>Global</th></tr>';
+      html += '</thead><tbody>';
+      html += '<tr><td>Count</td><td>'    + (usStats.count ?? '\u2014') + '</td><td>' + (glStats.count ?? '\u2014') + '</td></tr>';
+      html += '<tr><td>Median</td><td>'   + $(usStats.median) + '</td><td>' + $(glStats.median) + '</td></tr>';
+      html += '<tr><td>Mean</td><td>'     + $(usStats.mean)   + '</td><td>' + $(glStats.mean) + '</td></tr>';
+      html += '<tr><td>P25 / P75</td><td>' + $(usStats.p25) + ' / ' + $(usStats.p75) + '</td><td>' + $(glStats.p25) + ' / ' + $(glStats.p75) + '</td></tr>';
+      html += '<tr><td>Min / Max</td><td>' + $(usStats.min) + ' / ' + $(usStats.max) + '</td><td>' + $(glStats.min) + ' / ' + $(glStats.max) + '</td></tr>';
+      html += '</tbody></table></details>';
+
+      // \u2500\u2500 US Comp list
+      const usComps = d.ebay?.us?.comps || [];
+      if (usComps.length) {
+        html += '<details class="card pcgs-details" open>';
+        html += '<summary>US Comps (' + usComps.length + ')</summary>';
+        html += '<table><thead><tr><th>#</th><th>Title</th><th>Total</th><th>Match</th><th>Date</th></tr></thead><tbody>';
+        usComps.slice(0, 30).forEach(function(c, i) {
+          const mq = c.matchQuality || 'loose';
+          const mqTag = '<span class="match-tag match-' + mq + '">' + mq + '</span>';
+          html += '<tr><td>' + (i + 1) + '</td>';
+          html += '<td><a href="' + c.url + '" target="_blank" rel="noopener">' + (c.title || '').substring(0, 70) + '</a></td>';
+          html += '<td>' + $(c.totalUsd) + '</td>';
+          html += '<td>' + mqTag + '</td>';
+          html += '<td>' + (c.soldDate ? c.soldDate.substring(0, 10) : '\u2014') + '</td></tr>';
+        });
+        html += '</tbody></table></details>';
+      }
+
+      // \u2500\u2500 Reasoning
+      if (v.explanation?.length) {
+        html += '<div class="card"><h2>Valuation Reasoning</h2>';
+        html += '<ul class="reasoning-list">';
+        v.explanation.forEach(function(e) { html += '<li>' + e + '</li>'; });
+        html += '</ul></div>';
+      }
+
+      // \u2500\u2500 Raw JSON
+      html += '<details><summary>View raw JSON response</summary>';
+      html += '<pre class="json">' + JSON.stringify(d, null, 2) + '</pre></details>';
+
+      container.innerHTML = html;
+    }
+  };
+
+  BarForm.init();
 
   /* ═══════════════════════════════════════════════════════════
    *  PRICE DISCOVERY — submit handler
@@ -1133,12 +1731,42 @@
       html += '</div>';
     }
 
-    // ── FMV Hero ──────────────────────────────────────────
+    // ── Build coin label (with Lunar animal enrichment) ──
+    const coinLabel = (function() {
+      const parts = [];
+      const yr = d.coinData?.year || d.identification?.parsed?.year || d.query?.input?.match(/\b(1[789]\d\d|20[0-2]\d)\b/)?.[1];
+      const mk = d.coinData?.mintMark || d.identification?.parsed?.mint;
+      let nm = d.coinData?.name || d.pcgs?.series || d.identification?.parsed?.series || '';
+      const gr = d.coinData?.grade || d.identification?.parsed?.grade;
+      const wt = d.query?.weight;
+      // Lunar enrichment — append "Year of the <Animal>" for Lunar series
+      if (yr && /lunar|year of/i.test(nm)) {
+        const animal = zodiacAnimal(Number(yr));
+        if (animal && !/rat|ox|tiger|rabbit|dragon|snake|horse|goat|monkey|rooster|dog|pig/i.test(nm)) {
+          nm = nm.replace(/\s*lunar\s*/i, ' ').trim() + ' Year of the ' + animal;
+        }
+      }
+      if (yr) parts.push(yr);
+      if (mk && mk !== 'P') parts.push(mk);
+      if (nm) parts.push(nm);
+      if (wt && wt !== 1) parts.push(wt + ' oz');
+      if (gr) parts.push(gr);
+      return parts.join(' ');
+    })();
+
+    // ── FMV Hero (coin name left, value right) ───────────
     html += '<div class="card fmv-hero">';
+    html += '<div class="fmv-row">';
+    html += '<div class="fmv-left">';
+    if (coinLabel) html += '<div class="coin-id">' + coinLabel + '</div>';
+    html += '<div class="confidence">Confidence: ' + confTag(v.confidence) + '</div>';
+    html += '</div>';
+    html += '<div class="fmv-right">';
     html += '<div class="label">Fair Market Value</div>';
     html += '<div class="value">' + $(v.fmvCore) + '</div>';
     html += '<div class="range">Range: ' + $(v.rangeLow) + ' – ' + $(v.rangeHigh) + '</div>';
-    html += '<div class="confidence">Confidence: ' + confTag(v.confidence) + '</div>';
+    html += '</div>';
+    html += '</div>';
     // ── Metadata chips: melt, mintage, comps exact/close, pop, key date ──
     const meltInfo = getMeltInfo(d);
     const usCompsAll = d.ebay?.us?.comps || [];
@@ -1178,6 +1806,41 @@
     html += '</tbody></table>';
     if (sell.notes?.length) html += '<p class="card-notes">' + sell.notes.join(' ') + '</p>';
     html += '</div></div>';
+
+    // ── Lunar Mint Comparison Panel ────────────────────
+    const lc = d.lunarComparison;
+    if (lc && lc.mints) {
+      html += '<div class="card lunar-panel">';
+      html += '<h3>\uD83D\uDC09 Lunar Mint Comparison \u2014 <span class="lunar-animal">' + lc.year + ' Year of the ' + lc.animal + '</span>';
+      if (lc.perthSeries) html += ' <span style="font-size:0.8rem;color:var(--text-muted)">(Perth Series ' + lc.perthSeries + ')</span>';
+      html += '</h3>';
+      html += '<div class="lunar-grid">';
+      lc.mints.forEach(function(m) {
+        const avail = m.available;
+        html += '<div class="lunar-card premium-' + m.premiumTier + (avail ? '' : ' not-available') + '">';
+        html += '<div class="lc-mint">' + m.label + '</div>';
+        html += '<div class="lc-country">' + m.country + '</div>';
+        if (avail) {
+          html += '<div class="lc-row"><span class="lc-label">Mintage</span><span class="lc-val">' + (m.mintage ? Number(m.mintage).toLocaleString() : 'N/A') + '</span></div>';
+          html += '<div class="lc-row"><span class="lc-label">Purity</span><span class="lc-val">' + m.purity + '</span></div>';
+          html += '<div class="lc-row"><span class="lc-label">Sizes</span><span class="lc-val">' + m.sizes + '</span></div>';
+          if (m.activeSeries) html += '<div class="lc-row"><span class="lc-label">Note</span><span class="lc-val" style="text-align:right;max-width:55%">' + m.activeSeries + '</span></div>';
+          html += '<span class="lc-premium ' + m.premiumTier + '">' + m.premiumTier + ' premium</span>';
+        } else {
+          html += '<div class="lc-row"><span class="lc-label" style="font-style:italic">Not issued this year</span></div>';
+        }
+        html += '</div>';
+      });
+      html += '</div>';
+      if (lc.mints.some(function(m){ return m.premiumNote; })) {
+        html += '<div style="margin-top:10px;font-size:0.78rem;color:var(--text-muted)">';
+        lc.mints.filter(function(m){ return m.available && m.premiumNote; }).forEach(function(m) {
+          html += '<div><strong>' + m.label + ':</strong> ' + m.premiumNote + '</div>';
+        });
+        html += '</div>';
+      }
+      html += '</div>';
+    }
 
     // ── PCGS (collapsible, auto-open if verified) ───────────
     const p = d.pcgs || {};
@@ -1326,6 +1989,26 @@
     { id:'panda-gold-30g',      name:'Chinese Gold Panda 30g',              metal:'gold',   pure_ozt:0.96450, weight_g:30.000,  fineness:0.999,  coins_per_roll:10, category:'World Gold Bullion' },
   ];
 
+  // ── Bar types for melt calculator ──────────────────────────
+  window.BAR_TYPES = [
+    // ── Gold Bars ────────────────────────────────────────────
+    { id:'gold-bar-1g',    name:'Gold Bar 1 gram',       metal:'gold',   pure_ozt: 1/31.1035,      weight_g:1.000,    fineness:0.9999, category:'Gold Bars' },
+    { id:'gold-bar-2.5g',  name:'Gold Bar 2.5 gram',     metal:'gold',   pure_ozt: 2.5/31.1035,    weight_g:2.500,    fineness:0.9999, category:'Gold Bars' },
+    { id:'gold-bar-5g',    name:'Gold Bar 5 gram',       metal:'gold',   pure_ozt: 5/31.1035,      weight_g:5.000,    fineness:0.9999, category:'Gold Bars' },
+    { id:'gold-bar-10g',   name:'Gold Bar 10 gram',      metal:'gold',   pure_ozt: 10/31.1035,     weight_g:10.000,   fineness:0.9999, category:'Gold Bars' },
+    { id:'gold-bar-20g',   name:'Gold Bar 20 gram',      metal:'gold',   pure_ozt: 20/31.1035,     weight_g:20.000,   fineness:0.9999, category:'Gold Bars' },
+    { id:'gold-bar-1oz',   name:'Gold Bar 1 oz',         metal:'gold',   pure_ozt: 1.00000,        weight_g:31.1035,  fineness:0.9999, category:'Gold Bars' },
+    { id:'gold-bar-10oz',  name:'Gold Bar 10 oz',        metal:'gold',   pure_ozt:10.00000,        weight_g:311.035,  fineness:0.9999, category:'Gold Bars' },
+    // ── Silver Bars ──────────────────────────────────────────
+    { id:'silver-bar-1g',   name:'Silver Bar 1 gram',    metal:'silver', pure_ozt: 1/31.1035,      weight_g:1.000,    fineness:0.999,  category:'Silver Bars' },
+    { id:'silver-bar-5g',   name:'Silver Bar 5 gram',    metal:'silver', pure_ozt: 5/31.1035,      weight_g:5.000,    fineness:0.999,  category:'Silver Bars' },
+    { id:'silver-bar-10g',  name:'Silver Bar 10 gram',   metal:'silver', pure_ozt: 10/31.1035,     weight_g:10.000,   fineness:0.999,  category:'Silver Bars' },
+    { id:'silver-bar-20g',  name:'Silver Bar 20 gram',   metal:'silver', pure_ozt: 20/31.1035,     weight_g:20.000,   fineness:0.999,  category:'Silver Bars' },
+    { id:'silver-bar-1oz',  name:'Silver Bar 1 oz',      metal:'silver', pure_ozt: 1.00000,        weight_g:31.1035,  fineness:0.999,  category:'Silver Bars' },
+    { id:'silver-bar-5oz',  name:'Silver Bar 5 oz',      metal:'silver', pure_ozt: 5.00000,        weight_g:155.517,  fineness:0.999,  category:'Silver Bars' },
+    { id:'silver-bar-10oz', name:'Silver Bar 10 oz',     metal:'silver', pure_ozt:10.00000,        weight_g:311.035,  fineness:0.999,  category:'Silver Bars' },
+  ];
+
   /* ═══════════════════════════════════════════════════════════
    *  SPOT ADAPTER — reuses the existing /api/metals endpoint
    * ═══════════════════════════════════════════════════════════ */
@@ -1371,33 +2054,44 @@
    * ═══════════════════════════════════════════════════════════ */
   const MeltCalc = {
     els: {},
+    mode: 'coin', // 'coin' | 'bar'
 
     init() {
       this.els = {
-        coin:   document.getElementById('melt-coin'),
-        spot:   document.getElementById('melt-spot'),
-        adj:    document.getElementById('melt-adj'),
-        qty:    document.getElementById('melt-qty'),
-        roll:   document.getElementById('melt-roll'),
-        badge:  document.getElementById('melt-metal-badge'),
-        status: document.getElementById('melt-spot-status'),
-        out:    document.getElementById('melt-results'),
+        coin:     document.getElementById('melt-coin'),
+        spot:     document.getElementById('melt-spot'),
+        adj:      document.getElementById('melt-adj'),
+        qty:      document.getElementById('melt-qty'),
+        roll:     document.getElementById('melt-roll'),
+        rollWrap: document.getElementById('melt-roll-wrap'),
+        badge:    document.getElementById('melt-metal-badge'),
+        status:   document.getElementById('melt-spot-status'),
+        out:      document.getElementById('melt-results'),
+        brand:    document.getElementById('melt-brand'),
+        brandRow: document.getElementById('melt-brand-row'),
+        itemLabel:document.getElementById('melt-item-label'),
+        typeGoldBar:  document.getElementById('melt-type-gold-bar'),
+        typeSilverBar:document.getElementById('melt-type-silver-bar'),
+        typeCoin:     document.getElementById('melt-type-coin'),
       };
-      this._populateCoins();
+      this._populateItems();
       this._bind();
       this._onCoinChange();
     },
 
-    _populateCoins() {
-      const coins = window.COIN_TYPES || [];
+    _populateItems() {
+      let items;
+      if (this.mode === 'gold-bar')   items = (window.BAR_TYPES || []).filter(b => b.metal === 'gold');
+      else if (this.mode === 'silver-bar') items = (window.BAR_TYPES || []).filter(b => b.metal === 'silver');
+      else items = window.COIN_TYPES || [];
       const groups = {};
-      coins.forEach(c => (groups[c.category] = groups[c.category] || []).push(c));
+      items.forEach(c => (groups[c.category] = groups[c.category] || []).push(c));
       const sel = this.els.coin;
       sel.innerHTML = '';
-      for (const [cat, items] of Object.entries(groups)) {
+      for (const [cat, list] of Object.entries(groups)) {
         const og = document.createElement('optgroup');
         og.label = cat;
-        for (const c of items) {
+        for (const c of list) {
           const o = document.createElement('option');
           o.value = c.id;
           o.textContent = c.name;
@@ -1412,6 +2106,11 @@
       ['spot','adj','qty','roll'].forEach(k =>
         this.els[k].addEventListener('input', () => this._calc())
       );
+      this.els.brand.addEventListener('input', () => this._calc());
+      // Type toggle
+      this.els.typeCoin.addEventListener('click',      () => this._setMode('coin'));
+      this.els.typeGoldBar.addEventListener('click',   () => this._setMode('gold-bar'));
+      this.els.typeSilverBar.addEventListener('click', () => this._setMode('silver-bar'));
       MeltSpotAdapter.onSpotChange(({ gold, silver }) => {
         const c = this._selected();
         if (!c) return;
@@ -1420,8 +2119,25 @@
       });
     },
 
+    _setMode(mode) {
+      this.mode = mode;
+      const isBar = mode === 'gold-bar' || mode === 'silver-bar';
+      this.els.typeCoin.setAttribute('aria-pressed',      mode === 'coin');
+      this.els.typeGoldBar.setAttribute('aria-pressed',   mode === 'gold-bar');
+      this.els.typeSilverBar.setAttribute('aria-pressed', mode === 'silver-bar');
+      this.els.brandRow.style.display = isBar ? 'flex' : 'none';
+      this.els.rollWrap.style.display = isBar ? 'none' : '';
+      this.els.itemLabel.textContent  = isBar ? 'Bar Size' : 'Coin';
+      this._populateItems();
+      this._onCoinChange();
+    },
+
     _selected() {
-      return (window.COIN_TYPES || []).find(c => c.id === this.els.coin.value) || null;
+      let pool;
+      if (this.mode === 'gold-bar')        pool = (window.BAR_TYPES || []).filter(b => b.metal === 'gold');
+      else if (this.mode === 'silver-bar') pool = (window.BAR_TYPES || []).filter(b => b.metal === 'silver');
+      else                                  pool = window.COIN_TYPES || [];
+      return pool.find(c => c.id === this.els.coin.value) || null;
     },
 
     _pureOzt(coin) {
@@ -1449,47 +2165,62 @@
     },
 
     _calc() {
-      const coin = this._selected();
+      const item = this._selected();
       const out  = this.els.out;
-      if (!coin) { out.innerHTML = ''; return; }
+      if (!item) { out.innerHTML = ''; return; }
 
+      const isBar    = this.mode === 'gold-bar' || this.mode === 'silver-bar';
+      const brand    = isBar ? (this.els.brand.value || '').trim() : '';
       const spot     = parseFloat(this.els.spot.value) || 0;
       const adj      = parseFloat(this.els.adj.value)  || 0;
       const qty      = parseInt(this.els.qty.value, 10) || 0;
-      const rollSize = parseInt(this.els.roll.value, 10) || coin.coins_per_roll || 20;
-      const pureOzt  = this._pureOzt(coin);
+      const rollSize = parseInt(this.els.roll.value, 10) || item.coins_per_roll || 20;
+      const pureOzt  = this._pureOzt(item);
 
-      const effectiveSpot    = spot + adj;
-      const meltPerCoinSpot  = pureOzt * spot;
-      const meltPerCoinEff   = pureOzt * effectiveSpot;
-      const meltPerRollSpot  = meltPerCoinSpot * rollSize;
-      const meltPerRollEff   = meltPerCoinEff  * rollSize;
-      const totalSpot        = meltPerCoinSpot * qty;
-      const totalEff         = meltPerCoinEff  * qty;
+      const effectiveSpot   = spot + adj;
+      const meltPerUnit     = pureOzt * spot;
+      const meltPerUnitEff  = pureOzt * effectiveSpot;
+      const totalSpot       = meltPerUnit * qty;
+      const totalEff        = meltPerUnitEff * qty;
 
       const f = v => (v != null && isFinite(v)) ? '$' + Number(v).toFixed(2) : '—';
+      const unitLabel = isBar ? 'Bar' : 'Coin';
 
-      out.innerHTML =
-        '<div class="melt-info-row">'
-      +   '<span>Pure metal content:</span> '
-      +   '<strong>' + pureOzt.toFixed(5) + ' ozt</strong> '
-      +   '<span class="melt-detail">(' + coin.weight_g + ' g &times; ' + (coin.fineness * 100).toFixed(1) + '%)</span>'
-      + '</div>'
-      + '<div class="melt-info-row">'
-      +   '<span>Effective Spot:</span> '
-      +   '<strong>' + f(effectiveSpot) + '/ozt</strong> '
-      +   (adj !== 0
-             ? '<span class="melt-detail">(spot ' + f(spot) + (adj >= 0 ? ' + ' : ' &minus; ') + '$' + Math.abs(adj).toFixed(2) + ')</span>'
-             : '')
-      + '</div>'
-      + '<table class="melt-tbl">'
-      +   '<thead><tr><th></th><th>At Spot</th><th>At Spot + Adj</th></tr></thead>'
-      +   '<tbody>'
-      +     '<tr><td>Per Coin</td><td>' + f(meltPerCoinSpot) + '</td><td>' + f(meltPerCoinEff) + '</td></tr>'
-      +     '<tr><td>Per Roll (' + rollSize + ')</td><td>' + f(meltPerRollSpot) + '</td><td>' + f(meltPerRollEff) + '</td></tr>'
-      +     '<tr class="melt-total-row"><td>Total (' + qty + ' coins)</td><td>' + f(totalSpot) + '</td><td>' + f(totalEff) + '</td></tr>'
-      +   '</tbody>'
-      + '</table>';
+      // Header info
+      let html = '';
+      if (brand) {
+        html += '<div class="melt-info-row"><span>Brand:</span> <strong>' + brand + '</strong></div>';
+      }
+      html += '<div class="melt-info-row">'
+           +   '<span>Pure metal content:</span> '
+           +   '<strong>' + pureOzt.toFixed(5) + ' ozt</strong> '
+           +   '<span class="melt-detail">(' + item.weight_g.toFixed(item.weight_g < 10 ? 3 : 1) + ' g'
+           +   (item.fineness < 1 ? ' &times; ' + (item.fineness * 100).toFixed(1) + '%' : ' fine')
+           +   ')</span>'
+           + '</div>';
+      html += '<div class="melt-info-row">'
+           +   '<span>Effective Spot:</span> '
+           +   '<strong>' + f(effectiveSpot) + '/ozt</strong> '
+           +   (adj !== 0
+                  ? '<span class="melt-detail">(spot ' + f(spot) + (adj >= 0 ? ' + ' : ' &minus; ') + '$' + Math.abs(adj).toFixed(2) + ')</span>'
+                  : '')
+           + '</div>';
+
+      // Table
+      html += '<table class="melt-tbl">'
+           +   '<thead><tr><th></th><th>At Spot</th><th>At Spot + Premium</th></tr></thead>'
+           +   '<tbody>';
+      html += '<tr><td>Per ' + unitLabel + '</td><td>' + f(meltPerUnit) + '</td><td>' + f(meltPerUnitEff) + '</td></tr>';
+      if (!isBar) {
+        const meltPerRollSpot = meltPerUnit * rollSize;
+        const meltPerRollEff  = meltPerUnitEff * rollSize;
+        html += '<tr><td>Per Roll (' + rollSize + ')</td><td>' + f(meltPerRollSpot) + '</td><td>' + f(meltPerRollEff) + '</td></tr>';
+      }
+      html += '<tr class="melt-total-row"><td>Total (' + qty + ' ' + unitLabel.toLowerCase() + (qty !== 1 ? 's' : '') + ')</td>'
+           +   '<td>' + f(totalSpot) + '</td><td>' + f(totalEff) + '</td></tr>';
+      html += '</tbody></table>';
+
+      out.innerHTML = html;
     }
   };
 
