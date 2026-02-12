@@ -1,52 +1,88 @@
-// eBay SOLD listings integration for CoinPriceDiscoveryAgent
-// Uses official eBay Finding API (requires user-provided credentials)
-
+// eBay Browse API integration for CoinPriceDiscoveryAgent
+// Uses OAuth Client Credentials Grant (App ID + Client Secret)
 
 const axios = require('axios');
 require('dotenv').config();
+
 const EBAY_APP_ID = process.env.EBAY_APP_ID || '';
 const EBAY_CLIENT_SECRET = process.env.EBAY_CLIENT_SECRET || '';
 
-async function fetchEbaySoldComps(query, lookbackMonths = 6) {
-  if (!EBAY_APP_ID) {
+// Token cache to avoid re-authenticating every call
+let cachedToken = null;
+let tokenExpiry = 0;
+
+/**
+ * Obtain an OAuth application access token using Client Credentials Grant.
+ */
+async function getOAuthToken() {
+  const now = Date.now();
+  if (cachedToken && now < tokenExpiry) return cachedToken;
+
+  const resp = await axios.post(
+    'https://api.ebay.com/identity/v1/oauth2/token',
+    'grant_type=client_credentials&scope=https%3A%2F%2Fapi.ebay.com%2Foauth%2Fapi_scope',
+    {
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      auth: { username: EBAY_APP_ID, password: EBAY_CLIENT_SECRET }
+    }
+  );
+  cachedToken = resp.data.access_token;
+  // Expire 5 min early to be safe (eBay tokens last ~2 h)
+  tokenExpiry = now + (resp.data.expires_in - 300) * 1000;
+  return cachedToken;
+}
+
+/**
+ * Search eBay active listings via the Browse API.
+ * @param {Object} query  – { coin_name, grade }
+ * @param {number} limit  – max results (1-200, default 50)
+ */
+async function fetchEbaySoldComps(query, limit = 50) {
+  if (!EBAY_APP_ID || !EBAY_CLIENT_SECRET) {
     return { accessible: false, comps: [], limitations: ['eBay API credentials not provided'] };
   }
-  // eBay Finding API: findCompletedItems
-  const endpoint = 'https://svcs.ebay.com/services/search/FindingService/v1';
-  const now = new Date();
-  const startDate = new Date(now.setMonth(now.getMonth() - lookbackMonths));
-  const keywords = `${query.coin_name} ${query.grade}`;
-  const params = {
-    'OPERATION-NAME': 'findCompletedItems',
-    'SERVICE-VERSION': '1.13.0',
-    'SECURITY-APPNAME': EBAY_APP_ID,
-    'RESPONSE-DATA-FORMAT': 'JSON',
-    'keywords': keywords,
-    'categoryId': '11116', // Coins & Paper Money
-    'itemFilter(0).name': 'SoldItemsOnly',
-    'itemFilter(0).value': 'true',
-    'itemFilter(1).name': 'EndTimeFrom',
-    'itemFilter(1).value': startDate.toISOString(),
-    'paginationInput.entriesPerPage': '50'
-  };
+
+  const keywords = `${query.coin_name} ${query.grade}`.trim();
+
   try {
-    const response = await axios.get(endpoint, { params });
-    // Parse results
-    const items = response.data.findCompletedItemsResponse[0].searchResult[0].item || [];
+    const token = await getOAuthToken();
+
+    const response = await axios.get(
+      'https://api.ebay.com/buy/browse/v1/item_summary/search',
+      {
+        params: {
+          q: keywords,
+          category_ids: '11116',   // Coins & Paper Money
+          limit: Math.min(limit, 200)
+        },
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US'
+        }
+      }
+    );
+
+    const items = response.data.itemSummaries || [];
+
     const comps = items.map(item => ({
       source: 'ebay',
-      sold_price: parseFloat(item.sellingStatus[0].currentPrice[0].__value__),
-      shipping: item.shippingInfo[0].shippingServiceCost ? parseFloat(item.shippingInfo[0].shippingServiceCost[0].__value__) : 0,
-      sold_date: item.listingInfo[0].endTime[0],
-      title: item.title[0],
-      url: item.viewItemURL[0],
+      sold_price: parseFloat(item.price?.value || 0),
+      currency: item.price?.currency || 'USD',
+      shipping: item.shippingOptions?.[0]?.shippingCost?.value
+        ? parseFloat(item.shippingOptions[0].shippingCost.value)
+        : 0,
+      title: item.title,
+      url: item.itemWebUrl,
+      image: item.image?.imageUrl || null,
+      condition: item.condition || null,
       grade: query.grade,
-      coin_name: query.coin_name,
-      original: item
+      coin_name: query.coin_name
     }));
+
     return { accessible: true, comps, limitations: [] };
   } catch (err) {
-    return { accessible: false, comps: [], limitations: ['eBay API error', err.message] };
+    const msg = err.response?.data?.errors?.[0]?.message || err.message;
+    return { accessible: false, comps: [], limitations: ['eBay API error', msg] };
   }
 }
 

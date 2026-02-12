@@ -1,51 +1,213 @@
-// Simple UI for CoinPriceDiscoveryAgent
-// Static HTML form for submitting queries and viewing results
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>CoinPriceDiscoveryAgent</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Coin Price Discovery Agent</title>
   <style>
-    body { font-family: Arial, sans-serif; margin: 2em; }
-    .container { max-width: 600px; margin: auto; }
-    label { display: block; margin-top: 1em; }
-    input, textarea { width: 100%; padding: 0.5em; margin-top: 0.2em; }
-    button { margin-top: 1em; padding: 0.7em 1.5em; }
-    pre { background: #f4f4f4; padding: 1em; }
+    :root { --bg: #0d1117; --card: #161b22; --border: #30363d; --text: #c9d1d9; --accent: #58a6ff; --green: #3fb950; --red: #f85149; --yellow: #d29922; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; background: var(--bg); color: var(--text); padding: 20px; max-width: 1100px; margin: 0 auto; }
+    h1 { color: var(--accent); margin-bottom: 4px; font-size: 1.6rem; }
+    .subtitle { color: #8b949e; margin-bottom: 20px; font-size: 0.9rem; }
+    .form-row { display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+    input, select { background: var(--card); border: 1px solid var(--border); color: var(--text); padding: 10px 14px; border-radius: 6px; font-size: 0.95rem; }
+    input:focus { outline: none; border-color: var(--accent); }
+    #query { flex: 1; min-width: 300px; }
+    #askingPrice { width: 130px; }
+    button { background: var(--accent); color: #000; border: none; padding: 10px 24px; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 0.95rem; }
+    button:hover { opacity: 0.9; }
+    button:disabled { opacity: 0.5; cursor: wait; }
+    .options { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; align-items: center; }
+    .options label { font-size: 0.85rem; display: flex; align-items: center; gap: 4px; }
+    .options input[type="number"] { width: 60px; padding: 6px 8px; }
+    .options input[type="checkbox"] { accent-color: var(--accent); }
+    #status { margin: 12px 0; font-size: 0.9rem; color: var(--yellow); }
+    .results { margin-top: 16px; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 14px; }
+    .card h2 { font-size: 1.1rem; color: var(--accent); margin-bottom: 10px; border-bottom: 1px solid var(--border); padding-bottom: 6px; }
+    .fmv-hero { text-align: center; padding: 24px; }
+    .fmv-hero .value { font-size: 2.5rem; font-weight: 700; color: var(--green); }
+    .fmv-hero .range { font-size: 1rem; color: #8b949e; margin-top: 4px; }
+    .fmv-hero .confidence { margin-top: 6px; font-size: 0.95rem; }
+    .decision-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .buy-card { border-left: 3px solid var(--green); }
+    .sell-card { border-left: 3px solid var(--accent); }
+    .rec { font-size: 1.4rem; font-weight: 700; }
+    .rec.buy { color: var(--green); }
+    .rec.pass { color: var(--red); }
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+    th { color: #8b949e; font-weight: 600; }
+    .tag { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; }
+    .tag-green { background: #1a3a2a; color: var(--green); }
+    .tag-yellow { background: #3a2d14; color: var(--yellow); }
+    .tag-red { background: #3a1a1a; color: var(--red); }
+    pre.json { background: #0d1117; border: 1px solid var(--border); border-radius: 6px; padding: 12px; overflow-x: auto; font-size: 0.8rem; max-height: 500px; overflow-y: auto; }
+    details { margin-top: 8px; }
+    details summary { cursor: pointer; color: var(--accent); font-size: 0.9rem; }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1>CoinPriceDiscoveryAgent</h1>
-    <form id="queryForm">
-      <label>Coin Name <input name="coin_name" required></label>
-      <label>Grade <input name="grade" required></label>
-      <label>Manual Evidence (CSV or JSON)<br>
-        <textarea name="manual_evidence" rows="6" placeholder="Paste CSV or JSON here"></textarea>
-      </label>
-      <button type="submit">Submit Query</button>
-    </form>
-    <h2>Result</h2>
-    <pre id="result"></pre>
+  <h1>Coin Price Discovery Agent</h1>
+  <p class="subtitle">Dealer buy/sell pricing — PCGS + eBay SOLD comps</p>
+
+  <div class="form-row">
+    <input id="query" type="text" placeholder="PCGS cert #, barcode, coin description…  e.g. 1971-S Eisenhower dollar Proof">
+    <input id="askingPrice" type="number" step="0.01" placeholder="Asking $">
+    <button id="submit" onclick="runQuery()">Price It</button>
   </div>
+
+  <div class="options">
+    <label>Days: <input id="optDays" type="number" value="90" min="7" max="365"></label>
+    <label><input id="optPCGS" type="checkbox"> PCGS-only</label>
+    <label><input id="optGrade" type="checkbox"> Exact grade</label>
+    <label>Min comps: <input id="optMin" type="number" value="8" min="1" max="50"></label>
+    <label>Max pages: <input id="optPages" type="number" value="3" min="1" max="10"></label>
+  </div>
+
+  <div id="status"></div>
+  <div id="results" class="results"></div>
+
   <script>
-    document.getElementById('queryForm').onsubmit = async function(e) {
-      e.preventDefault();
-      const form = e.target;
-      const data = {
-        coin_name: form.coin_name.value,
-        grade: form.grade.value,
-        manual_evidence: form.manual_evidence.value
+    async function runQuery() {
+      const query = document.getElementById('query').value.trim();
+      if (!query) return;
+      const askingPrice = parseFloat(document.getElementById('askingPrice').value) || null;
+      const btn = document.getElementById('submit');
+      const status = document.getElementById('status');
+      const results = document.getElementById('results');
+
+      btn.disabled = true;
+      status.textContent = 'Querying PCGS + eBay…';
+      results.innerHTML = '';
+
+      const body = {
+        query,
+        askingPrice,
+        options: {
+          timeWindowDays: parseInt(document.getElementById('optDays').value) || 90,
+          requirePCGSOnly: document.getElementById('optPCGS').checked,
+          exactGradeOnly: document.getElementById('optGrade').checked,
+          usMinComps: parseInt(document.getElementById('optMin').value) || 8,
+          maxPages: parseInt(document.getElementById('optPages').value) || 3
+        }
       };
-      const res = await fetch('/api/query/new', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
-      const json = await res.json();
-      document.getElementById('result').textContent = JSON.stringify(json, null, 2);
-    };
+
+      try {
+        const resp = await fetch('/api/price', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || data.message || 'Request failed');
+        status.textContent = '';
+        renderResults(data);
+      } catch (err) {
+        status.textContent = '❌ ' + err.message;
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    function $(v) { return v != null ? '$' + Number(v).toFixed(2) : '—'; }
+    function confTag(c) {
+      if (c >= 70) return '<span class="tag tag-green">' + c + '%</span>';
+      if (c >= 40) return '<span class="tag tag-yellow">' + c + '%</span>';
+      return '<span class="tag tag-red">' + c + '%</span>';
+    }
+
+    function renderResults(d) {
+      const r = document.getElementById('results');
+      const v = d.valuation || {};
+      const dec = d.decisions || {};
+      const buy = dec.buy || {};
+      const sell = dec.sell || {};
+      const usStats = d.ebay?.us?.stats || {};
+      const glStats = d.ebay?.global?.stats || {};
+
+      let html = '';
+
+      // FMV Hero
+      html += '<div class="card fmv-hero">';
+      html += '<div class="value">' + $(v.fmvCore) + '</div>';
+      html += '<div class="range">Range: ' + $(v.rangeLow) + ' – ' + $(v.rangeHigh) + '</div>';
+      html += '<div class="confidence">Confidence: ' + confTag(v.confidence) + '</div>';
+      html += '</div>';
+
+      // Decisions
+      html += '<div class="decision-grid">';
+      html += '<div class="card buy-card"><h2>Buy Decision</h2>';
+      if (buy.recommendation) {
+        html += '<div class="rec ' + buy.recommendation.toLowerCase() + '">' + buy.recommendation + '</div>';
+      }
+      html += '<table>';
+      html += '<tr><th>70% FMV</th><td>' + $(buy.max70) + '</td></tr>';
+      html += '<tr><th>75% FMV</th><td>' + $(buy.max75) + '</td></tr>';
+      html += '<tr><th>80% FMV</th><td>' + $(buy.max80) + '</td></tr>';
+      html += '<tr><th>Asking</th><td>' + $(buy.askingPrice) + '</td></tr>';
+      html += '</table>';
+      if (buy.notes && buy.notes.length) html += '<p style="margin-top:8px;font-size:0.85rem">' + buy.notes.join(' ') + '</p>';
+      html += '</div>';
+
+      html += '<div class="card sell-card"><h2>Sell Decision</h2>';
+      html += '<table>';
+      html += '<tr><th>Fast</th><td>' + $(sell.fast) + '</td></tr>';
+      html += '<tr><th>Normal</th><td>' + $(sell.normal) + '</td></tr>';
+      html += '<tr><th>Premium</th><td>' + $(sell.premium) + '</td></tr>';
+      html += '<tr><th>Offer Floor</th><td>' + $(sell.offerFloor) + '</td></tr>';
+      html += '</table>';
+      if (sell.notes && sell.notes.length) html += '<p style="margin-top:8px;font-size:0.85rem">' + sell.notes.join(' ') + '</p>';
+      html += '</div></div>';
+
+      // PCGS
+      var p = d.pcgs || {};
+      html += '<div class="card"><h2>PCGS ' + (p.verified ? '✔ Verified' : '✖ Not Verified') + '</h2>';
+      html += '<table>';
+      html += '<tr><th>Coin #</th><td>' + (p.pcgsCoinNumber || '—') + '</td><th>Series</th><td>' + (p.series || '—') + '</td></tr>';
+      html += '<tr><th>Year</th><td>' + (p.year || '—') + '</td><th>Mint</th><td>' + (p.mint || '—') + '</td></tr>';
+      html += '<tr><th>Grade</th><td>' + (p.grade || '—') + '</td><th>Designation</th><td>' + (p.designation || '—') + '</td></tr>';
+      html += '<tr><th>Price Guide</th><td>' + (p.priceGuide && p.priceGuide.valueUsd != null ? $(p.priceGuide.valueUsd) : '—') + '</td>';
+      html += '<th>Population</th><td>' + (p.population && p.population.thisGrade != null ? p.population.thisGrade : '—') + ' / ' + (p.population && p.population.higher != null ? p.population.higher : '—') + ' higher</td></tr>';
+      html += '</table></div>';
+
+      // eBay Stats
+      html += '<div class="card"><h2>eBay Comps — "' + (d.ebay?.keywords || '') + '" ';
+      if (d.ebay?.usedFallback) html += '<span class="tag tag-yellow">fallback</span>';
+      html += '</h2><table>';
+      html += '<tr><th></th><th>US</th><th>Global</th></tr>';
+      html += '<tr><td>Count</td><td>' + (usStats.count != null ? usStats.count : '—') + '</td><td>' + (glStats.count != null ? glStats.count : '—') + '</td></tr>';
+      html += '<tr><td>Median</td><td>' + $(usStats.median) + '</td><td>' + $(glStats.median) + '</td></tr>';
+      html += '<tr><td>Mean</td><td>' + $(usStats.mean) + '</td><td>' + $(glStats.mean) + '</td></tr>';
+      html += '<tr><td>P25 / P75</td><td>' + $(usStats.p25) + ' / ' + $(usStats.p75) + '</td><td>' + $(glStats.p25) + ' / ' + $(glStats.p75) + '</td></tr>';
+      html += '<tr><td>Min / Max</td><td>' + $(usStats.min) + ' / ' + $(usStats.max) + '</td><td>' + $(glStats.min) + ' / ' + $(glStats.max) + '</td></tr>';
+      html += '</table></div>';
+
+      // Comp list (US)
+      var usComps = d.ebay?.us?.comps || [];
+      if (usComps.length) {
+        html += '<div class="card"><h2>US Comps (' + usComps.length + ')</h2><table>';
+        html += '<tr><th>#</th><th>Title</th><th>Total</th><th>Score</th><th>Date</th></tr>';
+        usComps.slice(0, 30).forEach(function(c, i) {
+          html += '<tr><td>' + (i+1) + '</td><td><a href="' + c.url + '" target="_blank" style="color:var(--accent)">' + (c.title || '').substring(0,70) + '</a></td>';
+          html += '<td>' + $(c.totalUsd) + '</td><td>' + (c.matchScore != null ? c.matchScore : '—') + '</td>';
+          html += '<td>' + (c.soldDate ? c.soldDate.substring(0,10) : '—') + '</td></tr>';
+        });
+        html += '</table></div>';
+      }
+
+      // Explanation
+      if (v.explanation && v.explanation.length) {
+        html += '<div class="card"><h2>Valuation Reasoning</h2><ul>';
+        v.explanation.forEach(function(e) { html += '<li style="margin-bottom:4px;font-size:0.9rem">' + e + '</li>'; });
+        html += '</ul></div>';
+      }
+
+      // Raw JSON
+      html += '<details><summary>Raw JSON response</summary><pre class="json">' + JSON.stringify(d, null, 2) + '</pre></details>';
+
+      r.innerHTML = html;
+    }
+
+    // Enter key
+    document.getElementById('query').addEventListener('keydown', function(e) { if (e.key === 'Enter') runQuery(); });
   </script>
 </body>
 </html>

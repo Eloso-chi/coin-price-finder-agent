@@ -1,6 +1,8 @@
 // Output schema builder for CoinPriceDiscoveryAgent
 // Ensures strict JSON structure for audit-friendly results
 
+const { estimateFMV } = require('./evidence');
+
 function buildOutput({ query_id, run_id, mode, run_date, query, cache }) {
   // Headline summary
   const headline = {
@@ -13,40 +15,40 @@ function buildOutput({ query_id, run_id, mode, run_date, query, cache }) {
 
   // Sources
   const sources = {
-    ebay_sold: cache.ebay_metrics || {},
-    greysheet_cdn: cache.greysheet || {},
-    pcgs_coinfacts: cache.pcgs || {},
+    ebay: cache.ebay_metrics || {},
+    greysheet: cache.greysheet || {},
+    pcgs: cache.pcgs || {},
     numista: cache.numista || {}
   };
 
-  // Comps (manual + ebay)
+  // All usable comps (manual + eBay)
   const comps = [
     ...(cache.manual_comps || []),
     ...(cache.ebay_comps || [])
   ];
 
-  // Time series (last 6 months, weekly buckets)
-  const time_series = {
-    points: [],
-    // TODO: implement time bucketing and median calculation
-    summary: 'Time series not implemented yet.'
+  // ── FMV Estimation ────────────────────────────────────────────
+  const anchorPrices = {
+    greysheet_bid: cache.greysheet?.bid || null,
+    greysheet_ask: cache.greysheet?.ask || null,
+    pcgs_price: cache.pcgs?.price || null
   };
+  const fmvResult = estimateFMV(comps, anchorPrices);
 
-  // Combined estimate
   const combined_estimate = {
-    estimated_fmv: sources.greysheet_cdn.bid && sources.greysheet_cdn.ask
-      ? (sources.greysheet_cdn.bid + sources.greysheet_cdn.ask) / 2
-      : sources.ebay_sold.median_sold_price || null,
-    low: Math.min(...comps.map(c => c.all_in_price)),
-    high: Math.max(...comps.map(c => c.all_in_price)),
-    confidence: comps.length > 5 ? 0.8 : 0.5,
-    reasoning: 'Estimate based on available comps and source diversity.'
+    estimated_fmv: fmvResult.fmv,
+    low: fmvResult.low,
+    high: fmvResult.high,
+    confidence: fmvResult.confidence,
+    method: fmvResult.method,
+    comp_count: fmvResult.comp_count,
+    reasoning: fmvResult.reasoning
   };
 
   // Limitations
   const limitations = cache.limitations || [];
 
-  // History
+  // History meta
   const history = {
     query_id,
     run_id,
@@ -61,7 +63,6 @@ function buildOutput({ query_id, run_id, mode, run_date, query, cache }) {
     headline,
     sources,
     comps,
-    time_series,
     combined_estimate,
     limitations
   };

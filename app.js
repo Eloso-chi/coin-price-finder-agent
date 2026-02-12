@@ -1,12 +1,3 @@
-// Debug endpoint to check eBay API credentials
-app.get('/api/debug/ebay', (req, res) => {
-  const ebay = require('./ebay');
-  res.json({
-    EBAY_APP_ID: process.env.EBAY_APP_ID,
-    EBAY_CLIENT_SECRET: process.env.EBAY_CLIENT_SECRET,
-    loaded: !!process.env.EBAY_APP_ID && !!process.env.EBAY_CLIENT_SECRET
-  });
-});
 // CoinPriceDiscoveryAgent Express web-app
 // Main entry point
 
@@ -29,6 +20,15 @@ const pcgs = require('./pcgs');
 const numista = require('./numista');
 const manual = require('./manual');
 const output = require('./output');
+
+// Debug endpoint to check eBay API credentials
+app.get('/api/debug/ebay', (req, res) => {
+  res.json({
+    EBAY_APP_ID: process.env.EBAY_APP_ID ? '***set***' : 'NOT SET',
+    EBAY_CLIENT_SECRET: process.env.EBAY_CLIENT_SECRET ? '***set***' : 'NOT SET',
+    loaded: !!process.env.EBAY_APP_ID && !!process.env.EBAY_CLIENT_SECRET
+  });
+});
 
 // MODE=new: Accepts coin query and optional manual evidence
 app.post('/api/query/new', async (req, res) => {

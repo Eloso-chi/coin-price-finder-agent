@@ -2,9 +2,11 @@
   "name": "coin-price-finder-agent",
   "version": "1.0.0",
   "description": "coin-price-finder-agent to assess FMV and aggregate knowledge",
-  "main": "app.js",
+  "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "jest --verbose"
   },
   "repository": {
     "type": "git",
@@ -24,5 +26,9 @@
     "csv-parse": "^6.1.0",
     "dotenv": "^17.2.4",
     "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "axios-mock-adapter": "^2.1.0",
+    "jest": "^30.2.0"
   }
 }
