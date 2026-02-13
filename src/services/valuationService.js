@@ -163,7 +163,15 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null) {
       rangeLow,
       rangeHigh,
       confidence,
-      explanation
+      explanation,
+      gradePool: {
+        wantsGraded,
+        usedPool: wantsGraded ? 'graded' : 'raw',
+        gradedCount: usGraded.length,
+        rawCount: usRaw.length,
+        poolCount: usComps.length,
+        totalCount: usCompsAll.length
+      }
     },
     decisions: {
       buy: {

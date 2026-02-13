@@ -1521,13 +1521,15 @@
       if (usComps.length) {
         html += '<details class="card pcgs-details" open>';
         html += '<summary>US Comps (' + usComps.length + ')</summary>';
-        html += '<table><thead><tr><th>#</th><th>Title</th><th>Total</th><th>Match</th><th>Date</th></tr></thead><tbody>';
+        html += '<table><thead><tr><th>#</th><th>Title</th><th>Total</th><th>Type</th><th>Match</th><th>Date</th></tr></thead><tbody>';
         usComps.slice(0, 30).forEach(function(c, i) {
           const mq = c.matchQuality || 'loose';
           const mqTag = '<span class="match-tag match-' + mq + '">' + mq + '</span>';
+          const gtLabel = c.gradeType === 'graded' ? '<span class="match-tag" style="background:#e8d5f5;color:#6b21a8">graded</span>' : '<span class="match-tag" style="background:#d5f5e3;color:#166534">raw</span>';
           html += '<tr><td>' + (i + 1) + '</td>';
           html += '<td><a href="' + c.url + '" target="_blank" rel="noopener">' + (c.title || '').substring(0, 70) + '</a></td>';
           html += '<td>' + $(c.totalUsd) + '</td>';
+          html += '<td>' + gtLabel + '</td>';
           html += '<td>' + mqTag + '</td>';
           html += '<td>' + (c.soldDate ? c.soldDate.substring(0, 10) : '\u2014') + '</td></tr>';
         });
@@ -1874,6 +1876,10 @@
     // ── Metadata chips: melt, mintage, comps exact/close, pop, key date ──
     const meltInfo = getMeltInfo(d);
     const usCompsAll = d.ebay?.us?.comps || [];
+    const chipPool = v.gradePool || {};
+    const chipPoolLabel = chipPool.usedPool === 'graded' ? 'graded' : 'raw';
+    const chipPoolCount = chipPool.poolCount || usCompsAll.length;
+    const chipExcluded = (chipPool.totalCount || usCompsAll.length) - chipPoolCount;
     const exactCount = usCompsAll.filter(c => c.matchQuality === 'exact').length;
     const closeCount = usCompsAll.filter(c => c.matchQuality === 'close').length;
     const pop = d.pcgs?.population;
@@ -1881,7 +1887,11 @@
     if (meltInfo && !meltInfo.isClad) html += '<span class="fmv-chip fmv-chip-melt" title="Melt value: ' + meltInfo.pureOzt.toFixed(4) + ' ozt pure @ spot $' + meltInfo.spot + '/ozt">\uD83D\uDD25 Melt: $' + meltInfo.melt.toFixed(2) + '</span>';
     if (meltInfo && meltInfo.composition) { const cClass = meltInfo.isClad ? 'clad' : (meltInfo.metal === 'gold' ? 'gold' : 'silver'); html += '<span class="fmv-chip fmv-chip-comp ' + cClass + '" title="Coin composition">\u2699\uFE0F ' + meltInfo.composition + '</span>'; }
     if (mintage) html += '<span class="fmv-chip" title="Mintage for this year/mint (source: ' + mintageSource + ')">\uD83C\uDFED Mintage: ' + Number(mintage).toLocaleString() + '</span>';
-    if (usCompsAll.length) html += '<span class="fmv-chip" title="eBay sold comps: exact match / close match / total">\uD83D\uDCE6 Comps: ' + exactCount + ' exact · ' + closeCount + ' close · ' + usCompsAll.length + ' total</span>';
+    if (usCompsAll.length) {
+      let chipText = '\uD83D\uDCE6 Comps: ' + chipPoolCount + ' ' + chipPoolLabel;
+      if (chipExcluded > 0) chipText += ' (' + chipExcluded + ' ' + (chipPool.usedPool === 'graded' ? 'raw' : 'graded') + ' excluded)';
+      html += '<span class="fmv-chip" title="eBay sold comps used for FMV">' + chipText + '</span>';
+    }
     if (pop?.thisGrade) html += '<span class="fmv-chip" title="PCGS population this grade / higher">\uD83D\uDCCA Pop: ' + pop.thisGrade + (pop.higher ? ' / ' + pop.higher + ' higher' : '') + '</span>';
     if (d.keyDate?.isKeyDate) html += '<span class="fmv-chip fmv-chip-key" title="Key date coin">\uD83D\uDD11 Key Date</span>';
     html += '</div>';
@@ -1985,18 +1995,33 @@
     html += '<tr><td>Min / Max</td><td>' + $(usStats.min) + ' / ' + $(usStats.max) + '</td><td>' + $(glStats.min) + ' / ' + $(glStats.max) + '</td></tr>';
     html += '</tbody></table></details>';
 
-    // ── Comp list (US) — collapsible ──────────────────────
-    const usComps = d.ebay?.us?.comps || [];
-    if (usComps.length) {
+    // ── Comp list (US) — filtered by grade pool ──────────
+    const usCompsRaw = d.ebay?.us?.comps || [];
+    const gp = v.gradePool || {};
+    const poolType = gp.usedPool || 'raw';
+    // Filter comps to only show the pool used for FMV
+    const usComps = usCompsRaw.filter(function(c) {
+      if (poolType === 'graded') return c.gradeType === 'graded';
+      return c.gradeType !== 'graded';
+    });
+    // If pool filter yields < 3 comps, the backend fell back to all — show all
+    const displayComps = usComps.length >= 3 ? usComps : usCompsRaw;
+    const poolLabel = usComps.length >= 3 ? (poolType === 'graded' ? 'Graded' : 'Raw') : 'All';
+    const excludedCount = usCompsRaw.length - displayComps.length;
+    if (displayComps.length) {
       html += '<details class="card pcgs-details" open>';
-      html += '<summary>US Comps (' + usComps.length + ')</summary>';
-      html += '<table><thead><tr><th>#</th><th>Title</th><th>Total</th><th>Match</th><th>Date</th></tr></thead><tbody>';
-      usComps.slice(0, 30).forEach(function(c, i) {
+      html += '<summary>US Comps — ' + poolLabel + ' (' + displayComps.length + ')';
+      if (excludedCount > 0) html += ' <small style="opacity:.6">(' + excludedCount + ' ' + (poolType === 'graded' ? 'raw' : 'graded') + ' excluded)</small>';
+      html += '</summary>';
+      html += '<table><thead><tr><th>#</th><th>Title</th><th>Total</th><th>Type</th><th>Match</th><th>Date</th></tr></thead><tbody>';
+      displayComps.slice(0, 30).forEach(function(c, i) {
         const mq = c.matchQuality || 'loose';
         const mqTag = '<span class="match-tag match-' + mq + '">' + mq + '</span>';
+        const gtLabel = c.gradeType === 'graded' ? '<span class="match-tag" style="background:#e8d5f5;color:#6b21a8">graded</span>' : '<span class="match-tag" style="background:#d5f5e3;color:#166534">raw</span>';
         html += '<tr><td>' + (i + 1) + '</td>';
         html += '<td><a href="' + c.url + '" target="_blank" rel="noopener">' + (c.title || '').substring(0, 70) + '</a></td>';
         html += '<td>' + $(c.totalUsd) + '</td>';
+        html += '<td>' + gtLabel + '</td>';
         html += '<td>' + mqTag + '</td>';
         html += '<td>' + (c.soldDate ? c.soldDate.substring(0, 10) : '—') + '</td></tr>';
       });
