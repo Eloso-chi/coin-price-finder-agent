@@ -1654,19 +1654,31 @@
   const COMPOSITION_ERAS = {
     // Kennedy Half Dollar
     'kennedy': [
-      { yearStart: 1964, yearEnd: 1964, composition: '90% Silver',  metal: 'silver', pure_ozt: 0.36169, fineness: 0.900 },
-      { yearStart: 1965, yearEnd: 1970, composition: '40% Silver',  metal: 'silver', pure_ozt: 0.14792, fineness: 0.400 },
-      { yearStart: 1971, yearEnd: 9999, composition: 'Clad (Cu-Ni)', metal: null,    pure_ozt: 0, fineness: 0 },
+      { yearStart: 1964, yearEnd: 1964, composition: '90% Silver',    metal: 'silver', pure_ozt: 0.36169, fineness: 0.900 },
+      { yearStart: 1965, yearEnd: 1970, composition: '40% Silver',    metal: 'silver', pure_ozt: 0.14792, fineness: 0.400 },
+      // S-mint .999 silver proof (2019+) — requires "silver" in query
+      { yearStart: 2019, yearEnd: 9999, composition: '.999 Fine Silver', metal: 'silver', pure_ozt: 0.40148, fineness: 0.999, textMatch: /\bsilver\b/ },
+      // S-mint 90% silver proof (1992-2018)
+      { yearStart: 1992, yearEnd: 2018, composition: '90% Silver',    metal: 'silver', pure_ozt: 0.36169, fineness: 0.900, textMatch: /\bsilver\b/ },
+      { yearStart: 1971, yearEnd: 9999, composition: 'Clad (Cu-Ni)',  metal: null,     pure_ozt: 0, fineness: 0 },
     ],
     // Washington Quarter
     'washington quarter': [
-      { yearStart: 1932, yearEnd: 1964, composition: '90% Silver',  metal: 'silver', pure_ozt: 0.18084, fineness: 0.900 },
-      { yearStart: 1965, yearEnd: 9999, composition: 'Clad (Cu-Ni)', metal: null,    pure_ozt: 0, fineness: 0 },
+      { yearStart: 1932, yearEnd: 1964, composition: '90% Silver',    metal: 'silver', pure_ozt: 0.18084, fineness: 0.900 },
+      // S-mint .999 silver proof (2019+)
+      { yearStart: 2019, yearEnd: 9999, composition: '.999 Fine Silver', metal: 'silver', pure_ozt: 0.20074, fineness: 0.999, textMatch: /\bsilver\b/ },
+      // S-mint 90% silver proof (1992-2018)
+      { yearStart: 1992, yearEnd: 2018, composition: '90% Silver',    metal: 'silver', pure_ozt: 0.18084, fineness: 0.900, textMatch: /\bsilver\b/ },
+      { yearStart: 1965, yearEnd: 9999, composition: 'Clad (Cu-Ni)',  metal: null,     pure_ozt: 0, fineness: 0 },
     ],
     // Roosevelt Dime
     'roosevelt dime': [
-      { yearStart: 1946, yearEnd: 1964, composition: '90% Silver',  metal: 'silver', pure_ozt: 0.07234, fineness: 0.900 },
-      { yearStart: 1965, yearEnd: 9999, composition: 'Clad (Cu-Ni)', metal: null,    pure_ozt: 0, fineness: 0 },
+      { yearStart: 1946, yearEnd: 1964, composition: '90% Silver',    metal: 'silver', pure_ozt: 0.07234, fineness: 0.900 },
+      // S-mint .999 silver proof (2019+)
+      { yearStart: 2019, yearEnd: 9999, composition: '.999 Fine Silver', metal: 'silver', pure_ozt: 0.08030, fineness: 0.999, textMatch: /\bsilver\b/ },
+      // S-mint 90% silver proof (1992-2018)
+      { yearStart: 1992, yearEnd: 2018, composition: '90% Silver',    metal: 'silver', pure_ozt: 0.07234, fineness: 0.900, textMatch: /\bsilver\b/ },
+      { yearStart: 1965, yearEnd: 9999, composition: 'Clad (Cu-Ni)',  metal: null,     pure_ozt: 0, fineness: 0 },
     ],
     // Jefferson Nickel
     'jefferson nickel': [
@@ -1700,9 +1712,13 @@
       const words = family.split(/\s+/);
       const matched = words.every(w => text.includes(w));
       if (!matched) continue;
-      // Found the family — now find the era for this year
+      // Found the family — now find the era for this year.
+      // Eras are ordered most-specific-first; entries with textMatch
+      // (e.g. /\bsilver\b/) only apply when the query text matches.
       for (const era of eras) {
-        if (year >= era.yearStart && year <= era.yearEnd) return era;
+        if (year < era.yearStart || year > era.yearEnd) continue;
+        if (era.textMatch && !era.textMatch.test(text)) continue;
+        return era;
       }
       // Year is in the family but outside all known eras — assume clad
       return { composition: 'Clad (Cu-Ni)', metal: null, pure_ozt: 0, fineness: 0 };
@@ -2033,6 +2049,13 @@
     { id:'seated-dime',     name:'Seated Liberty Dime (1837-1891)',        metal:'silver', pure_ozt:0.07234, weight_g:2.50,    fineness:0.900,  coins_per_roll:50, category:'Silver Dimes',        yearStart:1837, yearEnd:1891, composition:'90% Silver' },
     // ── Silver — Other ───────────────────────────────────────
     { id:'war-nickel',      name:'War Nickel 35% Silver (1942-1945)',      metal:'silver', pure_ozt:0.05626, weight_g:5.00,    fineness:0.350,  coins_per_roll:40, category:'Silver Other',        yearStart:1942, yearEnd:1945, composition:'35% Silver' },
+    // ── Modern .999 Fine Silver (2019+ Silver Proof & Bullion Strikes) ──
+    { id:'kennedy-999',     name:'Kennedy Half .999 Silver (2019+)',       metal:'silver', pure_ozt:0.40154, weight_g:12.50,   fineness:0.999,  coins_per_roll:20, category:'Modern .999 Silver',  yearStart:2019, yearEnd:9999, composition:'.999 Fine Silver' },
+    { id:'quarter-999',     name:'Washington Quarter .999 Silver (2019+)', metal:'silver', pure_ozt:0.20077, weight_g:6.25,    fineness:0.999,  coins_per_roll:40, category:'Modern .999 Silver',  yearStart:2019, yearEnd:9999, composition:'.999 Fine Silver' },
+    { id:'roosevelt-999',   name:'Roosevelt Dime .999 Silver (2019+)',     metal:'silver', pure_ozt:0.08031, weight_g:2.50,    fineness:0.999,  coins_per_roll:50, category:'Modern .999 Silver',  yearStart:2019, yearEnd:9999, composition:'.999 Fine Silver' },
+    { id:'atb-5oz',         name:'ATB Quarter 5 oz .999 (2010-2021)',      metal:'silver', pure_ozt:5.00000, weight_g:155.517, fineness:0.999,  coins_per_roll:1,  category:'Modern .999 Silver',  yearStart:2010, yearEnd:2021, composition:'.999 Fine Silver' },
+    { id:'morgan-999',      name:'Morgan Dollar .999 Silver (2021+)',      metal:'silver', pure_ozt:0.85860, weight_g:26.73,   fineness:0.999,  coins_per_roll:20, category:'Modern .999 Silver',  yearStart:2021, yearEnd:9999, composition:'.999 Fine Silver' },
+    { id:'peace-999',       name:'Peace Dollar .999 Silver (2021+)',       metal:'silver', pure_ozt:0.85860, weight_g:26.73,   fineness:0.999,  coins_per_roll:20, category:'Modern .999 Silver',  yearStart:2021, yearEnd:9999, composition:'.999 Fine Silver' },
     // ── Gold — Double Eagles ($20) ───────────────────────────
     { id:'st-gaudens',      name:'St. Gaudens $20 (1907-1933)',            metal:'gold',   pure_ozt:0.96750, weight_g:33.436,  fineness:0.900,  coins_per_roll:20, category:'Gold Double Eagles',    yearStart:1907, yearEnd:1933, composition:'90% Gold' },
     { id:'liberty-20',      name:'Liberty Head $20 (1849-1907)',            metal:'gold',   pure_ozt:0.96750, weight_g:33.436,  fineness:0.900,  coins_per_roll:20, category:'Gold Double Eagles',    yearStart:1849, yearEnd:1907, composition:'90% Gold' },
