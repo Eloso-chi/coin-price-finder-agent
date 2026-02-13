@@ -78,7 +78,7 @@ router.post('/', async (req, res) => {
 
     // ── Compute valuation (no PCGS data, mark as bar) ──
     const pcgsStub = { verified: false, _isBar: true };
-    const { valuation, decisions } = computeValuation(pcgsStub, ebay, askingPrice || null);
+    const { valuation, decisions } = computeValuation(pcgsStub, ebay, askingPrice || null, null);
 
     // ── Melt value calculation ──
     const sizeMap = {

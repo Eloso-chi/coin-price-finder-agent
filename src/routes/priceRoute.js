@@ -90,7 +90,11 @@ router.post('/', async (req, res) => {
     const keyDateInfo   = lookupKeyDate(keyDateSeries, keyDateYear, keyDateMint);
 
     // ── 5. Valuation + Decisions ──
-    const { valuation, decisions } = computeValuation(pcgs, ebay, askingPrice || null);
+    // Pass the USER's grade intent — not the PCGS-resolved grade.
+    // coinData?.grade comes from structured input; identification.parsed?.grade
+    // comes from free-text parsing.  If neither is set, user wants raw.
+    const userGrade = coinData?.grade || identification.parsed?.grade || null;
+    const { valuation, decisions } = computeValuation(pcgs, ebay, askingPrice || null, userGrade);
 
     // ── 6. Static Mintage Fallback ──
     let mintSeries = coinData?.name || pcgs.series || identification.parsed?.series || '';

@@ -61,6 +61,42 @@ function isDenied(title) {
   return DENY_PATTERNS.some(p => p.test(title));
 }
 
+// ── Graded (certified / slabbed) vs Raw detection ──────────
+// Priority chain for classifying a comp as graded or raw:
+//   1. conditionId  (eBay structured data — authoritative)
+//       2000 = "Certified" (graded by approved TPG)
+//       3000 = "Uncirculated" (raw)
+//       4000 = "Circulated" (raw)
+//   2. conditionDescriptors / localizedAspects (Browse API)
+//       "Certification" aspect = PCGS/NGC/etc → graded
+//   3. Title regex fallback (least reliable)
+const TPG_RE          = /\b(PCGS|NGC|ANACS|ICG|CGC)\b/i;
+const FORMAL_GRADE_RE = /\b(MS|PR|PF|SP|AU|XF|EF|VF|VG|AG|FR|PO)\s*[-]?\s*\d{1,2}\+?\b/i;
+
+/**
+ * Classify a comp as 'graded' or 'raw' using eBay's structured
+ * condition data first, falling back to title parsing only when
+ * the API doesn't provide a conditionId.
+ */
+function classifyGradeType(comp) {
+  const cid = comp.conditionId ? String(comp.conditionId) : null;
+
+  // 1. Authoritative: eBay conditionId
+  if (cid === '2000') return 'graded';          // "Certified"
+  if (cid === '3000' || cid === '4000') return 'raw';  // "Uncirculated" / "Circulated"
+  // 1000 (New), 1500 (New Other) — not standard for coins but treat as raw
+  if (cid === '1000' || cid === '1500') return 'raw';
+
+  // 2. ConditionDescriptors / localizedAspects (set by Browse API normalizer)
+  if (comp._certificationAspect) return 'graded';
+
+  // 3. Title fallback (least reliable — eBay policy says don't rely on title)
+  const title = comp.title || '';
+  if (TPG_RE.test(title) || FORMAL_GRADE_RE.test(title)) return 'graded';
+
+  return 'raw';
+}
+
 // ── OAuth token (shared by Browse + Insights APIs) ──────────
 let _oauthToken = null;
 let _oauthExpiry = 0;
@@ -128,22 +164,26 @@ async function insightsSearch(keywords, timeWindowDays = 90, limit = 50) {
     }
   ));
 
-  return (resp.data.itemSales || []).map(item => ({
-    itemId: item.itemId || item.legacyItemId || null,
-    title: item.title,
-    url: item.itemWebUrl || item.itemHref || null,
-    soldDate: item.lastSoldDate || item.transactionDate || null,
-    price: parseFloat(item.lastSoldPrice?.value || item.totalSoldCount ? 0 : 0),
-    shipping: 0,
-    totalUsd: parseFloat(item.lastSoldPrice?.value || 0),
-    currency: item.lastSoldPrice?.currency || 'USD',
-    location: 'US',
-    listingType: 'Sold',
-    conditionId: item.conditionId || null,
-    matchScore: null,
-    matchNotes: ['marketplace-insights-sold'],
-    _source: 'insights'
-  }));
+  return (resp.data.itemSales || []).map(item => {
+    const comp = {
+      itemId: item.itemId || item.legacyItemId || null,
+      title: item.title,
+      url: item.itemWebUrl || item.itemHref || null,
+      soldDate: item.lastSoldDate || item.transactionDate || null,
+      price: parseFloat(item.lastSoldPrice?.value || item.totalSoldCount ? 0 : 0),
+      shipping: 0,
+      totalUsd: parseFloat(item.lastSoldPrice?.value || 0),
+      currency: item.lastSoldPrice?.currency || 'USD',
+      location: 'US',
+      listingType: 'Sold',
+      conditionId: item.conditionId || null,
+      matchScore: null,
+      matchNotes: ['marketplace-insights-sold'],
+      _source: 'insights'
+    };
+    comp.gradeType = classifyGradeType(comp);
+    return comp;
+  });
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -186,24 +226,33 @@ async function browseSearch(keywords, limit = 50) {
       timeout: TIMEOUT
     }
   ));
-  return (resp.data.itemSummaries || []).map(item => ({
-    itemId: item.itemId || item.legacyItemId || null,
-    title: item.title,
-    url: item.itemWebUrl,
-    soldDate: null,
-    price: parseFloat(item.price?.value || 0),
-    shipping: item.shippingOptions?.[0]?.shippingCost?.value
-      ? parseFloat(item.shippingOptions[0].shippingCost.value) : 0,
-    totalUsd: parseFloat(item.price?.value || 0) +
-      (item.shippingOptions?.[0]?.shippingCost?.value ? parseFloat(item.shippingOptions[0].shippingCost.value) : 0),
-    currency: item.price?.currency || 'USD',
-    location: item.itemLocation?.country || 'US',
-    listingType: 'FixedPrice',
-    conditionId: item.conditionId || null,
-    matchScore: null,
-    matchNotes: ['browse-api-active-listing'],
-    _source: 'browse'
-  }));
+  return (resp.data.itemSummaries || []).map(item => {
+    // Extract certification aspect from localizedAspects (structured item specifics)
+    const aspects = item.localizedAspects || [];
+    const certAspect = aspects.find(a => /certification|grading\s*company|professional\s*grader/i.test(a.name));
+    const gradeAspect = aspects.find(a => a.name === 'Grade' && /^(MS|PR|PF|SP|AU|XF|EF|VF|VG)\s*\d/i.test(a.value || ''));
+    const comp = {
+      itemId: item.itemId || item.legacyItemId || null,
+      title: item.title,
+      url: item.itemWebUrl,
+      soldDate: null,
+      price: parseFloat(item.price?.value || 0),
+      shipping: item.shippingOptions?.[0]?.shippingCost?.value
+        ? parseFloat(item.shippingOptions[0].shippingCost.value) : 0,
+      totalUsd: parseFloat(item.price?.value || 0) +
+        (item.shippingOptions?.[0]?.shippingCost?.value ? parseFloat(item.shippingOptions[0].shippingCost.value) : 0),
+      currency: item.price?.currency || 'USD',
+      location: item.itemLocation?.country || 'US',
+      listingType: 'FixedPrice',
+      conditionId: item.conditionId || null,
+      _certificationAspect: certAspect?.value || gradeAspect?.value || null,
+      matchScore: null,
+      matchNotes: ['browse-api-active-listing'],
+      _source: 'browse'
+    };
+    comp.gradeType = classifyGradeType(comp);
+    return comp;
+  });
 }
 
 // ── Normalize Finding API item ──────────────────────────────
@@ -226,9 +275,16 @@ function normalizeItem(item) {
     location: item.location?.[0] || null,
     listingType: item.listingInfo?.[0]?.listingType?.[0] || null,
     conditionId: item.condition?.[0]?.conditionId?.[0] || null,
+    conditionDisplayName: item.condition?.[0]?.conditionDisplayName?.[0] || null,
     matchScore: null,
     matchNotes: []
   };
+}
+
+// Apply gradeType after Finding API normalization
+function classifyFindingItem(comp) {
+  comp.gradeType = classifyGradeType(comp);
+  return comp;
 }
 
 // ── Match scoring ───────────────────────────────────────────
@@ -264,6 +320,19 @@ function scoreMatch(comp, expected) {
 
   // PCGS slab bonus
   if (/\bpcgs\b/i.test(tLow)) { score += 5; notes.push('pcgs-slab'); }
+
+  // ── Grade-type classification + mismatch penalty ──
+  // gradeType was set during normalization via classifyGradeType();
+  // re-classify here in case it wasn't set (e.g. cached comps from older format)
+  if (!comp.gradeType) comp.gradeType = classifyGradeType(comp);
+
+  if (expected.grade) {
+    // User specified a grade → they want graded comps
+    if (comp.gradeType !== 'graded') { score -= 20; notes.push('raw-vs-graded'); }
+  } else {
+    // No grade specified → they want raw comps
+    if (comp.gradeType === 'graded')  { score -= 25; notes.push('graded-vs-raw'); }
+  }
 
   // Lunar series: zodiac animal match (5 pts)
   if (expected.zodiacAnimal && tLow.includes(expected.zodiacAnimal.toLowerCase())) {
@@ -335,6 +404,9 @@ function scoreBarMatch(comp, expected) {
   if (expected.zodiacAnimal && tLow.includes(expected.zodiacAnimal.toLowerCase())) {
     score += 5; notes.push('animal-match');
   }
+
+  // Bars are never graded — always tag as raw
+  comp.gradeType = 'raw';
 
   // Perth Lunar series number match (5 pts)
   if (expected.perthSeriesNum) {
@@ -448,7 +520,7 @@ async function fetchFindingTier(keywords, timeWindowDays, maxPages, locatedIn) {
     }
     totalPages = parseInt(resp.paginationOutput?.[0]?.totalPages?.[0] || '1', 10);
     const items = resp.searchResult?.[0]?.item || [];
-    allItems = allItems.concat(items.map(normalizeItem));
+    allItems = allItems.concat(items.map(normalizeItem).map(classifyFindingItem));
     if (items.length < PER_PAGE) break;
   }
   return allItems;

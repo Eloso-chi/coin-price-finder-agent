@@ -9,16 +9,48 @@ const stats = require('../utils/stats');
  * @param {object} pcgs       – pcgsService result
  * @param {object} ebay       – ebayService result  { us, global, usedFallback }
  * @param {number|null} askingPrice
+ * @param {string|null} userGrade – grade FROM USER INPUT (not PCGS-resolved)
  * @returns {object} { valuation, decisions }
  */
-function computeValuation(pcgs, ebay, askingPrice = null) {
+function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null) {
   const isCertified = !!(pcgs?.verified);
   const explanation = [];
 
-  // ── Gather eBay weighted median (US primary, global secondary) ──
-  const usComps   = ebay?.us?.comps || [];
-  const glComps   = ebay?.global?.comps || [];
+  // ── Gather eBay comps and separate graded vs raw pools ──
+  const usCompsAll = ebay?.us?.comps || [];
+  const glCompsAll = ebay?.global?.comps || [];
   const usedFallback = ebay?.usedFallback || false;
+
+  // Determine if user wants graded or raw comps
+  // Use the explicit user-supplied grade, NOT the PCGS-resolved grade.
+  // pcgs.grade can be set by PCGS Search API even when the user didn't
+  // specify a grade, which would incorrectly filter to graded comps.
+  const wantsGraded = !!(userGrade);
+
+  const usGraded = usCompsAll.filter(c => c.gradeType === 'graded');
+  const usRaw    = usCompsAll.filter(c => c.gradeType !== 'graded');
+  const glGraded = glCompsAll.filter(c => c.gradeType === 'graded');
+  const glRaw    = glCompsAll.filter(c => c.gradeType !== 'graded');
+
+  // Pick the pool matching user intent (need >= 3 comps to be usable)
+  let usComps, glComps;
+  if (wantsGraded) {
+    usComps = usGraded.length >= 3 ? usGraded : usCompsAll;
+    glComps = glGraded.length >= 3 ? glGraded : glCompsAll;
+    if (usGraded.length >= 3 && usRaw.length > 0) {
+      explanation.push(`Using ${usGraded.length} graded comps for FMV (${usRaw.length} raw comps excluded).`);
+    } else if (usRaw.length > 0 && usGraded.length < 3) {
+      explanation.push(`Only ${usGraded.length} graded comps — using all ${usCompsAll.length} comps (may include raw).`);
+    }
+  } else {
+    usComps = usRaw.length >= 3 ? usRaw : usCompsAll;
+    glComps = glRaw.length >= 3 ? glRaw : glCompsAll;
+    if (usRaw.length >= 3 && usGraded.length > 0) {
+      explanation.push(`Using ${usRaw.length} raw comps for FMV (${usGraded.length} graded comps excluded).`);
+    } else if (usGraded.length > 0 && usRaw.length < 3) {
+      explanation.push(`Only ${usRaw.length} raw comps — using all ${usCompsAll.length} comps (may include graded).`);
+    }
+  }
 
   const usPrices  = usComps.map(c => c.totalUsd).filter(p => p != null);
   const glPrices  = glComps.map(c => c.totalUsd).filter(p => p != null);
