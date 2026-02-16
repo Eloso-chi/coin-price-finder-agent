@@ -169,6 +169,7 @@ async function insightsSearch(keywords, timeWindowDays = 90, limit = 50) {
       itemId: item.itemId || item.legacyItemId || null,
       title: item.title,
       url: item.itemWebUrl || item.itemHref || null,
+      imageUrl: item.image?.imageUrl || item.thumbnailImages?.[0]?.imageUrl || null,
       soldDate: item.lastSoldDate || item.transactionDate || null,
       price: parseFloat(item.lastSoldPrice?.value || item.totalSoldCount ? 0 : 0),
       shipping: 0,
@@ -235,6 +236,7 @@ async function browseSearch(keywords, limit = 50) {
       itemId: item.itemId || item.legacyItemId || null,
       title: item.title,
       url: item.itemWebUrl,
+      imageUrl: item.image?.imageUrl || item.thumbnailImages?.[0]?.imageUrl || null,
       soldDate: null,
       price: parseFloat(item.price?.value || 0),
       shipping: item.shippingOptions?.[0]?.shippingCost?.value
@@ -267,6 +269,7 @@ function normalizeItem(item) {
     itemId: item.itemId?.[0] || null,
     title,
     url: item.viewItemURL?.[0] || null,
+    imageUrl: item.galleryURL?.[0] || null,
     soldDate: item.listingInfo?.[0]?.endTime?.[0] || null,
     price,
     shipping,
