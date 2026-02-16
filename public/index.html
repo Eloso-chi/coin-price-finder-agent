@@ -1863,10 +1863,11 @@
     })();
 
     // ── FMV Hero (coin name left, value right) ───────────
-    // Find best coin image: PCGS TrueView first, then first eBay comp with image
-    let coinImageUrl = d.pcgs?.trueViewUrl
-      || (d.ebay?.us?.comps || []).find(c => c.imageUrl)?.imageUrl
-      || (d.ebay?.global?.comps || []).find(c => c.imageUrl)?.imageUrl
+    // Find best coin image: prefer raw (unslabbed) comp, then any comp, then PCGS TrueView
+    const allComps = [].concat(d.ebay?.us?.comps || [], d.ebay?.global?.comps || []);
+    let coinImageUrl = allComps.find(c => c.imageUrl && c.gradeType !== 'graded')?.imageUrl
+      || d.pcgs?.trueViewUrl
+      || allComps.find(c => c.imageUrl)?.imageUrl
       || null;
     // Upscale eBay thumbnail to 500px for better quality
     if (coinImageUrl && coinImageUrl.includes('ebayimg.com') && /s-l\d+\./.test(coinImageUrl)) {
