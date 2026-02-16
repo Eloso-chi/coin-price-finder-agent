@@ -2,7 +2,6 @@
 // CommonJS
 
 const axios = require('axios');
-require('dotenv').config();
 const { TTLCache } = require('../utils/cache');
 
 const path = require('path');

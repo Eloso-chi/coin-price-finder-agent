@@ -64,11 +64,16 @@ class TTLCache {
 
   // ── File persistence ──────────────────────────────────────
   _saveToFile() {
-    try {
-      const obj = {};
-      for (const [k, v] of this._store) obj[k] = v;
-      fs.writeFileSync(this._filePath, JSON.stringify(obj, null, 2));
-    } catch (_) { /* best-effort */ }
+    // Debounce: coalesce rapid writes into a single async flush
+    if (this._saveTimer) return;
+    this._saveTimer = setTimeout(() => {
+      this._saveTimer = null;
+      try {
+        const obj = {};
+        for (const [k, v] of this._store) obj[k] = v;
+        fs.writeFile(this._filePath, JSON.stringify(obj, null, 2), () => {});
+      } catch (_) { /* best-effort */ }
+    }, 500);
   }
 
   _loadFromFile() {

@@ -122,22 +122,42 @@ function weightedMedian(values, weights) {
 
 /**
  * Build summary stats from an array of prices.
+ * Sorts once and reuses the sorted array for all calculations.
  */
 function summarize(prices) {
   if (!prices.length) {
     return { count: 0, mean: null, median: null, p25: null, p75: null, min: null, max: null, stddev: null, mad: null };
   }
+  const s = sorted(prices);
+  const m = mean(prices);
+  const med = _sortedMedian(s);
   return {
-    count: prices.length,
-    mean: +mean(prices).toFixed(2),
-    median: +median(prices).toFixed(2),
-    p25: +percentile(prices, 25).toFixed(2),
-    p75: +percentile(prices, 75).toFixed(2),
-    min: +Math.min(...prices).toFixed(2),
-    max: +Math.max(...prices).toFixed(2),
+    count: s.length,
+    mean: +m.toFixed(2),
+    median: +med.toFixed(2),
+    p25: +_sortedPercentile(s, 25).toFixed(2),
+    p75: +_sortedPercentile(s, 75).toFixed(2),
+    min: +s[0].toFixed(2),
+    max: +s[s.length - 1].toFixed(2),
     stddev: +stddev(prices).toFixed(2),
     mad: +mad(prices).toFixed(2)
   };
+}
+
+/** Median from a pre-sorted array. */
+function _sortedMedian(s) {
+  const mid = Math.floor(s.length / 2);
+  return s.length % 2 !== 0 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
+}
+
+/** Percentile from a pre-sorted array. */
+function _sortedPercentile(s, p) {
+  if (p <= 0) return s[0];
+  if (p >= 100) return s[s.length - 1];
+  const idx = (p / 100) * (s.length - 1);
+  const lo = Math.floor(idx);
+  const hi = Math.ceil(idx);
+  return s[lo] + (idx - lo) * (s[hi] - s[lo]);
 }
 
 module.exports = {

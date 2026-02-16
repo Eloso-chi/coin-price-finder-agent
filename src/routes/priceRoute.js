@@ -10,6 +10,7 @@ const { computeValuation } = require('../services/valuationService');
 const { lookupKeyDate } = require('../data/keyDates');
 const { lookupMintage } = require('../data/mintages');
 const { buildLunarComparison } = require('../data/lunarReference');
+const { zodiacForYear, perthLunarSeries } = require('../data/constants');
 
 router.post('/', async (req, res) => {
   try {
@@ -47,23 +48,21 @@ router.post('/', async (req, res) => {
 
     // ── 2b. Lunar series enrichment ──
     // If this is a Lunar coin, append zodiac animal + Perth series number for precision
-    const ZODIAC = ['Rat','Ox','Tiger','Rabbit','Dragon','Snake','Horse','Goat','Monkey','Rooster','Dog','Pig'];
     const coinName = (coinData?.name || pcgs.series || identification.parsed?.series || '').toLowerCase();
     const coinYear = coinData?.year || pcgs.year || identification.parsed?.year;
     const isLunarCoin = /\blunar\b/i.test(coinName);
     let zodiacAnimal = null;
     let perthSeriesLabel = null;
 
-    if (isLunarCoin && coinYear && coinYear >= 1996) {
-      zodiacAnimal = ZODIAC[((coinYear - 2020) % 12 + 12) % 12];
+    if (isLunarCoin && coinYear) {
+      zodiacAnimal = zodiacForYear(coinYear);
       if (zodiacAnimal && !ebayKeywords.toLowerCase().includes(zodiacAnimal.toLowerCase())) {
         ebayKeywords += ' ' + zodiacAnimal;
       }
       // Perth Mint series numbering
       if (/perth/i.test(coinName)) {
-        if (coinYear >= 1996 && coinYear <= 2007) perthSeriesLabel = 'Series I';
-        else if (coinYear >= 2008 && coinYear <= 2019) perthSeriesLabel = 'Series II';
-        else if (coinYear >= 2020 && coinYear <= 2031) perthSeriesLabel = 'Series III';
+        const { label } = perthLunarSeries(coinYear);
+        perthSeriesLabel = label;
         if (perthSeriesLabel && !ebayKeywords.toLowerCase().includes('series')) {
           ebayKeywords += ' ' + perthSeriesLabel;
         }

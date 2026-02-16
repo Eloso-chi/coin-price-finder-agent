@@ -4,7 +4,6 @@
 // CommonJS
 
 const axios = require('axios');
-require('dotenv').config();
 const { TTLCache } = require('../utils/cache');
 const stats = require('../utils/stats');
 
@@ -171,7 +170,7 @@ async function insightsSearch(keywords, timeWindowDays = 90, limit = 50) {
       url: item.itemWebUrl || item.itemHref || null,
       imageUrl: item.image?.imageUrl || item.thumbnailImages?.[0]?.imageUrl || null,
       soldDate: item.lastSoldDate || item.transactionDate || null,
-      price: parseFloat(item.lastSoldPrice?.value || item.totalSoldCount ? 0 : 0),
+      price: parseFloat(item.lastSoldPrice?.value || 0),
       shipping: 0,
       totalUsd: parseFloat(item.lastSoldPrice?.value || 0),
       currency: item.lastSoldPrice?.currency || 'USD',
@@ -429,16 +428,16 @@ function scoreBarMatch(comp, expected) {
 
 // ── Deduplication ───────────────────────────────────────────
 function dedup(comps) {
-  const seen = new Map();
+  const seen = new Set();
   const result = [];
   for (const c of comps) {
     // By itemId
     if (c.itemId && seen.has(c.itemId)) continue;
-    if (c.itemId) seen.set(c.itemId, true);
+    if (c.itemId) seen.add(c.itemId);
     // By normalized title + price (within $1 tolerance)
     const key = (c.title || '').toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 80) + '|' + Math.round(c.totalUsd || 0);
     if (seen.has(key)) continue;
-    seen.set(key, true);
+    seen.add(key);
     result.push(c);
   }
   return result;

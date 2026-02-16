@@ -237,6 +237,16 @@ function computeWeightedMedian(comps) {
 }
 
 /**
+ * Scaled fallback penalty based on US comp count.
+ * Strong sample (30+) = no penalty, decent (15-29) = half, weak (<15) = full.
+ */
+function fallbackPenalty(usCompCount) {
+  if (usCompCount >= 30) return 0;
+  if (usCompCount >= 15) return -7;
+  return -15;
+}
+
+/**
  * Confidence 0–100.
  * When isBar is true, PCGS-related factors are redistributed to
  * sample size, dispersion, and match quality — things that matter for
@@ -247,62 +257,32 @@ function computeConfidence({ verified, usCompCount, glCompCount, dispersion, avg
 
   if (isBar) {
     // ── Bar scoring (no PCGS axis) ──────────────────────────
-    // Sample size (up to 35 pts) — commodity, sample is king
-    c += Math.min(usCompCount / 12, 1) * 35;
-    // Low dispersion (up to 25 pts) — bars should cluster
-    c += Math.max(0, 1 - Math.min(dispersion, 1)) * 25;
-    // Match quality (up to 25 pts)
-    c += (avgMatchScore / 100) * 25;
-    // Sufficient comps bonus (15 pts when ≥ 20)
-    if (usCompCount >= 20) c += 15;
-    // Fallback penalty (mild — bars are searchable)
-    if (usedFallback) c -= 5;
-    // Low comps penalty
+    c += Math.min(usCompCount / 12, 1) * 35;   // Sample size (up to 35 pts)
+    c += Math.max(0, 1 - Math.min(dispersion, 1)) * 25; // Low dispersion (up to 25 pts)
+    c += (avgMatchScore / 100) * 25;            // Match quality (up to 25 pts)
+    if (usCompCount >= 20) c += 15;             // Sufficient comps bonus
+    if (usedFallback) c -= 5;                   // Mild fallback penalty
     if (usCompCount < 5) c -= 10;
   } else if (!pcgsFound) {
     // ── Non-PCGS coin (foreign, tokens, etc.) ───────────────
     // PCGS doesn't cover this coin — redistribute PCGS pts
-    // to sample size and match quality so foreign coins aren't
-    // structurally penalised.
-    // Sample size (up to 40 pts — boosted from 30)
-    c += Math.min(usCompCount / 15, 1) * 40;
-    // Low dispersion (up to 20 pts)
-    c += Math.max(0, 1 - Math.min(dispersion, 1)) * 20;
-    // Match quality (up to 25 pts — boosted from 15)
-    c += (avgMatchScore / 100) * 25;
-    // Sufficient comps bonus (10 pts when ≥ 20)
-    if (usCompCount >= 20) c += 10;
-    // Auction data (5 pts)
+    // to sample size and match quality.
+    c += Math.min(usCompCount / 15, 1) * 40;   // Sample size (up to 40 pts)
+    c += Math.max(0, 1 - Math.min(dispersion, 1)) * 20; // Low dispersion (up to 20 pts)
+    c += (avgMatchScore / 100) * 25;            // Match quality (up to 25 pts)
+    if (usCompCount >= 20) c += 10;             // Sufficient comps bonus
     if (hasAuction) c += 5;
-    // Global fallback penalty — scaled by comp count
-    if (usedFallback) {
-      if (usCompCount >= 30) c -= 0;       // strong sample, no penalty
-      else if (usCompCount >= 15) c -= 7;  // decent sample, half penalty
-      else c -= 15;                        // weak sample, full penalty
-    }
-    // Low comps penalty
+    if (usedFallback) c += fallbackPenalty(usCompCount);
     if (usCompCount < 5) c -= 10;
   } else {
     // ── Coin scoring (PCGS-covered) ─────────────────────────
-    // Sample size (up to 30 pts)
-    c += Math.min(usCompCount / 15, 1) * 30;
-    // Low dispersion (up to 20 pts)
-    c += Math.max(0, 1 - Math.min(dispersion, 1)) * 20;
-    // Match quality (up to 15 pts)
-    c += (avgMatchScore / 100) * 15;
-    // Verified by PCGS (10 pts)
-    if (verified) c += 10;
-    // PCGS guide available (10 pts)
-    if (hasPcgsGuide) c += 10;
-    // Auction data (5 pts)
+    c += Math.min(usCompCount / 15, 1) * 30;   // Sample size (up to 30 pts)
+    c += Math.max(0, 1 - Math.min(dispersion, 1)) * 20; // Low dispersion (up to 20 pts)
+    c += (avgMatchScore / 100) * 15;            // Match quality (up to 15 pts)
+    if (verified) c += 10;                      // Verified by PCGS
+    if (hasPcgsGuide) c += 10;                  // PCGS guide available
     if (hasAuction) c += 5;
-    // Global fallback penalty — scaled by comp count
-    if (usedFallback) {
-      if (usCompCount >= 30) c -= 0;       // strong sample, no penalty
-      else if (usCompCount >= 15) c -= 7;  // decent sample, half penalty
-      else c -= 15;                        // weak sample, full penalty
-    }
-    // Low comps penalty
+    if (usedFallback) c += fallbackPenalty(usCompCount);
     if (usCompCount < 5) c -= 10;
   }
 

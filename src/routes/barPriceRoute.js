@@ -7,6 +7,7 @@ const router = express.Router();
 
 const ebayService = require('../services/ebayService');
 const { computeValuation } = require('../services/valuationService');
+const { zodiacForYear, perthLunarSeries } = require('../data/constants');
 
 router.post('/', async (req, res) => {
   try {
@@ -24,20 +25,12 @@ router.post('/', async (req, res) => {
     };
 
     // ── Lunar series detection ──
-    const ZODIAC = ['Rat','Ox','Tiger','Rabbit','Dragon','Snake','Horse','Goat','Monkey','Rooster','Dog','Pig'];
     const isLunar = series === 'lunar';
     const isPerth = /perth/i.test(brand || '');
-    const zodiacAnimal = (isLunar && year && year >= 1996)
-      ? ZODIAC[((year - 2020) % 12 + 12) % 12]
-      : null;
+    const zodiacAnimal = isLunar ? zodiacForYear(year) : null;
 
     // Perth Mint Lunar series number from year
-    let perthSeriesNum = null;
-    if (isLunar && isPerth && year) {
-      if (year >= 1996 && year <= 2007) perthSeriesNum = 'I';
-      else if (year >= 2008 && year <= 2019) perthSeriesNum = 'II';
-      else if (year >= 2020 && year <= 2031) perthSeriesNum = 'III';
-    }
+    const { num: perthSeriesNum } = (isLunar && isPerth) ? perthLunarSeries(year) : { num: null };
 
     // ── Build eBay search keywords ──
     const parts = [];

@@ -22,7 +22,6 @@
   "homepage": "https://github.com/Eloso-chi/coin-price-finder-agent#readme",
   "dependencies": {
     "axios": "^1.13.5",
-    "body-parser": "^2.2.2",
     "csv-parse": "^6.1.0",
     "dotenv": "^17.2.4",
     "express": "^5.2.1"
