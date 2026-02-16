@@ -108,6 +108,7 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null) {
 
   // ── Confidence ──
   const isBar = !!(pcgs?._isBar);
+  const pcgsFound = !!(pcgs?.pcgsNo || pcgs?.verified || pcgsGuide != null);
   const confidence = computeConfidence({
     verified: isCertified,
     usCompCount: usPrices.length,
@@ -117,7 +118,8 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null) {
     usedFallback,
     hasPcgsGuide: pcgsGuide != null,
     hasAuction: auctionMedian != null,
-    isBar
+    isBar,
+    pcgsFound
   });
   explanation.push(`Confidence ${confidence}/100.`);
 
@@ -240,7 +242,7 @@ function computeWeightedMedian(comps) {
  * sample size, dispersion, and match quality — things that matter for
  * commodity bullion.
  */
-function computeConfidence({ verified, usCompCount, glCompCount, dispersion, avgMatchScore, usedFallback, hasPcgsGuide, hasAuction, isBar }) {
+function computeConfidence({ verified, usCompCount, glCompCount, dispersion, avgMatchScore, usedFallback, hasPcgsGuide, hasAuction, isBar, pcgsFound }) {
   let c = 0;
 
   if (isBar) {
@@ -257,8 +259,31 @@ function computeConfidence({ verified, usCompCount, glCompCount, dispersion, avg
     if (usedFallback) c -= 5;
     // Low comps penalty
     if (usCompCount < 5) c -= 10;
+  } else if (!pcgsFound) {
+    // ── Non-PCGS coin (foreign, tokens, etc.) ───────────────
+    // PCGS doesn't cover this coin — redistribute PCGS pts
+    // to sample size and match quality so foreign coins aren't
+    // structurally penalised.
+    // Sample size (up to 40 pts — boosted from 30)
+    c += Math.min(usCompCount / 15, 1) * 40;
+    // Low dispersion (up to 20 pts)
+    c += Math.max(0, 1 - Math.min(dispersion, 1)) * 20;
+    // Match quality (up to 25 pts — boosted from 15)
+    c += (avgMatchScore / 100) * 25;
+    // Sufficient comps bonus (10 pts when ≥ 20)
+    if (usCompCount >= 20) c += 10;
+    // Auction data (5 pts)
+    if (hasAuction) c += 5;
+    // Global fallback penalty — scaled by comp count
+    if (usedFallback) {
+      if (usCompCount >= 30) c -= 0;       // strong sample, no penalty
+      else if (usCompCount >= 15) c -= 7;  // decent sample, half penalty
+      else c -= 15;                        // weak sample, full penalty
+    }
+    // Low comps penalty
+    if (usCompCount < 5) c -= 10;
   } else {
-    // ── Coin scoring (original) ─────────────────────────────
+    // ── Coin scoring (PCGS-covered) ─────────────────────────
     // Sample size (up to 30 pts)
     c += Math.min(usCompCount / 15, 1) * 30;
     // Low dispersion (up to 20 pts)
@@ -271,8 +296,12 @@ function computeConfidence({ verified, usCompCount, glCompCount, dispersion, avg
     if (hasPcgsGuide) c += 10;
     // Auction data (5 pts)
     if (hasAuction) c += 5;
-    // Global fallback penalty
-    if (usedFallback) c -= 15;
+    // Global fallback penalty — scaled by comp count
+    if (usedFallback) {
+      if (usCompCount >= 30) c -= 0;       // strong sample, no penalty
+      else if (usCompCount >= 15) c -= 7;  // decent sample, half penalty
+      else c -= 15;                        // weak sample, full penalty
+    }
     // Low comps penalty
     if (usCompCount < 5) c -= 10;
   }
