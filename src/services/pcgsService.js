@@ -225,6 +225,7 @@ function parseDescription(text) {
     'gold kangaroo', 'kangaroo', 'nugget',
     'silver krugerrand', 'gold krugerrand', 'krugerrand',
     // US bullion & classic
+    'american gold buffalo', 'gold buffalo',
     'american silver eagle', 'american gold eagle',
     'silver eagle', 'gold eagle',
     'walking liberty', 'standing liberty',
@@ -232,7 +233,7 @@ function parseDescription(text) {
     'liberty nickel', 'flowing hair', 'capped bust', 'draped bust',
     'trade dollar',
     'morgan', 'peace', 'barber', 'mercury', 'roosevelt',
-    'washington', 'lincoln', 'jefferson', 'buffalo',
+    'washington', 'lincoln', 'jefferson', 'buffalo nickel', 'buffalo',
     'eisenhower', 'ike', 'kennedy', 'franklin',
     'shield', 'ase', 'sae',
     // Denomination fallbacks (last resort)
