@@ -44,7 +44,26 @@ router.post('/', async (req, res) => {
 
     // ── 2. Build eBay keywords ──
     const resolvedWeight = coinData?.weight || bodyWeight || identification.parsed?.weight || null;
-    let ebayKeywords = ebayService.buildKeywords(pcgs, String(query), resolvedWeight);
+
+    // Detect proof/mint set from parser or structured input
+    const resolvedSetType = coinData?.setType || identification.parsed?.setType || null;
+    const isSet = !!resolvedSetType;
+
+    let ebayKeywords;
+    if (isSet) {
+      // For sets, build targeted keywords (PCGS won't resolve these)
+      const yr = coinData?.year || pcgs.year || identification.parsed?.year || '';
+      const setLabels = {
+        'clad': 'US proof set',
+        'silver': 'US silver proof set',
+        'prestige': 'US prestige proof set',
+        'premier-silver': 'US premier silver proof set',
+        'mint-uncirculated': 'US mint set uncirculated'
+      };
+      ebayKeywords = `${yr} ${setLabels[resolvedSetType] || 'US proof set'}`.trim();
+    } else {
+      ebayKeywords = ebayService.buildKeywords(pcgs, String(query), resolvedWeight);
+    }
 
     // ── 2b. Lunar series enrichment ──
     // If this is a Lunar coin, append zodiac animal + Perth series number for precision
@@ -74,7 +93,7 @@ router.post('/', async (req, res) => {
       year: pcgs.year || identification.parsed?.year,
       mint: pcgs.mint || identification.parsed?.mint,
       series: pcgs.series || identification.parsed?.series,
-      grade: pcgs.grade || identification.parsed?.grade,
+      grade: isSet ? null : (pcgs.grade || identification.parsed?.grade),
       designation: pcgs.designation || identification.parsed?.designation,
       zodiacAnimal: zodiacAnimal,
       isLunarCoin: isLunarCoin,
@@ -92,7 +111,8 @@ router.post('/', async (req, res) => {
     // Pass the USER's grade intent — not the PCGS-resolved grade.
     // coinData?.grade comes from structured input; identification.parsed?.grade
     // comes from free-text parsing.  If neither is set, user wants raw.
-    const userGrade = coinData?.grade || identification.parsed?.grade || null;
+    // Sets (proof/mint) are never graded — pass null so all comps are used.
+    const userGrade = isSet ? null : (coinData?.grade || identification.parsed?.grade || null);
     const { valuation, decisions } = computeValuation(pcgs, ebay, askingPrice || null, userGrade);
 
     // ── 6. Static Mintage Fallback ──
@@ -102,13 +122,13 @@ router.post('/', async (req, res) => {
     const mintWeight = resolvedWeight;
 
     // For proof/mint sets, build the correct lookup key
-    if (coinData?.setType) {
-      if (coinData.setType === 'mint-uncirculated') {
+    if (resolvedSetType) {
+      if (resolvedSetType === 'mint-uncirculated') {
         mintSeries = 'us mint set';
-        mintMark = mintMark || 'P'; // mint sets have P&D, use P as default
+        mintMark = mintMark || 'P';
       } else {
-        mintSeries = 'us proof set ' + coinData.setType;
-        mintMark = mintMark || 'S'; // proof sets are always S mint
+        mintSeries = 'us proof set ' + resolvedSetType;
+        mintMark = mintMark || 'S';
       }
     }
 
@@ -139,7 +159,7 @@ router.post('/', async (req, res) => {
 
     // ── Response ──
     return res.json({
-      query: { input: query, askingPrice: askingPrice || null, weight: resolvedWeight, setType: coinData?.setType || null, options: opts },
+      query: { input: query, askingPrice: askingPrice || null, weight: resolvedWeight, setType: resolvedSetType, options: opts },
       coinData: coinData || null,
       keyDate: keyDateInfo,
       identification,

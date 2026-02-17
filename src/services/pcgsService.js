@@ -164,8 +164,31 @@ function parseDescription(text) {
   const desMatch = t.match(/\b(DCAM|CAM|PL|DPL|FB|FBL|FS|FH|RD|RB|BN)\b/i);
   if (desMatch) result.designation = desMatch[1].toUpperCase();
 
-  // Proof
-  if (/\bproof\b/i.test(t) && !result.grade) {
+  // Proof / Mint set detection — MUST come before generic "proof" grade
+  const setMatch = t.match(/\b(prestige|premier\s*silver|silver|clad)?\s*proof\s*set\b/i)
+    || t.match(/\bmint\s*set\b/i)
+    || t.match(/\buncirculated\s*set\b/i);
+  if (setMatch) {
+    const full = setMatch[0].toLowerCase();
+    if (/mint\s*set|uncirculated\s*set/i.test(full)) {
+      result.series = 'US Mint Set';
+      result.setType = 'mint-uncirculated';
+    } else if (/prestige/i.test(full)) {
+      result.series = 'US Prestige Proof Set';
+      result.setType = 'prestige';
+    } else if (/premier/i.test(full)) {
+      result.series = 'US Premier Silver Proof Set';
+      result.setType = 'premier-silver';
+    } else if (/silver/i.test(full)) {
+      result.series = 'US Silver Proof Set';
+      result.setType = 'silver';
+    } else {
+      result.series = 'US Proof Set';
+      result.setType = 'clad';
+    }
+    // Don't set grade to 'Proof' — it's a set, not a graded coin
+  } else if (/\bproof\b/i.test(t) && !result.grade) {
+    // Standalone "proof" without "set" → grade qualifier
     result.grade = 'Proof';
   }
 
