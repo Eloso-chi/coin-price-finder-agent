@@ -60,6 +60,41 @@ function isDenied(title) {
   return DENY_PATTERNS.some(p => p.test(title));
 }
 
+// ── Metal detection from title / aspects ─────────────────────
+const METAL_PATTERNS = [
+  { metal: 'gold',      re: /\bgold\b/i },
+  { metal: 'silver',    re: /\bsilver\b/i },
+  { metal: 'platinum',  re: /\bplatinum\b/i },
+  { metal: 'palladium', re: /\bpalladium\b/i },
+  { metal: 'copper',    re: /\bcopper\b/i },
+];
+
+/**
+ * Detect metal from a listing title string.
+ * Returns 'gold', 'silver', 'platinum', 'palladium', 'copper', or null.
+ */
+function detectMetalFromTitle(title) {
+  if (!title) return null;
+  for (const { metal, re } of METAL_PATTERNS) {
+    if (re.test(title)) return metal;
+  }
+  return null;
+}
+
+/**
+ * Detect metal from a composition/fineness string (eBay item specifics).
+ * Examples: ".999 Fine Silver", "Gold", ".9999 Fine Gold", "Silver Plated" (ignored via deny)
+ */
+function detectMetalFromComposition(value) {
+  if (!value) return null;
+  for (const { metal, re } of METAL_PATTERNS) {
+    if (re.test(value)) return metal;
+  }
+  // Fineness-only values like ".999" or ".9999" without a metal name
+  // can't reliably identify metal — return null
+  return null;
+}
+
 // ── Graded (certified / slabbed) vs Raw detection ──────────
 // Priority chain for classifying a comp as graded or raw:
 //   1. conditionId  (eBay structured data — authoritative)
@@ -177,6 +212,7 @@ async function insightsSearch(keywords, timeWindowDays = 90, limit = 50) {
       location: 'US',
       listingType: 'Sold',
       conditionId: item.conditionId || null,
+      _detectedMetal: detectMetalFromTitle(item.title),
       matchScore: null,
       matchNotes: ['marketplace-insights-sold'],
       _source: 'insights'
@@ -231,6 +267,11 @@ async function browseSearch(keywords, limit = 50) {
     const aspects = item.localizedAspects || [];
     const certAspect = aspects.find(a => /certification|grading\s*company|professional\s*grader/i.test(a.name));
     const gradeAspect = aspects.find(a => a.name === 'Grade' && /^(MS|PR|PF|SP|AU|XF|EF|VF|VG)\s*\d/i.test(a.value || ''));
+    // Composition / fineness / metal from item specifics
+    const compAspect = aspects.find(a => /composition|metal\s*content|precious\s*metal\s*content/i.test(a.name));
+    const fineAspect = aspects.find(a => /fineness/i.test(a.name));
+    const aspectMetal = detectMetalFromComposition(compAspect?.value)
+                     || detectMetalFromComposition(fineAspect?.value);
     const comp = {
       itemId: item.itemId || item.legacyItemId || null,
       title: item.title,
@@ -247,6 +288,9 @@ async function browseSearch(keywords, limit = 50) {
       listingType: 'FixedPrice',
       conditionId: item.conditionId || null,
       _certificationAspect: certAspect?.value || gradeAspect?.value || null,
+      _compositionAspect: compAspect?.value || null,
+      _finenessAspect: fineAspect?.value || null,
+      _detectedMetal: aspectMetal || detectMetalFromTitle(item.title) || null,
       matchScore: null,
       matchNotes: ['browse-api-active-listing'],
       _source: 'browse'
@@ -278,6 +322,7 @@ function normalizeItem(item) {
     listingType: item.listingInfo?.[0]?.listingType?.[0] || null,
     conditionId: item.condition?.[0]?.conditionId?.[0] || null,
     conditionDisplayName: item.condition?.[0]?.conditionDisplayName?.[0] || null,
+    _detectedMetal: detectMetalFromTitle(title),
     matchScore: null,
     matchNotes: []
   };
@@ -318,6 +363,13 @@ function scoreMatch(comp, expected) {
     const seriesTokens = expected.series.toLowerCase().split(/\s+/);
     const hits = seriesTokens.filter(t => t.length > 2 && tLow.includes(t)).length;
     if (hits >= Math.ceil(seriesTokens.length * 0.6)) { score += 10; notes.push('series-match'); }
+  }
+
+  // Metal match / mismatch
+  if (expected.metal) {
+    const compMetal = comp._detectedMetal;
+    if (compMetal === expected.metal) { score += 10; notes.push('metal-match'); }
+    else if (compMetal && compMetal !== expected.metal) { score -= 30; notes.push('metal-mismatch'); }
   }
 
   // PCGS slab bonus
@@ -458,6 +510,19 @@ function applyFilters(comps, options, expected) {
     if (c.totalUsd === null) { removed.nonUsd++; return false; }
     return true;
   });
+
+  // Metal-mismatch filter: drop comps whose detected metal contradicts expected
+  if (expected.metal) {
+    const wantMetal = expected.metal.toLowerCase();
+    removed.metalMismatch = 0;
+    kept = kept.filter(c => {
+      const compMetal = c._detectedMetal;
+      // If comp has no detected metal, keep it (benefit of the doubt)
+      if (!compMetal) return true;
+      if (compMetal !== wantMetal) { removed.metalMismatch++; return false; }
+      return true;
+    });
+  }
 
   // requirePCGSOnly
   if (options.requirePCGSOnly) {

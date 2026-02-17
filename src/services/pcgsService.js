@@ -205,6 +205,18 @@ function parseDescription(text) {
     result.weightRaw = weightMatch[0];
   }
 
+  // Metal detection — infer from series name or explicit keywords
+  const metalPatterns = [
+    { metal: 'gold',      re: /\bgold\b/i },
+    { metal: 'silver',    re: /\bsilver\b/i },
+    { metal: 'platinum',  re: /\bplatinum\b/i },
+    { metal: 'palladium', re: /\bpalladium\b/i },
+    { metal: 'copper',    re: /\bcopper\b/i },
+  ];
+  for (const { metal, re } of metalPatterns) {
+    if (re.test(t)) { result.metal = metal; break; }
+  }
+
   // Series heuristics — order matters: longer / more-specific phrases first
   const seriesKeywords = [
     // World bullion — multi-word first

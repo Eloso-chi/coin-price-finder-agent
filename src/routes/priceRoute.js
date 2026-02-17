@@ -89,12 +89,21 @@ router.post('/', async (req, res) => {
     }
 
     // ── 3. Fetch eBay comps (US + Global) ──
+    // Detect expected metal from parsed query or PCGS metalContent
+    const parsedMetal = identification.parsed?.metal || null;
+    const pcgsMetal = pcgs.metalContent ? (pcgs.metalContent.toLowerCase().includes('gold') ? 'gold'
+      : pcgs.metalContent.toLowerCase().includes('silver') ? 'silver'
+      : pcgs.metalContent.toLowerCase().includes('platinum') ? 'platinum'
+      : pcgs.metalContent.toLowerCase().includes('palladium') ? 'palladium' : null) : null;
+    const expectedMetal = parsedMetal || pcgsMetal || null;
+
     const expected = {
       year: pcgs.year || identification.parsed?.year,
       mint: pcgs.mint || identification.parsed?.mint,
       series: pcgs.series || identification.parsed?.series,
       grade: isSet ? null : (pcgs.grade || identification.parsed?.grade),
       designation: pcgs.designation || identification.parsed?.designation,
+      metal: expectedMetal,
       zodiacAnimal: zodiacAnimal,
       isLunarCoin: isLunarCoin,
       perthSeriesLabel: perthSeriesLabel
