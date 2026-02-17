@@ -21,6 +21,15 @@ app.use('/api/price', priceRoute);
 app.use('/api/metals', metalsRoute);
 app.use('/api/bar-price', barPriceRoute);
 
+// Clear all caches
+app.post('/api/clear-cache', (_req, res) => {
+  const ebay = require('./src/services/ebayService');
+  const pcgs = require('./src/services/pcgsService');
+  ebay.clearCache();
+  pcgs.clearCache();
+  res.json({ status: 'ok', message: 'All caches cleared' });
+});
+
 // Health check
 app.get('/api/health', (_req, res) => {
   res.json({

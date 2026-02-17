@@ -616,6 +616,7 @@
     <div class="form-mode-switch">
       <span id="mode-label" style="color:var(--text-muted)">Structured Entry</span>
       <button type="button" id="mode-toggle">Switch to Quick Search</button>
+      <button type="button" id="clear-cache-btn" style="margin-left:auto;font-size:.75rem;padding:4px 10px;background:var(--accent-red,#c0392b);color:#fff;border:none;border-radius:4px;cursor:pointer" title="Flush eBay + PCGS caches">Clear Cache</button>
     </div>
 
     <!-- ── Quick Search (hidden by default) ──────────────── -->
@@ -1076,6 +1077,7 @@
         submit:        document.getElementById('submit'),
       };
       this._bindMode();
+      this._bindClearCache();
       this._bindPreview();
       this._bindSubmit();
       this._bindSetDetection();
@@ -1092,6 +1094,24 @@
         this.els.modeToggle.textContent = isStruct ? 'Switch to Quick Search' : 'Switch to Structured Entry';
         if (!isStruct) this.els.query.focus();
         else this.els.coinName.focus();
+      });
+    },
+
+    /* ── Clear cache button ────────────────────────────────── */
+    _bindClearCache() {
+      const btn = document.getElementById('clear-cache-btn');
+      if (!btn) return;
+      btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        btn.textContent = 'Clearing…';
+        try {
+          const res = await fetch('/api/clear-cache', { method: 'POST' });
+          const j = await res.json();
+          btn.textContent = j.status === 'ok' ? 'Cleared ✓' : 'Error';
+        } catch (e) {
+          btn.textContent = 'Error';
+        }
+        setTimeout(() => { btn.textContent = 'Clear Cache'; btn.disabled = false; }, 2000);
       });
     },
 

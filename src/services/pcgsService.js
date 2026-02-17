@@ -377,9 +377,13 @@ function _empty(reason) {
   };
 }
 
+/** Flush the in-memory + on-disk PCGS cache. */
+function clearCache() { cache.clear(); }
+
 module.exports = {
   lookupByCert,
   lookupByCoinNumberAndGrade,
   resolveFromDescription,
-  parseDescription
+  parseDescription,
+  clearCache
 };

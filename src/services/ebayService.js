@@ -751,10 +751,14 @@ function buildKeywords(pcgsData, rawQuery, weight) {
   return rawQuery || '';
 }
 
+/** Flush the in-memory + on-disk eBay sold-comps cache. */
+function clearCache() { cache.clear(); }
+
 module.exports = {
   fetchSoldComps,
   buildKeywords,
   scoreMatch,
   isDenied,
-  dedup
+  dedup,
+  clearCache
 };
