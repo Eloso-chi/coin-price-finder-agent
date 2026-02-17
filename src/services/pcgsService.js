@@ -284,8 +284,15 @@ function _mapResponse(data) {
 
   // Extract TrueView image from Images array if direct URL not present
   let trueView = data.TrueViewURL || data.TrueViewUrl || null;
-  if (!trueView && data.HasTrueViewImage && Array.isArray(data.Images) && data.Images.length) {
-    trueView = data.Images[0].Fullsize || data.Images[0].Thumbnail || null;
+  const coinImages = [];
+  if (Array.isArray(data.Images) && data.Images.length) {
+    for (const img of data.Images) {
+      const url = img.Fullsize || img.Thumbnail || null;
+      if (url && !coinImages.includes(url)) coinImages.push(url);
+    }
+    if (!trueView && data.HasTrueViewImage && coinImages.length) {
+      trueView = coinImages[0];
+    }
   }
 
   return {
@@ -304,6 +311,7 @@ function _mapResponse(data) {
     },
     auction: _mapAuction(data),
     trueViewUrl: trueView,
+    coinImages: coinImages,   // All stock reference images (obverse, reverse, etc.)
     mintage: data.Mintage || null,
     metalContent: data.MetalContent || null,
     country: data.Country || null,
@@ -364,6 +372,7 @@ function _empty(reason) {
     population: null,
     auction: null,
     trueViewUrl: null,
+    coinImages: [],
     limitations: [reason]
   };
 }

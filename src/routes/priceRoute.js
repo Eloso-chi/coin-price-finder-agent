@@ -189,6 +189,7 @@ router.post('/', async (req, res) => {
         population: pcgs.population,
         auction: pcgs.auction,
         trueViewUrl: pcgs.trueViewUrl,
+        coinImages: pcgs.coinImages || [],
         mintage: pcgs.mintage || null,
         metalContent: pcgs.metalContent || null,
         country: pcgs.country || null

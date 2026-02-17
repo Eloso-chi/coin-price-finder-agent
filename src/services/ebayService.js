@@ -277,6 +277,7 @@ async function browseSearch(keywords, limit = 50) {
       title: item.title,
       url: item.itemWebUrl,
       imageUrl: item.image?.imageUrl || item.thumbnailImages?.[0]?.imageUrl || null,
+      additionalImages: (item.additionalImages || []).map(i => i.imageUrl).filter(Boolean),
       soldDate: null,
       price: parseFloat(item.price?.value || 0),
       shipping: item.shippingOptions?.[0]?.shippingCost?.value

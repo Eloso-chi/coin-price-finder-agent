@@ -182,6 +182,19 @@
     /* ── FMV Hero ────────────────────────────────────────── */
     .fmv-hero { padding: 28px 24px; text-align:center; }
     .fmv-row { display:flex; align-items:center; gap:24px; text-align:left; }
+    .fmv-gallery { flex-shrink:0; display:flex; flex-direction:column; align-items:center; gap:6px; }
+    .fmv-gallery-main { width:120px; height:120px; border-radius:12px; overflow:hidden; background:var(--card-bg); border:1px solid var(--border); cursor:pointer; position:relative; }
+    .fmv-gallery-main img { width:100%; height:100%; object-fit:contain; transition: opacity 0.25s; }
+    .fmv-gallery-main .gallery-nav { position:absolute; top:50%; transform:translateY(-50%); background:rgba(0,0,0,0.45); color:#fff; border:none; border-radius:50%; width:22px; height:22px; font-size:13px; cursor:pointer; display:flex; align-items:center; justify-content:center; opacity:0; transition:opacity 0.2s; line-height:1; padding:0; }
+    .fmv-gallery-main:hover .gallery-nav { opacity:1; }
+    .gallery-nav-left { left:3px; }
+    .gallery-nav-right { right:3px; }
+    .fmv-gallery-thumbs { display:flex; gap:4px; justify-content:center; max-width:120px; overflow-x:auto; }
+    .fmv-gallery-thumbs img { width:28px; height:28px; object-fit:cover; border-radius:4px; border:2px solid transparent; cursor:pointer; opacity:0.6; transition: opacity 0.2s, border-color 0.2s; }
+    .fmv-gallery-thumbs img.active { border-color:var(--green); opacity:1; }
+    .fmv-gallery-thumbs img:hover { opacity:1; }
+    .fmv-gallery-count { font-size:0.7rem; color:var(--text-secondary); margin-top:2px; }
+    /* Legacy single image fallback */
     .fmv-img { flex-shrink:0; width:100px; height:100px; border-radius:12px; overflow:hidden; background:var(--card-bg); border:1px solid var(--border); }
     .fmv-img img { width:100%; height:100%; object-fit:contain; }
     .fmv-row .fmv-left { flex:1; min-width:0; }
@@ -194,7 +207,7 @@
       font-variant-numeric: tabular-nums;
     }
     .fmv-hero .range { font-size: 0.9rem; color: var(--text-secondary); margin-top: 6px; font-variant-numeric: tabular-nums; }
-    @media (max-width: 520px) { .fmv-row { flex-direction:column; text-align:center; } .fmv-row .fmv-right { text-align:center; } .fmv-img { width:80px; height:80px; } }
+    @media (max-width: 520px) { .fmv-row { flex-direction:column; text-align:center; } .fmv-row .fmv-right { text-align:center; } .fmv-img { width:80px; height:80px; } .fmv-gallery-main { width:100px; height:100px; } }
 
     /* ── Lunar Comparison Panel ─────────────────────────── */
     .lunar-panel { margin-top: 16px; }
@@ -1627,6 +1640,35 @@
     return '<span class="tag tag-red">' + c + '%</span>';
   }
 
+  /* ── Image gallery navigation ──────────────────────────── */
+  const _galleryState = {};
+  function _getGallery(gid) {
+    if (_galleryState[gid]) return _galleryState[gid];
+    const el = document.getElementById(gid);
+    if (!el) return null;
+    const urls = JSON.parse(el.getAttribute('data-imgs') || '[]');
+    _galleryState[gid] = { idx: 0, urls: urls };
+    return _galleryState[gid];
+  }
+  function _updateGallery(gid, idx) {
+    const st = _getGallery(gid);
+    if (!st || !st.urls.length) return;
+    st.idx = ((idx % st.urls.length) + st.urls.length) % st.urls.length;
+    const mainImg = document.getElementById(gid + '-main');
+    if (mainImg) mainImg.src = st.urls[st.idx];
+    // Update thumb highlights (thumbs only show first 4)
+    const thumbs = document.querySelectorAll('#' + gid + ' .fmv-gallery-thumbs img');
+    thumbs.forEach(function(t) { t.classList.toggle('active', parseInt(t.getAttribute('data-idx')) === st.idx); });
+  }
+  function galleryNav(gid, dir) {
+    const st = _getGallery(gid);
+    if (!st) return;
+    _updateGallery(gid, st.idx + dir);
+  }
+  function gallerySelect(gid, idx) {
+    _updateGallery(gid, idx);
+  }
+
   /* ═══════════════════════════════════════════════════════════
    *  PROOF SET COMPOSITIONS (pure troy oz of silver per set)
    *  Clad sets pre-1992 have no silver. Silver proof sets since
@@ -1863,21 +1905,58 @@
     })();
 
     // ── FMV Hero (coin name left, value right) ───────────
-    // Find best coin image: prefer raw (unslabbed) comp, then any comp, then PCGS TrueView
+    // Collect all unique images from comps for a multi-image gallery
+    // Priority: raw comps first (show actual coins not slabs/envelopes), then graded
     const allComps = [].concat(d.ebay?.us?.comps || [], d.ebay?.global?.comps || []);
-    let coinImageUrl = allComps.find(c => c.imageUrl && c.gradeType !== 'graded')?.imageUrl
-      || d.pcgs?.trueViewUrl
-      || allComps.find(c => c.imageUrl)?.imageUrl
-      || null;
-    // Upscale eBay thumbnail to 500px for better quality
-    if (coinImageUrl && coinImageUrl.includes('ebayimg.com') && /s-l\d+\./.test(coinImageUrl)) {
-      coinImageUrl = coinImageUrl.replace(/s-l\d+\./, 's-l500.');
+    const galleryUrls = [];
+    const seenImgKeys = new Set();
+    function upscaleEbay(url) {
+      if (url && url.includes('ebayimg.com') && /s-l\d+\./.test(url)) return url.replace(/s-l\d+\./, 's-l500.');
+      return url;
     }
+    function addGalleryUrl(url) {
+      if (!url) return;
+      const key = url.replace(/s-l\d+\./, 's-l###.').split('?')[0];
+      if (seenImgKeys.has(key)) return;
+      seenImgKeys.add(key);
+      galleryUrls.push(upscaleEbay(url));
+    }
+    // Raw comps first (for sets: more likely to show coins, not envelopes)
+    allComps.filter(c => c.gradeType !== 'graded').forEach(c => {
+      addGalleryUrl(c.imageUrl);
+      (c.additionalImages || []).forEach(u => addGalleryUrl(u));
+    });
+    // Then graded comps
+    allComps.filter(c => c.gradeType === 'graded').forEach(c => {
+      addGalleryUrl(c.imageUrl);
+      (c.additionalImages || []).forEach(u => addGalleryUrl(u));
+    });
+    // PCGS TrueView + stock reference images (obverse, reverse, etc.)
+    if (d.pcgs?.trueViewUrl) addGalleryUrl(d.pcgs.trueViewUrl);
+    (d.pcgs?.coinImages || []).forEach(u => addGalleryUrl(u));
+    // Cap gallery at 12 images
+    const galleryImages = galleryUrls.slice(0, 12);
 
     html += '<div class="card fmv-hero">';
     html += '<div class="fmv-row">';
-    if (coinImageUrl) {
-      html += '<div class="fmv-img"><img src="' + coinImageUrl + '" alt="' + (coinLabel || 'Coin') + '" onerror="this.parentElement.style.display=\'none\'"></div>';
+    if (galleryImages.length > 1) {
+      // Multi-image gallery
+      const gid = 'gallery-' + Date.now();
+      html += '<div class="fmv-gallery" id="' + gid + '" data-imgs=\'' + JSON.stringify(galleryImages) + '\'>';
+      html += '<div class="fmv-gallery-main">';
+      html += '<img id="' + gid + '-main" src="' + galleryImages[0] + '" alt="' + (coinLabel || 'Coin') + '" onerror="this.src=\'' + (galleryImages[1] || '') + '\'">';
+      html += '<button class="gallery-nav gallery-nav-left" onclick="galleryNav(\'' + gid + '\',-1)">&lsaquo;</button>';
+      html += '<button class="gallery-nav gallery-nav-right" onclick="galleryNav(\'' + gid + '\',1)">&rsaquo;</button>';
+      html += '</div>';
+      html += '<div class="fmv-gallery-thumbs">';
+      galleryImages.slice(0, 4).forEach(function(url, i) {
+        html += '<img src="' + url.replace(/s-l500\./, 's-l96.') + '" data-idx="' + i + '" class="' + (i === 0 ? 'active' : '') + '" onclick="gallerySelect(\'' + gid + '\',' + i + ')">';
+      });
+      html += '</div>';
+      if (galleryImages.length > 4) html += '<div class="fmv-gallery-count">' + galleryImages.length + ' photos</div>';
+      html += '</div>';
+    } else if (galleryImages.length === 1) {
+      html += '<div class="fmv-img"><img src="' + galleryImages[0] + '" alt="' + (coinLabel || 'Coin') + '" onerror="this.parentElement.style.display=\'none\'"></div>';
     }
     html += '<div class="fmv-left">';
     if (coinLabel) html += '<div class="coin-id">' + coinLabel + '</div>';
