@@ -230,14 +230,26 @@ const KEY_DATES = [
   // ═══════════════════════════════════════════════════════════
   // GOLD — ST. GAUDENS DOUBLE EAGLES
   // ═══════════════════════════════════════════════════════════
-  { series: 'st. gaudens',          year: 1907, mint: '',  tier: 'semi-key', note: 'High relief variety (11,250 minted) is major key' },
-  { series: 'st gaudens',           year: 1907, mint: '',  tier: 'semi-key', note: 'High relief variety (11,250 minted) is major key' },
-  { series: 'st. gaudens',          year: 1908, mint: '',  tier: 'semi-key', note: 'No Motto / With Motto varieties' },
-  { series: 'st gaudens',           year: 1908, mint: '',  tier: 'semi-key', note: 'No Motto / With Motto varieties' },
-  { series: 'st. gaudens',          year: 1927, mint: 'D', tier: 'key',      note: 'Extremely rare; multi-million dollar coin' },
-  { series: 'st gaudens',           year: 1927, mint: 'D', tier: 'key',      note: 'Extremely rare; multi-million dollar coin' },
-  { series: 'st. gaudens',          year: 1933, mint: '',  tier: 'key',      note: 'Recalled; only 1 legally owned; sold for $18.9M' },
-  { series: 'st gaudens',           year: 1933, mint: '',  tier: 'key',      note: 'Recalled; only 1 legally owned; sold for $18.9M' },
+  { series: 'st. gaudens',                  year: 1907, mint: '',  tier: 'semi-key', note: 'High relief variety (11,250 minted) is major key' },
+  { series: 'st gaudens',                   year: 1907, mint: '',  tier: 'semi-key', note: 'High relief variety (11,250 minted) is major key' },
+  { series: 'saint gaudens',                year: 1907, mint: '',  tier: 'semi-key', note: 'High relief variety (11,250 minted) is major key' },
+  { series: 'saint-gaudens',                year: 1907, mint: '',  tier: 'semi-key', note: 'High relief variety (11,250 minted) is major key' },
+  { series: 'saint gaudens double eagle',   year: 1907, mint: '',  tier: 'semi-key', note: 'High relief variety (11,250 minted) is major key' },
+  { series: 'st. gaudens',                  year: 1908, mint: '',  tier: 'semi-key', note: 'No Motto / With Motto varieties' },
+  { series: 'st gaudens',                   year: 1908, mint: '',  tier: 'semi-key', note: 'No Motto / With Motto varieties' },
+  { series: 'saint gaudens',                year: 1908, mint: '',  tier: 'semi-key', note: 'No Motto / With Motto varieties' },
+  { series: 'saint-gaudens',                year: 1908, mint: '',  tier: 'semi-key', note: 'No Motto / With Motto varieties' },
+  { series: 'saint gaudens double eagle',   year: 1908, mint: '',  tier: 'semi-key', note: 'No Motto / With Motto varieties' },
+  { series: 'st. gaudens',                  year: 1927, mint: 'D', tier: 'key',      note: 'Extremely rare; multi-million dollar coin' },
+  { series: 'st gaudens',                   year: 1927, mint: 'D', tier: 'key',      note: 'Extremely rare; multi-million dollar coin' },
+  { series: 'saint gaudens',                year: 1927, mint: 'D', tier: 'key',      note: 'Extremely rare; multi-million dollar coin' },
+  { series: 'saint-gaudens',                year: 1927, mint: 'D', tier: 'key',      note: 'Extremely rare; multi-million dollar coin' },
+  { series: 'saint gaudens double eagle',   year: 1927, mint: 'D', tier: 'key',      note: 'Extremely rare; multi-million dollar coin' },
+  { series: 'st. gaudens',                  year: 1933, mint: '',  tier: 'key',      note: 'Recalled; only 1 legally owned; sold for $18.9M' },
+  { series: 'st gaudens',                   year: 1933, mint: '',  tier: 'key',      note: 'Recalled; only 1 legally owned; sold for $18.9M' },
+  { series: 'saint gaudens',                year: 1933, mint: '',  tier: 'key',      note: 'Recalled; only 1 legally owned; sold for $18.9M' },
+  { series: 'saint-gaudens',                year: 1933, mint: '',  tier: 'key',      note: 'Recalled; only 1 legally owned; sold for $18.9M' },
+  { series: 'saint gaudens double eagle',   year: 1933, mint: '',  tier: 'key',      note: 'Recalled; only 1 legally owned; sold for $18.9M' },
 
   // ═══════════════════════════════════════════════════════════
   // GOLD — LIBERTY HEAD DOUBLE EAGLES
@@ -257,8 +269,11 @@ const KEY_DATES = [
   // GOLD — INDIAN HEAD EAGLES
   // ═══════════════════════════════════════════════════════════
   { series: 'indian head eagle', year: 1907, mint: '',  tier: 'semi-key', note: 'First year issue; wire rim & rolled rim varieties' },
+  { series: 'indian eagle',      year: 1907, mint: '',  tier: 'semi-key', note: 'First year issue; wire rim & rolled rim varieties' },
   { series: 'indian head eagle', year: 1911, mint: 'D', tier: 'semi-key', note: 'Low mintage (30K)' },
+  { series: 'indian eagle',      year: 1911, mint: 'D', tier: 'semi-key', note: 'Low mintage (30K)' },
   { series: 'indian head eagle', year: 1933, mint: '',  tier: 'key',      note: 'Last year; low mintage (312K); key date' },
+  { series: 'indian eagle',      year: 1933, mint: '',  tier: 'key',      note: 'Last year; low mintage (312K); key date' },
 
   // ═══════════════════════════════════════════════════════════
   // GOLD — INDIAN HEAD QUARTER EAGLES ($2.50)
