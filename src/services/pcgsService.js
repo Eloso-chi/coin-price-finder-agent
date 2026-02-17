@@ -3,6 +3,7 @@
 
 const axios = require('axios');
 const { TTLCache } = require('../utils/cache');
+const { lookupPCGSNumber } = require('../data/pcgsNumbers');
 
 const path = require('path');
 const fs = require('fs');
@@ -77,7 +78,12 @@ async function lookupByCoinNumberAndGrade(pcgsCoinNumber, gradeNum) {
   if (cache.has(cacheKey)) return cache.get(cacheKey);
 
   try {
-    const data = await pcgsGet(`/coindetail/GetCoinFactsByPCGSNo/${pcgsCoinNumber}/${gradeNum}`);
+    // Use documented query-param endpoint (GetCoinFactsByGrade)
+    const plusGrade = String(gradeNum).includes('+');
+    const gradeInt = parseInt(String(gradeNum).replace('+', ''), 10) || 65;
+    const data = await pcgsGet(
+      `/coindetail/GetCoinFactsByGrade?PCGSNo=${pcgsCoinNumber}&GradeNo=${gradeInt}&PlusGrade=${plusGrade}`
+    );
     const result = _mapResponse(data);
     cache.set(cacheKey, result);
     return result;
@@ -119,10 +125,26 @@ async function resolveFromDescription(text) {
     }
   } catch (_) { /* fall through */ }
 
+  // ── Try static PCGS coin number table ──
+  const pcgsNo = lookupPCGSNumber(
+    parsed.series || '',
+    parsed.year,
+    parsed.mint
+  );
+  if (pcgsNo && parsed.gradeNum) {
+    const tableResult = await lookupByCoinNumberAndGrade(pcgsNo, parsed.gradeNum);
+    if (tableResult.verified) {
+      tableResult.parsed = parsed;
+      const cacheKey = `pcgs:desc:${text.toLowerCase().trim()}`;
+      cache.set(cacheKey, tableResult);
+      return tableResult;
+    }
+  }
+
   // Return best-effort parsed data without verification
   return {
     verified: false,
-    pcgsCoinNumber: null,
+    pcgsCoinNumber: pcgsNo || null,
     series: parsed.series || null,
     year: parsed.year || null,
     mint: parsed.mint || null,
@@ -147,9 +169,17 @@ function parseDescription(text) {
   const yearMatch = t.match(/\b(1[7-9]\d{2}|20[0-2]\d)\b/);
   if (yearMatch) result.year = parseInt(yearMatch[1], 10);
 
-  // Mint mark
-  const mintMatch = t.match(/\b(\d{4})\s*[-]?\s*([SDPWO])\b/i);
-  if (mintMatch) result.mint = mintMatch[2].toUpperCase();
+  // Mint mark — try year-adjacent first (e.g. "1960-D", "1881-CC"), then standalone
+  const mintMatch = t.match(/\b(\d{4})\s*[-]?\s*(CC|[SDPWO])\b/i);
+  if (mintMatch) {
+    result.mint = mintMatch[2].toUpperCase();
+  } else {
+    // Standalone mint mark: single letter S/D/O/W or two-letter CC
+    const standalone = t.match(/(?:^|[\s-])(CC)\b/i)
+      || t.match(/(?:\bmint\s*(?:mark)?:?\s*|\b(?:cent|dollar|dime|quarter|half|nickel|penny|eagle)\s+)([SDPWO])\b/i)
+      || t.match(/\b([SDOW])\s+(?:mint)\b/i);
+    if (standalone) result.mint = (standalone[1] || standalone[2]).toUpperCase();
+  }
 
   // Grade: MS/PR/SP/PF + number, optional +
   const gradeMatch = t.match(/\b(MS|PR|PF|SP|AU|XF|EF|VF|F|VG|G|AG|PO)\s*[-]?\s*(\d{1,2})(\+)?\b/i);

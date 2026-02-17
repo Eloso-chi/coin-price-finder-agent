@@ -32,6 +32,12 @@ router.post('/', async (req, res) => {
     const certMatch = String(query).match(/^\d{7,9}$/);
     if (certMatch) {
       pcgs = await pcgsService.lookupByCert(query);
+    } else if (coinData?.pcgsNumber) {
+      // User supplied PCGS coin # directly via structured form
+      const gradeNum = coinData?.grade
+        ? parseInt(String(coinData.grade).replace(/[^\d]/g, ''), 10) || 65
+        : 65;
+      pcgs = await pcgsService.lookupByCoinNumberAndGrade(coinData.pcgsNumber, gradeNum);
     } else {
       pcgs = await pcgsService.resolveFromDescription(String(query));
     }
