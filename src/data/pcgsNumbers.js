@@ -326,6 +326,16 @@ const SERIES_MAP = [
   { re: /\bwashington\b/i,                                 table: WASHINGTON_QUARTER },
   { re: /\broosevelt\b/i,                                  table: ROOSEVELT },
   { re: /\blincoln\b|\bcent\b|\bpenny\b|\bwheat\b/i,       tables: [LINCOLN_MEMORIAL_COPPER, LINCOLN_MEMORIAL_ZINC] },
+
+  // ── Generic denomination fallbacks (last resort) ──────────
+  // When the parser returns a bare denomination like "Half Dollar"
+  // instead of a specific design name, try all relevant tables.
+  // The year determines which table has a matching entry.
+  { re: /\bhalf\s*dollar\b/i,                              tables: [KENNEDY, FRANKLIN, WALKING_LIBERTY] },
+  { re: /\bquarter\b/i,                                    table: WASHINGTON_QUARTER },
+  { re: /\bdime\b/i,                                       tables: [ROOSEVELT, MERCURY] },
+  { re: /\bnickel\b/i,                                     table: JEFFERSON },
+  { re: /\bdollar\b/i,                                     tables: [EISENHOWER, PEACE, MORGAN] },
 ];
 
 /**
