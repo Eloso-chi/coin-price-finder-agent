@@ -206,16 +206,22 @@ async function fetchMarketMatrix({
   series,
   grade = 'All',
   timeWindowDays = 90,
+  weight = null,
   lookupKeyDate,
   ebayService,
 }) {
   if (!series) throw new Error('series is required');
 
-  const cacheKey = `market:${series}:${grade || 'All'}:${timeWindowDays}`;
+  const cacheKey = `market:${series}:${grade || 'All'}:${timeWindowDays}:${weight || ''}`;
   if (_cache.has(cacheKey)) return _cache.get(cacheKey);
 
-  // Build keywords — series name is the primary query
-  const keywords = series;
+  // Build keywords — series name + optional weight for bullion coins
+  let keywords = series;
+  if (weight && weight !== 1) {
+    const WEIGHT_LABELS = { 0.5: '1/2', 0.25: '1/4', 0.1: '1/10', 0.05: '1/20' };
+    const wStr = WEIGHT_LABELS[weight] ? WEIGHT_LABELS[weight] + ' oz' : weight + ' oz';
+    keywords = series + ' ' + wStr;
+  }
 
   // Fetch completed sales via the existing fetchSoldComps pipeline
   // This returns comps from Insights + Finding APIs

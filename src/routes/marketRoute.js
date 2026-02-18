@@ -27,7 +27,7 @@ const { lookupKeyDate } = require('../data/keyDates');
  */
 router.get('/', async (req, res) => {
   try {
-    const { series, grade, days } = req.query;
+    const { series, grade, days, weight } = req.query;
 
     if (!series) {
       return res.status(400).json({ error: 'Missing required parameter: series' });
@@ -35,11 +35,13 @@ router.get('/', async (req, res) => {
 
     const timeWindowDays = parseInt(days) || 90;
     const gradeFilter = grade || 'All';
+    const parsedWeight = weight ? parseFloat(weight) : null;
 
     const matrix = await fetchMarketMatrix({
       series: series.trim(),
       grade: gradeFilter,
       timeWindowDays,
+      weight: parsedWeight,
       lookupKeyDate,
       ebayService,
     });

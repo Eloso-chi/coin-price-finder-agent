@@ -1129,6 +1129,11 @@
         tab.setAttribute('aria-selected', 'true');
         document.getElementById(tab.getAttribute('aria-controls'))
           .setAttribute('aria-hidden', 'false');
+        // Auto-load Live eBay Tracker when switching to it with a pending search
+        if (tab.id === 'tab-tracker' && typeof EbayTracker !== 'undefined' && EbayTracker._pendingLoad) {
+          EbayTracker._pendingLoad = false;
+          EbayTracker._load();
+        }
       });
       // Keyboard: arrow keys to navigate tabs
       tab.addEventListener('keydown', (e) => {
@@ -2367,9 +2372,12 @@
 
     r.innerHTML = html;
 
-    // Pass detected series name to Live eBay Tracker
+    // Pass detected series + weight to Live eBay Tracker, mark for auto-load
     const trackerSeries = d.pcgs?.series || d.coinData?.name || d.identification?.parsed?.series || '';
-    if (trackerSeries && typeof EbayTracker !== 'undefined') EbayTracker.setSeries(trackerSeries);
+    const trackerWeight = d.query?.weight || null;
+    if (trackerSeries && typeof EbayTracker !== 'undefined') {
+      EbayTracker.setSeries(trackerSeries, trackerWeight);
+    }
   }
 
   // Submit handlers are now managed by CoinForm._bindSubmit()
@@ -2698,6 +2706,8 @@
    * ═══════════════════════════════════════════════════════════ */
   const EbayTracker = {
     _lastSeries: null,
+    _weight: null,
+    _pendingLoad: false,
 
     init() {
       this.els = {
@@ -2718,11 +2728,35 @@
       this.els.days.addEventListener('change', () => { if (this._lastSeries) this._load(); });
     },
 
-    /** Set series input from Price Discovery results */
-    setSeries(series) {
-      if (series && this.els && this.els.series) {
-        this.els.series.value = series;
+    /**
+     * Set series input from Price Discovery results.
+     * Clears any previous results and marks for auto-load on tab switch.
+     * @param {string} series
+     * @param {number|null} weight — for bullion coins (0.5, 0.25, etc.)
+     */
+    setSeries(series, weight) {
+      if (!series || !this.els || !this.els.series) return;
+      this.els.series.value = series;
+      this._weight = (weight && weight !== 1) ? weight : null;
+      // Clear stale results so the user sees fresh data when they switch tabs
+      this._clearResults();
+      // If the tracker tab is already visible, load immediately; otherwise mark pending
+      const trackerPanel = document.getElementById('panel-tracker');
+      if (trackerPanel && trackerPanel.getAttribute('aria-hidden') === 'false') {
+        this._load();
+      } else {
+        this._pendingLoad = true;
       }
+    },
+
+    /** Reset the tracker display (called on each new Price Discovery search) */
+    _clearResults() {
+      this._lastSeries = null;
+      if (this.els.status)     { this.els.status.className = 'status-bar'; this.els.status.innerHTML = ''; }
+      if (this.els.summary)    this.els.summary.style.display = 'none';
+      if (this.els.matrixWrap) this.els.matrixWrap.style.display = 'none';
+      if (this.els.matrix)     this.els.matrix.innerHTML = '';
+      if (this.els.empty)      this.els.empty.style.display = '';
     },
 
     async _load() {
@@ -2738,7 +2772,7 @@
 
       this.els.submit.disabled = true;
       this.els.status.className = 'status-bar loading';
-      this.els.status.innerHTML = '<div class="spinner"></div> Fetching eBay market data for \u201C' + series + '\u201D\u2026';
+      this.els.status.innerHTML = '<div class="spinner"></div> Fetching eBay market data for \u201C' + series + (this._weight ? ' (' + this._weight + ' oz)' : '') + '\u201D\u2026';
       this.els.summary.style.display = 'none';
       this.els.matrixWrap.style.display = 'none';
       this.els.empty.style.display = 'none';
@@ -2747,6 +2781,7 @@
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 90000);
         const params = new URLSearchParams({ series, grade, days });
+        if (this._weight) params.set('weight', this._weight);
         const resp = await fetch('/api/market/ebay?' + params, { signal: controller.signal });
         clearTimeout(timeoutId);
         const data = await resp.json();
