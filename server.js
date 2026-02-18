@@ -14,12 +14,14 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ── Routes ──────────────────────────────────────────────────
-const priceRoute    = require('./src/routes/priceRoute');
-const metalsRoute   = require('./src/routes/metalsRoute');
-const barPriceRoute = require('./src/routes/barPriceRoute');
+const priceRoute       = require('./src/routes/priceRoute');
+const metalsRoute      = require('./src/routes/metalsRoute');
+const barPriceRoute    = require('./src/routes/barPriceRoute');
+const coinVariantRoute = require('./src/routes/coinVariantRoute');
 app.use('/api/price', priceRoute);
 app.use('/api/metals', metalsRoute);
 app.use('/api/bar-price', barPriceRoute);
+app.use('/api/coin-variant', coinVariantRoute);
 
 // Clear all caches
 app.post('/api/clear-cache', (_req, res) => {

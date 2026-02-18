@@ -10,7 +10,29 @@ const { computeValuation } = require('../services/valuationService');
 const { lookupKeyDate } = require('../data/keyDates');
 const { lookupMintage } = require('../data/mintages');
 const { buildLunarComparison } = require('../data/lunarReference');
+const { resolveCoinVariant } = require('../data/halfDollarSeries');
 const { zodiacForYear, perthLunarSeries } = require('../data/constants');
+
+// ── Semiquincentennial circulating denomination map ──
+// Maps parsed "semiquincentennial <denom>" keywords to their canonical series
+const SEMI250_DENOM_MAP = {
+  'semiquincentennial half dollar': 'Kennedy Half Dollar',
+  'semiquincentennial clad half':   'Kennedy Half Dollar',
+  'semiquincentennial quarter':     'Washington Quarter',
+  'semiquincentennial dime':        'Roosevelt Dime',
+  'semiquincentennial nickel':      'Jefferson Nickel',
+  'semiquincentennial cent':        'Lincoln Cent',
+};
+
+/**
+ * For semiquincentennial circulating coins, resolve to canonical series
+ * so that key-date, mintage, and eBay lookups use the right name.
+ */
+function resolveSemi250Series(series) {
+  if (!series) return null;
+  const s = series.toLowerCase().trim();
+  return SEMI250_DENOM_MAP[s] || null;
+}
 
 router.post('/', async (req, res) => {
   try {
@@ -71,6 +93,24 @@ router.post('/', async (req, res) => {
       ebayKeywords = ebayService.buildKeywords(pcgs, String(query), resolvedWeight);
     }
 
+    // ── 2a. Semiquincentennial circulating coin enrichment ──
+    // If the parsed series is a "semiquincentennial <denom>", resolve to the
+    // canonical coin series and enrich eBay keywords for better results.
+    const parsedSeries = identification.parsed?.series || pcgs.series || '';
+    const semi250Canonical = resolveSemi250Series(parsedSeries);
+    const isSemi250 = !!(semi250Canonical || /semiquincentennial|250th\s*anniversary/i.test(String(query)));
+    if (semi250Canonical) {
+      // Override eBay keywords to use the real series name + "semiquincentennial"
+      const yr = pcgs.year || identification.parsed?.year || 2026;
+      const mint = pcgs.mint || identification.parsed?.mint || '';
+      ebayKeywords = `${yr}${mint ? '-' + mint : ''} ${semi250Canonical} Semiquincentennial`.trim();
+    } else if (isSemi250 && !semi250Canonical) {
+      // Commemorative / special numismatic coin — ensure "semiquincentennial" is in keywords
+      if (!ebayKeywords.toLowerCase().includes('semiquincentennial')) {
+        ebayKeywords += ' Semiquincentennial';
+      }
+    }
+
     // ── 2b. Lunar series enrichment ──
     // If this is a Lunar coin, append zodiac animal + Perth series number for precision
     const coinName = (coinData?.name || pcgs.series || identification.parsed?.series || '').toLowerCase();
@@ -117,10 +157,25 @@ router.post('/', async (req, res) => {
     const ebay = await ebayService.fetchSoldComps(ebayKeywords, opts, expected);
 
     // ── 4. Key Date Detection ──
-    const keyDateSeries = coinData?.name || pcgs.series || identification.parsed?.series || '';
+    // For semiquincentennial circulating coins, look up both the canonical series
+    // (e.g. "Kennedy Half Dollar") AND the semiquincentennial-specific entries.
+    const rawKeyDateSeries = coinData?.name || pcgs.series || identification.parsed?.series || '';
+    const keyDateSeries = semi250Canonical || rawKeyDateSeries;
     const keyDateYear   = coinData?.year || pcgs.year || identification.parsed?.year;
     const keyDateMint   = coinData?.mintMark || pcgs.mint || identification.parsed?.mint || '';
-    const keyDateInfo   = lookupKeyDate(keyDateSeries, keyDateYear, keyDateMint);
+    let keyDateInfo     = lookupKeyDate(keyDateSeries, keyDateYear, keyDateMint);
+    // If canonical lookup didn't flag it, try the raw series (catches commemoratives)
+    if (!keyDateInfo.isKeyDate && rawKeyDateSeries !== keyDateSeries) {
+      keyDateInfo = lookupKeyDate(rawKeyDateSeries, keyDateYear, keyDateMint);
+    }
+    // Tag semiquincentennial coins even if not in keyDates table
+    if (!keyDateInfo.isKeyDate && isSemi250) {
+      keyDateInfo = {
+        isKeyDate: true,
+        tier: 'semi-key',
+        note: '2026 Semiquincentennial (250th Anniversary) — one-year-only special design'
+      };
+    }
 
     // ── 5. Valuation + Decisions ──
     // Pass the USER's grade intent — not the PCGS-resolved grade.
@@ -131,7 +186,7 @@ router.post('/', async (req, res) => {
     const { valuation, decisions } = computeValuation(pcgs, ebay, askingPrice || null, userGrade);
 
     // ── 6. Static Mintage Fallback ──
-    let mintSeries = coinData?.name || pcgs.series || identification.parsed?.series || '';
+    let mintSeries = semi250Canonical || coinData?.name || pcgs.series || identification.parsed?.series || '';
     const mintYear   = coinData?.year || pcgs.year || identification.parsed?.year;
     let   mintMark   = coinData?.mintMark || pcgs.mint || identification.parsed?.mint || '';
     const mintWeight = resolvedWeight;
@@ -209,7 +264,16 @@ router.post('/', async (req, res) => {
       valuation,
       decisions,
       reproducibility,
-      lunarComparison: isLunarCoin ? buildLunarComparison(coinYear, coinName + ' ' + String(query)) : null
+      lunarComparison: isLunarCoin ? buildLunarComparison(coinYear, coinName + ' ' + String(query)) : null,
+      coinVariant: (function() {
+        // Resolve design series label for Half Dollar (and future denominations)
+        const denomName = semi250Canonical || coinData?.name || pcgs.series || identification.parsed?.series || '';
+        const denomYear = coinData?.year || pcgs.year || identification.parsed?.year;
+        if (/half\s*dollar|kennedy|franklin|walking\s*liberty|barber\s*half|seated.*half|capped.*half|draped.*half|flowing.*half/i.test(denomName)) {
+          return resolveCoinVariant('Half Dollar', denomYear);
+        }
+        return null;
+      })()
     });
   } catch (err) {
     console.error('[/api/price] Unhandled error:', err.message);

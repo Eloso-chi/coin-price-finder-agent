@@ -192,10 +192,22 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed request/response s
 ## Tests
 
 ```bash
-npm test
+npm test                                          # all suites
+npx jest __tests__/coinSearch.relevance.test.js    # denomination relevance only
+npx jest __tests__/coinSearch.ebayKeywords.test.js # eBay keyword quality only
 ```
 
-Runs Jest tests covering the metals spot price service (TTL cache, round-robin rotation, fallback logic, error propagation, concurrency deduplication).
+Runs **Jest** across 5 test suites (205+ tests):
+
+| Suite | What it covers |
+|---|---|
+| `metalsSpotPrice.test.js` | Spot price service: TTL cache, round-robin rotation, fallback, error propagation, concurrency dedup |
+| `halfDollarSeries.test.js` | Half Dollar design resolver: all 8 eras, overrides (Bicentennial, Semiquincentennial), composition |
+| `coinSearch.relevance.test.js` | **Denomination relevance**: parseDescription extracts correct denomination/series, buildKeywords preserves it, scoreMatch awards series-match, no cross-denomination contamination |
+| `coinSearch.ebayKeywords.test.js` | **eBay keyword quality**: series fallback, weight injection, grade/designation pass-through, Semiquincentennial handling, positive/negative token assertions per denomination |
+| `coinSearch.fieldValidation.test.js` | **Field shapes**: required fields present & well-typed for parseDescription, buildKeywords, resolveCoinVariant; regression guards for past bugs |
+
+Test helpers live in `__tests__/helpers/coinTestConstants.js` (shared token lists, normalization, compound-word-aware `containsNone`).
 
 ---
 
@@ -209,6 +221,7 @@ src/
     priceRoute.js                  POST /api/price — coin pricing orchestrator
     barPriceRoute.js               POST /api/bar-price — bullion bar pricing
     metalsRoute.js                 GET /api/metals — spot price endpoints
+    coinVariantRoute.js            GET /api/coin-variant — design series resolver
   services/
     pcgsService.js                 PCGS CoinFacts API integration + parser
     ebayService.js                 eBay sold comps (3-tier API cascade)
@@ -216,6 +229,7 @@ src/
     metalsSpotPrice.js             Multi-provider spot price with round-robin
     MetalsSpotPriceError.js        Custom error class for metals failures
   data/
+    halfDollarSeries.js            Half Dollar design eras + year-based resolver
     pcgsNumbers.js                 PCGS coin number lookup table (10 US series)
     keyDates.js                    Key date / semi-key detection
     mintages.js                    Static mintage reference data
@@ -228,7 +242,13 @@ cache/
   ebay_cache.json                  Persisted eBay comp cache (1-hour TTL)
   pcgs_cache.json                  Persisted PCGS data cache (24-hour TTL)
 __tests__/
-  metalsSpotPrice.test.js          Jest tests for spot price service
+  coinSearch.relevance.test.js     Denomination → eBay keyword correctness
+  coinSearch.ebayKeywords.test.js  eBay keyword building & token checks
+  coinSearch.fieldValidation.test.js  Field shape & regression guards
+  halfDollarSeries.test.js         Half Dollar design resolver
+  metalsSpotPrice.test.js          Spot price service
+  helpers/
+    coinTestConstants.js           Shared token lists & test utilities
 ```
 
 ---

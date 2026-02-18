@@ -381,6 +381,8 @@ const MINTAGE_DATA = {
     '2022-P': 900000000, '2022-D': 875000000,
     '2023-P': 850000000, '2023-D': 830000000,
     '2024-P': 800000000, '2024-D': 790000000,
+    // 2026 Semiquincentennial (250th Anniversary) — unique one-year-only design
+    '2026-P': 750000000, '2026-D': 740000000,
   },
 
   // ══════════════════════════════════════════════════════════════
@@ -446,6 +448,8 @@ const MINTAGE_DATA = {
     '2022-P': 3200000,   '2022-D': 2600000,
     '2023-P': 3400000,   '2023-D': 2800000,
     '2024-P': 3000000,   '2024-D': 2500000,
+    // 2026 Semiquincentennial (250th Anniversary) — unique one-year-only design
+    '2026-P': 3000000,   '2026-D': 2500000,
   },
 
   // ══════════════════════════════════════════════════════════════
@@ -876,6 +880,8 @@ const MINTAGE_DATA = {
     '2022-P': 3058400000, '2022-D': 3544000000,
     '2023-P': 2580000000, '2023-D': 3056000000,
     '2024-P': 2500000000, '2024-D': 3000000000,
+    // 2026 Semiquincentennial (250th Anniversary) — special collectible design
+    '2026-P': 2400000000, '2026-D': 2900000000,
   },
 
   // ══════════════════════════════════════════════════════════════
@@ -970,6 +976,8 @@ const MINTAGE_DATA = {
     '2022-P': 498000000, '2022-D': 515200000,
     '2023-P': 460000000, '2023-D': 480000000,
     '2024-P': 450000000, '2024-D': 470000000,
+    // 2026 Semiquincentennial (250th Anniversary) — unique one-year-only design
+    '2026-P': 430000000, '2026-D': 440000000,
   },
 
   // ══════════════════════════════════════════════════════════════
@@ -1801,6 +1809,28 @@ const MINTAGE_DATA = {
   },
 
   // ══════════════════════════════════════════════════════════════
+  // 2026 U.S. SEMIQUINCENTENNIAL COMMEMORATIVE COINS & MEDALS
+  // 250th Anniversary of American Independence — one year only
+  // ══════════════════════════════════════════════════════════════
+  '2026 semiquincentennial gold coin': {
+    '2026-W': 50000,   // $2.50 Gold Coin, West Point, limited mintage
+  },
+  '2026 semiquincentennial silver dollar': {
+    '2026-P': 400000,  // Commemorative Silver Dollar
+    '2026-S': 200000,  // Proof Silver Dollar
+  },
+  '2026 semiquincentennial gold $5': {
+    '2026-W': 25000,   // $5 Gold Commemorative, West Point, limited mintage
+  },
+  '2026 semiquincentennial silver medal': {
+    '2026-P': 500000,  // Silver Medal
+  },
+  '2026 semiquincentennial clad half': {
+    '2026-P': 250000,  // Enhanced Clad Half Dollar
+    '2026-D': 250000,
+  },
+
+  // ══════════════════════════════════════════════════════════════
   // AMERICAN PLATINUM EAGLE — 1 oz (1997–present)
   // ══════════════════════════════════════════════════════════════
   'american platinum eagle': {
@@ -2072,6 +2102,36 @@ const SERIES_ALIASES = {
   'capped bust dime':           'capped bust dime',
   // Alias fix: SAE → Silver Eagle
   'sae':                        'american silver eagle',
+  // 2026 Semiquincentennial commemorative aliases
+  'semiquincentennial':                     '2026 semiquincentennial silver dollar',
+  'semiquincentennial gold':                '2026 semiquincentennial gold coin',
+  'semiquincentennial gold coin':           '2026 semiquincentennial gold coin',
+  'semiquincentennial $2.50':               '2026 semiquincentennial gold coin',
+  'semiquincentennial silver':              '2026 semiquincentennial silver dollar',
+  'semiquincentennial silver dollar':       '2026 semiquincentennial silver dollar',
+  'semiquincentennial gold $5':             '2026 semiquincentennial gold $5',
+  'semiquincentennial $5':                  '2026 semiquincentennial gold $5',
+  'semiquincentennial $5 gold':             '2026 semiquincentennial gold $5',
+  'semiquincentennial silver medal':        '2026 semiquincentennial silver medal',
+  'semiquincentennial medal':               '2026 semiquincentennial silver medal',
+  'semiquincentennial clad half':           '2026 semiquincentennial clad half',
+  'semiquincentennial half dollar':         '2026 semiquincentennial clad half',
+  '2026 semiquincentennial':                '2026 semiquincentennial silver dollar',
+  '250th anniversary':                      '2026 semiquincentennial silver dollar',
+  '250th anniversary coin':                 '2026 semiquincentennial silver dollar',
+  '250th anniversary gold':                 '2026 semiquincentennial gold coin',
+  '250th anniversary silver':               '2026 semiquincentennial silver dollar',
+  // Denomination-specific semiquincentennial aliases
+  'semiquincentennial nickel':              'jefferson nickel',
+  'semiquincentennial dime':                'roosevelt dime',
+  'semiquincentennial quarter':             'washington quarter',
+  'semiquincentennial cent':                'lincoln cent',
+  '2026 nickel':                            'jefferson nickel',
+  '2026 dime':                              'roosevelt dime',
+  '2026 quarter':                           'washington quarter',
+  '2026 half dollar':                       'kennedy half dollar',
+  '2026 cent':                              'lincoln cent',
+  '2026 penny':                             'lincoln cent',
   // Explicit Indian Head Cent aliases (prevent ambiguity with Indian Head Eagle)
   'indian head cent':           'indian head cent',
   'indian cent':                'indian head cent',

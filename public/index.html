@@ -624,7 +624,8 @@
       <div class="form-group">
         <label for="query">PCGS Cert #, Barcode, or Description</label>
         <div class="input-row">
-          <input id="query" type="text" placeholder="e.g. 42584319 or 1971-S Eisenhower Dollar Proof" autocomplete="off">
+          <input id="query" type="text" placeholder="e.g. 42584319 or 1971-S Eisenhower Dollar Proof" autocomplete="off" list="quick-search-list">
+          <datalist id="quick-search-list"></datalist>
           <select id="quickWeight" class="weight-select" aria-label="Weight">
             <option value="">1 oz</option>
             <option value="0.5">1/2 oz</option>
@@ -654,6 +655,7 @@
             <input id="coinName" type="text" placeholder="e.g. Morgan Dollar" required list="coin-names-list" autocomplete="off">
             <datalist id="coin-names-list">
               <option value="Morgan Dollar"><option value="Peace Dollar">
+              <option value="Half Dollar">
               <option value="Walking Liberty Half"><option value="Franklin Half Dollar">
               <option value="Kennedy Half Dollar"><option value="Washington Quarter">
               <option value="Standing Liberty Quarter"><option value="Barber Quarter">
@@ -691,6 +693,11 @@
               <option value="Australian Lunar Gold">
               <option value="Britannia Lunar Silver">
               <option value="Britannia Lunar Gold">
+              <option value="2026 Semiquincentennial Gold Coin">
+              <option value="2026 Semiquincentennial Silver Dollar">
+              <option value="2026 Semiquincentennial Gold $5">
+              <option value="2026 Semiquincentennial Silver Medal">
+              <option value="2026 Semiquincentennial Clad Half">
             </datalist>
             <div class="set-type-row" id="setTypeRow">
               <label for="setType">Set Type</label>
@@ -707,8 +714,9 @@
           <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px">
             <div class="field">
               <label for="coinYear">Year <span class="required" aria-hidden="true">*</span></label>
-              <input id="coinYear" type="number" min="1792" max="2030" placeholder="e.g. 1921" required>
+              <input id="coinYear" type="number" min="1792" max="2040" placeholder="e.g. 1921" required>
               <span class="hint" id="coinZodiacHint" style="display:none"></span>
+              <span class="hint" id="coinDesignHint" style="display:none;color:#b48811;font-weight:600"></span>
               <div class="field-error-msg">Enter a valid 4-digit year</div>
             </div>
             <div class="field">
@@ -1155,6 +1163,24 @@
           } else { coinZH.style.display = 'none'; }
         } else { coinZH.style.display = 'none'; }
       }
+
+      // Half Dollar design-series hint
+      const coinDH = document.getElementById('coinDesignHint');
+      if (coinDH) {
+        const name = this.els.coinName.value.trim();
+        const yr = parseInt(this.els.coinYear.value, 10) || null;
+        if (/half\s*dollar|kennedy|franklin|walking\s*liberty\s*half|barber\s*half/i.test(name) && yr && yr >= 1794) {
+          fetch('/api/coin-variant?denomination=Half+Dollar&year=' + yr)
+            .then(r => r.json())
+            .then(data => {
+              if (data.designName && data.designName !== 'Unknown') {
+                coinDH.textContent = '\uD83E\uDE99 ' + data.label;
+                coinDH.style.display = '';
+              } else { coinDH.style.display = 'none'; }
+            })
+            .catch(() => { coinDH.style.display = 'none'; });
+        } else { coinDH.style.display = 'none'; }
+      }
     },
 
     /* ── Set detection ────────────────────────────────────── */
@@ -1237,7 +1263,7 @@
       // Year
       const yearField = this.els.coinYear.closest('.field');
       const yr = parseInt(this.els.coinYear.value, 10);
-      if (!yr || yr < 1792 || yr > 2030 || String(yr).length !== 4) {
+      if (!yr || yr < 1792 || yr > 2040 || String(yr).length !== 4) {
         yearField.classList.add('has-error');
         valid = false;
       } else {
@@ -1300,7 +1326,62 @@
   CoinForm.init();
 
   /* ═══════════════════════════════════════════════════════════
-   *  PRICE DISCOVERY — Coin / Bar mode toggle
+   *  Quick-Search Autocomplete Suggestions
+   * ═══════════════════════════════════════════════════════════ */
+  (function initQuickSearchSuggestions() {
+    const SUGGESTIONS = [
+      // Classic US series patterns
+      'Morgan Dollar', 'Peace Dollar', 'Half Dollar',
+      'Walking Liberty Half', 'Franklin Half Dollar',
+      'Kennedy Half Dollar', 'Washington Quarter', 'Standing Liberty Quarter',
+      'Barber Quarter', 'Roosevelt Dime', 'Mercury Dime', 'Barber Dime',
+      'Seated Liberty Dollar', 'Trade Dollar', 'Lincoln Cent', 'Jefferson Nickel',
+      'Buffalo Nickel', 'Eisenhower Dollar', 'Liberty Nickel', 'Shield Nickel',
+      'Indian Head Cent', 'Indian Head Eagle', 'Indian Quarter Eagle',
+      // US bullion
+      'American Silver Eagle', 'American Gold Eagle', 'American Gold Buffalo',
+      'American Platinum Eagle',
+      'St. Gaudens Double Eagle', 'Liberty Head Double Eagle', 'Liberty Half Eagle',
+      // World bullion
+      'Canadian Maple Leaf', 'South African Krugerrand', 'Silver Krugerrand',
+      'British Silver Britannia', 'British Gold Britannia',
+      'Austrian Silver Philharmonic', 'Austrian Gold Philharmonic',
+      'Australian Silver Kookaburra', 'Australian Gold Kangaroo',
+      'Chinese Silver Panda', 'Chinese Gold Panda',
+      'Mexican Silver Libertad', 'Mexican Gold Libertad',
+      'Perth Mint Lunar', 'Australian Lunar Silver', 'Australian Lunar Gold',
+      'Britannia Lunar Silver', 'Britannia Lunar Gold',
+      // 2026 Semiquincentennial
+      '2026 Semiquincentennial Nickel', '2026 Semiquincentennial Dime',
+      '2026 Semiquincentennial Quarter', '2026 Semiquincentennial Half Dollar',
+      '2026 Semiquincentennial Cent',
+      '2026 Semiquincentennial Gold Coin', '2026 Semiquincentennial Silver Dollar',
+      '2026 Semiquincentennial Gold $5', '2026 Semiquincentennial Silver Medal',
+      '2026 Semiquincentennial Clad Half',
+      // Sets
+      'US Proof Set', 'US Mint Set', 'US Silver Proof Set',
+    ];
+
+    const input = document.getElementById('query');
+    const datalist = document.getElementById('quick-search-list');
+    if (!input || !datalist) return;
+
+    let lastFilter = '';
+    input.addEventListener('input', () => {
+      const val = input.value.trim().toLowerCase();
+      if (val === lastFilter || val.length < 2) {
+        if (val.length < 2 && datalist.children.length > 0) datalist.innerHTML = '';
+        lastFilter = val;
+        return;
+      }
+      lastFilter = val;
+      const matches = SUGGESTIONS.filter(s => s.toLowerCase().includes(val)).slice(0, 12);
+      datalist.innerHTML = matches.map(m => `<option value="${m}">`).join('');
+    });
+  })();
+
+  /* ═══════════════════════════════════════════════════════════
+   *  Price Discovery Mode Toggle (Coin vs Bar)
    * ═══════════════════════════════════════════════════════════ */
   (function initPDModeToggle() {
     const btnCoin = document.getElementById('pd-mode-coin');
@@ -1980,6 +2061,13 @@
     }
     html += '<div class="fmv-left">';
     if (coinLabel) html += '<div class="coin-id">' + coinLabel + '</div>';
+    // Show design series label for half dollars (from coinVariant resolver)
+    if (d.coinVariant && d.coinVariant.designName && d.coinVariant.designName !== 'Unknown') {
+      html += '<div class="coin-variant-label" style="font-size:0.92em;color:#b48811;margin-top:2px;font-weight:600">';
+      html += '\uD83E\uDE99 ' + d.coinVariant.label;
+      if (d.coinVariant.composition) html += ' &mdash; ' + d.coinVariant.composition;
+      html += '</div>';
+    }
     html += '<div class="confidence">Confidence: ' + confTag(v.confidence) + '</div>';
     html += '</div>';
     html += '<div class="fmv-right">';

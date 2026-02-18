@@ -746,9 +746,12 @@ function buildKeywords(pcgsData, rawQuery, weight) {
       : weight + ' oz';
     parts.push(weightStr);
   }
-  if (parts.length >= 2) return parts.join(' ').trim();
-  // Fall back to raw query
-  return rawQuery || '';
+  // Require at least a series/denomination in the keywords;
+  // year + mint alone (e.g. "1956 -D") is too vague and matches wrong coins
+  const hasSeries = !!pcgsData?.series;
+  if (hasSeries && parts.length >= 2) return parts.join(' ').trim();
+  // Fall back to raw query so the denomination is preserved
+  return rawQuery || parts.join(' ').trim() || '';
 }
 
 /** Flush the in-memory + on-disk eBay sold-comps cache. */

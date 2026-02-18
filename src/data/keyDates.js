@@ -308,6 +308,40 @@ const KEY_DATES = [
   { series: 'kennedy half', year: 1964, mint: '',  tier: 'semi-key', note: 'First year; 90% silver; hugely popular' },
   { series: 'kennedy half', year: 1970, mint: 'D', tier: 'key',      note: 'Only in mint sets; not released for circulation; 40% silver' },
   { series: 'kennedy half', year: 1998, mint: 'S', tier: 'semi-key', note: 'Matte finish; low mintage special issue' },
+
+  // ═══════════════════════════════════════════════════════════
+  // 2026 U.S. SEMIQUINCENTENNIAL (250th Anniversary) COINS
+  // One-year-only special designs celebrating 250 years of
+  // American independence. Circulating & numismatic issues.
+  // ═══════════════════════════════════════════════════════════
+
+  // ── Circulating denominations with unique 2026 designs ──
+  { series: 'jefferson nickel',  year: 2026, mint: '',  tier: 'semi-key', note: '2026 Semiquincentennial issue; unique one-year-only reverse design celebrating 250th anniversary of American independence' },
+  { series: 'jefferson nickel',  year: 2026, mint: 'D', tier: 'semi-key', note: '2026 Semiquincentennial issue; unique one-year-only reverse design' },
+  { series: 'jefferson nickel',  year: 2026, mint: 'P', tier: 'semi-key', note: '2026 Semiquincentennial issue; unique one-year-only reverse design' },
+  { series: 'roosevelt dime',    year: 2026, mint: '',  tier: 'semi-key', note: '2026 Semiquincentennial issue; unique one-year-only reverse design celebrating 250th anniversary' },
+  { series: 'roosevelt dime',    year: 2026, mint: 'D', tier: 'semi-key', note: '2026 Semiquincentennial issue; unique one-year-only reverse design' },
+  { series: 'roosevelt dime',    year: 2026, mint: 'P', tier: 'semi-key', note: '2026 Semiquincentennial issue; unique one-year-only reverse design' },
+  { series: 'washington quarter', year: 2026, mint: '',  tier: 'semi-key', note: '2026 Semiquincentennial issue; unique one-year-only reverse design celebrating 250th anniversary' },
+  { series: 'washington quarter', year: 2026, mint: 'D', tier: 'semi-key', note: '2026 Semiquincentennial issue; unique one-year-only reverse design' },
+  { series: 'washington quarter', year: 2026, mint: 'P', tier: 'semi-key', note: '2026 Semiquincentennial issue; unique one-year-only reverse design' },
+  { series: 'kennedy half',      year: 2026, mint: '',  tier: 'semi-key', note: '2026 Semiquincentennial issue; unique one-year-only reverse design celebrating 250th anniversary' },
+  { series: 'kennedy half',      year: 2026, mint: 'D', tier: 'semi-key', note: '2026 Semiquincentennial issue; unique one-year-only reverse design' },
+  { series: 'kennedy half',      year: 2026, mint: 'P', tier: 'semi-key', note: '2026 Semiquincentennial issue; unique one-year-only reverse design' },
+
+  // ── Collectible / numismatic-only denominations (via U.S. Mint) ──
+  { series: 'lincoln cent',       year: 2026, mint: '',  tier: 'semi-key', note: '2026 Semiquincentennial collectible cent; special design available through U.S. Mint only' },
+  { series: 'lincoln cent',       year: 2026, mint: 'S', tier: 'semi-key', note: '2026 Semiquincentennial proof cent; available through U.S. Mint' },
+  { series: 'lincoln cent',       year: 2026, mint: 'W', tier: 'semi-key', note: '2026 Semiquincentennial West Point cent; limited mintage' },
+  { series: 'jefferson nickel',   year: 2026, mint: 'S', tier: 'semi-key', note: '2026 Semiquincentennial proof nickel; available through U.S. Mint only' },
+  { series: 'jefferson nickel',   year: 2026, mint: 'W', tier: 'semi-key', note: '2026 Semiquincentennial West Point nickel; limited mintage' },
+
+  // ── Special numismatic coins & medals (one-year-only) ──
+  { series: '2026 semiquincentennial gold coin',   year: 2026, mint: 'W', tier: 'key', note: '2026 Semiquincentennial $2.50 Gold Coin; one-year-only commemorative; West Point mintage' },
+  { series: '2026 semiquincentennial silver medal', year: 2026, mint: 'P', tier: 'semi-key', note: '2026 Semiquincentennial Silver Medal; one-year-only numismatic issue' },
+  { series: '2026 semiquincentennial clad half',    year: 2026, mint: 'P', tier: 'semi-key', note: '2026 Semiquincentennial Enhanced Clad Half Dollar; special collector finish' },
+  { series: '2026 semiquincentennial silver dollar', year: 2026, mint: 'P', tier: 'semi-key', note: '2026 Semiquincentennial Commemorative Silver Dollar' },
+  { series: '2026 semiquincentennial gold $5',       year: 2026, mint: 'W', tier: 'key', note: '2026 Semiquincentennial Commemorative $5 Gold Coin; limited mintage' },
 ];
 
 // ── Build index for O(1) lookup ──────────────────────────────

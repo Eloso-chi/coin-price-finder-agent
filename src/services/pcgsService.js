@@ -249,6 +249,17 @@ function parseDescription(text) {
 
   // Series heuristics — order matters: longer / more-specific phrases first
   const seriesKeywords = [
+    // 2026 Semiquincentennial (250th Anniversary) — must be before denomination words
+    'semiquincentennial gold $5', 'semiquincentennial $5 gold',
+    'semiquincentennial gold coin', 'semiquincentennial $2.50',
+    'semiquincentennial silver dollar', 'semiquincentennial silver medal',
+    'semiquincentennial clad half', 'semiquincentennial half dollar',
+    'semiquincentennial nickel', 'semiquincentennial dime',
+    'semiquincentennial quarter', 'semiquincentennial cent',
+    'semiquincentennial gold', 'semiquincentennial silver',
+    'semiquincentennial medal', 'semiquincentennial',
+    '250th anniversary gold', '250th anniversary silver',
+    '250th anniversary coin', '250th anniversary',
     // World bullion — multi-word first
     'canadian silver maple leaf', 'canadian gold maple leaf',
     'silver maple leaf', 'gold maple leaf',
@@ -296,7 +307,8 @@ function parseDescription(text) {
     'shield', 'ase', 'sae',
     // Denomination fallbacks (last resort)
     'wheat penny', 'wheat cent', 'steel penny', 'steel cent',
-    'penny', 'cent',
+    'half dollar', 'quarter dollar', 'quarter', 'dime', 'nickel',
+    'dollar', 'penny', 'cent',
   ];
   for (const kw of seriesKeywords) {
     if (t.toLowerCase().includes(kw)) {
