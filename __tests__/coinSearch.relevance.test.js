@@ -14,7 +14,7 @@
 'use strict';
 
 const { parseDescription }  = require('../src/services/pcgsService');
-const { buildKeywords, scoreMatch } = require('../src/services/ebayService');
+const { buildKeywords, scoreMatch, detectWeightFromTitle } = require('../src/services/ebayService');
 const { resolveCoinVariant } = require('../src/data/halfDollarSeries');
 const {
   DENOMINATION_TEST_MATRIX,
@@ -265,4 +265,102 @@ describe('Full pipeline — named series test matrix', () => {
       expect(parsed.series).toMatch(expectedSeries);
     }
   );
+});
+
+/* ═══════════════════════════════════════════════════════════════
+ *  9. detectWeightFromTitle — bullion weight extraction
+ * ═══════════════════════════════════════════════════════════════ */
+describe('detectWeightFromTitle', () => {
+
+  test.each([
+    ['2023 Mexican Silver Libertad 1/4 oz BU',               0.25],
+    ['American Silver Eagle 1 oz .999 Fine',                  1],
+    ['2022 Gold Maple Leaf 1/10 oz',                          0.1],
+    ['1/2 OZ SILVER PANDA 2019',                              0.5],
+    ['1/20 oz Gold Libertad 2021',                            0.05],
+    ['5 oz ATB Silver Quarter',                               5],
+    ['10oz Silver Bar',                                       10],
+    ['2 oz Silver Queens Beasts',                             2],
+    ['Silver Libertad 1.5 oz BU',                             1.5],
+    ['Quarter oz Gold Eagle',                                 0.25],
+    ['Half oz Platinum Coin',                                 0.5],
+    ['2023 Silver Libertad BU',                               null],  // no weight → null
+    ['1956-D Franklin Half Dollar',                           null],  // non-bullion
+  ])('"%s" → %s', (title, expectedOz) => {
+    expect(detectWeightFromTitle(title)).toBe(expectedOz);
+  });
+});
+
+/* ═══════════════════════════════════════════════════════════════
+ *  10. scoreMatch — weight scoring for bullion
+ * ═══════════════════════════════════════════════════════════════ */
+describe('scoreMatch — weight scoring', () => {
+
+  test('matching weight gets bonus', () => {
+    const comp = { title: '2023 Mexican Silver Libertad 1/4 oz BU', totalUsd: 18 };
+    scoreMatch(comp, { weight: 0.25, metal: 'silver' });
+    expect(comp.matchNotes).toContain('weight-match');
+    expect(comp.matchScore).toBeGreaterThanOrEqual(70);
+  });
+
+  test('1 oz comp penalized when expected is 1/4 oz', () => {
+    const comp = { title: '2023 Mexican Silver Libertad 1 oz BU', totalUsd: 40 };
+    scoreMatch(comp, { weight: 0.25, metal: 'silver' });
+    expect(comp.matchNotes).toContain('weight-mismatch');
+    expect(comp.matchScore).toBeLessThan(50);
+  });
+
+  test('no weight in title + fractional expected → penalty', () => {
+    const comp = { title: '2023 Mexican Silver Libertad BU', totalUsd: 45 };
+    scoreMatch(comp, { weight: 0.25, metal: 'silver' });
+    expect(comp.matchNotes).toContain('weight-not-stated');
+  });
+
+  test('no weight expected → no weight scoring applied', () => {
+    const comp = { title: '2023 Mexican Silver Libertad 1 oz BU', totalUsd: 40 };
+    scoreMatch(comp, { series: 'Silver Libertad', metal: 'silver' });
+    expect(comp.matchNotes).not.toContain('weight-match');
+    expect(comp.matchNotes).not.toContain('weight-mismatch');
+  });
+
+  test('weight-match comp scores higher than weight-mismatch comp', () => {
+    const match = { title: '2023 Silver Libertad 1/4 oz', totalUsd: 18 };
+    const wrong = { title: '2023 Silver Libertad 1 oz', totalUsd: 40 };
+    scoreMatch(match, { year: 2023, weight: 0.25, metal: 'silver' });
+    scoreMatch(wrong, { year: 2023, weight: 0.25, metal: 'silver' });
+    expect(match.matchScore).toBeGreaterThan(wrong.matchScore);
+  });
+});
+
+/* ═══════════════════════════════════════════════════════════════
+ *  11. scoreMatch — precious metal melt cross-check
+ * ═══════════════════════════════════════════════════════════════ */
+describe('scoreMatch — precious metal melt cross-check', () => {
+
+  test('comp priced above 2× full-oz melt with no weight → melt penalty', () => {
+    // Silver at $32/oz; comp at $70 with no weight in title
+    const comp = { title: '2023 Silver Libertad BU', totalUsd: 70 };
+    scoreMatch(comp, { weight: 0.25, metal: 'silver', meltPerOz: 32 });
+    expect(comp.matchNotes).toContain('price-exceeds-melt');
+  });
+
+  test('comp priced below 2× full-oz melt → no melt penalty', () => {
+    const comp = { title: '2023 Silver Libertad BU', totalUsd: 25 };
+    scoreMatch(comp, { weight: 0.25, metal: 'silver', meltPerOz: 32 });
+    expect(comp.matchNotes).not.toContain('price-exceeds-melt');
+  });
+
+  test('comp with explicit weight in title → melt check skipped (handled by weight scoring)', () => {
+    const comp = { title: '2023 Silver Libertad 1 oz BU', totalUsd: 70 };
+    scoreMatch(comp, { weight: 0.25, metal: 'silver', meltPerOz: 32 });
+    // Should get weight-mismatch but NOT price-exceeds-melt (already caught)
+    expect(comp.matchNotes).toContain('weight-mismatch');
+    expect(comp.matchNotes).not.toContain('price-exceeds-melt');
+  });
+
+  test('no meltPerOz provided → no melt check', () => {
+    const comp = { title: '2023 Silver Libertad BU', totalUsd: 70 };
+    scoreMatch(comp, { weight: 0.25, metal: 'silver' });
+    expect(comp.matchNotes).not.toContain('price-exceeds-melt');
+  });
 });

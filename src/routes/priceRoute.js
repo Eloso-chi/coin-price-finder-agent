@@ -7,6 +7,7 @@ const router = express.Router();
 const pcgsService = require('../services/pcgsService');
 const ebayService = require('../services/ebayService');
 const { computeValuation } = require('../services/valuationService');
+const { getMetalsSpotPrice } = require('../services/metalsSpotPrice');
 const { lookupKeyDate } = require('../data/keyDates');
 const { lookupMintage } = require('../data/mintages');
 const { buildLunarComparison } = require('../data/lunarReference');
@@ -150,10 +151,26 @@ router.post('/', async (req, res) => {
       grade: isSet ? null : (pcgs.grade || identification.parsed?.grade),
       designation: pcgs.designation || identification.parsed?.designation,
       metal: expectedMetal,
+      weight: resolvedWeight || null,
       zodiacAnimal: zodiacAnimal,
       isLunarCoin: isLunarCoin,
       perthSeriesLabel: perthSeriesLabel
     };
+
+    // ── Precious metal content cross-check ──
+    // Fetch spot price so the eBay filter can sanity-check fractional bullion
+    // comps against melt value.  Non-fatal — skip if unavailable.
+    if (expectedMetal && resolvedWeight && resolvedWeight < 1) {
+      const METAL_SYM = { silver: 'XAG', gold: 'XAU', platinum: 'XPT', palladium: 'XPD' };
+      const sym = METAL_SYM[expectedMetal];
+      if (sym) {
+        try {
+          const spot = await getMetalsSpotPrice(sym, 'USD');
+          expected.meltPerOz = spot.price;
+        } catch { /* non-fatal */ }
+      }
+    }
+
     const ebay = await ebayService.fetchSoldComps(ebayKeywords, opts, expected);
 
     // ── 4. Key Date Detection ──

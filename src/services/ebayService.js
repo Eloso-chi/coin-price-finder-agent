@@ -49,6 +49,27 @@ async function throttle() {
   _lastRequestTime = Date.now();
 }
 
+// ── Weight detection from listing title ──────────────────────
+/**
+ * Detect coin/bar weight (in troy oz) from listing title.
+ * Returns numeric oz (e.g. 0.25, 1, 5) or null if no weight detected.
+ */
+function detectWeightFromTitle(title) {
+  if (!title) return null;
+  const t = title.toLowerCase();
+  // Specific fractions first (before generic integer pattern)
+  if (/\b1\/20\s*oz/i.test(t))    return 0.05;
+  if (/\b1\/10\s*oz/i.test(t))    return 0.1;
+  if (/\b1\/4\s*oz/i.test(t))     return 0.25;
+  if (/\bquarter\s*oz/i.test(t))  return 0.25;
+  if (/\b1\/2\s*oz/i.test(t))     return 0.5;
+  if (/\bhalf\s*oz/i.test(t))     return 0.5;
+  // Generic "N oz" — integers and decimals (e.g. "1 oz", "2oz", "1.5 oz")
+  const m = t.match(/\b(\d+(?:\.\d+)?)\s*oz\b/);
+  if (m) return parseFloat(m[1]);
+  return null;
+}
+
 // ── Deny-list patterns ──────────────────────────────────────
 const DENY_PATTERNS = [
   /\blots?\b/i, /\bcollection\b/i, /\broll\b/i, /\bestate\b/i,
@@ -399,6 +420,30 @@ function scoreMatch(comp, expected) {
     score += 3; notes.push('lunar-match');
   }
 
+  // ── Weight / size match for bullion coins (25 pts match, –35 mismatch) ──
+  if (expected.weight) {
+    const detectedWeight = detectWeightFromTitle(tLow);
+    if (detectedWeight !== null) {
+      if (Math.abs(detectedWeight - expected.weight) < 0.01) {
+        score += 25; notes.push('weight-match');
+      } else {
+        score -= 35; notes.push('weight-mismatch');
+      }
+    } else if (expected.weight < 1) {
+      // Fractional bullion with no weight in title — likely 1 oz (default size)
+      score -= 15; notes.push('weight-not-stated');
+    }
+  }
+
+  // ── Precious metal content cross-check for fractional bullion ──
+  // If melt price per oz is known and comp price far exceeds 1 full oz melt,
+  // it's almost certainly a larger coin than the user is searching for.
+  if (expected.meltPerOz && expected.weight && expected.weight < 1) {
+    if (comp.totalUsd > expected.meltPerOz * 2 && !detectWeightFromTitle(tLow)) {
+      score -= 20; notes.push('price-exceeds-melt');
+    }
+  }
+
   comp.matchScore = Math.min(100, score);
   comp.matchNotes = notes;
 
@@ -521,6 +566,39 @@ function applyFilters(comps, options, expected) {
       // If comp has no detected metal, keep it (benefit of the doubt)
       if (!compMetal) return true;
       if (compMetal !== wantMetal) { removed.metalMismatch++; return false; }
+      return true;
+    });
+  }
+
+  // Weight-mismatch hard filter: remove comps whose title explicitly states a
+  // different weight than what the user searched for (e.g. "1 oz" in results
+  // when user wants "1/4 oz").
+  if (expected.weight) {
+    removed.weightMismatch = 0;
+    kept = kept.filter(c => {
+      const detW = detectWeightFromTitle(c.title);
+      if (detW === null) return true; // no weight stated — benefit of doubt
+      if (Math.abs(detW - expected.weight) < 0.01) return true; // matches
+      removed.weightMismatch++;
+      return false;
+    });
+  }
+
+  // Precious metal content sanity check: for fractional bullion coins,
+  // if no weight is detected in the title and the price is well above
+  // 1 full troy oz of melt, the listing is almost certainly a larger coin.
+  if (expected.meltPerOz && expected.weight && expected.weight < 1) {
+    removed.meltSanity = 0;
+    // Threshold: 1.8× the spot melt of a full oz — generous enough to keep
+    // high-premium fractionals but catches obvious 1-oz-priced comps.
+    const meltCeiling = expected.meltPerOz * 1.8;
+    kept = kept.filter(c => {
+      const detW = detectWeightFromTitle(c.title);
+      if (detW !== null) return true; // already handled by weight-mismatch filter
+      if (c.totalUsd > meltCeiling) {
+        removed.meltSanity++;
+        return false;
+      }
       return true;
     });
   }
@@ -763,5 +841,6 @@ module.exports = {
   scoreMatch,
   isDenied,
   dedup,
-  clearCache
+  clearCache,
+  detectWeightFromTitle
 };
