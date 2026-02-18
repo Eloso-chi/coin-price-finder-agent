@@ -14,6 +14,32 @@ const _cache = new TTLCache({ defaultTTL: 5 * 60 * 1000 });
 // Grade token regex — matches "MS65", "PR-69", "AU 58+", etc.
 const GRADE_RE = /\b(MS|PR|PF|SP|AU|XF|EF|VF|F|VG|G|AG|PO)\s*[-]?\s*(\d{1,2})(\+)?\b/i;
 
+// Bullion series that should use grade-based matrix instead of year×mint
+const BULLION_SERIES_RE = /\b(silver\s*eagle|gold\s*eagle|platinum\s*eagle|libertad|maple\s*leaf|philharmonic|britannia|krugerrand|panda|kookaburra|koala|kangaroo|gold\s+buffalo|buffalo\s+gold|silver\s+buffalo|buffalo\s+silver|american\s+(gold|silver|platinum)|perth\s*mint)\b/i;
+
+/**
+ * Detect if a series name looks like bullion (grade matrix mode).
+ * @param {string} series
+ * @returns {boolean}
+ */
+function isBullionSeries(series) {
+  return BULLION_SERIES_RE.test(series || '');
+}
+
+/**
+ * Extract grade token from a listing title.
+ * Returns normalized grade (e.g. "MS69", "PR70") or "RAW".
+ */
+function extractGrade(title) {
+  if (!title) return 'RAW';
+  const m = title.match(GRADE_RE);
+  if (!m) return 'RAW';
+  const prefix = m[1].toUpperCase().replace('PF', 'PR');
+  const num = m[2];
+  const plus = m[3] || '';
+  return prefix + num + plus;
+}
+
 /**
  * Extract year from a listing title.
  * @param {string} title
@@ -177,9 +203,136 @@ function buildMarketMatrix({
   };
 
   return {
+    mode: 'year-mint',
     grade: gradeFilter || 'All',
     years,
     mintMarks,
+    summary,
+    cells,
+  };
+}
+
+/**
+ * Build a grade-based market matrix for bullion coins.
+ * Rows = years, columns = grades (RAW, MS69, MS70, etc.)
+ * Only grades with at least one data point are included.
+ *
+ * @param {object} params  — same as buildMarketMatrix
+ * @returns {object}
+ */
+function buildGradeMatrix({
+  completedComps = [],
+  activeComps = [],
+  series = '',
+  lookbackDays = 90,
+  lookupKeyDate = () => ({ isKeyDate: false }),
+}) {
+  // ── 1. Bucket completed sales by year+grade ──
+  const completedBuckets = {};
+  for (const comp of completedComps) {
+    const year = extractYear(comp.title);
+    if (!year) continue;
+    const grade = extractGrade(comp.title);
+    const key = `${year}-${grade}`;
+    if (!completedBuckets[key]) completedBuckets[key] = [];
+    if (comp.totalUsd != null && comp.totalUsd > 0) {
+      completedBuckets[key].push(comp.totalUsd);
+    }
+  }
+
+  // ── 2. Bucket active BIN listings by year+grade ──
+  const activeBuckets = {};
+  for (const comp of activeComps) {
+    if (comp.listingType && !/fixed|buyitnow|bin/i.test(comp.listingType)) continue;
+    const year = extractYear(comp.title);
+    if (!year) continue;
+    const grade = extractGrade(comp.title);
+    const key = `${year}-${grade}`;
+    if (!activeBuckets[key]) activeBuckets[key] = [];
+    if (comp.totalUsd != null && comp.totalUsd > 0) {
+      activeBuckets[key].push({ price: comp.totalUsd, url: comp.url || null });
+    }
+  }
+
+  // ── 3. Collect all year-grade keys ──
+  const allKeys = new Set([...Object.keys(completedBuckets), ...Object.keys(activeBuckets)]);
+
+  // ── 4. Build cells ──
+  const cells = [];
+  const yearsSet = new Set();
+  const gradesSet = new Set();
+
+  for (const key of allKeys) {
+    const dashIdx = key.indexOf('-');
+    const yearStr = key.substring(0, dashIdx);
+    const grade = key.substring(dashIdx + 1);
+    const year = parseInt(yearStr, 10);
+    yearsSet.add(year);
+    gradesSet.add(grade);
+
+    const completedPrices = completedBuckets[key] || [];
+    let medianCompleted = null;
+    if (completedPrices.length > 0) {
+      const sorted = [...completedPrices].sort((a, b) => a - b);
+      const mid = Math.floor(sorted.length / 2);
+      medianCompleted = sorted.length % 2 === 0
+        ? (sorted[mid - 1] + sorted[mid]) / 2
+        : sorted[mid];
+    }
+
+    const activeItems = activeBuckets[key] || [];
+    let cheapestBin = null;
+    if (activeItems.length > 0) {
+      activeItems.sort((a, b) => a.price - b.price);
+      cheapestBin = { value: activeItems[0].price, currency: 'USD', url: activeItems[0].url };
+    }
+
+    const kdResult = lookupKeyDate(series, year, '');
+
+    cells.push({
+      year,
+      grade,
+      keyDate: kdResult.isKeyDate || false,
+      keyDateTier: kdResult.tier || null,
+      medianCompleted: medianCompleted != null
+        ? { value: Math.round(medianCompleted * 100) / 100, currency: 'USD', sampleSize: completedPrices.length, lookbackDays }
+        : null,
+      cheapestBin: cheapestBin || null,
+    });
+  }
+
+  // ── 5. Sort years ascending; sort grades: RAW first, then by prefix+number ──
+  const years = [...yearsSet].sort((a, b) => a - b);
+
+  const GRADE_ORDER = { RAW: 0, MS: 1, PR: 2, PF: 2, SP: 3, AU: 4, XF: 5, EF: 5, VF: 6, F: 7, VG: 8, G: 9, AG: 10, PO: 11 };
+  const grades = [...gradesSet].sort((a, b) => {
+    if (a === 'RAW') return -1;
+    if (b === 'RAW') return 1;
+    const prefA = a.replace(/\d+\+?$/, '');
+    const prefB = b.replace(/\d+\+?$/, '');
+    const numA = parseInt(a.replace(/^[A-Z]+/, ''), 10) || 0;
+    const numB = parseInt(b.replace(/^[A-Z]+/, ''), 10) || 0;
+    const ordA = GRADE_ORDER[prefA] ?? 99;
+    const ordB = GRADE_ORDER[prefB] ?? 99;
+    if (ordA !== ordB) return ordA - ordB;
+    return numB - numA; // higher numeric grade first within same prefix
+  });
+
+  // ── 6. Summary ──
+  const totalCells = cells.length;
+  const cellsWithPriceData = cells.filter(c => c.medianCompleted || c.cheapestBin).length;
+  const summary = {
+    totalCells,
+    cellsWithPriceData,
+    yearMin: years.length ? years[0] : null,
+    yearMax: years.length ? years[years.length - 1] : null,
+    gradeCount: grades.length,
+  };
+
+  return {
+    mode: 'grade',
+    grades,
+    years,
     summary,
     cells,
   };
@@ -260,14 +413,23 @@ async function fetchMarketMatrix({
     // Continue with completed data only
   }
 
-  const matrix = buildMarketMatrix({
-    completedComps,
-    activeComps,
-    series,
-    grade,
-    lookbackDays: timeWindowDays,
-    lookupKeyDate,
-  });
+  const bullion = isBullionSeries(series);
+  const matrix = bullion
+    ? buildGradeMatrix({
+        completedComps,
+        activeComps,
+        series,
+        lookbackDays: timeWindowDays,
+        lookupKeyDate,
+      })
+    : buildMarketMatrix({
+        completedComps,
+        activeComps,
+        series,
+        grade,
+        lookbackDays: timeWindowDays,
+        lookupKeyDate,
+      });
 
   matrix.series = series;
   matrix.keywords = keywords;
@@ -281,9 +443,12 @@ function clearCache() { _cache.clear(); }
 
 module.exports = {
   buildMarketMatrix,
+  buildGradeMatrix,
   fetchMarketMatrix,
   extractYear,
   extractMint,
+  extractGrade,
   matchesGrade,
+  isBullionSeries,
   clearCache,
 };

@@ -6,10 +6,13 @@
 
 const {
   buildMarketMatrix,
+  buildGradeMatrix,
   fetchMarketMatrix,
   extractYear,
   extractMint,
+  extractGrade,
   matchesGrade,
+  isBullionSeries,
   clearCache,
 } = require('../src/services/marketAggregator');
 
@@ -448,5 +451,282 @@ describe('fetchMarketMatrix', () => {
     const cell = result.cells[0];
     expect(cell.medianCompleted.value).toBe(30);
     expect(cell.cheapestBin).toBeNull();
+  });
+});
+
+/* ═══════════════════════════════════════════════════════════
+ *  isBullionSeries
+ * ═══════════════════════════════════════════════════════════ */
+describe('isBullionSeries', () => {
+  test.each([
+    'American Silver Eagle',
+    'American Gold Eagle',
+    'American Platinum Eagle',
+    'Mexican Silver Libertad',
+    'Canadian Maple Leaf',
+    'Austrian Philharmonic',
+    'British Britannia',
+    'South African Krugerrand',
+    'Chinese Panda',
+    'Australian Kookaburra',
+    'Australian Kangaroo',
+    'Perth Mint',
+    'Gold Buffalo',
+    'Buffalo Gold',
+  ])('detects "%s" as bullion', (series) => {
+    expect(isBullionSeries(series)).toBe(true);
+  });
+
+  test.each([
+    'Franklin Half Dollar',
+    'Morgan Dollar',
+    'Walking Liberty Half',
+    'Mercury Dime',
+    'Buffalo Nickel',
+    'Lincoln Cent',
+    '',
+    null,
+  ])('"%s" is NOT bullion', (series) => {
+    expect(isBullionSeries(series)).toBe(false);
+  });
+});
+
+/* ═══════════════════════════════════════════════════════════
+ *  extractGrade
+ * ═══════════════════════════════════════════════════════════ */
+describe('extractGrade', () => {
+  test('extracts MS69 from title', () => {
+    expect(extractGrade('2021 American Silver Eagle MS69 NGC')).toBe('MS69');
+  });
+
+  test('extracts MS70 from title', () => {
+    expect(extractGrade('2024-W Silver Eagle MS70 First Day')).toBe('MS70');
+  });
+
+  test('extracts PR70 and normalizes PF → PR', () => {
+    expect(extractGrade('2023-S Silver Eagle PF70 Ultra Cameo')).toBe('PR70');
+  });
+
+  test('extracts PR69 from title', () => {
+    expect(extractGrade('2020 Eagle PR69 Deep Cameo')).toBe('PR69');
+  });
+
+  test('extracts AU58', () => {
+    expect(extractGrade('1986 Silver Eagle AU58 NGC')).toBe('AU58');
+  });
+
+  test('returns RAW when no grade in title', () => {
+    expect(extractGrade('2020 American Silver Eagle 1oz .999 BU')).toBe('RAW');
+  });
+
+  test('returns RAW for null/undefined/empty', () => {
+    expect(extractGrade(null)).toBe('RAW');
+    expect(extractGrade(undefined)).toBe('RAW');
+    expect(extractGrade('')).toBe('RAW');
+  });
+
+  test('handles MS 69 with space', () => {
+    expect(extractGrade('2021 Eagle MS 69 PCGS')).toBe('MS69');
+  });
+
+  test('handles MS-70 with dash', () => {
+    expect(extractGrade('2021 Eagle MS-70 NGC')).toBe('MS70');
+  });
+});
+
+/* ═══════════════════════════════════════════════════════════
+ *  buildGradeMatrix
+ * ═══════════════════════════════════════════════════════════ */
+describe('buildGradeMatrix', () => {
+  const mockLookupKeyDate = () => ({ isKeyDate: false });
+
+  test('builds year×grade matrix from completed comps', () => {
+    const comps = [
+      { title: '2021 American Silver Eagle MS69 NGC', totalUsd: 35 },
+      { title: '2021 American Silver Eagle MS70 NGC', totalUsd: 55 },
+      { title: '2021 American Silver Eagle BU', totalUsd: 30 },
+      { title: '2022 American Silver Eagle MS69 NGC', totalUsd: 36 },
+    ];
+    const result = buildGradeMatrix({
+      completedComps: comps,
+      activeComps: [],
+      series: 'American Silver Eagle',
+      lookbackDays: 90,
+      lookupKeyDate: mockLookupKeyDate,
+    });
+
+    expect(result.mode).toBe('grade');
+    expect(result.years).toEqual([2021, 2022]);
+    expect(result.grades[0]).toBe('RAW'); // RAW always first
+    expect(result.grades).toContain('MS69');
+    expect(result.grades).toContain('MS70');
+    expect(result.cells.length).toBe(4); // 2021-RAW, 2021-MS69, 2021-MS70, 2022-MS69
+  });
+
+  test('RAW is always first grade column', () => {
+    const comps = [
+      { title: '2020 Silver Eagle MS70 NGC', totalUsd: 60 },
+      { title: '2020 Silver Eagle BU', totalUsd: 28 },
+    ];
+    const result = buildGradeMatrix({
+      completedComps: comps,
+      activeComps: [],
+      series: 'Silver Eagle',
+      lookbackDays: 90,
+      lookupKeyDate: mockLookupKeyDate,
+    });
+
+    expect(result.grades[0]).toBe('RAW');
+  });
+
+  test('sorts grades: RAW, MS70, MS69, PR70, PR69', () => {
+    const comps = [
+      { title: '2021 Eagle PR69 DCAM', totalUsd: 45 },
+      { title: '2021 Eagle MS69', totalUsd: 35 },
+      { title: '2021 Eagle MS70', totalUsd: 55 },
+      { title: '2021 Eagle PR70', totalUsd: 75 },
+      { title: '2021 Eagle BU', totalUsd: 30 },
+    ];
+    const result = buildGradeMatrix({
+      completedComps: comps,
+      activeComps: [],
+      series: 'Silver Eagle',
+      lookbackDays: 90,
+      lookupKeyDate: mockLookupKeyDate,
+    });
+
+    expect(result.grades[0]).toBe('RAW');
+    expect(result.grades.indexOf('MS70')).toBeLessThan(result.grades.indexOf('MS69'));
+    expect(result.grades.indexOf('MS69')).toBeLessThan(result.grades.indexOf('PR70'));
+    expect(result.grades.indexOf('PR70')).toBeLessThan(result.grades.indexOf('PR69'));
+  });
+
+  test('only includes grades that have data', () => {
+    const comps = [
+      { title: '2021 Eagle MS69', totalUsd: 35 },
+      { title: '2022 Eagle MS69', totalUsd: 36 },
+    ];
+    const result = buildGradeMatrix({
+      completedComps: comps,
+      activeComps: [],
+      series: 'Silver Eagle',
+      lookbackDays: 90,
+      lookupKeyDate: mockLookupKeyDate,
+    });
+
+    expect(result.grades).toEqual(['MS69']);
+    expect(result.grades).not.toContain('RAW');
+    expect(result.grades).not.toContain('MS70');
+  });
+
+  test('includes active BIN data in cells', () => {
+    const result = buildGradeMatrix({
+      completedComps: [],
+      activeComps: [
+        { title: '2023 Eagle MS70', totalUsd: 50, url: 'http://ebay/1', listingType: 'FixedPrice' },
+      ],
+      series: 'Silver Eagle',
+      lookbackDays: 90,
+      lookupKeyDate: mockLookupKeyDate,
+    });
+
+    expect(result.cells.length).toBe(1);
+    expect(result.cells[0].cheapestBin.value).toBe(50);
+  });
+
+  test('returns empty matrix for no comps', () => {
+    const result = buildGradeMatrix({
+      completedComps: [],
+      activeComps: [],
+      series: 'Silver Eagle',
+      lookbackDays: 90,
+      lookupKeyDate: mockLookupKeyDate,
+    });
+
+    expect(result.mode).toBe('grade');
+    expect(result.years).toEqual([]);
+    expect(result.grades).toEqual([]);
+    expect(result.cells).toEqual([]);
+  });
+
+  test('summary includes gradeCount', () => {
+    const comps = [
+      { title: '2021 Eagle MS69', totalUsd: 35 },
+      { title: '2021 Eagle MS70', totalUsd: 55 },
+      { title: '2021 Eagle BU', totalUsd: 30 },
+    ];
+    const result = buildGradeMatrix({
+      completedComps: comps,
+      activeComps: [],
+      series: 'Silver Eagle',
+      lookbackDays: 90,
+      lookupKeyDate: mockLookupKeyDate,
+    });
+
+    expect(result.summary.gradeCount).toBe(3);
+    expect(result.summary.yearMin).toBe(2021);
+    expect(result.summary.yearMax).toBe(2021);
+  });
+});
+
+/* ═══════════════════════════════════════════════════════════
+ *  fetchMarketMatrix — bullion mode selection
+ * ═══════════════════════════════════════════════════════════ */
+describe('fetchMarketMatrix — bullion auto-detection', () => {
+  const mockLookupKeyDate = () => ({ isKeyDate: false });
+
+  const mockEbayService = {
+    fetchSoldComps: jest.fn(),
+  };
+
+  beforeEach(() => {
+    clearCache();
+    mockEbayService.fetchSoldComps.mockReset();
+  });
+
+  test('returns mode "grade" for bullion series', async () => {
+    mockEbayService.fetchSoldComps
+      .mockResolvedValueOnce({
+        us: { comps: [{ title: '2021 American Silver Eagle MS69', totalUsd: 35 }] },
+        global: { comps: [] },
+      })
+      .mockResolvedValueOnce({
+        us: { comps: [] },
+        global: { comps: [] },
+      });
+
+    const result = await fetchMarketMatrix({
+      series: 'American Silver Eagle',
+      grade: 'All',
+      timeWindowDays: 90,
+      lookupKeyDate: mockLookupKeyDate,
+      ebayService: mockEbayService,
+    });
+
+    expect(result.mode).toBe('grade');
+    expect(result.grades).toBeDefined();
+  });
+
+  test('returns mode "year-mint" for non-bullion series', async () => {
+    mockEbayService.fetchSoldComps
+      .mockResolvedValueOnce({
+        us: { comps: [{ title: '1956-D Franklin Half Dollar', totalUsd: 30 }] },
+        global: { comps: [] },
+      })
+      .mockResolvedValueOnce({
+        us: { comps: [] },
+        global: { comps: [] },
+      });
+
+    const result = await fetchMarketMatrix({
+      series: 'Franklin Half Dollar',
+      grade: 'All',
+      timeWindowDays: 90,
+      lookupKeyDate: mockLookupKeyDate,
+      ebayService: mockEbayService,
+    });
+
+    expect(result.mode).toBe('year-mint');
+    expect(result.mintMarks).toBeDefined();
   });
 });
