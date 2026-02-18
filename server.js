@@ -18,17 +18,21 @@ const priceRoute       = require('./src/routes/priceRoute');
 const metalsRoute      = require('./src/routes/metalsRoute');
 const barPriceRoute    = require('./src/routes/barPriceRoute');
 const coinVariantRoute = require('./src/routes/coinVariantRoute');
+const marketRoute      = require('./src/routes/marketRoute');
 app.use('/api/price', priceRoute);
 app.use('/api/metals', metalsRoute);
 app.use('/api/bar-price', barPriceRoute);
 app.use('/api/coin-variant', coinVariantRoute);
+app.use('/api/market/ebay', marketRoute);
 
 // Clear all caches
 app.post('/api/clear-cache', (_req, res) => {
   const ebay = require('./src/services/ebayService');
   const pcgs = require('./src/services/pcgsService');
+  const market = require('./src/services/marketAggregator');
   ebay.clearCache();
   pcgs.clearCache();
+  market.clearCache();
   res.json({ status: 'ok', message: 'All caches cleared' });
 });
 

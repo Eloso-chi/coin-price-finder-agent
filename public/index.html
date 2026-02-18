@@ -579,6 +579,34 @@
     .bar-form .field select:focus,
     .bar-form .field input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-subtle); }
     .bar-form .hint { font-size: 0.72rem; color: var(--text-muted); margin-top: 3px; display: block; }
+
+    /* ── Live eBay Tracker ───────────────────────────────── */
+    .tracker-form-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
+    .tracker-field { display: flex; flex-direction: column; gap: 4px; }
+    .tracker-field label { font-size: 0.76rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.03em; }
+    .tracker-field input, .tracker-field select { background: var(--surface); border: 1px solid var(--border); color: var(--text); padding: 9px 12px; border-radius: var(--radius); font-size: 0.9rem; }
+    .tracker-field input:focus, .tracker-field select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-subtle); }
+    .tracker-field input { min-width: 220px; }
+    .tracker-field-btn { justify-content: flex-end; }
+    .tracker-summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 16px; }
+    .tracker-stat { background: var(--card); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); padding: 14px 16px; text-align: center; }
+    .tracker-stat-value { font-size: 1.35rem; font-weight: 800; color: var(--text); margin-bottom: 2px; font-variant-numeric: tabular-nums; }
+    .tracker-stat-label { font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
+    .tracker-scroll-wrap { overflow-x: auto; margin-bottom: 16px; border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); }
+    .tracker-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 400px; }
+    .tracker-table thead { background: var(--card); position: sticky; top: 0; z-index: 1; }
+    .tracker-th-year, .tracker-th-mint { padding: 10px 14px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); border-bottom: 2px solid var(--border); text-align: center; white-space: nowrap; }
+    .tracker-th-year { text-align: left; }
+    .tracker-td-year { padding: 8px 14px; font-weight: 700; font-size: 0.9rem; color: var(--text); white-space: nowrap; border-bottom: 1px solid var(--border-subtle); background: var(--card); position: sticky; left: 0; z-index: 1; }
+    .tracker-td-cell { padding: 6px 10px; text-align: center; border-bottom: 1px solid var(--border-subtle); vertical-align: top; min-width: 90px; position: relative; }
+    .tracker-median { color: #90caf9; font-weight: 700; font-size: 0.88rem; font-variant-numeric: tabular-nums; line-height: 1.4; }
+    .tracker-sample { font-size: 0.65rem; color: var(--text-muted); font-weight: 400; margin-left: 3px; vertical-align: super; }
+    .tracker-bin { font-size: 0.82rem; font-variant-numeric: tabular-nums; line-height: 1.4; }
+    .tracker-bin a { color: var(--green); text-decoration: none; font-weight: 600; }
+    .tracker-bin a:hover { text-decoration: underline; }
+    .tracker-no-data { color: var(--text-muted); font-size: 0.8rem; }
+    .tracker-kd-badge { display: inline-block; width: 16px; height: 16px; border-radius: 3px; color: #fff; font-size: 0.6rem; font-weight: 800; text-align: center; line-height: 16px; position: absolute; top: 4px; right: 4px; }
+    .tracker-table tbody tr:hover .tracker-td-cell { background: rgba(255,255,255,0.02); }
   </style>
 </head>
 <body>
@@ -593,6 +621,7 @@
   <nav class="tab-bar" role="tablist" aria-label="Main tools">
     <button class="tab-btn" role="tab" id="tab-price" aria-controls="panel-price" aria-selected="true">Price Discovery</button>
     <button class="tab-btn" role="tab" id="tab-melt" aria-controls="panel-melt" aria-selected="false">Melt Calculator</button>
+    <button class="tab-btn" role="tab" id="tab-tracker" aria-controls="panel-tracker" aria-selected="false">Live eBay Tracker</button>
   </nav>
 
   <!-- ══════════════════════════════════════════════════════ -->
@@ -988,6 +1017,99 @@
         <div id="melt-spot-status" class="melt-spot-status" role="status" aria-live="polite"></div>
       </div>
       <div id="melt-results"></div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════ -->
+  <!-- TAB 3 — Live eBay Tracker                              -->
+  <!-- ══════════════════════════════════════════════════════ -->
+  <section id="panel-tracker" class="tab-panel" role="tabpanel" aria-labelledby="tab-tracker" aria-hidden="true">
+    <div class="card">
+      <h2>&#x1F4CA; Live eBay Market Tracker</h2>
+      <div class="tracker-form">
+        <div class="tracker-form-row">
+          <div class="tracker-field">
+            <label for="tracker-series">Coin Series</label>
+            <input id="tracker-series" type="text" placeholder="e.g. Franklin Half Dollar" autocomplete="off" list="tracker-series-list">
+            <datalist id="tracker-series-list">
+              <option value="Morgan Dollar">
+              <option value="Peace Dollar">
+              <option value="Walking Liberty Half">
+              <option value="Franklin Half Dollar">
+              <option value="Kennedy Half Dollar">
+              <option value="Washington Quarter">
+              <option value="Roosevelt Dime">
+              <option value="Mercury Dime">
+              <option value="Jefferson Nickel">
+              <option value="Lincoln Cent">
+              <option value="Buffalo Nickel">
+              <option value="Barber Half Dollar">
+              <option value="Barber Quarter">
+              <option value="Barber Dime">
+              <option value="Standing Liberty Quarter">
+              <option value="Eisenhower Dollar">
+              <option value="American Silver Eagle">
+              <option value="American Gold Eagle">
+            </datalist>
+          </div>
+          <div class="tracker-field">
+            <label for="tracker-grade">Grade Filter</label>
+            <select id="tracker-grade">
+              <option value="All" selected>All Grades</option>
+              <option value="MS60">MS60</option>
+              <option value="MS61">MS61</option>
+              <option value="MS62">MS62</option>
+              <option value="MS63">MS63</option>
+              <option value="MS64">MS64</option>
+              <option value="MS65">MS65</option>
+              <option value="MS66">MS66</option>
+              <option value="MS67">MS67</option>
+              <option value="PR65">PR65</option>
+              <option value="PR66">PR66</option>
+              <option value="PR67">PR67</option>
+              <option value="PR68">PR68</option>
+              <option value="PR69">PR69</option>
+              <option value="PR70">PR70</option>
+              <option value="AU50">AU50</option>
+              <option value="AU53">AU53</option>
+              <option value="AU55">AU55</option>
+              <option value="AU58">AU58</option>
+              <option value="XF40">XF40</option>
+              <option value="XF45">XF45</option>
+              <option value="VF20">VF20</option>
+              <option value="VF25">VF25</option>
+              <option value="VF30">VF30</option>
+              <option value="VF35">VF35</option>
+            </select>
+          </div>
+          <div class="tracker-field">
+            <label for="tracker-days">Lookback</label>
+            <select id="tracker-days">
+              <option value="30">30 days</option>
+              <option value="60">60 days</option>
+              <option value="90" selected>90 days</option>
+              <option value="180">180 days</option>
+            </select>
+          </div>
+          <div class="tracker-field tracker-field-btn">
+            <button id="tracker-submit" class="btn" type="button">Load Market Data</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="tracker-status" class="status-bar" role="status" aria-live="polite"></div>
+    <div id="tracker-summary" style="display:none"></div>
+
+    <div id="tracker-matrix-wrap" style="display:none">
+      <div class="tracker-scroll-wrap">
+        <table id="tracker-matrix" class="tracker-table"></table>
+      </div>
+    </div>
+
+    <div id="tracker-empty" class="empty-state">
+      <div class="icon" aria-hidden="true">&#x1F4CA;</div>
+      <p>Enter a coin series above and tap <strong>Load Market Data</strong> to see a year &times; mint matrix of median completed-sale prices and cheapest Buy It Now listings from eBay.</p>
     </div>
   </section>
 
@@ -2244,6 +2366,10 @@
     html += '<pre class="json">' + JSON.stringify(d, null, 2) + '</pre></details>';
 
     r.innerHTML = html;
+
+    // Pass detected series name to Live eBay Tracker
+    const trackerSeries = d.pcgs?.series || d.coinData?.name || d.identification?.parsed?.series || '';
+    if (trackerSeries && typeof EbayTracker !== 'undefined') EbayTracker.setSeries(trackerSeries);
   }
 
   // Submit handlers are now managed by CoinForm._bindSubmit()
@@ -2566,6 +2692,168 @@
 
   // Boot
   MeltCalc.init();
+
+  /* ═══════════════════════════════════════════════════════════
+   *  LIVE EBAY TRACKER
+   * ═══════════════════════════════════════════════════════════ */
+  const EbayTracker = {
+    _lastSeries: null,
+
+    init() {
+      this.els = {
+        series:     document.getElementById('tracker-series'),
+        grade:      document.getElementById('tracker-grade'),
+        days:       document.getElementById('tracker-days'),
+        submit:     document.getElementById('tracker-submit'),
+        status:     document.getElementById('tracker-status'),
+        summary:    document.getElementById('tracker-summary'),
+        matrixWrap: document.getElementById('tracker-matrix-wrap'),
+        matrix:     document.getElementById('tracker-matrix'),
+        empty:      document.getElementById('tracker-empty'),
+      };
+      if (!this.els.submit) return;
+      this.els.submit.addEventListener('click', () => this._load());
+      this.els.series.addEventListener('keydown', e => { if (e.key === 'Enter') this._load(); });
+      this.els.grade.addEventListener('change', () => { if (this._lastSeries) this._load(); });
+      this.els.days.addEventListener('change', () => { if (this._lastSeries) this._load(); });
+    },
+
+    /** Set series input from Price Discovery results */
+    setSeries(series) {
+      if (series && this.els && this.els.series) {
+        this.els.series.value = series;
+      }
+    },
+
+    async _load() {
+      const series = (this.els.series.value || '').trim();
+      if (!series) {
+        this.els.status.className = 'status-bar error';
+        this.els.status.textContent = 'Please enter a coin series.';
+        return;
+      }
+      this._lastSeries = series;
+      const grade = this.els.grade.value;
+      const days = this.els.days.value;
+
+      this.els.submit.disabled = true;
+      this.els.status.className = 'status-bar loading';
+      this.els.status.innerHTML = '<div class="spinner"></div> Fetching eBay market data for \u201C' + series + '\u201D\u2026';
+      this.els.summary.style.display = 'none';
+      this.els.matrixWrap.style.display = 'none';
+      this.els.empty.style.display = 'none';
+
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 90000);
+        const params = new URLSearchParams({ series, grade, days });
+        const resp = await fetch('/api/market/ebay?' + params, { signal: controller.signal });
+        clearTimeout(timeoutId);
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || 'Request failed');
+
+        this.els.status.className = 'status-bar';
+        this.els.status.innerHTML = '';
+
+        if (!data.cells || data.cells.length === 0) {
+          this.els.empty.style.display = '';
+          this.els.empty.querySelector('p').textContent =
+            'No eBay data found for \u201C' + series + '\u201D. Try a different series name or a wider lookback window.';
+          return;
+        }
+
+        this._renderSummary(data);
+        this._renderMatrix(data);
+      } catch (err) {
+        this.els.status.className = 'status-bar error';
+        if (err.name === 'AbortError') {
+          this.els.status.textContent = 'Request timed out \u2014 this query scans many eBay pages. Try again.';
+        } else if (err.message === 'Failed to fetch') {
+          this.els.status.textContent = 'Network error \u2014 is the server running?';
+        } else {
+          this.els.status.textContent = err.message;
+        }
+      } finally {
+        this.els.submit.disabled = false;
+      }
+    },
+
+    _renderSummary(data) {
+      const s = data.summary || {};
+      const el = this.els.summary;
+      el.style.display = '';
+      let html = '<div class="tracker-summary-grid">';
+      html += '<div class="tracker-stat"><div class="tracker-stat-value">' + (s.cellsWithPriceData || 0) + '</div><div class="tracker-stat-label">Cells with data</div></div>';
+      html += '<div class="tracker-stat"><div class="tracker-stat-value">' + (s.yearMin && s.yearMax ? s.yearMin + '\u2013' + s.yearMax : '\u2014') + '</div><div class="tracker-stat-label">Year range</div></div>';
+      html += '<div class="tracker-stat"><div class="tracker-stat-value">' + (s.mintCount || 0) + '</div><div class="tracker-stat-label">Mint marks</div></div>';
+      html += '<div class="tracker-stat"><div class="tracker-stat-value">' + (data.grade || 'All') + '</div><div class="tracker-stat-label">Grade filter</div></div>';
+      html += '</div>';
+      el.innerHTML = html;
+    },
+
+    _renderMatrix(data) {
+      const { years, mintMarks, cells } = data;
+      // Build lookup: "year-mint" → cell
+      const lookup = {};
+      for (const c of cells) lookup[c.year + '-' + c.mint] = c;
+
+      const wrap = this.els.matrixWrap;
+      const table = this.els.matrix;
+      wrap.style.display = '';
+
+      let html = '<thead><tr><th class="tracker-th-year">Year</th>';
+      for (const m of mintMarks) {
+        html += '<th class="tracker-th-mint">' + m + '</th>';
+      }
+      html += '</tr></thead><tbody>';
+
+      for (const year of years) {
+        html += '<tr><td class="tracker-td-year">' + year + '</td>';
+        for (const mint of mintMarks) {
+          const cell = lookup[year + '-' + mint];
+          html += '<td class="tracker-td-cell">';
+          if (cell) {
+            // Key date badge
+            if (cell.keyDate) {
+              const tierColor = cell.keyDateTier === 'key' ? 'var(--red)'
+                : cell.keyDateTier === 'semi-key' ? 'var(--yellow)' : 'var(--accent)';
+              html += '<span class="tracker-kd-badge" style="background:' + tierColor + '" title="Key date: ' + (cell.keyDateTier || 'notable') + '">K</span>';
+            }
+            // Median completed (light blue)
+            if (cell.medianCompleted) {
+              html += '<div class="tracker-median" title="Median sold (' + cell.medianCompleted.sampleSize + ' comps, ' + cell.medianCompleted.lookbackDays + 'd)">';
+              html += '$' + cell.medianCompleted.value.toFixed(0);
+              html += '<span class="tracker-sample">' + cell.medianCompleted.sampleSize + '</span>';
+              html += '</div>';
+            }
+            // Cheapest BIN (green)
+            if (cell.cheapestBin) {
+              html += '<div class="tracker-bin">';
+              if (cell.cheapestBin.url) {
+                html += '<a href="' + cell.cheapestBin.url + '" target="_blank" rel="noopener" title="Cheapest Buy It Now listing">';
+                html += '$' + cell.cheapestBin.value.toFixed(0);
+                html += '</a>';
+              } else {
+                html += '$' + cell.cheapestBin.value.toFixed(0);
+              }
+              html += '</div>';
+            }
+            if (!cell.medianCompleted && !cell.cheapestBin) {
+              html += '<span class="tracker-no-data">\u2014</span>';
+            }
+          } else {
+            html += '<span class="tracker-no-data">\u2014</span>';
+          }
+          html += '</td>';
+        }
+        html += '</tr>';
+      }
+      html += '</tbody>';
+      table.innerHTML = html;
+    },
+  };
+
+  EbayTracker.init();
 
   // Pre-fetch spot prices so melt info is available in Price Discovery results
   MeltSpotAdapter.getSpot('gold');

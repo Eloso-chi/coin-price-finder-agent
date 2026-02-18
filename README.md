@@ -180,10 +180,28 @@ If an asking price is provided:
 |--------|------|-------------|
 | `POST` | `/api/price` | Price a coin (main endpoint) |
 | `POST` | `/api/bar-price` | Price a bullion bar |
+| `GET` | `/api/market/ebay` | Live eBay market matrix (year × mint grid) |
 | `GET` | `/api/metals` | Get spot prices for multiple metals |
 | `GET` | `/api/metals/:metal` | Get a single metal's spot price |
-| `POST` | `/api/clear-cache` | Flush all caches (eBay + PCGS) |
+| `POST` | `/api/clear-cache` | Flush all caches (eBay + PCGS + market) |
 | `GET` | `/api/health` | Health check + config status |
+
+### Live eBay Market Tracker
+
+```bash
+# Fetch a year × mint matrix of Franklin Half Dollar prices
+curl -s 'http://localhost:3000/api/market/ebay?series=Franklin+Half+Dollar&grade=MS65&days=90' | jq .
+```
+
+Query parameters:
+
+| Param | Required | Default | Description |
+|-------|----------|---------|-------------|
+| `series` | Yes | — | Coin series name (e.g. "Morgan Dollar") |
+| `grade` | No | `All` | Grade filter (e.g. "MS65", "PR69") |
+| `days` | No | `90` | Lookback window for completed sales |
+
+Response includes `years`, `mintMarks`, `summary`, and `cells[]` — each cell has `medianCompleted` (from sold comps), `cheapestBin` (active BIN link), and `keyDate`/`keyDateTier` flags.
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed request/response schemas and the full data flow.
 
@@ -195,9 +213,11 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed request/response s
 npm test                                          # all suites
 npx jest __tests__/coinSearch.relevance.test.js    # denomination relevance only
 npx jest __tests__/coinSearch.ebayKeywords.test.js # eBay keyword quality only
+npx jest __tests__/marketAggregator.test.js        # market matrix aggregator
+npx jest __tests__/marketRoute.test.js             # market route integration
 ```
 
-Runs **Jest** across 5 test suites (205+ tests):
+Runs **Jest** across 7 test suites (247 tests):
 
 | Suite | What it covers |
 |---|---|
@@ -206,6 +226,8 @@ Runs **Jest** across 5 test suites (205+ tests):
 | `coinSearch.relevance.test.js` | **Denomination relevance**: parseDescription extracts correct denomination/series, buildKeywords preserves it, scoreMatch awards series-match, no cross-denomination contamination |
 | `coinSearch.ebayKeywords.test.js` | **eBay keyword quality**: series fallback, weight injection, grade/designation pass-through, Semiquincentennial handling, positive/negative token assertions per denomination |
 | `coinSearch.fieldValidation.test.js` | **Field shapes**: required fields present & well-typed for parseDescription, buildKeywords, resolveCoinVariant; regression guards for past bugs |
+| `marketAggregator.test.js` | **Market matrix**: extractYear, extractMint, matchesGrade helpers; buildMarketMatrix median/BIN/key-date/grade-filter logic; fetchMarketMatrix caching & error resilience |
+| `marketRoute.test.js` | **Route integration**: 400 on missing series, 200 with correct response shape, parameter pass-through, 500 error handling |
 
 Test helpers live in `__tests__/helpers/coinTestConstants.js` (shared token lists, normalization, compound-word-aware `containsNone`).
 
