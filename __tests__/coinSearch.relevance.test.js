@@ -364,3 +364,67 @@ describe('scoreMatch — precious metal melt cross-check', () => {
     expect(comp.matchNotes).not.toContain('price-exceeds-melt');
   });
 });
+
+/* ═══════════════════════════════════════════════════════════════
+ *  Mint-mark match / mismatch scoring
+ * ═══════════════════════════════════════════════════════════════ */
+describe('scoreMatch — mint-mark verification', () => {
+
+  test('exact mint match (1892-S searched, 1892-S in title) → mint-match bonus', () => {
+    const comp = { title: '1892-S Morgan Silver Dollar XF', totalUsd: 200 };
+    scoreMatch(comp, { mint: 'S', year: 1892, series: 'Morgan Dollar' });
+    expect(comp.matchNotes).toContain('mint-match');
+    expect(comp.matchNotes).not.toContain('mint-mismatch');
+  });
+
+  test('mint mismatch (want S, title says O) → mint-mismatch penalty', () => {
+    const comp = { title: '1892-O Morgan Silver Dollar XF', totalUsd: 45 };
+    scoreMatch(comp, { mint: 'S', year: 1892, series: 'Morgan Dollar' });
+    expect(comp.matchNotes).toContain('mint-mismatch');
+    expect(comp.matchNotes).not.toContain('mint-match');
+    expect(comp.matchScore).toBeLessThan(50);
+  });
+
+  test('mint mismatch (want D, title says CC) → mint-mismatch penalty', () => {
+    const comp = { title: '1884 CC Morgan Dollar MS63', totalUsd: 300 };
+    scoreMatch(comp, { mint: 'D', year: 1884, series: 'Morgan Dollar' });
+    expect(comp.matchNotes).toContain('mint-mismatch');
+  });
+
+  test('no mint in title → no bonus or penalty (benefit of doubt)', () => {
+    const comp = { title: '1892 Morgan Silver Dollar VF', totalUsd: 100 };
+    scoreMatch(comp, { mint: 'S', year: 1892, series: 'Morgan Dollar' });
+    expect(comp.matchNotes).not.toContain('mint-match');
+    expect(comp.matchNotes).not.toContain('mint-mismatch');
+  });
+
+  test('no expected mint → no mint scoring applied', () => {
+    const comp = { title: '1892-O Morgan Silver Dollar XF', totalUsd: 45 };
+    scoreMatch(comp, { year: 1892, series: 'Morgan Dollar' });
+    expect(comp.matchNotes).not.toContain('mint-match');
+    expect(comp.matchNotes).not.toContain('mint-mismatch');
+  });
+});
+
+/* ═══════════════════════════════════════════════════════════════
+ *  buildKeywords — mint-mark in eBay search keywords
+ * ═══════════════════════════════════════════════════════════════ */
+describe('buildKeywords — mint-mark formatting', () => {
+
+  test('year + mint → joined as "1892-S" (not "-S")', () => {
+    const kw = buildKeywords({ year: 1892, mint: 'S', series: 'Morgan Dollar' }, '1892-S Morgan Dollar');
+    expect(kw).toContain('1892-S');
+    // Must NOT have standalone " -S " that eBay would treat as exclusion
+    expect(kw).not.toMatch(/\s-S\b/);
+  });
+
+  test('mint without year → mint appended standalone', () => {
+    const kw = buildKeywords({ mint: 'D', series: 'Morgan Dollar' }, 'Morgan Dollar D');
+    expect(kw).toContain('D');
+  });
+
+  test('no mint → no mint in keywords', () => {
+    const kw = buildKeywords({ year: 1892, series: 'Morgan Dollar' }, '1892 Morgan Dollar');
+    expect(kw).not.toMatch(/-[SDPWO]\b/);
+  });
+});

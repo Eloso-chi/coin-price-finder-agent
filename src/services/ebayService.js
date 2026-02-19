@@ -375,9 +375,20 @@ function scoreMatch(comp, expected) {
     else if (/pcgs|ngc|anacs|icg/i.test(tLow)) { score += 5; notes.push('certified'); }
   }
 
-  // Mint match
-  if (expected.mint && new RegExp(`\\b${expected.mint}\\b`, 'i').test(tLow)) {
-    score += 5; notes.push('mint-match');
+  // Mint match / mismatch
+  if (expected.mint) {
+    const wantMint = expected.mint.toUpperCase();
+    // Extract mint mark from title: year-adjacent "1892-S", "1881 CC", etc.
+    const mintRe = /\b\d{4}\s*[-]?\s*(CC|[SDPWO])\b/i;
+    const mintHit = tLow.match(mintRe);
+    const titleMint = mintHit ? mintHit[1].toUpperCase() : null;
+    if (titleMint === wantMint) {
+      score += 10; notes.push('mint-match');
+    } else if (titleMint && titleMint !== wantMint) {
+      // Different mint mark explicitly stated in title — strong penalty
+      score -= 30; notes.push('mint-mismatch');
+    }
+    // If no mint found in title, no bonus or penalty (benefit of doubt)
   }
 
   // Series match
@@ -603,6 +614,23 @@ function applyFilters(comps, options, expected) {
     });
   }
 
+  // Mint-mark mismatch filter: drop comps whose title explicitly states
+  // a different mint mark than expected (e.g. user wants 1892-S but title says 1892-O)
+  if (expected.mint) {
+    const wantMint = expected.mint.toUpperCase();
+    removed.mintMismatch = 0;
+    kept = kept.filter(c => {
+      const tLow = (c.title || '').toLowerCase();
+      const mintRe = /\b\d{4}\s*[-]?\s*(CC|[SDPWO])\b/i;
+      const m = tLow.match(mintRe);
+      if (!m) return true; // no mint stated → benefit of the doubt
+      const titleMint = m[1].toUpperCase();
+      if (titleMint === wantMint) return true;
+      removed.mintMismatch++;
+      return false;
+    });
+  }
+
   // requirePCGSOnly
   if (options.requirePCGSOnly) {
     kept = kept.filter(c => {
@@ -813,7 +841,15 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
 function buildKeywords(pcgsData, rawQuery, weight) {
   const parts = [];
   if (pcgsData?.year) parts.push(String(pcgsData.year));
-  if (pcgsData?.mint) parts.push(`-${pcgsData.mint}`);
+  // Append mint mark with hyphen joining to year (e.g. "1892-S") so eBay
+  // doesn't interpret a standalone "-S" as a negation/exclusion operator.
+  if (pcgsData?.mint && pcgsData?.year) {
+    // Remove the bare year we just pushed and replace with year-mint
+    parts.pop();
+    parts.push(`${pcgsData.year}-${pcgsData.mint}`);
+  } else if (pcgsData?.mint) {
+    parts.push(pcgsData.mint);
+  }
   if (pcgsData?.series) parts.push(pcgsData.series);
   if (pcgsData?.grade) parts.push(pcgsData.grade);
   if (pcgsData?.designation) parts.push(pcgsData.designation);
