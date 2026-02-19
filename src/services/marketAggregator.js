@@ -161,12 +161,16 @@ function buildMarketMatrix({
         : sorted[mid];
     }
 
-    // Cheapest BIN
+    // Cheapest BIN + next cheapest
     const activeItems = activeBuckets[key] || [];
     let cheapestBin = null;
+    let nextCheapestBin = null;
     if (activeItems.length > 0) {
       activeItems.sort((a, b) => a.price - b.price);
       cheapestBin = { value: activeItems[0].price, currency: 'USD', url: activeItems[0].url };
+      if (activeItems.length > 1) {
+        nextCheapestBin = { value: activeItems[1].price, currency: 'USD' };
+      }
     }
 
     // Key date?
@@ -181,6 +185,7 @@ function buildMarketMatrix({
         ? { value: Math.round(medianCompleted * 100) / 100, currency: 'USD', sampleSize: completedPrices.length, lookbackDays }
         : null,
       cheapestBin: cheapestBin || null,
+      nextCheapestBin: nextCheapestBin || null,
     });
   }
 
@@ -282,9 +287,13 @@ function buildGradeMatrix({
 
     const activeItems = activeBuckets[key] || [];
     let cheapestBin = null;
+    let nextCheapestBin = null;
     if (activeItems.length > 0) {
       activeItems.sort((a, b) => a.price - b.price);
       cheapestBin = { value: activeItems[0].price, currency: 'USD', url: activeItems[0].url };
+      if (activeItems.length > 1) {
+        nextCheapestBin = { value: activeItems[1].price, currency: 'USD' };
+      }
     }
 
     const kdResult = lookupKeyDate(series, year, '');
@@ -298,6 +307,7 @@ function buildGradeMatrix({
         ? { value: Math.round(medianCompleted * 100) / 100, currency: 'USD', sampleSize: completedPrices.length, lookbackDays }
         : null,
       cheapestBin: cheapestBin || null,
+      nextCheapestBin: nextCheapestBin || null,
     });
   }
 

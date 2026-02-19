@@ -223,6 +223,33 @@ describe('buildMarketMatrix', () => {
     expect(cell1956D.cheapestBin.url).toBe('http://bin3');
   });
 
+  test('nextCheapestBin is the second cheapest BIN listing', () => {
+    // 1956-D has 2 active BIN: 35 and 28 → next cheapest is 35
+    const result = buildMarketMatrix({
+      completedComps: [],
+      activeComps: sampleActive,
+      series: 'Franklin Half Dollar',
+      lookupKeyDate: mockLookupKeyDate,
+    });
+    const cell1956D = result.cells.find(c => c.year === 1956 && c.mint === 'D');
+    expect(cell1956D.nextCheapestBin).not.toBeNull();
+    expect(cell1956D.nextCheapestBin.value).toBe(35);
+  });
+
+  test('nextCheapestBin is null when only one BIN listing', () => {
+    const result = buildMarketMatrix({
+      completedComps: [],
+      activeComps: [
+        { title: '1956 Franklin Half Dollar', totalUsd: 30, url: 'http://solo', listingType: 'FixedPrice' },
+      ],
+      series: 'Franklin Half Dollar',
+      lookupKeyDate: mockLookupKeyDate,
+    });
+    const cell = result.cells[0];
+    expect(cell.cheapestBin.value).toBe(30);
+    expect(cell.nextCheapestBin).toBeNull();
+  });
+
   test('filters out auction listings from active BIN', () => {
     // 1957-P has only an "Auction" type → should not appear as BIN
     const result = buildMarketMatrix({
@@ -636,6 +663,23 @@ describe('buildGradeMatrix', () => {
 
     expect(result.cells.length).toBe(1);
     expect(result.cells[0].cheapestBin.value).toBe(50);
+  });
+
+  test('nextCheapestBin in grade matrix with multiple BINs', () => {
+    const result = buildGradeMatrix({
+      completedComps: [],
+      activeComps: [
+        { title: '2023 Eagle MS70', totalUsd: 50, url: 'http://ebay/1', listingType: 'FixedPrice' },
+        { title: '2023 Eagle MS70', totalUsd: 65, url: 'http://ebay/2', listingType: 'FixedPrice' },
+      ],
+      series: 'Silver Eagle',
+      lookbackDays: 90,
+      lookupKeyDate: mockLookupKeyDate,
+    });
+
+    expect(result.cells[0].cheapestBin.value).toBe(50);
+    expect(result.cells[0].nextCheapestBin).not.toBeNull();
+    expect(result.cells[0].nextCheapestBin.value).toBe(65);
   });
 
   test('returns empty matrix for no comps', () => {

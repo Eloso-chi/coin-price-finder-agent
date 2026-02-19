@@ -607,6 +607,9 @@
     .tracker-no-data { color: var(--text-muted); font-size: 0.8rem; }
     .tracker-kd-badge { display: inline-block; width: 16px; height: 16px; border-radius: 3px; color: #fff; font-size: 0.6rem; font-weight: 800; text-align: center; line-height: 16px; position: absolute; top: 4px; right: 4px; }
     .tracker-table tbody tr:hover .tracker-td-cell { background: rgba(255,255,255,0.02); }
+    .tracker-cheapest-row { background: rgba(255,215,0,0.12) !important; border-left: 2px solid #ffd700; }
+    .tracker-pct-cheaper { font-size: 0.65rem; font-weight: 700; color: var(--green); margin-left: 3px; white-space: nowrap; }
+    .tracker-pct-na { color: var(--text-muted); font-weight: 400; }
 
     /* Tracker Legend */
     .tracker-legend { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; margin-bottom: 12px; padding: 8px 12px; background: var(--card); border: 1px solid var(--border-subtle); border-radius: var(--radius); font-size: 0.78rem; color: var(--text-secondary); }
@@ -1108,7 +1111,8 @@
     <div id="tracker-summary" style="display:none"></div>
     <div class="tracker-legend">
       <span class="tracker-legend-item"><span class="tracker-legend-swatch" style="background:#90caf9"></span> Median sold price <span class="tracker-legend-note">(sample count)</span></span>
-      <span class="tracker-legend-item"><span class="tracker-legend-swatch" style="background:var(--green)"></span> Cheapest Buy It Now</span>
+      <span class="tracker-legend-item"><span class="tracker-legend-swatch" style="background:var(--green)"></span> Cheapest Buy It Now <span class="tracker-legend-note">(−% vs next BIN)</span></span>
+      <span class="tracker-legend-item"><span class="tracker-legend-swatch" style="background:rgba(255,215,0,0.35);border:1px solid #ffd700"></span> Best BIN deal for that year</span>
       <span class="tracker-legend-item"><span class="tracker-kd-badge" style="position:static;display:inline-block;width:16px;height:16px;line-height:16px;background:var(--red);font-size:0.6rem;font-weight:800;color:#fff;text-align:center;border-radius:3px">K</span> Key / semi-key date</span>
     </div>
 
@@ -2918,11 +2922,25 @@
       return this._renderYearMintMatrix(data);
     },
 
+    /** Find the cheapest BIN value per year across all cells */
+    _cheapestBinPerYear(cells) {
+      const map = {};
+      for (const c of cells) {
+        if (c.cheapestBin) {
+          if (!map[c.year] || c.cheapestBin.value < map[c.year]) {
+            map[c.year] = c.cheapestBin.value;
+          }
+        }
+      }
+      return map;
+    },
+
     /** Render the year×mint matrix (non-bullion default) */
     _renderYearMintMatrix(data) {
       const { years, mintMarks, cells } = data;
       const lookup = {};
       for (const c of cells) lookup[c.year + '-' + c.mint] = c;
+      const cheapestPerYear = this._cheapestBinPerYear(cells);
 
       const wrap = this.els.matrixWrap;
       const table = this.els.matrix;
@@ -2938,7 +2956,7 @@
         html += '<tr><td class="tracker-td-year">' + year + '</td>';
         for (const mint of mintMarks) {
           const cell = lookup[year + '-' + mint];
-          html += this._renderCell(cell);
+          html += this._renderCell(cell, cheapestPerYear[year]);
         }
         html += '</tr>';
       }
@@ -2951,6 +2969,7 @@
       const { years, grades, cells } = data;
       const lookup = {};
       for (const c of cells) lookup[c.year + '-' + c.grade] = c;
+      const cheapestPerYear = this._cheapestBinPerYear(cells);
 
       const wrap = this.els.matrixWrap;
       const table = this.els.matrix;
@@ -2966,7 +2985,7 @@
         html += '<tr><td class="tracker-td-year">' + year + '</td>';
         for (const grade of grades) {
           const cell = lookup[year + '-' + grade];
-          html += this._renderCell(cell);
+          html += this._renderCell(cell, cheapestPerYear[year]);
         }
         html += '</tr>';
       }
@@ -2974,9 +2993,15 @@
       table.innerHTML = html;
     },
 
-    /** Render a single table cell (shared by both matrix modes) */
-    _renderCell(cell) {
-      let html = '<td class="tracker-td-cell">';
+    /**
+     * Render a single table cell (shared by both matrix modes).
+     * @param {object|null} cell
+     * @param {number|undefined} cheapestBinForYear — lowest BIN in this row (for highlight)
+     */
+    _renderCell(cell, cheapestBinForYear) {
+      const isCheapestInRow = cell && cell.cheapestBin && cheapestBinForYear != null
+        && Math.abs(cell.cheapestBin.value - cheapestBinForYear) < 0.01;
+      let html = '<td class="tracker-td-cell' + (isCheapestInRow ? ' tracker-cheapest-row' : '') + '">';
       if (cell) {
         if (cell.keyDate) {
           const tierColor = cell.keyDateTier === 'key' ? 'var(--red)'
@@ -2997,6 +3022,13 @@
             html += '</a>';
           } else {
             html += '$' + cell.cheapestBin.value.toFixed(0);
+          }
+          // % cheaper vs next cheapest BIN
+          if (cell.nextCheapestBin && cell.nextCheapestBin.value > cell.cheapestBin.value) {
+            const pct = Math.round(((cell.nextCheapestBin.value - cell.cheapestBin.value) / cell.nextCheapestBin.value) * 100);
+            html += ' <span class="tracker-pct-cheaper" title="' + pct + '% cheaper than next BIN ($' + cell.nextCheapestBin.value.toFixed(0) + ')">\u2212' + pct + '%</span>';
+          } else {
+            html += ' <span class="tracker-pct-cheaper tracker-pct-na" title="Only one BIN listing available">\u2013</span>';
           }
           html += '</div>';
         }
