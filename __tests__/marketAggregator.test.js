@@ -473,6 +473,10 @@ describe('isBullionSeries', () => {
     'Perth Mint',
     'Gold Buffalo',
     'Buffalo Gold',
+    'Perth Mint Australian Lunar Silver',
+    'Royal Mint Year of the Dragon',
+    'Year of the Rabbit',
+    'Australian Lunar Gold',
   ])('detects "%s" as bullion', (series) => {
     expect(isBullionSeries(series)).toBe(true);
   });

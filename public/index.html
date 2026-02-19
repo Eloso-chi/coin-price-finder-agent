@@ -2053,6 +2053,11 @@
     // Map fractional weight values to the label fragments used in COIN_TYPES names
     const WEIGHT_FRACTIONS = { 0.05: '1/20', 0.1: '1/10', 0.25: '1/4', 0.5: '1/2', 1.5: '1.5', 2: '2 oz', 5: '5 oz', 10: '10 oz' };
     const weightLabel = qWeight ? (WEIGHT_FRACTIONS[qWeight] || null) : null;
+
+    // ── Lunar series detection: zodiac animal names boost lunar COIN_TYPES ──
+    const ZODIAC_ANIMALS = ['rat','ox','tiger','rabbit','dragon','snake','horse','goat','sheep','monkey','rooster','dog','pig','mouse'];
+    const isLunar = ZODIAC_ANIMALS.some(a => text.includes(a)) || /\blunar\b/.test(text);
+
     let bestCoin = null, bestScore = 0;
     for (const coin of (window.COIN_TYPES || [])) {
       const words = coin.name.toLowerCase().replace(/[()]/g, '').split(/\s+/);
@@ -2061,6 +2066,10 @@
       // ── Year-range enforcement: if entry has yearStart/yearEnd, coin must match ──
       if (year && coin.yearStart && coin.yearEnd) {
         if (year < coin.yearStart || year > coin.yearEnd) continue; // wrong era — skip
+      }
+      // ── Lunar boost: when query mentions a zodiac animal, prefer lunar entries ──
+      if (isLunar && /lunar/i.test(coin.name)) {
+        score += 3;
       }
       // ── Weight matching: boost entries whose name contains the weight fraction ──
       if (weightLabel && coin.name.toLowerCase().includes(weightLabel.toLowerCase())) {
@@ -2464,6 +2473,24 @@
     { id:'philharmonic-silver',  name:'Austrian Philharmonic Silver 1 oz',  metal:'silver', pure_ozt:1.00000, weight_g:31.1035, fineness:0.999,  coins_per_roll:20, category:'World Silver Bullion' },
     { id:'krugerrand-silver', name:'South African Krugerrand Silver 1 oz',  metal:'silver', pure_ozt:1.00000, weight_g:31.1035, fineness:0.999,  coins_per_roll:25, category:'World Silver Bullion' },
     { id:'kookaburra-1oz',   name:'Australian Kookaburra Silver 1 oz',     metal:'silver', pure_ozt:1.00000, weight_g:31.1035, fineness:0.999,  coins_per_roll:20, category:'World Silver Bullion' },
+    // ── Lunar Series — Silver ────────────────────────────────
+    { id:'perth-lunar-silver-1oz',  name:'Perth Mint Australian Lunar Silver 1 oz',   metal:'silver', pure_ozt:1.00000, weight_g:31.1035, fineness:0.9999, coins_per_roll:20, category:'Lunar Silver',   yearStart:1996, yearEnd:9999, composition:'.9999 Fine Silver' },
+    { id:'perth-lunar-silver-half', name:'Perth Mint Australian Lunar Silver 1/2 oz', metal:'silver', pure_ozt:0.50000, weight_g:15.552,  fineness:0.9999, coins_per_roll:20, category:'Lunar Silver',   yearStart:1996, yearEnd:9999, composition:'.9999 Fine Silver' },
+    { id:'perth-lunar-silver-2oz',  name:'Perth Mint Australian Lunar Silver 2 oz',   metal:'silver', pure_ozt:2.00000, weight_g:62.207,  fineness:0.9999, coins_per_roll:10, category:'Lunar Silver',   yearStart:1996, yearEnd:9999, composition:'.9999 Fine Silver' },
+    { id:'perth-lunar-silver-5oz',  name:'Perth Mint Australian Lunar Silver 5 oz',   metal:'silver', pure_ozt:5.00000, weight_g:155.517, fineness:0.9999, coins_per_roll:1,  category:'Lunar Silver',   yearStart:1996, yearEnd:9999, composition:'.9999 Fine Silver' },
+    { id:'perth-lunar-silver-10oz', name:'Perth Mint Australian Lunar Silver 10 oz',  metal:'silver', pure_ozt:10.0000, weight_g:311.035, fineness:0.9999, coins_per_roll:1,  category:'Lunar Silver',   yearStart:1996, yearEnd:9999, composition:'.9999 Fine Silver' },
+    { id:'perth-lunar-silver-1kg',  name:'Perth Mint Australian Lunar Silver 1 kilo', metal:'silver', pure_ozt:32.1507, weight_g:1000.0,  fineness:0.9999, coins_per_roll:1,  category:'Lunar Silver',   yearStart:1996, yearEnd:9999, composition:'.9999 Fine Silver' },
+    { id:'rm-lunar-silver-1oz',     name:'Royal Mint Lunar Britannia Silver 1 oz',    metal:'silver', pure_ozt:1.00000, weight_g:31.1035, fineness:0.999,  coins_per_roll:25, category:'Lunar Silver',   yearStart:2014, yearEnd:9999, composition:'.999 Fine Silver' },
+    { id:'ram-lunar-silver-1oz',    name:'Royal Australian Mint Lunar Silver 1 oz',   metal:'silver', pure_ozt:1.00000, weight_g:31.1035, fineness:0.999,  coins_per_roll:25, category:'Lunar Silver',   yearStart:2017, yearEnd:9999, composition:'.999 Fine Silver' },
+    { id:'ram-lunar-silver-half',   name:'Royal Australian Mint Lunar Silver 1/2 oz', metal:'silver', pure_ozt:0.50000, weight_g:15.552,  fineness:0.999,  coins_per_roll:25, category:'Lunar Silver',   yearStart:2017, yearEnd:9999, composition:'.999 Fine Silver' },
+    // ── Lunar Series — Gold ──────────────────────────────────
+    { id:'perth-lunar-gold-1oz',    name:'Perth Mint Australian Lunar Gold 1 oz',     metal:'gold',   pure_ozt:1.00000, weight_g:31.1035, fineness:0.9999, coins_per_roll:10, category:'Lunar Gold',     yearStart:1996, yearEnd:9999, composition:'.9999 Fine Gold' },
+    { id:'perth-lunar-gold-half',   name:'Perth Mint Australian Lunar Gold 1/2 oz',   metal:'gold',   pure_ozt:0.50000, weight_g:15.552,  fineness:0.9999, coins_per_roll:10, category:'Lunar Gold',     yearStart:1996, yearEnd:9999, composition:'.9999 Fine Gold' },
+    { id:'perth-lunar-gold-quarter',name:'Perth Mint Australian Lunar Gold 1/4 oz',   metal:'gold',   pure_ozt:0.25000, weight_g:7.776,   fineness:0.9999, coins_per_roll:10, category:'Lunar Gold',     yearStart:1996, yearEnd:9999, composition:'.9999 Fine Gold' },
+    { id:'perth-lunar-gold-tenth',  name:'Perth Mint Australian Lunar Gold 1/10 oz',  metal:'gold',   pure_ozt:0.10000, weight_g:3.110,   fineness:0.9999, coins_per_roll:10, category:'Lunar Gold',     yearStart:1996, yearEnd:9999, composition:'.9999 Fine Gold' },
+    { id:'rm-lunar-gold-1oz',       name:'Royal Mint Lunar Britannia Gold 1 oz',      metal:'gold',   pure_ozt:1.00000, weight_g:31.1035, fineness:0.9999, coins_per_roll:10, category:'Lunar Gold',     yearStart:2014, yearEnd:9999, composition:'.9999 Fine Gold' },
+    { id:'rm-lunar-gold-quarter',   name:'Royal Mint Lunar Britannia Gold 1/4 oz',    metal:'gold',   pure_ozt:0.25000, weight_g:7.776,   fineness:0.9999, coins_per_roll:10, category:'Lunar Gold',     yearStart:2014, yearEnd:9999, composition:'.9999 Fine Gold' },
+    { id:'rm-lunar-gold-tenth',     name:'Royal Mint Lunar Britannia Gold 1/10 oz',   metal:'gold',   pure_ozt:0.10000, weight_g:3.110,   fineness:0.9999, coins_per_roll:10, category:'Lunar Gold',     yearStart:2014, yearEnd:9999, composition:'.9999 Fine Gold' },
     // ── World Gold Bullion ───────────────────────────────────
     { id:'can-gml-1oz',     name:'Canadian Gold Maple Leaf 1 oz',           metal:'gold',   pure_ozt:1.00000, weight_g:31.1035, fineness:0.9999, coins_per_roll:10, category:'World Gold Bullion' },
     { id:'can-gml-half',    name:'Canadian Gold Maple Leaf 1/2 oz',         metal:'gold',   pure_ozt:0.50000, weight_g:15.552,  fineness:0.9999, coins_per_roll:10, category:'World Gold Bullion' },
