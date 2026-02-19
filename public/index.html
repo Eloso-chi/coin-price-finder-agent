@@ -379,6 +379,31 @@
     .fmv-chip-comp.silver { background: rgba(168,178,193,0.12); border-color: rgba(168,178,193,0.4); color: #6b7b8d; }
     .fmv-chip-comp.gold { background: rgba(218,165,32,0.10); border-color: rgba(218,165,32,0.35); color: #b8860b; }
     .fmv-chip-comp.clad { background: rgba(120,120,120,0.08); border-color: rgba(120,120,120,0.25); color: #787878; }
+    .fmv-chip-rarity { background: rgba(100,70,200,0.08); border-color: rgba(100,70,200,0.25); cursor: pointer; }
+    /* ── Numista Panel ─────────────────────────────────────── */
+    .numista-panel { margin-top: 16px; }
+    .numista-panel h3 { font-size: 1rem; font-weight: 700; margin: 0 0 12px; color: var(--text-primary); display: flex; align-items: center; gap: 8px; }
+    .numista-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .numista-info { font-size: 0.85rem; }
+    .numista-title { font-weight: 700; font-size: 0.95rem; color: var(--text-primary); margin-bottom: 8px; }
+    .numista-detail { margin-bottom: 4px; color: var(--text-secondary); line-height: 1.5; }
+    .numista-label { font-weight: 600; color: var(--text-primary); }
+    .numista-rarity-prices { display: flex; flex-direction: column; gap: 12px; }
+    .numista-rarity-box { padding: 12px 16px; background: var(--surface); border-radius: 8px; }
+    .numista-rarity-label { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-secondary); margin-bottom: 4px; }
+    .numista-rarity-value { font-size: 1.2rem; font-weight: 800; }
+    .numista-rarity-score { font-size: 0.78rem; color: var(--text-secondary); margin-top: 2px; }
+    .numista-rarity-mintage { font-size: 0.78rem; color: var(--text-muted); margin-top: 2px; }
+    .numista-prices { padding: 12px 16px; background: var(--surface); border-radius: 8px; }
+    .numista-prices-label { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-secondary); margin-bottom: 8px; }
+    .numista-prices-table { width: 100%; border-collapse: collapse; }
+    .numista-prices-table td { padding: 3px 8px; font-size: 0.82rem; border-bottom: 1px solid var(--border-subtle); }
+    .numista-grade { font-weight: 600; color: var(--text-primary); }
+    .numista-price { text-align: right; color: var(--accent); font-weight: 600; }
+    .numista-images { grid-column: 1 / -1; display: flex; justify-content: center; gap: 12px; margin-top: 8px; }
+    .numista-img { width: 80px; height: 80px; object-fit: contain; border-radius: 50%; border: 2px solid var(--border-subtle); background: #f0f0f0; }
+    .numista-issue-note { font-size: 0.8rem; color: var(--text-muted); margin-top: 8px; padding: 8px 12px; background: rgba(100,100,100,0.05); border-radius: 6px; }
+    @media (max-width: 640px) { .numista-grid { grid-template-columns: 1fr; } }
     /* ── Mintage Banner ────────────────────────────────────── */
     .mintage-banner {
       display: flex; align-items: center; justify-content: center; gap: 12px;
@@ -2295,6 +2320,17 @@
     }
     if (pop?.thisGrade) html += '<span class="fmv-chip" title="PCGS population this grade / higher">\uD83D\uDCCA Pop: ' + pop.thisGrade + (pop.higher ? ' / ' + pop.higher + ' higher' : '') + '</span>';
     if (d.keyDate?.isKeyDate) html += '<span class="fmv-chip fmv-chip-key" title="Key date coin">\uD83D\uDD11 Key Date</span>';
+    // Numista rarity chip
+    if (d.numista?.rarity) {
+      const nr = d.numista.rarity;
+      html += '<span class="fmv-chip fmv-chip-rarity" style="border-left:3px solid ' + nr.color + '" title="Derived rarity (mintage: ' + (nr.mintage != null ? Number(nr.mintage).toLocaleString() : 'N/A') + ')' + (d.numista.numistaUrl ? ' — click to view on Numista' : '') + '">';
+      if (d.numista.numistaUrl) html += '<a href="' + d.numista.numistaUrl + '" target="_blank" rel="noopener" style="color:inherit;text-decoration:none">';
+      html += '\uD83D\uDCDA Rarity: ' + nr.label + ' (' + nr.score + ')';
+      if (d.numista.numistaUrl) html += '</a>';
+      html += '</span>';
+    } else if (d.numista?.numistaUrl) {
+      html += '<span class="fmv-chip"><a href="' + d.numista.numistaUrl + '" target="_blank" rel="noopener" style="color:inherit;text-decoration:none">\uD83D\uDCDA Numista</a></span>';
+    }
     html += '</div>';
     html += '</div>';
 
@@ -2322,6 +2358,72 @@
     html += '</tbody></table>';
     if (sell.notes?.length) html += '<p class="card-notes">' + sell.notes.join(' ') + '</p>';
     html += '</div></div>';
+
+    // ── Numista Catalogue Panel ────────────────────────
+    const nm = d.numista;
+    if (nm && nm.accessible && nm.type) {
+      html += '<div class="card numista-panel">';
+      html += '<h3>\uD83D\uDCDA Numista Catalogue';
+      if (nm.numistaUrl) html += ' <a href="' + nm.numistaUrl + '" target="_blank" rel="noopener" style="font-size:0.8rem;color:var(--accent);text-decoration:none">\u2197 View on Numista</a>';
+      html += '</h3>';
+      html += '<div class="numista-grid">';
+
+      // Left column: coin info
+      html += '<div class="numista-info">';
+      html += '<div class="numista-title">' + (nm.type.title || 'Unknown') + '</div>';
+      if (nm.type.issuer) html += '<div class="numista-detail"><span class="numista-label">Issuer:</span> ' + nm.type.issuer + '</div>';
+      if (nm.type.denomination) html += '<div class="numista-detail"><span class="numista-label">Denomination:</span> ' + nm.type.denomination + '</div>';
+      if (nm.composition) html += '<div class="numista-detail"><span class="numista-label">Composition:</span> ' + nm.composition + '</div>';
+      if (nm.type.weight) html += '<div class="numista-detail"><span class="numista-label">Weight:</span> ' + nm.type.weight + ' g</div>';
+      if (nm.type.size) html += '<div class="numista-detail"><span class="numista-label">Size:</span> ' + nm.type.size + ' mm</div>';
+      if (nm.type.edgeDescription) html += '<div class="numista-detail"><span class="numista-label">Edge:</span> ' + nm.type.edgeDescription + '</div>';
+      if (nm.type.series) html += '<div class="numista-detail"><span class="numista-label">Series:</span> ' + nm.type.series + '</div>';
+      if (nm.type.minYear && nm.type.maxYear) html += '<div class="numista-detail"><span class="numista-label">Years:</span> ' + nm.type.minYear + ' – ' + nm.type.maxYear + '</div>';
+
+      // References (KM#, etc.)
+      if (nm.references && nm.references.length) {
+        html += '<div class="numista-detail"><span class="numista-label">References:</span> ';
+        html += nm.references.map(function(r) { return r.catalogue + (r.number ? ' ' + r.number : ''); }).join(', ');
+        html += '</div>';
+      }
+      html += '</div>';
+
+      // Right column: rarity + prices
+      html += '<div class="numista-rarity-prices">';
+      if (nm.rarity) {
+        html += '<div class="numista-rarity-box" style="border-left:4px solid ' + nm.rarity.color + '">';
+        html += '<div class="numista-rarity-label">Derived Rarity</div>';
+        html += '<div class="numista-rarity-value" style="color:' + nm.rarity.color + '">' + nm.rarity.label + '</div>';
+        html += '<div class="numista-rarity-score">Score: ' + nm.rarity.score + ' / 100</div>';
+        if (nm.rarity.mintage != null) html += '<div class="numista-rarity-mintage">Mintage: ' + Number(nm.rarity.mintage).toLocaleString() + '</div>';
+        html += '</div>';
+      }
+      if (nm.prices && nm.prices.estimates && nm.prices.estimates.length) {
+        html += '<div class="numista-prices">';
+        html += '<div class="numista-prices-label">Numista Price Estimates (' + (nm.prices.currency || 'USD') + ')</div>';
+        html += '<table class="numista-prices-table"><tbody>';
+        nm.prices.estimates.forEach(function(p) {
+          if (p.price != null) {
+            html += '<tr><td class="numista-grade">' + (p.grade || '—').toUpperCase() + '</td><td class="numista-price">$' + Number(p.price).toFixed(2) + '</td></tr>';
+          }
+        });
+        html += '</tbody></table>';
+        html += '</div>';
+      }
+      html += '</div>';
+
+      // Images (if available)
+      if (nm.type.obverseImage || nm.type.reverseImage) {
+        html += '<div class="numista-images">';
+        if (nm.type.obverseImage) html += '<img src="' + nm.type.obverseImage + '" alt="Obverse" class="numista-img" loading="lazy">';
+        if (nm.type.reverseImage) html += '<img src="' + nm.type.reverseImage + '" alt="Reverse" class="numista-img" loading="lazy">';
+        html += '</div>';
+      }
+
+      html += '</div>'; // numista-grid
+      if (nm.issue?.comment) html += '<div class="numista-issue-note">\u2139\uFE0F ' + nm.issue.comment + '</div>';
+      html += '</div>'; // numista-panel
+    }
 
     // ── Lunar Mint Comparison Panel ────────────────────
     const lc = d.lunarComparison;

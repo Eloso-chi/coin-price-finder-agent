@@ -8,6 +8,7 @@ const pcgsService = require('../services/pcgsService');
 const ebayService = require('../services/ebayService');
 const { computeValuation } = require('../services/valuationService');
 const { getMetalsSpotPrice } = require('../services/metalsSpotPrice');
+const numistaService = require('../services/numistaService');
 const { lookupKeyDate } = require('../data/keyDates');
 const { lookupMintage } = require('../data/mintages');
 const { buildLunarComparison } = require('../data/lunarReference');
@@ -202,6 +203,17 @@ router.post('/', async (req, res) => {
     const userGrade = isSet ? null : (coinData?.grade || identification.parsed?.grade || null);
     const { valuation, decisions } = computeValuation(pcgs, ebay, askingPrice || null, userGrade);
 
+    // ── 5a. Numista Catalogue Lookup (non-blocking) ──
+    // Enrich the response with Numista rarity index, prices, composition, and references.
+    let numista = null;
+    try {
+      const numistaCountry = pcgs.country || coinData?.country || null;
+      numista = await numistaService.lookupCoin(identification.parsed || {}, numistaCountry);
+    } catch (err) {
+      console.warn('[Numista] Non-fatal lookup error:', err.message);
+      numista = { accessible: false, limitations: ['Numista lookup failed: ' + err.message] };
+    }
+
     // ── 6. Static Mintage Fallback ──
     let mintSeries = semi250Canonical || coinData?.name || pcgs.series || identification.parsed?.series || '';
     const mintYear   = coinData?.year || pcgs.year || identification.parsed?.year;
@@ -280,6 +292,7 @@ router.post('/', async (req, res) => {
       },
       valuation,
       decisions,
+      numista: numista || null,
       reproducibility,
       lunarComparison: isLunarCoin ? buildLunarComparison(coinYear, coinName + ' ' + String(query)) : null,
       coinVariant: (function() {
