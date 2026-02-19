@@ -106,6 +106,26 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null) {
 
   fmv = +fmv.toFixed(2);
 
+  // ── Data source analysis ──
+  // Count how many comps are actual sold vs active-for-sale (Browse API)
+  const soldComps = usComps.filter(c => c._source !== 'browse');
+  const activeComps = usComps.filter(c => c._source === 'browse');
+  const soldCount = soldComps.length;
+  const activeCount = activeComps.length;
+  const totalComps = usComps.length;
+  const soldRatio = totalComps > 0 ? soldCount / totalComps : 0;
+  // If all or most comps are active listings, flag it
+  const browseOnly = soldCount === 0 && activeCount > 0;
+  const mostlyBrowse = soldRatio < 0.3 && activeCount > 0;
+
+  if (browseOnly) {
+    explanation.push('⚠ ALL comps are active listings (asking prices) — no verified sold data available. FMV is estimated from for-sale prices and may be inflated.');
+  } else if (mostlyBrowse) {
+    explanation.push(`⚠ Only ${soldCount} of ${totalComps} comps are sold — ${activeCount} are active listings (asking prices). FMV may be less reliable.`);
+  } else if (soldCount > 0) {
+    explanation.push(`${soldCount} sold comps used for valuation.`);
+  }
+
   // ── Confidence ──
   const isBar = !!(pcgs?._isBar);
   const pcgsFound = !!(pcgs?.pcgsNo || pcgs?.verified || pcgsGuide != null);
@@ -119,11 +139,13 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null) {
     hasPcgsGuide: pcgsGuide != null,
     hasAuction: auctionMedian != null,
     isBar,
-    pcgsFound
+    pcgsFound,
+    browseOnly,
+    soldRatio
   });
   explanation.push(`Confidence ${confidence}/100.`);
 
-  if (usedFallback) {
+  if (usedFallback && !browseOnly) {
     explanation.push('⚠ US comps below threshold; global/Browse API data used — confidence reduced.');
   }
 
@@ -166,6 +188,14 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null) {
       rangeHigh,
       confidence,
       explanation,
+      dataSource: {
+        soldCount,
+        activeCount,
+        totalComps,
+        soldRatio: +soldRatio.toFixed(2),
+        browseOnly,
+        label: browseOnly ? 'asking-prices-only' : mostlyBrowse ? 'mostly-asking' : 'sold-data'
+      },
       gradePool: {
         wantsGraded,
         usedPool: wantsGraded ? 'graded' : 'raw',
@@ -252,7 +282,7 @@ function fallbackPenalty(usCompCount) {
  * sample size, dispersion, and match quality — things that matter for
  * commodity bullion.
  */
-function computeConfidence({ verified, usCompCount, glCompCount, dispersion, avgMatchScore, usedFallback, hasPcgsGuide, hasAuction, isBar, pcgsFound }) {
+function computeConfidence({ verified, usCompCount, glCompCount, dispersion, avgMatchScore, usedFallback, hasPcgsGuide, hasAuction, isBar, pcgsFound, browseOnly, soldRatio }) {
   let c = 0;
 
   if (isBar) {
@@ -284,6 +314,19 @@ function computeConfidence({ verified, usCompCount, glCompCount, dispersion, avg
     if (hasAuction) c += 5;
     if (usedFallback) c += fallbackPenalty(usCompCount);
     if (usCompCount < 5) c -= 10;
+  }
+
+  // ── Browse-only penalty: active listings are NOT sold prices ──
+  // Asking prices are typically higher than sold prices and less reliable.
+  if (browseOnly) {
+    // Heavy penalty: all data is from for-sale listings
+    c -= 30;
+  } else if (soldRatio != null && soldRatio < 0.3) {
+    // Mostly active listings, few sold — moderate penalty
+    c -= 20;
+  } else if (soldRatio != null && soldRatio < 0.6) {
+    // Mixed bag — mild penalty
+    c -= 10;
   }
 
   return Math.max(0, Math.min(100, Math.round(c)));

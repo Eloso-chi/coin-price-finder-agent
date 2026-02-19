@@ -1773,6 +1773,17 @@
       html += '<div class="fmv-meta">';
       if (soldComps.length) html += '<span class="fmv-chip" title="eBay sold comps">\uD83D\uDCE6 Sold: ' + exactCount + ' exact \u00B7 ' + closeCount + ' close \u00B7 ' + soldComps.length + ' total</span>';
       if (activeComps.length) html += '<span class="fmv-chip source-tag-active" title="Active eBay listings (for sale, not sold)">\uD83D\uDED2 Active: ' + activeComps.length + ' for sale</span>';
+      // Data source warning
+      var ds = v.dataSource;
+      if (ds && ds.browseOnly) {
+        html += '<div style="margin-top:6px;padding:6px 10px;background:rgba(246,106,10,0.08);border:1px solid rgba(246,106,10,0.3);border-radius:6px;font-size:0.78rem;color:#f66a0a">';
+        html += '\u26a0\ufe0f <strong>No sold data available</strong> \u2014 FMV is based entirely on asking prices (active listings). Actual market value may be lower.';
+        html += '</div>';
+      } else if (ds && ds.label === 'mostly-asking') {
+        html += '<div style="margin-top:6px;padding:6px 10px;background:rgba(218,165,32,0.08);border:1px solid rgba(218,165,32,0.3);border-radius:6px;font-size:0.78rem;color:#b8860b">';
+        html += '\u26a0\ufe0f <strong>Limited sold data</strong> \u2014 Only ' + ds.soldCount + ' of ' + ds.totalComps + ' comps are verified sales. FMV may be less accurate.';
+        html += '</div>';
+      }
       // Lookback range chip
       var lb = d.ebay?.lookback;
       if (lb) {
