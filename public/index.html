@@ -551,6 +551,9 @@
     .match-exact { background: var(--green-subtle); color: var(--green); }
     .match-close { background: var(--yellow-subtle); color: var(--yellow); }
     .match-loose { background: var(--red-subtle); color: var(--red); }
+    .source-tag-sold { background: var(--green-subtle); color: var(--green); }
+    .source-tag-active { background: rgba(59,130,246,0.1); color: #3b82f6; }
+    tr.active-listing-row { background: rgba(59,130,246,0.04); }
 
     .query-preview {
       background: var(--bg); border: 1px solid var(--border-subtle);
@@ -1761,10 +1764,13 @@
       html += '<div class="range">Range: ' + $(v.rangeLow) + ' \u2013 ' + $(v.rangeHigh) + '</div>';
       html += '<div class="confidence">Confidence: ' + confTag(v.confidence) + '</div>';
       const usCompsAll = d.ebay?.us?.comps || [];
-      const exactCount = usCompsAll.filter(c => c.matchQuality === 'exact').length;
-      const closeCount = usCompsAll.filter(c => c.matchQuality === 'close').length;
+      const soldComps = usCompsAll.filter(c => c._source !== 'browse');
+      const activeComps = usCompsAll.filter(c => c._source === 'browse');
+      const exactCount = soldComps.filter(c => c.matchQuality === 'exact').length;
+      const closeCount = soldComps.filter(c => c.matchQuality === 'close').length;
       html += '<div class="fmv-meta">';
-      if (usCompsAll.length) html += '<span class="fmv-chip" title="eBay sold comps">\uD83D\uDCE6 Comps: ' + exactCount + ' exact \u00B7 ' + closeCount + ' close \u00B7 ' + usCompsAll.length + ' total</span>';
+      if (soldComps.length) html += '<span class="fmv-chip" title="eBay sold comps">\uD83D\uDCE6 Sold: ' + exactCount + ' exact \u00B7 ' + closeCount + ' close \u00B7 ' + soldComps.length + ' total</span>';
+      if (activeComps.length) html += '<span class="fmv-chip source-tag-active" title="Active eBay listings (for sale, not sold)">\uD83D\uDED2 Active: ' + activeComps.length + ' for sale</span>';
       html += '</div>';
       html += '</div>';
 
@@ -1813,17 +1819,23 @@
       if (usComps.length) {
         html += '<details class="card pcgs-details" open>';
         html += '<summary>US Comps (' + usComps.length + ')</summary>';
-        html += '<table><thead><tr><th>#</th><th>Title</th><th>Total</th><th>Type</th><th>Match</th><th>Date</th></tr></thead><tbody>';
+        html += '<table><thead><tr><th>#</th><th>Title</th><th>Total</th><th>Source</th><th>Type</th><th>Match</th><th>Date</th></tr></thead><tbody>';
         usComps.slice(0, 30).forEach(function(c, i) {
           const mq = c.matchQuality || 'loose';
           const mqTag = '<span class="match-tag match-' + mq + '">' + mq + '</span>';
           const gtLabel = c.gradeType === 'graded' ? '<span class="match-tag" style="background:#e8d5f5;color:#6b21a8">graded</span>' : '<span class="match-tag" style="background:#d5f5e3;color:#166534">raw</span>';
-          html += '<tr><td>' + (i + 1) + '</td>';
+          const isActive = c._source === 'browse';
+          const sourceTag = isActive
+            ? '<span class="match-tag source-tag-active">FOR SALE</span>'
+            : '<span class="match-tag source-tag-sold">SOLD</span>';
+          const rowClass = isActive ? ' class="active-listing-row"' : '';
+          html += '<tr' + rowClass + '><td>' + (i + 1) + '</td>';
           html += '<td><a href="' + c.url + '" target="_blank" rel="noopener">' + (c.title || '').substring(0, 70) + '</a></td>';
           html += '<td>' + $(c.totalUsd) + '</td>';
+          html += '<td>' + sourceTag + '</td>';
           html += '<td>' + gtLabel + '</td>';
           html += '<td>' + mqTag + '</td>';
-          html += '<td>' + (c.soldDate ? c.soldDate.substring(0, 10) : '\u2014') + '</td></tr>';
+          html += '<td>' + (c.soldDate ? c.soldDate.substring(0, 10) : (isActive ? 'Active' : '\u2014')) + '</td></tr>';
         });
         html += '</tbody></table></details>';
       }
