@@ -419,12 +419,90 @@ async function lookupCoin(parsed, country) {
   }
 }
 
+/**
+ * Batch-lookup rarity for many year/mint pairs in a single series.
+ * Uses only 2–3 API calls total (search → getType → getIssues), NOT per-cell.
+ *
+ * @param {string} series  – coin series name, e.g. "Morgan Dollar"
+ * @param {Array<{year:number, mint:string}>} cells – year/mint pairs to enrich
+ * @param {string} [country] – issuer country (default US)
+ * @returns {Promise<Map<string, object>>} – Map of "year-mint" → rarity object
+ */
+async function batchRarityForSeries(series, cells, country) {
+  const result = new Map();
+  if (!API_KEY || !series || !cells || cells.length === 0) return result;
+
+  const batchCacheKey = `batchRarity:${series}:${country || 'us'}`;
+  const cached = cache.get(batchCacheKey);
+  if (cached) {
+    // cached is a plain object { "year-mint": rarity }
+    for (const [key, val] of Object.entries(cached)) result.set(key, val);
+    return result;
+  }
+
+  try {
+    const issuer = resolveIssuer(country);
+
+    // 1. Search for the type
+    const types = await searchTypes(series, { issuer });
+    if (!types || types.length === 0) return result;
+
+    // Pick best match using a minimal parsed descriptor
+    const parsed = { series, denomination: null, year: null, metal: null };
+    const scored = types.map(t => ({ type: t, score: scoreMatch(t, parsed) }));
+    scored.sort((a, b) => b.score - a.score);
+    const best = scored[0]?.type;
+    if (!best) return result;
+
+    // 2. Get all issues (mintage per year/mint)
+    const issues = await getIssues(best.id);
+    if (!issues || issues.length === 0) return result;
+
+    // Build quick lookup: "year-mintLetter" → issue
+    const issueLookup = {};
+    for (const iss of issues) {
+      const yr = iss.gregorian_year || iss.year;
+      if (!yr) continue;
+      const ml = (iss.mint_letter || '').toUpperCase() || 'P';
+      const key = `${yr}-${ml}`;
+      // Keep the one with the actual mintage if duplicates
+      if (!issueLookup[key] || (iss.mintage && !issueLookup[key].mintage)) {
+        issueLookup[key] = iss;
+      }
+    }
+
+    // 3. Map each cell to its rarity
+    const numistaUrl = best.url || `https://en.numista.com/catalogue/pieces${best.id}.html`;
+    for (const cell of cells) {
+      const key = `${cell.year}-${cell.mint || 'P'}`;
+      const iss = issueLookup[key];
+      if (iss && iss.mintage != null) {
+        const rarity = rarityFromMintage(iss.mintage);
+        if (rarity) {
+          rarity.numistaUrl = numistaUrl;
+          result.set(key, rarity);
+        }
+      }
+    }
+
+    // Cache the plain-object version
+    const cacheable = {};
+    for (const [k, v] of result) cacheable[k] = v;
+    cache.set(batchCacheKey, cacheable);
+  } catch (err) {
+    console.warn('[Numista] batchRarityForSeries error:', err.message);
+  }
+
+  return result;
+}
+
 module.exports = {
   searchTypes,
   getType,
   getIssues,
   getPrices,
   lookupCoin,
+  batchRarityForSeries,
   rarityFromMintage,
   // Exported for testing
   scoreMatch,

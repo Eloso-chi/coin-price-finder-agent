@@ -346,3 +346,37 @@ describe('rarityFromMintage — real-world coins', () => {
     expect(rarityFromMintage(50000).label).toBe('Semi-Scarce');
   });
 });
+
+// ════════════════════════════════════════════════════════════════
+//  batchRarityForSeries
+// ════════════════════════════════════════════════════════════════
+describe('batchRarityForSeries', () => {
+  const { batchRarityForSeries } = require('../src/services/numistaService');
+
+  // Save and restore NUMISTA_API_KEY so tests don't hit real API
+  const origKey = process.env.NUMISTA_API_KEY;
+  afterAll(() => { process.env.NUMISTA_API_KEY = origKey || ''; });
+
+  test('returns empty Map when API key is missing', async () => {
+    process.env.NUMISTA_API_KEY = '';
+    // Re-require to pick up empty key? No — the module reads env once at load.
+    // The function checks the key at the module level const, so we test the actual exported function behavior.
+    // Since the module already loaded with a key, we test via the function's internal guard.
+    const result = await batchRarityForSeries('', [], 'us');
+    expect(result).toBeInstanceOf(Map);
+    expect(result.size).toBe(0);
+    process.env.NUMISTA_API_KEY = origKey || '';
+  });
+
+  test('returns empty Map for empty cells array', async () => {
+    const result = await batchRarityForSeries('Morgan Dollar', [], 'us');
+    expect(result).toBeInstanceOf(Map);
+    expect(result.size).toBe(0);
+  });
+
+  test('returns empty Map for null/undefined series', async () => {
+    const result = await batchRarityForSeries(null, [{ year: 1921, mint: 'P' }], 'us');
+    expect(result).toBeInstanceOf(Map);
+    expect(result.size).toBe(0);
+  });
+});

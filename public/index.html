@@ -635,6 +635,8 @@
     .tracker-cheapest-row { background: rgba(255,215,0,0.12) !important; border-left: 2px solid #ffd700; }
     .tracker-pct-cheaper { font-size: 0.65rem; font-weight: 700; color: var(--green); margin-left: 3px; white-space: nowrap; }
     .tracker-pct-na { color: var(--text-muted); font-weight: 400; }
+    .tracker-rarity { display: inline-block; font-size: 0.58rem; font-weight: 700; letter-spacing: 0.03em; padding: 1px 5px; border-radius: 3px; color: #fff; line-height: 1.4; margin-top: 2px; white-space: nowrap; opacity: 0.92; }
+    .tracker-rarity-mintage { font-size: 0.55rem; color: var(--text-muted); font-weight: 400; display: block; line-height: 1.2; }
 
     /* Tracker Legend */
     .tracker-legend { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; margin-bottom: 12px; padding: 8px 12px; background: var(--card); border: 1px solid var(--border-subtle); border-radius: var(--radius); font-size: 0.78rem; color: var(--text-secondary); }
@@ -1139,6 +1141,7 @@
       <span class="tracker-legend-item"><span class="tracker-legend-swatch" style="background:var(--green)"></span> Cheapest Buy It Now <span class="tracker-legend-note">(−% vs next BIN)</span></span>
       <span class="tracker-legend-item"><span class="tracker-legend-swatch" style="background:rgba(255,215,0,0.35);border:1px solid #ffd700"></span> Best BIN deal for that year</span>
       <span class="tracker-legend-item"><span class="tracker-kd-badge" style="position:static;display:inline-block;width:16px;height:16px;line-height:16px;background:var(--red);font-size:0.6rem;font-weight:800;color:#fff;text-align:center;border-radius:3px">K</span> Key / semi-key date</span>
+      <span class="tracker-legend-item"><span class="tracker-rarity" style="background:#daa520;position:static;font-size:0.58rem">Scarce</span> Numista rarity <span class="tracker-legend-note">(mintage)</span></span>
     </div>
 
     <div id="tracker-matrix-wrap" style="display:none">
@@ -3147,7 +3150,21 @@
           }
           html += '</div>';
         }
-        if (!cell.medianCompleted && !cell.cheapestBin) {
+        // Rarity badge from Numista
+        if (cell.rarity) {
+          const r = cell.rarity;
+          const mintText = r.mintage != null ? r.mintage.toLocaleString() : '';
+          const titleAttr = 'Rarity: ' + r.label + ' (score ' + r.score + ')' + (mintText ? ' — Mintage: ' + mintText : '');
+          html += '<div>';
+          if (r.numistaUrl) {
+            html += '<a href="' + r.numistaUrl + '" target="_blank" rel="noopener" style="text-decoration:none">';
+          }
+          html += '<span class="tracker-rarity" style="background:' + (r.color || '#6b8e23') + '" title="' + titleAttr + '">' + r.label + '</span>';
+          if (r.numistaUrl) html += '</a>';
+          if (mintText) html += '<span class="tracker-rarity-mintage" title="Mintage">' + mintText + '</span>';
+          html += '</div>';
+        }
+        if (!cell.medianCompleted && !cell.cheapestBin && !cell.rarity) {
           html += '<span class="tracker-no-data">\u2014</span>';
         }
       } else {

@@ -48,7 +48,7 @@ app.get('/api/health', (_req, res) => {
 });
 
 // ── Start ───────────────────────────────────────────────────
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`CoinPriceDiscoveryAgent listening on http://localhost:${PORT}`);
   console.log(`  eBay configured: ${!!(process.env.EBAY_APP_ID && process.env.EBAY_CLIENT_SECRET)}`);
   console.log(`  PCGS configured: ${!!process.env.PCGS_API_KEY}`);

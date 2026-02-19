@@ -10,6 +10,7 @@ const router = express.Router();
 const { fetchMarketMatrix } = require('../services/marketAggregator');
 const ebayService = require('../services/ebayService');
 const { lookupKeyDate } = require('../data/keyDates');
+const { batchRarityForSeries } = require('../services/numistaService');
 
 /**
  * GET /api/market/ebay?series=Franklin+Half+Dollar&grade=MS65&days=90
@@ -45,6 +46,24 @@ router.get('/', async (req, res) => {
       lookupKeyDate,
       ebayService,
     });
+
+    // ── Enrich cells with Numista rarity data (single batch, 2-3 API calls) ──
+    try {
+      const cellsForRarity = (matrix.cells || []).map(c => ({
+        year: c.year,
+        mint: c.mint || c.grade || 'P',
+      }));
+      const rarityMap = await batchRarityForSeries(series.trim(), cellsForRarity);
+      if (rarityMap.size > 0) {
+        for (const cell of matrix.cells) {
+          const key = `${cell.year}-${cell.mint || cell.grade || 'P'}`;
+          const rarity = rarityMap.get(key);
+          if (rarity) cell.rarity = rarity;
+        }
+      }
+    } catch (numErr) {
+      console.warn('[/api/market/ebay] Numista enrichment skipped:', numErr.message);
+    }
 
     return res.json(matrix);
   } catch (err) {
