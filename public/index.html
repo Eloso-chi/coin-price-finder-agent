@@ -1145,9 +1145,15 @@
         document.getElementById(tab.getAttribute('aria-controls'))
           .setAttribute('aria-hidden', 'false');
         // Auto-load Live eBay Tracker when switching to it with a pending search
-        if (tab.id === 'tab-tracker' && typeof EbayTracker !== 'undefined' && EbayTracker._pendingLoad) {
-          EbayTracker._pendingLoad = false;
-          EbayTracker._load();
+        // Primary: _pendingLoad was set by setSeries in renderResults
+        // Secondary: series input changed (e.g. manual edit) but _pendingLoad wasn't flagged
+        if (tab.id === 'tab-tracker' && typeof EbayTracker !== 'undefined') {
+          const seriesChanged = EbayTracker.els?.series?.value
+            && EbayTracker.els.series.value !== (EbayTracker._lastSeries || '');
+          if (EbayTracker._pendingLoad || seriesChanged) {
+            EbayTracker._pendingLoad = false;
+            EbayTracker._load();
+          }
         }
       });
       // Keyboard: arrow keys to navigate tabs
@@ -2132,6 +2138,20 @@
     const glStats = d.ebay?.global?.stats || {};
     let html = '';
 
+    // ── Pass series to Live eBay Tracker FIRST (before HTML build) ──
+    // Done early so that even if the HTML templating below throws,
+    // the tracker still gets the new series for auto-load on tab switch.
+    try {
+      const trackerSeries = d.pcgs?.series
+        || d.coinData?.name
+        || d.identification?.parsed?.series
+        || '';
+      const trackerWeight = d.query?.weight || null;
+      if (trackerSeries && typeof EbayTracker !== 'undefined') {
+        EbayTracker.setSeries(trackerSeries, trackerWeight);
+      }
+    } catch (_) { /* non-critical */ }
+
     // ── Key Date Banner ────────────────────────────────────
     if (d.keyDate?.isKeyDate) {
       const kd = d.keyDate;
@@ -2422,13 +2442,6 @@
     html += '<pre class="json">' + JSON.stringify(d, null, 2) + '</pre></details>';
 
     r.innerHTML = html;
-
-    // Pass detected series + weight to Live eBay Tracker, mark for auto-load
-    const trackerSeries = d.pcgs?.series || d.coinData?.name || d.identification?.parsed?.series || '';
-    const trackerWeight = d.query?.weight || null;
-    if (trackerSeries && typeof EbayTracker !== 'undefined') {
-      EbayTracker.setSeries(trackerSeries, trackerWeight);
-    }
   }
 
   // Submit handlers are now managed by CoinForm._bindSubmit()
