@@ -607,6 +607,12 @@
     .tracker-no-data { color: var(--text-muted); font-size: 0.8rem; }
     .tracker-kd-badge { display: inline-block; width: 16px; height: 16px; border-radius: 3px; color: #fff; font-size: 0.6rem; font-weight: 800; text-align: center; line-height: 16px; position: absolute; top: 4px; right: 4px; }
     .tracker-table tbody tr:hover .tracker-td-cell { background: rgba(255,255,255,0.02); }
+
+    /* Tracker Legend */
+    .tracker-legend { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; margin-bottom: 12px; padding: 8px 12px; background: var(--card); border: 1px solid var(--border-subtle); border-radius: var(--radius); font-size: 0.78rem; color: var(--text-secondary); }
+    .tracker-legend-item { display: inline-flex; align-items: center; gap: 6px; }
+    .tracker-legend-swatch { display: inline-block; width: 12px; height: 12px; border-radius: 3px; }
+    .tracker-legend-note { color: var(--text-muted); font-size: 0.72rem; }
   </style>
 </head>
 <body>
@@ -1100,6 +1106,11 @@
 
     <div id="tracker-status" class="status-bar" role="status" aria-live="polite"></div>
     <div id="tracker-summary" style="display:none"></div>
+    <div class="tracker-legend">
+      <span class="tracker-legend-item"><span class="tracker-legend-swatch" style="background:#90caf9"></span> Median sold price <span class="tracker-legend-note">(sample count)</span></span>
+      <span class="tracker-legend-item"><span class="tracker-legend-swatch" style="background:var(--green)"></span> Cheapest Buy It Now</span>
+      <span class="tracker-legend-item"><span class="tracker-kd-badge" style="position:static;display:inline-block;width:16px;height:16px;line-height:16px;background:var(--red);font-size:0.6rem;font-weight:800;color:#fff;text-align:center;border-radius:3px">K</span> Key / semi-key date</span>
+    </div>
 
     <div id="tracker-matrix-wrap" style="display:none">
       <div class="tracker-scroll-wrap">
@@ -1820,6 +1831,7 @@
     const body = {
       query:       formData.query,
       askingPrice: formData.askingPrice,
+      weight:      formData.weight || null,
       coinData:    formData.coinData,
       options: {
         timeWindowDays:  parseInt(document.getElementById('optDays').value)  || 90,
@@ -2038,6 +2050,9 @@
       || parseFloat(document.getElementById('coinWeight')?.value)
       || parseFloat(document.getElementById('quickWeight')?.value)
       || null;
+    // Map fractional weight values to the label fragments used in COIN_TYPES names
+    const WEIGHT_FRACTIONS = { 0.05: '1/20', 0.1: '1/10', 0.25: '1/4', 0.5: '1/2', 1.5: '1.5', 2: '2 oz', 5: '5 oz', 10: '10 oz' };
+    const weightLabel = qWeight ? (WEIGHT_FRACTIONS[qWeight] || null) : null;
     let bestCoin = null, bestScore = 0;
     for (const coin of (window.COIN_TYPES || [])) {
       const words = coin.name.toLowerCase().replace(/[()]/g, '').split(/\s+/);
@@ -2046,6 +2061,10 @@
       // ── Year-range enforcement: if entry has yearStart/yearEnd, coin must match ──
       if (year && coin.yearStart && coin.yearEnd) {
         if (year < coin.yearStart || year > coin.yearEnd) continue; // wrong era — skip
+      }
+      // ── Weight matching: boost entries whose name contains the weight fraction ──
+      if (weightLabel && coin.name.toLowerCase().includes(weightLabel.toLowerCase())) {
+        score += 3; // strong boost to prefer the correct size variant
       }
       if (score > bestScore) { bestScore = score; bestCoin = coin; }
     }
@@ -2057,8 +2076,9 @@
     if (qWeight && qWeight !== 1) {
       const baseOzt = bestCoin.pure_ozt;
       if (baseOzt >= 0.95) {
-        pureOzt = qWeight * bestCoin.fineness;
-        if (bestCoin.fineness >= 0.999) pureOzt = qWeight;
+        // For bullion coins the stated weight IS the pure metal content.
+        // E.g. 1/10 oz AGE = 0.1 ozt pure gold regardless of fineness.
+        pureOzt = qWeight;
       }
     }
     // Build composition label from the coin entry
