@@ -554,6 +554,8 @@
     .source-tag-sold { background: var(--green-subtle); color: var(--green); }
     .source-tag-active { background: rgba(59,130,246,0.1); color: #3b82f6; }
     tr.active-listing-row { background: rgba(59,130,246,0.04); }
+    .fmv-chip-lookback { background: rgba(99,110,123,0.08); border-color: rgba(99,110,123,0.3); color: #636e7b; }
+    .fmv-chip-extended { background: rgba(246,106,10,0.08); border-color: rgba(246,106,10,0.3); color: #f66a0a; }
 
     .query-preview {
       background: var(--bg); border: 1px solid var(--border-subtle);
@@ -1771,6 +1773,14 @@
       html += '<div class="fmv-meta">';
       if (soldComps.length) html += '<span class="fmv-chip" title="eBay sold comps">\uD83D\uDCE6 Sold: ' + exactCount + ' exact \u00B7 ' + closeCount + ' close \u00B7 ' + soldComps.length + ' total</span>';
       if (activeComps.length) html += '<span class="fmv-chip source-tag-active" title="Active eBay listings (for sale, not sold)">\uD83D\uDED2 Active: ' + activeComps.length + ' for sale</span>';
+      // Lookback range chip
+      var lb = d.ebay?.lookback;
+      if (lb) {
+        var lbClass = lb.extended ? 'fmv-chip fmv-chip-extended' : 'fmv-chip fmv-chip-lookback';
+        var lbText = '\uD83D\uDCC5 Lookback: ' + lb.used + ' days';
+        if (lb.extended) lbText += ' (extended from ' + lb.requested + 'd)';
+        html += '<span class="' + lbClass + '" title="How far back eBay sales were searched">' + lbText + '</span>';
+      }
       html += '</div>';
       html += '</div>';
 
@@ -1802,6 +1812,10 @@
       // \u2500\u2500 eBay Stats
       html += '<details class="card pcgs-details" open>';
       html += '<summary>eBay Comps \u2014 "' + (d.ebay?.keywords || '') + '" ';
+      if (d.ebay?.lookback) {
+        var lbTag = d.ebay.lookback.extended ? 'tag tag-yellow' : 'tag';
+        html += '<span class="' + lbTag + '">' + d.ebay.lookback.used + 'd lookback</span> ';
+      }
       if (d.ebay?.usedFallback) html += '<span class="tag tag-yellow">fallback</span>';
       html += '</summary>';
       html += '<table><thead>';

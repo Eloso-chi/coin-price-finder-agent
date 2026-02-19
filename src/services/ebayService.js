@@ -705,9 +705,12 @@ async function fetchFindingTier(keywords, timeWindowDays, maxPages, locatedIn) {
  * Fetch eBay comps. Priority chain:
  *   1) Marketplace Insights API (sold data, OAuth, separate rate limit)
  *   2) Finding API (sold data, AppID auth)
+ *   2b) Auto-extend: if too few sold comps, widen lookback (90→180→365)
  *   3) Browse API (active listings — last resort)
  *
  * Within each, tiered: US first, global second.
+ *
+ * Returns an extra `lookback` object: { requested, used, extended }
  */
 async function fetchSoldComps(keywords, options = {}, expected = {}) {
   const opts = {
@@ -718,9 +721,12 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
     maxPages: options.maxPages || 3
   };
 
+  const requestedDays = opts.timeWindowDays;
+
   if (!EBAY_APP_ID) {
     const emptyTier = { stats: null, comps: [], removed: {}, error: { message: 'eBay credentials not configured' } };
-    return { keywords, us: emptyTier, global: emptyTier, usedFallback: false, apiUsed: 'none' };
+    return { keywords, us: emptyTier, global: emptyTier, usedFallback: false, apiUsed: 'none',
+             lookback: { requested: requestedDays, used: requestedDays, extended: false } };
   }
 
   const cacheKey = `ebay:${keywords}:${JSON.stringify(opts)}`;
@@ -729,55 +735,78 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
   let usResult, globalResult;
   let apiUsed = 'none';
   let usedFallback = false;
+  let actualDays = requestedDays;
 
-  // ── Attempt 1: Marketplace Insights API (best: actual sold prices, US-only) ──
-  if (!circuitTripped('insights')) {
-    try {
-      const insightComps = await insightsSearch(keywords, opts.timeWindowDays, PER_PAGE * opts.maxPages);
-      if (insightComps.length > 0) {
-        apiUsed = 'marketplace-insights';
-        const deduped = dedup(insightComps);
-        const scored = deduped.map(c => scoreMatch(c, expected));
-        const { kept, removed } = applyFilters(scored, opts, expected);
-        const prices = kept.map(c => c.totalUsd);
-        usResult = { stats: stats.summarize(prices), comps: kept, removed, error: null };
-        // NOTE: Insights is US-marketplace only — do NOT copy to globalResult.
-        // Global comps will come from Finding API (worldwide, no LocatedIn filter).
-        console.log(`[ebay] Marketplace Insights: ${kept.length} US comps`);
+  // Build the lookback tiers: start with requested, then widen up to 365
+  const lookbackTiers = [requestedDays];
+  if (requestedDays < 180) lookbackTiers.push(180);
+  if (requestedDays < 365) lookbackTiers.push(365);
+  // Deduplicate in case requested was already 180 or 365
+  const uniqueTiers = [...new Set(lookbackTiers)];
+
+  for (const tierDays of uniqueTiers) {
+    actualDays = tierDays;
+
+    // ── Attempt 1: Marketplace Insights API (best: actual sold prices, US-only) ──
+    if (!circuitTripped('insights')) {
+      try {
+        const insightComps = await insightsSearch(keywords, tierDays, PER_PAGE * opts.maxPages);
+        if (insightComps.length > 0) {
+          apiUsed = 'marketplace-insights';
+          const deduped = dedup(insightComps);
+          const scored = deduped.map(c => scoreMatch(c, expected));
+          const { kept, removed } = applyFilters(scored, opts, expected);
+          const prices = kept.map(c => c.totalUsd);
+          usResult = { stats: stats.summarize(prices), comps: kept, removed, error: null };
+          console.log(`[ebay] Marketplace Insights (${tierDays}d): ${kept.length} US comps`);
+        }
+      } catch (err) {
+        console.warn(`[ebay] Marketplace Insights unavailable: ${err.response?.status || err.message}`);
+        tripCircuit('insights');
       }
-    } catch (err) {
-      console.warn(`[ebay] Marketplace Insights unavailable: ${err.response?.status || err.message}`);
-      tripCircuit('insights');
     }
-  }
 
-  // ── Attempt 2: Finding API ──
-  // US tier: only if Insights didn't yield enough
-  if ((!usResult || usResult.comps.length < opts.usMinComps) && !circuitTripped('finding')) {
-    try {
-      const rawUS = await fetchFindingTier(keywords, opts.timeWindowDays, opts.maxPages, 'US');
-      const dedupedUS = dedup(rawUS);
-      const scoredUS = dedupedUS.map(c => scoreMatch(c, expected));
-      const filterUS = applyFilters(scoredUS, opts, expected);
+    // ── Attempt 2: Finding API ──
+    // US tier: only if Insights didn't yield enough
+    if ((!usResult || usResult.comps.length < opts.usMinComps) && !circuitTripped('finding')) {
+      try {
+        const rawUS = await fetchFindingTier(keywords, tierDays, opts.maxPages, 'US');
+        const dedupedUS = dedup(rawUS);
+        const scoredUS = dedupedUS.map(c => scoreMatch(c, expected));
+        const filterUS = applyFilters(scoredUS, opts, expected);
 
-      // Merge with any Insights comps
-      const mergedUS = usResult ? dedup([...usResult.comps, ...filterUS.kept]) : filterUS.kept;
-      const mergedPrices = mergedUS.map(c => c.totalUsd);
+        // Merge with any Insights comps
+        const mergedUS = usResult ? dedup([...usResult.comps, ...filterUS.kept]) : filterUS.kept;
+        const mergedPrices = mergedUS.map(c => c.totalUsd);
 
-      usResult = { stats: stats.summarize(mergedPrices), comps: mergedUS, removed: filterUS.removed, error: null };
-      apiUsed = apiUsed === 'marketplace-insights' ? 'insights+finding' : 'finding';
-      console.log(`[ebay] Finding API US: ${mergedUS.length} comps`);
-    } catch (err) {
-      console.warn(`[ebay] Finding API US unavailable: ${err.response?.status || err.message}`);
-      tripCircuit('finding');
-      if (!usResult) usResult = { stats: null, comps: [], removed: {}, error: { message: err.message } };
+        usResult = { stats: stats.summarize(mergedPrices), comps: mergedUS, removed: filterUS.removed, error: null };
+        apiUsed = apiUsed === 'marketplace-insights' ? 'insights+finding' : 'finding';
+        console.log(`[ebay] Finding API US (${tierDays}d): ${mergedUS.length} comps`);
+      } catch (err) {
+        console.warn(`[ebay] Finding API US unavailable: ${err.response?.status || err.message}`);
+        tripCircuit('finding');
+        if (!usResult) usResult = { stats: null, comps: [], removed: {}, error: { message: err.message } };
+      }
+    }
+
+    // Check if we have enough sold comps — if yes, stop widening
+    const soldCount = (usResult?.comps || []).filter(c => c._source !== 'browse').length;
+    if (soldCount >= opts.usMinComps) {
+      if (tierDays > requestedDays) {
+        console.log(`[ebay] Auto-extended lookback ${requestedDays}d → ${tierDays}d to get ${soldCount} sold comps`);
+      }
+      break;
+    }
+
+    if (tierDays < uniqueTiers[uniqueTiers.length - 1]) {
+      console.log(`[ebay] Only ${soldCount} sold comps at ${tierDays}d, extending lookback…`);
     }
   }
 
   // Global tier: always attempt so global is independent from US
   if (!globalResult && !circuitTripped('finding')) {
     try {
-      const rawGlobal = await fetchFindingTier(keywords, opts.timeWindowDays, opts.maxPages, null);
+      const rawGlobal = await fetchFindingTier(keywords, actualDays, opts.maxPages, null);
       const dedupedGlobal = dedup(rawGlobal);
       const scoredGlobal = dedupedGlobal.map(c => scoreMatch(c, expected));
       const filterGlobal = applyFilters(scoredGlobal, opts, expected);
@@ -785,7 +814,7 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
       globalResult = { stats: stats.summarize(glPrices), comps: filterGlobal.kept, removed: filterGlobal.removed, error: null };
       if (apiUsed === 'none') apiUsed = 'finding';
       else if (!apiUsed.includes('finding')) apiUsed += '+finding';
-      console.log(`[ebay] Finding API Global: ${filterGlobal.kept.length} comps`);
+      console.log(`[ebay] Finding API Global (${actualDays}d): ${filterGlobal.kept.length} comps`);
     } catch (err) {
       console.warn(`[ebay] Finding API Global unavailable: ${err.response?.status || err.message}`);
       if (!globalResult) globalResult = { stats: null, comps: [], removed: {}, error: { message: err.message } };
@@ -827,7 +856,13 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
     usedFallback = true;
   }
 
-  const result = { keywords, us: usResult, global: globalResult, usedFallback, apiUsed };
+  const lookback = {
+    requested: requestedDays,
+    used: actualDays,
+    extended: actualDays > requestedDays
+  };
+
+  const result = { keywords, us: usResult, global: globalResult, usedFallback, apiUsed, lookback };
   cache.set(cacheKey, result);
   return result;
 }

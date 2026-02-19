@@ -288,7 +288,8 @@ router.post('/', async (req, res) => {
         keywords: ebayKeywords,
         us: ebay.us,
         global: ebay.global,
-        usedFallback: ebay.usedFallback
+        usedFallback: ebay.usedFallback,
+        lookback: ebay.lookback || { requested: opts.timeWindowDays, used: opts.timeWindowDays, extended: false }
       },
       valuation,
       decisions,
