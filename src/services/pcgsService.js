@@ -97,8 +97,30 @@ async function lookupByCoinNumberAndGrade(pcgsCoinNumber, gradeNum) {
  * Parses year, mint, series, grade → attempts PCGS coin # search.
  */
 async function resolveFromDescription(text) {
+  // ── Parse description into tokens (always, even without API key) ──
+  const parsed = parseDescription(text);
+
   if (!PCGS_API_KEY) {
-    return _empty('PCGS API key not configured');
+    // No API key — return best-effort parsed data so the frontend
+    // still gets series, year, weight, metal, etc. for eBay + melt.
+    const pcgsNo = lookupPCGSNumber(parsed.series || '', parsed.year, parsed.mint);
+    return {
+      verified: false,
+      pcgsCoinNumber: pcgsNo || null,
+      series: parsed.series || null,
+      year: parsed.year || null,
+      mint: parsed.mint || null,
+      grade: parsed.grade || null,
+      designation: parsed.designation || null,
+      variety: null,
+      priceGuide: null,
+      population: null,
+      auction: null,
+      trueViewUrl: null,
+      coinImages: [],
+      parsed,
+      limitations: ['PCGS API key not configured; using parsed description']
+    };
   }
 
   // ── Quick cert-number detection ──
@@ -107,9 +129,6 @@ async function resolveFromDescription(text) {
     const result = await lookupByCert(certMatch[1]);
     if (result.verified) return result;
   }
-
-  // ── Parse description into tokens ──
-  const parsed = parseDescription(text);
 
   // Try PCGS search endpoint
   try {
@@ -270,7 +289,12 @@ function parseDescription(text) {
     'austrian silver philharmonic', 'austrian gold philharmonic',
     'silver philharmonic', 'gold philharmonic', 'philharmonic',
     'british silver britannia', 'british gold britannia',
-    'lunar britannia', 'britannia lunar', 'perth lunar', 'australian lunar',
+    'perth mint lunar', 'british lunar', 'britannia lunar',
+    'lunar britannia', 'perth lunar', 'australian lunar',
+    'year of the rat', 'year of the ox', 'year of the tiger',
+    'year of the rabbit', 'year of the dragon', 'year of the snake',
+    'year of the horse', 'year of the goat', 'year of the monkey',
+    'year of the rooster', 'year of the dog', 'year of the pig',
     'silver britannia', 'gold britannia', 'britannia',
     'chinese silver panda', 'chinese gold panda',
     'silver panda', 'gold panda', 'panda',
