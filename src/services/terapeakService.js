@@ -442,29 +442,70 @@ function normalizeSearchKey(term) {
  * Designed to be called at server startup:
  *   terapeakService.autoImportFolder('data/terapeak');
  *
+ * Skips re-importing if all data was imported within `maxAgeMs` (default 24h).
+ * New or modified CSVs (newer than last import) are always processed.
+ * Pass `{ force: true }` to bypass the staleness check.
+ *
  * @param {string} folderPath - absolute or relative path to folder with CSVs
- * @returns {{ imported: number, skipped: number, errors: string[] }}
+ * @param {object} [opts]     - { force: boolean, maxAgeMs: number }
+ * @returns {{ imported: number, skipped: number, errors: string[], freshSkipped: number }}
  */
-function autoImportFolder(folderPath) {
+function autoImportFolder(folderPath, opts = {}) {
+  const { force = false, maxAgeMs = 7 * 24 * 60 * 60 * 1000 } = opts;  // 7-day freshness window
   const absPath = path.isAbsolute(folderPath) ? folderPath : path.join(__dirname, '..', '..', folderPath);
-  if (!fs.existsSync(absPath)) return { imported: 0, skipped: 0, errors: [] };
+  if (!fs.existsSync(absPath)) return { imported: 0, skipped: 0, errors: [], freshSkipped: 0 };
 
   const files = fs.readdirSync(absPath).filter(f => /\.(csv|tsv|txt)$/i.test(f));
-  let imported = 0, skipped = 0;
+  let imported = 0, skipped = 0, freshSkipped = 0;
   const errors = [];
+
+  // Quick staleness check: if every dataset's lastImport is recent AND
+  // no CSV file has been modified since then, skip the whole folder.
+  if (!force) {
+    const store = loadStore();
+    const now = Date.now();
+    const datasets = Object.values(store);
+    if (datasets.length > 0) {
+      const oldestImport = Math.min(...datasets.map(d => new Date(d.lastImport).getTime()));
+      const allFresh = (now - oldestImport) < maxAgeMs;
+
+      if (allFresh) {
+        // Check if any CSV was modified after the oldest import
+        const anyModified = files.some(f => {
+          const stat = fs.statSync(path.join(absPath, f));
+          return stat.mtimeMs > oldestImport;
+        });
+
+        if (!anyModified) {
+          console.log(`[terapeak] Data is fresh (imported ${Math.round((now - oldestImport) / 60000)}m ago) — skipping auto-import. Use force=true to override.`);
+          return { imported: 0, skipped: files.length, errors: [], freshSkipped: files.length };
+        }
+      }
+    }
+  }
 
   for (const file of files) {
     try {
-      const csvData = fs.readFileSync(path.join(absPath, file), 'utf8');
-      // Search term: check for .meta file first, else derive from filename
-      const metaPath = path.join(absPath, file.replace(/\.[^.]+$/, '.meta'));
-      let searchTerm;
-      if (fs.existsSync(metaPath)) {
-        searchTerm = fs.readFileSync(metaPath, 'utf8').trim();
-      } else {
-        // Derive from filename: "1892-S_Morgan_Silver_Dollar.csv" → "1892-S Morgan Silver Dollar"
-        searchTerm = file.replace(/\.[^.]+$/, '').replace(/[_]+/g, ' ').trim();
+      // Per-file freshness: skip if this file's dataset was imported recently
+      // AND the CSV hasn't been modified since
+      if (!force) {
+        const store = loadStore();
+        const searchTerm = deriveSearchTerm(absPath, file);
+        const key = normalizeSearchKey(searchTerm);
+        const existing = store[key];
+        if (existing?.lastImport) {
+          const lastImportMs = new Date(existing.lastImport).getTime();
+          const csvStat = fs.statSync(path.join(absPath, file));
+          if ((Date.now() - lastImportMs) < maxAgeMs && csvStat.mtimeMs <= lastImportMs) {
+            freshSkipped++;
+            skipped++;
+            continue;
+          }
+        }
       }
+
+      const csvData = fs.readFileSync(path.join(absPath, file), 'utf8');
+      const searchTerm = deriveSearchTerm(absPath, file);
 
       const { comps } = parseCSV(csvData, searchTerm);
       if (comps.length === 0) { skipped++; continue; }
@@ -481,7 +522,19 @@ function autoImportFolder(folderPath) {
     }
   }
 
-  return { imported, skipped, errors };
+  return { imported, skipped, errors, freshSkipped };
+}
+
+/**
+ * Derive search term from a CSV filename, checking for .meta companion file.
+ */
+function deriveSearchTerm(folderPath, file) {
+  const metaPath = path.join(folderPath, file.replace(/\.[^.]+$/, '.meta'));
+  if (fs.existsSync(metaPath)) {
+    return fs.readFileSync(metaPath, 'utf8').trim();
+  }
+  // "1892-S_Morgan_Silver_Dollar.csv" → "1892-S Morgan Silver Dollar"
+  return file.replace(/\.[^.]+$/, '').replace(/[_]+/g, ' ').trim();
 }
 
 module.exports = {
