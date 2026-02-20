@@ -496,6 +496,8 @@ async function batchRarityForSeries(series, cells, country) {
   return result;
 }
 
+function clearCache() { cache.clear(); }
+
 module.exports = {
   searchTypes,
   getType,
@@ -504,6 +506,7 @@ module.exports = {
   lookupCoin,
   batchRarityForSeries,
   rarityFromMintage,
+  clearCache,
   // Exported for testing
   scoreMatch,
   resolveIssuer,

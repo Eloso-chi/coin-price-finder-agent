@@ -526,6 +526,41 @@ function clearAll() {
   saveStore();
 }
 
+/**
+ * Evict comps whose soldDate is older than `maxDays` from every dataset.
+ * Keeps comps with no soldDate (can't determine age).
+ * Returns a summary: { datasetsChecked, compsEvicted }.
+ */
+function evictStaleComps(maxDays = 180) {
+  const store = loadStore();
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - maxDays);
+  let datasetsChecked = 0;
+  let compsEvicted = 0;
+
+  for (const [key, dataset] of Object.entries(store)) {
+    if (!dataset.comps || !Array.isArray(dataset.comps)) continue;
+    datasetsChecked++;
+    const before = dataset.comps.length;
+    dataset.comps = dataset.comps.filter(c => {
+      if (!c.soldDate) return true;
+      return new Date(c.soldDate) >= cutoff;
+    });
+    compsEvicted += before - dataset.comps.length;
+    // Remove empty datasets entirely
+    if (dataset.comps.length === 0) {
+      delete store[key];
+    }
+  }
+
+  _store = store;
+  if (compsEvicted > 0) {
+    saveStore();
+    console.log(`[terapeak] Evicted ${compsEvicted} stale comps (older than ${maxDays}d) from ${datasetsChecked} datasets`);
+  }
+  return { datasetsChecked, compsEvicted };
+}
+
 // ── Helpers ─────────────────────────────────────────────────
 
 function normalizeSearchKey(term) {
@@ -676,6 +711,7 @@ module.exports = {
   listDatasets,
   deleteDataset,
   clearAll,
+  evictStaleComps,
   autoImportFolder,
   normalizeSearchKey,
   detectWeightFromQuery,

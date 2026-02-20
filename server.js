@@ -29,13 +29,20 @@ app.use('/api/terapeak', terapeakRoute);
 
 // Clear all caches
 app.post('/api/clear-cache', (_req, res) => {
-  const ebay = require('./src/services/ebayService');
-  const pcgs = require('./src/services/pcgsService');
-  const market = require('./src/services/marketAggregator');
+  const ebay    = require('./src/services/ebayService');
+  const pcgs    = require('./src/services/pcgsService');
+  const market  = require('./src/services/marketAggregator');
+  const numista = require('./src/services/numistaService');
+  const metals  = require('./src/services/metalsSpotPrice');
+  const terapeak = require('./src/services/terapeakService');
   ebay.clearCache();
   pcgs.clearCache();
   market.clearCache();
-  res.json({ status: 'ok', message: 'All caches cleared' });
+  numista.clearCache();
+  metals._reset();
+  // Evict Terapeak comps older than 180 days
+  const evicted = terapeak.evictStaleComps(180);
+  res.json({ status: 'ok', message: 'All caches cleared', terapeakEvicted: evicted });
 });
 
 // Health check
@@ -58,9 +65,21 @@ app.listen(PORT, '0.0.0.0', () => {
 
   // ── Startup: auto-import Terapeak CSVs from data/terapeak/ folder ──
   const terapeakService = require('./src/services/terapeakService');
+
+  // Evict stale Terapeak comps (>180 days old) before importing new data
+  const evictResult = terapeakService.evictStaleComps(180);
+  if (evictResult.compsEvicted > 0) {
+    console.log(`  Terapeak stale eviction: removed ${evictResult.compsEvicted} comps older than 180d`);
+  }
+
   const autoResult = terapeakService.autoImportFolder('data/terapeak');
   if (autoResult.imported > 0) {
     console.log(`  Terapeak auto-import: ${autoResult.imported} new file(s) loaded from data/terapeak/`);
+    // Clear eBay cache when Terapeak data changes — prevents stale
+    // cached results from hiding freshly imported comp data
+    const ebayService = require('./src/services/ebayService');
+    ebayService.clearCache();
+    console.log(`  eBay cache cleared (Terapeak data updated)`);
   }
   if (autoResult.errors.length > 0) {
     console.warn(`  Terapeak auto-import errors: ${autoResult.errors.join('; ')}`);
