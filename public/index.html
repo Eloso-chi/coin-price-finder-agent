@@ -3156,6 +3156,15 @@
     _weight: null,
     _pendingLoad: false,
 
+    /** Build display name: series + size for fractional bullion (e.g. "British Silver Britannia 1/4 oz") */
+    _displayName() {
+      const s = (this.els?.series?.value || '').trim();
+      if (!this._weight) return s;
+      const LABELS = { 0.5: '1/2 oz', 0.25: '1/4 oz', 0.1: '1/10 oz', 0.05: '1/20 oz', 2: '2 oz', 5: '5 oz', 10: '10 oz' };
+      const wLabel = LABELS[this._weight] || (this._weight + ' oz');
+      return s + ' ' + wLabel;
+    },
+
     init() {
       this.els = {
         series:     document.getElementById('tracker-series'),
@@ -3219,7 +3228,7 @@
 
       this.els.submit.disabled = true;
       this.els.status.className = 'status-bar loading';
-      this.els.status.innerHTML = '<div class="spinner"></div> Fetching eBay market data for \u201C' + series + (this._weight ? ' (' + this._weight + ' oz)' : '') + '\u201D\u2026';
+      this.els.status.innerHTML = '<div class="spinner"></div> Fetching eBay market data for \u201C' + this._displayName() + '\u201D\u2026';
       this.els.summary.style.display = 'none';
       this.els.matrixWrap.style.display = 'none';
       this.els.empty.style.display = 'none';
@@ -3240,7 +3249,7 @@
         if (!data.cells || data.cells.length === 0) {
           this.els.empty.style.display = '';
           this.els.empty.querySelector('p').textContent =
-            'No eBay data found for \u201C' + series + '\u201D. Try a different series name or a wider lookback window.';
+            'No eBay data found for \u201C' + this._displayName() + '\u201D. Try a different series name or a wider lookback window.';
           return;
         }
 
@@ -3265,7 +3274,8 @@
       const el = this.els.summary;
       el.style.display = '';
       const isGradeMode = data.mode === 'grade';
-      let html = '<div class="tracker-summary-grid">';
+      let html = '<div style="font-size:1.1rem;font-weight:700;margin-bottom:10px;color:var(--text)">' + this._displayName() + '</div>';
+      html += '<div class="tracker-summary-grid">';
       html += '<div class="tracker-stat"><div class="tracker-stat-value">' + (s.cellsWithPriceData || 0) + '</div><div class="tracker-stat-label">Cells with data</div></div>';
       html += '<div class="tracker-stat"><div class="tracker-stat-value">' + (s.yearMin && s.yearMax ? s.yearMin + '\u2013' + s.yearMax : '\u2014') + '</div><div class="tracker-stat-label">Year range</div></div>';
       if (isGradeMode) {
