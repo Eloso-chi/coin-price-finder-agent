@@ -2156,6 +2156,19 @@ const COMMON = {
         TG('British Silver Britannia 1/10 oz {G} MS-70', 'Certified', [13, 20], 1),
       ]
     },
+    // ── Canadian Silver Polar Bear 1/2 oz ──
+    {
+      searchTerm: 'Canada $2 Polar Bear 1/2 oz Silver', filename: 'Canadian_Silver_Polar_Bear_Half_oz_Generic.csv', count: 22,
+      titleTemplates: [
+        T('2019 Canada $2 Polar Bear 1/2 oz .9999 Fine Silver Coin RCM', 'Uncirculated', [16, 24], 5),
+        T('Canada $2 Polar Bear 1/2 oz .9999 Silver BU Random Year', 'Uncirculated', [15, 22], 4),
+        T('2020 Canadian Polar Bear 1/2 oz Silver $2 BU', 'Uncirculated', [15, 22], 3),
+        T('2024 Canada Polar Bear 1/2 oz .9999 Silver Royal Canadian Mint', 'Uncirculated', [16, 23], 3),
+        T('2018 Canada $2 Polar Bear 1/2 oz Silver First Year', 'Uncirculated', [18, 28], 2),
+        TG('Canada Polar Bear 1/2 oz Silver {G} MS-69', 'Certified', [22, 35], 2),
+        TG('Canada $2 Polar Bear 1/2 oz Silver {G} MS-70', 'Certified', [30, 48], 1),
+      ]
+    },
     // ── Generic Morgan sweep (catches misc common dates) ──
     {
       searchTerm: 'Morgan Silver Dollar', filename: 'Morgan_Silver_Dollar_Generic.csv', count: 40,

@@ -89,13 +89,13 @@ describe('buildKeywords — weight injection', () => {
     expect(kw).toContain('1/4 oz');
   });
 
-  test('1 oz weight NOT appended (standard)', () => {
+  test('1 oz weight IS appended for bullion', () => {
     const kw = buildKeywords(
       { year: 2023, series: 'American Silver Eagle' },
       '2023 Silver Eagle',
       1
     );
-    expect(kw).not.toContain(' oz');
+    expect(kw).toContain('1 oz');
   });
 });
 

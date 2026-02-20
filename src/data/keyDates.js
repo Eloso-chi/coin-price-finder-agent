@@ -161,6 +161,12 @@ const KEY_DATES = [
   { series: 'canadian silver maple leaf', year: 2014, mint: '', tier: 'semi-key', note: 'First year with micro-engraved security mark' },
 
   // ═══════════════════════════════════════════════════════════
+  // CANADIAN SILVER POLAR BEAR — 1/2 oz $2 (key / semi-key)
+  // ═══════════════════════════════════════════════════════════
+  { series: 'canadian silver polar bear', year: 2018, mint: '', tier: 'semi-key', note: 'First year issue; collector premium' },
+  { series: 'canadian silver polar bear', year: 2019, mint: '', tier: 'semi-key', note: 'Most popular year; high eBay trading volume' },
+
+  // ═══════════════════════════════════════════════════════════
   // SOUTH AFRICAN KRUGERRAND — SILVER (key issues)
   // ═══════════════════════════════════════════════════════════
   { series: 'silver krugerrand', year: 2017, mint: '', tier: 'semi-key', note: 'First year silver Krugerrand; 50th anniversary; 1M mintage' },

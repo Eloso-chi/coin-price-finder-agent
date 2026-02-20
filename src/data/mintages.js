@@ -1186,6 +1186,14 @@ const MINTAGE_DATA = {
   },
 
   // ══════════════════════════════════════════════════════════════
+  // CANADIAN POLAR BEAR — SILVER 1/2 oz (2018–present)  $2 face value
+  // ══════════════════════════════════════════════════════════════
+  'canadian silver polar bear': {
+    '2018-P': 2000000, '2019-P': 3000000, '2020-P': 3500000, '2021-P': 3000000,
+    '2022-P': 2500000, '2023-P': 2000000, '2024-P': 1800000, '2025-P': 1500000,
+  },
+
+  // ══════════════════════════════════════════════════════════════
   // SOUTH AFRICAN KRUGERRAND — GOLD (1967–present)
   // ══════════════════════════════════════════════════════════════
   'krugerrand': {
@@ -1969,6 +1977,15 @@ const SERIES_ALIASES = {
   'canadian gold maple leaf 1/4 oz':  'canadian gold maple leaf 1/4 oz',
   'canadian gold maple leaf 1/10 oz': 'canadian gold maple leaf 1/10 oz',
   'canadian gold maple leaf 1/20 oz': 'canadian gold maple leaf 1/20 oz',
+  // Canadian Polar Bear
+  'canadian polar bear':           'canadian silver polar bear',
+  'canadian silver polar bear':    'canadian silver polar bear',
+  'polar bear':                    'canadian silver polar bear',
+  'silver polar bear':             'canadian silver polar bear',
+  'canada polar bear':             'canadian silver polar bear',
+  'rcm polar bear':                'canadian silver polar bear',
+  'canada $2 polar bear':          'canadian silver polar bear',
+  '$2 polar bear':                 'canadian silver polar bear',
   // Krugerrand
   'krugerrand':          'krugerrand',
   'gold krugerrand':     'krugerrand',

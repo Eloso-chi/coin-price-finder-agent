@@ -6,6 +6,7 @@ const multer = require('multer');
 const router = express.Router();
 
 const terapeakService = require('../services/terapeakService');
+const quotaService = require('../services/terapeakQuotaService');
 
 // ── Multer: accept CSV uploads up to 10 MB ──────────────────
 const upload = multer({
@@ -36,6 +37,19 @@ router.post('/import', upload.single('file'), (req, res) => {
     const searchTerm = req.body?.searchTerm;
     if (!searchTerm) {
       return res.status(400).json({ error: 'searchTerm is required — the keyword you searched in Terapeak' });
+    }
+
+    // ── Quota: record the Terapeak search that produced this CSV ──
+    // Each CSV export = 1 search + typically a few filter tweaks.
+    // Default: count as 1 query. Client can override via queryCount field.
+    const queryCount = Math.max(1, parseInt(req.body?.queryCount) || 1);
+    const quota = quotaService.recordQueries(queryCount, `import: ${searchTerm}`);
+    if (!quota.ok) {
+      return res.status(429).json({
+        error: 'Terapeak daily query limit reached',
+        quota: { used: quota.used, remaining: quota.remaining, limit: quota.limit },
+        message: quota.warning
+      });
     }
 
     // Parse CSV
@@ -69,7 +83,8 @@ router.post('/import', upload.single('file'), (req, res) => {
         skipped,
         mappedColumns: columns,
         unmappedColumns
-      }
+      },
+      quota: { used: quota.used, remaining: quota.remaining, limit: quota.limit, warning: quota.warning || null }
     });
   } catch (err) {
     console.error('[terapeak] Import error:', err.message);
@@ -99,8 +114,24 @@ router.post('/import-text', express.json(), (req, res) => {
       });
     }
 
+    // ── Quota: record the query for text imports too ──
+    const queryCount = Math.max(1, parseInt(req.body?.queryCount) || 1);
+    const quota = quotaService.recordQueries(queryCount, `import-text: ${searchTerm}`);
+    if (!quota.ok) {
+      return res.status(429).json({
+        error: 'Terapeak daily query limit reached',
+        quota: { used: quota.used, remaining: quota.remaining, limit: quota.limit },
+        message: quota.warning
+      });
+    }
+
     const result = terapeakService.importComps(searchTerm, comps);
-    res.json({ status: 'ok', import: result, parse: { totalRows, validComps: comps.length, skipped } });
+    res.json({
+      status: 'ok',
+      import: result,
+      parse: { totalRows, validComps: comps.length, skipped },
+      quota: { used: quota.used, remaining: quota.remaining, limit: quota.limit, warning: quota.warning || null }
+    });
   } catch (err) {
     console.error('[terapeak] Import-text error:', err.message);
     res.status(500).json({ error: err.message });
@@ -154,6 +185,60 @@ router.delete('/datasets/:key', (req, res) => {
 router.delete('/datasets', (_req, res) => {
   terapeakService.clearAll();
   res.json({ status: 'ok', message: 'All Terapeak data cleared' });
+});
+
+// ══════════════════════════════════════════════════════════
+// TERAPEAK DAILY QUERY QUOTA ENDPOINTS
+// ══════════════════════════════════════════════════════════
+
+/**
+ * GET /api/terapeak/quota
+ * Get current daily quota status.
+ */
+router.get('/quota', (_req, res) => {
+  res.json(quotaService.getStatus());
+});
+
+/**
+ * POST /api/terapeak/quota/record
+ * Manually record Terapeak queries (e.g. searches/filters done in eBay UI).
+ * Body: { count: number, note?: string }
+ */
+router.post('/quota/record', express.json(), (req, res) => {
+  const count = Math.max(1, parseInt(req.body?.count) || 1);
+  const note = req.body?.note || '';
+  const result = quotaService.recordQueries(count, note);
+  res.json(result);
+});
+
+/**
+ * POST /api/terapeak/quota/set-used
+ * Manually set the used count (e.g. sync with actual eBay usage).
+ * Body: { used: number }
+ */
+router.post('/quota/set-used', express.json(), (req, res) => {
+  const used = parseInt(req.body?.used);
+  if (isNaN(used) || used < 0) return res.status(400).json({ error: 'used must be a non-negative number' });
+  res.json(quotaService.setUsed(used));
+});
+
+/**
+ * POST /api/terapeak/quota/reset
+ * Reset today's query counter to 0.
+ */
+router.post('/quota/reset', (_req, res) => {
+  res.json(quotaService.resetToday());
+});
+
+/**
+ * POST /api/terapeak/quota/set-limit
+ * Change the daily limit (default 250).
+ * Body: { limit: number }
+ */
+router.post('/quota/set-limit', express.json(), (req, res) => {
+  const limit = parseInt(req.body?.limit);
+  if (isNaN(limit) || limit < 1) return res.status(400).json({ error: 'limit must be a positive number' });
+  res.json(quotaService.setLimit(limit));
 });
 
 module.exports = router;

@@ -357,10 +357,11 @@ function lookupComps(keywords) {
     return store[normalizedSearch];
   }
 
+  // Detect weight from the ORIGINAL (un-normalized) query and dataset searchTerm
+  // since normalizeSearchKey strips '/' turning "1/2" into "12"
+  const searchWeight = detectWeightFromQuery(keywords);
+
   // Fuzzy: bidirectional token matching.
-  // Score = average of (what % of key tokens are in search) and (what % of search tokens are in key).
-  // This handles both "1892-S Morgan" matching "1892-s morgan silver dollar"
-  // and "1892-S Morgan Silver Dollar MS-65" matching "1892-s morgan silver dollar".
   const searchTokens = normalizedSearch.split(/\s+/).filter(t => t.length > 1);
   let bestMatch = null;
   let bestScore = 0;
@@ -368,17 +369,27 @@ function lookupComps(keywords) {
   for (const [key, data] of Object.entries(store)) {
     const keyTokens = key.split(/\s+/).filter(t => t.length > 1);
     if (!keyTokens.length || !searchTokens.length) continue;
+
+    // ── Weight-mismatch guard: reject datasets whose name or comps
+    //    clearly indicate a different weight than what was searched. ──
+    // Use the original searchTerm for weight detection (not the normalized key)
+    const keyWeight = detectWeightFromQuery(data.searchTerm || key);
+    if (searchWeight !== null && keyWeight !== null && Math.abs(searchWeight - keyWeight) > 0.01) {
+      continue; // e.g. search "1oz" vs dataset "half oz" — skip entirely
+    }
+
     // Forward: how many key tokens appear in the search
     const fwdHits = keyTokens.filter(t => searchTokens.includes(t)).length;
     const fwdScore = fwdHits / keyTokens.length;
     // Reverse: how many search tokens appear in the key
     const revHits = searchTokens.filter(t => keyTokens.includes(t)).length;
     const revScore = revHits / searchTokens.length;
-    // Combined: both sides must contribute; use the lower of the two but
-    // require the stronger side to be >= 0.6
+    // Combined: both sides must contribute meaningfully.
+    // Thresholds are set to prevent cross-series matching (e.g. "Libertad 1oz"
+    // should not match "Lunar Dragon 1oz" on shared generic tokens like year/weight).
     const combined = (fwdScore + revScore) / 2;
     const strongSide = Math.max(fwdScore, revScore);
-    if (strongSide >= 0.6 && combined > 0.4 && combined > bestScore) {
+    if (strongSide >= 0.65 && combined > 0.55 && combined > bestScore) {
       bestScore = combined;
       bestMatch = data;
     }
@@ -432,6 +443,29 @@ function normalizeSearchKey(term) {
     .replace(/[^a-z0-9\s\-]/g, '')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+/**
+ * Detect weight (in troy oz) from a search query / dataset key string.
+ * Handles both numeric ("1oz", "1 oz") and word forms ("half oz", "quarter oz").
+ * Returns numeric oz or null if no weight detected.
+ */
+function detectWeightFromQuery(text) {
+  if (!text) return null;
+  const t = text.toLowerCase();
+  // Word forms used in dataset names (e.g. "half oz", "quarter oz", "tenth oz")
+  if (/\btwentieth\s*oz\b/.test(t))  return 0.05;
+  if (/\b1\/20\s*oz\b/.test(t))      return 0.05;
+  if (/\btenth\s*oz\b/.test(t))      return 0.1;
+  if (/\b1\/10\s*oz\b/.test(t))      return 0.1;
+  if (/\bquarter\s*oz\b/.test(t))    return 0.25;
+  if (/\b1\/4\s*oz\b/.test(t))       return 0.25;
+  if (/\bhalf\s*oz\b/.test(t))       return 0.5;
+  if (/\b1\/2\s*oz\b/.test(t))       return 0.5;
+  // Generic "N oz" or "Noz"
+  const m = t.match(/\b(\d+(?:\.\d+)?)\s*oz\b/);
+  if (m) return parseFloat(m[1]);
+  return null;
 }
 
 /**

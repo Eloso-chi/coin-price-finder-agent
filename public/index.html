@@ -727,6 +727,68 @@
       margin-top: 12px;
     }
     .tp-import-success strong { color: var(--green); }
+
+    /* ── Terapeak Quota Tracker ── */
+    .tp-quota-bar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 16px;
+      background: var(--surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      margin-bottom: 16px;
+      font-size: 0.82rem;
+    }
+    .tp-quota-meter {
+      flex: 1;
+      height: 8px;
+      background: var(--border);
+      border-radius: 4px;
+      overflow: hidden;
+      min-width: 100px;
+    }
+    .tp-quota-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.4s ease, background 0.4s ease;
+    }
+    .tp-quota-fill.safe    { background: var(--green, #3fb950); }
+    .tp-quota-fill.caution { background: #f0ad4e; }
+    .tp-quota-fill.danger  { background: #e74c3c; }
+    .tp-quota-text {
+      white-space: nowrap;
+      font-weight: 600;
+      font-size: 0.78rem;
+    }
+    .tp-quota-text.safe    { color: var(--green, #3fb950); }
+    .tp-quota-text.caution { color: #f0ad4e; }
+    .tp-quota-text.danger  { color: #e74c3c; }
+    .tp-quota-actions {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+    .tp-quota-actions button {
+      font-size: 0.7rem;
+      padding: 3px 8px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--card);
+      color: var(--text-secondary);
+      cursor: pointer;
+    }
+    .tp-quota-actions button:hover { background: var(--border-subtle); }
+    .tp-quota-warning {
+      padding: 8px 14px;
+      border-radius: var(--radius);
+      font-size: 0.78rem;
+      font-weight: 600;
+      margin-bottom: 12px;
+      display: none;
+    }
+    .tp-quota-warning.caution { display: block; background: rgba(240,173,78,0.12); border: 1px solid #f0ad4e; color: #f0ad4e; }
+    .tp-quota-warning.danger  { display: block; background: rgba(231,76,60,0.12); border: 1px solid #e74c3c; color: #e74c3c; }
   </style>
 </head>
 <body>
@@ -1245,6 +1307,28 @@
   <!-- TAB 4 — Terapeak Sold Data Import                      -->
   <!-- ══════════════════════════════════════════════════════ -->
   <section id="panel-terapeak" class="tab-panel" role="tabpanel" aria-labelledby="tab-terapeak" aria-hidden="true">
+
+    <!-- Quota Tracker -->
+    <div class="card" id="tp-quota-card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <h2 style="margin:0">&#x1F4CA; Daily Terapeak Quota</h2>
+        <span style="font-size:0.72rem;color:var(--text-muted)" id="tp-quota-date"></span>
+      </div>
+      <div id="tp-quota-warning" class="tp-quota-warning"></div>
+      <div class="tp-quota-bar">
+        <span style="font-size:0.75rem;color:var(--text-muted)">Used</span>
+        <div class="tp-quota-meter">
+          <div class="tp-quota-fill safe" id="tp-quota-fill" style="width:0%"></div>
+        </div>
+        <span class="tp-quota-text safe" id="tp-quota-text">0 / 250</span>
+        <div class="tp-quota-actions">
+          <button id="tp-quota-add-btn" title="Record queries done in eBay">+ Log Queries</button>
+          <button id="tp-quota-reset-btn" title="Reset today's counter">&#x21BA; Reset</button>
+        </div>
+      </div>
+      <div style="font-size:0.72rem;color:var(--text-muted)" id="tp-quota-remaining"></div>
+    </div>
+
     <div class="card">
       <h2>&#x1F4C1; Import Terapeak Sold Data</h2>
       <p style="color:var(--text-muted);font-size:0.82rem;margin:0 0 12px">
@@ -3441,6 +3525,10 @@
         const data = await resp.json();
 
         if (!resp.ok) {
+          // Show quota-specific error message
+          if (resp.status === 429 && data.quota) {
+            throw new Error('Daily Terapeak limit reached! ' + data.quota.used + '/' + data.quota.limit + ' used. Try again tomorrow.');
+          }
           throw new Error(data.error || 'Import failed');
         }
 
@@ -3459,6 +3547,15 @@
         if (parse.unmappedColumns && parse.unmappedColumns.length > 0) {
           html += '<br><span style="font-size:0.72rem;color:var(--text-muted)">Unmapped columns: ' + parse.unmappedColumns.join(', ') + '</span>';
         }
+        // Show quota remaining after import
+        if (data.quota) {
+          const qr = data.quota.remaining;
+          const qColor = qr <= 10 ? '#e74c3c' : qr <= 50 ? '#f0ad4e' : 'var(--text-muted)';
+          html += '<br><span style="font-size:0.72rem;color:' + qColor + '">Terapeak queries today: ' + data.quota.used + '/' + data.quota.limit + ' (' + qr + ' remaining)</span>';
+          if (data.quota.warning) {
+            html += '<br><span style="font-size:0.72rem;font-weight:600;color:' + qColor + '">' + data.quota.warning + '</span>';
+          }
+        }
         html += '</div>';
         this.els.result.innerHTML = html;
 
@@ -3470,6 +3567,9 @@
 
         // Refresh datasets list
         this._loadDatasets();
+
+        // Refresh quota display after import
+        if (typeof TerapeakQuota !== 'undefined') TerapeakQuota.refresh();
       } catch (err) {
         this.els.status.textContent = '\u274C ' + err.message;
         this.els.status.className = 'status-bar status-error';
@@ -3528,6 +3628,118 @@
   };
 
   TerapeakImporter.init();
+
+  /* ═══════════════════════════════════════════════════════════
+   *  TERAPEAK QUOTA TRACKER UI
+   * ═══════════════════════════════════════════════════════════ */
+  const TerapeakQuota = {
+    els: {},
+
+    init() {
+      this.els = {
+        fill:      document.getElementById('tp-quota-fill'),
+        text:      document.getElementById('tp-quota-text'),
+        date:      document.getElementById('tp-quota-date'),
+        remaining: document.getElementById('tp-quota-remaining'),
+        warning:   document.getElementById('tp-quota-warning'),
+        addBtn:    document.getElementById('tp-quota-add-btn'),
+        resetBtn:  document.getElementById('tp-quota-reset-btn'),
+      };
+
+      this.els.addBtn.addEventListener('click', () => this._promptRecord());
+      this.els.resetBtn.addEventListener('click', () => this._resetCounter());
+
+      this.refresh();
+    },
+
+    async refresh() {
+      try {
+        const resp = await fetch('/api/terapeak/quota');
+        const data = await resp.json();
+        this._render(data);
+      } catch (err) {
+        console.error('[quota] Failed to load:', err);
+      }
+    },
+
+    _render(data) {
+      const { used, remaining, limit, pct, date } = data;
+
+      // Date
+      this.els.date.textContent = date;
+
+      // Meter fill
+      const fillPct = Math.min(100, pct);
+      this.els.fill.style.width = fillPct + '%';
+
+      // Color class based on thresholds
+      let level = 'safe';
+      if (remaining <= 10) level = 'danger';
+      else if (remaining <= 50) level = 'caution';
+
+      this.els.fill.className = 'tp-quota-fill ' + level;
+      this.els.text.className = 'tp-quota-text ' + level;
+      this.els.text.textContent = used + ' / ' + limit;
+
+      this.els.remaining.textContent = remaining + ' queries remaining today' +
+        (remaining <= 50 ? ' — use them wisely!' : '');
+
+      // Warning banner
+      if (remaining <= 10) {
+        this.els.warning.className = 'tp-quota-warning danger';
+        this.els.warning.textContent = '\u26A0\uFE0F CRITICAL: Only ' + remaining + ' Terapeak queries left today! Consider waiting until tomorrow.';
+      } else if (remaining <= 50) {
+        this.els.warning.className = 'tp-quota-warning caution';
+        this.els.warning.textContent = '\u26A0\uFE0F ' + remaining + ' Terapeak queries remaining today. Plan your searches carefully.';
+      } else {
+        this.els.warning.className = 'tp-quota-warning';
+        this.els.warning.textContent = '';
+      }
+    },
+
+    async _promptRecord() {
+      const input = prompt(
+        'How many Terapeak queries did you just do in eBay?\n' +
+        '(Each search, filter change, or date-range change = 1 query)\n\n' +
+        'Enter a number:',
+        '1'
+      );
+      if (input === null) return;
+      const count = parseInt(input);
+      if (isNaN(count) || count < 1) { alert('Enter a valid number >= 1'); return; }
+
+      const note = prompt('Optional note (e.g. coin searched):', '') || '';
+
+      try {
+        const resp = await fetch('/api/terapeak/quota/record', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ count, note })
+        });
+        const data = await resp.json();
+        if (!data.ok) {
+          alert(data.warning || 'Cannot record: daily limit would be exceeded.');
+        } else if (data.warning) {
+          alert(data.warning);
+        }
+        this.refresh();
+      } catch (err) {
+        alert('Error recording queries: ' + err.message);
+      }
+    },
+
+    async _resetCounter() {
+      if (!confirm('Reset today\'s Terapeak query counter to 0?')) return;
+      try {
+        await fetch('/api/terapeak/quota/reset', { method: 'POST' });
+        this.refresh();
+      } catch (err) {
+        alert('Reset failed: ' + err.message);
+      }
+    }
+  };
+
+  TerapeakQuota.init();
   </script>
 
 </body>

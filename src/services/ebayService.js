@@ -392,11 +392,12 @@ function scoreMatch(comp, expected) {
     // If no mint found in title, no bonus or penalty (benefit of doubt)
   }
 
-  // Series match
+  // Series match / mismatch
   if (expected.series) {
     const seriesTokens = expected.series.toLowerCase().split(/\s+/);
     const hits = seriesTokens.filter(t => t.length > 2 && tLow.includes(t)).length;
     if (hits >= Math.ceil(seriesTokens.length * 0.6)) { score += 10; notes.push('series-match'); }
+    else if (hits === 0 && seriesTokens.length > 0) { score -= 25; notes.push('series-mismatch'); }
   }
 
   // Metal match / mismatch
@@ -441,8 +442,9 @@ function scoreMatch(comp, expected) {
       } else {
         score -= 35; notes.push('weight-mismatch');
       }
-    } else if (expected.weight < 1) {
-      // Fractional bullion with no weight in title — likely 1 oz (default size)
+    } else {
+      // No weight stated in title. Penalize: for fractional searches the listing
+      // is likely 1 oz; for 1 oz searches it could be a fractional listed vaguely.
       score -= 15; notes.push('weight-not-stated');
     }
   }
@@ -609,6 +611,25 @@ function applyFilters(comps, options, expected) {
       if (detW !== null) return true; // already handled by weight-mismatch filter
       if (c.totalUsd > meltCeiling) {
         removed.meltSanity++;
+        return false;
+      }
+      return true;
+    });
+  }
+
+  // Melt-floor sanity check for 1 oz (and larger) bullion: if no weight is
+  // detected in the title and the price is well below expected melt for the
+  // searched weight, the listing is almost certainly a smaller/fractional coin.
+  if (expected.meltPerOz && expected.weight && expected.weight >= 1) {
+    removed.meltFloor = 0;
+    // Floor: 40% of expected melt — generous enough for damaged/junk bullion
+    // but catches e.g. 1/2 oz coins ($15) in a 1 oz search (melt ~$30+).
+    const meltFloor = expected.meltPerOz * expected.weight * 0.40;
+    kept = kept.filter(c => {
+      const detW = detectWeightFromTitle(c.title);
+      if (detW !== null) return true; // already handled by weight-mismatch filter
+      if (c.totalUsd < meltFloor) {
+        removed.meltFloor++;
         return false;
       }
       return true;
@@ -928,10 +949,11 @@ function buildKeywords(pcgsData, rawQuery, weight) {
   if (pcgsData?.series) parts.push(pcgsData.series);
   if (pcgsData?.grade) parts.push(pcgsData.grade);
   if (pcgsData?.designation) parts.push(pcgsData.designation);
-  // Inject weight for non-1 oz bullion so eBay comps match the right size
-  if (weight && weight !== 1) {
-    const weightStr = [0.5,0.25,0.1,0.05].includes(weight)
-      ? ({ 0.5:'1/2', 0.25:'1/4', 0.1:'1/10', 0.05:'1/20' })[weight] + ' oz'
+  // Inject weight for bullion coins so eBay comps match the right size.
+  if (weight) {
+    const FRAC_MAP = { 0.5:'1/2', 0.25:'1/4', 0.1:'1/10', 0.05:'1/20' };
+    const weightStr = FRAC_MAP[weight]
+      ? FRAC_MAP[weight] + ' oz'
       : weight + ' oz';
     parts.push(weightStr);
   }

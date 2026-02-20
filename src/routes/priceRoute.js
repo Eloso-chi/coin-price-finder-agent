@@ -159,9 +159,9 @@ router.post('/', async (req, res) => {
     };
 
     // ── Precious metal content cross-check ──
-    // Fetch spot price so the eBay filter can sanity-check fractional bullion
-    // comps against melt value.  Non-fatal — skip if unavailable.
-    if (expectedMetal && resolvedWeight && resolvedWeight < 1) {
+    // Fetch spot price so the eBay filter can sanity-check bullion comps
+    // against melt value (both fractional AND full-oz).  Non-fatal — skip if unavailable.
+    if (expectedMetal && resolvedWeight) {
       const METAL_SYM = { silver: 'XAG', gold: 'XAU', platinum: 'XPT', palladium: 'XPD' };
       const sym = METAL_SYM[expectedMetal];
       if (sym) {
