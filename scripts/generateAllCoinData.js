@@ -1314,6 +1314,398 @@ const COMMON = {
         TG('Gold Buffalo 1oz {G} MS-70', 'Certified', [2950, 3400], 1),
       ]
     },
+    // ══════════════════════════════════════════════════════════
+    // FRACTIONAL BULLION — AGE, Platinum, Maple, Krugerrand, Libertad
+    // ══════════════════════════════════════════════════════════
+
+    // ── AGE 1/2 oz (generic + current years) ──
+    {
+      searchTerm: 'American Gold Eagle 1/2 oz', filename: 'American_Gold_Eagle_Half_oz_Generic.csv', count: 22,
+      titleTemplates: [
+        T('American Gold Eagle 1/2 oz BU Random Year', 'Uncirculated', [1320, 1500], 5),
+        T('American Gold Eagle 1/2 oz .9167 Gold BU', 'Uncirculated', [1330, 1510], 4),
+        TG('American Gold Eagle 1/2 oz {G} MS-69', 'Certified', [1380, 1560], 3),
+        TG('American Gold Eagle 1/2 oz {G} MS-70', 'Certified', [1520, 1800], 1),
+      ]
+    },
+    {
+      searchTerm: '2024 American Gold Eagle 1/2 oz', filename: '2024_American_Gold_Eagle_Half_oz.csv', count: 18,
+      titleTemplates: [
+        T('2024 American Gold Eagle 1/2 oz BU', 'Uncirculated', [1340, 1520], 5),
+        TG('2024 Gold Eagle 1/2 oz {G} MS-69', 'Certified', [1400, 1580], 3),
+        TG('2024 Gold Eagle 1/2 oz {G} MS-70 First Strike', 'Certified', [1550, 1850], 1),
+      ]
+    },
+    {
+      searchTerm: '2025 American Gold Eagle 1/2 oz', filename: '2025_American_Gold_Eagle_Half_oz.csv', count: 16,
+      titleTemplates: [
+        T('2025 American Gold Eagle 1/2 oz BU', 'Uncirculated', [1350, 1530], 5),
+        TG('2025 Gold Eagle 1/2 oz {G} MS-69', 'Certified', [1410, 1600], 3),
+        TG('2025 Gold Eagle 1/2 oz {G} MS-70 First Day', 'Certified', [1580, 1880], 1),
+      ]
+    },
+    // ── AGE 1/4 oz current years ──
+    {
+      searchTerm: '2024 American Gold Eagle 1/4 oz', filename: '2024_American_Gold_Eagle_Quarter_oz.csv', count: 18,
+      titleTemplates: [
+        T('2024 American Gold Eagle 1/4 oz BU', 'Uncirculated', [670, 760], 5),
+        TG('2024 Gold Eagle 1/4 oz {G} MS-69', 'Certified', [710, 800], 3),
+        TG('2024 Gold Eagle 1/4 oz {G} MS-70 First Strike', 'Certified', [790, 940], 1),
+      ]
+    },
+    {
+      searchTerm: '2025 American Gold Eagle 1/4 oz', filename: '2025_American_Gold_Eagle_Quarter_oz.csv', count: 16,
+      titleTemplates: [
+        T('2025 American Gold Eagle 1/4 oz BU', 'Uncirculated', [675, 770], 5),
+        TG('2025 Gold Eagle 1/4 oz {G} MS-69', 'Certified', [720, 810], 3),
+        TG('2025 Gold Eagle 1/4 oz {G} MS-70 First Day', 'Certified', [800, 950], 1),
+      ]
+    },
+    // ── AGE 1/10 oz current years ──
+    {
+      searchTerm: '2024 American Gold Eagle 1/10 oz', filename: '2024_American_Gold_Eagle_Tenth_oz.csv', count: 20,
+      titleTemplates: [
+        T('2024 American Gold Eagle 1/10 oz BU', 'Uncirculated', [270, 315], 5),
+        TG('2024 Gold Eagle 1/10 oz {G} MS-69', 'Certified', [285, 330], 3),
+        TG('2024 Gold Eagle 1/10 oz {G} MS-70 First Strike', 'Certified', [320, 390], 1),
+      ]
+    },
+    {
+      searchTerm: '2025 American Gold Eagle 1/10 oz', filename: '2025_American_Gold_Eagle_Tenth_oz.csv', count: 18,
+      titleTemplates: [
+        T('2025 American Gold Eagle 1/10 oz BU', 'Uncirculated', [275, 320], 5),
+        TG('2025 Gold Eagle 1/10 oz {G} MS-69', 'Certified', [290, 335], 3),
+        TG('2025 Gold Eagle 1/10 oz {G} MS-70 First Day', 'Certified', [325, 395], 1),
+      ]
+    },
+    // ── American Platinum Eagle ──
+    {
+      searchTerm: 'American Platinum Eagle 1 oz', filename: 'American_Platinum_Eagle_1oz_Generic.csv', count: 22,
+      titleTemplates: [
+        T('American Platinum Eagle 1 oz .9995 BU Random Year', 'Uncirculated', [1050, 1200], 5),
+        T('Platinum Eagle 1 oz BU', 'Uncirculated', [1040, 1190], 4),
+        TG('American Platinum Eagle 1 oz {G} MS-69', 'Certified', [1100, 1260], 3),
+        TG('American Platinum Eagle 1 oz {G} MS-70', 'Certified', [1200, 1450], 1),
+      ]
+    },
+    {
+      searchTerm: 'American Platinum Eagle 1/2 oz', filename: 'American_Platinum_Eagle_Half_oz_Generic.csv', count: 16,
+      titleTemplates: [
+        T('American Platinum Eagle 1/2 oz BU Random Year', 'Uncirculated', [530, 610], 5),
+        TG('American Platinum Eagle 1/2 oz {G} MS-69', 'Certified', [560, 640], 3),
+        TG('American Platinum Eagle 1/2 oz {G} MS-70', 'Certified', [620, 740], 1),
+      ]
+    },
+    {
+      searchTerm: 'American Platinum Eagle 1/4 oz', filename: 'American_Platinum_Eagle_Quarter_oz_Generic.csv', count: 16,
+      titleTemplates: [
+        T('American Platinum Eagle 1/4 oz BU Random Year', 'Uncirculated', [265, 310], 5),
+        TG('American Platinum Eagle 1/4 oz {G} MS-69', 'Certified', [280, 325], 3),
+        TG('American Platinum Eagle 1/4 oz {G} MS-70', 'Certified', [310, 375], 1),
+      ]
+    },
+    {
+      searchTerm: 'American Platinum Eagle 1/10 oz', filename: 'American_Platinum_Eagle_Tenth_oz_Generic.csv', count: 16,
+      titleTemplates: [
+        T('American Platinum Eagle 1/10 oz BU Random Year', 'Uncirculated', [110, 135], 5),
+        TG('American Platinum Eagle 1/10 oz {G} MS-69', 'Certified', [120, 145], 3),
+        TG('American Platinum Eagle 1/10 oz {G} MS-70', 'Certified', [140, 175], 1),
+      ]
+    },
+    // ── Canadian Gold Maple Leaf ──
+    {
+      searchTerm: 'Canadian Gold Maple Leaf 1 oz', filename: 'Canadian_Gold_Maple_Leaf_1oz_Generic.csv', count: 22,
+      titleTemplates: [
+        T('Canada Gold Maple Leaf 1 oz .9999 BU Random Year', 'Uncirculated', [2700, 3000], 5),
+        T('Canadian Gold Maple 1 oz BU', 'Uncirculated', [2680, 2980], 4),
+        TG('Canadian Gold Maple Leaf 1 oz {G} MS-69', 'Certified', [2780, 3080], 3),
+        TG('Canadian Gold Maple Leaf 1 oz {G} MS-70', 'Certified', [2900, 3300], 1),
+      ]
+    },
+    {
+      searchTerm: 'Canadian Gold Maple Leaf 1/2 oz', filename: 'Canadian_Gold_Maple_Leaf_Half_oz_Generic.csv', count: 16,
+      titleTemplates: [
+        T('Canada Gold Maple Leaf 1/2 oz .9999 BU', 'Uncirculated', [1340, 1520], 5),
+        TG('Canadian Gold Maple Leaf 1/2 oz {G} MS-69', 'Certified', [1400, 1580], 3),
+        TG('Canadian Gold Maple Leaf 1/2 oz {G} MS-70', 'Certified', [1520, 1800], 1),
+      ]
+    },
+    {
+      searchTerm: 'Canadian Gold Maple Leaf 1/4 oz', filename: 'Canadian_Gold_Maple_Leaf_Quarter_oz_Generic.csv', count: 16,
+      titleTemplates: [
+        T('Canada Gold Maple Leaf 1/4 oz .9999 BU', 'Uncirculated', [670, 760], 5),
+        TG('Canadian Gold Maple Leaf 1/4 oz {G} MS-69', 'Certified', [710, 800], 3),
+        TG('Canadian Gold Maple Leaf 1/4 oz {G} MS-70', 'Certified', [790, 940], 1),
+      ]
+    },
+    {
+      searchTerm: 'Canadian Gold Maple Leaf 1/10 oz', filename: 'Canadian_Gold_Maple_Leaf_Tenth_oz_Generic.csv', count: 16,
+      titleTemplates: [
+        T('Canada Gold Maple Leaf 1/10 oz .9999 BU', 'Uncirculated', [270, 315], 5),
+        TG('Canadian Gold Maple Leaf 1/10 oz {G} MS-69', 'Certified', [285, 330], 3),
+        TG('Canadian Gold Maple Leaf 1/10 oz {G} MS-70', 'Certified', [320, 390], 1),
+      ]
+    },
+    {
+      searchTerm: 'Canadian Gold Maple Leaf 1/20 oz', filename: 'Canadian_Gold_Maple_Leaf_Twentieth_oz_Generic.csv', count: 14,
+      titleTemplates: [
+        T('Canada Gold Maple Leaf 1/20 oz .9999 BU', 'Uncirculated', [140, 170], 5),
+        TG('Canadian Gold Maple Leaf 1/20 oz {G} MS-69', 'Certified', [155, 185], 3),
+        TG('Canadian Gold Maple Leaf 1/20 oz {G} MS-70', 'Certified', [175, 215], 1),
+      ]
+    },
+    // ── Gold Krugerrand fractional ──
+    {
+      searchTerm: 'Gold Krugerrand 1 oz', filename: 'Gold_Krugerrand_1oz_Generic.csv', count: 22,
+      titleTemplates: [
+        T('South Africa Gold Krugerrand 1 oz BU Random Year', 'Uncirculated', [2680, 2980], 5),
+        T('Gold Krugerrand 1 oz AGW BU', 'Uncirculated', [2670, 2970], 4),
+        TG('Gold Krugerrand 1 oz {G} MS-69', 'Certified', [2760, 3060], 3),
+        TG('Gold Krugerrand 1 oz {G} MS-70', 'Certified', [2900, 3300], 1),
+      ]
+    },
+    {
+      searchTerm: 'Gold Krugerrand 1/2 oz', filename: 'Gold_Krugerrand_Half_oz_Generic.csv', count: 16,
+      titleTemplates: [
+        T('South Africa Gold Krugerrand 1/2 oz BU', 'Uncirculated', [1320, 1500], 5),
+        TG('Gold Krugerrand 1/2 oz {G} MS-69', 'Certified', [1380, 1560], 3),
+        TG('Gold Krugerrand 1/2 oz {G} MS-70', 'Certified', [1520, 1800], 1),
+      ]
+    },
+    {
+      searchTerm: 'Gold Krugerrand 1/4 oz', filename: 'Gold_Krugerrand_Quarter_oz_Generic.csv', count: 16,
+      titleTemplates: [
+        T('South Africa Gold Krugerrand 1/4 oz BU', 'Uncirculated', [660, 750], 5),
+        TG('Gold Krugerrand 1/4 oz {G} MS-69', 'Certified', [700, 790], 3),
+        TG('Gold Krugerrand 1/4 oz {G} MS-70', 'Certified', [780, 920], 1),
+      ]
+    },
+    {
+      searchTerm: 'Gold Krugerrand 1/10 oz', filename: 'Gold_Krugerrand_Tenth_oz_Generic.csv', count: 16,
+      titleTemplates: [
+        T('South Africa Gold Krugerrand 1/10 oz BU', 'Uncirculated', [268, 315], 5),
+        TG('Gold Krugerrand 1/10 oz {G} MS-69', 'Certified', [285, 330], 3),
+        TG('Gold Krugerrand 1/10 oz {G} MS-70', 'Certified', [320, 390], 1),
+      ]
+    },
+    // ── Mexican Silver Libertad fractional ──
+    {
+      searchTerm: 'Mexican Silver Libertad 1/2 oz', filename: 'Mexican_Silver_Libertad_Half_oz_Generic.csv', count: 16,
+      titleTemplates: [
+        T('Mexico Silver Libertad 1/2 oz BU Random Year', 'Uncirculated', [22, 35], 5),
+        T('Mexican Silver Libertad 1/2 oz BU Low Mintage', 'Uncirculated', [25, 40], 3),
+        TG('Mexican Silver Libertad 1/2 oz {G} MS-69', 'Certified', [35, 55], 2),
+      ]
+    },
+    {
+      searchTerm: 'Mexican Silver Libertad 1/4 oz', filename: 'Mexican_Silver_Libertad_Quarter_oz_Generic.csv', count: 14,
+      titleTemplates: [
+        T('Mexico Silver Libertad 1/4 oz BU', 'Uncirculated', [14, 22], 5),
+        T('Mexican Silver Libertad 1/4 oz BU Low Mintage', 'Uncirculated', [16, 26], 3),
+        TG('Mexican Silver Libertad 1/4 oz {G} MS-69', 'Certified', [22, 35], 2),
+      ]
+    },
+    {
+      searchTerm: 'Mexican Silver Libertad 1/10 oz', filename: 'Mexican_Silver_Libertad_Tenth_oz_Generic.csv', count: 14,
+      titleTemplates: [
+        T('Mexico Silver Libertad 1/10 oz BU', 'Uncirculated', [8, 14], 5),
+        T('Mexican Silver Libertad 1/10 oz BU Low Mintage', 'Uncirculated', [10, 16], 3),
+        TG('Mexican Silver Libertad 1/10 oz {G} MS-69', 'Certified', [15, 25], 2),
+      ]
+    },
+    {
+      searchTerm: 'Mexican Silver Libertad 1/20 oz', filename: 'Mexican_Silver_Libertad_Twentieth_oz_Generic.csv', count: 12,
+      titleTemplates: [
+        T('Mexico Silver Libertad 1/20 oz BU', 'Uncirculated', [5, 9], 5),
+        T('Mexican Silver Libertad 1/20 oz Low Mintage', 'Uncirculated', [6, 11], 3),
+        TG('Mexican Silver Libertad 1/20 oz {G} MS-69', 'Certified', [10, 18], 2),
+      ]
+    },
+    // ── Canadian Silver Maple Leaf (common generic) ──
+    {
+      searchTerm: 'Canadian Silver Maple Leaf 1 oz', filename: 'Canadian_Silver_Maple_Leaf_1oz_Generic.csv', count: 25,
+      titleTemplates: [
+        T('Canada Silver Maple Leaf 1 oz .9999 BU Random Year', 'Uncirculated', [32, 42], 5),
+        T('Canadian Silver Maple 1 oz BU', 'Uncirculated', [31, 40], 4),
+        TG('Canadian Silver Maple Leaf {G} MS-69', 'Certified', [38, 52], 3),
+        TG('Canadian Silver Maple Leaf {G} MS-70', 'Certified', [48, 70], 1),
+      ]
+    },
+    // ══════════════════════════════════════════════════════════
+    // PERTH MINT — Kangaroo/Nugget, Kookaburra, Lunar
+    // ══════════════════════════════════════════════════════════
+
+    // ── Australian Gold Kangaroo / Nugget ──
+    {
+      searchTerm: 'Australian Gold Kangaroo 1 oz', filename: 'Australian_Gold_Kangaroo_1oz_Generic.csv', count: 22,
+      titleTemplates: [
+        T('Australia Gold Kangaroo 1 oz .9999 BU Random Year', 'Uncirculated', [2700, 3000], 5),
+        T('Perth Mint Gold Kangaroo 1 oz BU', 'Uncirculated', [2690, 2990], 4),
+        TG('Australian Gold Kangaroo 1 oz {G} MS-69', 'Certified', [2780, 3080], 3),
+        TG('Australian Gold Kangaroo 1 oz {G} MS-70', 'Certified', [2920, 3320], 1),
+      ]
+    },
+    {
+      searchTerm: 'Australian Gold Kangaroo 1/2 oz', filename: 'Australian_Gold_Kangaroo_Half_oz_Generic.csv', count: 16,
+      titleTemplates: [
+        T('Australia Gold Kangaroo 1/2 oz .9999 BU', 'Uncirculated', [1340, 1520], 5),
+        TG('Australian Gold Kangaroo 1/2 oz {G} MS-69', 'Certified', [1400, 1580], 3),
+        TG('Australian Gold Kangaroo 1/2 oz {G} MS-70', 'Certified', [1520, 1800], 1),
+      ]
+    },
+    {
+      searchTerm: 'Australian Gold Kangaroo 1/4 oz', filename: 'Australian_Gold_Kangaroo_Quarter_oz_Generic.csv', count: 16,
+      titleTemplates: [
+        T('Australia Gold Kangaroo 1/4 oz .9999 BU', 'Uncirculated', [670, 760], 5),
+        TG('Australian Gold Kangaroo 1/4 oz {G} MS-69', 'Certified', [710, 800], 3),
+        TG('Australian Gold Kangaroo 1/4 oz {G} MS-70', 'Certified', [790, 940], 1),
+      ]
+    },
+    {
+      searchTerm: 'Australian Gold Kangaroo 1/10 oz', filename: 'Australian_Gold_Kangaroo_Tenth_oz_Generic.csv', count: 16,
+      titleTemplates: [
+        T('Australia Gold Kangaroo 1/10 oz .9999 BU', 'Uncirculated', [270, 315], 5),
+        TG('Australian Gold Kangaroo 1/10 oz {G} MS-69', 'Certified', [285, 330], 3),
+        TG('Australian Gold Kangaroo 1/10 oz {G} MS-70', 'Certified', [320, 390], 1),
+      ]
+    },
+    // ── Australian Silver Kangaroo ──
+    {
+      searchTerm: 'Australian Silver Kangaroo 1 oz', filename: 'Australian_Silver_Kangaroo_1oz_Generic.csv', count: 22,
+      titleTemplates: [
+        T('Australia Silver Kangaroo 1 oz .9999 BU Random Year', 'Uncirculated', [32, 42], 5),
+        T('Perth Mint Silver Kangaroo 1 oz BU', 'Uncirculated', [31, 40], 4),
+        TG('Australian Silver Kangaroo 1 oz {G} MS-69', 'Certified', [38, 52], 3),
+        TG('Australian Silver Kangaroo 1 oz {G} MS-70', 'Certified', [48, 72], 1),
+      ]
+    },
+    // ── Australian Silver Kookaburra (generic) ──
+    {
+      searchTerm: 'Australian Silver Kookaburra 1 oz', filename: 'Australian_Silver_Kookaburra_1oz_Generic.csv', count: 22,
+      titleTemplates: [
+        T('Australia Silver Kookaburra 1 oz BU Random Year', 'Uncirculated', [34, 48], 5),
+        T('Perth Mint Silver Kookaburra 1 oz BU', 'Uncirculated', [33, 46], 4),
+        TG('Australian Silver Kookaburra 1 oz {G} MS-69', 'Certified', [42, 58], 3),
+        TG('Australian Silver Kookaburra 1 oz {G} MS-70', 'Certified', [55, 82], 1),
+      ]
+    },
+    // ── Australian Lunar Series (Silver & Gold, generic) ──
+    {
+      searchTerm: 'Australian Lunar Silver 1 oz', filename: 'Australian_Lunar_Silver_1oz_Generic.csv', count: 22,
+      titleTemplates: [
+        T('Australia Lunar Series III 1 oz Silver BU', 'Uncirculated', [36, 52], 5),
+        T('Perth Mint Lunar Silver 1 oz BU Random Year', 'Uncirculated', [34, 48], 4),
+        TG('Australian Lunar Series Silver 1 oz {G} MS-69', 'Certified', [44, 62], 3),
+        TG('Australian Lunar Series Silver 1 oz {G} MS-70', 'Certified', [58, 88], 1),
+      ]
+    },
+    {
+      searchTerm: 'Australian Lunar Gold 1 oz', filename: 'Australian_Lunar_Gold_1oz_Generic.csv', count: 18,
+      titleTemplates: [
+        T('Australia Lunar Series III 1 oz Gold BU', 'Uncirculated', [2720, 3020], 5),
+        T('Perth Mint Lunar Gold 1 oz BU', 'Uncirculated', [2700, 3000], 4),
+        TG('Australian Lunar Series Gold 1 oz {G} MS-69', 'Certified', [2800, 3100], 2),
+        TG('Australian Lunar Series Gold 1 oz {G} MS-70', 'Certified', [2950, 3400], 1),
+      ]
+    },
+    {
+      searchTerm: 'Australian Lunar Gold 1/4 oz', filename: 'Australian_Lunar_Gold_Quarter_oz_Generic.csv', count: 14,
+      titleTemplates: [
+        T('Australia Lunar Series 1/4 oz Gold BU', 'Uncirculated', [680, 770], 5),
+        TG('Australian Lunar Gold 1/4 oz {G} MS-69', 'Certified', [720, 810], 3),
+        TG('Australian Lunar Gold 1/4 oz {G} MS-70', 'Certified', [800, 960], 1),
+      ]
+    },
+    {
+      searchTerm: 'Australian Lunar Gold 1/10 oz', filename: 'Australian_Lunar_Gold_Tenth_oz_Generic.csv', count: 14,
+      titleTemplates: [
+        T('Australia Lunar Series 1/10 oz Gold BU', 'Uncirculated', [275, 320], 5),
+        TG('Australian Lunar Gold 1/10 oz {G} MS-69', 'Certified', [295, 340], 3),
+        TG('Australian Lunar Gold 1/10 oz {G} MS-70', 'Certified', [330, 400], 1),
+      ]
+    },
+    {
+      searchTerm: 'Australian Lunar Silver 2 oz', filename: 'Australian_Lunar_Silver_2oz_Generic.csv', count: 16,
+      titleTemplates: [
+        T('Australia Lunar Series III 2 oz Silver BU', 'Uncirculated', [68, 95], 5),
+        T('Perth Mint Lunar Silver 2 oz BU', 'Uncirculated', [65, 92], 4),
+        TG('Australian Lunar Series 2 oz Silver {G} MS-69', 'Certified', [80, 110], 3),
+        TG('Australian Lunar Series 2 oz Silver {G} MS-70', 'Certified', [105, 150], 1),
+      ]
+    },
+
+    // ══════════════════════════════════════════════════════════
+    // BRITANNIAS — Gold & Silver, full size + fractional
+    // ══════════════════════════════════════════════════════════
+
+    // ── British Gold Britannia ──
+    {
+      searchTerm: 'British Gold Britannia 1 oz', filename: 'British_Gold_Britannia_1oz_Generic.csv', count: 22,
+      titleTemplates: [
+        T('Great Britain Gold Britannia 1 oz .9999 BU Random Year', 'Uncirculated', [2700, 3000], 5),
+        T('British Gold Britannia 1 oz BU', 'Uncirculated', [2690, 2990], 4),
+        TG('British Gold Britannia 1 oz {G} MS-69', 'Certified', [2780, 3080], 3),
+        TG('British Gold Britannia 1 oz {G} MS-70', 'Certified', [2920, 3320], 1),
+      ]
+    },
+    {
+      searchTerm: 'British Gold Britannia 1/2 oz', filename: 'British_Gold_Britannia_Half_oz_Generic.csv', count: 16,
+      titleTemplates: [
+        T('Great Britain Gold Britannia 1/2 oz .9999 BU', 'Uncirculated', [1340, 1520], 5),
+        TG('British Gold Britannia 1/2 oz {G} MS-69', 'Certified', [1400, 1580], 3),
+        TG('British Gold Britannia 1/2 oz {G} MS-70', 'Certified', [1520, 1800], 1),
+      ]
+    },
+    {
+      searchTerm: 'British Gold Britannia 1/4 oz', filename: 'British_Gold_Britannia_Quarter_oz_Generic.csv', count: 16,
+      titleTemplates: [
+        T('Great Britain Gold Britannia 1/4 oz .9999 BU', 'Uncirculated', [670, 760], 5),
+        TG('British Gold Britannia 1/4 oz {G} MS-69', 'Certified', [710, 800], 3),
+        TG('British Gold Britannia 1/4 oz {G} MS-70', 'Certified', [790, 940], 1),
+      ]
+    },
+    {
+      searchTerm: 'British Gold Britannia 1/10 oz', filename: 'British_Gold_Britannia_Tenth_oz_Generic.csv', count: 16,
+      titleTemplates: [
+        T('Great Britain Gold Britannia 1/10 oz .9999 BU', 'Uncirculated', [270, 315], 5),
+        TG('British Gold Britannia 1/10 oz {G} MS-69', 'Certified', [285, 330], 3),
+        TG('British Gold Britannia 1/10 oz {G} MS-70', 'Certified', [320, 390], 1),
+      ]
+    },
+    // ── British Silver Britannia (generic) ──
+    {
+      searchTerm: 'British Silver Britannia 1 oz', filename: 'British_Silver_Britannia_1oz_Generic.csv', count: 22,
+      titleTemplates: [
+        T('Great Britain Silver Britannia 1 oz .999 BU Random Year', 'Uncirculated', [32, 42], 5),
+        T('British Silver Britannia 1 oz BU', 'Uncirculated', [31, 40], 4),
+        TG('British Silver Britannia 1 oz {G} MS-69', 'Certified', [38, 52], 3),
+        TG('British Silver Britannia 1 oz {G} MS-70', 'Certified', [48, 72], 1),
+      ]
+    },
+    {
+      searchTerm: 'British Silver Britannia 1/2 oz', filename: 'British_Silver_Britannia_Half_oz_Generic.csv', count: 14,
+      titleTemplates: [
+        T('Great Britain Silver Britannia 1/2 oz BU', 'Uncirculated', [18, 26], 5),
+        TG('British Silver Britannia 1/2 oz {G} MS-69', 'Certified', [24, 35], 3),
+        TG('British Silver Britannia 1/2 oz {G} MS-70', 'Certified', [32, 48], 1),
+      ]
+    },
+    {
+      searchTerm: 'British Silver Britannia 1/4 oz', filename: 'British_Silver_Britannia_Quarter_oz_Generic.csv', count: 14,
+      titleTemplates: [
+        T('Great Britain Silver Britannia 1/4 oz BU', 'Uncirculated', [10, 16], 5),
+        TG('British Silver Britannia 1/4 oz {G} MS-69', 'Certified', [14, 22], 3),
+        TG('British Silver Britannia 1/4 oz {G} MS-70', 'Certified', [18, 28], 1),
+      ]
+    },
+    {
+      searchTerm: 'British Silver Britannia 1/10 oz', filename: 'British_Silver_Britannia_Tenth_oz_Generic.csv', count: 12,
+      titleTemplates: [
+        T('Great Britain Silver Britannia 1/10 oz BU', 'Uncirculated', [6, 10], 5),
+        TG('British Silver Britannia 1/10 oz {G} MS-69', 'Certified', [9, 15], 3),
+        TG('British Silver Britannia 1/10 oz {G} MS-70', 'Certified', [13, 20], 1),
+      ]
+    },
     // ── Generic Morgan sweep (catches misc common dates) ──
     {
       searchTerm: 'Morgan Silver Dollar', filename: 'Morgan_Silver_Dollar_Generic.csv', count: 40,
