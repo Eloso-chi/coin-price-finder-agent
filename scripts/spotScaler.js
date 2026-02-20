@@ -25,8 +25,8 @@ const BASE_SPOT = {
 
 /* ── Fallback "current" prices when live fetch fails ─────────────────── */
 const FALLBACK_CURRENT = {
-  XAG:   82.00,
-  XAU: 2900.00,
+  XAG:   83.00,
+  XAU: 5075.00,
   XPT: 1100.00,
 };
 
@@ -51,17 +51,28 @@ let _current = null;
 
 /**
  * Try to fetch live spot via the app's metalsSpotPrice service.
- * Returns null on failure (API keys missing, network error, etc.).
+ * Fetches each metal individually so one failure doesn't sink them all.
+ * Returns partial result with at least one price, or null if all fail.
  */
 async function _fetchLive() {
   try {
-    const { getMetalsSpotPrices } = require('../src/services/metalsSpotPrice');
-    const data = await getMetalsSpotPrices(['XAU', 'XAG', 'XPT'], 'USD');
+    const { getMetalsSpotPrice } = require('../src/services/metalsSpotPrice');
+    const metals = ['XAU', 'XAG', 'XPT'];
     const result = {};
-    for (const [metal, info] of Object.entries(data)) {
-      result[metal] = info.price;
+    let anySuccess = false;
+
+    for (const metal of metals) {
+      try {
+        const info = await getMetalsSpotPrice(metal, 'USD');
+        result[metal] = info.price;
+        anySuccess = true;
+      } catch {
+        // Use fallback for this metal only
+        result[metal] = FALLBACK_CURRENT[metal];
+      }
     }
-    return result;
+
+    return anySuccess ? result : null;
   } catch {
     return null;
   }
