@@ -10,9 +10,10 @@ const stats = require('../utils/stats');
  * @param {object} ebay       – ebayService result  { us, global, usedFallback }
  * @param {number|null} askingPrice
  * @param {string|null} userGrade – grade FROM USER INPUT (not PCGS-resolved)
+ * @param {object} [opts]     – { isBullion: boolean }
  * @returns {object} { valuation, decisions }
  */
-function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null) {
+function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts = {}) {
   const isCertified = !!(pcgs?.verified);
   const explanation = [];
 
@@ -56,8 +57,9 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null) {
   const glPrices  = glComps.map(c => c.totalUsd).filter(p => p != null);
 
   // Weighted median using match-score based weights + recency
-  const usWM   = computeWeightedMedian(usComps);
-  const glWM   = computeWeightedMedian(glComps);
+  const isBullion = !!(opts.isBullion);
+  const usWM   = computeWeightedMedian(usComps, { isBullion });
+  const glWM   = computeWeightedMedian(glComps, { isBullion });
   const usMed  = stats.median(usPrices);
   const glMed  = stats.median(glPrices);
 
@@ -122,6 +124,9 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null) {
 
   if (terapeakCount > 0) {
     explanation.push(`${terapeakCount} Terapeak sold comps used (verified eBay sales data).`);
+  }
+  if (isBullion) {
+    explanation.push('Bullion coin — using steeper recency weighting (30-day half-life) to track metal price shifts.');
   }
   if (browseOnly) {
     explanation.push('⚠ ALL comps are active listings (asking prices) — no verified sold data available. FMV is estimated from for-sale prices and may be inflated.');
@@ -251,10 +256,16 @@ function blendSources(available, defaultWeights) {
 
 /**
  * Compute weighted median of comps using matchScore + recency.
+ * Bullion coins use a steeper recency curve (30-day half-life vs 90-day)
+ * because their values track underlying spot metal prices.
  */
-function computeWeightedMedian(comps) {
+function computeWeightedMedian(comps, { isBullion = false } = {}) {
   const valid = comps.filter(c => c.totalUsd != null);
   if (!valid.length) return null;
+
+  // Bullion half-life: 30 days (rapid metal price tracking)
+  // Numismatic half-life: 90 days (slower collector-market shifts)
+  const halfLifeDays = isBullion ? 30 : 90;
 
   const now = Date.now();
   const values = [];
@@ -263,7 +274,7 @@ function computeWeightedMedian(comps) {
     const daysSince = c.soldDate
       ? Math.max(1, (now - new Date(c.soldDate).getTime()) / 86_400_000)
       : 30;
-    const recencyW = 1 / (1 + daysSince / 90);
+    const recencyW = 1 / (1 + daysSince / halfLifeDays);
     const matchW = (c.matchScore || 50) / 100;
     values.push(c.totalUsd);
     weights.push(recencyW * matchW);

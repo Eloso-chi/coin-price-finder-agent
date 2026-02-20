@@ -26,6 +26,15 @@ const SEMI250_DENOM_MAP = {
   'semiquincentennial cent':        'Lincoln Cent',
 };
 
+// ── Bullion series that default to 1 oz when no weight is specified ──
+// Also used to detect bullion coins for steeper recency decay in valuation.
+const BULLION_1OZ_DEFAULT = [
+  'libertad', 'silver eagle', 'gold eagle', 'maple leaf', 'britannia',
+  'philharmonic', 'krugerrand', 'kangaroo', 'kookaburra', 'panda',
+  'gold buffalo', 'platinum eagle', 'palladium eagle', 'lunar',
+  'polar bear'
+];
+
 /**
  * For semiquincentennial circulating coins, resolve to canonical series
  * so that key-date, mintage, and eBay lookups use the right name.
@@ -80,12 +89,6 @@ router.post('/', async (req, res) => {
     // without a weight hint the system can't filter out fractional-oz comps.
     if (!resolvedWeight) {
       const seriesHint = (identification.parsed?.series || pcgs.series || '').toLowerCase();
-      const BULLION_1OZ_DEFAULT = [
-        'libertad', 'silver eagle', 'gold eagle', 'maple leaf', 'britannia',
-        'philharmonic', 'krugerrand', 'kangaroo', 'kookaburra', 'panda',
-        'gold buffalo', 'platinum eagle', 'palladium eagle', 'lunar',
-        'silver eagle', 'polar bear'
-      ];
       if (BULLION_1OZ_DEFAULT.some(b => seriesHint.includes(b))) {
         resolvedWeight = 1;
       }
@@ -217,7 +220,12 @@ router.post('/', async (req, res) => {
     // comes from free-text parsing.  If neither is set, user wants raw.
     // Sets (proof/mint) are never graded — pass null so all comps are used.
     const userGrade = isSet ? null : (coinData?.grade || identification.parsed?.grade || null);
-    const { valuation, decisions } = computeValuation(pcgs, ebay, askingPrice || null, userGrade);
+
+    // Detect if this is a bullion coin ( values track metal spot price → steeper recency)
+    const seriesForBullion = (identification.parsed?.series || pcgs.series || '').toLowerCase();
+    const isBullion = BULLION_1OZ_DEFAULT.some(b => seriesForBullion.includes(b));
+
+    const { valuation, decisions } = computeValuation(pcgs, ebay, askingPrice || null, userGrade, { isBullion });
 
     // ── 5a. Numista Catalogue Lookup (non-blocking) ──
     // Enrich the response with Numista rarity index, prices, composition, and references.

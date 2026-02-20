@@ -369,10 +369,16 @@ function lookupComps(keywords) {
   // since normalizeSearchKey strips '/' turning "1/2" into "12"
   const searchWeight = detectWeightFromQuery(keywords);
 
+  // Does the search query contain a specific year?  If not we'll merge
+  // comps from ALL matching datasets for better coverage.
+  const YEAR_RE = /\b(1[7-9]\d{2}|20[0-4]\d)\b/;
+  const queryHasYear = YEAR_RE.test(keywords);
+
   // Fuzzy: bidirectional token matching.
   const searchTokens = normalizedSearch.split(/\s+/).filter(t => t.length > 1);
-  let bestMatch = null;
-  let bestScore = 0;
+
+  // Collect all qualifying matches with their scores
+  const candidates = [];
 
   for (const [key, data] of Object.entries(store)) {
     const keyTokens = key.split(/\s+/).filter(t => t.length > 1);
@@ -397,13 +403,90 @@ function lookupComps(keywords) {
     // should not match "Lunar Dragon 1oz" on shared generic tokens like year/weight).
     const combined = (fwdScore + revScore) / 2;
     const strongSide = Math.max(fwdScore, revScore);
-    if (strongSide >= 0.65 && combined > 0.55 && combined > bestScore) {
-      bestScore = combined;
-      bestMatch = data;
+
+    // ── Specialty guard: datasets with specialty tokens (proof, burnished,
+    //    enhanced, type 1/2) should only match queries that also have those
+    //    tokens — prevents "Silver Eagle" from pulling in Proof/Burnished data. ──
+    const SPECIALTY_TOKENS = ['proof', 'burnished', 'enhanced', 'reverse', 'type'];
+    const datasetName = (data.searchTerm || key).toLowerCase();
+    const queryLower = keywords.toLowerCase();
+    const datasetHasSpecialty = SPECIALTY_TOKENS.some(t => datasetName.includes(t));
+    const queryHasSpecialty = SPECIALTY_TOKENS.some(t => queryLower.includes(t));
+    if (datasetHasSpecialty && !queryHasSpecialty) {
+      continue; // e.g. query "Silver Eagle" vs dataset "Silver Eagle Proof" — skip
+    }
+
+    if (strongSide >= 0.65 && combined > 0.55) {
+      // Bonus: prefer "Generic" datasets when the query has no year,
+      // since they represent the broadest market view.
+      const isGeneric = /generic/i.test(data.searchTerm || key);
+      const bonus = (!queryHasYear && isGeneric) ? 0.10 : 0;
+      candidates.push({ key, data, score: combined + bonus, isGeneric });
     }
   }
 
-  return bestMatch;
+  if (!candidates.length) return null;
+
+  // Sort by score descending.
+  // On ties: when query has a year, prefer year-specific datasets over
+  // Generic; when no year, prefer Generic for the broadest market view.
+  candidates.sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score;
+    if (queryHasYear) {
+      // Prefer year-specific (non-Generic) when user specified a year
+      if (a.isGeneric !== b.isGeneric) return a.isGeneric ? 1 : -1;
+    } else {
+      // Prefer Generic when user didn't specify a year
+      if (a.isGeneric !== b.isGeneric) return a.isGeneric ? -1 : 1;
+    }
+    return 0;
+  });
+
+  // ── If query has a specific year, return only the single best match ──
+  if (queryHasYear) {
+    return candidates[0].data;
+  }
+
+  // ── No year in query → merge comps from ALL matching datasets ──
+  // This provides a comprehensive market view (e.g. "American Silver Eagle"
+  // merges Generic, 2024, 2025, 1986, etc.)
+  const merged = _mergeDatasets(candidates);
+  return merged;
+}
+
+/**
+ * Merge comps from multiple qualifying Terapeak datasets into one result.
+ * Deduplicates by (title + soldDate + price) to avoid double-counting
+ * items that appear in both a year-specific and a Generic dataset.
+ */
+function _mergeDatasets(candidates) {
+  const seen = new Set();
+  const allComps = [];
+  const sourceNames = [];
+
+  for (const { data } of candidates) {
+    const name = data.searchTerm || '?';
+    let added = 0;
+    for (const c of (data.comps || [])) {
+      // Dedup key: title + date + price (handles same item in multiple datasets)
+      const dk = `${(c.title || '').toLowerCase().trim()}|${c.soldDate || ''}|${c.totalUsd || ''}`;
+      if (seen.has(dk)) continue;
+      seen.add(dk);
+      allComps.push(c);
+      added++;
+    }
+    if (added > 0) sourceNames.push(`${name} (${added})`);
+  }
+
+  if (!allComps.length) return null;
+
+  return {
+    searchTerm: sourceNames.join(' + '),
+    comps: allComps,
+    lastImport: candidates[0].data.lastImport,
+    _merged: true,
+    _datasetCount: sourceNames.length
+  };
 }
 
 /**
