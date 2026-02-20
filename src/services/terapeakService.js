@@ -187,10 +187,18 @@ function rowToComp(mappedRow, searchTerm) {
     if (!isNaN(d.getTime())) soldDate = d.toISOString();
   }
 
-  // Build eBay URL from item ID if URL not provided
-  let url = mappedRow.url || null;
+  // Build eBay URL: prefer a search-by-title URL over a direct item link.
+  // Terapeak data often contains stale eBay item IDs — the listing may have
+  // ended and the ID recycled to a completely different product (e.g. a Lenovo
+  // workstation instead of a Libertad).  A title-based search link always shows
+  // the right product category even if the original listing is gone.
   const itemId = mappedRow.itemId || null;
-  if (!url && itemId) {
+  let url = mappedRow.url || null;
+  if (title) {
+    // Build an eBay completed-items search link from the title
+    const searchQuery = encodeURIComponent(title.substring(0, 80));
+    url = `https://www.ebay.com/sch/i.html?_nkw=${searchQuery}&LH_Complete=1&LH_Sold=1`;
+  } else if (!url && itemId) {
     url = `https://www.ebay.com/itm/${itemId}`;
   }
 

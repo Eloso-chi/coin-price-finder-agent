@@ -73,7 +73,23 @@ router.post('/', async (req, res) => {
     };
 
     // ── 2. Build eBay keywords ──
-    const resolvedWeight = coinData?.weight || bodyWeight || identification.parsed?.weight || null;
+    let resolvedWeight = coinData?.weight || bodyWeight || identification.parsed?.weight || null;
+
+    // Default bullion coins to 1 oz when no weight is specified.
+    // Users commonly search "Mexican Silver Libertad 2024" without saying "1oz";
+    // without a weight hint the system can't filter out fractional-oz comps.
+    if (!resolvedWeight) {
+      const seriesHint = (identification.parsed?.series || pcgs.series || '').toLowerCase();
+      const BULLION_1OZ_DEFAULT = [
+        'libertad', 'silver eagle', 'gold eagle', 'maple leaf', 'britannia',
+        'philharmonic', 'krugerrand', 'kangaroo', 'kookaburra', 'panda',
+        'gold buffalo', 'platinum eagle', 'palladium eagle', 'lunar',
+        'silver eagle', 'polar bear'
+      ];
+      if (BULLION_1OZ_DEFAULT.some(b => seriesHint.includes(b))) {
+        resolvedWeight = 1;
+      }
+    }
 
     // Detect proof/mint set from parser or structured input
     const resolvedSetType = coinData?.setType || identification.parsed?.setType || null;

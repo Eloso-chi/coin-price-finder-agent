@@ -559,8 +559,17 @@ function dedup(comps) {
 function applyFilters(comps, options, expected) {
   const removed = { denied: 0, nonUsd: 0, pcgsOnly: 0, gradeOnly: 0, outlier: 0 };
 
-  // Deny-list
+  // Minimum relevance gate: discard comps that scored very low in scoreMatch.
+  // A score below 20 means almost nothing matched (year, series, weight, metal all wrong).
+  // This prevents completely irrelevant items (e.g. electronics, clothing) from appearing.
+  removed.lowRelevance = 0;
   let kept = comps.filter(c => {
+    if (c.matchScore != null && c.matchScore < 20) { removed.lowRelevance++; return false; }
+    return true;
+  });
+
+  // Deny-list
+  kept = kept.filter(c => {
     if (isDenied(c.title)) { removed.denied++; return false; }
     return true;
   });
