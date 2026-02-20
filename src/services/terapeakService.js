@@ -454,6 +454,7 @@ function detectWeightFromQuery(text) {
   if (!text) return null;
   const t = text.toLowerCase();
   // Word forms used in dataset names (e.g. "half oz", "quarter oz", "tenth oz")
+  // Also handle standalone word forms without "oz" (e.g. "Perth Lunar Dragon Gold Quarter")
   if (/\btwentieth\s*oz\b/.test(t))  return 0.05;
   if (/\b1\/20\s*oz\b/.test(t))      return 0.05;
   if (/\btenth\s*oz\b/.test(t))      return 0.1;
@@ -465,6 +466,12 @@ function detectWeightFromQuery(text) {
   // Generic "N oz" or "Noz"
   const m = t.match(/\b(\d+(?:\.\d+)?)\s*oz\b/);
   if (m) return parseFloat(m[1]);
+  // Standalone weight words at end of string or followed by non-alpha
+  // (dataset names like "Perth Lunar III 2024 Dragon Gold Quarter")
+  if (/\btwentieth\b/.test(t)) return 0.05;
+  if (/\btenth\b/.test(t))     return 0.1;
+  if (/\bquarter\b/.test(t))   return 0.25;
+  if (/\bhalf\b/.test(t))      return 0.5;
   return null;
 }
 
@@ -580,7 +587,9 @@ module.exports = {
   clearAll,
   autoImportFolder,
   normalizeSearchKey,
+  detectWeightFromQuery,
   // Exposed for testing
   mapColumn,
-  rowToComp
+  rowToComp,
+  _resetStoreCache() { _store = null; }
 };
