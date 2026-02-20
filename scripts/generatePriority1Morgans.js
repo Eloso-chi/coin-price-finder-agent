@@ -5,6 +5,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { initSpot, scaleRange } = require('./spotScaler');
 
 const OUT_DIR = path.join(__dirname, '..', 'data', 'terapeak');
 if (!fs.existsSync(OUT_DIR)) fs.mkdirSync(OUT_DIR, { recursive: true });
@@ -213,7 +214,8 @@ function generateRows(coin) {
     do { id = fakeItemId(); } while (usedIds.has(id));
     usedIds.add(id);
 
-    const price = randFloat(t.priceRange[0], t.priceRange[1]);
+    const scaled = scaleRange(t.priceRange, coin.searchTerm, t.title);
+    const price = randFloat(scaled[0], scaled[1]);
     const shipping = pick(SHIPPING_OPTIONS);
     const soldDate = randDate(90);
     const seller = pick(SELLERS);
@@ -256,15 +258,20 @@ function writeCSV(filename, rows) {
 }
 
 // ── Main ────────────────────────────────────────────────────
-console.log('\n═══ Generating Priority 1 Morgan Dollar Terapeak CSVs ═══\n');
-let totalRows = 0;
+(async () => {
+  console.log('\n  Initialising spot prices for price scaling...');
+  await initSpot();
 
-for (const coin of COINS) {
-  const rows = generateRows(coin);
-  writeCSV(coin.filename, rows);
-  totalRows += rows.length;
-}
+  console.log('\n═══ Generating Priority 1 Morgan Dollar Terapeak CSVs ═══\n');
+  let totalRows = 0;
 
-console.log(`\n  Total: ${totalRows} sold comps across ${COINS.length} CSVs`);
-console.log(`  Output: ${OUT_DIR}/\n`);
-console.log('Run the server or call autoImportFolder to load them.\n');
+  for (const coin of COINS) {
+    const rows = generateRows(coin);
+    writeCSV(coin.filename, rows);
+    totalRows += rows.length;
+  }
+
+  console.log(`\n  Total: ${totalRows} sold comps across ${COINS.length} CSVs`);
+  console.log(`  Output: ${OUT_DIR}/\n`);
+  console.log('Run the server or call autoImportFolder to load them.\n');
+})();

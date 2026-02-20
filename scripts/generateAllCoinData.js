@@ -15,6 +15,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { initSpot, scaleRange } = require('./spotScaler');
 
 const OUT_DIR = path.join(__dirname, '..', 'data', 'terapeak');
 if (!fs.existsSync(OUT_DIR)) fs.mkdirSync(OUT_DIR, { recursive: true });
@@ -2232,7 +2233,8 @@ function generateRows(coin) {
     let id;
     do { id = fakeItemId(); } while (usedIds.has(id));
     usedIds.add(id);
-    const price = randFloat(t.priceRange[0], t.priceRange[1]);
+    const scaled = scaleRange(t.priceRange, coin.searchTerm, t.title);
+    const price = randFloat(scaled[0], scaled[1]);
     const shipping = pick(SHIPPING);
     const soldDate = randDate(90);
     const seller = pick(SELLERS);
@@ -2380,21 +2382,29 @@ function doAutoImport() {
   console.log(`  Total datasets: ${datasets.length}, Total comps: ${datasets.reduce((s,d) => s + d.compCount, 0)}\n`);
 }
 
-if (showStat) {
-  showStatus();
-} else if (doCommon) {
-  runCommonDates();
-  if (doImport) doAutoImport();
-} else if (dayNum === 'all') {
-  console.log('\n  ═══ Running ALL days + common dates ═══');
-  let grand = 0;
-  for (let i = 1; i <= SCHEDULE.length; i++) grand += runDay(i);
-  grand += runCommonDates();
-  console.log(`\n  Grand total: ${grand} comps generated\n`);
-  if (doImport) doAutoImport();
-} else if (dayNum >= 1 && dayNum <= SCHEDULE.length) {
-  runDay(dayNum);
-  if (doImport) doAutoImport();
-} else {
-  showSchedule();
-}
+(async () => {
+  // Fetch current spot prices before generating any data
+  if (!showStat) {
+    console.log('\n  Initialising spot prices for price scaling...');
+    await initSpot();
+  }
+
+  if (showStat) {
+    showStatus();
+  } else if (doCommon) {
+    runCommonDates();
+    if (doImport) doAutoImport();
+  } else if (dayNum === 'all') {
+    console.log('\n  ═══ Running ALL days + common dates ═══');
+    let grand = 0;
+    for (let i = 1; i <= SCHEDULE.length; i++) grand += runDay(i);
+    grand += runCommonDates();
+    console.log(`\n  Grand total: ${grand} comps generated\n`);
+    if (doImport) doAutoImport();
+  } else if (dayNum >= 1 && dayNum <= SCHEDULE.length) {
+    runDay(dayNum);
+    if (doImport) doAutoImport();
+  } else {
+    showSchedule();
+  }
+})();

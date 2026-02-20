@@ -5,6 +5,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { initSpot, scaleRange } = require('./spotScaler');
 
 const OUT_DIR = path.join(__dirname, '..', 'data', 'terapeak');
 if (!fs.existsSync(OUT_DIR)) fs.mkdirSync(OUT_DIR, { recursive: true });
@@ -244,7 +245,8 @@ function generateRows(coin) {
     do { id = fakeItemId(); } while (usedIds.has(id));
     usedIds.add(id);
 
-    const price = randFloat(t.priceRange[0], t.priceRange[1]);
+    const scaled = scaleRange(t.priceRange, coin.searchTerm, t.title);
+    const price = randFloat(scaled[0], scaled[1]);
     const shipping = pick(SHIPPING);
     const soldDate = randDate(90);
     const seller = pick(SELLERS);
@@ -286,22 +288,27 @@ function writeCSV(filename, rows) {
 }
 
 // ── Main ────────────────────────────────────────────────────
-console.log('\n═══ Generating American Silver Eagle Terapeak CSVs ═══\n');
-let aseTotal = 0;
-for (const coin of ASE_COINS) {
-  const rows = generateRows(coin);
-  writeCSV(coin.filename, rows);
-  aseTotal += rows.length;
-}
-console.log(`\n  ASE subtotal: ${aseTotal} sold comps across ${ASE_COINS.length} CSVs\n`);
+(async () => {
+  console.log('\n  Initialising spot prices for price scaling...');
+  await initSpot();
 
-console.log('═══ Generating American Gold Eagle Terapeak CSVs ═══\n');
-let ageTotal = 0;
-for (const coin of AGE_COINS) {
-  const rows = generateRows(coin);
-  writeCSV(coin.filename, rows);
-  ageTotal += rows.length;
-}
-console.log(`\n  AGE subtotal: ${ageTotal} sold comps across ${AGE_COINS.length} CSVs`);
-console.log(`\n  GRAND TOTAL: ${aseTotal + ageTotal} sold comps, ${ALL_COINS.length} CSVs`);
-console.log(`  Output: ${OUT_DIR}/\n`);
+  console.log('\n═══ Generating American Silver Eagle Terapeak CSVs ═══\n');
+  let aseTotal = 0;
+  for (const coin of ASE_COINS) {
+    const rows = generateRows(coin);
+    writeCSV(coin.filename, rows);
+    aseTotal += rows.length;
+  }
+  console.log(`\n  ASE subtotal: ${aseTotal} sold comps across ${ASE_COINS.length} CSVs\n`);
+
+  console.log('═══ Generating American Gold Eagle Terapeak CSVs ═══\n');
+  let ageTotal = 0;
+  for (const coin of AGE_COINS) {
+    const rows = generateRows(coin);
+    writeCSV(coin.filename, rows);
+    ageTotal += rows.length;
+  }
+  console.log(`\n  AGE subtotal: ${ageTotal} sold comps across ${AGE_COINS.length} CSVs`);
+  console.log(`\n  GRAND TOTAL: ${aseTotal + ageTotal} sold comps, ${ALL_COINS.length} CSVs`);
+  console.log(`  Output: ${OUT_DIR}/\n`);
+})();
