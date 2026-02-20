@@ -648,6 +648,85 @@
     .tracker-legend-item { display: inline-flex; align-items: center; gap: 6px; }
     .tracker-legend-swatch { display: inline-block; width: 12px; height: 12px; border-radius: 3px; }
     .tracker-legend-note { color: var(--text-muted); font-size: 0.72rem; }
+
+    /* ── Terapeak Import Tab ── */
+    .tp-upload-area {
+      border: 2px dashed var(--border);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      margin-bottom: 16px;
+    }
+    .tp-upload-area:hover, .tp-upload-area.tp-drag-over {
+      border-color: var(--accent);
+      background: rgba(52, 152, 219, 0.05);
+    }
+    .tp-upload-icon { font-size: 2rem; margin-bottom: 8px; }
+    .tp-upload-area p { color: var(--text-muted); font-size: 0.85rem; margin: 0 0 12px; }
+    .tp-search-term-row {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      margin: 12px auto;
+      max-width: 400px;
+    }
+    .tp-search-term-row label { font-size: 0.78rem; font-weight: 600; color: var(--text-secondary); }
+    .tp-search-term-row input {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      color: var(--text);
+      font-size: 0.9rem;
+    }
+    .tp-file-name {
+      display: inline-block;
+      padding: 4px 10px;
+      background: var(--surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius);
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+    }
+    .tp-dataset-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border-subtle);
+      gap: 12px;
+    }
+    .tp-dataset-item:last-child { border-bottom: none; }
+    .tp-dataset-info { flex: 1; }
+    .tp-dataset-term { font-weight: 700; font-size: 0.9rem; }
+    .tp-dataset-meta { font-size: 0.72rem; color: var(--text-muted); margin-top: 2px; }
+    .tp-dataset-actions { display: flex; gap: 6px; }
+    .tp-btn-sm {
+      font-size: 0.72rem;
+      padding: 4px 10px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      color: var(--text-secondary);
+      cursor: pointer;
+    }
+    .tp-btn-sm:hover { background: var(--border-subtle); }
+    .tp-btn-del { color: var(--accent-red, #c0392b); border-color: var(--accent-red, #c0392b); }
+    .tp-btn-del:hover { background: rgba(192, 57, 43, 0.1); }
+    .tp-import-success {
+      padding: 12px 16px;
+      background: rgba(46, 204, 113, 0.08);
+      border: 1px solid var(--green);
+      border-radius: var(--radius-lg);
+      font-size: 0.85rem;
+      margin-top: 12px;
+    }
+    .tp-import-success strong { color: var(--green); }
   </style>
 </head>
 <body>
@@ -663,6 +742,7 @@
     <button class="tab-btn" role="tab" id="tab-price" aria-controls="panel-price" aria-selected="true">Price Discovery</button>
     <button class="tab-btn" role="tab" id="tab-melt" aria-controls="panel-melt" aria-selected="false">Melt Calculator</button>
     <button class="tab-btn" role="tab" id="tab-tracker" aria-controls="panel-tracker" aria-selected="false">Live eBay Tracker</button>
+    <button class="tab-btn" role="tab" id="tab-terapeak" aria-controls="panel-terapeak" aria-selected="false">Sold Data</button>
   </nav>
 
   <!-- ══════════════════════════════════════════════════════ -->
@@ -1158,6 +1238,46 @@
     <div id="tracker-empty" class="empty-state">
       <div class="icon" aria-hidden="true">&#x1F4CA;</div>
       <p>Enter a coin series above and tap <strong>Load Market Data</strong> to see a year &times; mint matrix of median completed-sale prices and cheapest Buy It Now listings from eBay.</p>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════ -->
+  <!-- TAB 4 — Terapeak Sold Data Import                      -->
+  <!-- ══════════════════════════════════════════════════════ -->
+  <section id="panel-terapeak" class="tab-panel" role="tabpanel" aria-labelledby="tab-terapeak" aria-hidden="true">
+    <div class="card">
+      <h2>&#x1F4C1; Import Terapeak Sold Data</h2>
+      <p style="color:var(--text-muted);font-size:0.82rem;margin:0 0 12px">
+        Go to <a href="https://www.ebay.com/sh/research" target="_blank" rel="noopener">eBay Seller Hub → Research (Terapeak)</a>,
+        search for your coin, export the CSV, then upload it here. Imported sold data will be used automatically in Price Discovery.
+      </p>
+
+      <!-- Upload Form -->
+      <div class="tp-upload-area" id="tp-upload-area">
+        <div class="tp-upload-icon" aria-hidden="true">&#x1F4E4;</div>
+        <p>Drag &amp; drop a Terapeak CSV here, or click to browse</p>
+        <input type="file" id="tp-file-input" accept=".csv,.tsv,.txt" style="display:none">
+        <div class="tp-search-term-row">
+          <label for="tp-search-term">Search Term Used</label>
+          <input id="tp-search-term" type="text" placeholder='e.g. "1892-S Morgan Silver Dollar"'>
+          <span style="font-size:0.72rem;color:var(--text-muted)">Must match what you searched in Terapeak</span>
+        </div>
+        <button id="tp-upload-btn" class="btn" type="button" disabled>Upload &amp; Import</button>
+      </div>
+
+      <!-- Upload Status -->
+      <div id="tp-status" class="status-bar" role="status" aria-live="polite" style="display:none"></div>
+
+      <!-- Import Result -->
+      <div id="tp-import-result" style="display:none"></div>
+    </div>
+
+    <!-- Existing Datasets -->
+    <div class="card" id="tp-datasets-card">
+      <h2>&#x1F4CA; Imported Datasets</h2>
+      <div id="tp-datasets-list">
+        <p style="color:var(--text-muted);font-size:0.82rem">Loading…</p>
+      </div>
     </div>
   </section>
 
@@ -1768,10 +1888,12 @@
       const usCompsAll = d.ebay?.us?.comps || [];
       const soldComps = usCompsAll.filter(c => c._source !== 'browse');
       const activeComps = usCompsAll.filter(c => c._source === 'browse');
+      const terapeakComps = usCompsAll.filter(c => c._source === 'terapeak');
       const exactCount = soldComps.filter(c => c.matchQuality === 'exact').length;
       const closeCount = soldComps.filter(c => c.matchQuality === 'close').length;
       html += '<div class="fmv-meta">';
-      if (soldComps.length) html += '<span class="fmv-chip" title="eBay sold comps">\uD83D\uDCE6 Sold: ' + exactCount + ' exact \u00B7 ' + closeCount + ' close \u00B7 ' + soldComps.length + ' total</span>';
+      if (terapeakComps.length) html += '<span class="fmv-chip" style="background:rgba(46,204,113,0.12);color:var(--green);font-weight:700" title="Terapeak sold data (verified)">\uD83D\uDCCA Terapeak: ' + terapeakComps.length + ' sold comps</span>';
+      if (soldComps.length > terapeakComps.length) html += '<span class="fmv-chip" title="eBay API sold comps">\uD83D\uDCE6 Sold: ' + exactCount + ' exact \u00B7 ' + closeCount + ' close \u00B7 ' + (soldComps.length - terapeakComps.length) + ' total</span>';
       if (activeComps.length) html += '<span class="fmv-chip source-tag-active" title="Active eBay listings (for sale, not sold)">\uD83D\uDED2 Active: ' + activeComps.length + ' for sale</span>';
       // Data source warning
       var ds = v.dataSource;
@@ -1850,8 +1972,11 @@
           const mqTag = '<span class="match-tag match-' + mq + '">' + mq + '</span>';
           const gtLabel = c.gradeType === 'graded' ? '<span class="match-tag" style="background:#e8d5f5;color:#6b21a8">graded</span>' : '<span class="match-tag" style="background:#d5f5e3;color:#166534">raw</span>';
           const isActive = c._source === 'browse';
+          const isTerapeak = c._source === 'terapeak';
           const sourceTag = isActive
             ? '<span class="match-tag source-tag-active">FOR SALE</span>'
+            : isTerapeak
+            ? '<span class="match-tag source-tag-sold" style="background:rgba(46,204,113,0.15);font-weight:700">TERAPEAK</span>'
             : '<span class="match-tag source-tag-sold">SOLD</span>';
           const rowClass = isActive ? ' class="active-listing-row"' : '';
           html += '<tr' + rowClass + '><td>' + (i + 1) + '</td>';
@@ -3217,6 +3342,192 @@
   // Pre-fetch spot prices so melt info is available in Price Discovery results
   MeltSpotAdapter.getSpot('gold');
   MeltSpotAdapter.getSpot('silver');
+
+  /* ═══════════════════════════════════════════════════════════
+   *  TERAPEAK CSV IMPORT CONTROLLER
+   * ═══════════════════════════════════════════════════════════ */
+  const TerapeakImporter = {
+    els: {},
+    selectedFile: null,
+
+    init() {
+      this.els = {
+        area:       document.getElementById('tp-upload-area'),
+        fileInput:  document.getElementById('tp-file-input'),
+        searchTerm: document.getElementById('tp-search-term'),
+        uploadBtn:  document.getElementById('tp-upload-btn'),
+        status:     document.getElementById('tp-status'),
+        result:     document.getElementById('tp-import-result'),
+        list:       document.getElementById('tp-datasets-list'),
+      };
+
+      // Click to browse
+      this.els.area.addEventListener('click', (e) => {
+        if (e.target === this.els.searchTerm || e.target === this.els.uploadBtn || e.target.tagName === 'LABEL') return;
+        this.els.fileInput.click();
+      });
+
+      // File selected
+      this.els.fileInput.addEventListener('change', () => {
+        if (this.els.fileInput.files.length > 0) {
+          this.selectedFile = this.els.fileInput.files[0];
+          this._showFileName(this.selectedFile.name);
+          this._updateBtn();
+        }
+      });
+
+      // Drag and drop
+      this.els.area.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        this.els.area.classList.add('tp-drag-over');
+      });
+      this.els.area.addEventListener('dragleave', () => {
+        this.els.area.classList.remove('tp-drag-over');
+      });
+      this.els.area.addEventListener('drop', (e) => {
+        e.preventDefault();
+        this.els.area.classList.remove('tp-drag-over');
+        if (e.dataTransfer.files.length > 0) {
+          this.selectedFile = e.dataTransfer.files[0];
+          this._showFileName(this.selectedFile.name);
+          this._updateBtn();
+        }
+      });
+
+      // Search term input enables/disables button
+      this.els.searchTerm.addEventListener('input', () => this._updateBtn());
+
+      // Upload button
+      this.els.uploadBtn.addEventListener('click', () => this._upload());
+
+      // Load datasets on init
+      this._loadDatasets();
+    },
+
+    _showFileName(name) {
+      let el = this.els.area.querySelector('.tp-file-name');
+      if (!el) {
+        el = document.createElement('div');
+        el.className = 'tp-file-name';
+        this.els.area.querySelector('.tp-search-term-row').before(el);
+      }
+      el.textContent = '\uD83D\uDCC4 ' + name;
+    },
+
+    _updateBtn() {
+      const hasFile = !!this.selectedFile;
+      const hasTerm = !!this.els.searchTerm.value.trim();
+      this.els.uploadBtn.disabled = !(hasFile && hasTerm);
+    },
+
+    async _upload() {
+      const file = this.selectedFile;
+      const searchTerm = this.els.searchTerm.value.trim();
+      if (!file || !searchTerm) return;
+
+      this.els.uploadBtn.disabled = true;
+      this.els.uploadBtn.textContent = 'Importing…';
+      this.els.status.style.display = 'block';
+      this.els.status.textContent = 'Uploading and parsing CSV…';
+      this.els.status.className = 'status-bar status-loading';
+      this.els.result.style.display = 'none';
+
+      try {
+        const form = new FormData();
+        form.append('file', file);
+        form.append('searchTerm', searchTerm);
+
+        const resp = await fetch('/api/terapeak/import', { method: 'POST', body: form });
+        const data = await resp.json();
+
+        if (!resp.ok) {
+          throw new Error(data.error || 'Import failed');
+        }
+
+        this.els.status.style.display = 'none';
+        this.els.result.style.display = 'block';
+        const imp = data.import;
+        const parse = data.parse;
+
+        let html = '<div class="tp-import-success">';
+        html += '<strong>\u2705 Import successful!</strong><br>';
+        html += '<strong>' + imp.newComps + '</strong> new sold comps imported';
+        if (imp.duplicatesSkipped > 0) html += ' (' + imp.duplicatesSkipped + ' duplicates skipped)';
+        html += '.<br>';
+        html += 'Total stored for "<em>' + this._esc(searchTerm) + '</em>": <strong>' + imp.totalStored + '</strong> comps.<br>';
+        html += '<span style="font-size:0.75rem;color:var(--text-muted)">Parsed ' + parse.totalRows + ' rows, ' + parse.validComps + ' valid, ' + parse.skipped + ' skipped.</span>';
+        if (parse.unmappedColumns && parse.unmappedColumns.length > 0) {
+          html += '<br><span style="font-size:0.72rem;color:var(--text-muted)">Unmapped columns: ' + parse.unmappedColumns.join(', ') + '</span>';
+        }
+        html += '</div>';
+        this.els.result.innerHTML = html;
+
+        // Reset
+        this.selectedFile = null;
+        this.els.fileInput.value = '';
+        const fnEl = this.els.area.querySelector('.tp-file-name');
+        if (fnEl) fnEl.remove();
+
+        // Refresh datasets list
+        this._loadDatasets();
+      } catch (err) {
+        this.els.status.textContent = '\u274C ' + err.message;
+        this.els.status.className = 'status-bar status-error';
+      } finally {
+        this.els.uploadBtn.disabled = false;
+        this.els.uploadBtn.textContent = 'Upload & Import';
+        this._updateBtn();
+      }
+    },
+
+    async _loadDatasets() {
+      try {
+        const resp = await fetch('/api/terapeak/datasets');
+        const data = await resp.json();
+        const datasets = data.datasets || [];
+
+        if (datasets.length === 0) {
+          this.els.list.innerHTML = '<p style="color:var(--text-muted);font-size:0.82rem">No Terapeak data imported yet. Upload a CSV above to get started.</p>';
+          return;
+        }
+
+        let html = '';
+        for (const ds of datasets) {
+          const date = ds.lastImport ? new Date(ds.lastImport).toLocaleDateString() : 'unknown';
+          html += '<div class="tp-dataset-item" data-key="' + this._esc(ds.key) + '">';
+          html += '<div class="tp-dataset-info">';
+          html += '<div class="tp-dataset-term">' + this._esc(ds.searchTerm) + '</div>';
+          html += '<div class="tp-dataset-meta">' + ds.compCount + ' sold comps \u2022 Last import: ' + date + ' \u2022 Imported ' + (ds.importCount || 1) + 'x</div>';
+          html += '</div>';
+          html += '<div class="tp-dataset-actions">';
+          html += '<button class="tp-btn-sm tp-btn-del" onclick="TerapeakImporter._deleteDataset(\'' + this._esc(ds.key) + '\')">\uD83D\uDDD1 Delete</button>';
+          html += '</div>';
+          html += '</div>';
+        }
+        this.els.list.innerHTML = html;
+      } catch (err) {
+        this.els.list.innerHTML = '<p style="color:var(--accent-red,#c0392b);font-size:0.82rem">Failed to load datasets: ' + err.message + '</p>';
+      }
+    },
+
+    async _deleteDataset(key) {
+      if (!confirm('Delete "' + key + '" terapeak data?')) return;
+      try {
+        await fetch('/api/terapeak/datasets/' + encodeURIComponent(key), { method: 'DELETE' });
+        this._loadDatasets();
+      } catch (err) {
+        alert('Delete failed: ' + err.message);
+      }
+    },
+
+    _esc(str) {
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+  };
+
+  TerapeakImporter.init();
   </script>
 
 </body>

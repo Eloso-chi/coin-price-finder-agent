@@ -6,6 +6,7 @@
 const axios = require('axios');
 const { TTLCache } = require('../utils/cache');
 const stats = require('../utils/stats');
+const terapeakService = require('./terapeakService');
 
 // ── Config ──────────────────────────────────────────────────
 const EBAY_APP_ID        = process.env.EBAY_APP_ID || '';
@@ -736,6 +737,45 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
   let apiUsed = 'none';
   let usedFallback = false;
   let actualDays = requestedDays;
+
+  // ── Attempt 0: Terapeak imported sold data (highest priority — real sold comps) ──
+  const terapeakData = terapeakService.lookupComps(keywords);
+  if (terapeakData && terapeakData.comps && terapeakData.comps.length > 0) {
+    let tpComps = terapeakData.comps;
+    // Filter by time window if soldDate available
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - requestedDays);
+    const withinWindow = tpComps.filter(c => {
+      if (!c.soldDate) return true; // keep comps without dates
+      return new Date(c.soldDate) >= cutoff;
+    });
+    // Use windowed comps if enough, otherwise use all terapeak comps
+    const pool = withinWindow.length >= opts.usMinComps ? withinWindow : tpComps;
+
+    // Apply scoring and filters
+    const scored = pool.map(c => scoreMatch(c, expected));
+    const { kept, removed } = applyFilters(scored, opts, expected);
+    const prices = kept.map(c => c.totalUsd);
+
+    if (kept.length >= opts.usMinComps) {
+      usResult = { stats: stats.summarize(prices), comps: kept, removed, error: null };
+      apiUsed = 'terapeak';
+      console.log(`[ebay] Terapeak sold data: ${kept.length} comps (from "${terapeakData.searchTerm}", imported ${terapeakData.lastImport})`);
+
+      // Still no global — leave empty
+      globalResult = { stats: null, comps: [], removed: {}, error: null };
+
+      const lookback = { requested: requestedDays, used: requestedDays, extended: false };
+      const result = { keywords, us: usResult, global: globalResult, usedFallback: false, apiUsed, lookback };
+      cache.set(cacheKey, result);
+      return result;
+    } else if (kept.length > 0) {
+      // Some terapeak comps but not enough — seed usResult, continue to APIs for more
+      usResult = { stats: stats.summarize(prices), comps: kept, removed, error: null };
+      apiUsed = 'terapeak';
+      console.log(`[ebay] Terapeak partial: ${kept.length} comps (need ${opts.usMinComps}), supplementing with APIs…`);
+    }
+  }
 
   // Build the lookback tiers: start with requested, then widen up to 365
   const lookbackTiers = [requestedDays];

@@ -110,19 +110,24 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null) {
   // Count how many comps are actual sold vs active-for-sale (Browse API)
   const soldComps = usComps.filter(c => c._source !== 'browse');
   const activeComps = usComps.filter(c => c._source === 'browse');
+  const terapeakComps = usComps.filter(c => c._source === 'terapeak');
   const soldCount = soldComps.length;
   const activeCount = activeComps.length;
+  const terapeakCount = terapeakComps.length;
   const totalComps = usComps.length;
   const soldRatio = totalComps > 0 ? soldCount / totalComps : 0;
   // If all or most comps are active listings, flag it
   const browseOnly = soldCount === 0 && activeCount > 0;
   const mostlyBrowse = soldRatio < 0.3 && activeCount > 0;
 
+  if (terapeakCount > 0) {
+    explanation.push(`${terapeakCount} Terapeak sold comps used (verified eBay sales data).`);
+  }
   if (browseOnly) {
     explanation.push('⚠ ALL comps are active listings (asking prices) — no verified sold data available. FMV is estimated from for-sale prices and may be inflated.');
   } else if (mostlyBrowse) {
     explanation.push(`⚠ Only ${soldCount} of ${totalComps} comps are sold — ${activeCount} are active listings (asking prices). FMV may be less reliable.`);
-  } else if (soldCount > 0) {
+  } else if (soldCount > 0 && terapeakCount === 0) {
     explanation.push(`${soldCount} sold comps used for valuation.`);
   }
 
