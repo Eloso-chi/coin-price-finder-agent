@@ -377,12 +377,28 @@ function lookupComps(keywords) {
   // Fuzzy: bidirectional token matching.
   const searchTokens = normalizedSearch.split(/\s+/).filter(t => t.length > 1);
 
+  // Extract query year (if present) for year-match guard
+  const queryYearMatch = normalizedSearch.match(/\b(1[7-9]\d{2}|20[0-4]\d)\b/);
+  const queryYear = queryYearMatch ? queryYearMatch[1] : null;
+
   // Collect all qualifying matches with their scores
   const candidates = [];
 
   for (const [key, data] of Object.entries(store)) {
     const keyTokens = key.split(/\s+/).filter(t => t.length > 1);
     if (!keyTokens.length || !searchTokens.length) continue;
+
+    // ── Year-mismatch guard: when the query contains a specific year,
+    //    reject datasets whose key contains a DIFFERENT year.  This
+    //    prevents "1956-D Franklin Half" from matching "1948 Franklin Half"
+    //    on shared series tokens alone. ──
+    if (queryYear) {
+      const keyYearMatch = key.match(/\b(1[7-9]\d{2}|20[0-4]\d)\b/);
+      const keyYear = keyYearMatch ? keyYearMatch[1] : null;
+      // Skip if dataset has a year and it's different from query year
+      // (yearless / "Generic" datasets are still allowed through)
+      if (keyYear && keyYear !== queryYear) continue;
+    }
 
     // ── Weight-mismatch guard: reject datasets whose name or comps
     //    clearly indicate a different weight than what was searched. ──
@@ -566,6 +582,8 @@ function evictStaleComps(maxDays = 180) {
 function normalizeSearchKey(term) {
   return (term || '')
     .toLowerCase()
+    // Split year-mint tokens: "1956-D" → "1956 d", "1878-CC" → "1878 cc"
+    .replace(/\b(\d{4})-(cc|d|s|o|w|p)\b/gi, '$1 $2')
     .replace(/[^a-z0-9\s\-]/g, '')
     .replace(/\s+/g, ' ')
     .trim();

@@ -98,7 +98,8 @@ describe('normalizeSearchKey', () => {
   });
 
   test('strips special characters but keeps letters, numbers, spaces, hyphens', () => {
-    expect(normalizeSearchKey('1893-S Morgan $1')).toBe('1893-s morgan 1');
+    // Year-mint tokens like "1893-S" are split: "1893 s"
+    expect(normalizeSearchKey('1893-S Morgan $1')).toBe('1893 s morgan 1');
     expect(normalizeSearchKey("MS-65+'s Best")).toBe("ms-65s best");
   });
 
