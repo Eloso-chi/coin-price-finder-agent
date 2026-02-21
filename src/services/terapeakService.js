@@ -355,8 +355,11 @@ function importComps(searchTerm, comps, meta = {}) {
  * Look up terapeak sold comps for a search term.
  * Returns null if no data, or { comps, searchTerm, lastImport }.
  * Tries exact match first, then fuzzy substring matching.
+ * @param {string} keywords — search query
+ * @param {object} [opts] — optional hints
+ * @param {string} [opts.metal] — expected metal (e.g. 'silver', 'gold')
  */
-function lookupComps(keywords) {
+function lookupComps(keywords, opts = {}) {
   const store = loadStore();
   const normalizedSearch = normalizeSearchKey(keywords);
 
@@ -368,6 +371,10 @@ function lookupComps(keywords) {
   // Detect weight from the ORIGINAL (un-normalized) query and dataset searchTerm
   // since normalizeSearchKey strips '/' turning "1/2" into "12"
   const searchWeight = detectWeightFromQuery(keywords);
+
+  // Detect metal from the query so we can prefer matching-metal datasets.
+  // Also accept an explicit metal hint from the caller (e.g. expected.metal).
+  const queryMetal = _detectMetalFromText(keywords) || (opts.metal ? opts.metal.toLowerCase() : null);
 
   // Does the search query contain a specific year?  If not we'll merge
   // comps from ALL matching datasets for better coverage.
@@ -408,6 +415,15 @@ function lookupComps(keywords) {
       continue; // e.g. search "1oz" vs dataset "half oz" — skip entirely
     }
 
+    // ── Metal-mismatch guard: reject datasets whose name specifies a
+    //    different metal than the query.  This prevents "Perth Lunar
+    //    Dragon Silver 1oz" from matching the gold dataset when the eBay
+    //    keywords happen to omit the metal token. ──
+    const keyMetal = _detectMetalFromText(data.searchTerm || key);
+    if (queryMetal && keyMetal && queryMetal !== keyMetal) {
+      continue; // e.g. query mentions "silver" but dataset is "gold" — skip
+    }
+
     // Forward: how many key tokens appear in the search
     const fwdHits = keyTokens.filter(t => searchTokens.includes(t)).length;
     const fwdScore = fwdHits / keyTokens.length;
@@ -437,7 +453,20 @@ function lookupComps(keywords) {
       // since they represent the broadest market view.
       const isGeneric = /generic/i.test(data.searchTerm || key);
       const bonus = (!queryHasYear && isGeneric) ? 0.10 : 0;
-      candidates.push({ key, data, score: combined + bonus, isGeneric });
+
+      // Metal tiebreak: when query has an explicit metal, boost datasets
+      // that match and penalize those that don't.  When query has NO metal
+      // but the dataset does, apply a small penalty for gold/platinum
+      // (silver is the most common unspecified bullion metal).
+      let metalBonus = 0;
+      if (queryMetal && keyMetal === queryMetal)  metalBonus =  0.10;
+      if (queryMetal && keyMetal && keyMetal !== queryMetal) metalBonus = -0.20;
+      // When query is ambiguous (no metal): prefer silver datasets slightly
+      if (!queryMetal && keyMetal === 'gold')      metalBonus = -0.05;
+      if (!queryMetal && keyMetal === 'platinum')   metalBonus = -0.05;
+      if (!queryMetal && keyMetal === 'palladium')  metalBonus = -0.05;
+
+      candidates.push({ key, data, score: combined + bonus + metalBonus, isGeneric, keyMetal });
     }
   }
 
@@ -616,6 +645,20 @@ function detectWeightFromQuery(text) {
   if (/\btenth\b/.test(t))     return 0.1;
   if (/\bquarter\b/.test(t))   return 0.25;
   if (/\bhalf\b/.test(t))      return 0.5;
+  return null;
+}
+
+/**
+ * Detect precious metal from a text string (query or dataset name).
+ * Returns 'gold', 'silver', 'platinum', 'palladium', or null.
+ */
+function _detectMetalFromText(text) {
+  if (!text) return null;
+  const t = text.toLowerCase();
+  if (/\bgold\b/.test(t))      return 'gold';
+  if (/\bsilver\b/.test(t))    return 'silver';
+  if (/\bplatinum\b/.test(t))  return 'platinum';
+  if (/\bpalladium\b/.test(t)) return 'palladium';
   return null;
 }
 

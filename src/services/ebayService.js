@@ -783,6 +783,13 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
   // Ensure _rawQuery is available for variant filtering
   if (!expected._rawQuery) expected._rawQuery = keywords;
 
+  // Auto-detect metal from the raw query / keywords when not explicitly provided.
+  // This prevents gold Terapeak datasets from matching a silver search when the
+  // caller (e.g. marketAggregator) doesn't set expected.metal.
+  if (!expected.metal && expected._rawQuery) {
+    expected.metal = detectMetalFromTitle(expected._rawQuery) || null;
+  }
+
   const opts = {
     timeWindowDays: options.timeWindowDays || 90,
     requirePCGSOnly: !!options.requirePCGSOnly,
@@ -799,7 +806,7 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
              lookback: { requested: requestedDays, used: requestedDays, extended: false } };
   }
 
-  const cacheKey = `ebay:${keywords}:${JSON.stringify(opts)}`;
+  const cacheKey = `ebay:${keywords}:${expected.metal || ''}:${JSON.stringify(opts)}`;
   if (cache.has(cacheKey)) return cache.get(cacheKey);
 
   let usResult, globalResult;
@@ -808,7 +815,7 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
   let actualDays = requestedDays;
 
   // ── Attempt 0: Terapeak imported sold data (highest priority — real sold comps) ──
-  const terapeakData = terapeakService.lookupComps(keywords);
+  const terapeakData = terapeakService.lookupComps(keywords, { metal: expected.metal || null });
   if (terapeakData && terapeakData.comps && terapeakData.comps.length > 0) {
     let tpComps = terapeakData.comps;
     // Filter by time window if soldDate available

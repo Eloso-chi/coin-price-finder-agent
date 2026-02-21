@@ -27,6 +27,20 @@ function isBullionSeries(series) {
 }
 
 /**
+ * Detect precious metal from a series / query string.
+ * Returns 'gold', 'silver', 'platinum', 'palladium', or null.
+ */
+function _detectMetal(text) {
+  if (!text) return null;
+  const t = text.toLowerCase();
+  if (/\bgold\b/.test(t))      return 'gold';
+  if (/\bsilver\b/.test(t))    return 'silver';
+  if (/\bplatinum\b/.test(t))  return 'platinum';
+  if (/\bpalladium\b/.test(t)) return 'palladium';
+  return null;
+}
+
+/**
  * Extract grade token from a listing title.
  * Returns normalized grade (e.g. "MS69", "PR70") or "RAW".
  */
@@ -388,11 +402,12 @@ async function fetchMarketMatrix({
 
   // Fetch completed sales via the existing fetchSoldComps pipeline
   // This returns comps from Insights + Finding APIs
+  const detectedMetal = _detectMetal(series);
   const soldResult = await ebayService.fetchSoldComps(keywords, {
     timeWindowDays,
     maxPages: 3,
     usMinComps: 0,  // don't trigger Browse fallback
-  }, { series, _rawQuery: keywords });
+  }, { series, _rawQuery: keywords, metal: detectedMetal });
 
   const completedComps = [
     ...(soldResult.us?.comps || []),
@@ -411,7 +426,7 @@ async function fetchMarketMatrix({
       timeWindowDays: 1, // very short window so Finding yields little
       maxPages: 1,
       usMinComps: 999,   // force Browse API fallback
-    }, { series, _rawQuery: keywords });
+    }, { series, _rawQuery: keywords, metal: detectedMetal });
     // Browse comps have listingType: 'FixedPrice' or _source: 'browse'
     const allActive = [
       ...(activeResult.us?.comps || []),
