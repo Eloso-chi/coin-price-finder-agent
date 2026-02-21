@@ -232,7 +232,18 @@ router.post('/', async (req, res) => {
     // Enrich the response with Numista rarity index, prices, composition, and references.
     let numista = null;
     try {
-      const numistaCountry = pcgs.country || coinData?.country || null;
+      // Detect country from PCGS, structured input, or series name keywords
+      const seriesForCountry = (identification.parsed?.series || pcgs.series || '').toLowerCase();
+      const queryForCountry = String(query).toLowerCase();
+      const numistaCountry = pcgs.country || coinData?.country
+        || (/\bcanad/i.test(seriesForCountry + ' ' + queryForCountry) ? 'canada'
+          : /\baustral|\bperth|\bkookaburra|\bkangaroo|\blunar(?!.*chinese)/i.test(seriesForCountry + ' ' + queryForCountry) ? 'australia'
+          : /\bmexi|\blibertad/i.test(seriesForCountry + ' ' + queryForCountry) ? 'mexico'
+          : /\bsouth\s*afric|\bkrugerrand/i.test(seriesForCountry + ' ' + queryForCountry) ? 'south africa'
+          : /\bbritish|\bbritannia|\broyal\s*mint\b.*\buk/i.test(seriesForCountry + ' ' + queryForCountry) ? 'united kingdom'
+          : /\baustri|\bphilharmonic/i.test(seriesForCountry + ' ' + queryForCountry) ? 'austria'
+          : /\bchin|\bpanda/i.test(seriesForCountry + ' ' + queryForCountry) ? 'china'
+          : null);
       numista = await numistaService.lookupCoin(identification.parsed || {}, numistaCountry);
     } catch (err) {
       console.warn('[Numista] Non-fatal lookup error:', err.message);

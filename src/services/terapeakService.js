@@ -187,19 +187,22 @@ function rowToComp(mappedRow, searchTerm) {
     if (!isNaN(d.getTime())) soldDate = d.toISOString();
   }
 
-  // Build eBay URL: prefer a search-by-title URL over a direct item link.
-  // Terapeak data often contains stale eBay item IDs — the listing may have
-  // ended and the ID recycled to a completely different product (e.g. a Lenovo
-  // workstation instead of a Libertad).  A title-based search link always shows
-  // the right product category even if the original listing is gone.
+  // Build eBay URL: prefer a real eBay item URL from the CSV data.
+  // Fall back to a title search URL only when no real URL is available.
   const itemId = mappedRow.itemId || null;
-  let url = mappedRow.url || null;
-  if (title) {
-    // Build an eBay completed-items search link from the title
+  const csvUrl = mappedRow.url || null;
+  let url;
+  if (csvUrl && /ebay\.com\/itm\//i.test(csvUrl)) {
+    // Real eBay item link from CSV — use directly
+    url = csvUrl;
+  } else if (itemId) {
+    url = `https://www.ebay.com/itm/${itemId}`;
+  } else if (title) {
+    // Fallback: search-by-title for items without a direct link
     const searchQuery = encodeURIComponent(title.substring(0, 80));
     url = `https://www.ebay.com/sch/i.html?_nkw=${searchQuery}&LH_Complete=1&LH_Sold=1`;
-  } else if (!url && itemId) {
-    url = `https://www.ebay.com/itm/${itemId}`;
+  } else {
+    url = null;
   }
 
   // Condition ID mapping
