@@ -15,7 +15,7 @@ const _cache = new TTLCache({ defaultTTL: 5 * 60 * 1000 });
 const GRADE_RE = /\b(MS|PR|PF|SP|AU|XF|EF|VF|F|VG|G|AG|PO)\s*[-]?\s*(\d{1,2})(\+)?\b/i;
 
 // Bullion series that should use grade-based matrix instead of year×mint
-const BULLION_SERIES_RE = /\b(silver\s*eagle|gold\s*eagle|platinum\s*eagle|libertad|maple\s*leaf|philharmonic|britannia|krugerrand|panda|kookaburra|koala|kangaroo|gold\s+buffalo|buffalo\s+gold|silver\s+buffalo|buffalo\s+silver|american\s+(gold|silver|platinum)|perth\s*mint|lunar|year\s+of\s+the)\b/i;
+const BULLION_SERIES_RE = /\b(silver\s*eagle|gold\s*eagle|platinum\s*eagle|libertad|maple\s*leaf|philharmonic|britannia|krugerrand|panda|kookaburra|koala|kangaroo|gold\s+buffalo|buffalo\s+gold|silver\s+buffalo|buffalo\s+silver|american\s+(gold|silver|platinum)|perth\s*mint|lunar|year\s+of\s+the|polar\s*bear)\b/i;
 
 /**
  * Detect if a series name looks like bullion (grade matrix mode).

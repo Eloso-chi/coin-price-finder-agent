@@ -301,6 +301,7 @@ function parseDescription(text) {
     'silver kookaburra', 'kookaburra',
     'gold kangaroo', 'kangaroo', 'nugget',
     'silver krugerrand', 'gold krugerrand', 'krugerrand',
+    'canadian silver polar bear', 'silver polar bear', 'polar bear',
     // US bullion & classic
     'american gold buffalo', 'gold buffalo',
     'american silver eagle', 'american gold eagle',
