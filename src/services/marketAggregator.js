@@ -392,7 +392,7 @@ async function fetchMarketMatrix({
     timeWindowDays,
     maxPages: 3,
     usMinComps: 0,  // don't trigger Browse fallback
-  }, { series });
+  }, { series, _rawQuery: keywords });
 
   const completedComps = [
     ...(soldResult.us?.comps || []),
@@ -411,7 +411,7 @@ async function fetchMarketMatrix({
       timeWindowDays: 1, // very short window so Finding yields little
       maxPages: 1,
       usMinComps: 999,   // force Browse API fallback
-    }, { series });
+    }, { series, _rawQuery: keywords });
     // Browse comps have listingType: 'FixedPrice' or _source: 'browse'
     const allActive = [
       ...(activeResult.us?.comps || []),

@@ -433,6 +433,22 @@ function scoreMatch(comp, expected) {
     score += 3; notes.push('lunar-match');
   }
 
+  // ── Variant mismatch: gilded / coloured / proof / first strike etc. ──
+  // When the query doesn't ask for a specialty variant, penalise comps whose
+  // title explicitly advertises one — these carry heavy premiums over BU.
+  const VARIANT_TOKENS = ['golden', 'gilded', 'gold plated', 'gold-plated',
+    'colorized', 'coloured', 'colorised', 'colour', 'enameled',
+    'first strike', 'first day', 'first release',
+    'antiqued', 'high relief', 'piedfort', 'privy'];
+  const queryLower = (expected._rawQuery || '').toLowerCase();
+  const hasVariantInQuery = VARIANT_TOKENS.some(t => queryLower.includes(t));
+  if (!hasVariantInQuery) {
+    const hasVariantInTitle = VARIANT_TOKENS.some(t => tLow.includes(t));
+    if (hasVariantInTitle) {
+      score -= 30; notes.push('variant-mismatch');
+    }
+  }
+
   // ── Weight / size match for bullion coins (25 pts match, –35 mismatch) ──
   if (expected.weight) {
     const detectedWeight = detectWeightFromTitle(tLow);
@@ -645,6 +661,26 @@ function applyFilters(comps, options, expected) {
     });
   }
 
+  // Variant-mismatch hard filter: remove comps with specialty variant tokens
+  // (golden, coloured, gilded, etc.) when the query didn't ask for them.
+  // These carry heavy premiums that distort FMV for regular BU coins.
+  {
+    const VARIANT_TOKENS = ['golden', 'gilded', 'gold plated', 'gold-plated',
+      'colorized', 'coloured', 'colorised', 'enameled',
+      'antiqued', 'high relief', 'piedfort', 'privy'];
+    const qLow = (expected._rawQuery || '').toLowerCase();
+    const queryWantsVariant = VARIANT_TOKENS.some(t => qLow.includes(t));
+    if (!queryWantsVariant) {
+      removed.variantMismatch = 0;
+      kept = kept.filter(c => {
+        const tLow = (c.title || '').toLowerCase();
+        const hasVariant = VARIANT_TOKENS.some(t => tLow.includes(t));
+        if (hasVariant) { removed.variantMismatch++; return false; }
+        return true;
+      });
+    }
+  }
+
   // Mint-mark mismatch filter: drop comps whose title explicitly states
   // a different mint mark than expected (e.g. user wants 1892-S but title says 1892-O)
   if (expected.mint) {
@@ -744,6 +780,9 @@ async function fetchFindingTier(keywords, timeWindowDays, maxPages, locatedIn) {
  * Returns an extra `lookback` object: { requested, used, extended }
  */
 async function fetchSoldComps(keywords, options = {}, expected = {}) {
+  // Ensure _rawQuery is available for variant filtering
+  if (!expected._rawQuery) expected._rawQuery = keywords;
+
   const opts = {
     timeWindowDays: options.timeWindowDays || 90,
     requirePCGSOnly: !!options.requirePCGSOnly,

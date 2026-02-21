@@ -174,7 +174,8 @@ router.post('/', async (req, res) => {
       weight: resolvedWeight || null,
       zodiacAnimal: zodiacAnimal,
       isLunarCoin: isLunarCoin,
-      perthSeriesLabel: perthSeriesLabel
+      perthSeriesLabel: perthSeriesLabel,
+      _rawQuery: String(query),
     };
 
     // ── Precious metal content cross-check ──
