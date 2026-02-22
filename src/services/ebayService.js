@@ -438,10 +438,12 @@ function scoreMatch(comp, expected) {
   // title explicitly advertises one — these carry heavy premiums over BU.
   const VARIANT_TOKENS = ['golden', 'gilded', 'gold plated', 'gold-plated',
     'colorized', 'coloured', 'colorised', 'colour', 'enameled',
-    'first strike', 'first day', 'first release',
+    'reverse proof', 'burnished', 'enhanced reverse proof',
+    'satin finish', 'first strike', 'first day', 'first release',
     'antiqued', 'high relief', 'piedfort', 'privy'];
   const queryLower = (expected._rawQuery || '').toLowerCase();
-  const hasVariantInQuery = VARIANT_TOKENS.some(t => queryLower.includes(t));
+  const hasVariantInQuery = VARIANT_TOKENS.some(t => queryLower.includes(t))
+    || (expected.finish && expected.finish !== 'Uncirculated');
   if (!hasVariantInQuery) {
     const hasVariantInTitle = VARIANT_TOKENS.some(t => tLow.includes(t));
     if (hasVariantInTitle) {
@@ -667,9 +669,11 @@ function applyFilters(comps, options, expected) {
   {
     const VARIANT_TOKENS = ['golden', 'gilded', 'gold plated', 'gold-plated',
       'colorized', 'coloured', 'colorised', 'enameled',
-      'antiqued', 'high relief', 'piedfort', 'privy'];
+      'reverse proof', 'burnished', 'enhanced reverse proof',
+      'satin finish', 'antiqued', 'high relief', 'piedfort', 'privy'];
     const qLow = (expected._rawQuery || '').toLowerCase();
-    const queryWantsVariant = VARIANT_TOKENS.some(t => qLow.includes(t));
+    const queryWantsVariant = VARIANT_TOKENS.some(t => qLow.includes(t))
+      || (expected.finish && expected.finish !== 'Uncirculated');
     if (!queryWantsVariant) {
       removed.variantMismatch = 0;
       kept = kept.filter(c => {
@@ -806,7 +810,7 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
              lookback: { requested: requestedDays, used: requestedDays, extended: false } };
   }
 
-  const cacheKey = `ebay:${keywords}:${expected.metal || ''}:${JSON.stringify(opts)}`;
+  const cacheKey = `ebay:${keywords}:${expected.metal || ''}:${expected._rawQuery || ''}:${JSON.stringify(opts)}`;
   if (cache.has(cacheKey)) return cache.get(cacheKey);
 
   let usResult, globalResult;
@@ -815,7 +819,34 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
   let actualDays = requestedDays;
 
   // ── Attempt 0: Terapeak imported sold data (highest priority — real sold comps) ──
-  const terapeakData = terapeakService.lookupComps(keywords, { metal: expected.metal || null });
+  let terapeakData = terapeakService.lookupComps(keywords, { metal: expected.metal || null });
+
+  // Also try the raw user query for Terapeak when keywords differ significantly.
+  // Keywords are built from parsed fields and may lose critical tokens
+  // (e.g. "2023 reverse proof Morgan and ASE 2 coin set" → keywords "2023 Morgan Reverse Proof"
+  //  drops "ASE", "set" — the raw query may match a multi-coin set dataset better).
+  if (expected._rawQuery) {
+    const rawNorm = expected._rawQuery.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();
+    const kwNorm  = keywords.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();
+    if (rawNorm !== kwNorm) {
+      const rawData = terapeakService.lookupComps(expected._rawQuery, { metal: expected.metal || null });
+      if (rawData && rawData.comps && rawData.comps.length > 0) {
+        if (!terapeakData || !terapeakData.comps || terapeakData.comps.length === 0) {
+          terapeakData = rawData;
+        } else {
+          // Both matched — prefer the raw-query dataset when the user's query
+          // mentions "set" and only the raw-query result is a set dataset.
+          const queryHasSet = /\bset\b/i.test(expected._rawQuery);
+          const rawIsSet = /\bset\b/i.test(rawData.searchTerm || '');
+          const kwIsSet  = /\bset\b/i.test(terapeakData.searchTerm || '');
+          if (queryHasSet && rawIsSet && !kwIsSet) {
+            terapeakData = rawData;
+          }
+        }
+      }
+    }
+  }
+
   if (terapeakData && terapeakData.comps && terapeakData.comps.length > 0) {
     let tpComps = terapeakData.comps;
     // Filter by time window if soldDate available
@@ -1002,7 +1033,8 @@ function buildKeywords(pcgsData, rawQuery, weight) {
     parts.push(pcgsData.mint);
   }
   if (pcgsData?.series) parts.push(pcgsData.series);
-  if (pcgsData?.grade) parts.push(pcgsData.grade);
+  if (pcgsData?.finish) parts.push(pcgsData.finish);
+  if (pcgsData?.grade && pcgsData.grade !== 'Proof') parts.push(pcgsData.grade);
   if (pcgsData?.designation) parts.push(pcgsData.designation);
   // Inject weight for bullion coins so eBay comps match the right size.
   if (weight) {

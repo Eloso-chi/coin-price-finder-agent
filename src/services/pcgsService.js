@@ -112,6 +112,7 @@ async function resolveFromDescription(text) {
       mint: parsed.mint || null,
       grade: parsed.grade || null,
       designation: parsed.designation || null,
+      finish: parsed.finish || null,
       variety: null,
       priceGuide: null,
       population: null,
@@ -213,6 +214,27 @@ function parseDescription(text) {
   const desMatch = t.match(/\b(DCAM|CAM|PL|DPL|FB|FBL|FS|FH|RD|RB|BN)\b/i);
   if (desMatch) result.designation = desMatch[1].toUpperCase();
 
+  // ── Finish / special strike detection ──
+  // Must come BEFORE proof/set detection so "reverse proof" isn't reduced to just "Proof".
+  // Order matters: longest phrases first.
+  const finishPatterns = [
+    { re: /\benhanced\s+reverse\s+proof\b/i,  finish: 'Enhanced Reverse Proof' },
+    { re: /\breverse\s+proof\b/i,              finish: 'Reverse Proof' },
+    { re: /\bburnished\b/i,                     finish: 'Burnished' },
+    { re: /\bsatin\s+finish\b/i,               finish: 'Satin Finish' },
+    { re: /\bantiqued\b/i,                      finish: 'Antiqued' },
+    { re: /\bhigh\s+relief\b/i,                finish: 'High Relief' },
+    { re: /\bcolorized\b/i,                     finish: 'Colorized' },
+    { re: /\bcoloured\b/i,                      finish: 'Colorized' },
+    { re: /\buncirculated\b(?!\s*set)/i,         finish: 'Uncirculated' },
+  ];
+  for (const { re, finish } of finishPatterns) {
+    if (re.test(t)) {
+      result.finish = finish;
+      break;
+    }
+  }
+
   // Proof / Mint set detection — MUST come before generic "proof" grade
   const setMatch = t.match(/\b(prestige|premier\s*silver|silver|clad)?\s*proof\s*set\b/i)
     || t.match(/\bmint\s*set\b/i)
@@ -236,8 +258,8 @@ function parseDescription(text) {
       result.setType = 'clad';
     }
     // Don't set grade to 'Proof' — it's a set, not a graded coin
-  } else if (/\bproof\b/i.test(t) && !result.grade) {
-    // Standalone "proof" without "set" → grade qualifier
+  } else if (/\bproof\b/i.test(t) && !result.grade && !result.finish) {
+    // Standalone "proof" without "set" and without a finish qualifier → grade
     result.grade = 'Proof';
   }
 

@@ -111,6 +111,9 @@ router.post('/', async (req, res) => {
       };
       ebayKeywords = `${yr} ${setLabels[resolvedSetType] || 'US proof set'}`.trim();
     } else {
+      // Enrich pcgs object with parsed finish so buildKeywords can use it
+      const parsedFinish = identification.parsed?.finish || null;
+      if (parsedFinish && !pcgs.finish) pcgs.finish = parsedFinish;
       ebayKeywords = ebayService.buildKeywords(pcgs, String(query), resolvedWeight);
     }
 
@@ -170,6 +173,7 @@ router.post('/', async (req, res) => {
       series: pcgs.series || identification.parsed?.series,
       grade: isSet ? null : (pcgs.grade || identification.parsed?.grade),
       designation: pcgs.designation || identification.parsed?.designation,
+      finish: identification.parsed?.finish || null,
       metal: expectedMetal,
       weight: resolvedWeight || null,
       zodiacAnimal: zodiacAnimal,
