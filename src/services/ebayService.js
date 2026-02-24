@@ -370,8 +370,22 @@ function scoreMatch(comp, expected) {
   // Grade token match
   if (expected.grade) {
     const g = expected.grade.toLowerCase().replace(/\s+/g, '');
-    if (tLow.replace(/\s+/g, '').includes(g)) { score += 15; notes.push('grade-exact'); }
-    else if (/pcgs|ngc|anacs|icg/i.test(tLow)) { score += 5; notes.push('certified'); }
+    // Normalize EF↔XF bidirectionally for matching
+    const gXF = g.replace(/^ef/, 'xf');
+    const gEF = g.replace(/^xf/, 'ef');
+    const tNorm = tLow.replace(/\s+/g, '');
+    if (tNorm.includes(g) || tNorm.includes(gXF) || tNorm.includes(gEF)) {
+      score += 15; notes.push('grade-exact');
+    } else if (/pcgs|ngc|anacs|icg/i.test(tLow)) {
+      score += 5; notes.push('certified');
+    }
+    // BU-term matching: if user searched "BU" or "Choice BU" etc.,
+    // also give credit for comp titles with matching BU terms
+    if (/bu|unc/i.test(g) || (expected._gradeSource === 'bu-term')) {
+      if (/\bBU\b|\bunc(?:irculated)?\b|\bbrill(?:iant)?\b/i.test(tLow)) {
+        score += 10; notes.push('bu-match');
+      }
+    }
   }
 
   // Mint match / mismatch

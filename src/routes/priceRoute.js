@@ -199,6 +199,7 @@ router.post('/', async (req, res) => {
       isLunarCoin: isLunarCoin,
       isRoll: isRoll,
       perthSeriesLabel: perthSeriesLabel,
+      _gradeSource: identification.parsed?._gradeSource || null,
       _rawQuery: String(query),
     };
 

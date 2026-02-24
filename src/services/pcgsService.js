@@ -273,12 +273,49 @@ function parseDescription(text) {
   }
 
   // Grade: MS/PR/SP/PF + number, optional +
-  const gradeMatch = t.match(/\b(MS|PR|PF|SP|AU|XF|EF|VF|F|VG|G|AG|PO)\s*[-]?\s*(\d{1,2})(\+)?\b/i);
+  const gradeMatch = t.match(/\b(MS|PR|PF|SP|AU|XF|EF|VF|F|VG|G|AG|PO)\s*[-]?\s*(\d{1,2})(\+)?(?!\w)/i);
   if (gradeMatch) {
     let prefix = gradeMatch[1].toUpperCase();
     if (prefix === 'PF') prefix = 'PR';
+    if (prefix === 'EF') prefix = 'XF';  // normalize EF → XF (PCGS standard)
     result.grade = `${prefix}${gradeMatch[2]}${gradeMatch[3] || ''}`;
     result.gradeNum = parseInt(gradeMatch[2], 10);
+  }
+
+  // BU / UNC grade terms (no numeric suffix) — map to approximate MS grades
+  // Must come AFTER formal grade regex so "MS-65 BU" doesn't override MS-65.
+  if (!result.grade) {
+    const buMatch = t.match(/\b(superb\s+gem\s+BU|gem\s+BU|choice\s+BU|BU|UNC)\b/i);
+    if (buMatch) {
+      const term = buMatch[0].toLowerCase().replace(/\s+/g, ' ').trim();
+      if (/superb\s+gem/i.test(term))      { result.grade = 'MS67'; result.gradeNum = 67; }
+      else if (/gem/i.test(term))           { result.grade = 'MS65'; result.gradeNum = 65; }
+      else if (/choice/i.test(term))        { result.grade = 'MS63'; result.gradeNum = 63; }
+      else                                  { result.grade = 'MS60'; result.gradeNum = 60; }
+      result._gradeSource = 'bu-term';
+    }
+  }
+
+  // Bare word grades without numbers (e.g. "Fine", "Very Good", "Poor")
+  // Must come AFTER formal grade + BU detection.
+  if (!result.grade) {
+    const WORD_GRADES = [
+      { re: /\babout\s+uncirculated\b/i,  grade: 'AU50', num: 50 },
+      { re: /\bextremely\s+fine\b/i,      grade: 'XF40', num: 40 },
+      { re: /\bvery\s+fine\b/i,           grade: 'VF20', num: 20 },
+      { re: /\bvery\s+good\b/i,           grade: 'VG8',  num: 8 },
+      { re: /\b(?:^|\s)fine\b(?!\s+silver)/i, grade: 'F12', num: 12 },  // exclude "fine silver"
+      { re: /\b(?:^|\s)good\b(?!\s+(?:luck|condition|deal|price|quality))/i, grade: 'G4', num: 4 },
+      { re: /\bpoor\b/i,                  grade: 'PO1',  num: 1 },
+    ];
+    for (const { re, grade, num } of WORD_GRADES) {
+      if (re.test(t)) {
+        result.grade = grade;
+        result.gradeNum = num;
+        result._gradeSource = 'word-grade';
+        break;
+      }
+    }
   }
 
   // Designation: DCAM, CAM, PL, DPL, FB, FBL, FS, FH, RD, RB, BN
