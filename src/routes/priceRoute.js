@@ -273,7 +273,15 @@ router.post('/', async (req, res) => {
 
     // ── 5a. Numista Catalogue Lookup (non-blocking) ──
     // Enrich the response with Numista rarity index, prices, composition, and references.
+    // Skip for sets and rolls — Numista catalogues individual coin types, not
+    // multi-coin sets or roll quantities, and searches for them return wrong matches
+    // (e.g. a Lincoln Cent when the user searched "US Mint Set").
     let numista = null;
+    if (isSet) {
+      numista = { accessible: true, type: null, issue: null, rarity: null, numistaUrl: null, prices: null, composition: null, references: null, limitations: ['Numista lookup skipped for mint/proof sets (sets are not individual coin types)'] };
+    } else if (isRoll) {
+      numista = { accessible: true, type: null, issue: null, rarity: null, numistaUrl: null, prices: null, composition: null, references: null, limitations: ['Numista lookup skipped for roll searches'] };
+    } else {
     try {
       // Detect country from PCGS, structured input, or series name keywords
       const seriesForCountry = (identification.parsed?.series || pcgs.series || '').toLowerCase();
@@ -292,6 +300,7 @@ router.post('/', async (req, res) => {
       console.warn('[Numista] Non-fatal lookup error:', err.message);
       numista = { accessible: false, limitations: ['Numista lookup failed: ' + err.message] };
     }
+    } // end else (not set/roll)
 
     // ── 6. Static Mintage Fallback ──
     let mintSeries = semi250Canonical || coinData?.name || pcgs.series || identification.parsed?.series || '';
