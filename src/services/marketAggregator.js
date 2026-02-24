@@ -400,6 +400,9 @@ async function fetchMarketMatrix({
     keywords = series + ' ' + wStr;
   }
 
+  // Detect if the user is searching for rolls (e.g. "Franklin Half Dollar Roll")
+  const isRoll = /\brolls?\b/i.test(series);
+
   // Fetch completed sales via the existing fetchSoldComps pipeline
   // This returns comps from Insights + Finding APIs
   const detectedMetal = _detectMetal(series);
@@ -407,7 +410,7 @@ async function fetchMarketMatrix({
     timeWindowDays,
     maxPages: 3,
     usMinComps: 0,  // don't trigger Browse fallback
-  }, { series, _rawQuery: keywords, metal: detectedMetal });
+  }, { series, _rawQuery: keywords, metal: detectedMetal, isRoll });
 
   const completedComps = [
     ...(soldResult.us?.comps || []),
@@ -426,7 +429,7 @@ async function fetchMarketMatrix({
       timeWindowDays: 1, // very short window so Finding yields little
       maxPages: 1,
       usMinComps: 999,   // force Browse API fallback
-    }, { series, _rawQuery: keywords, metal: detectedMetal });
+    }, { series, _rawQuery: keywords, metal: detectedMetal, isRoll });
     // Browse comps have listingType: 'FixedPrice' or _source: 'browse'
     const allActive = [
       ...(activeResult.us?.comps || []),

@@ -62,6 +62,14 @@ router.post('/', async (req, res) => {
       maxPages: options?.maxPages || 3
     };
 
+    // Peek ahead for roll detection so we can adjust opts before eBay calls.
+    // Roll sold listings are sparser than individual coins — lower the minimum
+    // comp threshold to prevent unnecessary Browse API (active-listing) fallback.
+    const peekParsed = pcgsService.parseDescription(String(query));
+    if (peekParsed?.isRoll || coinData?.isRoll) {
+      opts.usMinComps = Math.min(opts.usMinComps, 3);
+    }
+
     // ── 1. Identify the coin via PCGS ──
     let pcgs;
     const certMatch = String(query).match(/^\d{7,9}$/);
