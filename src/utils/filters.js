@@ -64,9 +64,80 @@ function detectDenomination(text) {
   return null;
 }
 
-module.exports = { DENY_PATTERNS, ROLL_PATTERN, isDenied, detectDenomination, hasSeriesConflict };
+module.exports = { DENY_PATTERNS, ROLL_PATTERN, isDenied, detectDenomination, hasSeriesConflict, isCompositionMismatch };
 
-// ── Series conflict detection ───────────────────────────────
+// ── Silver / Clad era composition detection ─────────────────────────
+// US circulating coins transitioned from 90% silver to clad at known dates.
+// Mixing silver-era and clad-era comps produces wildly wrong FMV.
+// This table maps denominations to their silver→clad transition year.
+// `lastSilverYear` is the final year 90% silver coins were struck for circulation.
+// Some series have both (e.g. Kennedy 1964 silver, 1965-70 40% silver, 1971+ clad).
+const SILVER_TRANSITION = {
+  'quarter':     { lastSilverYear: 1964, silverTokens: ['silver', '90%', '.900'] },
+  'dime':        { lastSilverYear: 1964, silverTokens: ['silver', '90%', '.900'] },
+  'half dollar': { lastSilverYear: 1970, silverTokens: ['silver', '90%', '40%', '.900', '.400'] },
+  // Note: Kennedy 1965-1970 are 40% silver; 1971+ are clad
+  // Morgan/Peace dollars are ALWAYS silver — no transition needed
+  // Nickels: only war nickels 1942-1945 are 35% silver; all others are copper-nickel
+  'nickel':      { lastSilverYear: 1945, silverTokens: ['silver', '35%', 'war'] },
+};
+
+/**
+ * Detect if a comp has a silver/clad composition mismatch with the expected coin.
+ * Returns true (=mismatch) when:
+ *   - User searches a CLAD-era coin but comp title says "silver"/"90%"/etc.
+ *   - User searches a SILVER-era coin but comp title explicitly says "clad"
+ *
+ * @param {string} compTitle — the eBay listing title
+ * @param {{ year?: number, series?: string, _rawQuery?: string }} expected
+ * @returns {boolean} true if composition mismatch detected
+ */
+function isCompositionMismatch(compTitle, expected) {
+  if (!compTitle || !expected) return false;
+  const year = expected.year;
+  if (!year) return false;
+
+  const denom = detectDenomination(expected.series || expected._rawQuery || '');
+  if (!denom) return false;
+
+  const transition = SILVER_TRANSITION[denom];
+  if (!transition) return false;
+
+  const tLow = compTitle.toLowerCase();
+  const { lastSilverYear, silverTokens } = transition;
+
+  // Special handling for war nickels: only 1942P/D/S through 1945 are silver
+  if (denom === 'nickel') {
+    const isWarNickelEra = year >= 1942 && year <= 1945;
+    if (isWarNickelEra) {
+      // User wants a war nickel — don't filter silver comps
+      // but DO filter comps that explicitly say "clad" or "copper"
+      return false;
+    }
+    // Non-war nickel — reject silver comps
+    return silverTokens.some(t => tLow.includes(t));
+  }
+
+  if (year > lastSilverYear) {
+    // CLAD era coin — reject comps with silver indicators
+    // Exception: user explicitly asked for silver (e.g. "1976 S silver quarter proof")
+    const queryLow = (expected._rawQuery || '').toLowerCase();
+    if (silverTokens.some(t => queryLow.includes(t))) return false;
+    return silverTokens.some(t => tLow.includes(t));
+  }
+
+  if (year <= lastSilverYear) {
+    // SILVER era coin — reject comps that explicitly say "clad" or "copper-nickel"
+    if (/\bclad\b/i.test(tLow) || /\bcopper[\s-]*nickel\b/i.test(tLow)) {
+      // But only if the query doesn't explicitly say "clad"
+      const queryLow = (expected._rawQuery || '').toLowerCase();
+      if (/\bclad\b/i.test(queryLow)) return false;
+      return true;
+    }
+  }
+
+  return false;
+}
 // Same-denomination coin series that are MUTUALLY EXCLUSIVE.
 // If the user searches for one, comps containing the other are wrong.
 const SERIES_CONFLICTS = [

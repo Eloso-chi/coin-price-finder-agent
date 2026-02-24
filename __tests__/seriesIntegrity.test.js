@@ -10,7 +10,7 @@
 
 'use strict';
 
-const { isDenied, detectDenomination, hasSeriesConflict, DENY_PATTERNS } = require('../src/utils/filters');
+const { isDenied, detectDenomination, hasSeriesConflict, isCompositionMismatch, DENY_PATTERNS } = require('../src/utils/filters');
 
 // ════════════════════════════════════════════════════════════════
 //  isDenied — Deny-list coverage
@@ -363,4 +363,114 @@ describe('exhaustive series family pairs', () => {
       }
     });
   }
+});
+
+// ════════════════════════════════════════════════════════════════
+//  isCompositionMismatch — Silver / Clad era detection
+// ════════════════════════════════════════════════════════════════
+
+describe('isCompositionMismatch()', () => {
+  // ── Clad-era coins should reject silver comps ──
+  describe('clad-era coins reject silver comps', () => {
+    const CLAD_CASES = [
+      // Quarters (post-1964)
+      ['1978 D Washington Quarter Silver BU',           { year: 1978, series: 'Washington Quarter' }],
+      ['1972-D Washington Quarter 90% Silver',          { year: 1972, series: 'Washington Quarter' }],
+      ['2000 P Washington Quarter .900 Silver',         { year: 2000, series: 'Washington Quarter' }],
+      // Dimes (post-1964)
+      ['1985 P Roosevelt Dime Silver Proof',            { year: 1985, series: 'Roosevelt Dime' }],
+      ['1975 Roosevelt Dime 90% Silver',                { year: 1975, series: 'Roosevelt Dime' }],
+      // Half dollars (post-1970)
+      ['1978 Kennedy Half Dollar Silver',               { year: 1978, series: 'Kennedy Half Dollar' }],
+      ['1972 D Kennedy Half Dollar 90% Silver',         { year: 1972, series: 'Kennedy Half Dollar' }],
+      // Nickels (non-war, with silver)
+      ['1950 Jefferson Nickel Silver',                  { year: 1950, series: 'Jefferson Nickel' }],
+      ['2005 Jefferson Nickel 35% Silver',              { year: 2005, series: 'Jefferson Nickel' }],
+    ];
+
+    test.each(CLAD_CASES)('MISMATCH: "%s"', (title, expected) => {
+      expect(isCompositionMismatch(title, expected)).toBe(true);
+    });
+  });
+
+  // ── Silver-era coins should keep silver comps ──
+  describe('silver-era coins keep silver comps', () => {
+    const SILVER_OK = [
+      ['1964 Washington Quarter Silver BU',             { year: 1964, series: 'Washington Quarter' }],
+      ['1960-D Roosevelt Dime 90% Silver',              { year: 1960, series: 'Roosevelt Dime' }],
+      ['1963 Franklin Half Dollar Silver',              { year: 1963, series: 'Franklin Half Dollar' }],
+      ['1967 Kennedy Half Dollar 40% Silver',           { year: 1967, series: 'Kennedy Half Dollar' }],
+      ['1943-P Jefferson War Nickel Silver',            { year: 1943, series: 'Jefferson Nickel' }],
+    ];
+
+    test.each(SILVER_OK)('NO mismatch: "%s"', (title, expected) => {
+      expect(isCompositionMismatch(title, expected)).toBe(false);
+    });
+  });
+
+  // ── Silver-era coins should reject "clad" comps ──
+  describe('silver-era coins reject clad comps', () => {
+    const SILVER_REJECT_CLAD = [
+      ['1964 Washington Quarter Clad',                  { year: 1964, series: 'Washington Quarter' }],
+      ['1960-D Roosevelt Dime Copper-Nickel Clad',      { year: 1960, series: 'Roosevelt Dime' }],
+    ];
+
+    test.each(SILVER_REJECT_CLAD)('MISMATCH: "%s"', (title, expected) => {
+      expect(isCompositionMismatch(title, expected)).toBe(true);
+    });
+  });
+
+  // ── Normal clad comps should be fine for clad-era coins ──
+  describe('clad comps pass for clad-era coins', () => {
+    const CLAD_OK = [
+      ['1978-D Washington Quarter BU',                  { year: 1978, series: 'Washington Quarter' }],
+      ['1985 P Roosevelt Dime Uncirculated',            { year: 1985, series: 'Roosevelt Dime' }],
+      ['2000 Kennedy Half Dollar MS-65',                { year: 2000, series: 'Kennedy Half Dollar' }],
+      ['2020 Jefferson Nickel BU',                      { year: 2020, series: 'Jefferson Nickel' }],
+    ];
+
+    test.each(CLAD_OK)('NO mismatch: "%s"', (title, expected) => {
+      expect(isCompositionMismatch(title, expected)).toBe(false);
+    });
+  });
+
+  // ── Edge cases ──
+  describe('edge cases', () => {
+    test('null/missing inputs return false', () => {
+      expect(isCompositionMismatch(null, { year: 1978, series: 'Washington Quarter' })).toBe(false);
+      expect(isCompositionMismatch('1978 Quarter Silver', null)).toBe(false);
+      expect(isCompositionMismatch('1978 Quarter Silver', {})).toBe(false);
+      expect(isCompositionMismatch('1978 Quarter Silver', { series: 'Washington Quarter' })).toBe(false); // no year
+    });
+
+    test('dollar coins have no transition (always silver or always clad)', () => {
+      // Morgan dollars are always silver — no filtering needed
+      expect(isCompositionMismatch('1921 Morgan Silver Dollar', { year: 1921, series: 'Morgan Silver Dollar' })).toBe(false);
+      // Eisenhower dollars — no transition rule
+      expect(isCompositionMismatch('1974 Eisenhower Dollar Silver', { year: 1974, series: 'Eisenhower Dollar' })).toBe(false);
+    });
+
+    test('cents have no silver transition', () => {
+      expect(isCompositionMismatch('1960 Lincoln Cent Silver', { year: 1960, series: 'Lincoln Cent' })).toBe(false);
+    });
+
+    test('user query with "silver" bypasses filter for special silver proofs', () => {
+      // 1976-S silver proof quarter — user explicitly wants silver
+      expect(isCompositionMismatch(
+        '1976-S Washington Quarter Silver Proof',
+        { year: 1976, series: 'Washington Quarter', _rawQuery: '1976 S silver proof quarter' }
+      )).toBe(false);
+    });
+
+    test('Kennedy half 1965-1970 (40% silver era) allows silver comps', () => {
+      expect(isCompositionMismatch('1967 Kennedy Half Dollar 40% Silver', { year: 1967, series: 'Kennedy Half Dollar' })).toBe(false);
+      expect(isCompositionMismatch('1968-D Kennedy Half Dollar Silver', { year: 1968, series: 'Kennedy Half Dollar' })).toBe(false);
+      expect(isCompositionMismatch('1970-D Kennedy Half Dollar 40%', { year: 1970, series: 'Kennedy Half Dollar' })).toBe(false);
+    });
+
+    test('Kennedy half 1971+ rejects silver comps', () => {
+      expect(isCompositionMismatch('1971 Kennedy Half Dollar Silver', { year: 1971, series: 'Kennedy Half Dollar' })).toBe(true);
+      expect(isCompositionMismatch('1976 Kennedy Half Dollar 40% Silver', { year: 1976, series: 'Kennedy Half Dollar' })).toBe(true);
+    });
+  });
 });

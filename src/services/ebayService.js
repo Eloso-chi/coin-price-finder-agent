@@ -6,7 +6,7 @@
 const axios = require('axios');
 const { TTLCache } = require('../utils/cache');
 const stats = require('../utils/stats');
-const { isDenied, detectDenomination, hasSeriesConflict } = require('../utils/filters');
+const { isDenied, detectDenomination, hasSeriesConflict, isCompositionMismatch } = require('../utils/filters');
 const terapeakService = require('./terapeakService');
 
 // ── Config ──────────────────────────────────────────────────
@@ -403,6 +403,11 @@ function scoreMatch(comp, expected) {
     score -= 50; notes.push('series-conflict');
   }
 
+  // Silver/clad composition mismatch (e.g. 1978 quarter comp says "silver")
+  if (isCompositionMismatch(tLow, expected)) {
+    score -= 40; notes.push('composition-mismatch');
+  }
+
   // Denomination match / mismatch  (quarter vs dollar, dime vs half, etc.)
   {
     const wantDenom = detectDenomination(expected.series || expected._rawQuery || '');
@@ -630,6 +635,20 @@ function applyFilters(comps, options, expected) {
       // If comp has no detected metal, keep it (benefit of the doubt)
       if (!compMetal) return true;
       if (compMetal !== wantMetal) { removed.metalMismatch++; return false; }
+      return true;
+    });
+  }
+
+  // Silver/clad composition mismatch: drop comps from the wrong era.
+  // e.g. a 1978-D Washington Quarter is CLAD — reject comps with "silver"/"90%"
+  // in the title, and vice versa for silver-era coins with "clad" comps.
+  {
+    removed.compositionMismatch = 0;
+    kept = kept.filter(c => {
+      if (isCompositionMismatch(c.title, expected)) {
+        removed.compositionMismatch++;
+        return false;
+      }
       return true;
     });
   }
