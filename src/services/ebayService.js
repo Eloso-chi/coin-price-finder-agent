@@ -6,6 +6,7 @@
 const axios = require('axios');
 const { TTLCache } = require('../utils/cache');
 const stats = require('../utils/stats');
+const { isDenied, detectDenomination, hasSeriesConflict } = require('../utils/filters');
 const terapeakService = require('./terapeakService');
 
 // ── Config ──────────────────────────────────────────────────
@@ -71,16 +72,7 @@ function detectWeightFromTitle(title) {
   return null;
 }
 
-// ── Deny-list patterns ──────────────────────────────────────
-const DENY_PATTERNS = [
-  /\blots?\b/i, /\bcollection\b/i, /\broll\b/i, /\bestate\b/i,
-  /\breplica\b/i, /\bcopy\b/i, /\bcleaned\b/i, /\bpolished\b/i,
-  /\bfake\b/i, /\btoken\b/i, /\bplated\b/i
-];
-
-function isDenied(title) {
-  return DENY_PATTERNS.some(p => p.test(title));
-}
+// ── isDenied imported from ../utils/filters ─────────────────
 
 // ── Metal detection from title / aspects ─────────────────────
 const METAL_PATTERNS = [
@@ -366,6 +358,12 @@ function scoreMatch(comp, expected) {
   const notes = [];
   const tLow = (comp.title || '').toLowerCase();
 
+  // Roll match / mismatch
+  if (expected.isRoll) {
+    if (/\brolls?\b/.test(tLow)) { score += 15; notes.push('roll-match'); }
+    else { score -= 30; notes.push('roll-mismatch'); }
+  }
+
   // Year match
   if (expected.year && tLow.includes(String(expected.year))) { score += 15; notes.push('year-match'); }
 
@@ -398,6 +396,20 @@ function scoreMatch(comp, expected) {
     const hits = seriesTokens.filter(t => t.length > 2 && tLow.includes(t)).length;
     if (hits >= Math.ceil(seriesTokens.length * 0.6)) { score += 10; notes.push('series-match'); }
     else if (hits === 0 && seriesTokens.length > 0) { score -= 25; notes.push('series-mismatch'); }
+  }
+
+  // Series conflict (e.g. Jefferson vs Buffalo — both nickels, but completely different coins)
+  if (expected.series && hasSeriesConflict(expected.series, tLow)) {
+    score -= 50; notes.push('series-conflict');
+  }
+
+  // Denomination match / mismatch  (quarter vs dollar, dime vs half, etc.)
+  {
+    const wantDenom = detectDenomination(expected.series || expected._rawQuery || '');
+    const compDenom = detectDenomination(tLow);
+    if (wantDenom && compDenom && wantDenom !== compDenom) {
+      score -= 40; notes.push('denom-mismatch');
+    }
   }
 
   // Metal match / mismatch
@@ -586,11 +598,22 @@ function applyFilters(comps, options, expected) {
     return true;
   });
 
-  // Deny-list
+  // Deny-list (context-aware for roll searches)
+  const isRollSearch = !!expected.isRoll;
   kept = kept.filter(c => {
-    if (isDenied(c.title)) { removed.denied++; return false; }
+    if (isDenied(c.title, { allowRoll: isRollSearch })) { removed.denied++; return false; }
     return true;
   });
+
+  // Roll-match filter: when searching for rolls, keep ONLY roll listings;
+  // when NOT searching for rolls the deny-list already blocks them.
+  if (isRollSearch) {
+    removed.notRoll = 0;
+    kept = kept.filter(c => {
+      if (!/\brolls?\b/i.test(c.title)) { removed.notRoll++; return false; }
+      return true;
+    });
+  }
 
   // USD only for stats
   kept = kept.filter(c => {
@@ -699,6 +722,38 @@ function applyFilters(comps, options, expected) {
       if (titleMint === wantMint) return true;
       removed.mintMismatch++;
       return false;
+    });
+  }
+
+  // Denomination mismatch hard filter: if the searched coin is a "quarter",
+  // drop comps whose title explicitly indicates a different denomination
+  // (e.g. a commemorative dollar, a dime, a half dollar).
+  {
+    const wantDenom = detectDenomination(
+      expected.series || expected._rawQuery || ''
+    );
+    if (wantDenom) {
+      removed.denomMismatch = 0;
+      kept = kept.filter(c => {
+        const compDenom = detectDenomination(c.title);
+        if (!compDenom) return true; // no denomination detected → keep
+        if (compDenom === wantDenom) return true;
+        removed.denomMismatch++;
+        return false;
+      });
+    }
+  }
+
+  // Series conflict hard filter: drop comps from a mutually-exclusive series
+  // (e.g. Buffalo Nickels when the user searched for Jefferson Nickels).
+  if (expected.series) {
+    removed.seriesConflict = 0;
+    kept = kept.filter(c => {
+      if (hasSeriesConflict(expected.series, c.title)) {
+        removed.seriesConflict++;
+        return false;
+      }
+      return true;
     });
   }
 
@@ -1062,5 +1117,7 @@ module.exports = {
   isDenied,
   dedup,
   clearCache,
-  detectWeightFromTitle
+  detectWeightFromTitle,
+  applyFilters,
+  classifyGradeType
 };

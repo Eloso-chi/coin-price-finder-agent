@@ -154,7 +154,9 @@ router.get('/datasets', (_req, res) => {
 router.get('/lookup', (req, res) => {
   const q = req.query.q;
   if (!q) return res.status(400).json({ error: 'q query param required' });
-  const data = terapeakService.lookupComps(q);
+  // Auto-detect metal from query so the lookup rejects cross-metal datasets
+  const metal = req.query.metal || terapeakService.detectMetal(q) || undefined;
+  const data = terapeakService.lookupComps(q, { metal });
   if (!data) return res.json({ found: false, comps: [] });
   res.json({
     found: true,

@@ -10,6 +10,7 @@
 const fs = require('fs');
 const path = require('path');
 const { parse } = require('csv-parse/sync');
+const { isDenied } = require('../utils/filters');
 
 const CACHE_DIR = path.join(__dirname, '..', '..', 'cache');
 const STORE_PATH = path.join(CACHE_DIR, 'terapeak_sold.json');
@@ -154,15 +155,7 @@ function classifyGradeType(comp) {
   return 'raw';
 }
 
-// ── Deny-list patterns ──
-const DENY_PATTERNS = [
-  /\blots?\b/i, /\bcollection\b/i, /\broll\b/i, /\bestate\b/i,
-  /\breplica\b/i, /\bcopy\b/i, /\bcleaned\b/i, /\bpolished\b/i,
-  /\bfake\b/i, /\btoken\b/i, /\bplated\b/i
-];
-function isDenied(title) {
-  return DENY_PATTERNS.some(p => p.test(title));
-}
+// ── isDenied imported from ../utils/filters ──
 
 // ── Parse a single CSV row into a comp ──────────────────────
 function rowToComp(mappedRow, searchTerm) {
@@ -779,6 +772,7 @@ module.exports = {
   autoImportFolder,
   normalizeSearchKey,
   detectWeightFromQuery,
+  detectMetal: _detectMetalFromText,
   // Exposed for testing
   mapColumn,
   rowToComp,

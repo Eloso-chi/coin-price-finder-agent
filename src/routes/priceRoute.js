@@ -14,6 +14,8 @@ const { lookupMintage } = require('../data/mintages');
 const { buildLunarComparison } = require('../data/lunarReference');
 const { resolveCoinVariant } = require('../data/halfDollarSeries');
 const { zodiacForYear, perthLunarSeries } = require('../data/constants');
+const { validateSeriesIntegrity, validateNumericSanity } = require('../utils/responseValidator');
+const { hasSeriesConflict, detectDenomination } = require('../utils/filters');
 
 // ── Semiquincentennial circulating denomination map ──
 // Maps parsed "semiquincentennial <denom>" keywords to their canonical series
@@ -98,8 +100,17 @@ router.post('/', async (req, res) => {
     const resolvedSetType = coinData?.setType || identification.parsed?.setType || null;
     const isSet = !!resolvedSetType;
 
+    // Detect roll searches (e.g. "1960 P lincoln cent roll")
+    const isRoll = !!(coinData?.isRoll || identification.parsed?.isRoll);
+
     let ebayKeywords;
-    if (isSet) {
+    if (isRoll) {
+      // For rolls, build targeted keywords (PCGS won't price these)
+      const yr = coinData?.year || pcgs.year || identification.parsed?.year || '';
+      const mint = identification.parsed?.mint || pcgs.mint || '';
+      const series = identification.parsed?.series || pcgs.series || '';
+      ebayKeywords = `${yr}${mint ? '-' + mint : ''} ${series} roll`.trim();
+    } else if (isSet) {
       // For sets, build targeted keywords (PCGS won't resolve these)
       const yr = coinData?.year || pcgs.year || identification.parsed?.year || '';
       const setLabels = {
@@ -178,6 +189,7 @@ router.post('/', async (req, res) => {
       weight: resolvedWeight || null,
       zodiacAnimal: zodiacAnimal,
       isLunarCoin: isLunarCoin,
+      isRoll: isRoll,
       perthSeriesLabel: perthSeriesLabel,
       _rawQuery: String(query),
     };
@@ -223,14 +235,41 @@ router.post('/', async (req, res) => {
     // Pass the USER's grade intent — not the PCGS-resolved grade.
     // coinData?.grade comes from structured input; identification.parsed?.grade
     // comes from free-text parsing.  If neither is set, user wants raw.
-    // Sets (proof/mint) are never graded — pass null so all comps are used.
-    const userGrade = isSet ? null : (coinData?.grade || identification.parsed?.grade || null);
+    // Sets (proof/mint) and rolls are never graded — pass null so all comps are used.
+    const userGrade = (isSet || isRoll) ? null : (coinData?.grade || identification.parsed?.grade || null);
 
     // Detect if this is a bullion coin ( values track metal spot price → steeper recency)
     const seriesForBullion = (identification.parsed?.series || pcgs.series || '').toLowerCase();
     const isBullion = BULLION_1OZ_DEFAULT.some(b => seriesForBullion.includes(b));
 
     const { valuation, decisions } = computeValuation(pcgs, ebay, askingPrice || null, userGrade, { isBullion });
+
+    // ── 5b. Runtime series integrity guardrail ──
+    // Detect if PCGS resolved to a conflicting series (e.g., query="Jefferson"
+    // but PCGS returned "Buffalo"). If so, log a warning and null out the
+    // untrusted PCGS data to prevent cross-series contamination in the response.
+    {
+      const querySeries = identification.parsed?.series || '';
+      const pcgsSeries  = pcgs.series || '';
+      if (querySeries && pcgsSeries && hasSeriesConflict(querySeries, pcgsSeries)) {
+        console.warn(`[guardrail] Series conflict: query="${querySeries}" vs pcgs="${pcgsSeries}" — nulling PCGS data`);
+        pcgs.series = querySeries;  // override to match query intent
+        pcgs.priceGuide = null;
+        pcgs.auction = null;
+        pcgs.trueViewUrl = null;
+        pcgs.coinImages = [];
+        pcgs.pcgsCoinNumber = null;
+        pcgs._seriesConflictOverride = true;
+        valuation.explanation.push(`⚠ PCGS series conflict detected (resolved "${pcgsSeries}" vs query "${querySeries}") — PCGS data excluded.`);
+      }
+      // Also check denomination mismatch
+      const queryDenom = detectDenomination(querySeries);
+      const pcgsDenom  = detectDenomination(pcgsSeries);
+      if (queryDenom && pcgsDenom && queryDenom !== pcgsDenom) {
+        console.warn(`[guardrail] Denomination conflict: query="${queryDenom}" vs pcgs="${pcgsDenom}"`);
+        valuation.explanation.push(`⚠ Denomination mismatch detected (query="${queryDenom}" vs pcgs="${pcgsDenom}").`);
+      }
+    }
 
     // ── 5a. Numista Catalogue Lookup (non-blocking) ──
     // Enrich the response with Numista rarity index, prices, composition, and references.

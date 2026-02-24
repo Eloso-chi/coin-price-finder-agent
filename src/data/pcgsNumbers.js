@@ -209,34 +209,12 @@ const FRANKLIN = {
 };
 
 // ── Jefferson Nickels (1938-present) ────────────────────────
+// NOTE: PCGS numbers for Jefferson Nickels need verification.
+// The numbers previously here (3900-3971) actually mapped to Buffalo Nickels
+// in the PCGS database.  Removed to prevent misidentification.
+// The system falls back to parsed description for Jefferson Nickels.
 const JEFFERSON = {
-  1938: { P: 3900, D: 3901, S: 3902 },
-  1939: { P: 3903, D: 3905, S: 3907 },
-  1940: { P: 3908, D: 3909, S: 3910 },
-  1941: { P: 3911, D: 3912, S: 3913 },
-  1942: { P: 3914, D: 3916 },
-  1943: { P: 3917, D: 3918, S: 3919 },   // War nickels (silver)
-  1944: { P: 3920, D: 3921, S: 3922 },
-  1945: { P: 3923, D: 3924, S: 3925 },
-  1946: { P: 3926, D: 3927, S: 3928 },
-  1947: { P: 3929, D: 3930, S: 3931 },
-  1948: { P: 3932, D: 3933, S: 3934 },
-  1949: { P: 3935, D: 3936, S: 3937 },
-  1950: { P: 3938, D: 3939 },
-  1951: { P: 3940, D: 3941, S: 3942 },
-  1952: { P: 3943, D: 3944, S: 3945 },
-  1953: { P: 3946, D: 3947, S: 3948 },
-  1954: { P: 3949, D: 3950, S: 3951 },
-  1955: { P: 3952, D: 3953 },
-  1956: { P: 3954, D: 3955 },
-  1957: { P: 3956, D: 3957 },
-  1958: { P: 3958, D: 3959 },
-  1959: { P: 3960, D: 3961 },
-  1960: { P: 3962, D: 3963 },
-  1961: { P: 3964, D: 3965 },
-  1962: { P: 3966, D: 3967 },
-  1963: { P: 3968, D: 3969 },
-  1964: { P: 3970, D: 3971 },
+  // TODO: populate with verified PCGS coin numbers
 };
 
 // ── Mercury Dimes (1916-1945) ───────────────────────────────

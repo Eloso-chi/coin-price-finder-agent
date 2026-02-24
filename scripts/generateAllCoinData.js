@@ -2170,6 +2170,573 @@ const COMMON = {
         TG('Canada $2 Polar Bear 1/2 oz Silver {G} MS-70', 'Certified', [30, 48], 1),
       ]
     },
+
+    // ══════════════════════════════════════════════════════════
+    // TIER 1: Missing World Bullion Generics (critical gaps)
+    // ══════════════════════════════════════════════════════════
+
+    // ── Austrian Silver Philharmonic 1oz (top-5 world silver coin, NO data) ──
+    {
+      searchTerm: 'Austrian Silver Philharmonic 1 oz', filename: 'Austrian_Silver_Philharmonic_1oz_Generic.csv', count: 25,
+      titleTemplates: [
+        T('Austria Silver Philharmonic 1 oz .999 BU Random Year', 'Uncirculated', [32, 42], 5),
+        T('Austrian Philharmonic 1 oz Silver BU', 'Uncirculated', [31, 40], 4),
+        T('Vienna Philharmonic 1 oz Silver BU Tube Fresh', 'Uncirculated', [30, 39], 3),
+        TG('Austrian Silver Philharmonic 1 oz {G} MS-69', 'Certified', [38, 52], 3),
+        TG('Austrian Silver Philharmonic 1 oz {G} MS-70', 'Certified', [48, 72], 1),
+      ]
+    },
+    // ── Austrian Gold Philharmonic 1oz ──
+    {
+      searchTerm: 'Austrian Gold Philharmonic 1 oz', filename: 'Austrian_Gold_Philharmonic_1oz_Generic.csv', count: 22,
+      titleTemplates: [
+        T('Austria Gold Philharmonic 1 oz .9999 BU Random Year', 'Uncirculated', [2700, 3000], 5),
+        T('Vienna Philharmonic 1 oz Gold BU', 'Uncirculated', [2690, 2990], 4),
+        TG('Austrian Gold Philharmonic 1 oz {G} MS-69', 'Certified', [2780, 3080], 3),
+        TG('Austrian Gold Philharmonic 1 oz {G} MS-70', 'Certified', [2920, 3320], 1),
+      ]
+    },
+    // ── Austrian Gold Philharmonic fractionals ──
+    {
+      searchTerm: 'Austrian Gold Philharmonic 1/2 oz', filename: 'Austrian_Gold_Philharmonic_Half_oz_Generic.csv', count: 16,
+      titleTemplates: [
+        T('Austria Gold Philharmonic 1/2 oz .9999 BU', 'Uncirculated', [1340, 1520], 5),
+        TG('Austrian Gold Philharmonic 1/2 oz {G} MS-69', 'Certified', [1400, 1580], 3),
+        TG('Austrian Gold Philharmonic 1/2 oz {G} MS-70', 'Certified', [1520, 1800], 1),
+      ]
+    },
+    {
+      searchTerm: 'Austrian Gold Philharmonic 1/4 oz', filename: 'Austrian_Gold_Philharmonic_Quarter_oz_Generic.csv', count: 16,
+      titleTemplates: [
+        T('Austria Gold Philharmonic 1/4 oz .9999 BU', 'Uncirculated', [670, 760], 5),
+        TG('Austrian Gold Philharmonic 1/4 oz {G} MS-69', 'Certified', [710, 800], 3),
+        TG('Austrian Gold Philharmonic 1/4 oz {G} MS-70', 'Certified', [790, 940], 1),
+      ]
+    },
+    {
+      searchTerm: 'Austrian Gold Philharmonic 1/10 oz', filename: 'Austrian_Gold_Philharmonic_Tenth_oz_Generic.csv', count: 16,
+      titleTemplates: [
+        T('Austria Gold Philharmonic 1/10 oz .9999 BU', 'Uncirculated', [270, 315], 5),
+        TG('Austrian Gold Philharmonic 1/10 oz {G} MS-69', 'Certified', [285, 330], 3),
+        TG('Austrian Gold Philharmonic 1/10 oz {G} MS-70', 'Certified', [320, 390], 1),
+      ]
+    },
+    // ── Chinese Silver Panda 1oz / 30g Generic ──
+    {
+      searchTerm: 'Chinese Silver Panda 30g', filename: 'Chinese_Silver_Panda_1oz_Generic.csv', count: 25,
+      titleTemplates: [
+        T('China Silver Panda 30g .999 Silver BU Random Year', 'Uncirculated', [35, 55], 5),
+        T('Chinese Panda 1 oz Silver BU', 'Uncirculated', [33, 50], 4),
+        T('China Silver Panda 30 Gram BU in Capsule', 'Uncirculated', [36, 58], 3),
+        TG('Chinese Silver Panda {G} MS-69', 'Certified', [42, 65], 3),
+        TG('Chinese Silver Panda {G} MS-70', 'Certified', [55, 90], 2),
+        TG('China Silver Panda 30g {G} MS-70 First Strike', 'Certified', [65, 110], 1),
+      ]
+    },
+    // ── Chinese Gold Panda 1oz / 30g Generic ──
+    {
+      searchTerm: 'Chinese Gold Panda 30g', filename: 'Chinese_Gold_Panda_1oz_Generic.csv', count: 22,
+      titleTemplates: [
+        T('China Gold Panda 30g .999 Gold BU Random Year', 'Uncirculated', [2750, 3100], 5),
+        T('Chinese Gold Panda 1 oz BU', 'Uncirculated', [2740, 3080], 4),
+        TG('Chinese Gold Panda {G} MS-69', 'Certified', [2820, 3150], 3),
+        TG('Chinese Gold Panda {G} MS-70', 'Certified', [2950, 3400], 1),
+      ]
+    },
+    // ── Silver Krugerrand 1oz Generic (only had 2017 year-specific) ──
+    {
+      searchTerm: 'Silver Krugerrand 1 oz', filename: 'Silver_Krugerrand_1oz_Generic.csv', count: 25,
+      titleTemplates: [
+        T('South Africa Silver Krugerrand 1 oz .999 BU Random Year', 'Uncirculated', [33, 44], 5),
+        T('Silver Krugerrand 1 oz BU', 'Uncirculated', [32, 42], 4),
+        T('Silver Krugerrand 1 oz BU in Capsule', 'Uncirculated', [34, 46], 3),
+        TG('Silver Krugerrand 1 oz {G} MS-69', 'Certified', [40, 55], 3),
+        TG('Silver Krugerrand 1 oz {G} MS-70', 'Certified', [52, 78], 1),
+      ]
+    },
+    // ── Mexican Silver Libertad 1oz Generic (fractionals exist, main 1oz missing!) ──
+    {
+      searchTerm: 'Mexican Silver Libertad 1 oz', filename: 'Mexican_Silver_Libertad_1oz_Generic.csv', count: 25,
+      titleTemplates: [
+        T('Mexico Silver Libertad 1 oz .999 BU Random Year', 'Uncirculated', [38, 55], 5),
+        T('Mexican Silver Libertad 1 oz BU', 'Uncirculated', [36, 52], 4),
+        T('Mexico Libertad 1oz Silver BU Low Mintage', 'Uncirculated', [40, 60], 3),
+        TG('Mexican Silver Libertad 1 oz {G} MS-69', 'Certified', [48, 68], 3),
+        TG('Mexican Silver Libertad 1 oz {G} MS-70', 'Certified', [65, 100], 1),
+      ]
+    },
+    // ── American Palladium Eagle 1oz Generic ──
+    {
+      searchTerm: 'American Palladium Eagle 1 oz', filename: 'American_Palladium_Eagle_1oz_Generic.csv', count: 18,
+      titleTemplates: [
+        T('American Palladium Eagle 1 oz .9995 BU Random Year', 'Uncirculated', [1100, 1300], 5),
+        T('Palladium Eagle 1 oz BU', 'Uncirculated', [1080, 1280], 4),
+        TG('American Palladium Eagle 1 oz {G} MS-69', 'Certified', [1150, 1350], 3),
+        TG('American Palladium Eagle 1 oz {G} MS-70', 'Certified', [1300, 1550], 1),
+      ]
+    },
+
+    // ══════════════════════════════════════════════════════════
+    // TIER 2: US Classic Coin Generics (high-volume series)
+    // ══════════════════════════════════════════════════════════
+
+    // ── Kennedy Half Dollar Generic (silver + clad) ──
+    {
+      searchTerm: 'Kennedy Half Dollar', filename: 'Kennedy_Half_Dollar_Generic.csv', count: 30,
+      titleTemplates: [
+        T('1964 Kennedy Half Dollar BU 90% Silver', 'Uncirculated', [12, 18], 4),
+        T('Kennedy Half Dollar 90% Silver 1964 AU-BU', 'Uncirculated', [11, 16], 3),
+        T('Kennedy Half Dollar 40% Silver 1965-1970 BU', 'Uncirculated', [5, 9], 3),
+        T('Kennedy Half Dollar BU Clad Random Date', 'Uncirculated', [2, 4], 2),
+        TG('1964 Kennedy Half Dollar {G} MS-64', 'Certified', [18, 28], 2),
+        TG('1964 Kennedy Half Dollar {G} MS-65', 'Certified', [28, 45], 2),
+        TG('1964 Kennedy Half Dollar {G} MS-66', 'Certified', [55, 90], 1),
+        TG('Kennedy Half Dollar {G} PF-69 DCAM Proof', 'Certified', [8, 15], 1),
+      ]
+    },
+    // ── Washington Quarter (Silver, 1932-1964) Generic ──
+    {
+      searchTerm: 'Washington Quarter Silver', filename: 'Washington_Quarter_Silver_Generic.csv', count: 28,
+      titleTemplates: [
+        T('Washington Quarter 90% Silver Random Date BU', 'Uncirculated', [8, 14], 4),
+        T('Washington Silver Quarter XF-AU', 'Circulated', [6, 10], 4),
+        T('Washington Quarter Silver Fine-VF Roll of 40', 'Circulated', [200, 260], 1),
+        TG('Washington Quarter Silver {G} MS-64', 'Certified', [14, 22], 3),
+        TG('Washington Quarter Silver {G} MS-65', 'Certified', [22, 38], 2),
+        TG('Washington Quarter Silver {G} MS-66', 'Certified', [40, 70], 1),
+        T('Washington Quarter Silver VG-Fine', 'Circulated', [5, 8], 3),
+      ]
+    },
+    // ── Walking Liberty Half Dollar Generic ──
+    {
+      searchTerm: 'Walking Liberty Half Dollar', filename: 'Walking_Liberty_Half_Generic.csv', count: 28,
+      titleTemplates: [
+        T('Walking Liberty Half Dollar BU Random Date', 'Uncirculated', [28, 45], 4),
+        T('Walking Liberty Half XF-AU Nice', 'Circulated', [16, 26], 4),
+        T('Walking Liberty Half Dollar Fine', 'Circulated', [12, 18], 3),
+        T('Walking Liberty Half Dollar Good-VG', 'Circulated', [10, 15], 2),
+        TG('Walking Liberty Half Dollar {G} MS-63', 'Certified', [45, 70], 2),
+        TG('Walking Liberty Half Dollar {G} MS-64', 'Certified', [65, 105], 2),
+        TG('Walking Liberty Half Dollar {G} MS-65', 'Certified', [110, 185], 1),
+      ]
+    },
+    // ── Mercury Dime Generic ──
+    {
+      searchTerm: 'Mercury Dime Silver', filename: 'Mercury_Dime_Generic.csv', count: 28,
+      titleTemplates: [
+        T('Mercury Dime BU Uncirculated Random Date', 'Uncirculated', [6, 12], 4),
+        T('Mercury Dime Silver XF-AU', 'Circulated', [4, 7], 4),
+        T('Mercury Dime Good-VG 90% Silver', 'Circulated', [2, 4], 3),
+        T('Mercury Dime Roll of 50 Mixed Dates Silver', 'Circulated', [110, 150], 1),
+        TG('Mercury Dime {G} MS-64 FB Full Bands', 'Certified', [25, 45], 2),
+        TG('Mercury Dime {G} MS-65 FB', 'Certified', [40, 75], 2),
+        TG('Mercury Dime {G} MS-66 FB', 'Certified', [80, 150], 1),
+      ]
+    },
+    // ── Franklin Half Dollar Generic ──
+    {
+      searchTerm: 'Franklin Half Dollar', filename: 'Franklin_Half_Dollar_Generic.csv', count: 25,
+      titleTemplates: [
+        T('Franklin Half Dollar BU Random Date', 'Uncirculated', [16, 24], 4),
+        T('Franklin Half Dollar AU Nice', 'Circulated', [12, 18], 4),
+        T('Franklin Half Dollar Fine-VF', 'Circulated', [10, 15], 3),
+        TG('Franklin Half Dollar {G} MS-63 FBL', 'Certified', [28, 45], 2),
+        TG('Franklin Half Dollar {G} MS-64 FBL Full Bell Lines', 'Certified', [40, 65], 2),
+        TG('Franklin Half Dollar {G} MS-65 FBL', 'Certified', [80, 140], 1),
+      ]
+    },
+    // ── Standing Liberty Quarter Generic ──
+    {
+      searchTerm: 'Standing Liberty Quarter', filename: 'Standing_Liberty_Quarter_Generic.csv', count: 22,
+      titleTemplates: [
+        T('Standing Liberty Quarter VF-XF Full Date', 'Circulated', [20, 35], 4),
+        T('Standing Liberty Quarter Good-VG Date Visible', 'Circulated', [12, 20], 4),
+        T('Standing Liberty Quarter No Date Filler', 'Circulated', [5, 9], 2),
+        TG('Standing Liberty Quarter Type 2 {G} VF-25', 'Certified', [28, 45], 2),
+        TG('Standing Liberty Quarter {G} XF-40 FH Full Head', 'Certified', [50, 85], 2),
+        TG('Standing Liberty Quarter {G} MS-63 FH', 'Certified', [180, 300], 1),
+      ]
+    },
+    // ── Roosevelt Dime (Silver, 1946-1964) Generic ──
+    {
+      searchTerm: 'Roosevelt Dime Silver', filename: 'Roosevelt_Dime_Silver_Generic.csv', count: 22,
+      titleTemplates: [
+        T('Roosevelt Dime 90% Silver BU Random Date', 'Uncirculated', [3, 6], 5),
+        T('Roosevelt Dime Silver XF-AU', 'Circulated', [2, 4], 4),
+        T('Roosevelt Dime Silver Roll of 50 90%', 'Circulated', [100, 135], 1),
+        TG('Roosevelt Dime Silver {G} MS-65 FB Full Bands', 'Certified', [12, 22], 2),
+        TG('Roosevelt Dime Silver {G} MS-66 FB', 'Certified', [18, 32], 2),
+        TG('Roosevelt Dime Silver {G} MS-67 FB', 'Certified', [35, 65], 1),
+      ]
+    },
+    // ── Barber Dime Generic ──
+    {
+      searchTerm: 'Barber Dime', filename: 'Barber_Dime_Generic.csv', count: 20,
+      titleTemplates: [
+        T('Barber Dime Good-VG Random Date', 'Circulated', [6, 12], 5),
+        T('Barber Dime Fine-VF 90% Silver', 'Circulated', [12, 22], 3),
+        T('Barber Dime XF-AU', 'Circulated', [25, 45], 2),
+        TG('Barber Dime {G} VF-20', 'Certified', [15, 28], 2),
+        TG('Barber Dime {G} XF-40', 'Certified', [35, 55], 2),
+        TG('Barber Dime {G} MS-63', 'Certified', [110, 180], 1),
+      ]
+    },
+    // ── Barber Quarter Generic ──
+    {
+      searchTerm: 'Barber Quarter', filename: 'Barber_Quarter_Generic.csv', count: 20,
+      titleTemplates: [
+        T('Barber Quarter Good-VG Random Date', 'Circulated', [12, 22], 5),
+        T('Barber Quarter Fine-VF 90% Silver', 'Circulated', [25, 45], 3),
+        T('Barber Quarter XF-AU', 'Circulated', [50, 90], 2),
+        TG('Barber Quarter {G} VF-20', 'Certified', [35, 55], 2),
+        TG('Barber Quarter {G} XF-40', 'Certified', [65, 110], 2),
+        TG('Barber Quarter {G} MS-63', 'Certified', [250, 420], 1),
+      ]
+    },
+    // ── Barber Half Dollar Generic ──
+    {
+      searchTerm: 'Barber Half Dollar', filename: 'Barber_Half_Dollar_Generic.csv', count: 20,
+      titleTemplates: [
+        T('Barber Half Dollar Good-VG Random Date', 'Circulated', [18, 32], 5),
+        T('Barber Half Dollar Fine-VF 90% Silver', 'Circulated', [35, 65], 3),
+        T('Barber Half Dollar XF-AU', 'Circulated', [75, 130], 2),
+        TG('Barber Half Dollar {G} VF-20', 'Certified', [50, 85], 2),
+        TG('Barber Half Dollar {G} XF-40', 'Certified', [100, 170], 2),
+        TG('Barber Half Dollar {G} MS-63', 'Certified', [400, 650], 1),
+      ]
+    },
+    // ── Lincoln Wheat Cent Generic ──
+    {
+      searchTerm: 'Lincoln Wheat Cent', filename: 'Lincoln_Wheat_Cent_Generic.csv', count: 25,
+      titleTemplates: [
+        T('Lincoln Wheat Cent BU Red Random Date', 'Uncirculated', [3, 8], 4),
+        T('Lincoln Wheat Cent AU Brown', 'Circulated', [1, 4], 4),
+        T('Lincoln Wheat Cent Roll of 50 Mixed Dates', 'Circulated', [8, 16], 2),
+        T('Lincoln Wheat Cent Fine-VF', 'Circulated', [0.50, 2], 3),
+        TG('Lincoln Wheat Cent {G} MS-64 RD Red', 'Certified', [15, 30], 2),
+        TG('Lincoln Wheat Cent {G} MS-65 RD', 'Certified', [25, 50], 2),
+        TG('Lincoln Wheat Cent {G} MS-66 RD', 'Certified', [45, 90], 1),
+      ]
+    },
+    // ── Buffalo Nickel Generic ──
+    {
+      searchTerm: 'Buffalo Nickel', filename: 'Buffalo_Nickel_Generic.csv', count: 22,
+      titleTemplates: [
+        T('Buffalo Nickel VF-XF Full Date Random', 'Circulated', [4, 10], 5),
+        T('Buffalo Nickel Good-VG Full Date', 'Circulated', [2, 5], 4),
+        T('Buffalo Nickel No Date Filler', 'Circulated', [0.50, 2], 2),
+        T('Buffalo Nickel Roll of 40 Full Dates', 'Circulated', [80, 140], 1),
+        TG('Buffalo Nickel {G} VF-25', 'Certified', [12, 22], 2),
+        TG('Buffalo Nickel {G} XF-40', 'Certified', [18, 32], 2),
+        TG('Buffalo Nickel {G} MS-63', 'Certified', [55, 95], 1),
+        TG('Buffalo Nickel {G} MS-64', 'Certified', [80, 140], 1),
+      ]
+    },
+    // ── Indian Head Cent Generic ──
+    {
+      searchTerm: 'Indian Head Cent', filename: 'Indian_Head_Cent_Generic.csv', count: 20,
+      titleTemplates: [
+        T('Indian Head Cent Good-VG Random Date', 'Circulated', [3, 8], 5),
+        T('Indian Head Cent Fine-VF', 'Circulated', [8, 18], 3),
+        T('Indian Head Cent XF-AU', 'Circulated', [20, 40], 2),
+        T('Indian Head Cent BU Uncirculated', 'Uncirculated', [50, 90], 1),
+        TG('Indian Head Cent {G} VF-25', 'Certified', [12, 22], 2),
+        TG('Indian Head Cent {G} XF-40', 'Certified', [25, 45], 2),
+        TG('Indian Head Cent {G} MS-63 BN', 'Certified', [65, 120], 1),
+        TG('Indian Head Cent {G} MS-64 RB', 'Certified', [120, 200], 1),
+      ]
+    },
+    // ── Jefferson Nickel (Silver War Nickel) Generic ──
+    {
+      searchTerm: 'Jefferson Silver War Nickel', filename: 'Jefferson_War_Nickel_Generic.csv', count: 18,
+      titleTemplates: [
+        T('Jefferson War Nickel 35% Silver 1942-1945 BU', 'Uncirculated', [4, 8], 5),
+        T('Jefferson Silver War Nickel XF-AU', 'Circulated', [2, 5], 4),
+        T('War Nickel Roll 40 pcs 35% Silver', 'Circulated', [65, 100], 1),
+        TG('Jefferson Silver War Nickel {G} MS-65', 'Certified', [12, 22], 2),
+        TG('Jefferson War Nickel {G} MS-66 FS Full Steps', 'Certified', [35, 65], 1),
+      ]
+    },
+    // ── Eisenhower Dollar Generic ──
+    {
+      searchTerm: 'Eisenhower Dollar', filename: 'Eisenhower_Dollar_Generic.csv', count: 20,
+      titleTemplates: [
+        T('Eisenhower Dollar BU Clad Random Date', 'Uncirculated', [4, 8], 4),
+        T('Eisenhower Dollar AU-BU', 'Circulated', [3, 6], 4),
+        T('1971-S Eisenhower Dollar 40% Silver BU', 'Uncirculated', [10, 18], 2),
+        T('1976-S Eisenhower Dollar 40% Silver BU Bicentennial', 'Uncirculated', [12, 20], 2),
+        TG('Eisenhower Dollar {G} MS-64', 'Certified', [10, 18], 2),
+        TG('Eisenhower Dollar {G} MS-65', 'Certified', [18, 32], 2),
+        TG('1972 Eisenhower Dollar Type 2 {G} MS-63', 'Certified', [50, 85], 1),
+      ]
+    },
+
+    // ══════════════════════════════════════════════════════════
+    // ADDITIONAL COMMON DATES — filling gaps in existing series
+    // ══════════════════════════════════════════════════════════
+
+    // ── Morgan common dates missing from existing data ──
+    {
+      searchTerm: '1878-S Morgan Silver Dollar', filename: '1878-S_Morgan_Silver_Dollar.csv', count: 25,
+      titleTemplates: [
+        T('1878-S Morgan Silver Dollar BU', 'Uncirculated', [38, 55], 4),
+        T('1878-S Morgan Dollar AU', 'Circulated', [32, 46], 3),
+        TG('1878-S Morgan Dollar {G} MS-63', 'Certified', [50, 75], 3),
+        TG('1878-S Morgan Silver Dollar {G} MS-64', 'Certified', [65, 100], 2),
+        TG('1878-S Morgan Dollar {G} MS-65', 'Certified', [120, 200], 1),
+      ]
+    },
+    {
+      searchTerm: '1879-S Morgan Silver Dollar', filename: '1879-S_Morgan_Silver_Dollar.csv', count: 25,
+      titleTemplates: [
+        T('1879-S Morgan Silver Dollar BU', 'Uncirculated', [36, 52], 4),
+        T('1879-S Morgan Dollar AU', 'Circulated', [30, 44], 3),
+        TG('1879-S Morgan Dollar {G} MS-63', 'Certified', [48, 72], 3),
+        TG('1879-S Morgan Silver Dollar {G} MS-64', 'Certified', [58, 90], 2),
+        TG('1879-S Morgan Dollar {G} MS-65', 'Certified', [95, 160], 1),
+      ]
+    },
+    {
+      searchTerm: '1880-O Morgan Silver Dollar', filename: '1880-O_Morgan_Silver_Dollar.csv', count: 22,
+      titleTemplates: [
+        T('1880-O Morgan Silver Dollar AU-BU', 'Uncirculated', [38, 55], 4),
+        T('1880-O Morgan Dollar VF-XF', 'Circulated', [30, 44], 3),
+        TG('1880-O Morgan Dollar {G} MS-62', 'Certified', [48, 72], 3),
+        TG('1880-O Morgan Silver Dollar {G} MS-63', 'Certified', [65, 100], 2),
+        TG('1880-O Morgan Dollar {G} MS-64', 'Certified', [120, 200], 1),
+      ]
+    },
+    {
+      searchTerm: '1883-O Morgan Silver Dollar', filename: '1883-O_Morgan_Silver_Dollar.csv', count: 25,
+      titleTemplates: [
+        T('1883-O Morgan Silver Dollar BU', 'Uncirculated', [36, 52], 4),
+        T('1883-O Morgan Dollar AU', 'Circulated', [30, 44], 3),
+        TG('1883-O Morgan Dollar {G} MS-63', 'Certified', [48, 72], 3),
+        TG('1883-O Morgan Silver Dollar {G} MS-64', 'Certified', [55, 85], 2),
+        TG('1883-O Morgan Dollar {G} MS-65', 'Certified', [100, 170], 1),
+      ]
+    },
+    {
+      searchTerm: '1886 Morgan Silver Dollar', filename: '1886_Morgan_Silver_Dollar.csv', count: 25,
+      titleTemplates: [
+        T('1886 Morgan Silver Dollar BU', 'Uncirculated', [36, 52], 4),
+        T('1886 Morgan Dollar AU', 'Circulated', [30, 44], 3),
+        TG('1886 Morgan Dollar {G} MS-63', 'Certified', [48, 72], 3),
+        TG('1886 Morgan Silver Dollar {G} MS-64', 'Certified', [55, 85], 2),
+        TG('1886 Morgan Dollar {G} MS-65', 'Certified', [95, 160], 1),
+        TG('1886 Morgan Silver Dollar {G} MS-66', 'Certified', [200, 340], 1),
+      ]
+    },
+    {
+      searchTerm: '1890 Morgan Silver Dollar', filename: '1890_Morgan_Silver_Dollar.csv', count: 22,
+      titleTemplates: [
+        T('1890 Morgan Silver Dollar BU', 'Uncirculated', [36, 52], 4),
+        T('1890 Morgan Dollar AU', 'Circulated', [30, 44], 3),
+        TG('1890 Morgan Dollar {G} MS-63', 'Certified', [48, 72], 3),
+        TG('1890 Morgan Silver Dollar {G} MS-64', 'Certified', [60, 95], 2),
+        TG('1890 Morgan Dollar {G} MS-65', 'Certified', [150, 260], 1),
+      ]
+    },
+    {
+      searchTerm: '1898-O Morgan Silver Dollar', filename: '1898-O_Morgan_Silver_Dollar.csv', count: 22,
+      titleTemplates: [
+        T('1898-O Morgan Silver Dollar BU', 'Uncirculated', [36, 52], 4),
+        T('1898-O Morgan Dollar AU', 'Circulated', [30, 44], 3),
+        TG('1898-O Morgan Dollar {G} MS-63', 'Certified', [48, 72], 3),
+        TG('1898-O Morgan Silver Dollar {G} MS-64', 'Certified', [55, 85], 2),
+        TG('1898-O Morgan Dollar {G} MS-65', 'Certified', [100, 170], 1),
+      ]
+    },
+    {
+      searchTerm: '1904-O Morgan Silver Dollar', filename: '1904-O_Morgan_Silver_Dollar.csv', count: 22,
+      titleTemplates: [
+        T('1904-O Morgan Silver Dollar BU', 'Uncirculated', [36, 52], 4),
+        T('1904-O Morgan Dollar AU', 'Circulated', [30, 44], 3),
+        TG('1904-O Morgan Dollar {G} MS-63', 'Certified', [48, 72], 3),
+        TG('1904-O Morgan Silver Dollar {G} MS-64', 'Certified', [55, 85], 2),
+        TG('1904-O Morgan Dollar {G} MS-65', 'Certified', [120, 200], 1),
+      ]
+    },
+    // ── Peace Dollar common dates missing ──
+    {
+      searchTerm: '1921 Peace Silver Dollar', filename: '1921_Peace_Silver_Dollar.csv', count: 22,
+      titleTemplates: [
+        T('1921 Peace Silver Dollar High Relief BU', 'Uncirculated', [100, 160], 4),
+        T('1921 Peace Dollar High Relief AU', 'Circulated', [80, 130], 3),
+        TG('1921 Peace Dollar High Relief {G} MS-62', 'Certified', [120, 190], 3),
+        TG('1921 Peace Silver Dollar {G} MS-63', 'Certified', [180, 280], 2),
+        TG('1921 Peace Dollar {G} MS-64', 'Certified', [300, 480], 1),
+      ]
+    },
+    {
+      searchTerm: '1926 Peace Silver Dollar', filename: '1926_Peace_Silver_Dollar.csv', count: 22,
+      titleTemplates: [
+        T('1926 Peace Silver Dollar BU', 'Uncirculated', [28, 40], 5),
+        T('1926 Peace Dollar AU', 'Circulated', [25, 36], 4),
+        TG('1926 Peace Dollar {G} MS-63', 'Certified', [35, 55], 3),
+        TG('1926 Peace Silver Dollar {G} MS-64', 'Certified', [45, 70], 2),
+        TG('1926 Peace Dollar {G} MS-65', 'Certified', [80, 135], 1),
+      ]
+    },
+    {
+      searchTerm: '1927 Peace Silver Dollar', filename: '1927_Peace_Silver_Dollar.csv', count: 20,
+      titleTemplates: [
+        T('1927 Peace Silver Dollar BU', 'Uncirculated', [32, 48], 4),
+        T('1927 Peace Dollar AU', 'Circulated', [28, 40], 3),
+        TG('1927 Peace Dollar {G} MS-63', 'Certified', [42, 65], 3),
+        TG('1927 Peace Silver Dollar {G} MS-64', 'Certified', [60, 95], 2),
+        TG('1927 Peace Dollar {G} MS-65', 'Certified', [200, 350], 1),
+      ]
+    },
+    // ── Walking Liberty Half common dates (1940s highest volume) ──
+    {
+      searchTerm: '1941 Walking Liberty Half', filename: '1941_Walking_Liberty_Half.csv', count: 22,
+      titleTemplates: [
+        T('1941 Walking Liberty Half Dollar BU', 'Uncirculated', [22, 34], 4),
+        T('1941 Walking Liberty Half AU', 'Circulated', [15, 24], 3),
+        TG('1941 Walking Liberty Half {G} MS-64', 'Certified', [40, 62], 3),
+        TG('1941 Walking Liberty Half {G} MS-65', 'Certified', [65, 110], 2),
+        TG('1941 Walking Liberty Half {G} MS-66', 'Certified', [120, 200], 1),
+      ]
+    },
+    {
+      searchTerm: '1942 Walking Liberty Half', filename: '1942_Walking_Liberty_Half.csv', count: 22,
+      titleTemplates: [
+        T('1942 Walking Liberty Half Dollar BU', 'Uncirculated', [22, 34], 4),
+        T('1942 Walking Liberty Half AU', 'Circulated', [15, 24], 3),
+        TG('1942 Walking Liberty Half {G} MS-64', 'Certified', [40, 62], 3),
+        TG('1942 Walking Liberty Half {G} MS-65', 'Certified', [65, 110], 2),
+        TG('1942 Walking Liberty Half {G} MS-66', 'Certified', [130, 220], 1),
+      ]
+    },
+    {
+      searchTerm: '1943 Walking Liberty Half', filename: '1943_Walking_Liberty_Half.csv', count: 20,
+      titleTemplates: [
+        T('1943 Walking Liberty Half Dollar BU', 'Uncirculated', [22, 34], 4),
+        T('1943 Walking Liberty Half AU', 'Circulated', [15, 24], 3),
+        TG('1943 Walking Liberty Half {G} MS-64', 'Certified', [40, 62], 3),
+        TG('1943 Walking Liberty Half {G} MS-65', 'Certified', [65, 110], 2),
+      ]
+    },
+    {
+      searchTerm: '1944 Walking Liberty Half', filename: '1944_Walking_Liberty_Half.csv', count: 20,
+      titleTemplates: [
+        T('1944 Walking Liberty Half Dollar BU', 'Uncirculated', [22, 34], 4),
+        T('1944 Walking Liberty Half AU', 'Circulated', [15, 24], 3),
+        TG('1944 Walking Liberty Half {G} MS-64', 'Certified', [40, 62], 3),
+        TG('1944 Walking Liberty Half {G} MS-65', 'Certified', [65, 110], 2),
+      ]
+    },
+    {
+      searchTerm: '1945 Walking Liberty Half', filename: '1945_Walking_Liberty_Half.csv', count: 20,
+      titleTemplates: [
+        T('1945 Walking Liberty Half Dollar BU', 'Uncirculated', [22, 34], 4),
+        T('1945 Walking Liberty Half AU', 'Circulated', [15, 24], 3),
+        TG('1945 Walking Liberty Half {G} MS-64', 'Certified', [40, 62], 3),
+        TG('1945 Walking Liberty Half {G} MS-65', 'Certified', [65, 110], 2),
+      ]
+    },
+    // ── Franklin Half common dates missing ──
+    {
+      searchTerm: '1950 Franklin Half', filename: '1950_Franklin_Half.csv', count: 20,
+      titleTemplates: [
+        T('1950 Franklin Half Dollar BU', 'Uncirculated', [18, 28], 4),
+        T('1950 Franklin Half AU', 'Circulated', [13, 20], 3),
+        TG('1950 Franklin Half {G} MS-63 FBL', 'Certified', [28, 45], 3),
+        TG('1950 Franklin Half {G} MS-64 FBL', 'Certified', [42, 68], 2),
+        TG('1950 Franklin Half {G} MS-65 FBL', 'Certified', [85, 150], 1),
+      ]
+    },
+    {
+      searchTerm: '1951 Franklin Half', filename: '1951_Franklin_Half.csv', count: 20,
+      titleTemplates: [
+        T('1951 Franklin Half Dollar BU', 'Uncirculated', [16, 24], 4),
+        T('1951 Franklin Half AU', 'Circulated', [12, 18], 3),
+        TG('1951 Franklin Half {G} MS-63 FBL', 'Certified', [25, 40], 3),
+        TG('1951 Franklin Half {G} MS-64 FBL', 'Certified', [38, 60], 2),
+        TG('1951 Franklin Half {G} MS-65 FBL', 'Certified', [75, 130], 1),
+      ]
+    },
+    {
+      searchTerm: '1952 Franklin Half', filename: '1952_Franklin_Half.csv', count: 20,
+      titleTemplates: [
+        T('1952 Franklin Half Dollar BU', 'Uncirculated', [16, 24], 4),
+        T('1952 Franklin Half AU', 'Circulated', [12, 18], 3),
+        TG('1952 Franklin Half {G} MS-63 FBL', 'Certified', [25, 40], 3),
+        TG('1952 Franklin Half {G} MS-64 FBL', 'Certified', [38, 58], 2),
+        TG('1952 Franklin Half {G} MS-65 FBL', 'Certified', [70, 120], 1),
+      ]
+    },
+    {
+      searchTerm: '1954 Franklin Half', filename: '1954_Franklin_Half.csv', count: 20,
+      titleTemplates: [
+        T('1954 Franklin Half Dollar BU', 'Uncirculated', [16, 24], 4),
+        T('1954 Franklin Half AU', 'Circulated', [12, 18], 3),
+        TG('1954 Franklin Half {G} MS-63 FBL', 'Certified', [25, 40], 3),
+        TG('1954 Franklin Half {G} MS-64 FBL', 'Certified', [38, 58], 2),
+        TG('1954 Franklin Half {G} MS-65 FBL', 'Certified', [70, 120], 1),
+      ]
+    },
+    {
+      searchTerm: '1957 Franklin Half', filename: '1957_Franklin_Half.csv', count: 20,
+      titleTemplates: [
+        T('1957 Franklin Half Dollar BU', 'Uncirculated', [16, 24], 4),
+        T('1957 Franklin Half AU', 'Circulated', [12, 18], 3),
+        TG('1957 Franklin Half {G} MS-63 FBL', 'Certified', [25, 40], 3),
+        TG('1957 Franklin Half {G} MS-64 FBL', 'Certified', [35, 55], 2),
+        TG('1957 Franklin Half {G} MS-65 FBL', 'Certified', [65, 110], 1),
+      ]
+    },
+    {
+      searchTerm: '1958 Franklin Half', filename: '1958_Franklin_Half.csv', count: 20,
+      titleTemplates: [
+        T('1958 Franklin Half Dollar BU', 'Uncirculated', [16, 24], 4),
+        T('1958 Franklin Half AU', 'Circulated', [12, 18], 3),
+        TG('1958 Franklin Half {G} MS-63 FBL', 'Certified', [25, 40], 3),
+        TG('1958 Franklin Half {G} MS-64 FBL', 'Certified', [35, 55], 2),
+        TG('1958 Franklin Half {G} MS-65 FBL', 'Certified', [65, 110], 1),
+      ]
+    },
+    {
+      searchTerm: '1960 Franklin Half', filename: '1960_Franklin_Half.csv', count: 18,
+      titleTemplates: [
+        T('1960 Franklin Half Dollar BU', 'Uncirculated', [16, 24], 4),
+        T('1960 Franklin Half AU', 'Circulated', [12, 18], 3),
+        TG('1960 Franklin Half {G} MS-63 FBL', 'Certified', [25, 40], 3),
+        TG('1960 Franklin Half {G} MS-64 FBL', 'Certified', [35, 55], 2),
+        TG('1960 Franklin Half {G} MS-65 FBL', 'Certified', [65, 110], 1),
+      ]
+    },
+    {
+      searchTerm: '1961 Franklin Half', filename: '1961_Franklin_Half.csv', count: 18,
+      titleTemplates: [
+        T('1961 Franklin Half Dollar BU', 'Uncirculated', [16, 24], 4),
+        T('1961 Franklin Half AU', 'Circulated', [12, 18], 3),
+        TG('1961 Franklin Half {G} MS-63 FBL', 'Certified', [25, 40], 3),
+        TG('1961 Franklin Half {G} MS-64 FBL', 'Certified', [33, 52], 2),
+        TG('1961 Franklin Half {G} MS-65 FBL', 'Certified', [60, 100], 1),
+      ]
+    },
+    {
+      searchTerm: '1962 Franklin Half', filename: '1962_Franklin_Half.csv', count: 18,
+      titleTemplates: [
+        T('1962 Franklin Half Dollar BU', 'Uncirculated', [16, 24], 4),
+        T('1962 Franklin Half AU', 'Circulated', [12, 18], 3),
+        TG('1962 Franklin Half {G} MS-63 FBL', 'Certified', [25, 40], 3),
+        TG('1962 Franklin Half {G} MS-64 FBL', 'Certified', [33, 52], 2),
+        TG('1962 Franklin Half {G} MS-65 FBL', 'Certified', [60, 100], 1),
+      ]
+    },
+    {
+      searchTerm: '1963 Franklin Half', filename: '1963_Franklin_Half.csv', count: 18,
+      titleTemplates: [
+        T('1963 Franklin Half Dollar BU Toned', 'Uncirculated', [16, 24], 4),
+        T('1963 Franklin Half AU', 'Circulated', [12, 18], 3),
+        TG('1963 Franklin Half {G} MS-63 FBL', 'Certified', [22, 36], 3),
+        TG('1963 Franklin Half {G} MS-64 FBL', 'Certified', [30, 48], 2),
+        TG('1963 Franklin Half {G} MS-65 FBL', 'Certified', [55, 95], 1),
+      ]
+    },
     // ── Generic Morgan sweep (catches misc common dates) ──
     {
       searchTerm: 'Morgan Silver Dollar', filename: 'Morgan_Silver_Dollar_Generic.csv', count: 40,

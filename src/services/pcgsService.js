@@ -140,8 +140,49 @@ async function resolveFromDescription(text) {
     if (data && (Array.isArray(data) ? data.length : data.PCGSNo)) {
       const coin = Array.isArray(data) ? data[0] : data;
       const result = _mapResponse(coin);
-      cache.set(cacheKey, result);
-      return result;
+
+      // ── Sanity-check: reject API results that contradict the parsed query ──
+      // The PCGS Search endpoint occasionally returns the wrong coin
+      // (e.g. "Buffalo" when the user asked for "Jefferson").
+      const apiYear = result.year;
+      const apiSeries = (result.series || '').toLowerCase();
+      let trustResult = true;
+
+      // Year mismatch: if the parsed year exists and API returned a different year, reject.
+      if (parsed.year && apiYear && parsed.year !== apiYear) {
+        console.warn(`[pcgs] Search result year mismatch: parsed ${parsed.year}, API returned ${apiYear} — falling through to local table`);
+        trustResult = false;
+      }
+
+      // Series mismatch: if we know the series from parsing (e.g. "Jefferson")
+      // and the API returned a clearly different series (e.g. "Buffalo"),
+      // reject the result.  Compare key tokens from the parsed series.
+      if (trustResult && parsed.series) {
+        const parsedSeriesLow = parsed.series.toLowerCase();
+        const CONFLICTING_PAIRS = [
+          ['jefferson', 'buffalo'], ['kennedy', 'franklin'], ['kennedy', 'walking liberty'],
+          ['franklin', 'walking liberty'], ['washington', 'standing liberty'],
+          ['roosevelt', 'mercury'], ['roosevelt', 'barber'], ['mercury', 'barber'],
+          ['morgan', 'peace'], ['lincoln', 'indian head'], ['lincoln', 'indian'],
+        ];
+        for (const [a, b] of CONFLICTING_PAIRS) {
+          const parsedHasA = parsedSeriesLow.includes(a);
+          const parsedHasB = parsedSeriesLow.includes(b);
+          const apiHasA = apiSeries.includes(a);
+          const apiHasB = apiSeries.includes(b);
+          if ((parsedHasA && apiHasB && !apiHasA) || (parsedHasB && apiHasA && !apiHasB)) {
+            console.warn(`[pcgs] Search result series mismatch: parsed "${parsed.series}", API returned "${result.series}" — falling through to local table`);
+            trustResult = false;
+            break;
+          }
+        }
+      }
+
+      if (trustResult) {
+        cache.set(cacheKey, result);
+        return result;
+      }
+      // Otherwise fall through to local PCGS table lookup
     }
   } catch (_) { /* fall through */ }
 
@@ -154,10 +195,40 @@ async function resolveFromDescription(text) {
   if (pcgsNo && parsed.gradeNum) {
     const tableResult = await lookupByCoinNumberAndGrade(pcgsNo, parsed.gradeNum);
     if (tableResult.verified) {
-      tableResult.parsed = parsed;
-      const cacheKey = `pcgs:desc:${text.toLowerCase().trim()}`;
-      cache.set(cacheKey, tableResult);
-      return tableResult;
+      // Validate: if PCGS returned a different year or conflicting series, reject.
+      const apiYear = tableResult.year;
+      const apiSeries = (tableResult.series || '').toLowerCase();
+      let trustTable = true;
+
+      if (parsed.year && apiYear && parsed.year !== apiYear) {
+        console.warn(`[pcgs] Table result year mismatch: parsed ${parsed.year}, API returned ${apiYear} for PCGS#${pcgsNo}`);
+        trustTable = false;
+      }
+
+      if (trustTable && parsed.series) {
+        const parsedLow = parsed.series.toLowerCase();
+        const CONFLICTING_PAIRS = [
+          ['jefferson', 'buffalo'], ['kennedy', 'franklin'], ['kennedy', 'walking liberty'],
+          ['franklin', 'walking liberty'], ['washington', 'standing liberty'],
+          ['roosevelt', 'mercury'], ['morgan', 'peace'], ['lincoln', 'indian'],
+        ];
+        for (const [a, b] of CONFLICTING_PAIRS) {
+          if ((parsedLow.includes(a) && apiSeries.includes(b) && !apiSeries.includes(a))
+            || (parsedLow.includes(b) && apiSeries.includes(a) && !apiSeries.includes(b))) {
+            console.warn(`[pcgs] Table result series mismatch: parsed "${parsed.series}", API returned "${tableResult.series}" for PCGS#${pcgsNo}`);
+            trustTable = false;
+            break;
+          }
+        }
+      }
+
+      if (trustTable) {
+        tableResult.parsed = parsed;
+        const cacheKey = `pcgs:desc:${text.toLowerCase().trim()}`;
+        cache.set(cacheKey, tableResult);
+        return tableResult;
+      }
+      // Fall through to best-effort if validation failed
     }
   }
 
@@ -233,6 +304,11 @@ function parseDescription(text) {
       result.finish = finish;
       break;
     }
+  }
+
+  // Roll detection — "lincoln cent roll", "nickel roll", "roll of quarters", etc.
+  if (/\brolls?\b/i.test(t)) {
+    result.isRoll = true;
   }
 
   // Proof / Mint set detection — MUST come before generic "proof" grade
@@ -349,8 +425,9 @@ function parseDescription(text) {
     'liberty nickel', 'flowing hair', 'capped bust', 'draped bust',
     'trade dollar',
     'morgan', 'peace', 'barber', 'mercury', 'roosevelt',
-    'washington', 'lincoln', 'jefferson', 'buffalo nickel', 'buffalo',
-    'eisenhower', 'ike', 'kennedy', 'franklin',
+    'washington quarter', 'washington',
+    'lincoln', 'jefferson nickel', 'jefferson', 'buffalo nickel', 'buffalo',
+    'eisenhower', 'ike', 'kennedy half', 'kennedy', 'franklin half', 'franklin',
     'shield', 'ase', 'sae',
     // Denomination fallbacks (last resort)
     'wheat penny', 'wheat cent', 'steel penny', 'steel cent',
