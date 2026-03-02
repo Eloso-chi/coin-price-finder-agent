@@ -473,7 +473,32 @@ function parseDescription(text) {
   ];
   for (const kw of seriesKeywords) {
     if (t.toLowerCase().includes(kw)) {
-      result.series = kw.replace(/\b\w/g, c => c.toUpperCase());
+      let seriesName = kw;
+
+      // Zodiac / Lunar coin enrichment: when a "year of the X" matches,
+      // preserve mint & program context from the raw query so eBay keywords
+      // are specific enough to find the right coin.
+      if (/^year of the /.test(kw)) {
+        const tLow = t.toLowerCase();
+        const prefixParts = [];
+        // Mint context
+        if (/\bperth\b/i.test(tLow))           prefixParts.push('Perth');
+        else if (/\baustralian?\b/i.test(tLow)) prefixParts.push('Australian');
+        else if (/\broyal\s*mint\b/i.test(tLow)) prefixParts.push('Royal Mint');
+        else if (/\brcm\b|\broyal\s*canadian\b/i.test(tLow)) prefixParts.push('RCM');
+        else if (/\bchinese?\b/i.test(tLow))   prefixParts.push('Chinese');
+        // Program context
+        if (/\blunar\b/i.test(tLow))            prefixParts.push('Lunar');
+        // Metal context
+        if (/\bsilver\b/i.test(tLow))           prefixParts.push('Silver');
+        else if (/\bgold\b/i.test(tLow))        prefixParts.push('Gold');
+        else if (/\bplatinum\b/i.test(tLow))    prefixParts.push('Platinum');
+        if (prefixParts.length > 0) {
+          seriesName = prefixParts.join(' ') + ' ' + kw;
+        }
+      }
+
+      result.series = seriesName.replace(/\b\w/g, c => c.toUpperCase());
       break;
     }
   }

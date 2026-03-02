@@ -155,10 +155,17 @@ router.post('/', async (req, res) => {
     }
 
     // ── 2b. Lunar series enrichment ──
-    // If this is a Lunar coin, append zodiac animal + Perth series number for precision
+    // If this is a Lunar coin, append zodiac animal + Perth series number for precision.
+    // Detect Lunar context from: parsed series, raw query, AND zodiac patterns.
     const coinName = (coinData?.name || pcgs.series || identification.parsed?.series || '').toLowerCase();
+    const rawQueryLower = String(query).toLowerCase();
     const coinYear = coinData?.year || pcgs.year || identification.parsed?.year;
-    const isLunarCoin = /\blunar\b/i.test(coinName);
+    const hasLunarKeyword = /\blunar\b/i.test(coinName) || /\blunar\b/i.test(rawQueryLower);
+    const hasZodiacPattern = /\byear\s+of\s+the\s+(rat|ox|tiger|rabbit|dragon|snake|horse|goat|monkey|rooster|dog|pig)\b/i.test(coinName)
+      || /\byear\s+of\s+the\s+(rat|ox|tiger|rabbit|dragon|snake|horse|goat|monkey|rooster|dog|pig)\b/i.test(rawQueryLower);
+    const isLunarCoin = hasLunarKeyword || hasZodiacPattern;
+    const hasPerthContext = /\bperth\b/i.test(coinName) || /\bperth\b/i.test(rawQueryLower);
+    const hasAustralianContext = /\baustralian?\b/i.test(coinName) || /\baustralian?\b/i.test(rawQueryLower);
     let zodiacAnimal = null;
     let perthSeriesLabel = null;
 
@@ -167,8 +174,8 @@ router.post('/', async (req, res) => {
       if (zodiacAnimal && !ebayKeywords.toLowerCase().includes(zodiacAnimal.toLowerCase())) {
         ebayKeywords += ' ' + zodiacAnimal;
       }
-      // Perth Mint series numbering
-      if (/perth/i.test(coinName)) {
+      // Perth Mint series numbering — check raw query too, not just parsed coinName
+      if (hasPerthContext || hasAustralianContext) {
         const { label } = perthLunarSeries(coinYear);
         perthSeriesLabel = label;
         if (perthSeriesLabel && !ebayKeywords.toLowerCase().includes('series')) {
@@ -202,6 +209,23 @@ router.post('/', async (req, res) => {
       _gradeSource: identification.parsed?._gradeSource || null,
       _rawQuery: String(query),
     };
+
+    // Auto-detect Brand for eBay aspect filtering (Perth Mint, Royal Mint, etc.)
+    if (hasPerthContext || hasAustralianContext)             expected._brandFilter = 'Perth Mint';
+    else if (/\broyal\s*mint\b/i.test(rawQueryLower))       expected._brandFilter = 'The Royal Mint';
+    else if (/\broyal\s*canadian\b|\brcm\b/i.test(rawQueryLower)) expected._brandFilter = 'Royal Canadian Mint';
+
+    // Build a tracker-appropriate series name for the Live eBay Tracker.
+    // For Lunar coins, broaden from specific animal ("Perth Year Of The Rooster")
+    // to the full series ("Perth Lunar Series II Silver") so all years appear.
+    let trackerSeries = pcgs.series || identification.parsed?.series || '';
+    if (isLunarCoin && coinYear && (hasPerthContext || hasAustralianContext)) {
+      const { label: serLabel } = perthLunarSeries(coinYear);
+      if (serLabel) {
+        const metalToken = expectedMetal || 'silver';
+        trackerSeries = `Perth Lunar ${serLabel} ${metalToken}`;
+      }
+    }
 
     // ── Precious metal content cross-check ──
     // Fetch spot price so the eBay filter can sanity-check bullion comps
@@ -392,6 +416,7 @@ router.post('/', async (req, res) => {
       decisions,
       numista: numista || null,
       reproducibility,
+      trackerSeries: trackerSeries || null,
       lunarComparison: isLunarCoin ? buildLunarComparison(coinYear, coinName + ' ' + String(query)) : null,
       coinVariant: (function() {
         // Resolve design series label for Half Dollar (and future denominations)

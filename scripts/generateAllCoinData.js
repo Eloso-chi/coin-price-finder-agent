@@ -1116,6 +1116,60 @@ const DAY8 = {
         TG('1996 Lunar I Rat 1/10 oz Gold {G} MS-70', 'Certified', [580, 820], 1),
       ]
     },
+    // 1997 Ox — Series I
+    {
+      searchTerm: '1997 Australian Lunar Year of the Ox Silver 1 oz', filename: 'Perth_Lunar_I_1997_Ox_Silver_1oz.csv', count: 18,
+      titleTemplates: [
+        T('1997 Australia Lunar Series I Year of the Ox 1 oz Silver BU', 'Uncirculated', [110, 180], 4),
+        T('1997 Perth Mint Lunar Ox 1 oz .999 Silver', 'Uncirculated', [100, 170], 3),
+        TG('1997 Australia Lunar I Ox 1 oz Silver {G} MS-69', 'Certified', [160, 270], 2),
+        TG('1997 Australian Lunar Ox Silver {G} MS-70', 'Certified', [320, 540], 1),
+      ]
+    },
+    {
+      searchTerm: '1997 Australian Lunar Year of the Ox Gold 1 oz', filename: 'Perth_Lunar_I_1997_Ox_Gold_1oz.csv', count: 14,
+      titleTemplates: [
+        T('1997 Australia Lunar Series I Ox 1 oz Gold BU', 'Uncirculated', [3100, 3700], 4),
+        TG('1997 Australia Lunar I Ox 1 oz Gold {G} MS-69', 'Certified', [3400, 4100], 2),
+        TG('1997 Australia Lunar I Ox Gold {G} MS-70', 'Certified', [4300, 6200], 1),
+      ]
+    },
+    // 1998 Tiger — Series I
+    {
+      searchTerm: '1998 Australian Lunar Year of the Tiger Silver 1 oz', filename: 'Perth_Lunar_I_1998_Tiger_Silver_1oz.csv', count: 18,
+      titleTemplates: [
+        T('1998 Australia Lunar Series I Year of the Tiger 1 oz Silver BU', 'Uncirculated', [105, 175], 4),
+        T('1998 Perth Mint Lunar Tiger 1 oz .999 Silver', 'Uncirculated', [95, 165], 3),
+        TG('1998 Australia Lunar I Tiger 1 oz Silver {G} MS-69', 'Certified', [155, 260], 2),
+        TG('1998 Australian Lunar Tiger Silver {G} MS-70', 'Certified', [300, 500], 1),
+      ]
+    },
+    {
+      searchTerm: '1998 Australian Lunar Year of the Tiger Gold 1 oz', filename: 'Perth_Lunar_I_1998_Tiger_Gold_1oz.csv', count: 14,
+      titleTemplates: [
+        T('1998 Australia Lunar Series I Tiger 1 oz Gold BU', 'Uncirculated', [3100, 3700], 4),
+        TG('1998 Australia Lunar I Tiger 1 oz Gold {G} MS-69', 'Certified', [3400, 4100], 2),
+        TG('1998 Australia Lunar I Tiger Gold {G} MS-70', 'Certified', [4300, 6200], 1),
+      ]
+    },
+    // 1999 Rabbit — Series I
+    {
+      searchTerm: '1999 Australian Lunar Year of the Rabbit Silver 1 oz', filename: 'Perth_Lunar_I_1999_Rabbit_Silver_1oz.csv', count: 18,
+      titleTemplates: [
+        T('1999 Australia Lunar Series I Year of the Rabbit 1 oz Silver BU', 'Uncirculated', [100, 165], 4),
+        T('1999 Perth Mint Lunar Rabbit 1 oz .999 Silver', 'Uncirculated', [90, 155], 3),
+        TG('1999 Australia Lunar I Rabbit 1 oz Silver {G} MS-69', 'Certified', [150, 250], 2),
+        TG('1999 Australian Lunar Rabbit Silver {G} MS-70', 'Certified', [280, 470], 1),
+      ]
+    },
+    {
+      searchTerm: '1999 Australian Lunar Year of the Rabbit Gold 1 oz', filename: 'Perth_Lunar_I_1999_Rabbit_Gold_1oz.csv', count: 14,
+      titleTemplates: [
+        T('1999 Australia Lunar Series I Rabbit 1 oz Gold BU', 'Uncirculated', [3100, 3650], 4),
+        TG('1999 Australia Lunar I Rabbit 1 oz Gold {G} MS-69', 'Certified', [3350, 4000], 2),
+        TG('1999 Australia Lunar I Rabbit Gold {G} MS-70', 'Certified', [4200, 6000], 1),
+      ]
+    },
     // 2000 Dragon — Series I, most popular animal
     {
       searchTerm: '2000 Australian Lunar Year of the Dragon Silver 1 oz', filename: 'Perth_Lunar_I_2000_Dragon_Silver_1oz.csv', count: 22,
@@ -1158,6 +1212,24 @@ const DAY8 = {
         TG('2000 Lunar I Dragon 10 oz Silver {G} MS-70', 'Certified', [2200, 3500], 1),
       ]
     },
+    // 2001 Snake — Series I
+    {
+      searchTerm: '2001 Australian Lunar Year of the Snake Silver 1 oz', filename: 'Perth_Lunar_I_2001_Snake_Silver_1oz.csv', count: 18,
+      titleTemplates: [
+        T('2001 Australia Lunar Series I Year of the Snake 1 oz Silver BU', 'Uncirculated', [90, 150], 4),
+        T('2001 Perth Mint Lunar Snake 1 oz .999 Silver', 'Uncirculated', [85, 140], 3),
+        TG('2001 Australia Lunar I Snake 1 oz Silver {G} MS-69', 'Certified', [130, 220], 2),
+        TG('2001 Australian Lunar Snake Silver {G} MS-70', 'Certified', [250, 420], 1),
+      ]
+    },
+    {
+      searchTerm: '2001 Australian Lunar Year of the Snake Gold 1 oz', filename: 'Perth_Lunar_I_2001_Snake_Gold_1oz.csv', count: 14,
+      titleTemplates: [
+        T('2001 Australia Lunar Series I Snake 1 oz Gold BU', 'Uncirculated', [3100, 3650], 4),
+        TG('2001 Australia Lunar I Snake 1 oz Gold {G} MS-69', 'Certified', [3350, 4050], 2),
+        TG('2001 Australia Lunar I Snake Gold {G} MS-70', 'Certified', [4200, 6000], 1),
+      ]
+    },
     // 2002 Horse — Series I
     {
       searchTerm: '2002 Australian Lunar Year of the Horse Silver 1 oz', filename: 'Perth_Lunar_I_2002_Horse_Silver_1oz.csv', count: 18,
@@ -1173,6 +1245,78 @@ const DAY8 = {
         T('2002 Australia Lunar I Horse 1 oz Gold BU', 'Uncirculated', [3100, 3700], 4),
         TG('2002 Lunar I Horse 1 oz Gold {G} MS-69', 'Certified', [3400, 4100], 2),
         TG('2002 Lunar I Horse Gold {G} MS-70', 'Certified', [4200, 6000], 1),
+      ]
+    },
+    // 2003 Goat — Series I
+    {
+      searchTerm: '2003 Australian Lunar Year of the Goat Silver 1 oz', filename: 'Perth_Lunar_I_2003_Goat_Silver_1oz.csv', count: 18,
+      titleTemplates: [
+        T('2003 Australia Lunar Series I Year of the Goat 1 oz Silver BU', 'Uncirculated', [85, 140], 4),
+        T('2003 Perth Mint Lunar Goat 1 oz .999 Silver', 'Uncirculated', [80, 130], 3),
+        TG('2003 Australia Lunar I Goat 1 oz Silver {G} MS-69', 'Certified', [120, 200], 2),
+        TG('2003 Australian Lunar Goat Silver {G} MS-70', 'Certified', [230, 380], 1),
+      ]
+    },
+    {
+      searchTerm: '2003 Australian Lunar Year of the Goat Gold 1 oz', filename: 'Perth_Lunar_I_2003_Goat_Gold_1oz.csv', count: 14,
+      titleTemplates: [
+        T('2003 Australia Lunar Series I Goat 1 oz Gold BU', 'Uncirculated', [3050, 3600], 4),
+        TG('2003 Australia Lunar I Goat 1 oz Gold {G} MS-69', 'Certified', [3300, 4000], 2),
+        TG('2003 Australia Lunar I Goat Gold {G} MS-70', 'Certified', [4100, 5800], 1),
+      ]
+    },
+    // 2004 Monkey — Series I
+    {
+      searchTerm: '2004 Australian Lunar Year of the Monkey Silver 1 oz', filename: 'Perth_Lunar_I_2004_Monkey_Silver_1oz.csv', count: 18,
+      titleTemplates: [
+        T('2004 Australia Lunar Series I Year of the Monkey 1 oz Silver BU', 'Uncirculated', [80, 130], 4),
+        T('2004 Perth Mint Lunar Monkey 1 oz .999 Silver', 'Uncirculated', [75, 125], 3),
+        TG('2004 Australia Lunar I Monkey 1 oz Silver {G} MS-69', 'Certified', [115, 190], 2),
+        TG('2004 Australian Lunar Monkey Silver {G} MS-70', 'Certified', [220, 360], 1),
+      ]
+    },
+    {
+      searchTerm: '2004 Australian Lunar Year of the Monkey Gold 1 oz', filename: 'Perth_Lunar_I_2004_Monkey_Gold_1oz.csv', count: 14,
+      titleTemplates: [
+        T('2004 Australia Lunar Series I Monkey 1 oz Gold BU', 'Uncirculated', [3050, 3600], 4),
+        TG('2004 Australia Lunar I Monkey 1 oz Gold {G} MS-69', 'Certified', [3300, 3950], 2),
+        TG('2004 Australia Lunar I Monkey Gold {G} MS-70', 'Certified', [4100, 5800], 1),
+      ]
+    },
+    // 2005 Rooster — Series I
+    {
+      searchTerm: '2005 Australian Lunar Year of the Rooster Silver 1 oz', filename: 'Perth_Lunar_I_2005_Rooster_Silver_1oz.csv', count: 18,
+      titleTemplates: [
+        T('2005 Australia Lunar Series I Year of the Rooster 1 oz Silver BU', 'Uncirculated', [75, 125], 4),
+        T('2005 Perth Mint Lunar Rooster 1 oz .999 Silver', 'Uncirculated', [70, 120], 3),
+        TG('2005 Australia Lunar I Rooster 1 oz Silver {G} MS-69', 'Certified', [110, 185], 2),
+        TG('2005 Australian Lunar Rooster Silver {G} MS-70', 'Certified', [210, 350], 1),
+      ]
+    },
+    {
+      searchTerm: '2005 Australian Lunar Year of the Rooster Gold 1 oz', filename: 'Perth_Lunar_I_2005_Rooster_Gold_1oz.csv', count: 14,
+      titleTemplates: [
+        T('2005 Australia Lunar Series I Rooster 1 oz Gold BU', 'Uncirculated', [3000, 3550], 4),
+        TG('2005 Australia Lunar I Rooster 1 oz Gold {G} MS-69', 'Certified', [3250, 3900], 2),
+        TG('2005 Australia Lunar I Rooster Gold {G} MS-70', 'Certified', [4000, 5700], 1),
+      ]
+    },
+    // 2006 Dog — Series I
+    {
+      searchTerm: '2006 Australian Lunar Year of the Dog Silver 1 oz', filename: 'Perth_Lunar_I_2006_Dog_Silver_1oz.csv', count: 18,
+      titleTemplates: [
+        T('2006 Australia Lunar Series I Year of the Dog 1 oz Silver BU', 'Uncirculated', [78, 128], 4),
+        T('2006 Perth Mint Lunar Dog 1 oz .999 Silver', 'Uncirculated', [72, 120], 3),
+        TG('2006 Australia Lunar I Dog 1 oz Silver {G} MS-69', 'Certified', [112, 190], 2),
+        TG('2006 Australian Lunar Dog Silver {G} MS-70', 'Certified', [215, 360], 1),
+      ]
+    },
+    {
+      searchTerm: '2006 Australian Lunar Year of the Dog Gold 1 oz', filename: 'Perth_Lunar_I_2006_Dog_Gold_1oz.csv', count: 14,
+      titleTemplates: [
+        T('2006 Australia Lunar Series I Dog 1 oz Gold BU', 'Uncirculated', [3020, 3570], 4),
+        TG('2006 Australia Lunar I Dog 1 oz Gold {G} MS-69', 'Certified', [3280, 3930], 2),
+        TG('2006 Australia Lunar I Dog Gold {G} MS-70', 'Certified', [4050, 5750], 1),
       ]
     },
     // 2007 Pig — Last year of Series I
@@ -1203,6 +1347,60 @@ const DAY8 = {
         T('2008 Australia Lunar II Mouse 1 oz Gold BU', 'Uncirculated', [2900, 3300], 4),
         TG('2008 Lunar II Mouse 1 oz Gold {G} MS-69', 'Certified', [3100, 3600], 2),
         TG('2008 Lunar II Mouse Gold {G} MS-70', 'Certified', [3800, 5500], 1),
+      ]
+    },
+    // 2009 Ox — Series II
+    {
+      searchTerm: '2009 Australian Lunar Year of the Ox Silver 1 oz', filename: 'Perth_Lunar_II_2009_Ox_Silver_1oz.csv', count: 18,
+      titleTemplates: [
+        T('2009 Australia Lunar Series II Year of the Ox 1 oz Silver BU', 'Uncirculated', [55, 88], 4),
+        T('2009 Perth Mint Lunar II Ox 1 oz .999 Silver', 'Uncirculated', [50, 82], 3),
+        TG('2009 Australia Lunar II Ox 1 oz Silver {G} MS-69', 'Certified', [72, 115], 2),
+        TG('2009 Australian Lunar II Ox Silver {G} MS-70', 'Certified', [135, 225], 1),
+      ]
+    },
+    {
+      searchTerm: '2009 Australian Lunar Year of the Ox Gold 1 oz', filename: 'Perth_Lunar_II_2009_Ox_Gold_1oz.csv', count: 14,
+      titleTemplates: [
+        T('2009 Australia Lunar II Ox 1 oz Gold BU', 'Uncirculated', [2850, 3250], 4),
+        TG('2009 Lunar II Ox 1 oz Gold {G} MS-69', 'Certified', [3050, 3550], 2),
+        TG('2009 Lunar II Ox Gold {G} MS-70', 'Certified', [3700, 5300], 1),
+      ]
+    },
+    // 2010 Tiger — Series II
+    {
+      searchTerm: '2010 Australian Lunar Year of the Tiger Silver 1 oz', filename: 'Perth_Lunar_II_2010_Tiger_Silver_1oz.csv', count: 18,
+      titleTemplates: [
+        T('2010 Australia Lunar Series II Year of the Tiger 1 oz Silver BU', 'Uncirculated', [52, 82], 4),
+        T('2010 Perth Mint Lunar II Tiger 1 oz .999 Silver', 'Uncirculated', [48, 78], 3),
+        TG('2010 Australia Lunar II Tiger 1 oz Silver {G} MS-69', 'Certified', [68, 108], 2),
+        TG('2010 Australian Lunar II Tiger Silver {G} MS-70', 'Certified', [125, 210], 1),
+      ]
+    },
+    {
+      searchTerm: '2010 Australian Lunar Year of the Tiger Gold 1 oz', filename: 'Perth_Lunar_II_2010_Tiger_Gold_1oz.csv', count: 14,
+      titleTemplates: [
+        T('2010 Australia Lunar II Tiger 1 oz Gold BU', 'Uncirculated', [2850, 3200], 4),
+        TG('2010 Lunar II Tiger 1 oz Gold {G} MS-69', 'Certified', [3000, 3500], 2),
+        TG('2010 Lunar II Tiger Gold {G} MS-70', 'Certified', [3650, 5200], 1),
+      ]
+    },
+    // 2011 Rabbit — Series II
+    {
+      searchTerm: '2011 Australian Lunar Year of the Rabbit Silver 1 oz', filename: 'Perth_Lunar_II_2011_Rabbit_Silver_1oz.csv', count: 18,
+      titleTemplates: [
+        T('2011 Australia Lunar Series II Year of the Rabbit 1 oz Silver BU', 'Uncirculated', [48, 75], 4),
+        T('2011 Perth Mint Lunar II Rabbit 1 oz .999 Silver', 'Uncirculated', [45, 72], 3),
+        TG('2011 Australia Lunar II Rabbit 1 oz Silver {G} MS-69', 'Certified', [62, 100], 2),
+        TG('2011 Australian Lunar II Rabbit Silver {G} MS-70', 'Certified', [115, 195], 1),
+      ]
+    },
+    {
+      searchTerm: '2011 Australian Lunar Year of the Rabbit Gold 1 oz', filename: 'Perth_Lunar_II_2011_Rabbit_Gold_1oz.csv', count: 14,
+      titleTemplates: [
+        T('2011 Australia Lunar II Rabbit 1 oz Gold BU', 'Uncirculated', [2830, 3180], 4),
+        TG('2011 Lunar II Rabbit 1 oz Gold {G} MS-69', 'Certified', [2980, 3450], 2),
+        TG('2011 Lunar II Rabbit Gold {G} MS-70', 'Certified', [3600, 5100], 1),
       ]
     },
     // 2012 Dragon — Series II, highest traded Lunar coin
@@ -1255,6 +1453,24 @@ const DAY8 = {
         TG('2012 Lunar II Dragon 10 oz Silver {G} MS-70', 'Certified', [900, 1400], 1),
       ]
     },
+    // 2013 Snake — Series II
+    {
+      searchTerm: '2013 Australian Lunar Year of the Snake Silver 1 oz', filename: 'Perth_Lunar_II_2013_Snake_Silver_1oz.csv', count: 18,
+      titleTemplates: [
+        T('2013 Australia Lunar Series II Year of the Snake 1 oz Silver BU', 'Uncirculated', [42, 65], 4),
+        T('2013 Perth Mint Lunar II Snake 1 oz .999 Silver', 'Uncirculated', [40, 62], 3),
+        TG('2013 Australia Lunar II Snake 1 oz Silver {G} MS-69', 'Certified', [55, 88], 2),
+        TG('2013 Australian Lunar II Snake Silver {G} MS-70', 'Certified', [100, 168], 1),
+      ]
+    },
+    {
+      searchTerm: '2013 Australian Lunar Year of the Snake Gold 1 oz', filename: 'Perth_Lunar_II_2013_Snake_Gold_1oz.csv', count: 14,
+      titleTemplates: [
+        T('2013 Australia Lunar II Snake 1 oz Gold BU', 'Uncirculated', [2820, 3170], 4),
+        TG('2013 Lunar II Snake 1 oz Gold {G} MS-69', 'Certified', [2950, 3420], 2),
+        TG('2013 Lunar II Snake Gold {G} MS-70', 'Certified', [3550, 5050], 1),
+      ]
+    },
     // 2014 Horse — Series II
     {
       searchTerm: '2014 Australian Lunar Year of the Horse Silver 1 oz', filename: 'Perth_Lunar_II_2014_Horse_Silver_1oz.csv', count: 18,
@@ -1270,6 +1486,78 @@ const DAY8 = {
         T('2014 Australia Lunar II Horse 1 oz Gold BU', 'Uncirculated', [2800, 3150], 4),
         TG('2014 Lunar II Horse 1 oz Gold {G} MS-69', 'Certified', [2900, 3400], 2),
         TG('2014 Lunar II Horse Gold {G} MS-70', 'Certified', [3500, 5000], 1),
+      ]
+    },
+    // 2015 Goat — Series II
+    {
+      searchTerm: '2015 Australian Lunar Year of the Goat Silver 1 oz', filename: 'Perth_Lunar_II_2015_Goat_Silver_1oz.csv', count: 18,
+      titleTemplates: [
+        T('2015 Australia Lunar Series II Year of the Goat 1 oz Silver BU', 'Uncirculated', [38, 58], 4),
+        T('2015 Perth Mint Lunar II Goat 1 oz .999 Silver', 'Uncirculated', [36, 55], 3),
+        TG('2015 Australia Lunar II Goat 1 oz Silver {G} MS-69', 'Certified', [50, 78], 2),
+        TG('2015 Australian Lunar II Goat Silver {G} MS-70', 'Certified', [88, 148], 1),
+      ]
+    },
+    {
+      searchTerm: '2015 Australian Lunar Year of the Goat Gold 1 oz', filename: 'Perth_Lunar_II_2015_Goat_Gold_1oz.csv', count: 14,
+      titleTemplates: [
+        T('2015 Australia Lunar II Goat 1 oz Gold BU', 'Uncirculated', [2780, 3120], 4),
+        TG('2015 Lunar II Goat 1 oz Gold {G} MS-69', 'Certified', [2880, 3350], 2),
+        TG('2015 Lunar II Goat Gold {G} MS-70', 'Certified', [3450, 4900], 1),
+      ]
+    },
+    // 2016 Monkey — Series II
+    {
+      searchTerm: '2016 Australian Lunar Year of the Monkey Silver 1 oz', filename: 'Perth_Lunar_II_2016_Monkey_Silver_1oz.csv', count: 18,
+      titleTemplates: [
+        T('2016 Australia Lunar Series II Year of the Monkey 1 oz Silver BU', 'Uncirculated', [38, 58], 4),
+        T('2016 Perth Mint Lunar II Monkey 1 oz .999 Silver', 'Uncirculated', [36, 55], 3),
+        TG('2016 Australia Lunar II Monkey 1 oz Silver {G} MS-69', 'Certified', [50, 78], 2),
+        TG('2016 Australian Lunar II Monkey Silver {G} MS-70', 'Certified', [88, 148], 1),
+      ]
+    },
+    {
+      searchTerm: '2016 Australian Lunar Year of the Monkey Gold 1 oz', filename: 'Perth_Lunar_II_2016_Monkey_Gold_1oz.csv', count: 14,
+      titleTemplates: [
+        T('2016 Australia Lunar II Monkey 1 oz Gold BU', 'Uncirculated', [2780, 3120], 4),
+        TG('2016 Lunar II Monkey 1 oz Gold {G} MS-69', 'Certified', [2880, 3350], 2),
+        TG('2016 Lunar II Monkey Gold {G} MS-70', 'Certified', [3450, 4900], 1),
+      ]
+    },
+    // 2017 Rooster — Series II
+    {
+      searchTerm: '2017 Australian Lunar Year of the Rooster Silver 1 oz', filename: 'Perth_Lunar_II_2017_Rooster_Silver_1oz.csv', count: 18,
+      titleTemplates: [
+        T('2017 Australia Lunar Series II Year of the Rooster 1 oz Silver BU', 'Uncirculated', [40, 60], 4),
+        T('2017 Perth Mint Lunar II Rooster 1 oz .999 Silver', 'Uncirculated', [38, 58], 3),
+        TG('2017 Australia Lunar II Rooster 1 oz Silver {G} MS-69', 'Certified', [52, 82], 2),
+        TG('2017 Australian Lunar II Rooster Silver {G} MS-70', 'Certified', [92, 155], 1),
+      ]
+    },
+    {
+      searchTerm: '2017 Australian Lunar Year of the Rooster Gold 1 oz', filename: 'Perth_Lunar_II_2017_Rooster_Gold_1oz.csv', count: 14,
+      titleTemplates: [
+        T('2017 Australia Lunar II Rooster 1 oz Gold BU', 'Uncirculated', [2800, 3150], 4),
+        TG('2017 Lunar II Rooster 1 oz Gold {G} MS-69', 'Certified', [2900, 3380], 2),
+        TG('2017 Lunar II Rooster Gold {G} MS-70', 'Certified', [3480, 4950], 1),
+      ]
+    },
+    // 2018 Dog — Series II
+    {
+      searchTerm: '2018 Australian Lunar Year of the Dog Silver 1 oz', filename: 'Perth_Lunar_II_2018_Dog_Silver_1oz.csv', count: 18,
+      titleTemplates: [
+        T('2018 Australia Lunar Series II Year of the Dog 1 oz Silver BU', 'Uncirculated', [38, 58], 4),
+        T('2018 Perth Mint Lunar II Dog 1 oz .999 Silver', 'Uncirculated', [36, 55], 3),
+        TG('2018 Australia Lunar II Dog 1 oz Silver {G} MS-69', 'Certified', [50, 78], 2),
+        TG('2018 Australian Lunar II Dog Silver {G} MS-70', 'Certified', [88, 148], 1),
+      ]
+    },
+    {
+      searchTerm: '2018 Australian Lunar Year of the Dog Gold 1 oz', filename: 'Perth_Lunar_II_2018_Dog_Gold_1oz.csv', count: 14,
+      titleTemplates: [
+        T('2018 Australia Lunar II Dog 1 oz Gold BU', 'Uncirculated', [2780, 3120], 4),
+        TG('2018 Lunar II Dog 1 oz Gold {G} MS-69', 'Certified', [2880, 3350], 2),
+        TG('2018 Lunar II Dog Gold {G} MS-70', 'Certified', [3450, 4900], 1),
       ]
     },
     // 2019 Pig — Last year of Series II
@@ -1300,6 +1588,60 @@ const DAY8 = {
         T('2020 Australia Lunar III Mouse 1 oz Gold BU', 'Uncirculated', [2780, 3100], 4),
         TG('2020 Lunar III Mouse 1 oz Gold {G} MS-69', 'Certified', [2880, 3250], 2),
         TG('2020 Lunar III Mouse Gold {G} MS-70', 'Certified', [3400, 4800], 1),
+      ]
+    },
+    // 2021 Ox — Series III
+    {
+      searchTerm: '2021 Australian Lunar Year of the Ox Silver 1 oz', filename: 'Perth_Lunar_III_2021_Ox_Silver_1oz.csv', count: 18,
+      titleTemplates: [
+        T('2021 Australia Lunar Series III Year of the Ox 1 oz Silver BU', 'Uncirculated', [38, 55], 4),
+        T('2021 Perth Mint Lunar III Ox 1 oz .9999 Silver', 'Uncirculated', [36, 52], 3),
+        TG('2021 Lunar III Ox 1 oz Silver {G} MS-69', 'Certified', [48, 72], 2),
+        TG('2021 Lunar III Ox Silver {G} MS-70', 'Certified', [80, 135], 1),
+      ]
+    },
+    {
+      searchTerm: '2021 Australian Lunar Year of the Ox Gold 1 oz', filename: 'Perth_Lunar_III_2021_Ox_Gold_1oz.csv', count: 14,
+      titleTemplates: [
+        T('2021 Australia Lunar III Ox 1 oz Gold BU', 'Uncirculated', [2780, 3100], 4),
+        TG('2021 Lunar III Ox 1 oz Gold {G} MS-69', 'Certified', [2880, 3250], 2),
+        TG('2021 Lunar III Ox Gold {G} MS-70', 'Certified', [3400, 4800], 1),
+      ]
+    },
+    // 2022 Tiger — Series III
+    {
+      searchTerm: '2022 Australian Lunar Year of the Tiger Silver 1 oz', filename: 'Perth_Lunar_III_2022_Tiger_Silver_1oz.csv', count: 18,
+      titleTemplates: [
+        T('2022 Australia Lunar Series III Year of the Tiger 1 oz Silver BU', 'Uncirculated', [38, 55], 4),
+        T('2022 Perth Mint Lunar III Tiger 1 oz .9999 Silver', 'Uncirculated', [36, 52], 3),
+        TG('2022 Lunar III Tiger 1 oz Silver {G} MS-69', 'Certified', [48, 72], 2),
+        TG('2022 Lunar III Tiger Silver {G} MS-70', 'Certified', [80, 135], 1),
+      ]
+    },
+    {
+      searchTerm: '2022 Australian Lunar Year of the Tiger Gold 1 oz', filename: 'Perth_Lunar_III_2022_Tiger_Gold_1oz.csv', count: 14,
+      titleTemplates: [
+        T('2022 Australia Lunar III Tiger 1 oz Gold BU', 'Uncirculated', [2780, 3100], 4),
+        TG('2022 Lunar III Tiger 1 oz Gold {G} MS-69', 'Certified', [2880, 3250], 2),
+        TG('2022 Lunar III Tiger Gold {G} MS-70', 'Certified', [3400, 4800], 1),
+      ]
+    },
+    // 2023 Rabbit — Series III
+    {
+      searchTerm: '2023 Australian Lunar Year of the Rabbit Silver 1 oz', filename: 'Perth_Lunar_III_2023_Rabbit_Silver_1oz.csv', count: 18,
+      titleTemplates: [
+        T('2023 Australia Lunar Series III Year of the Rabbit 1 oz Silver BU', 'Uncirculated', [38, 55], 4),
+        T('2023 Perth Mint Lunar III Rabbit 1 oz .9999 Silver', 'Uncirculated', [36, 52], 3),
+        TG('2023 Lunar III Rabbit 1 oz Silver {G} MS-69', 'Certified', [48, 72], 2),
+        TG('2023 Lunar III Rabbit Silver {G} MS-70', 'Certified', [80, 135], 1),
+      ]
+    },
+    {
+      searchTerm: '2023 Australian Lunar Year of the Rabbit Gold 1 oz', filename: 'Perth_Lunar_III_2023_Rabbit_Gold_1oz.csv', count: 14,
+      titleTemplates: [
+        T('2023 Australia Lunar III Rabbit 1 oz Gold BU', 'Uncirculated', [2780, 3100], 4),
+        TG('2023 Lunar III Rabbit 1 oz Gold {G} MS-69', 'Certified', [2880, 3250], 2),
+        TG('2023 Lunar III Rabbit Gold {G} MS-70', 'Certified', [3400, 4800], 1),
       ]
     },
     // 2024 Dragon — Series III, most popular animal
@@ -1378,6 +1720,24 @@ const DAY8 = {
         TG('2025 Lunar III Snake 2 oz Silver {G} MS-70', 'Certified', [135, 210], 1),
       ]
     },
+    // 2026 Horse — Series III (current year)
+    {
+      searchTerm: '2026 Australian Lunar Year of the Horse Silver 1 oz', filename: 'Perth_Lunar_III_2026_Horse_Silver_1oz.csv', count: 16,
+      titleTemplates: [
+        T('2026 Australia Lunar Series III Year of the Horse 1 oz Silver BU', 'Uncirculated', [36, 50], 4),
+        T('2026 Perth Mint Lunar III Horse 1 oz .9999 Silver', 'Uncirculated', [34, 48], 3),
+        TG('2026 Lunar III Horse 1 oz Silver {G} MS-69', 'Certified', [44, 62], 2),
+        TG('2026 Lunar III Horse Silver {G} MS-70', 'Certified', [68, 108], 1),
+      ]
+    },
+    {
+      searchTerm: '2026 Australian Lunar Year of the Horse Gold 1 oz', filename: 'Perth_Lunar_III_2026_Horse_Gold_1oz.csv', count: 14,
+      titleTemplates: [
+        T('2026 Australia Lunar III Horse 1 oz Gold BU', 'Uncirculated', [2750, 3050], 4),
+        TG('2026 Lunar III Horse 1 oz Gold {G} MS-69', 'Certified', [2850, 3200], 2),
+        TG('2026 Lunar III Horse Gold {G} MS-70', 'Certified', [3300, 4600], 1),
+      ]
+    },
 
     // ────────────────────────────────────────────────────────
     // ROYAL MINT UK — LUNAR SHĒNGXIÀO COLLECTION
@@ -1406,6 +1766,40 @@ const DAY8 = {
         TG('2014 Royal Mint Lunar Horse 1/4 oz Gold {G} PF-69', 'Certified', [950, 1250], 2),
       ]
     },
+    // 2015 Goat
+    {
+      searchTerm: '2015 Royal Mint Lunar Goat Gold 1 oz', filename: 'RoyalMint_Lunar_2015_Goat_Gold_1oz.csv', count: 14,
+      titleTemplates: [
+        T('2015 Great Britain Lunar Goat 1 oz Gold BU', 'Uncirculated', [2850, 3250], 4),
+        TG('2015 Royal Mint Lunar Goat 1 oz Gold {G} MS-69', 'Certified', [3000, 3500], 2),
+        TG('2015 Royal Mint Lunar Goat Gold {G} MS-70', 'Certified', [3600, 5000], 1),
+      ]
+    },
+    {
+      searchTerm: '2015 Royal Mint Lunar Goat Silver 1 oz', filename: 'RoyalMint_Lunar_2015_Goat_Silver_1oz.csv', count: 16,
+      titleTemplates: [
+        T('2015 Great Britain Lunar Goat 1 oz Silver BU', 'Uncirculated', [40, 60], 4),
+        TG('2015 Royal Mint Lunar Goat Silver {G} MS-69', 'Certified', [52, 80], 2),
+        TG('2015 Royal Mint Lunar Goat Silver {G} MS-70', 'Certified', [90, 150], 1),
+      ]
+    },
+    // 2016 Monkey
+    {
+      searchTerm: '2016 Royal Mint Lunar Monkey Gold 1 oz', filename: 'RoyalMint_Lunar_2016_Monkey_Gold_1oz.csv', count: 14,
+      titleTemplates: [
+        T('2016 Great Britain Lunar Monkey 1 oz Gold BU', 'Uncirculated', [2850, 3250], 4),
+        TG('2016 Royal Mint Lunar Monkey 1 oz Gold {G} MS-69', 'Certified', [3000, 3500], 2),
+        TG('2016 Royal Mint Lunar Monkey Gold {G} MS-70', 'Certified', [3600, 5000], 1),
+      ]
+    },
+    {
+      searchTerm: '2016 Royal Mint Lunar Monkey Silver 1 oz', filename: 'RoyalMint_Lunar_2016_Monkey_Silver_1oz.csv', count: 16,
+      titleTemplates: [
+        T('2016 Great Britain Lunar Monkey 1 oz Silver BU', 'Uncirculated', [40, 60], 4),
+        TG('2016 Royal Mint Lunar Monkey Silver {G} MS-69', 'Certified', [52, 80], 2),
+        TG('2016 Royal Mint Lunar Monkey Silver {G} MS-70', 'Certified', [90, 150], 1),
+      ]
+    },
     // 2017 Rooster
     {
       searchTerm: '2017 Royal Mint Lunar Rooster Gold 1 oz', filename: 'RoyalMint_Lunar_2017_Rooster_Gold_1oz.csv', count: 14,
@@ -1421,6 +1815,108 @@ const DAY8 = {
         T('2017 Great Britain Lunar Rooster 1 oz Silver BU', 'Uncirculated', [40, 60], 4),
         TG('2017 Royal Mint Lunar Rooster Silver {G} MS-69', 'Certified', [52, 80], 2),
         TG('2017 Royal Mint Lunar Rooster Silver {G} MS-70', 'Certified', [90, 150], 1),
+      ]
+    },
+    // 2018 Dog
+    {
+      searchTerm: '2018 Royal Mint Lunar Dog Gold 1 oz', filename: 'RoyalMint_Lunar_2018_Dog_Gold_1oz.csv', count: 14,
+      titleTemplates: [
+        T('2018 Great Britain Lunar Dog 1 oz Gold BU', 'Uncirculated', [2850, 3200], 4),
+        TG('2018 Royal Mint Lunar Dog 1 oz Gold {G} MS-69', 'Certified', [3000, 3450], 2),
+        TG('2018 Royal Mint Lunar Dog Gold {G} MS-70', 'Certified', [3550, 5000], 1),
+      ]
+    },
+    {
+      searchTerm: '2018 Royal Mint Lunar Dog Silver 1 oz', filename: 'RoyalMint_Lunar_2018_Dog_Silver_1oz.csv', count: 16,
+      titleTemplates: [
+        T('2018 Great Britain Lunar Dog 1 oz Silver BU', 'Uncirculated', [40, 60], 4),
+        TG('2018 Royal Mint Lunar Dog Silver {G} MS-69', 'Certified', [52, 80], 2),
+        TG('2018 Royal Mint Lunar Dog Silver {G} MS-70', 'Certified', [90, 150], 1),
+      ]
+    },
+    // 2019 Pig
+    {
+      searchTerm: '2019 Royal Mint Lunar Pig Gold 1 oz', filename: 'RoyalMint_Lunar_2019_Pig_Gold_1oz.csv', count: 14,
+      titleTemplates: [
+        T('2019 Great Britain Lunar Pig 1 oz Gold BU', 'Uncirculated', [2850, 3200], 4),
+        TG('2019 Royal Mint Lunar Pig 1 oz Gold {G} MS-69', 'Certified', [3000, 3450], 2),
+        TG('2019 Royal Mint Lunar Pig Gold {G} MS-70', 'Certified', [3550, 5000], 1),
+      ]
+    },
+    {
+      searchTerm: '2019 Royal Mint Lunar Pig Silver 1 oz', filename: 'RoyalMint_Lunar_2019_Pig_Silver_1oz.csv', count: 16,
+      titleTemplates: [
+        T('2019 Great Britain Lunar Pig 1 oz Silver BU', 'Uncirculated', [38, 58], 4),
+        TG('2019 Royal Mint Lunar Pig Silver {G} MS-69', 'Certified', [50, 78], 2),
+        TG('2019 Royal Mint Lunar Pig Silver {G} MS-70', 'Certified', [88, 145], 1),
+      ]
+    },
+    // 2020 Rat
+    {
+      searchTerm: '2020 Royal Mint Lunar Rat Gold 1 oz', filename: 'RoyalMint_Lunar_2020_Rat_Gold_1oz.csv', count: 14,
+      titleTemplates: [
+        T('2020 Great Britain Lunar Rat 1 oz Gold BU', 'Uncirculated', [2800, 3150], 4),
+        TG('2020 Royal Mint Lunar Rat 1 oz Gold {G} MS-69', 'Certified', [2950, 3400], 2),
+        TG('2020 Royal Mint Lunar Rat Gold {G} MS-70', 'Certified', [3500, 4900], 1),
+      ]
+    },
+    {
+      searchTerm: '2020 Royal Mint Lunar Rat Silver 1 oz', filename: 'RoyalMint_Lunar_2020_Rat_Silver_1oz.csv', count: 16,
+      titleTemplates: [
+        T('2020 Great Britain Lunar Rat 1 oz Silver BU', 'Uncirculated', [38, 55], 4),
+        TG('2020 Royal Mint Lunar Rat Silver {G} MS-69', 'Certified', [48, 72], 2),
+        TG('2020 Royal Mint Lunar Rat Silver {G} MS-70', 'Certified', [82, 138], 1),
+      ]
+    },
+    // 2021 Ox
+    {
+      searchTerm: '2021 Royal Mint Lunar Ox Gold 1 oz', filename: 'RoyalMint_Lunar_2021_Ox_Gold_1oz.csv', count: 14,
+      titleTemplates: [
+        T('2021 Great Britain Lunar Ox 1 oz Gold BU', 'Uncirculated', [2800, 3150], 4),
+        TG('2021 Royal Mint Lunar Ox 1 oz Gold {G} MS-69', 'Certified', [2950, 3400], 2),
+        TG('2021 Royal Mint Lunar Ox Gold {G} MS-70', 'Certified', [3500, 4900], 1),
+      ]
+    },
+    {
+      searchTerm: '2021 Royal Mint Lunar Ox Silver 1 oz', filename: 'RoyalMint_Lunar_2021_Ox_Silver_1oz.csv', count: 16,
+      titleTemplates: [
+        T('2021 Great Britain Lunar Ox 1 oz Silver BU', 'Uncirculated', [38, 55], 4),
+        TG('2021 Royal Mint Lunar Ox Silver {G} MS-69', 'Certified', [48, 72], 2),
+        TG('2021 Royal Mint Lunar Ox Silver {G} MS-70', 'Certified', [82, 138], 1),
+      ]
+    },
+    // 2022 Tiger
+    {
+      searchTerm: '2022 Royal Mint Lunar Tiger Gold 1 oz', filename: 'RoyalMint_Lunar_2022_Tiger_Gold_1oz.csv', count: 14,
+      titleTemplates: [
+        T('2022 Great Britain Lunar Tiger 1 oz Gold BU', 'Uncirculated', [2800, 3150], 4),
+        TG('2022 Royal Mint Lunar Tiger 1 oz Gold {G} MS-69', 'Certified', [2950, 3400], 2),
+        TG('2022 Royal Mint Lunar Tiger Gold {G} MS-70', 'Certified', [3500, 4900], 1),
+      ]
+    },
+    {
+      searchTerm: '2022 Royal Mint Lunar Tiger Silver 1 oz', filename: 'RoyalMint_Lunar_2022_Tiger_Silver_1oz.csv', count: 16,
+      titleTemplates: [
+        T('2022 Great Britain Lunar Tiger 1 oz Silver BU', 'Uncirculated', [38, 55], 4),
+        TG('2022 Royal Mint Lunar Tiger Silver {G} MS-69', 'Certified', [48, 72], 2),
+        TG('2022 Royal Mint Lunar Tiger Silver {G} MS-70', 'Certified', [82, 138], 1),
+      ]
+    },
+    // 2023 Rabbit
+    {
+      searchTerm: '2023 Royal Mint Lunar Rabbit Gold 1 oz', filename: 'RoyalMint_Lunar_2023_Rabbit_Gold_1oz.csv', count: 14,
+      titleTemplates: [
+        T('2023 Great Britain Lunar Rabbit 1 oz Gold BU', 'Uncirculated', [2800, 3150], 4),
+        TG('2023 Royal Mint Lunar Rabbit 1 oz Gold {G} MS-69', 'Certified', [2950, 3400], 2),
+        TG('2023 Royal Mint Lunar Rabbit Gold {G} MS-70', 'Certified', [3500, 4900], 1),
+      ]
+    },
+    {
+      searchTerm: '2023 Royal Mint Lunar Rabbit Silver 1 oz', filename: 'RoyalMint_Lunar_2023_Rabbit_Silver_1oz.csv', count: 16,
+      titleTemplates: [
+        T('2023 Great Britain Lunar Rabbit 1 oz Silver BU', 'Uncirculated', [38, 55], 4),
+        TG('2023 Royal Mint Lunar Rabbit Silver {G} MS-69', 'Certified', [48, 72], 2),
+        TG('2023 Royal Mint Lunar Rabbit Silver {G} MS-70', 'Certified', [82, 138], 1),
       ]
     },
     // 2024 Dragon — Most popular animal
@@ -1472,6 +1968,23 @@ const DAY8 = {
         TG('2025 Royal Mint Lunar Snake 1/4 oz Gold {G} MS-69', 'Certified', [780, 930], 2),
       ]
     },
+    // 2026 Horse — current year
+    {
+      searchTerm: '2026 Royal Mint Lunar Horse Gold 1 oz', filename: 'RoyalMint_Lunar_2026_Horse_Gold_1oz.csv', count: 14,
+      titleTemplates: [
+        T('2026 Great Britain Lunar Horse 1 oz Gold BU', 'Uncirculated', [2800, 3150], 4),
+        TG('2026 Royal Mint Lunar Horse 1 oz Gold {G} MS-69', 'Certified', [2950, 3400], 2),
+        TG('2026 Royal Mint Lunar Horse Gold {G} MS-70', 'Certified', [3500, 4900], 1),
+      ]
+    },
+    {
+      searchTerm: '2026 Royal Mint Lunar Horse Silver 1 oz', filename: 'RoyalMint_Lunar_2026_Horse_Silver_1oz.csv', count: 16,
+      titleTemplates: [
+        T('2026 Great Britain Lunar Horse 1 oz Silver BU', 'Uncirculated', [36, 50], 4),
+        TG('2026 Royal Mint Lunar Horse Silver {G} MS-69', 'Certified', [46, 68], 2),
+        TG('2026 Royal Mint Lunar Horse Silver {G} MS-70', 'Certified', [75, 120], 1),
+      ]
+    },
 
     // ────────────────────────────────────────────────────────
     // ROYAL CANADIAN MINT — LUNAR / ZODIAC
@@ -1492,6 +2005,161 @@ const DAY8 = {
         T('2012 Canada $150 Lunar Dragon 1/2 oz .750 Gold Proof', 'Uncirculated', [1100, 1500], 4),
         TG('2012 Canada Lunar Dragon Gold {G} PF-69', 'Certified', [1250, 1700], 2),
         TG('2012 Canada Lunar Dragon Gold {G} PF-70', 'Certified', [1700, 2500], 1),
+      ]
+    },
+    // 2013 Snake
+    {
+      searchTerm: '2013 Canada Lunar Year of the Snake Silver', filename: 'RCM_Lunar_2013_Snake_Silver.csv', count: 14,
+      titleTemplates: [
+        T('2013 Canada $10 Year of the Snake 1/2 oz .9999 Silver Proof', 'Uncirculated', [35, 55], 4),
+        TG('2013 Canada Lunar Snake Silver {G} PF-69', 'Certified', [48, 75], 2),
+        TG('2013 Canada Lunar Snake Silver {G} PF-70', 'Certified', [80, 130], 1),
+      ]
+    },
+    {
+      searchTerm: '2013 Canada Lunar Year of the Snake Gold', filename: 'RCM_Lunar_2013_Snake_Gold.csv', count: 12,
+      titleTemplates: [
+        T('2013 Canada $150 Lunar Snake Gold Proof', 'Uncirculated', [1100, 1500], 4),
+        TG('2013 Canada Lunar Snake Gold {G} PF-69', 'Certified', [1250, 1700], 2),
+        TG('2013 Canada Lunar Snake Gold {G} PF-70', 'Certified', [1700, 2500], 1),
+      ]
+    },
+    // 2014 Horse
+    {
+      searchTerm: '2014 Canada Lunar Year of the Horse Silver', filename: 'RCM_Lunar_2014_Horse_Silver.csv', count: 14,
+      titleTemplates: [
+        T('2014 Canada $10 Year of the Horse 1/2 oz .9999 Silver Proof', 'Uncirculated', [35, 55], 4),
+        TG('2014 Canada Lunar Horse Silver {G} PF-69', 'Certified', [48, 75], 2),
+        TG('2014 Canada Lunar Horse Silver {G} PF-70', 'Certified', [80, 130], 1),
+      ]
+    },
+    {
+      searchTerm: '2014 Canada Lunar Year of the Horse Gold', filename: 'RCM_Lunar_2014_Horse_Gold.csv', count: 12,
+      titleTemplates: [
+        T('2014 Canada $150 Lunar Horse Gold Proof', 'Uncirculated', [1100, 1500], 4),
+        TG('2014 Canada Lunar Horse Gold {G} PF-69', 'Certified', [1250, 1700], 2),
+        TG('2014 Canada Lunar Horse Gold {G} PF-70', 'Certified', [1700, 2500], 1),
+      ]
+    },
+    // 2015 Goat
+    {
+      searchTerm: '2015 Canada Lunar Year of the Goat Silver', filename: 'RCM_Lunar_2015_Goat_Silver.csv', count: 14,
+      titleTemplates: [
+        T('2015 Canada $10 Year of the Sheep 1/2 oz .9999 Silver Proof', 'Uncirculated', [35, 55], 4),
+        TG('2015 Canada Lunar Goat Silver {G} PF-69', 'Certified', [48, 75], 2),
+        TG('2015 Canada Lunar Goat Silver {G} PF-70', 'Certified', [80, 130], 1),
+      ]
+    },
+    {
+      searchTerm: '2015 Canada Lunar Year of the Goat Gold', filename: 'RCM_Lunar_2015_Goat_Gold.csv', count: 12,
+      titleTemplates: [
+        T('2015 Canada $150 Lunar Goat Gold Proof', 'Uncirculated', [1100, 1500], 4),
+        TG('2015 Canada Lunar Goat Gold {G} PF-69', 'Certified', [1250, 1700], 2),
+        TG('2015 Canada Lunar Goat Gold {G} PF-70', 'Certified', [1700, 2500], 1),
+      ]
+    },
+    // 2016 Monkey
+    {
+      searchTerm: '2016 Canada Lunar Year of the Monkey Silver', filename: 'RCM_Lunar_2016_Monkey_Silver.csv', count: 14,
+      titleTemplates: [
+        T('2016 Canada $10 Year of the Monkey 1/2 oz .9999 Silver Proof', 'Uncirculated', [35, 55], 4),
+        TG('2016 Canada Lunar Monkey Silver {G} PF-69', 'Certified', [48, 75], 2),
+        TG('2016 Canada Lunar Monkey Silver {G} PF-70', 'Certified', [80, 130], 1),
+      ]
+    },
+    {
+      searchTerm: '2016 Canada Lunar Year of the Monkey Gold', filename: 'RCM_Lunar_2016_Monkey_Gold.csv', count: 12,
+      titleTemplates: [
+        T('2016 Canada $150 Lunar Monkey Gold Proof', 'Uncirculated', [1100, 1500], 4),
+        TG('2016 Canada Lunar Monkey Gold {G} PF-69', 'Certified', [1250, 1700], 2),
+        TG('2016 Canada Lunar Monkey Gold {G} PF-70', 'Certified', [1700, 2500], 1),
+      ]
+    },
+    // 2017 Rooster
+    {
+      searchTerm: '2017 Canada Lunar Year of the Rooster Silver', filename: 'RCM_Lunar_2017_Rooster_Silver.csv', count: 14,
+      titleTemplates: [
+        T('2017 Canada $10 Year of the Rooster 1/2 oz .9999 Silver Proof', 'Uncirculated', [35, 55], 4),
+        TG('2017 Canada Lunar Rooster Silver {G} PF-69', 'Certified', [48, 75], 2),
+        TG('2017 Canada Lunar Rooster Silver {G} PF-70', 'Certified', [80, 130], 1),
+      ]
+    },
+    {
+      searchTerm: '2017 Canada Lunar Year of the Rooster Gold', filename: 'RCM_Lunar_2017_Rooster_Gold.csv', count: 12,
+      titleTemplates: [
+        T('2017 Canada $150 Lunar Rooster Gold Proof', 'Uncirculated', [1100, 1500], 4),
+        TG('2017 Canada Lunar Rooster Gold {G} PF-69', 'Certified', [1250, 1700], 2),
+        TG('2017 Canada Lunar Rooster Gold {G} PF-70', 'Certified', [1700, 2500], 1),
+      ]
+    },
+    // 2018 Dog
+    {
+      searchTerm: '2018 Canada Lunar Year of the Dog Silver', filename: 'RCM_Lunar_2018_Dog_Silver.csv', count: 14,
+      titleTemplates: [
+        T('2018 Canada $10 Year of the Dog 1/2 oz .9999 Silver Proof', 'Uncirculated', [35, 55], 4),
+        TG('2018 Canada Lunar Dog Silver {G} PF-69', 'Certified', [48, 75], 2),
+        TG('2018 Canada Lunar Dog Silver {G} PF-70', 'Certified', [80, 130], 1),
+      ]
+    },
+    {
+      searchTerm: '2018 Canada Lunar Year of the Dog Gold', filename: 'RCM_Lunar_2018_Dog_Gold.csv', count: 12,
+      titleTemplates: [
+        T('2018 Canada $150 Lunar Dog Gold Proof', 'Uncirculated', [1100, 1500], 4),
+        TG('2018 Canada Lunar Dog Gold {G} PF-69', 'Certified', [1250, 1700], 2),
+        TG('2018 Canada Lunar Dog Gold {G} PF-70', 'Certified', [1700, 2500], 1),
+      ]
+    },
+    // 2019 Pig
+    {
+      searchTerm: '2019 Canada Lunar Year of the Pig Silver', filename: 'RCM_Lunar_2019_Pig_Silver.csv', count: 14,
+      titleTemplates: [
+        T('2019 Canada $10 Year of the Pig 1/2 oz .9999 Silver Proof', 'Uncirculated', [35, 55], 4),
+        TG('2019 Canada Lunar Pig Silver {G} PF-69', 'Certified', [48, 75], 2),
+        TG('2019 Canada Lunar Pig Silver {G} PF-70', 'Certified', [80, 130], 1),
+      ]
+    },
+    {
+      searchTerm: '2019 Canada Lunar Year of the Pig Gold', filename: 'RCM_Lunar_2019_Pig_Gold.csv', count: 12,
+      titleTemplates: [
+        T('2019 Canada $150 Lunar Pig Gold Proof', 'Uncirculated', [1100, 1500], 4),
+        TG('2019 Canada Lunar Pig Gold {G} PF-69', 'Certified', [1250, 1700], 2),
+        TG('2019 Canada Lunar Pig Gold {G} PF-70', 'Certified', [1700, 2500], 1),
+      ]
+    },
+    // 2020 Rat
+    {
+      searchTerm: '2020 Canada Lunar Year of the Rat Silver', filename: 'RCM_Lunar_2020_Rat_Silver.csv', count: 14,
+      titleTemplates: [
+        T('2020 Canada $10 Year of the Rat 1/2 oz .9999 Silver Proof', 'Uncirculated', [35, 55], 4),
+        TG('2020 Canada Lunar Rat Silver {G} PF-69', 'Certified', [48, 75], 2),
+        TG('2020 Canada Lunar Rat Silver {G} PF-70', 'Certified', [80, 130], 1),
+      ]
+    },
+    // 2021 Ox
+    {
+      searchTerm: '2021 Canada Lunar Year of the Ox Silver', filename: 'RCM_Lunar_2021_Ox_Silver.csv', count: 14,
+      titleTemplates: [
+        T('2021 Canada $10 Year of the Ox 1/2 oz .9999 Silver Proof', 'Uncirculated', [35, 55], 4),
+        TG('2021 Canada Lunar Ox Silver {G} PF-69', 'Certified', [48, 75], 2),
+        TG('2021 Canada Lunar Ox Silver {G} PF-70', 'Certified', [80, 130], 1),
+      ]
+    },
+    // 2022 Tiger
+    {
+      searchTerm: '2022 Canada Lunar Year of the Tiger Silver', filename: 'RCM_Lunar_2022_Tiger_Silver.csv', count: 14,
+      titleTemplates: [
+        T('2022 Canada $10 Year of the Tiger 1/2 oz .9999 Silver Proof', 'Uncirculated', [35, 55], 4),
+        TG('2022 Canada Lunar Tiger Silver {G} PF-69', 'Certified', [48, 75], 2),
+        TG('2022 Canada Lunar Tiger Silver {G} PF-70', 'Certified', [80, 130], 1),
+      ]
+    },
+    // 2023 Rabbit
+    {
+      searchTerm: '2023 Canada Lunar Year of the Rabbit Silver', filename: 'RCM_Lunar_2023_Rabbit_Silver.csv', count: 14,
+      titleTemplates: [
+        T('2023 Canada $10 Year of the Rabbit 1/2 oz .9999 Silver Proof', 'Uncirculated', [35, 55], 4),
+        TG('2023 Canada Lunar Rabbit Silver {G} PF-69', 'Certified', [48, 75], 2),
+        TG('2023 Canada Lunar Rabbit Silver {G} PF-70', 'Certified', [80, 130], 1),
       ]
     },
     // 2024 Dragon

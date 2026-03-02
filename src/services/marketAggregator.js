@@ -7,6 +7,7 @@
 
 const { TTLCache } = require('../utils/cache');
 const stats = require('../utils/stats');
+const { zodiacForYear, perthLunarSeries } = require('../data/constants');
 
 // ── In-memory cache (5-minute TTL, not persisted to disk) ────
 const _cache = new TTLCache({ defaultTTL: 5 * 60 * 1000 });
@@ -392,12 +393,61 @@ async function fetchMarketMatrix({
   const cacheKey = `market:${series}:${grade || 'All'}:${timeWindowDays}:${weight || ''}`;
   if (_cache.has(cacheKey)) return _cache.get(cacheKey);
 
+  // ── Lunar series detection ──
+  // For Perth Lunar coins, the series name might be "Perth Year Of The Rooster"
+  // which only matches one animal. Transform to broader series-level keywords
+  // and constrain results to the correct year range.
+  const ZODIAC_ANIMAL_RE = /\b(rat|ox|tiger|rabbit|dragon|snake|horse|goat|monkey|rooster|dog|pig)\b/i;
+  const seriesLower = series.toLowerCase();
+  const isLunar = /\blunar\b/.test(seriesLower) || /\byear\s+of\s+the\s+/.test(seriesLower) || ZODIAC_ANIMAL_RE.test(seriesLower);
+  const isPerthLunar = isLunar && (/\bperth\b/.test(seriesLower) || /\baustralian?\b/.test(seriesLower));
+  let lunarYearRange = null;  // { min, max } for filtering comps
+  let brandFilter = null;
+
   // Build keywords — series name + optional weight for bullion coins
   let keywords = series;
+
+  if (isPerthLunar) {
+    // Extract the animal and find which series this falls into.
+    // Reverse-lookup a plausible year from the animal to get the series range.
+    const animalMatch = seriesLower.match(ZODIAC_ANIMAL_RE);
+    const animal = animalMatch ? animalMatch[1] : null;
+    // Try to extract a series number from the series name (e.g. "Series II")
+    const snMatch = seriesLower.match(/series\s*(i{1,3}|[123])/i);
+    let seriesNum = null;
+    if (snMatch) {
+      const sn = snMatch[1].toUpperCase();
+      seriesNum = sn === '1' ? 'I' : sn === '2' ? 'II' : sn === '3' ? 'III' : sn;
+    }
+    // Determine year range from series number
+    if (seriesNum === 'I')   lunarYearRange = { min: 1996, max: 2007 };
+    else if (seriesNum === 'II')  lunarYearRange = { min: 2008, max: 2019 };
+    else if (seriesNum === 'III') lunarYearRange = { min: 2020, max: 2031 };
+    else if (animal) {
+      // No explicit series number — infer from keywords. Check if any year
+      // hint exists, otherwise default to most recent completed series.
+      // We can't know for sure, so pick the most popular (Series II: 2008-2019).
+      lunarYearRange = { min: 2008, max: 2019 };
+    }
+
+    // Build broader keywords: "Perth Lunar Series II Silver 1 oz"
+    // Remove the specific animal from keywords so all years are matched.
+    const metalToken = _detectMetal(series) || 'silver';
+    let lunarKeywords = 'Perth Lunar';
+    if (seriesNum) lunarKeywords += ' Series ' + seriesNum;
+    lunarKeywords += ' ' + metalToken;
+    keywords = lunarKeywords;
+    brandFilter = 'Perth Mint';
+    console.log(`[marketAggregator] Lunar series detected: keywords="${keywords}", yearRange=${lunarYearRange?.min}-${lunarYearRange?.max}`);
+  }
+
   if (weight && weight !== 1) {
     const WEIGHT_LABELS = { 0.5: '1/2', 0.25: '1/4', 0.1: '1/10', 0.05: '1/20' };
     const wStr = WEIGHT_LABELS[weight] ? WEIGHT_LABELS[weight] + ' oz' : weight + ' oz';
-    keywords = series + ' ' + wStr;
+    keywords = keywords + ' ' + wStr;
+  } else if (isPerthLunar) {
+    // Default 1 oz for Perth Lunar
+    keywords += ' 1 oz';
   }
 
   // Detect if the user is searching for rolls (e.g. "Franklin Half Dollar Roll")
@@ -406,39 +456,45 @@ async function fetchMarketMatrix({
   // Fetch completed sales via the existing fetchSoldComps pipeline
   // This returns comps from Insights + Finding APIs
   const detectedMetal = _detectMetal(series);
+  const expectedOpts = { series, _rawQuery: keywords, metal: detectedMetal, isRoll };
+  if (brandFilter) expectedOpts._brandFilter = brandFilter;
+
   const soldResult = await ebayService.fetchSoldComps(keywords, {
     timeWindowDays,
     maxPages: 3,
     usMinComps: 0,  // don't trigger Browse fallback
-  }, { series, _rawQuery: keywords, metal: detectedMetal, isRoll });
+  }, expectedOpts);
 
-  const completedComps = [
+  let completedComps = [
     ...(soldResult.us?.comps || []),
     ...(soldResult.global?.comps || []),
   ];
 
-  // Fetch active BIN listings via Browse API directly
-  // We need access to browseSearch — but it's not exported.
-  // Instead, we'll do a second fetchSoldComps with very small window
-  // that triggers Browse fallback, OR we export browseSearch.
-  // For now, use a pragmatic approach: trigger a Browse-only search
-  // by setting usMinComps very high so it always falls through.
+  // Fetch active BIN listings via Browse API directly (not through fetchSoldComps)
   let activeComps = [];
   try {
-    const activeResult = await ebayService.fetchSoldComps(keywords, {
-      timeWindowDays: 1, // very short window so Finding yields little
-      maxPages: 1,
-      usMinComps: 999,   // force Browse API fallback
-    }, { series, _rawQuery: keywords, metal: detectedMetal, isRoll });
-    // Browse comps have listingType: 'FixedPrice' or _source: 'browse'
-    const allActive = [
-      ...(activeResult.us?.comps || []),
-      ...(activeResult.global?.comps || []),
-    ];
-    activeComps = allActive.filter(c => c._source === 'browse' || c.listingType === 'FixedPrice');
+    const browseRaw = await ebayService.browseSearch(keywords, 200, brandFilter);
+    // Score and keep only relevant comps
+    const scored = browseRaw.map(c => ebayService.scoreMatch(c, expectedOpts));
+    const { kept } = ebayService.applyFilters(scored, { usMinComps: 0, maxPages: 3 }, expectedOpts);
+    activeComps = kept;
+    console.log(`[marketAggregator] Browse API active listings: ${activeComps.length} kept (${browseRaw.length} raw)`);
   } catch (err) {
     console.warn('[marketAggregator] Browse fetch failed:', err.message);
-    // Continue with completed data only
+  }
+
+  // ── Filter Lunar comps to the correct series year range ──
+  if (lunarYearRange) {
+    const filterByYearRange = (comps) => comps.filter(c => {
+      const year = extractYear(c.title);
+      if (!year) return false; // drop comps with no year for Lunar (year matters)
+      return year >= lunarYearRange.min && year <= lunarYearRange.max;
+    });
+    const preBefore = completedComps.length;
+    completedComps = filterByYearRange(completedComps);
+    const activeBefore = activeComps.length;
+    activeComps = filterByYearRange(activeComps);
+    console.log(`[marketAggregator] Lunar year filter: completed ${preBefore}→${completedComps.length}, active ${activeBefore}→${activeComps.length}`);
   }
 
   const bullion = isBullionSeries(series);

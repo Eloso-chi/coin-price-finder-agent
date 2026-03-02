@@ -1,5 +1,6 @@
-// src/services/ebayService.js — eBay SOLD comps via multiple APIs
-// Priority: Marketplace Insights (sold) → Finding API (sold) → Browse API (active)
+// src/services/ebayService.js — eBay comps via multiple APIs
+// Priority: Terapeak (sold) → Finding API (sold) → Browse API (active, fallback)
+// Marketplace Insights API: commented out (no access)
 // Includes request throttling, aggressive caching, exponential backoff
 // CommonJS
 
@@ -187,23 +188,30 @@ async function withRetry(fn, retries = 2, baseDelay = 800) {
 
 // ═══════════════════════════════════════════════════════════════
 // API 1: Marketplace Insights (SOLD items — OAuth, separate rate limits)
+// COMMENTED OUT — we do not have access to Marketplace Insights API.
+// Keeping for reference in case access is restored later.
 // ═══════════════════════════════════════════════════════════════
-async function insightsSearch(keywords, timeWindowDays = 90, limit = 50) {
+/*
+async function insightsSearch(keywords, timeWindowDays = 90, limit = 50, brandFilter = null) {
   const token = await getOAuthToken();
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - timeWindowDays);
   const dateFilter = `soldDate:[${startDate.toISOString()}]`;
 
   await throttle();
+  const params = {
+    q: keywords,
+    category_ids: '11116',
+    limit: Math.min(limit, 200),
+    filter: dateFilter
+  };
+  if (brandFilter) {
+    params.aspect_filter = `categoryId:11116,Brand:{${brandFilter}}`;
+  }
   const resp = await withRetry(() => axios.get(
     'https://api.ebay.com/buy/marketplace_insights/v1_beta/item_sales/search',
     {
-      params: {
-        q: keywords,
-        category_ids: '11116',
-        limit: Math.min(limit, 200),
-        filter: dateFilter
-      },
+      params,
       headers: {
         Authorization: `Bearer ${token}`,
         'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US'
@@ -235,6 +243,7 @@ async function insightsSearch(keywords, timeWindowDays = 90, limit = 50) {
     return comp;
   });
 }
+*/
 
 // ═══════════════════════════════════════════════════════════════
 // API 2: Finding API (SOLD items — AppID auth, separate rate limit)
@@ -265,13 +274,19 @@ async function findingPage(keywords, filters, page) {
 // ═══════════════════════════════════════════════════════════════
 // API 3: Browse API (ACTIVE listings — OAuth, fallback only)
 // ═══════════════════════════════════════════════════════════════
-async function browseSearch(keywords, limit = 50) {
+async function browseSearch(keywords, limit = 50, brandFilter = null) {
   const token = await getOAuthToken();
   await throttle();
+  const params = { q: keywords, category_ids: '11116', limit: Math.min(limit, 200) };
+  // Apply Brand / Mint aspect filter when available — eBay will only return
+  // items whose item-specifics match, dramatically reducing cross-mint pollution.
+  if (brandFilter) {
+    params.aspect_filter = `categoryId:11116,Brand:{${brandFilter}}`;
+  }
   const resp = await withRetry(() => axios.get(
     'https://api.ebay.com/buy/browse/v1/item_summary/search',
     {
-      params: { q: keywords, category_ids: '11116', limit: Math.min(limit, 200) },
+      params,
       headers: { Authorization: `Bearer ${token}`, 'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US' },
       timeout: TIMEOUT
     }
@@ -364,8 +379,14 @@ function scoreMatch(comp, expected) {
     else { score -= 30; notes.push('roll-mismatch'); }
   }
 
-  // Year match
-  if (expected.year && tLow.includes(String(expected.year))) { score += 15; notes.push('year-match'); }
+  // Year match / mismatch
+  if (expected.year) {
+    const yearsInTitle = [...tLow.matchAll(/\b(1[7-9]\d{2}|20[0-4]\d)\b/g)].map(m => parseInt(m[1], 10));
+    const hasExpected = yearsInTitle.includes(expected.year);
+    const hasDifferent = yearsInTitle.some(y => y !== expected.year);
+    if (hasExpected) { score += 15; notes.push('year-match'); }
+    if (hasDifferent && !hasExpected) { score -= 30; notes.push('year-mismatch'); }
+  }
 
   // Grade token match
   if (expected.grade) {
@@ -700,6 +721,26 @@ function applyFilters(comps, options, expected) {
     });
   }
 
+  // Year-mismatch hard filter: drop comps whose title explicitly states
+  // only a different year than the expected year. A listing titled
+  // "2005 Perth Lunar Rooster" should NOT appear for a 2017 search.
+  // Allow ±1 year tolerance for non-bullion searches (e.g. 1965 roll in 1964 search).
+  if (expected.year) {
+    removed.yearMismatch = 0;
+    const yearTolerance = expected.weight ? 0 : 1; // bullion: exact year; others: ±1
+    kept = kept.filter(c => {
+      const tLow = (c.title || '').toLowerCase();
+      const yearsInTitle = [...tLow.matchAll(/\b(1[7-9]\d{2}|20[0-4]\d)\b/g)].map(m => parseInt(m[1], 10));
+      if (yearsInTitle.length === 0) return true; // no year in title — keep
+      if (yearsInTitle.includes(expected.year)) return true; // contains expected year — keep
+      // Check if any title year is within tolerance
+      if (yearsInTitle.some(y => Math.abs(y - expected.year) <= yearTolerance)) return true;
+      // Title has year(s) but all are outside tolerance — drop
+      removed.yearMismatch++;
+      return false;
+    });
+  }
+
   // Melt-floor sanity check for 1 oz (and larger) bullion: if no weight is
   // detected in the title and the price is well below expected melt for the
   // searched weight, the listing is almost certainly a smaller/fractional coin.
@@ -882,6 +923,18 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
     expected.metal = detectMetalFromTitle(expected._rawQuery) || null;
   }
 
+  // Auto-detect Brand for eBay aspect filtering when not explicitly set.
+  // This ensures Browse/Insights API calls only return items from the correct mint.
+  if (!expected._brandFilter) {
+    const bq = (expected._rawQuery || keywords || '').toLowerCase();
+    if (/\bperth\b/i.test(bq) || /\baustralian?\b.*\blunar\b/i.test(bq))       expected._brandFilter = 'Perth Mint';
+    else if (/\broyal\s*mint\b/i.test(bq) || /\bbritish\b.*\blunar\b/i.test(bq)) expected._brandFilter = 'The Royal Mint';
+    else if (/\broyal\s*canadian\b|\brcm\b/i.test(bq))                            expected._brandFilter = 'Royal Canadian Mint';
+    else if (/\bchinese\b.*\b(?:panda|lunar)\b/i.test(bq))                        expected._brandFilter = 'China Mint';
+    else if (/\baustrian\b|\bphilharmonic\b/i.test(bq))                           expected._brandFilter = 'Austrian Mint';
+    else if (/\bmexi|\blibertad\b/i.test(bq))                                     expected._brandFilter = 'Casa de Moneda de Mexico';
+  }
+
   const opts = {
     timeWindowDays: options.timeWindowDays || 90,
     requirePCGSOnly: !!options.requirePCGSOnly,
@@ -982,10 +1035,13 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
   for (const tierDays of uniqueTiers) {
     actualDays = tierDays;
 
-    // ── Attempt 1: Marketplace Insights API (best: actual sold prices, US-only) ──
+    // ── Attempt 1: Marketplace Insights API — DISABLED ──
+    // We do not have access to Marketplace Insights API.
+    // Uncomment when/if access is restored.
+    /*
     if (!circuitTripped('insights')) {
       try {
-        const insightComps = await insightsSearch(keywords, tierDays, PER_PAGE * opts.maxPages);
+        const insightComps = await insightsSearch(keywords, tierDays, PER_PAGE * opts.maxPages, expected._brandFilter || null);
         if (insightComps.length > 0) {
           apiUsed = 'marketplace-insights';
           const deduped = dedup(insightComps);
@@ -1000,9 +1056,10 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
         tripCircuit('insights');
       }
     }
+    */
 
     // ── Attempt 2: Finding API ──
-    // US tier: only if Insights didn't yield enough
+    // US tier: only if we don't have enough sold comps yet
     if ((!usResult || usResult.comps.length < opts.usMinComps) && !circuitTripped('finding')) {
       try {
         const rawUS = await fetchFindingTier(keywords, tierDays, opts.maxPages, 'US');
@@ -1057,13 +1114,13 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
   }
 
   // Ensure usResult/globalResult are initialized before Browse fallback
-  if (!usResult) usResult = { stats: null, comps: [], removed: {}, error: { message: 'Insights + Finding skipped/unavailable' } };
-  if (!globalResult) globalResult = { stats: null, comps: [], removed: {}, error: { message: 'Insights + Finding skipped/unavailable' } };
+  if (!usResult) usResult = { stats: null, comps: [], removed: {}, error: { message: 'Finding API skipped/unavailable' } };
+  if (!globalResult) globalResult = { stats: null, comps: [], removed: {}, error: { message: 'Finding API skipped/unavailable' } };
 
   // ── Attempt 3: Browse API (active listings — last resort) ──
   if (usResult.comps.length < opts.usMinComps) {
     try {
-      const browseComps = await browseSearch(keywords, PER_PAGE * opts.maxPages);
+      const browseComps = await browseSearch(keywords, PER_PAGE * opts.maxPages, expected._brandFilter || null);
       const dedupedBrowse = dedup(browseComps);
       const scoredBrowse = dedupedBrowse.map(c => scoreMatch(c, expected));
       const { kept, removed } = applyFilters(scoredBrowse, opts, expected);
@@ -1145,6 +1202,7 @@ function clearCache() { cache.clear(); }
 
 module.exports = {
   fetchSoldComps,
+  browseSearch,
   buildKeywords,
   scoreMatch,
   isDenied,

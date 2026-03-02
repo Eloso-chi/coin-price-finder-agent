@@ -2037,6 +2037,20 @@
       }
       if (d.ebay?.usedFallback) html += '<span class="tag tag-yellow">fallback</span>';
       html += '</summary>';
+
+      // ── NO SOLD COMPS BANNER ──
+      var allComps = d.ebay?.us?.comps || [];
+      var hasSoldComps = allComps.some(function(c) { return c._source !== 'browse'; });
+      if (allComps.length > 0 && !hasSoldComps) {
+        html += '<div style="margin:8px 0 12px;padding:10px 14px;background:rgba(220,38,38,0.08);border:1px solid rgba(220,38,38,0.35);border-radius:8px;font-size:0.85rem;color:#dc2626;display:flex;align-items:center;gap:8px">';
+        html += '<span style="font-size:1.3rem">⚠️</span>';
+        html += '<div><strong>No Sold Comps Available</strong><br>';
+        html += '<span style="font-size:0.78rem;opacity:0.85">All ' + allComps.length + ' comps below are active <em>for-sale</em> listings (not sold). ';
+        html += 'Actual market value is typically lower than asking prices. ';
+        html += 'Import Terapeak sold data for accurate valuations.</span></div>';
+        html += '</div>';
+      }
+
       html += '<table><thead>';
       html += '<tr><th></th><th>US</th><th>Global</th></tr>';
       html += '</thead><tbody>';
@@ -2050,13 +2064,49 @@
       // \u2500\u2500 US Comp list
       const usComps = d.ebay?.us?.comps || [];
       if (usComps.length) {
+        // Sort comps by category: graded first, then by sub-type (COA, BU, raw)
+        const _classifyComp = (c) => {
+          const t = (c.title || '').toLowerCase();
+          if (c.gradeType === 'graded') return 0; // Graded (PCGS/NGC slabbed)
+          if (/\bcoa\b|certificate/i.test(t)) return 1; // With COA
+          if (/\bbu\b|\bbrillia?nt\s*unc/i.test(t)) return 2; // BU
+          if (/\bproof\b/i.test(t)) return 3; // Proof
+          if (/\bsealed\b|\bmint\s*sealed\b|\bcapsule\b/i.test(t)) return 4; // Sealed/Capsule
+          return 5; // Raw / unspecified
+        };
+        // Sold comps first (terapeak + API sold), then active/for-sale;
+        // within each group, sort by category then price descending.
+        const sortedComps = [...usComps].sort((a, b) => {
+          const aActive = a._source === 'browse' ? 1 : 0;
+          const bActive = b._source === 'browse' ? 1 : 0;
+          if (aActive !== bActive) return aActive - bActive;
+          const aCat = _classifyComp(a);
+          const bCat = _classifyComp(b);
+          if (aCat !== bCat) return aCat - bCat;
+          return (b.totalUsd || 0) - (a.totalUsd || 0);
+        });
         html += '<details class="card pcgs-details" open>';
-        html += '<summary>US Comps (' + usComps.length + ')</summary>';
+        html += '<summary>US Comps (' + sortedComps.length + ')</summary>';
         html += '<table><thead><tr><th>#</th><th>Title</th><th>Total</th><th>Source</th><th>Type</th><th>Match</th><th>Date</th></tr></thead><tbody>';
-        usComps.slice(0, 30).forEach(function(c, i) {
+        sortedComps.slice(0, 30).forEach(function(c, i) {
           const mq = c.matchQuality || 'loose';
           const mqTag = '<span class="match-tag match-' + mq + '">' + mq + '</span>';
-          const gtLabel = c.gradeType === 'graded' ? '<span class="match-tag" style="background:#e8d5f5;color:#6b21a8">graded</span>' : '<span class="match-tag" style="background:#d5f5e3;color:#166534">raw</span>';
+          // Detailed type label: graded > proof > BU > COA > sealed > raw
+          const _t = (c.title || '').toLowerCase();
+          let gtLabel;
+          if (c.gradeType === 'graded') {
+            gtLabel = '<span class="match-tag" style="background:#e8d5f5;color:#6b21a8">graded</span>';
+          } else if (/\bproof\b/i.test(_t)) {
+            gtLabel = '<span class="match-tag" style="background:#fde68a;color:#92400e">proof</span>';
+          } else if (/\bbu\b|\bbrillia?nt\s*unc/i.test(_t)) {
+            gtLabel = '<span class="match-tag" style="background:#bfdbfe;color:#1e40af">BU</span>';
+          } else if (/\bcoa\b|certificate/i.test(_t)) {
+            gtLabel = '<span class="match-tag" style="background:#c7d2fe;color:#3730a3">COA</span>';
+          } else if (/\bsealed\b|\bmint\s*sealed\b|\bcapsule\b/i.test(_t)) {
+            gtLabel = '<span class="match-tag" style="background:#d1fae5;color:#065f46">sealed</span>';
+          } else {
+            gtLabel = '<span class="match-tag" style="background:#d5f5e3;color:#166534">raw</span>';
+          }
           const isActive = c._source === 'browse';
           const isTerapeak = c._source === 'terapeak';
           const sourceTag = isActive
@@ -2418,7 +2468,8 @@
     // Done early so that even if the HTML templating below throws,
     // the tracker still gets the new series for auto-load on tab switch.
     try {
-      const trackerSeries = d.pcgs?.series
+      const trackerSeries = d.trackerSeries
+        || d.pcgs?.series
         || d.coinData?.name
         || d.identification?.parsed?.series
         || '';

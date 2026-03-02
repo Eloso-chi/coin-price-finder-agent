@@ -358,24 +358,29 @@ describe('fetchMarketMatrix', () => {
   beforeEach(() => {
     clearCache();
     mockEbayService.fetchSoldComps.mockReset();
+    mockEbayService.browseSearch.mockReset();
   });
 
   const mockEbayService = {
     fetchSoldComps: jest.fn(),
+    browseSearch: jest.fn().mockResolvedValue([]),
+    scoreMatch: (comp) => ({ ...comp, matchScore: 50, matchNotes: [] }),
+    applyFilters: (comps) => ({ kept: comps, removed: {} }),
   };
 
   const mockLookupKeyDate = () => ({ isKeyDate: false });
 
-  test('calls ebayService.fetchSoldComps for completed and active', async () => {
+  test('calls ebayService.fetchSoldComps for completed and browseSearch for active', async () => {
     mockEbayService.fetchSoldComps
       .mockResolvedValueOnce({
         us: { comps: [{ title: '1956-D Franklin', totalUsd: 30, url: 'http://1' }] },
         global: { comps: [] },
-      })
-      .mockResolvedValueOnce({
-        us: { comps: [{ title: '1956-D Franklin BIN', totalUsd: 35, url: 'http://bin1', _source: 'browse', listingType: 'FixedPrice' }] },
-        global: { comps: [] },
       });
+
+    mockEbayService.browseSearch
+      .mockResolvedValueOnce([
+        { title: '1956-D Franklin BIN', totalUsd: 35, url: 'http://bin1', _source: 'browse', listingType: 'FixedPrice' },
+      ]);
 
     const result = await fetchMarketMatrix({
       series: 'Franklin Half Dollar',
@@ -385,7 +390,8 @@ describe('fetchMarketMatrix', () => {
       ebayService: mockEbayService,
     });
 
-    expect(mockEbayService.fetchSoldComps).toHaveBeenCalledTimes(2);
+    expect(mockEbayService.fetchSoldComps).toHaveBeenCalledTimes(1);
+    expect(mockEbayService.browseSearch).toHaveBeenCalledTimes(1);
     expect(result.series).toBe('Franklin Half Dollar');
     expect(result.cells.length).toBeGreaterThan(0);
 
@@ -396,8 +402,9 @@ describe('fetchMarketMatrix', () => {
 
   test('caches results (second call does not invoke ebayService)', async () => {
     mockEbayService.fetchSoldComps
-      .mockResolvedValueOnce({ us: { comps: [] }, global: { comps: [] } })
       .mockResolvedValueOnce({ us: { comps: [] }, global: { comps: [] } });
+    mockEbayService.browseSearch
+      .mockResolvedValueOnce([]);
 
     await fetchMarketMatrix({
       series: 'Test Series',
@@ -424,6 +431,8 @@ describe('fetchMarketMatrix', () => {
   test('clearCache allows fresh fetch', async () => {
     mockEbayService.fetchSoldComps
       .mockResolvedValue({ us: { comps: [] }, global: { comps: [] } });
+    mockEbayService.browseSearch
+      .mockResolvedValue([]);
 
     await fetchMarketMatrix({
       series: 'Cache Test',
@@ -443,8 +452,9 @@ describe('fetchMarketMatrix', () => {
       ebayService: mockEbayService,
     });
 
-    // Should have called 4 times total (2 per invocation: completed + active)
-    expect(mockEbayService.fetchSoldComps).toHaveBeenCalledTimes(4);
+    // Should have called 2 times total (1 per invocation: completed only)
+    expect(mockEbayService.fetchSoldComps).toHaveBeenCalledTimes(2);
+    expect(mockEbayService.browseSearch).toHaveBeenCalledTimes(2);
   });
 
   test('throws when series is missing', async () => {
@@ -462,7 +472,9 @@ describe('fetchMarketMatrix', () => {
       .mockResolvedValueOnce({
         us: { comps: [{ title: '1956 Franklin', totalUsd: 30, url: 'http://1' }] },
         global: { comps: [] },
-      })
+      });
+
+    mockEbayService.browseSearch
       .mockRejectedValueOnce(new Error('Browse API down'));
 
     const result = await fetchMarketMatrix({
@@ -725,21 +737,22 @@ describe('fetchMarketMatrix — bullion auto-detection', () => {
 
   const mockEbayService = {
     fetchSoldComps: jest.fn(),
+    browseSearch: jest.fn().mockResolvedValue([]),
+    scoreMatch: (comp) => ({ ...comp, matchScore: 50, matchNotes: [] }),
+    applyFilters: (comps) => ({ kept: comps, removed: {} }),
   };
 
   beforeEach(() => {
     clearCache();
     mockEbayService.fetchSoldComps.mockReset();
+    mockEbayService.browseSearch.mockReset();
+    mockEbayService.browseSearch.mockResolvedValue([]);
   });
 
   test('returns mode "grade" for bullion series', async () => {
     mockEbayService.fetchSoldComps
       .mockResolvedValueOnce({
         us: { comps: [{ title: '2021 American Silver Eagle MS69', totalUsd: 35 }] },
-        global: { comps: [] },
-      })
-      .mockResolvedValueOnce({
-        us: { comps: [] },
         global: { comps: [] },
       });
 
@@ -759,10 +772,6 @@ describe('fetchMarketMatrix — bullion auto-detection', () => {
     mockEbayService.fetchSoldComps
       .mockResolvedValueOnce({
         us: { comps: [{ title: '1956-D Franklin Half Dollar', totalUsd: 30 }] },
-        global: { comps: [] },
-      })
-      .mockResolvedValueOnce({
-        us: { comps: [] },
         global: { comps: [] },
       });
 

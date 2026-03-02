@@ -72,6 +72,12 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log(`  Terapeak stale eviction: removed ${evictResult.compsEvicted} comps older than 180d`);
   }
 
+  // Purge CSV files where every comp is older than 180 days
+  const purgeResult = terapeakService.purgeStaleCSVs('data/terapeak', 180);
+  if (purgeResult.deleted > 0) {
+    console.log(`  Terapeak CSV purge: deleted ${purgeResult.deleted} stale file(s): ${purgeResult.deletedFiles.join(', ')}`);
+  }
+
   const autoResult = terapeakService.autoImportFolder('data/terapeak');
   if (autoResult.imported > 0) {
     console.log(`  Terapeak auto-import: ${autoResult.imported} new file(s) loaded from data/terapeak/`);

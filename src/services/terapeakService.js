@@ -420,6 +420,31 @@ function lookupComps(keywords, opts = {}) {
       continue; // e.g. query mentions "silver" but dataset is "gold" — skip
     }
 
+    // ── Mint-origin mismatch guard: reject datasets from a different
+    //    world mint when the query specifies one.  Prevents "Perth"
+    //    queries from matching "RoyalMint" datasets (and vice versa). ──
+    const MINT_ORIGINS = [
+      { re: /\bperth\b/i,                 label: 'perth' },
+      { re: /\baustralian?\b/i,           label: 'perth' },
+      { re: /\broyalmint\b|\broyal\s*mint\b|\bgreat\s*britain\b|\bbrit(?:ish|annia)\b/i, label: 'royalmint' },
+      { re: /\brcm\b|\broyal\s*canadian\b|\bcanadian?\b/i, label: 'rcm' },
+      { re: /\bchinese?\b|\bpanda\b/i,    label: 'chinese' },
+      { re: /\bmexican?\b|\blibertad\b/i, label: 'mexican' },
+      { re: /\baustrian?\b|\bphilharmonic\b/i, label: 'austrian' },
+    ];
+    function detectMintOrigin(text) {
+      if (!text) return null;
+      for (const { re, label } of MINT_ORIGINS) {
+        if (re.test(text)) return label;
+      }
+      return null;
+    }
+    const queryMintOrigin = detectMintOrigin(keywords);
+    const keyMintOrigin = detectMintOrigin(data.searchTerm || key);
+    if (queryMintOrigin && keyMintOrigin && queryMintOrigin !== keyMintOrigin) {
+      continue; // e.g. query "Perth Rooster" vs dataset "RoyalMint Rooster" — skip
+    }
+
     // Forward: how many key tokens appear in the search
     const fwdHits = keyTokens.filter(t => searchTokens.includes(t)).length;
     const fwdScore = fwdHits / keyTokens.length;
@@ -602,6 +627,67 @@ function evictStaleComps(maxDays = 180) {
   return { datasetsChecked, compsEvicted };
 }
 
+/**
+ * Delete CSV files from a folder where EVERY comp's soldDate is older than
+ * `maxDays`.  Files whose comps all lack a soldDate are kept (can't determine age).
+ *
+ * @param {string} folderPath - path to the CSV folder (e.g. 'data/terapeak')
+ * @param {number} [maxDays=180] - age threshold in days
+ * @returns {{ checked: number, deleted: number, kept: number, deletedFiles: string[] }}
+ */
+function purgeStaleCSVs(folderPath, maxDays = 180) {
+  const absPath = path.isAbsolute(folderPath)
+    ? folderPath
+    : path.join(__dirname, '..', '..', folderPath);
+  if (!fs.existsSync(absPath)) return { checked: 0, deleted: 0, kept: 0, deletedFiles: [] };
+
+  const files = fs.readdirSync(absPath).filter(f => /\.(csv|tsv|txt)$/i.test(f));
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - maxDays);
+
+  let deleted = 0;
+  let kept = 0;
+  const deletedFiles = [];
+
+  for (const file of files) {
+    try {
+      const filePath = path.join(absPath, file);
+      const csvData = fs.readFileSync(filePath, 'utf8');
+      const searchTerm = deriveSearchTerm(absPath, file);
+      const { comps } = parseCSV(csvData, searchTerm);
+
+      // Keep files with no comps at all (unparseable / empty)
+      if (comps.length === 0) { kept++; continue; }
+
+      // Keep files where at least one comp has no soldDate (can't determine age)
+      const hasMissingDate = comps.some(c => !c.soldDate);
+      if (hasMissingDate) { kept++; continue; }
+
+      // Check if every comp is older than the cutoff
+      const allStale = comps.every(c => new Date(c.soldDate) < cutoff);
+      if (allStale) {
+        fs.unlinkSync(filePath);
+        // Also remove companion .meta file if it exists
+        const metaPath = filePath.replace(/\.[^.]+$/, '.meta');
+        if (fs.existsSync(metaPath)) fs.unlinkSync(metaPath);
+        deletedFiles.push(file);
+        deleted++;
+        console.log(`[terapeak] Purged stale CSV: ${file} (all ${comps.length} comps older than ${maxDays}d)`);
+      } else {
+        kept++;
+      }
+    } catch (err) {
+      console.error(`[terapeak] Error checking CSV ${file}: ${err.message}`);
+      kept++;
+    }
+  }
+
+  if (deleted > 0) {
+    console.log(`[terapeak] Purged ${deleted} stale CSV file(s), kept ${kept}`);
+  }
+  return { checked: files.length, deleted, kept, deletedFiles };
+}
+
 // ── Helpers ─────────────────────────────────────────────────
 
 function normalizeSearchKey(term) {
@@ -769,6 +855,7 @@ module.exports = {
   deleteDataset,
   clearAll,
   evictStaleComps,
+  purgeStaleCSVs,
   autoImportFolder,
   normalizeSearchKey,
   detectWeightFromQuery,
