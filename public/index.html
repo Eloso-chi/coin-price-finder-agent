@@ -379,6 +379,7 @@
     .fmv-chip-comp.silver { background: rgba(168,178,193,0.12); border-color: rgba(168,178,193,0.4); color: #6b7b8d; }
     .fmv-chip-comp.gold { background: rgba(218,165,32,0.10); border-color: rgba(218,165,32,0.35); color: #b8860b; }
     .fmv-chip-comp.clad { background: rgba(120,120,120,0.08); border-color: rgba(120,120,120,0.25); color: #787878; }
+    .fmv-chip-premium { background: rgba(230,126,34,0.12); border-color: rgba(230,126,34,0.4); color: #d35400; font-weight: 600; }
     .fmv-chip-rarity { background: rgba(100,70,200,0.08); border-color: rgba(100,70,200,0.25); cursor: pointer; }
     /* ── Numista Panel ─────────────────────────────────────── */
     .numista-panel { margin-top: 16px; }
@@ -1046,6 +1047,7 @@
             <div class="field">
               <label for="barSize">Size <span class="required" aria-hidden="true">*</span></label>
               <select id="barSize">
+                <option value="0.05 gram">0.05 gram</option>
                 <option value="1 gram">1 gram</option>
                 <option value="2.5 gram">2.5 gram</option>
                 <option value="5 gram">5 gram</option>
@@ -1082,6 +1084,17 @@
                 <option value="Metalor">
                 <option value="Heraeus">
                 <option value="SilverTowne">
+                <option value="Apmex">
+                <option value="JM Bullion">
+                <option value="SD Bullion">
+                <option value="Elemetal">
+                <option value="A-Mark">
+                <option value="Baird & Co">
+                <option value="Umicore">
+                <option value="ABC Bullion">
+                <option value="Nadir Metal">
+                <option value="Istanbul Gold Refinery">
+                <option value="MMTC-PAMP">
                 <option value="Generic">
               </datalist>
               <span class="hint">Leave blank for generic / all brands</span>
@@ -2613,6 +2626,12 @@
     const pop = d.pcgs?.population;
     html += '<div class="fmv-meta">';
     if (meltInfo && !meltInfo.isClad) html += '<span class="fmv-chip fmv-chip-melt" title="Melt value: ' + meltInfo.pureOzt.toFixed(4) + ' ozt pure @ spot $' + meltInfo.spot + '/ozt">\uD83D\uDD25 Melt: $' + meltInfo.melt.toFixed(2) + '</span>';
+    if (meltInfo && !meltInfo.isClad && meltInfo.melt > 0 && v.fmvCore > 0) {
+      const premiumPct = ((v.fmvCore - meltInfo.melt) / meltInfo.melt) * 100;
+      if (premiumPct > 10) {
+        html += '<span class="fmv-chip fmv-chip-premium" title="Average sale price is ' + premiumPct.toFixed(0) + '% above melt value — numismatic/collector premium">\u26A0\uFE0F Premium Over Melt: +' + premiumPct.toFixed(0) + '%</span>';
+      }
+    }
     if (meltInfo && meltInfo.composition) { const cClass = meltInfo.isClad ? 'clad' : (meltInfo.metal === 'gold' ? 'gold' : 'silver'); html += '<span class="fmv-chip fmv-chip-comp ' + cClass + '" title="Coin composition">\u2699\uFE0F ' + meltInfo.composition + '</span>'; }
     if (mintage) html += '<span class="fmv-chip" title="Mintage for this year/mint (source: ' + mintageSource + ')">\uD83C\uDFED Mintage: ' + Number(mintage).toLocaleString() + '</span>';
     if (usCompsAll.length) {
@@ -2972,18 +2991,24 @@
   // ── Bar types for melt calculator ──────────────────────────
   window.BAR_TYPES = [
     // ── Gold Bars ────────────────────────────────────────────
+    { id:'gold-bar-0.05g', name:'Gold Bar 0.05 gram',    metal:'gold',   pure_ozt: 0.05/31.1035,   weight_g:0.050,    fineness:0.9999, category:'Gold Bars' },
     { id:'gold-bar-1g',    name:'Gold Bar 1 gram',       metal:'gold',   pure_ozt: 1/31.1035,      weight_g:1.000,    fineness:0.9999, category:'Gold Bars' },
     { id:'gold-bar-2.5g',  name:'Gold Bar 2.5 gram',     metal:'gold',   pure_ozt: 2.5/31.1035,    weight_g:2.500,    fineness:0.9999, category:'Gold Bars' },
     { id:'gold-bar-5g',    name:'Gold Bar 5 gram',       metal:'gold',   pure_ozt: 5/31.1035,      weight_g:5.000,    fineness:0.9999, category:'Gold Bars' },
     { id:'gold-bar-10g',   name:'Gold Bar 10 gram',      metal:'gold',   pure_ozt: 10/31.1035,     weight_g:10.000,   fineness:0.9999, category:'Gold Bars' },
     { id:'gold-bar-20g',   name:'Gold Bar 20 gram',      metal:'gold',   pure_ozt: 20/31.1035,     weight_g:20.000,   fineness:0.9999, category:'Gold Bars' },
+    { id:'gold-bar-50g',   name:'Gold Bar 50 gram',      metal:'gold',   pure_ozt: 50/31.1035,     weight_g:50.000,   fineness:0.9999, category:'Gold Bars' },
+    { id:'gold-bar-100g',  name:'Gold Bar 100 gram',     metal:'gold',   pure_ozt: 100/31.1035,    weight_g:100.000,  fineness:0.9999, category:'Gold Bars' },
     { id:'gold-bar-1oz',   name:'Gold Bar 1 oz',         metal:'gold',   pure_ozt: 1.00000,        weight_g:31.1035,  fineness:0.9999, category:'Gold Bars' },
     { id:'gold-bar-10oz',  name:'Gold Bar 10 oz',        metal:'gold',   pure_ozt:10.00000,        weight_g:311.035,  fineness:0.9999, category:'Gold Bars' },
     // ── Silver Bars ──────────────────────────────────────────
+    { id:'silver-bar-0.05g', name:'Silver Bar 0.05 gram', metal:'silver', pure_ozt: 0.05/31.1035,   weight_g:0.050,    fineness:0.999,  category:'Silver Bars' },
     { id:'silver-bar-1g',   name:'Silver Bar 1 gram',    metal:'silver', pure_ozt: 1/31.1035,      weight_g:1.000,    fineness:0.999,  category:'Silver Bars' },
     { id:'silver-bar-5g',   name:'Silver Bar 5 gram',    metal:'silver', pure_ozt: 5/31.1035,      weight_g:5.000,    fineness:0.999,  category:'Silver Bars' },
     { id:'silver-bar-10g',  name:'Silver Bar 10 gram',   metal:'silver', pure_ozt: 10/31.1035,     weight_g:10.000,   fineness:0.999,  category:'Silver Bars' },
     { id:'silver-bar-20g',  name:'Silver Bar 20 gram',   metal:'silver', pure_ozt: 20/31.1035,     weight_g:20.000,   fineness:0.999,  category:'Silver Bars' },
+    { id:'silver-bar-50g',  name:'Silver Bar 50 gram',   metal:'silver', pure_ozt: 50/31.1035,     weight_g:50.000,   fineness:0.999,  category:'Silver Bars' },
+    { id:'silver-bar-100g', name:'Silver Bar 100 gram',  metal:'silver', pure_ozt: 100/31.1035,    weight_g:100.000,  fineness:0.999,  category:'Silver Bars' },
     { id:'silver-bar-1oz',  name:'Silver Bar 1 oz',      metal:'silver', pure_ozt: 1.00000,        weight_g:31.1035,  fineness:0.999,  category:'Silver Bars' },
     { id:'silver-bar-5oz',  name:'Silver Bar 5 oz',      metal:'silver', pure_ozt: 5.00000,        weight_g:155.517,  fineness:0.999,  category:'Silver Bars' },
     { id:'silver-bar-10oz', name:'Silver Bar 10 oz',     metal:'silver', pure_ozt:10.00000,        weight_g:311.035,  fineness:0.999,  category:'Silver Bars' },
