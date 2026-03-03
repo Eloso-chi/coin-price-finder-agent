@@ -1,18 +1,75 @@
 // src/services/metalsSpotPrice.js — Metals spot price with provider rotation,
-// in-flight dedupe, TTL cache, and fallback.  CommonJS.
+// in-flight dedupe, TTL cache, disk persistence, stale fallback, and
+// hardcoded last-resort.  CommonJS.
 
 const axios = require('axios');
+const fs    = require('fs');
+const path  = require('path');
 const { MetalsSpotPriceError } = require('./MetalsSpotPriceError');
 
 /* ---------- Configuration ---------- */
 
 const CACHE_TTL_MS = parseInt(process.env.METALS_CACHE_TTL_MS, 10) || 45 * 60 * 1000; // 45 min
+const DISK_CACHE_PATH = path.resolve(__dirname, '../../cache/metals_spot.json');
 
 const GOLDAPI_KEY   = () => process.env.GOLDAPI_KEY   || '';
 const METALS_API_KEY = () => process.env.METALS_API_KEY || '';
 
 const GOLDAPI_BASE   = () => process.env.GOLDAPI_BASE_URL   || 'https://www.goldapi.io/api';
 const METALS_API_BASE = () => process.env.METALS_API_BASE_URL || 'https://metals-api.com/api';
+
+/* ---------- Hardcoded last-resort prices ---------- */
+// Updated periodically.  These are only used when ALL providers fail AND there
+// is no cached / disk-persisted price available.  Better than returning nothing.
+const HARDCODED_FALLBACK = {
+  XAG: { price: 80.27, currency: 'USD', source: 'hardcoded-fallback', timestamp: '2026-03-03T00:00:00Z' },
+  XAU: { price: 5071.50, currency: 'USD', source: 'hardcoded-fallback', timestamp: '2026-03-03T00:00:00Z' },
+  XPT: { price: 1050.00, currency: 'USD', source: 'hardcoded-fallback', timestamp: '2026-03-03T00:00:00Z' },
+  XPD: { price: 975.00, currency: 'USD', source: 'hardcoded-fallback', timestamp: '2026-03-03T00:00:00Z' },
+};
+
+/* ---------- Disk-persist helpers ---------- */
+
+let _diskCache = null; // lazy-loaded
+
+function loadDiskCache() {
+  if (_diskCache) return _diskCache;
+  try {
+    if (fs.existsSync(DISK_CACHE_PATH)) {
+      _diskCache = JSON.parse(fs.readFileSync(DISK_CACHE_PATH, 'utf8'));
+    } else {
+      _diskCache = {};
+    }
+  } catch {
+    _diskCache = {};
+  }
+  return _diskCache;
+}
+
+function saveDiskCache(data) {
+  _diskCache = data;
+  try {
+    const dir = path.dirname(DISK_CACHE_PATH);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(DISK_CACHE_PATH, JSON.stringify(data, null, 2));
+  } catch (err) {
+    // Non-fatal — disk persistence is best-effort
+    if (process.env.NODE_ENV !== 'test') {
+      console.warn('[metals] disk cache write failed:', err.message);
+    }
+  }
+}
+
+function getDiskCached(key) {
+  const dc = loadDiskCache();
+  return dc[key] || null;
+}
+
+function setDiskCached(key, data) {
+  const dc = loadDiskCache();
+  dc[key] = { ...data, savedAt: Date.now() };
+  saveDiskCache(dc);
+}
 
 /* ---------- Provider definitions ---------- */
 
@@ -22,8 +79,26 @@ const METALS_API_BASE = () => process.env.METALS_API_BASE_URL || 'https://metals
  */
 const providers = [
   {
+    name: 'gold-api-com',
+    // Free, no-auth endpoint — api.gold-api.com
+    async fetch(metal, currency) {
+      const res = await axios.get(`https://api.gold-api.com/price/${metal}`, {
+        timeout: 8000,
+        headers: { Accept: 'application/json' },
+      });
+      const d = res.data;
+      const price = d.price;
+      if (!price) throw new Error(`No ${metal} price in gold-api.com response`);
+      return {
+        price: parseFloat(price),
+        timestamp: d.updatedAt || new Date().toISOString(),
+        source: 'gold-api-com',
+      };
+    },
+  },
+  {
     name: 'goldprice-org',
-    // Free, no-auth endpoint — always available as a baseline fallback
+    // Free, no-auth endpoint — can be rate-limited
     async fetch(metal, currency) {
       const res = await axios.get('https://data-asg.goldprice.org/dbXRates/' + currency, {
         timeout: 8000,
@@ -96,6 +171,7 @@ const providers = [
 /* ---------- Internal state ---------- */
 
 const cache      = new Map();  // key → { data, expiresAt }
+const staleCache = new Map();  // key → data (never auto-deleted; last-known-good)
 const inFlight   = new Map();  // key → Promise
 let   rotationIdx = 0;         // round-robin index across cache misses
 
@@ -110,8 +186,34 @@ function getCached(key) {
   return entry.data;
 }
 
+/**
+ * Return the best available stale/fallback value for a key.
+ * Priority: stale in-memory → disk cache → hardcoded constant.
+ */
+function getStaleFallback(key, metal, currency) {
+  // 1) Stale in-memory (previous successful fetch this process lifetime)
+  const stale = staleCache.get(key);
+  if (stale) return { ...stale, cached: true, stale: true, source: stale.source + ' (stale)' };
+
+  // 2) Disk-persisted from a prior process
+  const disk = getDiskCached(key);
+  if (disk) return { metal, currency, price: disk.price, timestamp: disk.timestamp,
+    source: (disk.source || 'disk-cache') + ' (disk)', cached: true, stale: true, unit: 'troy_ounce' };
+
+  // 3) Hardcoded last-resort
+  const hc = HARDCODED_FALLBACK[metal];
+  if (hc && (hc.currency === currency || currency === 'USD')) {
+    return { metal, currency, price: hc.price, timestamp: hc.timestamp,
+      source: hc.source, cached: true, stale: true, unit: 'troy_ounce' };
+  }
+
+  return null;
+}
+
 function setCache(key, data) {
   cache.set(key, { data, expiresAt: Date.now() + CACHE_TTL_MS });
+  staleCache.set(key, data);                        // keep forever in-memory
+  setDiskCached(key, data);                          // persist to disk
 }
 
 /** Advance round-robin index and return it (wraps around providers.length) */
@@ -125,6 +227,7 @@ function nextRotation() {
 
 /**
  * Try each provider starting from `startIdx`, falling back to the rest.
+ * If ALL providers fail, attempts stale/disk/hardcoded fallback before throwing.
  * @returns {{ price, timestamp, source }}
  */
 async function fetchFromProviders(metal, currency, startIdx) {
@@ -141,6 +244,16 @@ async function fetchFromProviders(metal, currency, startIdx) {
       lastStatus = err.response?.status || err.status || null;
       lastErrorMessage = err.message;
     }
+  }
+
+  // All live providers failed — try stale/disk/hardcoded fallback
+  const key = cacheKey(metal, currency);
+  const fallback = getStaleFallback(key, metal, currency);
+  if (fallback) {
+    if (process.env.NODE_ENV !== 'test') {
+      console.warn(`[metals] All providers failed for ${metal}/${currency}, using fallback: ${fallback.source}`);
+    }
+    return fallback;
   }
 
   throw new MetalsSpotPriceError(
@@ -170,13 +283,16 @@ async function getMetalsSpotPrice(metal, currency = 'USD') {
   // 3. Fetch with rotation
   const startIdx = nextRotation();
   const promise = fetchFromProviders(metal, currency, startIdx)
-    .then(({ price, timestamp, source }) => {
+    .then((raw) => {
+      // If the result is a stale fallback, pass it through without re-caching
+      if (raw.stale) return raw;
+
       const result = {
         metal,
         currency,
-        price: Math.round(price * 100) / 100,
-        timestamp,
-        source,
+        price: Math.round(raw.price * 100) / 100,
+        timestamp: raw.timestamp,
+        source: raw.source,
         cached: false,
         unit: 'troy_ounce',
       };
@@ -216,13 +332,15 @@ async function getMetalsSpotPrices(metals = ['XAU', 'XAG'], currency = 'USD') {
 
       // Fetch (use batch index so whole batch starts at same provider)
       const promise = fetchFromProviders(metal, currency, batchStartIdx)
-        .then(({ price, timestamp, source }) => {
+        .then((raw) => {
+          if (raw.stale) return raw;
+
           const result = {
             metal,
             currency,
-            price: Math.round(price * 100) / 100,
-            timestamp,
-            source,
+            price: Math.round(raw.price * 100) / 100,
+            timestamp: raw.timestamp,
+            source: raw.source,
             cached: false,
             unit: 'troy_ounce',
           };
@@ -244,8 +362,10 @@ async function getMetalsSpotPrices(metals = ['XAU', 'XAG'], currency = 'USD') {
 /** Reset internal state — useful in tests */
 function _reset() {
   cache.clear();
+  staleCache.clear();
   inFlight.clear();
   rotationIdx = 0;
+  _diskCache = null;
 }
 
 /** Expose rotation index for test assertions */
@@ -259,4 +379,6 @@ module.exports = {
   _getRotationIdx,
   _providers: providers,
   _cache: cache,
+  _staleCache: staleCache,
+  _HARDCODED_FALLBACK: HARDCODED_FALLBACK,
 };
