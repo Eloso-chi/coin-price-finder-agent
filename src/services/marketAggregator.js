@@ -16,7 +16,10 @@ const _cache = new TTLCache({ defaultTTL: 5 * 60 * 1000 });
 const GRADE_RE = /\b(MS|PR|PF|SP|AU|XF|EF|VF|F|VG|G|AG|PO)\s*[-]?\s*(\d{1,2})(\+)?\b/i;
 
 // Bullion series that should use grade-based matrix instead of year×mint
-const BULLION_SERIES_RE = /\b(silver\s*eagle|gold\s*eagle|platinum\s*eagle|libertad|maple\s*leaf|philharmonic|britannia|krugerrand|panda|kookaburra|koala|kangaroo|gold\s+buffalo|buffalo\s+gold|silver\s+buffalo|buffalo\s+silver|american\s+(gold|silver|platinum)|perth\s*mint|lunar|year\s+of\s+the|polar\s*bear)\b/i;
+const BULLION_SERIES_RE = /\b(silver\s*eagle|gold\s*eagle|platinum\s*eagle|libertad|maple\s*leaf|philharmonic|britannia|krugerrand|panda|kookaburra|koala|kangaroo|gold\s+buffalo|buffalo\s+gold|silver\s+buffalo|buffalo\s+silver|american\s+(gold|silver|platinum)|perth\s*mint|lunar|year\s+of\s+the|polar\s*bear|gold\s+bar|silver\s+bar|platinum\s+bar|bullion\s+bar)\b/i;
+
+// Bar query detection — bars don't have mint marks or years like coins
+const BAR_RE = /\b(gold|silver|platinum|palladium)\s+bar\b/i;
 
 /**
  * Detect if a series name looks like bullion (grade matrix mode).
@@ -25,6 +28,15 @@ const BULLION_SERIES_RE = /\b(silver\s*eagle|gold\s*eagle|platinum\s*eagle|liber
  */
 function isBullionSeries(series) {
   return BULLION_SERIES_RE.test(series || '');
+}
+
+/**
+ * Detect if a series name is a bullion bar query.
+ * @param {string} series
+ * @returns {boolean}
+ */
+function isBarSeries(series) {
+  return BAR_RE.test(series || '');
 }
 
 /**
@@ -363,6 +375,135 @@ function buildGradeMatrix({
   };
 }
 
+/* ── Known brand tokens for bar listing classification ── */
+const BAR_BRAND_TOKENS = [
+  { re: /\bpamp\b/i,              brand: 'PAMP' },
+  { re: /\bvalcambi\b/i,          brand: 'Valcambi' },
+  { re: /\bcredit\s*suisse\b/i,   brand: 'Credit Suisse' },
+  { re: /\bperth\s*mint\b/i,      brand: 'Perth Mint' },
+  { re: /\broyal\s*canadian\b/i,  brand: 'RCM' },
+  { re: /\bjohnson\s*matthey\b|\bjm\b/i, brand: 'JM' },
+  { re: /\bengelhard\b/i,         brand: 'Engelhard' },
+  { re: /\bsunshine\b/i,          brand: 'Sunshine' },
+  { re: /\basahi\b/i,             brand: 'Asahi' },
+  { re: /\bscottsdale\b/i,        brand: 'Scottsdale' },
+  { re: /\bgeiger\b/i,            brand: 'Geiger' },
+  { re: /\bargor[\s-]*heraeus\b/i,brand: 'Argor-Heraeus' },
+  { re: /\bmetalor\b/i,           brand: 'Metalor' },
+  { re: /\bheraeus\b/i,           brand: 'Heraeus' },
+  { re: /\bsilvertowne\b/i,       brand: 'SilverTowne' },
+  { re: /\bapmex\b/i,             brand: 'Apmex' },
+  { re: /\ba[\s-]*mark\b/i,       brand: 'A-Mark' },
+  { re: /\bmmtc\b/i,              brand: 'MMTC-PAMP' },
+  { re: /\broyal\s*mint\b/i,      brand: 'Royal Mint' },
+  { re: /\bumicore\b/i,           brand: 'Umicore' },
+];
+
+/**
+ * Extract brand from a bar listing title.
+ * Returns the first matched known brand, or 'Generic'.
+ */
+function extractBrand(title) {
+  if (!title) return 'Generic';
+  for (const { re, brand } of BAR_BRAND_TOKENS) {
+    if (re.test(title)) return brand;
+  }
+  return 'Generic';
+}
+
+/**
+ * Build a brand-based market matrix for bullion bars.
+ * Rows = brands, single column showing price stats.
+ * This is more useful for bars which don't have year×mint variance.
+ *
+ * @param {object} params
+ * @returns {object}
+ */
+function buildBarMatrix({
+  completedComps = [],
+  activeComps = [],
+  series = '',
+  lookbackDays = 90,
+}) {
+  // ── 1. Bucket completed sales by brand ──
+  const completedBuckets = {};
+  for (const comp of completedComps) {
+    const brand = extractBrand(comp.title);
+    if (!completedBuckets[brand]) completedBuckets[brand] = [];
+    if (comp.totalUsd != null && comp.totalUsd > 0) {
+      completedBuckets[brand].push(comp.totalUsd);
+    }
+  }
+
+  // ── 2. Bucket active BIN listings by brand ──
+  const activeBuckets = {};
+  for (const comp of activeComps) {
+    if (comp.listingType && !/fixed|buyitnow|bin/i.test(comp.listingType)) continue;
+    const brand = extractBrand(comp.title);
+    if (!activeBuckets[brand]) activeBuckets[brand] = [];
+    if (comp.totalUsd != null && comp.totalUsd > 0) {
+      activeBuckets[brand].push({ price: comp.totalUsd, url: comp.url || null });
+    }
+  }
+
+  // ── 3. Collect all brands ──
+  const allBrands = new Set([...Object.keys(completedBuckets), ...Object.keys(activeBuckets)]);
+
+  // ── 4. Build cells ──
+  const cells = [];
+  for (const brand of allBrands) {
+    const completedPrices = completedBuckets[brand] || [];
+    let medianCompleted = null;
+    if (completedPrices.length > 0) {
+      const sorted = [...completedPrices].sort((a, b) => a - b);
+      const mid = Math.floor(sorted.length / 2);
+      medianCompleted = sorted.length % 2 === 0
+        ? (sorted[mid - 1] + sorted[mid]) / 2
+        : sorted[mid];
+    }
+
+    const activeItems = activeBuckets[brand] || [];
+    let cheapestBin = null;
+    let nextCheapestBin = null;
+    if (activeItems.length > 0) {
+      activeItems.sort((a, b) => a.price - b.price);
+      cheapestBin = { value: activeItems[0].price, currency: 'USD', url: activeItems[0].url };
+      if (activeItems.length > 1) {
+        nextCheapestBin = { value: activeItems[1].price, currency: 'USD' };
+      }
+    }
+
+    cells.push({
+      brand,
+      medianCompleted: medianCompleted != null
+        ? { value: Math.round(medianCompleted * 100) / 100, currency: 'USD', sampleSize: completedPrices.length, lookbackDays }
+        : null,
+      cheapestBin: cheapestBin || null,
+      nextCheapestBin: nextCheapestBin || null,
+      activeListing: activeItems.length,
+      soldCount: completedPrices.length,
+    });
+  }
+
+  // Sort by sold count descending
+  cells.sort((a, b) => b.soldCount - a.soldCount);
+
+  const brands = cells.map(c => c.brand);
+
+  return {
+    mode: 'bar',
+    brands,
+    summary: {
+      totalCells: cells.length,
+      cellsWithPriceData: cells.filter(c => c.medianCompleted || c.cheapestBin).length,
+      brandCount: brands.length,
+      totalSold: cells.reduce((s, c) => s + c.soldCount, 0),
+      totalActive: cells.reduce((s, c) => s + c.activeListing, 0),
+    },
+    cells,
+  };
+}
+
 /**
  * Fetch eBay data and build the market matrix for a coin.
  *
@@ -497,8 +638,16 @@ async function fetchMarketMatrix({
     console.log(`[marketAggregator] Lunar year filter: completed ${preBefore}→${completedComps.length}, active ${activeBefore}→${activeComps.length}`);
   }
 
-  const bullion = isBullionSeries(series);
-  const matrix = bullion
+  const bar = isBarSeries(series);
+  const bullion = !bar && isBullionSeries(series);
+  const matrix = bar
+    ? buildBarMatrix({
+        completedComps,
+        activeComps,
+        series,
+        lookbackDays: timeWindowDays,
+      })
+    : bullion
     ? buildGradeMatrix({
         completedComps,
         activeComps,
@@ -528,11 +677,14 @@ function clearCache() { _cache.clear(); }
 module.exports = {
   buildMarketMatrix,
   buildGradeMatrix,
+  buildBarMatrix,
   fetchMarketMatrix,
   extractYear,
   extractMint,
   extractGrade,
+  extractBrand,
   matchesGrade,
   isBullionSeries,
+  isBarSeries,
   clearCache,
 };

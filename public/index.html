@@ -619,6 +619,10 @@
     .tracker-field input:focus, .tracker-field select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-subtle); }
     .tracker-field input { min-width: 220px; }
     .tracker-field-btn { justify-content: flex-end; }
+    .tracker-mode-toggle { display: inline-flex; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); margin-bottom: 12px; }
+    .tracker-mode-toggle button { padding: 7px 18px; font-size: 0.82rem; font-weight: 600; border: none; background: transparent; color: var(--text-secondary); cursor: pointer; transition: background 0.15s, color 0.15s; }
+    .tracker-mode-toggle button[aria-pressed='true'] { background: var(--accent); color: #fff; }
+    .tracker-mode-toggle button:hover:not([aria-pressed='true']) { background: rgba(255,255,255,0.06); }
     .tracker-summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 16px; }
     .tracker-stat { background: var(--card); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); padding: 14px 16px; text-align: center; }
     .tracker-stat-value { font-size: 1.35rem; font-weight: 800; color: var(--text); margin-bottom: 2px; font-variant-numeric: tabular-nums; }
@@ -1223,8 +1227,13 @@
   <section id="panel-tracker" class="tab-panel" role="tabpanel" aria-labelledby="tab-tracker" aria-hidden="true">
     <div class="card">
       <h2>&#x1F4CA; Live eBay Market Tracker</h2>
+      <div class="tracker-mode-toggle" role="group" aria-label="Coin or Bar tracking">
+        <button type="button" id="tracker-mode-coin" aria-pressed="true">Coin</button>
+        <button type="button" id="tracker-mode-bar" aria-pressed="false">Bullion Bar</button>
+      </div>
       <div class="tracker-form">
-        <div class="tracker-form-row">
+        <!-- Coin mode fields -->
+        <div class="tracker-form-row" id="tracker-coin-row">
           <div class="tracker-field">
             <label for="tracker-series">Coin Series</label>
             <input id="tracker-series" type="text" placeholder="e.g. Franklin Half Dollar" autocomplete="off" list="tracker-series-list">
@@ -1290,6 +1299,69 @@
           </div>
           <div class="tracker-field tracker-field-btn">
             <button id="tracker-submit" class="btn" type="button">Load Market Data</button>
+          </div>
+        </div>
+        <!-- Bar mode fields (hidden by default) -->
+        <div class="tracker-form-row" id="tracker-bar-row" style="display:none">
+          <div class="tracker-field">
+            <label for="tracker-bar-metal">Metal</label>
+            <select id="tracker-bar-metal">
+              <option value="gold">Gold</option>
+              <option value="silver" selected>Silver</option>
+            </select>
+          </div>
+          <div class="tracker-field">
+            <label for="tracker-bar-size">Size</label>
+            <select id="tracker-bar-size">
+              <option value="0.5 gram">0.5 gram</option>
+              <option value="1 gram">1 gram</option>
+              <option value="2.5 gram">2.5 gram</option>
+              <option value="5 gram">5 gram</option>
+              <option value="10 gram">10 gram</option>
+              <option value="20 gram">20 gram</option>
+              <option value="50 gram">50 gram</option>
+              <option value="100 gram">100 gram</option>
+              <option value="1 oz" selected>1 oz</option>
+              <option value="2 oz">2 oz</option>
+              <option value="5 oz">5 oz</option>
+              <option value="10 oz">10 oz</option>
+            </select>
+          </div>
+          <div class="tracker-field">
+            <label for="tracker-bar-brand">Brand / Mint</label>
+            <input id="tracker-bar-brand" type="text" list="tracker-bar-brand-list" placeholder="e.g. PAMP Suisse" autocomplete="off" style="min-width:180px">
+            <datalist id="tracker-bar-brand-list">
+              <option value="PAMP Suisse">
+              <option value="Valcambi">
+              <option value="Credit Suisse">
+              <option value="Perth Mint">
+              <option value="Royal Canadian Mint">
+              <option value="Johnson Matthey">
+              <option value="Engelhard">
+              <option value="Sunshine Minting">
+              <option value="Asahi Refining">
+              <option value="Scottsdale Mint">
+              <option value="Geiger Edelmetalle">
+              <option value="Argor-Heraeus">
+              <option value="Metalor">
+              <option value="Heraeus">
+              <option value="SilverTowne">
+              <option value="Apmex">
+              <option value="A-Mark">
+              <option value="MMTC-PAMP">
+            </datalist>
+          </div>
+          <div class="tracker-field">
+            <label for="tracker-bar-days">Lookback</label>
+            <select id="tracker-bar-days">
+              <option value="30">30 days</option>
+              <option value="60">60 days</option>
+              <option value="90" selected>90 days</option>
+              <option value="180">180 days</option>
+            </select>
+          </div>
+          <div class="tracker-field tracker-field-btn">
+            <button id="tracker-bar-submit" class="btn" type="button">Load Market Data</button>
           </div>
         </div>
       </div>
@@ -3239,9 +3311,16 @@
     _lastSeries: null,
     _weight: null,
     _pendingLoad: false,
+    _mode: 'coin', // 'coin' or 'bar'
 
     /** Build display name: series + size for fractional bullion (e.g. "British Silver Britannia 1/4 oz") */
     _displayName() {
+      if (this._mode === 'bar') {
+        const metal = this.els.barMetal.value;
+        const size  = this.els.barSize.value;
+        const brand = (this.els.barBrand.value || '').trim();
+        return (brand ? brand + ' ' : '') + metal.charAt(0).toUpperCase() + metal.slice(1) + ' Bar ' + size;
+      }
       const s = (this.els?.series?.value || '').trim();
       if (!this._weight) return s;
       const LABELS = { 0.5: '1/2 oz', 0.25: '1/4 oz', 0.1: '1/10 oz', 0.05: '1/20 oz', 2: '2 oz', 5: '5 oz', 10: '10 oz' };
@@ -3260,12 +3339,44 @@
         matrixWrap: document.getElementById('tracker-matrix-wrap'),
         matrix:     document.getElementById('tracker-matrix'),
         empty:      document.getElementById('tracker-empty'),
+        // Mode toggle
+        modeCoin:   document.getElementById('tracker-mode-coin'),
+        modeBar:    document.getElementById('tracker-mode-bar'),
+        coinRow:    document.getElementById('tracker-coin-row'),
+        barRow:     document.getElementById('tracker-bar-row'),
+        // Bar fields
+        barMetal:   document.getElementById('tracker-bar-metal'),
+        barSize:    document.getElementById('tracker-bar-size'),
+        barBrand:   document.getElementById('tracker-bar-brand'),
+        barDays:    document.getElementById('tracker-bar-days'),
+        barSubmit:  document.getElementById('tracker-bar-submit'),
       };
       if (!this.els.submit) return;
       this.els.submit.addEventListener('click', () => this._load());
       this.els.series.addEventListener('keydown', e => { if (e.key === 'Enter') this._load(); });
       this.els.grade.addEventListener('change', () => { if (this._lastSeries) this._load(); });
       this.els.days.addEventListener('change', () => { if (this._lastSeries) this._load(); });
+
+      // Bar mode listeners
+      if (this.els.barSubmit) {
+        this.els.barSubmit.addEventListener('click', () => this._load());
+        this.els.barBrand.addEventListener('keydown', e => { if (e.key === 'Enter') this._load(); });
+      }
+
+      // Mode toggle
+      if (this.els.modeCoin && this.els.modeBar) {
+        this.els.modeCoin.addEventListener('click', () => this._setMode('coin'));
+        this.els.modeBar.addEventListener('click', () => this._setMode('bar'));
+      }
+    },
+
+    _setMode(mode) {
+      this._mode = mode;
+      this.els.modeCoin.setAttribute('aria-pressed', mode === 'coin');
+      this.els.modeBar.setAttribute('aria-pressed', mode === 'bar');
+      this.els.coinRow.style.display = mode === 'coin' ? '' : 'none';
+      this.els.barRow.style.display  = mode === 'bar'  ? '' : 'none';
+      this._clearResults();
     },
 
     /**
@@ -3300,17 +3411,31 @@
     },
 
     async _load() {
-      const series = (this.els.series.value || '').trim();
+      let series, grade, days;
+
+      if (this._mode === 'bar') {
+        // Build series string from bar fields: "PAMP Suisse Gold Bar 1 oz"
+        const metal = this.els.barMetal.value;
+        const size  = this.els.barSize.value;
+        const brand = (this.els.barBrand.value || '').trim();
+        series = (brand ? brand + ' ' : '') + metal.charAt(0).toUpperCase() + metal.slice(1) + ' Bar ' + size;
+        grade = 'All';
+        days = this.els.barDays.value;
+      } else {
+        series = (this.els.series.value || '').trim();
+        grade = this.els.grade.value;
+        days = this.els.days.value;
+      }
+
       if (!series) {
         this.els.status.className = 'status-bar error';
-        this.els.status.textContent = 'Please enter a coin series.';
+        this.els.status.textContent = this._mode === 'bar' ? 'Please select a metal and size.' : 'Please enter a coin series.';
         return;
       }
       this._lastSeries = series;
-      const grade = this.els.grade.value;
-      const days = this.els.days.value;
 
-      this.els.submit.disabled = true;
+      const submitBtn = this._mode === 'bar' ? this.els.barSubmit : this.els.submit;
+      submitBtn.disabled = true;
       this.els.status.className = 'status-bar loading';
       this.els.status.innerHTML = '<div class="spinner"></div> Fetching eBay market data for \u201C' + this._displayName() + '\u201D\u2026';
       this.els.summary.style.display = 'none';
@@ -3322,6 +3447,7 @@
         const timeoutId = setTimeout(() => controller.abort(), 90000);
         const params = new URLSearchParams({ series, grade, days });
         if (this._weight) params.set('weight', this._weight);
+        if (this._mode === 'bar') params.set('type', 'bar');
         const resp = await fetch('/api/market/ebay?' + params, { signal: controller.signal });
         clearTimeout(timeoutId);
         const data = await resp.json();
@@ -3349,7 +3475,7 @@
           this.els.status.textContent = err.message;
         }
       } finally {
-        this.els.submit.disabled = false;
+        submitBtn.disabled = false;
       }
     },
 
@@ -3358,22 +3484,33 @@
       const el = this.els.summary;
       el.style.display = '';
       const isGradeMode = data.mode === 'grade';
+      const isBarMode   = data.mode === 'bar';
       let html = '<div style="font-size:1.1rem;font-weight:700;margin-bottom:10px;color:var(--text)">' + this._displayName() + '</div>';
       html += '<div class="tracker-summary-grid">';
-      html += '<div class="tracker-stat"><div class="tracker-stat-value">' + (s.cellsWithPriceData || 0) + '</div><div class="tracker-stat-label">Cells with data</div></div>';
-      html += '<div class="tracker-stat"><div class="tracker-stat-value">' + (s.yearMin && s.yearMax ? s.yearMin + '\u2013' + s.yearMax : '\u2014') + '</div><div class="tracker-stat-label">Year range</div></div>';
-      if (isGradeMode) {
-        html += '<div class="tracker-stat"><div class="tracker-stat-value">' + (s.gradeCount || 0) + '</div><div class="tracker-stat-label">Grades found</div></div>';
-        html += '<div class="tracker-stat"><div class="tracker-stat-value">Bullion</div><div class="tracker-stat-label">Mode</div></div>';
+      if (isBarMode) {
+        html += '<div class="tracker-stat"><div class="tracker-stat-value">' + (s.brandCount || 0) + '</div><div class="tracker-stat-label">Brands found</div></div>';
+        html += '<div class="tracker-stat"><div class="tracker-stat-value">' + (s.totalSold || 0) + '</div><div class="tracker-stat-label">Sold comps</div></div>';
+        html += '<div class="tracker-stat"><div class="tracker-stat-value">' + (s.totalActive || 0) + '</div><div class="tracker-stat-label">Active listings</div></div>';
+        html += '<div class="tracker-stat"><div class="tracker-stat-value">Bar</div><div class="tracker-stat-label">Mode</div></div>';
       } else {
-        html += '<div class="tracker-stat"><div class="tracker-stat-value">' + (s.mintCount || 0) + '</div><div class="tracker-stat-label">Mint marks</div></div>';
-        html += '<div class="tracker-stat"><div class="tracker-stat-value">' + (data.grade || 'All') + '</div><div class="tracker-stat-label">Grade filter</div></div>';
+        html += '<div class="tracker-stat"><div class="tracker-stat-value">' + (s.cellsWithPriceData || 0) + '</div><div class="tracker-stat-label">Cells with data</div></div>';
+        html += '<div class="tracker-stat"><div class="tracker-stat-value">' + (s.yearMin && s.yearMax ? s.yearMin + '\u2013' + s.yearMax : '\u2014') + '</div><div class="tracker-stat-label">Year range</div></div>';
+        if (isGradeMode) {
+          html += '<div class="tracker-stat"><div class="tracker-stat-value">' + (s.gradeCount || 0) + '</div><div class="tracker-stat-label">Grades found</div></div>';
+          html += '<div class="tracker-stat"><div class="tracker-stat-value">Bullion</div><div class="tracker-stat-label">Mode</div></div>';
+        } else {
+          html += '<div class="tracker-stat"><div class="tracker-stat-value">' + (s.mintCount || 0) + '</div><div class="tracker-stat-label">Mint marks</div></div>';
+          html += '<div class="tracker-stat"><div class="tracker-stat-value">' + (data.grade || 'All') + '</div><div class="tracker-stat-label">Grade filter</div></div>';
+        }
       }
       html += '</div>';
       el.innerHTML = html;
     },
 
     _renderMatrix(data) {
+      if (data.mode === 'bar') {
+        return this._renderBarMatrix(data);
+      }
       if (data.mode === 'grade') {
         return this._renderGradeMatrix(data);
       }
@@ -3447,6 +3584,65 @@
         }
         html += '</tr>';
       }
+      html += '</tbody>';
+      table.innerHTML = html;
+    },
+
+    /** Render the brand-based bar matrix */
+    _renderBarMatrix(data) {
+      const { cells } = data;
+      const wrap = this.els.matrixWrap;
+      const table = this.els.matrix;
+      wrap.style.display = '';
+
+      let html = '<thead><tr>';
+      html += '<th class="tracker-th-year" style="text-align:left">Brand</th>';
+      html += '<th class="tracker-th-mint">Median Sold</th>';
+      html += '<th class="tracker-th-mint">Sold Count</th>';
+      html += '<th class="tracker-th-mint">Cheapest BIN</th>';
+      html += '<th class="tracker-th-mint">Active</th>';
+      html += '</tr></thead><tbody>';
+
+      for (const cell of cells) {
+        html += '<tr>';
+        html += '<td class="tracker-td-year">' + cell.brand + '</td>';
+        // Median sold
+        html += '<td class="tracker-td-cell">';
+        if (cell.medianCompleted) {
+          html += '<span class="tracker-median" title="Median sold (' + cell.medianCompleted.sampleSize + ' comps)">';
+          html += '$' + cell.medianCompleted.value.toFixed(2);
+          html += '</span>';
+        } else {
+          html += '<span class="tracker-no-data">\u2014</span>';
+        }
+        html += '</td>';
+        // Sold count
+        html += '<td class="tracker-td-cell">' + (cell.soldCount || 0) + '</td>';
+        // Cheapest BIN
+        html += '<td class="tracker-td-cell">';
+        if (cell.cheapestBin) {
+          html += '<div class="tracker-bin">';
+          if (cell.cheapestBin.url) {
+            html += '<a href="' + cell.cheapestBin.url + '" target="_blank" rel="noopener">';
+            html += '$' + cell.cheapestBin.value.toFixed(2);
+            html += '</a>';
+          } else {
+            html += '$' + cell.cheapestBin.value.toFixed(2);
+          }
+          if (cell.nextCheapestBin && cell.nextCheapestBin.value > cell.cheapestBin.value) {
+            const pct = Math.round(((cell.nextCheapestBin.value - cell.cheapestBin.value) / cell.nextCheapestBin.value) * 100);
+            html += ' <span class="tracker-pct-cheaper">\u2212' + pct + '%</span>';
+          }
+          html += '</div>';
+        } else {
+          html += '<span class="tracker-no-data">\u2014</span>';
+        }
+        html += '</td>';
+        // Active listings
+        html += '<td class="tracker-td-cell">' + (cell.activeListing || 0) + '</td>';
+        html += '</tr>';
+      }
+
       html += '</tbody>';
       table.innerHTML = html;
     },
