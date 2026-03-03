@@ -4,7 +4,7 @@
   "description": "coin-price-finder-agent to assess FMV and aggregate knowledge",
   "main": "server.js",
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=22.0.0"
   },
   "scripts": {
     "start": "node server.js",

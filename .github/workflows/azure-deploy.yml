@@ -11,8 +11,8 @@ on:
   workflow_dispatch: # Allow manual trigger
 
 env:
-  AZURE_WEBAPP_NAME: coin-price-finder   # <-- Change to your Azure App Service name
-  NODE_VERSION: '20.x'
+  AZURE_WEBAPP_NAME: coinpricefinder-h3a3b5g0dmdydna4
+  NODE_VERSION: '22.x'
 
 jobs:
   build-and-deploy:
