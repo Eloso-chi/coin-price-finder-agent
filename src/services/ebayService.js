@@ -415,7 +415,14 @@ function scoreMatch(comp, expected) {
     // Extract mint mark from title: year-adjacent "1892-S", "1881 CC", etc.
     const mintRe = /\b\d{4}\s*[-]?\s*(CC|[SDPWO])\b/i;
     const mintHit = tLow.match(mintRe);
-    const titleMint = mintHit ? mintHit[1].toUpperCase() : null;
+    let titleMint = mintHit ? mintHit[1].toUpperCase() : null;
+    // For sets, also check for mint city names (Denver, Philadelphia, San Francisco)
+    if (!titleMint && expected.isSet) {
+      const MINT_CITY_MAP = { 'denver': 'D', 'philadelphia': 'P', 'san francisco': 'S', 'west point': 'W' };
+      for (const [city, mark] of Object.entries(MINT_CITY_MAP)) {
+        if (tLow.includes(city)) { titleMint = mark; break; }
+      }
+    }
     if (titleMint === wantMint) {
       score += 10; notes.push('mint-match');
     } else if (titleMint && titleMint !== wantMint) {
@@ -473,6 +480,35 @@ function scoreMatch(comp, expected) {
   } else {
     // No grade specified → they want raw comps
     if (comp.gradeType === 'graded')  { score -= 25; notes.push('graded-vs-raw'); }
+  }
+
+  // ── Set-type scoring ──
+  // When the search is for a mint/proof set, reward "set" in title and
+  // heavily penalize individual-coin denominations that are NOT sets.
+  if (expected.isSet) {
+    const hasSetKeyword = /\bset\b/i.test(tLow);
+    if (hasSetKeyword) {
+      score += 15; notes.push('set-match');
+    } else {
+      // Title lacks "set" — likely an individual coin, not a set
+      score -= 35; notes.push('set-missing');
+    }
+    // Penalize titles with specific individual-coin denomination words
+    // (quarter, dime, nickel, penny, cent, half dollar) that don't also say "set"
+    const INDIVIDUAL_COIN_RE = /\b(penny|pennies|cent[s]?|nickel[s]?|dime[s]?|quarter[s]?|half\s*dollar[s]?|dollar\s*coin)\b/i;
+    if (INDIVIDUAL_COIN_RE.test(tLow) && !hasSetKeyword) {
+      score -= 25; notes.push('individual-coin-in-set-search');
+    }
+    // Proof vs mint-uncirculated set type discrimination
+    if (expected.setType === 'mint-uncirculated') {
+      if (/\bproof\b/i.test(tLow) && !/\bmint\b/i.test(tLow)) {
+        score -= 20; notes.push('wrong-set-type');
+      }
+    } else if (expected.setType && expected.setType.includes('proof')) {
+      if (/\bmint\s+set\b/i.test(tLow) && !/\bproof\b/i.test(tLow)) {
+        score -= 20; notes.push('wrong-set-type');
+      }
+    }
   }
 
   // Lunar series: zodiac animal match (5 pts)
@@ -631,10 +667,13 @@ function applyFilters(comps, options, expected) {
 
   // Minimum relevance gate: discard comps that scored very low in scoreMatch.
   // A score below 20 means almost nothing matched (year, series, weight, metal all wrong).
+  // For set searches, use a higher gate (30) since set-specific penalties push
+  // individual coins and wrong set types well below baseline.
   // This prevents completely irrelevant items (e.g. electronics, clothing) from appearing.
+  const relevanceGate = expected.isSet ? 30 : 20;
   removed.lowRelevance = 0;
   let kept = comps.filter(c => {
-    if (c.matchScore != null && c.matchScore < 20) { removed.lowRelevance++; return false; }
+    if (c.matchScore != null && c.matchScore < relevanceGate) { removed.lowRelevance++; return false; }
     return true;
   });
 
@@ -644,6 +683,17 @@ function applyFilters(comps, options, expected) {
     if (isDenied(c.title, { allowRoll: isRollSearch })) { removed.denied++; return false; }
     return true;
   });
+
+  // Set-match filter: when searching for a mint/proof set, keep ONLY listings
+  // that contain "set" in the title. Individual coins, accessories, and other
+  // non-set items are almost never what the user wants.
+  if (expected.isSet) {
+    removed.notSet = 0;
+    kept = kept.filter(c => {
+      if (!/\bset\b/i.test(c.title)) { removed.notSet++; return false; }
+      return true;
+    });
+  }
 
   // Roll-match filter: when searching for rolls, keep ONLY roll listings;
   // when NOT searching for rolls the deny-list already blocks them.
@@ -786,13 +836,20 @@ function applyFilters(comps, options, expected) {
   // a different mint mark than expected (e.g. user wants 1892-S but title says 1892-O)
   if (expected.mint) {
     const wantMint = expected.mint.toUpperCase();
+    const MINT_CITY_MAP = { 'denver': 'D', 'philadelphia': 'P', 'san francisco': 'S', 'west point': 'W' };
     removed.mintMismatch = 0;
     kept = kept.filter(c => {
       const tLow = (c.title || '').toLowerCase();
       const mintRe = /\b\d{4}\s*[-]?\s*(CC|[SDPWO])\b/i;
       const m = tLow.match(mintRe);
-      if (!m) return true; // no mint stated → benefit of the doubt
-      const titleMint = m[1].toUpperCase();
+      let titleMint = m ? m[1].toUpperCase() : null;
+      // For sets, also recognise mint city names as mint marks
+      if (!titleMint && expected.isSet) {
+        for (const [city, mark] of Object.entries(MINT_CITY_MAP)) {
+          if (tLow.includes(city)) { titleMint = mark; break; }
+        }
+      }
+      if (!titleMint) return true; // no mint stated → benefit of the doubt
       if (titleMint === wantMint) return true;
       removed.mintMismatch++;
       return false;

@@ -205,6 +205,8 @@ router.post('/', async (req, res) => {
       zodiacAnimal: zodiacAnimal,
       isLunarCoin: isLunarCoin,
       isRoll: isRoll,
+      isSet: isSet,
+      setType: resolvedSetType || null,
       perthSeriesLabel: perthSeriesLabel,
       _gradeSource: identification.parsed?._gradeSource || null,
       _rawQuery: String(query),
@@ -431,8 +433,7 @@ router.post('/', async (req, res) => {
   } catch (err) {
     console.error('[/api/price] Unhandled error:', err.message);
     return res.status(500).json({
-      error: 'Internal server error',
-      message: err.message
+      error: 'Internal server error'
     });
   }
 });
