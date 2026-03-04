@@ -8,6 +8,19 @@ const router = express.Router();
 const terapeakService = require('../services/terapeakService');
 const quotaService = require('../services/terapeakQuotaService');
 
+// ── Admin API-key guard (shared with server.js) ───────────
+const ADMIN_API_KEY = process.env.ADMIN_API_KEY || '';
+function requireAdmin(req, res, next) {
+  if (!ADMIN_API_KEY) {
+    return res.status(403).json({ error: 'Admin API key not configured on server' });
+  }
+  const provided = req.headers['x-api-key'] || req.query.apiKey;
+  if (provided !== ADMIN_API_KEY) {
+    return res.status(401).json({ error: 'Invalid or missing API key' });
+  }
+  next();
+}
+
 // ── Multer: accept CSV uploads up to 10 MB ──────────────────
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -88,7 +101,7 @@ router.post('/import', upload.single('file'), (req, res) => {
     });
   } catch (err) {
     console.error('[terapeak] Import error:', err.message);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'CSV import failed' });
   }
 });
 
@@ -134,7 +147,7 @@ router.post('/import-text', express.json(), (req, res) => {
     });
   } catch (err) {
     console.error('[terapeak] Import-text error:', err.message);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'CSV text import failed' });
   }
 });
 
@@ -171,7 +184,7 @@ router.get('/lookup', (req, res) => {
  * DELETE /api/terapeak/datasets/:key
  * Delete a specific Terapeak dataset.
  */
-router.delete('/datasets/:key', (req, res) => {
+router.delete('/datasets/:key', requireAdmin, (req, res) => {
   const deleted = terapeakService.deleteDataset(decodeURIComponent(req.params.key));
   if (deleted) {
     res.json({ status: 'ok', message: 'Dataset deleted' });
@@ -184,7 +197,7 @@ router.delete('/datasets/:key', (req, res) => {
  * DELETE /api/terapeak/datasets
  * Clear all Terapeak data.
  */
-router.delete('/datasets', (_req, res) => {
+router.delete('/datasets', requireAdmin, (_req, res) => {
   terapeakService.clearAll();
   res.json({ status: 'ok', message: 'All Terapeak data cleared' });
 });
@@ -228,7 +241,7 @@ router.post('/quota/set-used', express.json(), (req, res) => {
  * POST /api/terapeak/quota/reset
  * Reset today's query counter to 0.
  */
-router.post('/quota/reset', (_req, res) => {
+router.post('/quota/reset', requireAdmin, (_req, res) => {
   res.json(quotaService.resetToday());
 });
 
@@ -237,7 +250,7 @@ router.post('/quota/reset', (_req, res) => {
  * Change the daily limit (default 250).
  * Body: { limit: number }
  */
-router.post('/quota/set-limit', express.json(), (req, res) => {
+router.post('/quota/set-limit', requireAdmin, express.json(), (req, res) => {
   const limit = parseInt(req.body?.limit);
   if (isNaN(limit) || limit < 1) return res.status(400).json({ error: 'limit must be a positive number' });
   res.json(quotaService.setLimit(limit));
@@ -248,7 +261,7 @@ router.post('/quota/set-limit', express.json(), (req, res) => {
  * Delete CSV files from data/terapeak/ where every comp is older than 180 days.
  * Body (optional): { maxDays: number }
  */
-router.post('/purge-stale-csvs', express.json(), (req, res) => {
+router.post('/purge-stale-csvs', requireAdmin, express.json(), (req, res) => {
   const maxDays = parseInt(req.body?.maxDays) || 180;
   const result = terapeakService.purgeStaleCSVs('data/terapeak', maxDays);
   res.json({ status: 'ok', ...result });

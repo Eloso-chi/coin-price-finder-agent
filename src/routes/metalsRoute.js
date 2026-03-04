@@ -57,7 +57,7 @@ function handleError(err, res) {
     });
   }
   console.error('[/api/metals] Unhandled error:', err.message);
-  return res.status(500).json({ error: 'Internal server error', message: err.message });
+  return res.status(500).json({ error: 'Internal server error' });
 }
 
 module.exports = router;

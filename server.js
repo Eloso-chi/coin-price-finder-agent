@@ -5,11 +5,62 @@ require('dotenv').config();
 
 const express = require('express');
 const path = require('path');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// ── Admin API-key guard for destructive endpoints ───────────
+const ADMIN_API_KEY = process.env.ADMIN_API_KEY || '';
+function requireAdmin(req, res, next) {
+  if (!ADMIN_API_KEY) {
+    // No key configured — reject all admin calls so the endpoints
+    // are locked-down by default on a fresh deploy.
+    return res.status(403).json({ error: 'Admin API key not configured on server' });
+  }
+  const provided = req.headers['x-api-key'] || req.query.apiKey;
+  if (provided !== ADMIN_API_KEY) {
+    return res.status(401).json({ error: 'Invalid or missing API key' });
+  }
+  next();
+}
+
 // ── Middleware ───────────────────────────────────────────────
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc:  ["'self'", "'unsafe-inline'"],   // inline <script> in SPA
+      styleSrc:   ["'self'", "'unsafe-inline'"],   // inline <style> in SPA
+      imgSrc:     ["'self'", 'data:', 'https://i.ebayimg.com', 'https://images.pcgs.com', 'https://*.ebayimg.com'],
+      connectSrc: ["'self'"],
+      fontSrc:    ["'self'"],
+      objectSrc:  ["'none'"],
+      frameAncestors: ["'none'"],
+    }
+  }
+}));
+
+// Global rate limiter — 100 requests per minute per IP
+const globalLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please try again later' }
+});
+app.use(globalLimiter);
+
+// Stricter limiter for expensive API-calling routes
+const apiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many API requests, please try again later' }
+});
+
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -20,15 +71,15 @@ const barPriceRoute    = require('./src/routes/barPriceRoute');
 const coinVariantRoute = require('./src/routes/coinVariantRoute');
 const marketRoute      = require('./src/routes/marketRoute');
 const terapeakRoute    = require('./src/routes/terapeakRoute');
-app.use('/api/price', priceRoute);
+app.use('/api/price', apiLimiter, priceRoute);
 app.use('/api/metals', metalsRoute);
-app.use('/api/bar-price', barPriceRoute);
+app.use('/api/bar-price', apiLimiter, barPriceRoute);
 app.use('/api/coin-variant', coinVariantRoute);
-app.use('/api/market/ebay', marketRoute);
+app.use('/api/market/ebay', apiLimiter, marketRoute);
 app.use('/api/terapeak', terapeakRoute);
 
-// Clear all caches
-app.post('/api/clear-cache', (_req, res) => {
+// Clear all caches (admin-only)
+app.post('/api/clear-cache', requireAdmin, (_req, res) => {
   const ebay    = require('./src/services/ebayService');
   const pcgs    = require('./src/services/pcgsService');
   const market  = require('./src/services/marketAggregator');
@@ -45,14 +96,11 @@ app.post('/api/clear-cache', (_req, res) => {
   res.json({ status: 'ok', message: 'All caches cleared', terapeakEvicted: evicted });
 });
 
-// Health check
+// Health check (minimal info — no config details)
 app.get('/api/health', (_req, res) => {
   res.json({
     status: 'ok',
-    uptime: process.uptime(),
-    ebayConfigured: !!(process.env.EBAY_APP_ID && process.env.EBAY_CLIENT_SECRET),
-    pcgsConfigured: !!process.env.PCGS_API_KEY,
-    metalsConfigured: !!(process.env.GOLDAPI_KEY || process.env.METALS_API_KEY)
+    uptime: process.uptime()
   });
 });
 

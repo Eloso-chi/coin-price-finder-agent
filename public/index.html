@@ -1455,6 +1455,22 @@
 
   <script>
   /* ═══════════════════════════════════════════════════════════
+   *  GLOBAL HTML ESCAPE — prevents XSS from external API data
+   * ═══════════════════════════════════════════════════════════ */
+  function _esc(str) {
+    if (str == null) return '';
+    const div = document.createElement('div');
+    div.textContent = String(str);
+    return div.innerHTML;
+  }
+  function _escUrl(url) {
+    if (!url) return '';
+    // Only allow http/https URLs
+    if (!/^https?:\/\//i.test(url)) return '';
+    return _esc(url);
+  }
+
+  /* ═══════════════════════════════════════════════════════════
    *  TAB CONTROLLER
    * ═══════════════════════════════════════════════════════════ */
   (function initTabs() {
@@ -2203,7 +2219,7 @@
             : '<span class="match-tag source-tag-sold">SOLD</span>';
           const rowClass = isActive ? ' class="active-listing-row"' : '';
           html += '<tr' + rowClass + '><td>' + (i + 1) + '</td>';
-          html += '<td><a href="' + c.url + '" target="_blank" rel="noopener">' + (c.title || '').substring(0, 70) + '</a></td>';
+          html += '<td><a href="' + _escUrl(c.url) + '" target="_blank" rel="noopener">' + _esc((c.title || '').substring(0, 70)) + '</a></td>';
           html += '<td>' + $(c.totalUsd) + '</td>';
           html += '<td>' + sourceTag + '</td>';
           html += '<td>' + gtLabel + '</td>';
@@ -2917,7 +2933,7 @@
         const mqTag = '<span class="match-tag match-' + mq + '">' + mq + '</span>';
         const gtLabel = c.gradeType === 'graded' ? '<span class="match-tag" style="background:#e8d5f5;color:#6b21a8">graded</span>' : '<span class="match-tag" style="background:#d5f5e3;color:#166534">raw</span>';
         html += '<tr><td>' + (i + 1) + '</td>';
-        html += '<td><a href="' + c.url + '" target="_blank" rel="noopener">' + (c.title || '').substring(0, 70) + '</a></td>';
+        html += '<td><a href="' + _escUrl(c.url) + '" target="_blank" rel="noopener">' + _esc((c.title || '').substring(0, 70)) + '</a></td>';
         html += '<td>' + $(c.totalUsd) + '</td>';
         html += '<td>' + gtLabel + '</td>';
         html += '<td>' + mqTag + '</td>';
@@ -2930,13 +2946,13 @@
     if (v.explanation?.length) {
       html += '<div class="card"><h2>Valuation Reasoning</h2>';
       html += '<ul class="reasoning-list">';
-      v.explanation.forEach(function(e) { html += '<li>' + e + '</li>'; });
+      v.explanation.forEach(function(e) { html += '<li>' + _esc(e) + '</li>'; });
       html += '</ul></div>';
     }
 
     // ── Raw JSON ──────────────────────────────────────────
     html += '<details><summary>View raw JSON response</summary>';
-    html += '<pre class="json">' + JSON.stringify(d, null, 2) + '</pre></details>';
+    html += '<pre class="json">' + _esc(JSON.stringify(d, null, 2)) + '</pre></details>';
 
     r.innerHTML = html;
   }
@@ -3898,7 +3914,7 @@
         }
         this.els.list.innerHTML = html;
       } catch (err) {
-        this.els.list.innerHTML = '<p style="color:var(--accent-red,#c0392b);font-size:0.82rem">Failed to load datasets: ' + err.message + '</p>';
+        this.els.list.innerHTML = '<p style="color:var(--accent-red,#c0392b);font-size:0.82rem">Failed to load datasets: ' + _esc(err.message) + '</p>';
       }
     },
 

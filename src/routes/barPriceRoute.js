@@ -114,8 +114,7 @@ router.post('/', async (req, res) => {
   } catch (err) {
     console.error('[/api/bar-price] Unhandled error:', err.message);
     return res.status(500).json({
-      error: 'Internal server error',
-      message: err.message
+      error: 'Internal server error'
     });
   }
 });
