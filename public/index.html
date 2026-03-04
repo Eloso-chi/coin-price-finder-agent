@@ -320,6 +320,7 @@
     .melt-input-grid input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-subtle); }
 
     .melt-spot-status { font-size: 0.78rem; color: var(--yellow); margin-top: 2px; }
+    .spot-disclaimer { font-size: 0.75rem; color: var(--text-muted); margin-top: 6px; font-style: italic; }
 
     .melt-type-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
     .melt-type-row label { font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.04em; min-width: 80px; }
@@ -1216,6 +1217,7 @@
           <div id="melt-roll-wrap"><label for="melt-roll">Coins / Roll</label><input id="melt-roll" type="number" step="1" min="1" value="20"></div>
         </div>
         <div id="melt-spot-status" class="melt-spot-status" role="status" aria-live="polite"></div>
+        <div class="spot-disclaimer">Spot prices are not live &mdash; they refresh approximately every 30 minutes. You can override the spot price above at any time.</div>
       </div>
       <div id="melt-results"></div>
     </div>
@@ -3234,7 +3236,7 @@
       const price = await MeltSpotAdapter.getSpot(coin.metal);
       if (price != null) {
         this.els.spot.value = price.toFixed(2);
-        this.els.status.textContent = '';
+        this.els.status.textContent = 'Spot refreshed (updates ~every 30 min)';
       } else {
         this.els.status.textContent = 'Spot unavailable — enter manually.';
       }
