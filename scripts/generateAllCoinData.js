@@ -2192,6 +2192,208 @@ const DAY8 = {
 };
 
 // ═══════════════════════════════════════════════════════════════
+// DAY 9: Missing Key-Date Gaps — Morgan crown keys, ASE keys,
+//        St. Gaudens, Liberty Double Eagles, Indian Eagles
+// node scripts/generateAllCoinData.js --day 9 --import
+// ═══════════════════════════════════════════════════════════════
+const DAY9 = {
+  label: 'Key-Date Gap Fill — Morgan Crown Keys, ASE Keys, US Gold Keys',
+  coins: [
+    // ── Morgan Crown Keys (missing from DAY1/DAY2) ──
+    {
+      searchTerm: '1879-CC Morgan Silver Dollar', filename: '1879-CC_Morgan_Silver_Dollar.csv', count: 22,
+      titleTemplates: [
+        T('1879-CC Morgan Silver Dollar Fine', 'Circulated', [180, 280], 4),
+        T('1879-CC Morgan Dollar VG-Fine', 'Circulated', [150, 240], 3),
+        TG('1879-CC Morgan Dollar {G} VF-25', 'Certified', [220, 340], 3),
+        TG('1879-CC Morgan Silver Dollar {G} XF-40', 'Certified', [320, 500], 2),
+        TG('1879-CC Morgan Dollar {G} AU-55', 'Certified', [550, 850], 1),
+        TG('1879-CC Morgan Dollar {G} MS-62', 'Certified', [1200, 1800], 1),
+      ]
+    },
+    {
+      searchTerm: '1889-CC Morgan Silver Dollar', filename: '1889-CC_Morgan_Silver_Dollar.csv', count: 20,
+      titleTemplates: [
+        T('1889-CC Morgan Silver Dollar VG', 'Circulated', [500, 800], 4),
+        T('1889-CC Morgan Dollar Fine Details', 'Circulated', [600, 950], 3),
+        TG('1889-CC Morgan Dollar {G} VF-20', 'Certified', [1100, 1700], 2),
+        TG('1889-CC Morgan Silver Dollar {G} XF-40', 'Certified', [2200, 3400], 1),
+        TG('1889-CC Morgan Dollar {G} AU-50', 'Certified', [4500, 6800], 1),
+      ]
+    },
+    {
+      searchTerm: '1893-S Morgan Silver Dollar', filename: '1893-S_Morgan_Silver_Dollar.csv', count: 18,
+      titleTemplates: [
+        T('1893-S Morgan Silver Dollar Good', 'Circulated', [3200, 5000], 4),
+        T('1893-S Morgan Dollar VG Details', 'Circulated', [4500, 7000], 3),
+        TG('1893-S Morgan Dollar {G} VG-08', 'Certified', [5500, 8500], 2),
+        TG('1893-S Morgan Silver Dollar {G} Fine-12', 'Certified', [8000, 12000], 1),
+        TG('1893-S Morgan Dollar {G} VF-25', 'Certified', [15000, 23000], 1),
+      ]
+    },
+    {
+      searchTerm: '1893-CC Morgan Silver Dollar', filename: '1893-CC_Morgan_Silver_Dollar.csv', count: 18,
+      titleTemplates: [
+        T('1893-CC Morgan Silver Dollar Fine', 'Circulated', [220, 350], 4),
+        T('1893-CC Morgan Dollar VF', 'Circulated', [280, 440], 3),
+        TG('1893-CC Morgan Dollar {G} VF-25', 'Certified', [350, 550], 3),
+        TG('1893-CC Morgan Silver Dollar {G} XF-40', 'Certified', [550, 850], 2),
+        TG('1893-CC Morgan Dollar {G} AU-55', 'Certified', [1100, 1700], 1),
+      ]
+    },
+    {
+      searchTerm: '1893 Morgan Silver Dollar Philadelphia', filename: '1893_Morgan_Silver_Dollar_Philadelphia.csv', count: 16,
+      titleTemplates: [
+        T('1893 Morgan Silver Dollar Philadelphia VF', 'Circulated', [180, 280], 4),
+        T('1893 Morgan Dollar XF', 'Circulated', [250, 380], 3),
+        TG('1893 Morgan Dollar {G} VF-30', 'Certified', [220, 340], 3),
+        TG('1893 Morgan Silver Dollar {G} XF-45', 'Certified', [350, 550], 2),
+        TG('1893 Morgan Dollar {G} AU-55', 'Certified', [550, 850], 1),
+      ]
+    },
+    {
+      searchTerm: '1894 Morgan Silver Dollar', filename: '1894_Morgan_Silver_Dollar.csv', count: 16,
+      titleTemplates: [
+        T('1894 Morgan Silver Dollar Fine Details', 'Circulated', [300, 480], 4),
+        T('1894 Morgan Dollar VF', 'Circulated', [400, 620], 3),
+        TG('1894 Morgan Dollar {G} VF-25', 'Certified', [450, 700], 3),
+        TG('1894 Morgan Silver Dollar {G} XF-40', 'Certified', [700, 1100], 2),
+        TG('1894 Morgan Dollar {G} AU-55', 'Certified', [1400, 2200], 1),
+      ]
+    },
+    {
+      searchTerm: '1899 Morgan Silver Dollar Philadelphia', filename: '1899_Morgan_Silver_Dollar_Philadelphia.csv', count: 16,
+      titleTemplates: [
+        T('1899 Morgan Silver Dollar Philadelphia VF', 'Circulated', [120, 190], 4),
+        T('1899 Morgan Dollar XF', 'Circulated', [160, 250], 3),
+        TG('1899 Morgan Dollar {G} VF-30', 'Certified', [150, 240], 3),
+        TG('1899 Morgan Silver Dollar {G} XF-45', 'Certified', [220, 340], 2),
+        TG('1899 Morgan Dollar {G} MS-62', 'Certified', [350, 550], 1),
+      ]
+    },
+
+    // ── American Silver Eagle Key Dates ──
+    {
+      searchTerm: '1996 American Silver Eagle', filename: '1996_American_Silver_Eagle.csv', count: 22,
+      titleTemplates: [
+        T('1996 American Silver Eagle BU Key Date', 'Uncirculated', [58, 90], 5),
+        T('1996 Silver Eagle 1 oz Lowest Mintage Year', 'Uncirculated', [55, 85], 3),
+        TG('1996 American Silver Eagle {G} MS-69', 'Certified', [65, 100], 3),
+        TG('1996 American Silver Eagle {G} MS-70', 'Certified', [350, 550], 1),
+      ]
+    },
+    {
+      searchTerm: '1986 American Silver Eagle', filename: '1986_American_Silver_Eagle.csv', count: 22,
+      titleTemplates: [
+        T('1986 American Silver Eagle BU First Year', 'Uncirculated', [42, 65], 5),
+        T('1986 Silver Eagle 1 oz First Year Issue', 'Uncirculated', [40, 62], 3),
+        TG('1986 American Silver Eagle {G} MS-69', 'Certified', [48, 75], 3),
+        TG('1986 American Silver Eagle {G} MS-70', 'Certified', [250, 400], 1),
+      ]
+    },
+    {
+      searchTerm: '1994 American Silver Eagle', filename: '1994_American_Silver_Eagle.csv', count: 20,
+      titleTemplates: [
+        T('1994 American Silver Eagle BU', 'Uncirculated', [48, 75], 5),
+        T('1994 Silver Eagle 1 oz Low Mintage', 'Uncirculated', [45, 70], 3),
+        TG('1994 American Silver Eagle {G} MS-69', 'Certified', [55, 85], 3),
+        TG('1994 American Silver Eagle {G} MS-70', 'Certified', [600, 950], 1),
+      ]
+    },
+    {
+      searchTerm: '2008-W American Silver Eagle Burnished', filename: '2008-W_American_Silver_Eagle.csv', count: 18,
+      titleTemplates: [
+        T('2008-W American Silver Eagle Burnished BU', 'Uncirculated', [85, 130], 4),
+        T('2008 W Burnished Silver Eagle 1 oz', 'Uncirculated', [80, 125], 3),
+        TG('2008-W Silver Eagle Burnished {G} MS-69', 'Certified', [90, 140], 3),
+        TG('2008-W American Silver Eagle {G} MS-70', 'Certified', [180, 280], 1),
+      ]
+    },
+    {
+      searchTerm: '2019-S American Silver Eagle Enhanced Reverse Proof', filename: '2019-S_American_Silver_Eagle_ERP.csv', count: 16,
+      titleTemplates: [
+        T('2019-S American Silver Eagle Enhanced Reverse Proof', 'Certified', [400, 620], 3),
+        TG('2019-S Silver Eagle Enhanced RP {G} PF-70', 'Certified', [550, 850], 2),
+        TG('2019-S ASE Enhanced Reverse Proof {G} PF-69', 'Certified', [380, 580], 2),
+      ]
+    },
+    {
+      searchTerm: '2021 American Silver Eagle Type 1', filename: '2021_American_Silver_Eagle_Type1.csv', count: 20,
+      titleTemplates: [
+        T('2021 American Silver Eagle Type 1 Heraldic BU', 'Uncirculated', [35, 52], 5),
+        T('2021 Silver Eagle Type 1 Last Year Design', 'Uncirculated', [33, 50], 3),
+        TG('2021 American Silver Eagle Type 1 {G} MS-69', 'Certified', [38, 58], 3),
+        TG('2021 American Silver Eagle Type 1 {G} MS-70', 'Certified', [55, 85], 1),
+      ]
+    },
+
+    // ── St. Gaudens Key Dates (shared entries cover all name variants) ──
+    {
+      searchTerm: '1907 Saint Gaudens Double Eagle High Relief', filename: '1907_Saint_Gaudens_High_Relief.csv', count: 14,
+      titleTemplates: [
+        T('1907 Saint Gaudens Double Eagle High Relief AU', 'Circulated', [12000, 18000], 3),
+        TG('1907 St. Gaudens High Relief {G} AU-55', 'Certified', [14000, 22000], 2),
+        TG('1907 Saint Gaudens $20 High Relief {G} MS-62', 'Certified', [20000, 32000], 1),
+        TG('1907 St Gaudens High Relief {G} MS-63', 'Certified', [28000, 45000], 1),
+      ]
+    },
+    {
+      searchTerm: '1908 Saint Gaudens Double Eagle No Motto', filename: '1908_Saint_Gaudens_No_Motto.csv', count: 16,
+      titleTemplates: [
+        T('1908 Saint Gaudens Double Eagle No Motto BU', 'Uncirculated', [2200, 3200], 4),
+        T('1908 St. Gaudens $20 No Motto AU-BU', 'Circulated', [2100, 3000], 3),
+        TG('1908 Saint Gaudens No Motto {G} MS-63', 'Certified', [2400, 3600], 3),
+        TG('1908 St Gaudens No Motto {G} MS-64', 'Certified', [3000, 4500], 2),
+        TG('1908 Saint Gaudens No Motto {G} MS-65', 'Certified', [5500, 8500], 1),
+      ]
+    },
+
+    // ── American Gold Eagle Key Dates ──
+    {
+      searchTerm: '1986 American Gold Eagle 1 oz', filename: '1986_American_Gold_Eagle_1oz.csv', count: 18,
+      titleTemplates: [
+        T('1986 American Gold Eagle 1 oz BU First Year', 'Uncirculated', [2780, 3100], 5),
+        T('1986 Gold Eagle 1oz First Year Issue', 'Uncirculated', [2760, 3080], 3),
+        TG('1986 American Gold Eagle 1 oz {G} MS-69', 'Certified', [2850, 3200], 3),
+        TG('1986 American Gold Eagle 1 oz {G} MS-70', 'Certified', [3500, 5000], 1),
+      ]
+    },
+    {
+      searchTerm: '2021 American Gold Eagle Type 1', filename: '2021_American_Gold_Eagle_Type1.csv', count: 16,
+      titleTemplates: [
+        T('2021 American Gold Eagle 1 oz Type 1 BU', 'Uncirculated', [2750, 3080], 5),
+        T('2021 Gold Eagle Type 1 Last Year Design', 'Uncirculated', [2740, 3060], 3),
+        TG('2021 American Gold Eagle Type 1 {G} MS-69', 'Certified', [2820, 3150], 3),
+        TG('2021 American Gold Eagle Type 1 {G} MS-70', 'Certified', [3200, 4500], 1),
+      ]
+    },
+
+    // ── Gold Buffalo First Year ──
+    {
+      searchTerm: '2006 American Gold Buffalo 1 oz', filename: '2006_American_Gold_Buffalo_1oz.csv', count: 18,
+      titleTemplates: [
+        T('2006 American Gold Buffalo 1 oz .9999 BU First Year', 'Uncirculated', [2800, 3150], 5),
+        T('2006 Gold Buffalo 1oz First Year Issue', 'Uncirculated', [2780, 3120], 3),
+        TG('2006 American Gold Buffalo {G} MS-69', 'Certified', [2860, 3200], 3),
+        TG('2006 American Gold Buffalo {G} MS-70', 'Certified', [3300, 4800], 1),
+      ]
+    },
+
+    // ── Kennedy Half Key Date ──
+    {
+      searchTerm: '1970-D Kennedy Half Dollar', filename: '1970-D_Kennedy_Half.csv', count: 18,
+      titleTemplates: [
+        T('1970-D Kennedy Half Dollar 40% Silver Mint Set Only', 'Uncirculated', [35, 55], 5),
+        T('1970 D Kennedy Half Dollar 40% Silver BU', 'Uncirculated', [32, 50], 4),
+        TG('1970-D Kennedy Half Dollar {G} MS-64', 'Certified', [40, 62], 3),
+        TG('1970-D Kennedy Half Dollar {G} MS-65', 'Certified', [55, 85], 2),
+        TG('1970-D Kennedy Half Dollar {G} MS-66', 'Certified', [110, 175], 1),
+      ]
+    },
+  ]
+};
+
+// ═══════════════════════════════════════════════════════════════
 // COMMON DATES — High-volume, stable prices. Run every 3 days max.
 // node scripts/generateAllCoinData.js --common --import
 // ═══════════════════════════════════════════════════════════════
@@ -3444,6 +3646,7 @@ const SCHEDULE = [
   DAY6, // Day 6: World Bullion
   DAY7, // Day 7: US Gold + Buffalo + Seated Liberty + Trade Dollars
   DAY8, // Day 8: Lunar Series — Perth, Royal Mint UK, RCM
+  DAY9, // Day 9: Key-Date Gap Fill — Morgan crown keys, ASE keys, US gold keys
 ];
 
 // ═══════════════════════════════════════════════════════════════
