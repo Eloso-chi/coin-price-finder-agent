@@ -98,4 +98,25 @@ app.listen(PORT, '0.0.0.0', () => {
   } else {
     console.log(`  Terapeak sold data: none — drop CSVs in data/terapeak/ or upload at /api/terapeak/import`);
   }
+
+  // ── Background metals spot-price refresh (every 30 min) ──────────
+  const metals = require('./src/services/metalsSpotPrice');
+  const METALS_POLL_MS = parseInt(process.env.METALS_POLL_MS, 10) || 30 * 60 * 1000; // 30 min
+
+  async function refreshMetalsPrices() {
+    try {
+      const result = await metals.getMetalsSpotPrices(['XAU', 'XAG', 'XPT', 'XPD']);
+      const sources = [...new Set(Object.values(result).map(r => r.source))];
+      console.log(`  [metals] Background refresh ok — sources: ${sources.join(', ')}`);
+    } catch (err) {
+      console.warn(`  [metals] Background refresh failed: ${err.message}`);
+    }
+  }
+
+  // Initial fetch on startup
+  refreshMetalsPrices();
+
+  // Repeat every 30 minutes
+  setInterval(refreshMetalsPrices, METALS_POLL_MS);
+  console.log(`  Metals spot price: polling every ${METALS_POLL_MS / 60000} min (round-robin across ${metals._providers.length} providers)`);
 });
