@@ -42,7 +42,7 @@ const upload = multer({
  *   - file: the CSV file
  *   - searchTerm: the keyword used in Terapeak (e.g. "1892-S Morgan Silver Dollar")
  */
-router.post('/import', upload.single('file'), (req, res) => {
+router.post('/import', requireAdmin, upload.single('file'), (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No CSV file uploaded' });
@@ -112,7 +112,7 @@ router.post('/import', upload.single('file'), (req, res) => {
  *   - csvText: the raw CSV string
  *   - searchTerm: the keyword used in Terapeak
  */
-router.post('/import-text', express.json(), (req, res) => {
+router.post('/import-text', requireAdmin, express.json(), (req, res) => {
   try {
     const { csvText, searchTerm } = req.body || {};
     if (!csvText) return res.status(400).json({ error: 'csvText is required' });
@@ -219,7 +219,7 @@ router.get('/quota', (_req, res) => {
  * Manually record Terapeak queries (e.g. searches/filters done in eBay UI).
  * Body: { count: number, note?: string }
  */
-router.post('/quota/record', express.json(), (req, res) => {
+router.post('/quota/record', requireAdmin, express.json(), (req, res) => {
   const count = Math.max(1, parseInt(req.body?.count) || 1);
   const note = req.body?.note || '';
   const result = quotaService.recordQueries(count, note);
@@ -231,7 +231,7 @@ router.post('/quota/record', express.json(), (req, res) => {
  * Manually set the used count (e.g. sync with actual eBay usage).
  * Body: { used: number }
  */
-router.post('/quota/set-used', express.json(), (req, res) => {
+router.post('/quota/set-used', requireAdmin, express.json(), (req, res) => {
   const used = parseInt(req.body?.used);
   if (isNaN(used) || used < 0) return res.status(400).json({ error: 'used must be a non-negative number' });
   res.json(quotaService.setUsed(used));

@@ -55,7 +55,7 @@ app.use(globalLimiter);
 // Stricter limiter for expensive API-calling routes
 const apiLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 20,
+  max: process.env.NODE_ENV === 'production' ? 20 : 60,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many API requests, please try again later' }
@@ -71,12 +71,16 @@ const barPriceRoute    = require('./src/routes/barPriceRoute');
 const coinVariantRoute = require('./src/routes/coinVariantRoute');
 const marketRoute      = require('./src/routes/marketRoute');
 const terapeakRoute    = require('./src/routes/terapeakRoute');
+const pricingBatchRoute = require('./src/routes/pricingBatchRoute');
+const imageProxyRoute   = require('./src/routes/imageProxyRoute');
 app.use('/api/price', apiLimiter, priceRoute);
 app.use('/api/metals', metalsRoute);
 app.use('/api/bar-price', apiLimiter, barPriceRoute);
 app.use('/api/coin-variant', coinVariantRoute);
 app.use('/api/market/ebay', apiLimiter, marketRoute);
 app.use('/api/terapeak', terapeakRoute);
+app.use('/api/pricing-batch', apiLimiter, pricingBatchRoute);
+app.use('/api/image-proxy', imageProxyRoute);
 
 // Clear all caches (admin-only)
 app.post('/api/clear-cache', requireAdmin, (_req, res) => {

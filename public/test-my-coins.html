@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>My Coins - Auto Test</title>
+  <style>
+    body { background: #0d1117; color: #e6edf3; font-family: monospace; padding: 24px; line-height: 1.8; }
+    h1 { color: #58a6ff; }
+    .ok { color: #3fb950; }
+    .err { color: #f85149; }
+    .info { color: #8b949e; }
+    #log { white-space: pre-wrap; }
+    a { color: #58a6ff; }
+  </style>
+</head>
+<body>
+  <h1>My Coins — Auto Test</h1>
+  <div id="log">Starting...\n</div>
+
+  <script src="/js/crypto.js"></script>
+  <script src="/js/storage.js"></script>
+  <script src="/js/auth.js"></script>
+  <script>
+  (async function() {
+    const log = document.getElementById('log');
+    function write(msg, cls) {
+      const span = document.createElement('span');
+      span.className = cls || '';
+      span.textContent = msg + '\n';
+      log.appendChild(span);
+    }
+
+    const USERNAME = 'testcollector';
+    const PASSWORD = 'Coins2026!';
+
+    const TEST_COINS = [
+      { series: 'Morgan Dollar',              year: '1921', mint: 'D', grade: 'MS-65', weight: null, query: '1921-D Morgan Dollar MS-65' },
+      { series: 'Morgan Dollar',              year: '1878', mint: 'S', grade: 'VF-30', weight: null, query: '1878-S Morgan Dollar VF-30' },
+      { series: 'Peace Dollar',               year: '1923', mint: 'P', grade: 'MS-63', weight: null, query: '1923 Peace Dollar MS-63' },
+      { series: 'Kennedy Half Dollar',        year: '1964', mint: 'P', grade: 'PR-69', weight: null, query: '1964 Kennedy Half Dollar PR-69' },
+      { series: 'Walking Liberty Half Dollar', year:'1941', mint: 'S', grade: 'VF-25', weight: null, query: '1941-S Walking Liberty Half Dollar VF-25' },
+      { series: 'American Silver Eagle',      year: '2024', mint: 'P', grade: 'MS-70', weight: 1,    query: '2024 American Silver Eagle MS-70' },
+      { series: 'Washington Quarter',         year: '1932', mint: 'D', grade: 'VG-10', weight: null, query: '1932-D Washington Quarter VG-10' },
+      { series: 'Roosevelt Dime',             year: '1946', mint: 'P', grade: 'MS-66', weight: null, query: '1946 Roosevelt Dime MS-66' },
+      { series: 'Buffalo Nickel',             year: '1937', mint: 'D', grade: 'MS-64', weight: null, query: '1937-D Buffalo Nickel MS-64' },
+      { series: 'Lincoln Cent',               year: '1909', mint: 'S', grade: 'VF-20', weight: null, query: '1909-S Lincoln Cent VF-20' },
+    ];
+
+    try {
+      // Sign up or log in
+      write('=== Step 1: Authentication ===', 'info');
+      let user;
+      try {
+        user = await CoinAuth.signup(USERNAME, PASSWORD);
+        write('✅ Created account: ' + user.username + ' (userId: ' + user.userId + ')', 'ok');
+      } catch (e) {
+        if (e.message.includes('already exists')) {
+          user = await CoinAuth.login(USERNAME, PASSWORD);
+          write('✅ Logged into existing account: ' + user.username, 'ok');
+        } else {
+          throw e;
+        }
+      }
+
+      // Add coins
+      write('\n=== Step 2: Adding ' + TEST_COINS.length + ' Coins ===', 'info');
+      const session = CoinAuth.currentUser();
+      for (const coin of TEST_COINS) {
+        const hash = await CoinStorage.addCoin(session.userId, session.key, coin);
+        write('  + ' + coin.query + '  [hash: ' + hash.slice(0, 12) + '...]', 'ok');
+      }
+
+      // Verify count
+      const count = await CoinStorage.count(session.userId);
+      write('\n=== Step 3: Verify ===', 'info');
+      write('✅ Collection has ' + count + ' coin(s)', 'ok');
+
+      // Decrypt round-trip
+      write('\n=== Step 4: Decryption Test ===', 'info');
+      const decrypted = await CoinStorage.getAllDecrypted(session.userId, session.key);
+      write('Decrypted ' + decrypted.length + ' records:', 'ok');
+      decrypted.forEach(c => {
+        write('  ✓ ' + [c.year, c.mint, c.series, c.grade].filter(Boolean).join(' '), 'ok');
+      });
+
+      write('\n=== ALL TESTS PASSED ===', 'ok');
+      write('\nUsername: ' + USERNAME, 'info');
+      write('Password: ' + PASSWORD, 'info');
+      write('Coins: ' + count, 'info');
+      write('\nGo to the main app to see your collection:', 'info');
+      const link = document.createElement('a');
+      link.href = '/';
+      link.textContent = 'Open Coin Price Agent →';
+      log.appendChild(link);
+      log.appendChild(document.createTextNode('\n(Log in with testcollector / Coins2026! then click the My Coins tab)\n'));
+
+    } catch (err) {
+      write('❌ Test failed: ' + err.message, 'err');
+      console.error(err);
+    }
+  })();
+  </script>
+</body>
+</html>

@@ -795,14 +795,110 @@
     }
     .tp-quota-warning.caution { display: block; background: rgba(240,173,78,0.12); border: 1px solid #f0ad4e; color: #f0ad4e; }
     .tp-quota-warning.danger  { display: block; background: rgba(231,76,60,0.12); border: 1px solid #e74c3c; color: #e74c3c; }
+
+    /* ── Auth & My Coins ────────────────────────────────── */
+    .user-badge { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+    .user-badge-name { color: var(--accent); font-size: 0.82rem; font-weight: 600; }
+    .user-badge button, .auth-trigger {
+      background: transparent; border: 1px solid var(--border); color: var(--text-secondary);
+      padding: 4px 12px; border-radius: var(--radius); cursor: pointer; font-size: 0.78rem;
+      transition: var(--transition);
+    }
+    .user-badge button:hover, .auth-trigger:hover { color: var(--text); border-color: var(--accent); }
+    .auth-dialog { background: var(--card); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 28px 24px; max-width: 380px; width: 90vw; }
+    .auth-dialog::backdrop { background: rgba(0,0,0,0.6); }
+    .auth-dialog h2 { margin-bottom: 16px; font-size: 1.1rem; }
+    .auth-dialog .field { margin-bottom: 12px; }
+    .auth-dialog label { display: block; font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 4px; }
+    .auth-dialog input[type="text"], .auth-dialog input[type="password"] {
+      width: 100%; padding: 8px 10px; background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); color: var(--text); font-size: 0.9rem;
+    }
+    .auth-dialog .auth-actions { display: flex; gap: 8px; margin-top: 16px; }
+    .auth-dialog .auth-actions button { flex: 1; padding: 8px; border-radius: var(--radius); border: 1px solid var(--border); cursor: pointer; font-size: 0.85rem; }
+    .auth-dialog .btn-primary { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 600; }
+    .auth-dialog .btn-secondary { background: transparent; color: var(--text-secondary); }
+    .auth-dialog .auth-error { color: var(--red); font-size: 0.8rem; margin-top: 8px; display: none; }
+    .auth-dialog .auth-toggle { font-size: 0.78rem; color: var(--text-muted); margin-top: 12px; text-align: center; }
+    .auth-dialog .auth-toggle a { color: var(--accent); cursor: pointer; text-decoration: underline; }
+    .add-coin-btn {
+      display: inline-flex; align-items: center; gap: 6px; margin-top: 10px;
+      padding: 6px 14px; border-radius: var(--radius); border: 1px solid var(--green);
+      background: var(--green-subtle); color: var(--green); font-size: 0.82rem;
+      cursor: pointer; transition: var(--transition); font-weight: 600;
+    }
+    .add-coin-btn:hover { background: var(--green); color: #000; }
+    .add-coin-btn.added { border-color: var(--text-muted); background: transparent; color: var(--text-muted); cursor: default; }
+    .mycoins-summary {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 20px; background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); margin-bottom: 16px;
+    }
+    .mycoins-total-label { font-size: 0.82rem; color: var(--text-muted); display: block; }
+    .mycoins-total-value { font-size: 1.6rem; font-weight: 700; color: var(--green); }
+    .mycoins-count { font-size: 0.85rem; color: var(--text-secondary); }
+    .mycoins-table-wrap { overflow-x: auto; }
+    .mycoins-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .mycoins-table th { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); color: var(--text-muted); font-weight: 600; font-size: 0.78rem; text-transform: uppercase; }
+    .mycoins-table td { padding: 8px 10px; border-bottom: 1px solid var(--border-subtle); }
+    .mycoins-table tr:hover td { background: var(--surface); }
+    .mycoins-fmv { font-weight: 600; color: var(--green); }
+    .mycoins-range { font-size: 0.78rem; color: var(--text-muted); }
+    .mycoins-date { font-size: 0.78rem; color: var(--text-muted); }
+    .mycoins-remove { background: transparent; border: none; color: var(--red); font-size: 1.1rem; cursor: pointer; padding: 2px 6px; border-radius: 4px; }
+    .mycoins-remove:hover { background: var(--red-subtle); }
+    .mycoins-empty { text-align: center; padding: 40px 20px; color: var(--text-secondary); }
+    .mycoins-loading { text-align: center; padding: 30px; color: var(--text-muted); }
+    .mycoins-error { text-align: center; padding: 20px; color: var(--red); }
+    .header-row { display: flex; align-items: center; gap: 16px; }
+    .header-left { flex: 1; }
+
+    /* ── Confidence Key ──────────────────────────────────── */
+    .confidence-key { display: inline-flex; align-items: center; gap: 6px; margin-left: 6px; cursor: help; position: relative; }
+    .confidence-key-icon { font-size: 0.75rem; color: var(--text-muted); border: 1px solid var(--border); border-radius: 50%; width: 16px; height: 16px; display: inline-flex; align-items: center; justify-content: center; }
+    .confidence-key-icon:hover { color: var(--accent); border-color: var(--accent); }
+    .confidence-tooltip {
+      display: none; position: absolute; bottom: 130%; left: 50%; transform: translateX(-50%);
+      background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 12px 14px; width: 260px; font-size: 0.78rem; line-height: 1.6;
+      color: var(--text-secondary); z-index: 100; box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+    }
+    .confidence-key:hover .confidence-tooltip { display: block; }
+    .confidence-tooltip strong { color: var(--text); display: block; margin-bottom: 4px; font-size: 0.82rem; }
+    .confidence-tooltip .ct-row { display: flex; align-items: center; gap: 6px; margin: 2px 0; }
+
+    /* ── Footer ───────────────────────────────────────────── */
+    .site-footer {
+      text-align: center; padding: 20px 16px; margin-top: 32px;
+      font-size: 0.75rem; color: var(--text-muted); line-height: 1.6;
+      border-top: 1px solid var(--border-subtle);
+    }
+    .site-footer a { color: var(--text-muted); text-decoration: underline; cursor: pointer; }
+    .site-footer a:hover { color: var(--accent); }
+
+    /* ── About This Site ─────────────────────────────────── */
+    .about-section { margin-bottom: 20px; }
+    .about-section h3 { font-size: 1rem; margin: 0 0 8px; color: var(--text); }
+    .about-section p, .about-section li { font-size: 0.88rem; line-height: 1.7; color: var(--text-secondary); }
+    .about-section ul { padding-left: 18px; margin: 6px 0 0; }
+    .about-section li { margin-bottom: 4px; }
+    .about-divider { border: none; border-top: 1px solid var(--border-subtle); margin: 20px 0; }
+    .about-disclaimer { font-size: 0.78rem; color: var(--text-muted); line-height: 1.7; margin-top: 12px; }
   </style>
 </head>
 <body>
 
   <!-- ── App Header ─────────────────────────────────────── -->
   <header class="app-header">
-    <h1><span class="logo" aria-hidden="true">C</span> Coin Price Agent</h1>
-    <p class="subtitle">Dealer buy/sell pricing with PCGS + eBay SOLD comps and live melt values</p>
+    <div class="header-row">
+      <div class="header-left">
+        <h1><span class="logo" aria-hidden="true">C</span> Coin Price Agent</h1>
+        <p class="subtitle">Dealer buy/sell pricing with PCGS + eBay SOLD comps and live melt values</p>
+      </div>
+      <div class="user-badge" id="user-badge">
+        <button class="auth-trigger" id="auth-trigger">Log In</button>
+      </div>
+    </div>
   </header>
 
   <!-- ── Tab Navigation ─────────────────────────────────── -->
@@ -811,6 +907,8 @@
     <button class="tab-btn" role="tab" id="tab-melt" aria-controls="panel-melt" aria-selected="false">Melt Calculator</button>
     <button class="tab-btn" role="tab" id="tab-tracker" aria-controls="panel-tracker" aria-selected="false">Live eBay Tracker</button>
     <button class="tab-btn" role="tab" id="tab-terapeak" aria-controls="panel-terapeak" aria-selected="false">Sold Data</button>
+    <button class="tab-btn" role="tab" id="tab-mycoins" aria-controls="panel-mycoins" aria-selected="false">My Coins</button>
+    <button class="tab-btn" role="tab" id="tab-about" aria-controls="panel-about" aria-selected="false">About (read me)</button>
   </nav>
 
   <!-- ══════════════════════════════════════════════════════ -->
@@ -1453,6 +1551,145 @@
     </div>
   </section>
 
+  <!-- ══════════════════════════════════════════════════════ -->
+  <!-- TAB 5 — My Coins (encrypted client-side inventory)    -->
+  <!-- ══════════════════════════════════════════════════════ -->
+  <section id="panel-mycoins" class="tab-panel" role="tabpanel" aria-labelledby="tab-mycoins" aria-hidden="true">
+    <div class="card">
+      <h2>&#x1FA99; My Coin Collection</h2>
+      <p style="color:var(--text-muted);font-size:0.82rem;margin:0 0 12px">
+        Your collection is encrypted and stored locally in your browser. The server never sees your inventory.
+      </p>
+      <div id="mycoins-content">
+        <div class="mycoins-empty"><p>Log in to view your coin collection.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════ -->
+  <!-- TAB 6 — About This Site                               -->
+  <!-- ══════════════════════════════════════════════════════ -->
+  <section id="panel-about" class="tab-panel" role="tabpanel" aria-labelledby="tab-about" aria-hidden="true">
+    <div class="card">
+      <h2>&#x2139;&#xFE0F; About This Site</h2>
+
+      <div class="about-section">
+        <h3>What Is Coin Price Agent?</h3>
+        <p>Coin Price Agent is a free research tool that helps coin collectors and dealers estimate the <strong>Fair Market Value (FMV)</strong> of U.S. coins and precious-metal bars. It aggregates real-time data from multiple sources&mdash;including eBay sold listings, PCGS price guides, and live precious-metal spot prices&mdash;and runs a proprietary valuation algorithm to produce a confidence-rated price estimate.</p>
+      </div>
+
+      <hr class="about-divider">
+
+      <div class="about-section">
+        <h3>&#x1F50D; Confidence Score Key</h3>
+        <p>Every valuation includes a confidence percentage (0&ndash;100%) that tells you how reliable the estimate is. The score is calculated from:</p>
+        <ul>
+          <li><strong>Sample size</strong> &mdash; how many comparable sold listings were found</li>
+          <li><strong>Price consistency</strong> &mdash; how tightly the sold prices cluster together</li>
+          <li><strong>Match quality</strong> &mdash; how closely comparable listings match your coin&rsquo;s year, mint, and grade</li>
+          <li><strong>PCGS verification</strong> &mdash; whether PCGS data corroborates the estimate</li>
+          <li><strong>Data source</strong> &mdash; sold listings score higher than active (asking-price) listings</li>
+        </ul>
+        <div style="margin-top:10px;display:flex;flex-direction:column;gap:6px">
+          <div style="display:flex;align-items:center;gap:8px"><span class="tag tag-green">70&ndash;100%</span> <span style="font-size:0.85rem;color:var(--text-secondary)">High confidence &mdash; strong data, reliable estimate</span></div>
+          <div style="display:flex;align-items:center;gap:8px"><span class="tag tag-yellow">40&ndash;69%</span> <span style="font-size:0.85rem;color:var(--text-secondary)">Moderate confidence &mdash; limited data, use as a guide</span></div>
+          <div style="display:flex;align-items:center;gap:8px"><span class="tag tag-red">0&ndash;39%</span> <span style="font-size:0.85rem;color:var(--text-secondary)">Low confidence &mdash; very few comps, treat as a rough estimate</span></div>
+        </div>
+      </div>
+
+      <hr class="about-divider">
+
+      <div class="about-section">
+        <h3>&#x1F512; Privacy &amp; Security</h3>
+        <p>Your coin collection data is <strong>never sent to our server</strong>. Here&rsquo;s how it works:</p>
+        <ul>
+          <li>All collection data is stored <strong>locally in your browser</strong>&mdash;it never leaves your device.</li>
+          <li>Every coin record is <strong>encrypted using industry-standard encryption</strong> before being written to storage. Only you hold the decryption key.</li>
+          <li>Encryption keys are derived from your password using a <strong>modern key-stretching algorithm</strong>&mdash;your password is never stored or transmitted.</li>
+          <li>The server has <strong>zero knowledge</strong> of your inventory. It cannot read, access, or reconstruct your collection.</li>
+          <li>If you clear your browser data, your encrypted collection is permanently deleted&mdash;we have no backup because we never had your data.</li>
+        </ul>
+      </div>
+
+      <hr class="about-divider">
+
+      <div class="about-section">
+        <h3>&#x1F464; How Login Works</h3>
+        <p>The login system is <strong>client-only</strong>&mdash;no server accounts, no emails, no personal information.</p>
+        <ul>
+          <li>When you create an account, a unique user ID and encryption key are derived from your username and password <strong>entirely in your browser</strong> using standard cryptographic methods.</li>
+          <li>A password verifier (a one-way hash) is stored in your browser so you can log back in, but your actual password is never stored anywhere.</li>
+          <li>No data is transmitted to the server during signup or login. The server does not know you have an account.</li>
+          <li>Your account exists only in <strong>this browser</strong>. If you switch browsers or devices, you&rsquo;ll need to create a new account there.</li>
+          <li>Logging out clears the in-memory encryption key immediately. Your encrypted data remains in the browser but is unreadable without your password.</li>
+        </ul>
+      </div>
+
+      <hr class="about-divider">
+
+      <div class="about-section">
+        <h3>&#x2696;&#xFE0F; Disclaimer</h3>
+        <p class="about-disclaimer">
+          <strong>This is a personal side project, not a business.</strong> Coin Price Agent is a free, non-commercial tool built as a hobby project. There are no paid features, no premium tiers, and no guarantees of service. It may change, break, or go offline at any time without notice.
+        </p>
+        <p class="about-disclaimer">
+          <strong>Not professional advice.</strong> Nothing on this site constitutes financial, investment, legal, or professional numismatic advice. The valuations and market data shown here are for <strong>informational and research purposes only</strong>. Always do your own research and consult qualified professionals before making buying or selling decisions.
+        </p>
+        <p class="about-disclaimer">
+          <strong>No guarantee of accuracy.</strong> All estimates are based on publicly available data (eBay sold listings, PCGS price guides, live metal spot prices) that may be incomplete, delayed, or incorrect. Actual market prices can vary significantly based on coin condition, buyer demand, market volatility, and countless other factors this tool cannot account for. Information may become outdated at any time.
+        </p>
+        <p class="about-disclaimer">
+          <strong>Provided &ldquo;as is&rdquo; and &ldquo;as available.&rdquo;</strong> This tool is provided without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose, and non-infringement. We make no promises that the site will be available, uninterrupted, error-free, or that defects will be corrected.
+        </p>
+        <p class="about-disclaimer">
+          <strong>Use at your own risk.</strong> In no event shall the creators, developers, or operators of Coin Price Agent be liable for any direct, indirect, incidental, special, consequential, or punitive damages arising from your use of, or inability to use, this tool&mdash;including but not limited to losses incurred from buying or selling coins based on valuations shown here.
+        </p>
+        <p class="about-disclaimer">
+          <strong>No affiliation.</strong> This tool references data from third-party sources including eBay, PCGS, and various precious-metal price feeds. We are <strong>not affiliated with, endorsed by, or sponsored by</strong> any of these organizations. Their trademarks and data remain the property of their respective owners.
+        </p>
+        <p class="about-disclaimer">
+          <strong>External links.</strong> This site may contain links to third-party websites or services. We have no control over, and assume no responsibility for, the content, privacy policies, or practices of any third-party sites. Following external links is at your own risk.
+        </p>
+        <p class="about-disclaimer">
+          <strong>No data collection.</strong> We do not collect, store, or transmit any personal information or coin collection data. All user data remains in your browser. We are not responsible for data loss resulting from clearing your browser data, switching devices, or browser updates.
+        </p>
+        <p class="about-disclaimer">
+          <strong>Changes.</strong> We reserve the right to modify, suspend, or discontinue any part of this site or these terms at any time without notice.
+        </p>
+        <p class="about-disclaimer">
+          By using this site, you acknowledge that you have read and understood this disclaimer and agree to use the tool at your own risk.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Auth Dialog (client-only, never contacts server) ── -->
+  <dialog class="auth-dialog" id="auth-dialog">
+    <h2 id="auth-dialog-title">Log In</h2>
+    <div class="field">
+      <label for="auth-username">Username</label>
+      <input type="text" id="auth-username" autocomplete="username" placeholder="Your local username">
+    </div>
+    <div class="field">
+      <label for="auth-password">Password</label>
+      <input type="password" id="auth-password" autocomplete="current-password" placeholder="Your password">
+    </div>
+    <div class="auth-error" id="auth-error"></div>
+    <div class="auth-actions">
+      <button class="btn-primary" id="auth-submit">Log In</button>
+      <button class="btn-secondary" id="auth-cancel">Cancel</button>
+    </div>
+    <div class="auth-toggle" id="auth-toggle">
+      Don't have an account? <a id="auth-switch">Sign Up</a>
+    </div>
+  </dialog>
+
+  <!-- ── External JS modules (client-side only) ── -->
+  <script src="js/crypto.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/my-coins.js"></script>
+
   <script>
   /* ═══════════════════════════════════════════════════════════
    *  GLOBAL HTML ESCAPE — prevents XSS from external API data
@@ -1495,6 +1732,10 @@
             EbayTracker._pendingLoad = false;
             EbayTracker._load();
           }
+        }
+        // Auto-load My Coins when switching to that tab
+        if (tab.id === 'tab-mycoins' && typeof MyCoins !== 'undefined') {
+          MyCoins.render();
         }
       });
       // Keyboard: arrow keys to navigate tabs
@@ -2063,8 +2304,8 @@
       const brandLabel = bar.brand || 'Generic';
       html += '<div class="card" style="text-align:center;padding:18px">';
       html += '<div style="font-size:0.8rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:4px">';
-      html += (bar.metal === 'gold' ? '\uD83E\uDD47' : '\uD83E\uDD48') + ' ' + (bar.metal || '').toUpperCase() + ' BAR</div>';
-      html += '<div style="font-size:1.4rem;font-weight:800;color:var(--text)">' + brandLabel + ' ' + bar.size + '</div>';
+      html += (bar.metal === 'gold' ? '\uD83E\uDD47' : '\uD83E\uDD48') + ' ' + _esc((bar.metal || '').toUpperCase()) + ' BAR</div>';
+      html += '<div style="font-size:1.4rem;font-weight:800;color:var(--text)">' + _esc(brandLabel) + ' ' + _esc(bar.size) + '</div>';
       html += '<div style="font-size:0.8rem;color:var(--text-muted);margin-top:4px">' + (bar.pureOzt || 0).toFixed(5) + ' troy oz pure</div>';
       html += '</div>';
 
@@ -2073,7 +2314,7 @@
       html += '<div class="label">Fair Market Value</div>';
       html += '<div class="value">' + $(v.fmvCore) + '</div>';
       html += '<div class="range">Range: ' + $(v.rangeLow) + ' \u2013 ' + $(v.rangeHigh) + '</div>';
-      html += '<div class="confidence">Confidence: ' + confTag(v.confidence) + '</div>';
+      html += '<div class="confidence">Confidence: ' + confTag(v.confidence) + '<span class="confidence-key"><span class="confidence-key-icon">?</span><div class="confidence-tooltip"><strong>Confidence Score Key</strong><div class="ct-row"><span class="tag tag-green">70\u201399%</span> High \u2014 reliable estimate</div><div class="ct-row"><span class="tag tag-yellow">40\u201369%</span> Moderate \u2014 use as a guide</div><div class="ct-row"><span class="tag tag-red">0\u201339%</span> Low \u2014 rough estimate</div></div></span></div>';
       const usCompsAll = d.ebay?.us?.comps || [];
       const soldComps = usCompsAll.filter(c => c._source !== 'browse');
       const activeComps = usCompsAll.filter(c => c._source === 'browse');
@@ -2110,7 +2351,7 @@
       html += '<div class="decision-grid">';
       html += '<div class="card buy-card"><h2>Buy Decision</h2>';
       if (buy.recommendation) {
-        html += '<div class="rec ' + buy.recommendation.toLowerCase() + '">' + buy.recommendation + '</div>';
+        html += '<div class="rec ' + _esc(buy.recommendation.toLowerCase()) + '">' + _esc(buy.recommendation) + '</div>';
       }
       html += '<table><tbody>';
       html += '<tr><th>70% FMV</th><td>' + $(buy.max70) + '</td></tr>';
@@ -2118,7 +2359,7 @@
       html += '<tr><th>80% FMV</th><td>' + $(buy.max80) + '</td></tr>';
       html += '<tr><th>Asking</th><td>'  + $(buy.askingPrice) + '</td></tr>';
       html += '</tbody></table>';
-      if (buy.notes?.length) html += '<p class="card-notes">' + buy.notes.join(' ') + '</p>';
+      if (buy.notes?.length) html += '<p class="card-notes">' + _esc(buy.notes.join(' ')) + '</p>';
       html += '</div>';
 
       html += '<div class="card sell-card"><h2>Sell Decision</h2>';
@@ -2128,12 +2369,12 @@
       html += '<tr><th>Premium</th><td>'     + $(sell.premium) + '</td></tr>';
       html += '<tr><th>Offer Floor</th><td>' + $(sell.offerFloor) + '</td></tr>';
       html += '</tbody></table>';
-      if (sell.notes?.length) html += '<p class="card-notes">' + sell.notes.join(' ') + '</p>';
+      if (sell.notes?.length) html += '<p class="card-notes">' + _esc(sell.notes.join(' ')) + '</p>';
       html += '</div></div>';
 
       // \u2500\u2500 eBay Stats
       html += '<details class="card pcgs-details" open>';
-      html += '<summary>eBay Comps \u2014 "' + (d.ebay?.keywords || '') + '" ';
+      html += '<summary>eBay Comps \u2014 "' + _esc(d.ebay?.keywords || '') + '" ';
       if (d.ebay?.lookback) {
         var lbTag = d.ebay.lookback.extended ? 'tag tag-yellow' : 'tag';
         html += '<span class="' + lbTag + '">' + d.ebay.lookback.used + 'd lookback</span> ';
@@ -2233,13 +2474,13 @@
       if (v.explanation?.length) {
         html += '<div class="card"><h2>Valuation Reasoning</h2>';
         html += '<ul class="reasoning-list">';
-        v.explanation.forEach(function(e) { html += '<li>' + e + '</li>'; });
+        v.explanation.forEach(function(e) { html += '<li>' + _esc(e) + '</li>'; });
         html += '</ul></div>';
       }
 
       // \u2500\u2500 Raw JSON
       html += '<details><summary>View raw JSON response</summary>';
-      html += '<pre class="json">' + JSON.stringify(d, null, 2) + '</pre></details>';
+      html += '<pre class="json">' + _esc(JSON.stringify(d, null, 2)) + '</pre></details>';
 
       container.innerHTML = html;
     }
@@ -2592,7 +2833,7 @@
       html += '<span class="kd-icon">' + (icons[kd.tier] || '\u2B50') + '</span>';
       html += '<div class="kd-body">';
       html += '<div class="kd-title">Key Date Detected</div>';
-      html += '<div class="kd-note">' + (kd.note || 'This coin is recognized as a key date.') + '</div>';
+      html += '<div class="kd-note">' + _esc(kd.note || 'This coin is recognized as a key date.') + '</div>';
       html += '</div>';
       html += '<span class="kd-tier">' + tierLabel + '</span>';
       html += '</div>';
@@ -2606,7 +2847,7 @@
       html += '<span class="mintage-icon">\uD83C\uDFED</span>';
       html += '<span class="mintage-label">Mintage</span>';
       html += '<span class="mintage-value">' + Number(mintage).toLocaleString() + '</span>';
-      html += '<span class="mintage-source">' + (mintageSource || '') + '</span>';
+      html += '<span class="mintage-source">' + _esc(mintageSource || '') + '</span>';
       html += '</div>';
     }
 
@@ -2643,6 +2884,11 @@
       if (url && url.includes('ebayimg.com') && /s-l\d+\./.test(url)) return url.replace(/s-l\d+\./, 's-l500.');
       return url;
     }
+    function proxyImg(url) {
+      if (!url) return url;
+      if (url.includes('numista.com/')) return '/api/image-proxy?url=' + encodeURIComponent(url);
+      return url;
+    }
     function addGalleryUrl(url) {
       if (!url) return;
       const key = url.replace(/s-l\d+\./, 's-l###.').split('?')[0];
@@ -2663,6 +2909,9 @@
     // PCGS TrueView + stock reference images (obverse, reverse, etc.)
     if (d.pcgs?.trueViewUrl) addGalleryUrl(d.pcgs.trueViewUrl);
     (d.pcgs?.coinImages || []).forEach(u => addGalleryUrl(u));
+    // Numista images as fallback (proxied to bypass hotlink protection)
+    if (d.numista?.type?.obverseImage) addGalleryUrl(proxyImg(d.numista.type.obverseImage));
+    if (d.numista?.type?.reverseImage) addGalleryUrl(proxyImg(d.numista.type.reverseImage));
     // Cap gallery at 12 images
     const galleryImages = galleryUrls.slice(0, 12);
 
@@ -2673,7 +2922,7 @@
       const gid = 'gallery-' + Date.now();
       html += '<div class="fmv-gallery" id="' + gid + '" data-imgs=\'' + JSON.stringify(galleryImages) + '\'>';
       html += '<div class="fmv-gallery-main">';
-      html += '<img id="' + gid + '-main" src="' + galleryImages[0] + '" alt="' + (coinLabel || 'Coin') + '" onerror="this.src=\'' + (galleryImages[1] || '') + '\'">';
+      html += '<img id="' + gid + '-main" src="' + galleryImages[0] + '" alt="' + _esc(coinLabel || 'Coin') + '" onerror="this.src=\'' + (galleryImages[1] || '') + '\'">';
       html += '<button class="gallery-nav gallery-nav-left" onclick="galleryNav(\'' + gid + '\',-1)">&lsaquo;</button>';
       html += '<button class="gallery-nav gallery-nav-right" onclick="galleryNav(\'' + gid + '\',1)">&rsaquo;</button>';
       html += '</div>';
@@ -2685,18 +2934,66 @@
       if (galleryImages.length > 4) html += '<div class="fmv-gallery-count">' + galleryImages.length + ' photos</div>';
       html += '</div>';
     } else if (galleryImages.length === 1) {
-      html += '<div class="fmv-img"><img src="' + galleryImages[0] + '" alt="' + (coinLabel || 'Coin') + '" onerror="this.parentElement.style.display=\'none\'"></div>';
+      html += '<div class="fmv-img"><img src="' + galleryImages[0] + '" alt="' + _esc(coinLabel || 'Coin') + '" onerror="this.parentElement.style.display=\'none\'"></div>';
     }
     html += '<div class="fmv-left">';
-    if (coinLabel) html += '<div class="coin-id">' + coinLabel + '</div>';
+    if (coinLabel) html += '<div class="coin-id">' + _esc(coinLabel) + '</div>';
     // Show design series label for half dollars (from coinVariant resolver)
     if (d.coinVariant && d.coinVariant.designName && d.coinVariant.designName !== 'Unknown') {
       html += '<div class="coin-variant-label" style="font-size:0.92em;color:#b48811;margin-top:2px;font-weight:600">';
-      html += '\uD83E\uDE99 ' + d.coinVariant.label;
-      if (d.coinVariant.composition) html += ' &mdash; ' + d.coinVariant.composition;
+      html += '\uD83E\uDE99 ' + _esc(d.coinVariant.label);
+      if (d.coinVariant.composition) html += ' &mdash; ' + _esc(d.coinVariant.composition);
       html += '</div>';
     }
-    html += '<div class="confidence">Confidence: ' + confTag(v.confidence) + '</div>';
+    html += '<div class="confidence">Confidence: ' + confTag(v.confidence) + '<span class="confidence-key"><span class="confidence-key-icon">?</span><div class="confidence-tooltip"><strong>Confidence Score Key</strong><div class="ct-row"><span class="tag tag-green">70\u201399%</span> High \u2014 reliable estimate</div><div class="ct-row"><span class="tag tag-yellow">40\u201369%</span> Moderate \u2014 use as a guide</div><div class="ct-row"><span class="tag tag-red">0\u201339%</span> Low \u2014 rough estimate</div></div></span></div>';
+    // ── "I Have This Coin" button (inline in hero card) ──
+    if (typeof CoinAuth !== 'undefined') {
+      const _cd = d.coinData || d.identification?.parsed || {};
+      const _addCoin = {
+        series: _cd.name || _cd.series || d.pcgs?.series || '',
+        year:   _cd.year || d.pcgs?.year || '',
+        mint:   _cd.mintMark || _cd.mint || d.pcgs?.mint || '',
+        grade:  _cd.grade || '',
+        weight: d.query?.weight || null,
+        query:  (typeof d.query === 'object' ? d.query?.input : d.query) || '',
+      };
+      if (CoinAuth.currentUser()) {
+        html += '<button class="add-coin-btn" id="add-coin-btn">';
+        html += '&#x1FA99; I have this coin';
+        html += '</button>';
+        setTimeout(async () => {
+          const btn = document.getElementById('add-coin-btn');
+          if (!btn) return;
+          const user = CoinAuth.currentUser();
+          if (!user) return;
+          const owned = await CoinStorage.hasCoin(user.userId, _addCoin);
+          if (owned) {
+            btn.classList.add('added');
+            btn.innerHTML = '&#x2713; In My Collection';
+            btn.disabled = true;
+          } else {
+            btn.addEventListener('click', async () => {
+              btn.disabled = true;
+              btn.innerHTML = 'Adding\u2026';
+              await CoinStorage.addCoin(user.userId, user.key, _addCoin);
+              btn.classList.add('added');
+              btn.innerHTML = '&#x2713; Added to My Coins';
+            });
+          }
+        }, 0);
+      } else {
+        html += '<button class="add-coin-btn" id="add-coin-btn" style="opacity:0.6;border-color:var(--text-muted);color:var(--text-muted)">';
+        html += '&#x1F512; Log in to track this coin';
+        html += '</button>';
+        setTimeout(() => {
+          const btn = document.getElementById('add-coin-btn');
+          if (btn) btn.addEventListener('click', () => {
+            const dlg = document.getElementById('auth-dialog');
+            if (dlg) dlg.showModal();
+          });
+        }, 0);
+      }
+    }
     html += '</div>';
     html += '<div class="fmv-right">';
     html += '<div class="label">Fair Market Value</div>';
@@ -2722,8 +3019,8 @@
         html += '<span class="fmv-chip fmv-chip-premium" title="Average sale price is ' + premiumPct.toFixed(0) + '% above melt value — numismatic/collector premium">\u26A0\uFE0F Premium Over Melt: +' + premiumPct.toFixed(0) + '%</span>';
       }
     }
-    if (meltInfo && meltInfo.composition) { const cClass = meltInfo.isClad ? 'clad' : (meltInfo.metal === 'gold' ? 'gold' : 'silver'); html += '<span class="fmv-chip fmv-chip-comp ' + cClass + '" title="Coin composition">\u2699\uFE0F ' + meltInfo.composition + '</span>'; }
-    if (mintage) html += '<span class="fmv-chip" title="Mintage for this year/mint (source: ' + mintageSource + ')">\uD83C\uDFED Mintage: ' + Number(mintage).toLocaleString() + '</span>';
+    if (meltInfo && meltInfo.composition) { const cClass = meltInfo.isClad ? 'clad' : (meltInfo.metal === 'gold' ? 'gold' : 'silver'); html += '<span class="fmv-chip fmv-chip-comp ' + cClass + '" title="Coin composition">\u2699\uFE0F ' + _esc(meltInfo.composition) + '</span>'; }
+    if (mintage) html += '<span class="fmv-chip" title="Mintage for this year/mint (source: ' + _esc(mintageSource) + ')">\uD83C\uDFED Mintage: ' + Number(mintage).toLocaleString() + '</span>';
     if (usCompsAll.length) {
       let chipText = '\uD83D\uDCE6 Comps: ' + chipPoolCount + ' ' + chipPoolLabel;
       if (chipExcluded > 0) chipText += ' (' + chipExcluded + ' ' + (chipPool.usedPool === 'graded' ? 'raw' : 'graded') + ' excluded)';
@@ -2760,7 +3057,7 @@
     html += '<div class="decision-grid">';
     html += '<div class="card buy-card"><h2>Buy Decision</h2>';
     if (buy.recommendation) {
-      html += '<div class="rec ' + buy.recommendation.toLowerCase() + '">' + buy.recommendation + '</div>';
+      html += '<div class="rec ' + _esc(buy.recommendation.toLowerCase()) + '">' + _esc(buy.recommendation) + '</div>';
     }
     html += '<table><tbody>';
     html += '<tr><th>70% FMV</th><td>' + $(buy.max70) + '</td></tr>';
@@ -2768,7 +3065,7 @@
     html += '<tr><th>80% FMV</th><td>' + $(buy.max80) + '</td></tr>';
     html += '<tr><th>Asking</th><td>'  + $(buy.askingPrice) + '</td></tr>';
     html += '</tbody></table>';
-    if (buy.notes?.length) html += '<p class="card-notes">' + buy.notes.join(' ') + '</p>';
+    if (buy.notes?.length) html += '<p class="card-notes">' + _esc(buy.notes.join(' ')) + '</p>';
     html += '</div>';
 
     html += '<div class="card sell-card"><h2>Sell Decision</h2>';
@@ -2778,7 +3075,7 @@
     html += '<tr><th>Premium</th><td>'     + $(sell.premium) + '</td></tr>';
     html += '<tr><th>Offer Floor</th><td>' + $(sell.offerFloor) + '</td></tr>';
     html += '</tbody></table>';
-    if (sell.notes?.length) html += '<p class="card-notes">' + sell.notes.join(' ') + '</p>';
+    if (sell.notes?.length) html += '<p class="card-notes">' + _esc(sell.notes.join(' ')) + '</p>';
     html += '</div></div>';
 
     // ── Numista Catalogue Panel ────────────────────────
@@ -2792,20 +3089,20 @@
 
       // Left column: coin info
       html += '<div class="numista-info">';
-      html += '<div class="numista-title">' + (nm.type.title || 'Unknown') + '</div>';
-      if (nm.type.issuer) html += '<div class="numista-detail"><span class="numista-label">Issuer:</span> ' + nm.type.issuer + '</div>';
-      if (nm.type.denomination) html += '<div class="numista-detail"><span class="numista-label">Denomination:</span> ' + nm.type.denomination + '</div>';
-      if (nm.composition) html += '<div class="numista-detail"><span class="numista-label">Composition:</span> ' + nm.composition + '</div>';
+      html += '<div class="numista-title">' + _esc(nm.type.title || 'Unknown') + '</div>';
+      if (nm.type.issuer) html += '<div class="numista-detail"><span class="numista-label">Issuer:</span> ' + _esc(nm.type.issuer) + '</div>';
+      if (nm.type.denomination) html += '<div class="numista-detail"><span class="numista-label">Denomination:</span> ' + _esc(nm.type.denomination) + '</div>';
+      if (nm.composition) html += '<div class="numista-detail"><span class="numista-label">Composition:</span> ' + _esc(nm.composition) + '</div>';
       if (nm.type.weight) html += '<div class="numista-detail"><span class="numista-label">Weight:</span> ' + nm.type.weight + ' g</div>';
       if (nm.type.size) html += '<div class="numista-detail"><span class="numista-label">Size:</span> ' + nm.type.size + ' mm</div>';
-      if (nm.type.edgeDescription) html += '<div class="numista-detail"><span class="numista-label">Edge:</span> ' + nm.type.edgeDescription + '</div>';
-      if (nm.type.series) html += '<div class="numista-detail"><span class="numista-label">Series:</span> ' + nm.type.series + '</div>';
+      if (nm.type.edgeDescription) html += '<div class="numista-detail"><span class="numista-label">Edge:</span> ' + _esc(nm.type.edgeDescription) + '</div>';
+      if (nm.type.series) html += '<div class="numista-detail"><span class="numista-label">Series:</span> ' + _esc(nm.type.series) + '</div>';
       if (nm.type.minYear && nm.type.maxYear) html += '<div class="numista-detail"><span class="numista-label">Years:</span> ' + nm.type.minYear + ' – ' + nm.type.maxYear + '</div>';
 
       // References (KM#, etc.)
       if (nm.references && nm.references.length) {
         html += '<div class="numista-detail"><span class="numista-label">References:</span> ';
-        html += nm.references.map(function(r) { return r.catalogue + (r.number ? ' ' + r.number : ''); }).join(', ');
+        html += _esc(nm.references.map(function(r) { return r.catalogue + (r.number ? ' ' + r.number : ''); }).join(', '));
         html += '</div>';
       }
       html += '</div>';
@@ -2815,7 +3112,7 @@
       if (nm.rarity) {
         html += '<div class="numista-rarity-box" style="border-left:4px solid ' + nm.rarity.color + '">';
         html += '<div class="numista-rarity-label">Derived Rarity</div>';
-        html += '<div class="numista-rarity-value" style="color:' + nm.rarity.color + '">' + nm.rarity.label + '</div>';
+        html += '<div class="numista-rarity-value" style="color:' + _esc(nm.rarity.color) + '">' + _esc(nm.rarity.label) + '</div>';
         html += '<div class="numista-rarity-score">Score: ' + nm.rarity.score + ' / 100</div>';
         if (nm.rarity.mintage != null) html += '<div class="numista-rarity-mintage">Mintage: ' + Number(nm.rarity.mintage).toLocaleString() + '</div>';
         html += '</div>';
@@ -2837,13 +3134,13 @@
       // Images (if available)
       if (nm.type.obverseImage || nm.type.reverseImage) {
         html += '<div class="numista-images">';
-        if (nm.type.obverseImage) html += '<img src="' + nm.type.obverseImage + '" alt="Obverse" class="numista-img" loading="lazy">';
-        if (nm.type.reverseImage) html += '<img src="' + nm.type.reverseImage + '" alt="Reverse" class="numista-img" loading="lazy">';
+        if (nm.type.obverseImage) html += '<img src="' + proxyImg(nm.type.obverseImage) + '" alt="Obverse" class="numista-img" loading="lazy">';
+        if (nm.type.reverseImage) html += '<img src="' + proxyImg(nm.type.reverseImage) + '" alt="Reverse" class="numista-img" loading="lazy">';
         html += '</div>';
       }
 
       html += '</div>'; // numista-grid
-      if (nm.issue?.comment) html += '<div class="numista-issue-note">\u2139\uFE0F ' + nm.issue.comment + '</div>';
+      if (nm.issue?.comment) html += '<div class="numista-issue-note">\u2139\uFE0F ' + _esc(nm.issue.comment) + '</div>';
       html += '</div>'; // numista-panel
     }
 
@@ -2851,20 +3148,20 @@
     const lc = d.lunarComparison;
     if (lc && lc.mints) {
       html += '<div class="card lunar-panel">';
-      html += '<h3>\uD83D\uDC09 Lunar Mint Comparison \u2014 <span class="lunar-animal">' + lc.year + ' Year of the ' + lc.animal + '</span>';
-      if (lc.perthSeries) html += ' <span style="font-size:0.8rem;color:var(--text-muted)">(Perth Series ' + lc.perthSeries + ')</span>';
+      html += '<h3>\uD83D\uDC09 Lunar Mint Comparison \u2014 <span class="lunar-animal">' + lc.year + ' Year of the ' + _esc(lc.animal) + '</span>';
+      if (lc.perthSeries) html += ' <span style="font-size:0.8rem;color:var(--text-muted)">(Perth Series ' + _esc(lc.perthSeries) + ')</span>';
       html += '</h3>';
       html += '<div class="lunar-grid">';
       lc.mints.forEach(function(m) {
         const avail = m.available;
         html += '<div class="lunar-card premium-' + m.premiumTier + (avail ? '' : ' not-available') + '">';
-        html += '<div class="lc-mint">' + m.label + '</div>';
-        html += '<div class="lc-country">' + m.country + '</div>';
+        html += '<div class="lc-mint">' + _esc(m.label) + '</div>';
+        html += '<div class="lc-country">' + _esc(m.country) + '</div>';
         if (avail) {
           html += '<div class="lc-row"><span class="lc-label">Mintage</span><span class="lc-val">' + (m.mintage ? Number(m.mintage).toLocaleString() : 'N/A') + '</span></div>';
-          html += '<div class="lc-row"><span class="lc-label">Purity</span><span class="lc-val">' + m.purity + '</span></div>';
-          html += '<div class="lc-row"><span class="lc-label">Sizes</span><span class="lc-val">' + m.sizes + '</span></div>';
-          if (m.activeSeries) html += '<div class="lc-row"><span class="lc-label">Note</span><span class="lc-val" style="text-align:right;max-width:55%">' + m.activeSeries + '</span></div>';
+          html += '<div class="lc-row"><span class="lc-label">Purity</span><span class="lc-val">' + _esc(m.purity) + '</span></div>';
+          html += '<div class="lc-row"><span class="lc-label">Sizes</span><span class="lc-val">' + _esc(m.sizes) + '</span></div>';
+          if (m.activeSeries) html += '<div class="lc-row"><span class="lc-label">Note</span><span class="lc-val" style="text-align:right;max-width:55%">' + _esc(m.activeSeries) + '</span></div>';
           html += '<span class="lc-premium ' + m.premiumTier + '">' + m.premiumTier + ' premium</span>';
         } else {
           html += '<div class="lc-row"><span class="lc-label" style="font-style:italic">Not issued this year</span></div>';
@@ -2875,7 +3172,7 @@
       if (lc.mints.some(function(m){ return m.premiumNote; })) {
         html += '<div style="margin-top:10px;font-size:0.78rem;color:var(--text-muted)">';
         lc.mints.filter(function(m){ return m.available && m.premiumNote; }).forEach(function(m) {
-          html += '<div><strong>' + m.label + ':</strong> ' + m.premiumNote + '</div>';
+          html += '<div><strong>' + _esc(m.label) + ':</strong> ' + _esc(m.premiumNote) + '</div>';
         });
         html += '</div>';
       }
@@ -2890,16 +3187,16 @@
     html += '<summary>PCGS ' + pcgsLabel + '</summary>';
     if (p.verified || p.pcgsCoinNumber || p.priceGuide?.valueUsd) {
       html += '<table><tbody>';
-      html += '<tr><th>Coin #</th><td>' + (p.pcgsCoinNumber || '—') + '</td><th>Series</th><td>' + (p.series || '—') + '</td></tr>';
-      html += '<tr><th>Year</th><td>' + (p.year || '—') + '</td><th>Mint</th><td>' + (p.mint || '—') + '</td></tr>';
-      html += '<tr><th>Grade</th><td>' + (p.grade || '—') + '</td><th>Designation</th><td>' + (p.designation || '—') + '</td></tr>';
+      html += '<tr><th>Coin #</th><td>' + (p.pcgsCoinNumber || '—') + '</td><th>Series</th><td>' + _esc(p.series || '—') + '</td></tr>';
+      html += '<tr><th>Year</th><td>' + (p.year || '—') + '</td><th>Mint</th><td>' + _esc(p.mint || '—') + '</td></tr>';
+      html += '<tr><th>Grade</th><td>' + _esc(p.grade || '—') + '</td><th>Designation</th><td>' + _esc(p.designation || '—') + '</td></tr>';
       html += '<tr><th>Price Guide</th><td>' + (p.priceGuide?.valueUsd != null ? $(p.priceGuide.valueUsd) : '—') + '</td>';
       html += '<th>Population</th><td>' + (p.population?.thisGrade ?? '—') + ' / ' + (p.population?.higher ?? '—') + ' higher</td></tr>';
-      if (mintage) html += '<tr><th>Mintage</th><td colspan="3">' + Number(mintage).toLocaleString() + ' <small style="opacity:.5">(' + (mintageSource || 'unknown') + ')</small></td></tr>';
+      if (mintage) html += '<tr><th>Mintage</th><td colspan="3">' + Number(mintage).toLocaleString() + ' <small style="opacity:.5">(' + _esc(mintageSource || 'unknown') + ')</small></td></tr>';
       html += '</tbody></table>';
     } else {
       html += '<table><tbody>';
-      if (mintage) html += '<tr><th>Mintage</th><td>' + Number(mintage).toLocaleString() + ' <small style="opacity:.5">(' + (mintageSource || 'unknown') + ')</small></td></tr>';
+      if (mintage) html += '<tr><th>Mintage</th><td>' + Number(mintage).toLocaleString() + ' <small style="opacity:.5">(' + _esc(mintageSource || 'unknown') + ')</small></td></tr>';
       html += '</tbody></table>';
       if (!mintage) html += '<p class="pcgs-empty">No PCGS data available for this query. Try entering a PCGS Coin # in Search Options.</p>';
     }
@@ -2907,7 +3204,7 @@
 
     // ── eBay Stats ────────────────────────────────────────
     html += '<details class="card pcgs-details" open>';
-    html += '<summary>eBay Comps — "' + (d.ebay?.keywords || '') + '" ';
+    html += '<summary>eBay Comps — "' + _esc(d.ebay?.keywords || '') + '" ';
     if (d.ebay?.usedFallback) html += '<span class="tag tag-yellow">fallback</span>';
     html += '</summary>';
     html += '<table><thead>';
@@ -3295,7 +3592,7 @@
       // Header info
       let html = '';
       if (brand) {
-        html += '<div class="melt-info-row"><span>Brand:</span> <strong>' + brand + '</strong></div>';
+        html += '<div class="melt-info-row"><span>Brand:</span> <strong>' + _esc(brand) + '</strong></div>';
       }
       html += '<div class="melt-info-row">'
            +   '<span>Pure metal content:</span> '
@@ -3466,7 +3763,7 @@
       const submitBtn = this._mode === 'bar' ? this.els.barSubmit : this.els.submit;
       submitBtn.disabled = true;
       this.els.status.className = 'status-bar loading';
-      this.els.status.innerHTML = '<div class="spinner"></div> Fetching eBay market data for \u201C' + this._displayName() + '\u201D\u2026';
+      this.els.status.innerHTML = '<div class="spinner"></div> Fetching eBay market data for \u201C' + _esc(this._displayName()) + '\u201D\u2026';
       this.els.summary.style.display = 'none';
       this.els.matrixWrap.style.display = 'none';
       this.els.empty.style.display = 'none';
@@ -3488,7 +3785,7 @@
         if (!data.cells || data.cells.length === 0) {
           this.els.empty.style.display = '';
           this.els.empty.querySelector('p').textContent =
-            'No eBay data found for \u201C' + this._displayName() + '\u201D. Try a different series name or a wider lookback window.';
+            'No eBay data found for \u201C' + _esc(this._displayName()) + '\u201D. Try a different series name or a wider lookback window.';
           return;
         }
 
@@ -3514,7 +3811,7 @@
       el.style.display = '';
       const isGradeMode = data.mode === 'grade';
       const isBarMode   = data.mode === 'bar';
-      let html = '<div style="font-size:1.1rem;font-weight:700;margin-bottom:10px;color:var(--text)">' + this._displayName() + '</div>';
+      let html = '<div style="font-size:1.1rem;font-weight:700;margin-bottom:10px;color:var(--text)">' + _esc(this._displayName()) + '</div>';
       html += '<div class="tracker-summary-grid">';
       if (isBarMode) {
         html += '<div class="tracker-stat"><div class="tracker-stat-value">' + (s.brandCount || 0) + '</div><div class="tracker-stat-label">Brands found</div></div>';
@@ -3634,7 +3931,7 @@
 
       for (const cell of cells) {
         html += '<tr>';
-        html += '<td class="tracker-td-year">' + cell.brand + '</td>';
+        html += '<td class="tracker-td-year">' + _esc(cell.brand) + '</td>';
         // Median sold
         html += '<td class="tracker-td-cell">';
         if (cell.medianCompleted) {
@@ -3652,7 +3949,7 @@
         if (cell.cheapestBin) {
           html += '<div class="tracker-bin">';
           if (cell.cheapestBin.url) {
-            html += '<a href="' + cell.cheapestBin.url + '" target="_blank" rel="noopener">';
+            html += '<a href="' + _escUrl(cell.cheapestBin.url) + '" target="_blank" rel="noopener">';
             html += '$' + cell.cheapestBin.value.toFixed(2);
             html += '</a>';
           } else {
@@ -3864,7 +4161,7 @@
         html += 'Total stored for "<em>' + this._esc(searchTerm) + '</em>": <strong>' + imp.totalStored + '</strong> comps.<br>';
         html += '<span style="font-size:0.75rem;color:var(--text-muted)">Parsed ' + parse.totalRows + ' rows, ' + parse.validComps + ' valid, ' + parse.skipped + ' skipped.</span>';
         if (parse.unmappedColumns && parse.unmappedColumns.length > 0) {
-          html += '<br><span style="font-size:0.72rem;color:var(--text-muted)">Unmapped columns: ' + parse.unmappedColumns.join(', ') + '</span>';
+          html += '<br><span style="font-size:0.72rem;color:var(--text-muted)">Unmapped columns: ' + _esc(parse.unmappedColumns.join(', ')) + '</span>';
         }
         // Show quota remaining after import
         if (data.quota) {
@@ -3872,7 +4169,7 @@
           const qColor = qr <= 10 ? '#e74c3c' : qr <= 50 ? '#f0ad4e' : 'var(--text-muted)';
           html += '<br><span style="font-size:0.72rem;color:' + qColor + '">Terapeak queries today: ' + data.quota.used + '/' + data.quota.limit + ' (' + qr + ' remaining)</span>';
           if (data.quota.warning) {
-            html += '<br><span style="font-size:0.72rem;font-weight:600;color:' + qColor + '">' + data.quota.warning + '</span>';
+            html += '<br><span style="font-size:0.72rem;font-weight:600;color:' + qColor + '">' + _esc(data.quota.warning) + '</span>';
           }
         }
         html += '</div>';
@@ -4059,7 +4356,103 @@
   };
 
   TerapeakQuota.init();
+
+  /* ═══════════════════════════════════════════════════════════
+   *  AUTH UI — client-only login/signup dialog
+   * ═══════════════════════════════════════════════════════════ */
+  (function initAuthUI() {
+    const badge     = document.getElementById('user-badge');
+    const trigger   = document.getElementById('auth-trigger');
+    const dialog    = document.getElementById('auth-dialog');
+    const title     = document.getElementById('auth-dialog-title');
+    const username  = document.getElementById('auth-username');
+    const password  = document.getElementById('auth-password');
+    const submit    = document.getElementById('auth-submit');
+    const cancel    = document.getElementById('auth-cancel');
+    const errorEl   = document.getElementById('auth-error');
+    const toggleEl  = document.getElementById('auth-toggle');
+    const switchEl  = document.getElementById('auth-switch');
+    let isSignup = false;
+
+    function showError(msg) { errorEl.textContent = msg; errorEl.style.display = 'block'; }
+    function hideError() { errorEl.style.display = 'none'; }
+
+    function updateBadge() {
+      const user = CoinAuth.currentUser();
+      if (user) {
+        badge.innerHTML = '<span class="user-badge-name">' + _esc(user.username) + '</span>' +
+          '<button id="auth-logout">Log Out</button>';
+        document.getElementById('auth-logout').addEventListener('click', () => {
+          CoinAuth.logout();
+          updateBadge();
+        });
+      } else {
+        badge.innerHTML = '<button class="auth-trigger" id="auth-trigger">Log In</button>';
+        document.getElementById('auth-trigger').addEventListener('click', openDialog);
+      }
+    }
+
+    function setMode(signup) {
+      isSignup = signup;
+      title.textContent = signup ? 'Sign Up' : 'Log In';
+      submit.textContent = signup ? 'Create Account' : 'Log In';
+      switchEl.textContent = signup ? 'Log In' : 'Sign Up';
+      toggleEl.innerHTML = signup
+        ? 'Already have an account? <a id="auth-switch">Log In</a>'
+        : 'Don\'t have an account? <a id="auth-switch">Sign Up</a>';
+      document.getElementById('auth-switch').addEventListener('click', () => setMode(!isSignup));
+      hideError();
+    }
+
+    function openDialog() {
+      setMode(false);
+      username.value = '';
+      password.value = '';
+      hideError();
+      dialog.showModal();
+      username.focus();
+    }
+
+    trigger.addEventListener('click', openDialog);
+    cancel.addEventListener('click', () => dialog.close());
+    dialog.addEventListener('close', hideError);
+
+    submit.addEventListener('click', async () => {
+      hideError();
+      try {
+        if (isSignup) {
+          await CoinAuth.signup(username.value, password.value);
+        } else {
+          await CoinAuth.login(username.value, password.value);
+        }
+        dialog.close();
+        updateBadge();
+      } catch (err) {
+        showError(err.message);
+      }
+    });
+
+    password.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') submit.click();
+    });
+
+    // Auto-prompt reauth if session was active
+    const pending = CoinAuth.pendingReauth();
+    if (pending) {
+      setMode(false);
+      username.value = pending;
+      dialog.showModal();
+      password.focus();
+    }
+
+    updateBadge();
+  })();
   </script>
+
+  <footer class="site-footer">
+    Coin Price Agent is a free, non-commercial side project. Not financial advice. Provided &ldquo;as is&rdquo; without warranty. Use at your own risk.
+    <a onclick="document.getElementById('tab-about').click()">Read full disclaimer</a>.
+  </footer>
 
 </body>
 </html>
