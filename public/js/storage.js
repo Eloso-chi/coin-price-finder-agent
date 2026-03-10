@@ -249,3 +249,86 @@ const CoinStorage = (() => {
     },
   };
 })();
+
+// ── BackupReminder — tracks when users should back up their collection ──
+const BackupReminder = (() => {
+  const STORAGE_KEY = 'cpf_backup_state';
+  const ADDS_THRESHOLD = 10;      // prompt after this many adds without backup
+  const DAYS_THRESHOLD = 30;      // prompt after this many days without backup
+
+  function _load(userId) {
+    try {
+      const all = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+      return all[userId] || { addsSinceBackup: 0, lastBackupDate: null, dismissed: null };
+    } catch { return { addsSinceBackup: 0, lastBackupDate: null, dismissed: null }; }
+  }
+
+  function _save(userId, state) {
+    try {
+      const all = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+      all[userId] = state;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
+    } catch { /* localStorage full or unavailable */ }
+  }
+
+  /** Call after a coin is added. */
+  function recordAdd(userId) {
+    const s = _load(userId);
+    s.addsSinceBackup++;
+    s.dismissed = null;  // new add clears any previous dismissal
+    _save(userId, s);
+  }
+
+  /** Call after a successful backup export. */
+  function recordBackup(userId) {
+    const s = _load(userId);
+    s.addsSinceBackup = 0;
+    s.lastBackupDate = new Date().toISOString();
+    s.dismissed = null;
+    _save(userId, s);
+  }
+
+  /** Call when user clicks "Remind Me Later". */
+  function dismiss(userId) {
+    const s = _load(userId);
+    s.dismissed = new Date().toISOString();
+    _save(userId, s);
+  }
+
+  /**
+   * Check if a backup prompt should be shown.
+   * @param {string} userId
+   * @returns {{ needed: boolean, reason: string|null }}
+   */
+  function check(userId) {
+    const s = _load(userId);
+
+    // Don't re-show if dismissed within the last 7 days
+    if (s.dismissed) {
+      const dismissedAgo = Date.now() - new Date(s.dismissed).getTime();
+      if (dismissedAgo < 7 * 24 * 60 * 60 * 1000) return { needed: false, reason: null };
+    }
+
+    // First coin ever added and never backed up
+    if (s.addsSinceBackup >= 1 && !s.lastBackupDate) {
+      return { needed: true, reason: 'first' };
+    }
+
+    // Threshold of adds reached
+    if (s.addsSinceBackup >= ADDS_THRESHOLD) {
+      return { needed: true, reason: 'adds' };
+    }
+
+    // Too many days since last backup
+    if (s.lastBackupDate) {
+      const daysSince = (Date.now() - new Date(s.lastBackupDate).getTime()) / (24 * 60 * 60 * 1000);
+      if (daysSince >= DAYS_THRESHOLD) {
+        return { needed: true, reason: 'time' };
+      }
+    }
+
+    return { needed: false, reason: null };
+  }
+
+  return { recordAdd, recordBackup, dismiss, check };
+})();

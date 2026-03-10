@@ -852,6 +852,13 @@
     .mycoins-empty { text-align: center; padding: 40px 20px; color: var(--text-secondary); }
     .mycoins-loading { text-align: center; padding: 30px; color: var(--text-muted); }
     .mycoins-error { text-align: center; padding: 20px; color: var(--red); }
+    .backup-prompt { padding: 12px 16px; margin-bottom: 14px; background: #332b00; border: 1px solid #665500; border-radius: var(--radius); font-size: 0.84rem; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .backup-prompt-icon { font-size: 1.2rem; flex-shrink: 0; }
+    .backup-prompt-text { flex: 1; color: var(--text); line-height: 1.4; }
+    .backup-prompt-actions { display: flex; gap: 6px; flex-shrink: 0; }
+    .backup-prompt .btn-sm { font-size: 0.78rem; padding: 4px 10px; }
+    .backup-prompt .btn-backup-now { background: var(--green); color: #000; border-color: var(--green); }
+    .backup-prompt .btn-backup-later { background: transparent; color: var(--text-muted); border-color: var(--border); }
     .header-row { display: flex; align-items: center; gap: 16px; }
     .header-left { flex: 1; }
 
@@ -1572,6 +1579,7 @@
         </div>
         <div id="mycoins-account-status" style="margin-top:6px;font-size:0.8rem;color:var(--text-muted);display:none"></div>
       </div>
+      <div id="backup-prompt-container" style="display:none"></div>
       <div id="mycoins-content">
         <div class="mycoins-empty"><p>Log in to view your coin collection.</p></div>
       </div>
@@ -3101,6 +3109,7 @@
               btn.disabled = true;
               btn.innerHTML = 'Adding\u2026';
               await CoinStorage.addCoin(user.userId, user.key, _addCoin);
+              BackupReminder.recordAdd(user.userId);
               btn.classList.add('added');
               btn.innerHTML = '&#x2713; Added to My Coins';
             });
@@ -4599,6 +4608,7 @@
 
     function showAccountBar() {
       accountBar.style.display = CoinAuth.currentUser() ? 'block' : 'none';
+      _checkBackupPrompt();
     }
 
     function accountMsg(msg, isError) {
@@ -4606,6 +4616,41 @@
       accountStatus.style.color = isError ? 'var(--red, #e74c3c)' : 'var(--green, #27ae60)';
       accountStatus.style.display = 'block';
       setTimeout(() => { accountStatus.style.display = 'none'; }, 6000);
+    }
+
+    // ── Backup Reminder Banner ──────────────────────────────
+    const backupContainer = document.getElementById('backup-prompt-container');
+
+    const _backupMessages = {
+      first: 'You added your first coin! Export a backup so you never lose your collection.',
+      adds: 'You\u2019ve added several coins since your last backup. Time to save a copy!',
+      time: 'It\u2019s been a while since your last backup. Export one to stay safe.',
+    };
+
+    function _checkBackupPrompt() {
+      const user = CoinAuth.currentUser();
+      if (!user || !backupContainer) { _hideBackupPrompt(); return; }
+      const { needed, reason } = BackupReminder.check(user.userId);
+      if (!needed) { _hideBackupPrompt(); return; }
+      const msg = _backupMessages[reason] || _backupMessages.adds;
+      backupContainer.innerHTML =
+        '<div class="backup-prompt">' +
+        '<span class="backup-prompt-icon">&#x1F4BE;</span>' +
+        '<span class="backup-prompt-text">' + msg + '</span>' +
+        '<span class="backup-prompt-actions">' +
+        '<button class="btn-sm btn-backup-now" id="backup-now-btn">Export Now</button>' +
+        '<button class="btn-sm btn-backup-later" id="backup-later-btn">Later</button>' +
+        '</span></div>';
+      backupContainer.style.display = 'block';
+      document.getElementById('backup-now-btn').addEventListener('click', () => exportBtn.click());
+      document.getElementById('backup-later-btn').addEventListener('click', () => {
+        BackupReminder.dismiss(user.userId);
+        _hideBackupPrompt();
+      });
+    }
+
+    function _hideBackupPrompt() {
+      if (backupContainer) { backupContainer.style.display = 'none'; backupContainer.innerHTML = ''; }
     }
 
     // Show/hide account bar when badge updates
@@ -4632,6 +4677,8 @@
         a.click();
         a.remove();
         URL.revokeObjectURL(url);
+        BackupReminder.recordBackup(user.userId);
+        _hideBackupPrompt();
         accountMsg('Backup downloaded successfully.', false);
       } catch (err) {
         accountMsg('Export failed: ' + err.message, true);
