@@ -464,3 +464,228 @@ The valuation engine separates eBay comps by `gradeType`:
 | `weightedMedian(vals, weights)` | Weighted median computation |
 | `summarize(arr)` | Returns `{ count, mean, median, stddev, min, max }` |
 | `sorted(arr)` | Returns a new sorted (ascending) copy |
+
+---
+
+## Client-Side Architecture
+
+The frontend is a single-page app in `public/index.html` (~5,250 lines) with four external JavaScript modules. The server has **zero knowledge** of user accounts or collection data — all auth, encryption, and storage happen in the browser.
+
+### Module Dependency Graph
+
+```
+crypto.js   (no deps — pure WebCrypto wrapper)
+    ↑
+auth.js     → CoinCrypto
+    ↑
+storage.js  → CoinCrypto
+    ↑
+my-coins.js → CoinAuth + CoinStorage + CoinCrypto + _esc()
+```
+
+**Load order in HTML:** `crypto.js` → `storage.js` → `auth.js` → `my-coins.js`
+
+### CoinCrypto (`public/js/crypto.js`)
+
+Pure WebCrypto wrapper. No network calls, no storage.
+
+| Constant | Value |
+|----------|-------|
+| `PBKDF2_ITERATIONS` | 600,000 |
+| `SALT_BYTES` | 16 |
+| `IV_BYTES` | 12 (AES-GCM nonce) |
+| `KEY_LENGTH` | 256 (AES-256) |
+| `VERIFY_PLAINTEXT` | `'COINVAULT_VERIFY_TOKEN_V1'` |
+
+| Function | Purpose |
+|----------|---------|
+| `deriveKey(password, salt)` | PBKDF2 → non-extractable AES-256-GCM CryptoKey |
+| `encrypt(key, plaintext)` | AES-256-GCM with random 12-byte IV → `{iv, ciphertext}` (base64) |
+| `decrypt(key, ivB64, ciphertextB64)` | AES-256-GCM decrypt → plaintext string |
+| `coinHash(coin)` | SHA-256 of `series.lower|year|mint.upper|grade.upper` → hex |
+| `createVerifier(key)` | Encrypts known plaintext as password proof |
+| `checkVerifier(key, verifier)` | Decrypts verifier; returns boolean |
+| `sha256(input)` | SHA-256 hex digest |
+| `randomBytes(n)` | CSPRNG via `crypto.getRandomValues` |
+| `bufToHex / hexToBuf` | ArrayBuffer ↔ hex |
+| `bufToBase64 / base64ToBuf` | ArrayBuffer ↔ base64 |
+
+**Security properties:**
+- Keys are non-extractable (cannot be exported from WebCrypto)
+- Fresh random IV per encryption prevents nonce reuse
+- Passwords never stored or transmitted
+
+### CoinAuth (`public/js/auth.js`)
+
+Client-only account management. Depends on `CoinCrypto`.
+
+**Storage:**
+
+| localStorage Key | Shape |
+|------------------|-------|
+| `cpf_accounts` | `{ [username]: { userId, salt (base64), verifier: {iv, ciphertext} } }` |
+| `cpf_active_user` | `string` — username of last logged-in user (for re-auth detection) |
+
+**In-memory state:** `_session = { username, userId, key: CryptoKey } | null` — lost on page reload.
+
+| Function | Flow |
+|----------|------|
+| `signup(username, password)` | Validate (non-empty, ≥6 chars, unique) → `crypto.randomUUID()` → random salt → `deriveKey` → `createVerifier` → persist to localStorage → set session |
+| `login(username, password)` | Load account → `deriveKey(password, storedSalt)` → `checkVerifier` → set session (or throw) |
+| `logout()` | Clear `_session` + remove `cpf_active_user` |
+| `currentUser()` | Returns `{username, userId, key}` or `null` |
+| `pendingReauth()` | If no in-memory session but `cpf_active_user` exists → return username (triggers auto-prompt) |
+| `changePassword(cur, new)` | Verify old → fresh salt + key + verifier → update localStorage + session → return `newKey` |
+| `deleteAccount(username)` | Remove from localStorage. Does **not** clear IndexedDB data |
+| `listAccounts()` | Returns all usernames |
+
+### CoinStorage (`public/js/storage.js`)
+
+Encrypted IndexedDB storage + backup reminder. Depends on `CoinCrypto`.
+
+**IndexedDB schema:**
+
+| Property | Value |
+|----------|-------|
+| Database | `CoinVault` |
+| Version | `1` |
+| Object store | `inventory` |
+| Key path | `['userId', 'coinHash']` (composite) |
+| Record shape | `{ userId, coinHash, iv (base64), ciphertext (base64) }` |
+
+| Function | Purpose |
+|----------|---------|
+| `addCoin(userId, key, coin)` | Hash coin → JSON-serialize `{series, year, mint, grade, weight, query, dateAdded}` → AES-GCM encrypt → `put` (upsert) |
+| `hasCoin(userId, coin)` | Check existence by composite key |
+| `removeCoin(userId, coinHash)` | Delete by composite key |
+| `getAllDecrypted(userId, key)` | Cursor-scan → decrypt each → skip failures silently |
+| `count(userId)` | Count records for a userId |
+| `clearAll(userId)` | Delete all records for a userId |
+| `exportJSON(userId, key)` | Decrypt all → strip internal fields → JSON with `coin-price-agent-backup-v1` format header |
+| `importJSON(userId, key, jsonStr)` | Validate format → iterate coins → skip duplicates via `hasCoin` → encrypt + store → return `{imported, skipped, errors}` |
+| `reEncryptAll(userId, oldKey, newKey)` | Decrypt all → clear all → re-add all with new key. Used during password change. **Not atomic** — interrupted mid-way could lose data |
+
+**BackupReminder** (also in `storage.js`):
+
+| localStorage Key | Shape |
+|------------------|-------|
+| `cpf_backup_state` | `{ [userId]: { addsSinceBackup, lastBackupDate, dismissed } }` |
+
+| Constant | Value |
+|----------|-------|
+| `ADDS_THRESHOLD` | 10 |
+| `DAYS_THRESHOLD` | 30 |
+
+| Function | Purpose |
+|----------|---------|
+| `recordAdd(userId)` | Increment `addsSinceBackup`, clear `dismissed` |
+| `recordBackup(userId)` | Reset `addsSinceBackup` to 0, set `lastBackupDate` to now |
+| `dismiss(userId)` | Set `dismissed` to now (snoozes 7 days) |
+| `check(userId)` | Returns `{needed: bool, reason: 'first'|'adds'|'time'}` |
+
+### MyCoins (`public/js/my-coins.js`)
+
+Portfolio renderer with throttled parallel pricing. Depends on `CoinAuth`, `CoinStorage`, `CoinCrypto`, and `_esc()` (XSS escaper from index.html).
+
+| Constant | Value | Purpose |
+|----------|-------|---------|
+| `CONCURRENCY` | 3 | Parallel pricing fetch workers |
+| `STAGGER_MS` | 400 | Delay between sequential fetches per worker |
+
+| Function | Purpose |
+|----------|---------|
+| `render()` | Main entry: check auth → decrypt inventory → `_fetchPricing` → `_renderTable` |
+| `_fetchPricing(coins)` | Worker-pool pattern: spawns `min(CONCURRENCY, coins.length)` async workers sharing an index counter. Each worker POSTs to `/api/price` with `{timeWindowDays:90, usMinComps:3, maxPages:1}`. Extracts `fmv`, `rangeLow`, `rangeHigh`, `avgEbay`, `confidence`. |
+| `_buildQuery(coin)` | Constructs query string from `year + mint + series + grade` (omits mint `'P'`) |
+| `_renderTable(items)` | Builds portfolio summary card (total FMV, coin count, priced count) + HTML table. Columns: Coin, Grade, FMV (with confidence tag), Avg eBay, Range, Added, Remove. Remove triggers `confirm()` → `CoinStorage.removeCoin` → re-render. |
+
+### Index.html Inline JavaScript
+
+The SPA contains several IIFEs and objects in inline `<script>` blocks:
+
+| Component | Purpose |
+|-----------|---------|
+| `_esc(str)` / `_escUrl(url)` | XSS-safe HTML and URL escaping |
+| `initTabs()` | Tab controller: aria-selected/aria-hidden toggling, keyboard arrow nav, auth gate for locked tabs, auto-load triggers |
+| `AUTH_GATED_TABS` | Array `['tab-mycoins', 'tab-history']` — tabs requiring login |
+| `_updateTabLocks()` | Adds/removes lock icons and `.tab-locked` class based on `CoinAuth.currentUser()` |
+| `CoinForm` | Structured coin entry: field binding, query preview, set-type detection, variant hints |
+| `BarForm` | Bar/bullion entry: metal/size/brand/series/year, lunar zodiac hints |
+| `initPDModeToggle()` | Coin ↔ Bar sub-mode toggle in Price Discovery |
+| `runQuery()` | Coin form submission → POST `/api/price` → `renderResults()` |
+| `renderResults(d)` | Main results renderer (~500 lines): FMV hero card, image gallery, metadata chips, buy/sell grid, Numista panel, lunar comparison, PCGS details, eBay stats, comp list, "I Have This Coin" button, cross-tab linkage, raw JSON |
+| `MeltCalc` | Melt calculator: coin type selection, spot auto-fetch, per-coin/roll/total calculations |
+| `MeltSpotAdapter` | Fetches spot from `/api/metals`, caches, polls every 5 min, notifies listeners |
+| `COIN_TYPES` | Array of 80+ coin definitions (metal, pure_ozt, fineness, coins_per_roll, category) |
+| `BAR_TYPES` | Array of 20 bar definitions (gold/silver, 0.5g–10oz) |
+| `COMPOSITION_ERAS` | Year-range rules for transitional coins (Kennedy, Washington, Roosevelt, etc.) |
+| `getMeltInfo(d)` | Matches API response to COIN_TYPES for melt cross-reference |
+| `EbayTracker` | Market matrix UI: mode toggle (coin/bar), series/grade/days inputs, three rendering modes (year×mint, year×grade, brand table) |
+| `TerapeakImporter` | CSV upload UI: drag-and-drop, file picker, import result display, dataset management |
+| `TerapeakQuota` | Visual quota meter with color thresholds, manual logging, reset |
+| `CoinHistoryLink` | Cross-tab state: stores query from Price Discovery for auto-load on History tab |
+| `initHistoryChart()` | Price history canvas chart: left Y (coin prices), right Y (metal overlay), IQR band, median line, outlier dots, legend |
+| `initAuthUI()` | Auth dialog management: login/signup mode toggle, badge (username + logout or login button), monkey-patched `updateBadge()` calls `showAccountBar()`, `_updateTabLocks()`, hides/shows About preview |
+| `showAccountBar()` | Shows/hides export/import/change-password buttons + backup reminder |
+| `_checkBackupPrompt()` | Renders backup reminder banner with "Export Now" and "Later" buttons |
+| `galleryNav / gallerySelect` | Image gallery navigation (arrows + thumbnail clicks) |
+| `initQuickSearchSuggestions()` | Autocomplete datalist for quick-search input (60+ suggestions) |
+
+### Auth-Gated Tab System
+
+Two tabs (`tab-mycoins`, `tab-history`) are gated behind authentication:
+
+```
+┌─ Logged Out ────────────────────────────────────────────┐
+│  Tab buttons: show 🔒 icon, .tab-locked class           │
+│  Click locked tab → opens auth-dialog (login/signup)    │
+│  Teaser banner visible below tab bar                    │
+│  About tab: feature preview cards with mocked UI        │
+├─ Logged In ─────────────────────────────────────────────┤
+│  Tab buttons: normal styling, fully functional          │
+│  Teaser banner hidden                                   │
+│  About tab: preview section hidden                      │
+└─────────────────────────────────────────────────────────┘
+```
+
+State changes are reactive — `_updateTabLocks()` is called whenever `updateBadge()` fires (login, logout, page load).
+
+### Export/Import Backup Flow
+
+```
+Export:
+  CoinStorage.exportJSON(userId, key)
+    → getAllDecrypted() → strip internal fields
+    → JSON.stringify with format header
+    → Blob → Object URL → download as coin-collection-backup-YYYY-MM-DD.json
+    → BackupReminder.recordBackup()
+
+Import:
+  File picker (.json) → file.text()
+    → CoinStorage.importJSON(userId, key, text)
+    → Validate format header
+    → For each coin: hasCoin? skip : addCoin (encrypt + store)
+    → Return {imported, skipped, errors}
+    → MyCoins.render()
+```
+
+The export is **account-independent** — it's plaintext JSON. A user who loses access and creates a new account can import the backup into the new account, where each coin will be re-encrypted under the new key.
+
+### Cross-Tab Linkage
+
+```
+Price Discovery ──setSeries()──→ Live eBay Tracker
+                                 (pre-fills series, auto-loads on tab switch)
+
+Price Discovery ──CoinHistoryLink.setCoin()──→ Price History
+                                               (pre-fills query, auto-charts on tab switch)
+```
+
+### Client-Side Storage Summary
+
+| Key / DB | Type | Module | Contents |
+|----------|------|--------|---------|
+| `cpf_accounts` | localStorage | CoinAuth | Map of username → `{userId, salt, verifier}` |
+| `cpf_active_user` | localStorage | CoinAuth | Last logged-in username (re-auth trigger) |
+| `cpf_backup_state` | localStorage | BackupReminder | Map of userId → `{addsSinceBackup, lastBackupDate, dismissed}` |
+| `CoinVault.inventory` | IndexedDB | CoinStorage | Encrypted coin records keyed by `[userId, coinHash]` |

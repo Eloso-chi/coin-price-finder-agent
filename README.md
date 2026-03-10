@@ -19,6 +19,74 @@ Also supports **bullion bars** (any metal, any size), **proof/mint sets**, **rol
 
 ---
 
+## Frontend — Web UI
+
+The browser UI is a single-page app served from `public/index.html` with a dark theme and seven tabbed panels. All client-side JavaScript is split across four modules loaded in order: `crypto.js` → `auth.js` → `storage.js` → `my-coins.js`.
+
+### Tabs
+
+| Tab | Description |
+|-----|-------------|
+| **Price Discovery** | Main search — two sub-modes: Coin (structured or quick-search entry) and Bar/Bullion. Submits to `/api/price` or `/api/bar-price`. Renders FMV hero card with image gallery, confidence score, buy/sell decisions, metadata chips, eBay stats, comp list, and raw JSON. |
+| **Melt Calculator** | Offline calculator for 80+ US coin types and 20 bar sizes. Auto-fetches spot prices from `/api/metals` and polls every 5 minutes. Shows per-coin, per-roll, and total melt values at spot and spot+premium. |
+| **Live eBay Tracker** | Market matrix from `/api/market/ebay`. Three display modes: Year × Mint (numismatic coins), Year × Grade (bullion), and Brand table (bars). Cells show median sold price, cheapest BIN link, key date badge, and Numista rarity. Color-coded legend. |
+| **Sold Data** | Terapeak CSV import UI (drag-and-drop or file picker) with search term input. Datasets list with delete. Visual daily quota meter (250/day default) with manual logging and reset. Admin endpoints require `x-api-key`. |
+| **My Coins** 🔒 | Auth-gated. Encrypted coin collection stored in IndexedDB. Shows portfolio summary (total FMV, coin count) and table with per-coin FMV, confidence, range, eBay average, date added, and remove button. Export/Import backup buttons and Change Password. |
+| **Price History** 🔒 | Auth-gated. Canvas-drawn chart from `/api/coin-history`. Shows daily median prices with IQR band, outlier dots, and optional precious-metal spot overlay (dashed line). Supports 90/180/365-day ranges. |
+| **About** | Confidence score key, privacy/security explanation, how login works, feature previews for logged-out users, and legal disclaimer. |
+
+### Zero-Knowledge Auth System
+
+The authentication system is **entirely client-side** — the server has zero knowledge of accounts, passwords, or collection data.
+
+- **Signup** — generates a UUID user ID, derives an AES-256-GCM encryption key from username + password via PBKDF2 (600,000 iterations, SHA-256), encrypts a known plaintext as a password verifier, and stores `{userId, salt, verifier}` in `localStorage`.
+- **Login** — re-derives the key from the stored salt and checks the verifier. The `CryptoKey` lives only in memory.
+- **Page reload** — the in-memory key is lost. The UI detects the stale session via `pendingReauth()` and auto-opens the login dialog pre-filled with the username.
+- **Password change** — derives a new key with a fresh salt, updates the verifier, and re-encrypts all coins in IndexedDB via `CoinStorage.reEncryptAll()`.
+
+No passwords, keys, or collection data ever leave the browser. The server cannot read, access, or reconstruct any user data.
+
+### Encrypted Coin Storage
+
+- **Database:** IndexedDB database `CoinVault`, object store `inventory`, composite key `[userId, coinHash]`.
+- **Per-coin encryption:** Each coin record is JSON-serialized and encrypted with AES-256-GCM using a random 12-byte IV. Only the encrypted ciphertext + IV are stored.
+- **Deduplication:** Coins are hashed by `SHA-256(series|year|mint|grade)` to prevent duplicates.
+- **"I Have This Coin" button:** Appears in Price Discovery results. If logged in, adds the coin to the encrypted collection with one click. If logged out, shows a lock icon that opens the login dialog.
+
+### Export & Import Backup
+
+- **Export** — decrypts all coins and downloads a **plaintext JSON** file (`coin-collection-backup-YYYY-MM-DD.json`). The export contains `{format, exportedAt, count, coins[]}` with each coin's series, year, mint, grade, weight, query, and dateAdded. No encryption in the file — it's a portable backup.
+- **Import** — reads the JSON backup, validates the `coin-price-agent-backup-v1` format header, and re-encrypts each coin under the current user's key. Skips duplicates (by coinHash). Works across accounts — if a user loses their login and creates a new account, they can import a previous backup into the new account.
+
+### Backup Reminder
+
+The `BackupReminder` module (in `storage.js`) tracks coin additions and time since last backup in `localStorage`. It shows a yellow banner in the My Coins tab prompting the user to export:
+
+| Trigger | Message |
+|---------|---------|
+| First coin ever added | "You added your first coin! Export a backup so you never lose your collection." |
+| 10+ coins added since last backup | "You've added several coins since your last backup. Time to save a copy!" |
+| 30+ days since last backup | "It's been a while since your last backup. Export one to stay safe." |
+
+Dismissing snoozes the prompt for 7 days. Exporting resets all counters.
+
+### Auth-Gated Tabs
+
+The My Coins and Price History tabs are locked for logged-out users:
+
+- Tab buttons show a 🔒 lock icon and muted styling.
+- Clicking a locked tab opens the login dialog instead of switching panels.
+- A teaser banner below the tab bar reads "Unlock My Coins & Price History" with a login CTA.
+- The About tab shows feature preview cards with mocked UI (sample portfolio table, sample price chart) and login buttons.
+- All lock/teaser state updates reactively on login/logout.
+
+### Cross-Tab Linkage
+
+- **Price Discovery → Live eBay Tracker:** After pricing a coin, the tracker's series input is pre-populated. Switching to the tracker tab auto-loads the matrix.
+- **Price Discovery → Price History:** A `CoinHistoryLink` object stores the query. Switching to the History tab auto-runs the chart.
+
+---
+
 ## Quick Start
 
 ### Prerequisites
@@ -347,11 +415,26 @@ src/
 cache/
   ebay_cache.json                  Persisted eBay comp cache (1-hour TTL)
   pcgs_cache.json                  Persisted PCGS data cache (24-hour TTL)
+  metals_spot.json                 Persisted metals spot prices (stale fallback)
+  metals_history.json              Daily spot price snapshots
+  terapeak_sold.json               Imported Terapeak comp data
+  numista_cache.json               Persisted Numista data cache (24-hour TTL)
 data/
   terapeak/                        Drop Terapeak CSV exports here for auto-import
+public/
+  index.html                       SPA frontend (dark theme, 7 tabs)
+  js/
+    crypto.js                      CoinCrypto — WebCrypto wrapper (PBKDF2 + AES-256-GCM)
+    auth.js                        CoinAuth — client-only signup/login/logout/changePassword
+    storage.js                     CoinStorage (IndexedDB) + BackupReminder (localStorage)
+    my-coins.js                    MyCoins — portfolio rendering with parallel pricing
 __tests__/                         26 Jest test suites (see Tests section)
   helpers/
     coinTestConstants.js           Shared token lists & test utilities
+docs/
+  ARCHITECTURE.md                  Technical architecture reference
+.github/workflows/
+  main_coinpricefinder-*.yml       CI/CD: GitHub Actions OIDC → Azure App Service
 ```
 
 ---
