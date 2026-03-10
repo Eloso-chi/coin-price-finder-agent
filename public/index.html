@@ -858,6 +858,50 @@
     .backup-prompt-actions { display: flex; gap: 6px; flex-shrink: 0; }
     .backup-prompt .btn-sm { font-size: 0.78rem; padding: 4px 10px; }
     .backup-prompt .btn-backup-now { background: var(--green); color: #000; border-color: var(--green); }
+
+    /* ── Locked tab styling ─────────────────────────────── */
+    .tab-btn.tab-locked { color: var(--text-muted); cursor: default; }
+    .tab-btn.tab-locked:hover { color: var(--text-muted); }
+    .tab-btn.tab-locked .lock-icon { font-size: 0.7rem; margin-left: 4px; }
+    .tab-btn.tab-locked[aria-selected="true"] { color: var(--text-muted); }
+    .tab-btn.tab-locked[aria-selected="true"]::after { display: none; }
+
+    /* ── Auth teaser banner ─────────────────────────────── */
+    .auth-teaser-banner {
+      display: none; margin-bottom: 20px; padding: 20px 24px;
+      background: linear-gradient(135deg, var(--surface) 0%, var(--card) 100%);
+      border: 1px solid var(--border); border-radius: var(--radius-lg);
+      text-align: center;
+    }
+    .auth-teaser-banner.visible { display: block; }
+    .auth-teaser-title { font-size: 1rem; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+    .auth-teaser-desc { font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 14px; line-height: 1.5; }
+    .auth-teaser-cta {
+      display: inline-block; padding: 8px 20px; background: var(--accent); color: #000;
+      border: none; border-radius: var(--radius); font-weight: 600; font-size: 0.85rem;
+      cursor: pointer; transition: var(--transition);
+    }
+    .auth-teaser-cta:hover { filter: brightness(1.1); }
+
+    /* ── About feature preview cards ────────────────────── */
+    .feature-preview { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 12px; }
+    .feature-preview-card {
+      flex: 1; min-width: 260px; padding: 16px 18px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); position: relative; overflow: hidden;
+    }
+    .feature-preview-card h4 { margin: 0 0 8px; font-size: 0.9rem; color: var(--text); }
+    .feature-preview-card p { font-size: 0.8rem; color: var(--text-secondary); margin: 0 0 12px; line-height: 1.5; }
+    .feature-preview-mock { opacity: 0.5; pointer-events: none; }
+    .feature-preview-mock table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+    .feature-preview-mock th { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--border); color: var(--text-muted); font-size: 0.72rem; text-transform: uppercase; }
+    .feature-preview-mock td { padding: 4px 6px; color: var(--text-secondary); border-bottom: 1px solid var(--border-subtle); }
+    .feature-preview-overlay {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      background: linear-gradient(transparent, var(--surface) 70%);
+      padding: 30px 16px 14px; text-align: center;
+    }
+    .feature-preview-overlay .auth-teaser-cta { font-size: 0.8rem; padding: 6px 16px; }
     .backup-prompt .btn-backup-later { background: transparent; color: var(--text-muted); border-color: var(--border); }
     .header-row { display: flex; align-items: center; gap: 16px; }
     .header-left { flex: 1; }
@@ -920,6 +964,13 @@
     <button class="tab-btn" role="tab" id="tab-history" aria-controls="panel-history" aria-selected="false">Price History</button>
     <button class="tab-btn" role="tab" id="tab-about" aria-controls="panel-about" aria-selected="false">About (read me)</button>
   </nav>
+
+  <!-- ── Auth Teaser Banner (shown when logged out) ── -->
+  <div class="auth-teaser-banner" id="auth-teaser-banner">
+    <div class="auth-teaser-title">&#x1F512; Unlock My Coins &amp; Price History</div>
+    <div class="auth-teaser-desc">Create a free account to track your coin collection, monitor portfolio value in real time, and chart price history&mdash;all encrypted locally in your browser.</div>
+    <button class="auth-teaser-cta" id="auth-teaser-login">Log In / Sign Up</button>
+  </div>
 
   <!-- ══════════════════════════════════════════════════════ -->
   <!-- TAB 1 — Price Discovery                               -->
@@ -1697,6 +1748,53 @@
 
       <hr class="about-divider">
 
+      <div class="about-section" id="about-feature-preview">
+        <h3>&#x1F31F; Member Features Preview</h3>
+        <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:14px">
+          Log in to unlock these features&mdash;free, no email required, everything stays in your browser.
+        </p>
+        <div class="feature-preview">
+          <div class="feature-preview-card">
+            <h4>&#x1FA99; My Coin Collection</h4>
+            <p>Track every coin you own with live portfolio valuation. Add coins from search results with one click.</p>
+            <div class="feature-preview-mock">
+              <table>
+                <thead><tr><th>Coin</th><th>Grade</th><th>FMV</th><th>Added</th></tr></thead>
+                <tbody>
+                  <tr><td>1881-S Morgan Dollar</td><td>MS-65</td><td style="color:var(--green)">$285</td><td>Jun 12</td></tr>
+                  <tr><td>1916-D Mercury Dime</td><td>VG-8</td><td style="color:var(--green)">$1,150</td><td>Jun 10</td></tr>
+                  <tr><td>2024 American Silver Eagle</td><td>MS-70</td><td style="color:var(--green)">$42</td><td>Jun 8</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="feature-preview-overlay">
+              <button class="auth-teaser-cta about-teaser-login">Log In to Start Tracking</button>
+            </div>
+          </div>
+          <div class="feature-preview-card">
+            <h4>&#x1F4C8; Price History Charts</h4>
+            <p>See how prices have moved over 90 days, 180 days, or a full year with eBay sold data overlays.</p>
+            <div class="feature-preview-mock" style="height:100px;display:flex;align-items:flex-end;gap:3px;padding:8px 0">
+              <div style="width:8%;height:40%;background:var(--accent);border-radius:2px 2px 0 0;opacity:0.4"></div>
+              <div style="width:8%;height:55%;background:var(--accent);border-radius:2px 2px 0 0;opacity:0.5"></div>
+              <div style="width:8%;height:45%;background:var(--accent);border-radius:2px 2px 0 0;opacity:0.45"></div>
+              <div style="width:8%;height:65%;background:var(--accent);border-radius:2px 2px 0 0;opacity:0.55"></div>
+              <div style="width:8%;height:70%;background:var(--accent);border-radius:2px 2px 0 0;opacity:0.6"></div>
+              <div style="width:8%;height:60%;background:var(--accent);border-radius:2px 2px 0 0;opacity:0.55"></div>
+              <div style="width:8%;height:80%;background:var(--accent);border-radius:2px 2px 0 0;opacity:0.7"></div>
+              <div style="width:8%;height:75%;background:var(--accent);border-radius:2px 2px 0 0;opacity:0.65"></div>
+              <div style="width:8%;height:90%;background:var(--accent);border-radius:2px 2px 0 0;opacity:0.8"></div>
+              <div style="width:8%;height:85%;background:var(--accent);border-radius:2px 2px 0 0;opacity:0.75"></div>
+            </div>
+            <div class="feature-preview-overlay">
+              <button class="auth-teaser-cta about-teaser-login">Log In to View Charts</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <hr class="about-divider">
+
       <div class="about-section">
         <h3>&#x2696;&#xFE0F; Disclaimer</h3>
         <p class="about-disclaimer">
@@ -1805,10 +1903,48 @@
   /* ═══════════════════════════════════════════════════════════
    *  TAB CONTROLLER
    * ═══════════════════════════════════════════════════════════ */
+  const AUTH_GATED_TABS = ['tab-mycoins', 'tab-history'];
+  const _teaserBanner = document.getElementById('auth-teaser-banner');
+
+  function _updateTabLocks() {
+    const loggedIn = !!CoinAuth.currentUser();
+    AUTH_GATED_TABS.forEach(id => {
+      const btn = document.getElementById(id);
+      if (!btn) return;
+      if (loggedIn) {
+        btn.classList.remove('tab-locked');
+        const lock = btn.querySelector('.lock-icon');
+        if (lock) lock.remove();
+      } else {
+        btn.classList.add('tab-locked');
+        if (!btn.querySelector('.lock-icon')) {
+          btn.insertAdjacentHTML('beforeend', ' <span class="lock-icon">&#x1F512;</span>');
+        }
+      }
+    });
+    if (_teaserBanner) _teaserBanner.classList.toggle('visible', !loggedIn);
+  }
+
   (function initTabs() {
     const tabs = document.querySelectorAll('.tab-btn');
+
+    // Teaser banner login button
+    const teaserLogin = document.getElementById('auth-teaser-login');
+    if (teaserLogin) {
+      teaserLogin.addEventListener('click', () => {
+        const dlg = document.getElementById('auth-dialog');
+        if (dlg) dlg.showModal();
+      });
+    }
+
     tabs.forEach(tab => {
       tab.addEventListener('click', () => {
+        // Auth gate: if locked tab clicked while logged out, open login dialog
+        if (AUTH_GATED_TABS.includes(tab.id) && !CoinAuth.currentUser()) {
+          const dlg = document.getElementById('auth-dialog');
+          if (dlg) dlg.showModal();
+          return;
+        }
         tabs.forEach(t => {
           t.setAttribute('aria-selected', 'false');
           document.getElementById(t.getAttribute('aria-controls'))
@@ -1852,6 +1988,7 @@
         if (next) { e.preventDefault(); next.click(); next.focus(); }
       });
     });
+    _updateTabLocks();
   })();
 
   /* ═══════════════════════════════════════════════════════════
@@ -4653,13 +4790,25 @@
       if (backupContainer) { backupContainer.style.display = 'none'; backupContainer.innerHTML = ''; }
     }
 
-    // Show/hide account bar when badge updates
+    // Show/hide account bar + tab locks when badge updates
     const _origUpdateBadge = updateBadge;
     updateBadge = function() {
       _origUpdateBadge();
       showAccountBar();
+      _updateTabLocks();
+      // Hide About preview section when logged in
+      const preview = document.getElementById('about-feature-preview');
+      if (preview) preview.style.display = CoinAuth.currentUser() ? 'none' : '';
     };
     showAccountBar();
+
+    // About section CTA buttons → open auth dialog
+    document.querySelectorAll('.about-teaser-login').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const dlg = document.getElementById('auth-dialog');
+        if (dlg) dlg.showModal();
+      });
+    });
 
     // Export
     exportBtn.addEventListener('click', async () => {
