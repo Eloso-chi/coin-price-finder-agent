@@ -47,7 +47,8 @@ const CoinStorage = (() => {
       grade: coin.grade || '',
       weight: coin.weight || null,
       query: coin.query || '',
-      dateAdded: new Date().toISOString(),
+      count: Math.max(1, parseInt(coin.count, 10) || 1),
+      dateAdded: coin.dateAdded || new Date().toISOString(),
     });
     const { iv, ciphertext } = await CoinCrypto.encrypt(key, plaintext);
     return new Promise((resolve, reject) => {
@@ -164,10 +165,71 @@ const CoinStorage = (() => {
     });
   }
 
+  /**
+   * Get a single decrypted coin by its identifying fields.
+   * @param {string} userId
+   * @param {CryptoKey} key
+   * @param {object} coin - { series, year, mint, grade }
+   * @returns {Promise<object|null>}
+   */
+  async function getCoin(userId, key, coin) {
+    const db = await openDB();
+    const hash = await CoinCrypto.coinHash(coin);
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readonly');
+      const req = tx.objectStore(STORE_NAME).get([userId, hash]);
+      req.onsuccess = async () => {
+        if (!req.result) return resolve(null);
+        try {
+          const json = await CoinCrypto.decrypt(key, req.result.iv, req.result.ciphertext);
+          const data = JSON.parse(json);
+          data.coinHash = hash;
+          resolve(data);
+        } catch { resolve(null); }
+      };
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  /**
+   * Update the count (quantity) of an existing coin.
+   * @param {string} userId
+   * @param {CryptoKey} key
+   * @param {string} coinHash
+   * @param {number} newCount - must be >= 1
+   * @returns {Promise<void>}
+   */
+  async function updateCount(userId, key, coinHash, newCount) {
+    const db = await openDB();
+    const count = Math.max(1, parseInt(newCount, 10) || 1);
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readonly');
+      const req = tx.objectStore(STORE_NAME).get([userId, coinHash]);
+      req.onsuccess = async () => {
+        if (!req.result) return reject(new Error('Coin not found'));
+        try {
+          const json = await CoinCrypto.decrypt(key, req.result.iv, req.result.ciphertext);
+          const coin = JSON.parse(json);
+          coin.count = count;
+          const plaintext = JSON.stringify(coin);
+          const encrypted = await CoinCrypto.encrypt(key, plaintext);
+          const db2 = await openDB();
+          const tx2 = db2.transaction(STORE_NAME, 'readwrite');
+          tx2.objectStore(STORE_NAME).put({ userId, coinHash, iv: encrypted.iv, ciphertext: encrypted.ciphertext });
+          tx2.oncomplete = () => resolve();
+          tx2.onerror = () => reject(tx2.error);
+        } catch (e) { reject(e); }
+      };
+      req.onerror = () => reject(req.error);
+    });
+  }
+
   return {
     openDB,
     addCoin,
     hasCoin,
+    getCoin,
+    updateCount,
     removeCoin,
     getAllEncrypted,
     getAllDecrypted,
@@ -191,6 +253,7 @@ const CoinStorage = (() => {
         grade: c.grade || '',
         weight: c.weight || null,
         query: c.query || '',
+        count: c.count || 1,
         dateAdded: c.dateAdded || null,
       }));
       return JSON.stringify({
@@ -241,6 +304,7 @@ const CoinStorage = (() => {
             grade:  String(coin.grade || '').trim().slice(0, 30),
             weight: coin.weight ? String(coin.weight).trim().slice(0, 20) : null,
             query:  String(coin.query || '').trim().slice(0, 300),
+            count:  Math.max(1, parseInt(coin.count, 10) || 1),
             dateAdded: coin.dateAdded || null,
           };
           const already = await hasCoin(userId, clean);

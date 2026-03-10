@@ -831,6 +831,41 @@
     }
     .add-coin-btn:hover { background: var(--green); color: #000; }
     .add-coin-btn.added { border-color: var(--text-muted); background: transparent; color: var(--text-muted); cursor: default; }
+    .add-coin-owned {
+      display: inline-flex; align-items: center; gap: 8px; margin-top: 10px;
+      padding: 6px 14px; border-radius: var(--radius); border: 1px solid var(--text-muted);
+      background: transparent; color: var(--text-muted); font-size: 0.82rem; font-weight: 600;
+    }
+    .add-coin-qty-wrap { display: inline-flex; align-items: center; gap: 4px; margin-left: 4px; }
+    .add-coin-qty-btn {
+      background: var(--surface); border: 1px solid var(--border); color: var(--text);
+      width: 22px; height: 22px; border-radius: 4px; cursor: pointer; font-size: 0.9rem;
+      display: inline-flex; align-items: center; justify-content: center; padding: 0;
+    }
+    .add-coin-qty-btn:hover { background: var(--green-subtle); border-color: var(--green); color: var(--green); }
+    .add-coin-qty-val { min-width: 20px; text-align: center; font-weight: 700; color: var(--text); }
+    .mycoins-filter-bar {
+      display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
+    }
+    .mycoins-filter-input {
+      flex: 1; max-width: 320px; padding: 6px 10px; border-radius: var(--radius);
+      border: 1px solid var(--border); background: var(--surface); color: var(--text);
+      font-size: 0.82rem; outline: none;
+    }
+    .mycoins-filter-input:focus { border-color: var(--accent); }
+    .mycoins-filter-count { font-size: 0.78rem; color: var(--text-muted); }
+    .mycoins-sortable { cursor: pointer; user-select: none; }
+    .mycoins-sortable:hover { color: var(--accent); }
+    .mycoins-qty-col { min-width: 80px; }
+    .mycoins-qty-cell { white-space: nowrap; }
+    .mycoins-qty-btn {
+      background: var(--surface); border: 1px solid var(--border); color: var(--text);
+      width: 22px; height: 22px; border-radius: 4px; cursor: pointer; font-size: 0.85rem;
+      display: inline-flex; align-items: center; justify-content: center; padding: 0;
+      vertical-align: middle;
+    }
+    .mycoins-qty-btn:hover { background: var(--green-subtle); border-color: var(--green); color: var(--green); }
+    .mycoins-qty-val { display: inline-block; min-width: 20px; text-align: center; font-weight: 600; vertical-align: middle; }
     .mycoins-summary {
       display: flex; align-items: center; justify-content: space-between;
       padding: 16px 20px; background: var(--card); border: 1px solid var(--border);
@@ -3228,27 +3263,55 @@
         query:  (typeof d.query === 'object' ? d.query?.input : d.query) || '',
       };
       if (CoinAuth.currentUser()) {
+        html += '<span class="add-coin-wrap" id="add-coin-wrap">';
         html += '<button class="add-coin-btn" id="add-coin-btn">';
         html += '&#x1FA99; I have this coin';
         html += '</button>';
+        html += '</span>';
         setTimeout(async () => {
+          const wrap = document.getElementById('add-coin-wrap');
           const btn = document.getElementById('add-coin-btn');
-          if (!btn) return;
+          if (!wrap || !btn) return;
           const user = CoinAuth.currentUser();
           if (!user) return;
-          const owned = await CoinStorage.hasCoin(user.userId, _addCoin);
-          if (owned) {
-            btn.classList.add('added');
-            btn.innerHTML = '&#x2713; In My Collection';
-            btn.disabled = true;
+          const existing = await CoinStorage.getCoin(user.userId, user.key, _addCoin);
+          if (existing) {
+            const qty = existing.count || 1;
+            wrap.innerHTML =
+              '<span class="add-coin-owned">' +
+              '&#x2713; In My Collection' +
+              '<span class="add-coin-qty-wrap">' +
+              '<button class="add-coin-qty-btn" id="add-coin-dec" title="Decrease quantity">&minus;</button>' +
+              '<span class="add-coin-qty-val" id="add-coin-qty">' + qty + '</span>' +
+              '<button class="add-coin-qty-btn" id="add-coin-inc" title="Add another">+</button>' +
+              '</span></span>';
+            let currentQty = qty;
+            const qtyEl = document.getElementById('add-coin-qty');
+            document.getElementById('add-coin-dec').addEventListener('click', async () => {
+              if (currentQty <= 1) return;
+              currentQty--;
+              const hash = await CoinCrypto.coinHash(_addCoin);
+              await CoinStorage.updateCount(user.userId, user.key, hash, currentQty);
+              qtyEl.textContent = currentQty;
+            });
+            document.getElementById('add-coin-inc').addEventListener('click', async () => {
+              currentQty++;
+              const hash = await CoinCrypto.coinHash(_addCoin);
+              await CoinStorage.updateCount(user.userId, user.key, hash, currentQty);
+              qtyEl.textContent = currentQty;
+            });
           } else {
             btn.addEventListener('click', async () => {
               btn.disabled = true;
               btn.innerHTML = 'Adding\u2026';
               await CoinStorage.addCoin(user.userId, user.key, _addCoin);
               BackupReminder.recordAdd(user.userId);
-              btn.classList.add('added');
-              btn.innerHTML = '&#x2713; Added to My Coins';
+              wrap.innerHTML =
+                '<span class="add-coin-owned">' +
+                '&#x2713; Added to My Coins' +
+                '<span class="add-coin-qty-wrap">' +
+                '<span class="add-coin-qty-val">1</span>' +
+                '</span></span>';
             });
           }
         }, 0);
