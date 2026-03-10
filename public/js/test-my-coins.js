@@ -14,16 +14,16 @@
 
   // ── Test coin collection (10 coins spanning different series) ──
   const TEST_COINS = [
-    { series: 'Morgan Dollar',             year: '1921', mint: 'D', grade: 'MS-65', weight: null, query: '1921-D Morgan Dollar MS-65' },
-    { series: 'Morgan Dollar',             year: '1878', mint: 'S', grade: 'VF-30', weight: null, query: '1878-S Morgan Dollar VF-30' },
-    { series: 'Peace Dollar',              year: '1923', mint: 'P', grade: 'MS-63', weight: null, query: '1923 Peace Dollar MS-63' },
-    { series: 'Kennedy Half Dollar',       year: '1964', mint: 'P', grade: 'PR-69', weight: null, query: '1964 Kennedy Half Dollar PR-69' },
-    { series: 'Walking Liberty Half Dollar',year:'1941', mint: 'S', grade: 'VF-25', weight: null, query: '1941-S Walking Liberty Half Dollar VF-25' },
-    { series: 'American Silver Eagle',     year: '2024', mint: 'P', grade: 'MS-70', weight: 1,    query: '2024 American Silver Eagle MS-70' },
-    { series: 'Washington Quarter',        year: '1932', mint: 'D', grade: 'VG-10', weight: null, query: '1932-D Washington Quarter VG-10' },
-    { series: 'Roosevelt Dime',            year: '1946', mint: 'P', grade: 'MS-66', weight: null, query: '1946 Roosevelt Dime MS-66' },
-    { series: 'Buffalo Nickel',            year: '1937', mint: 'D', grade: 'MS-64', weight: null, query: '1937-D Buffalo Nickel MS-64' },
-    { series: 'Lincoln Cent',              year: '1909', mint: 'S', grade: 'VF-20', weight: null, query: '1909-S Lincoln Cent VF-20' },
+    { series: 'Morgan Dollar',             year: '1921', mint: 'D', grade: 'MS-65', weight: null, count: 3,  query: '1921-D Morgan Dollar MS-65' },
+    { series: 'Morgan Dollar',             year: '1878', mint: 'S', grade: 'VF-30', weight: null, count: 1,  query: '1878-S Morgan Dollar VF-30' },
+    { series: 'Peace Dollar',              year: '1923', mint: 'P', grade: 'MS-63', weight: null, count: 2,  query: '1923 Peace Dollar MS-63' },
+    { series: 'Kennedy Half Dollar',       year: '1964', mint: 'P', grade: 'PR-69', weight: null, count: 1,  query: '1964 Kennedy Half Dollar PR-69' },
+    { series: 'Walking Liberty Half Dollar',year:'1941', mint: 'S', grade: 'VF-25', weight: null, count: 1,  query: '1941-S Walking Liberty Half Dollar VF-25' },
+    { series: 'American Silver Eagle',     year: '2024', mint: 'P', grade: 'MS-70', weight: 1,    count: 20, query: '2024 American Silver Eagle MS-70' },
+    { series: 'Washington Quarter',        year: '1932', mint: 'D', grade: 'VG-10', weight: null, count: 1,  query: '1932-D Washington Quarter VG-10' },
+    { series: 'Roosevelt Dime',            year: '1946', mint: 'P', grade: 'MS-66', weight: null, count: 5,  query: '1946 Roosevelt Dime MS-66' },
+    { series: 'Buffalo Nickel',            year: '1937', mint: 'D', grade: 'MS-64', weight: null, count: 1,  query: '1937-D Buffalo Nickel MS-64' },
+    { series: 'Lincoln Cent',              year: '1909', mint: 'S', grade: 'VF-20', weight: null, count: 1,  query: '1909-S Lincoln Cent VF-20' },
   ];
 
   console.log('=== My Coins Test Utility ===\n');
