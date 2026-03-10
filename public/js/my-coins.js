@@ -99,10 +99,10 @@ const MyCoins = (() => {
               confidence: data.valuation?.confidence || null,
             };
           } else {
-            results[i] = { coin, fmv: null, avgEbay: null, confidence: null };
+            results[i] = { coin, fmv: null, avgEbay: null, confidence: null, pricingError: 'Server returned ' + resp.status };
           }
-        } catch {
-          results[i] = { coin, fmv: null, avgEbay: null, confidence: null };
+        } catch (e) {
+          results[i] = { coin, fmv: null, avgEbay: null, confidence: null, pricingError: e.message || 'Network error' };
         }
         // Stagger to avoid hammering
         if (idx < coins.length) await _sleep(STAGGER_MS);
@@ -173,7 +173,9 @@ const MyCoins = (() => {
       html += '<tr>';
       html += '<td>' + _esc(label) + '</td>';
       html += '<td>' + _esc(c.grade || '\u2014') + '</td>';
-      html += '<td class="mycoins-fmv">' + _$(it.fmv) + (it.confidence ? ' <span style="opacity:0.6;font-size:0.85em">(' + _esc(it.confidence) + ')</span>' : '') + '</td>';
+      const fmvCell = it.fmv != null ? _$(it.fmv) + (it.confidence ? ' <span style="opacity:0.6;font-size:0.85em">(' + _esc(it.confidence) + ')</span>' : '')
+        : (it.pricingError ? '<span style="color:var(--text-muted);font-size:0.8em" title="' + _esc(it.pricingError) + '">No data</span>' : '\u2014');
+      html += '<td class="mycoins-fmv">' + fmvCell + '</td>';
       html += '<td>' + _$(it.avgEbay) + '</td>';
       html += '<td class="mycoins-range">' + range + '</td>';
       html += '<td class="mycoins-date">' + _esc(added) + '</td>';

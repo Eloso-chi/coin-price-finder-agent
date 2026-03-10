@@ -4845,7 +4845,17 @@
       try {
         const text = await file.text();
         const result = await CoinStorage.importJSON(user.userId, user.key, text);
-        accountMsg('Imported ' + result.imported + ' coins, skipped ' + result.skipped + ' duplicates.', false);
+        let msg = 'Imported ' + result.imported + ' coin(s)';
+        if (result.skipped) msg += ', ' + result.skipped + ' duplicate(s) skipped';
+        if (result.errors)  msg += ', ' + result.errors + ' invalid row(s) skipped';
+        msg += '.';
+        accountMsg(msg, result.errors > 0);
+        // Show detailed warnings if any
+        if (result.warnings && result.warnings.length) {
+          const warnHtml = result.warnings.map(w => _esc(w)).join('<br>');
+          accountStatus.innerHTML = _esc(msg) + '<br><span style="font-size:0.75rem;color:var(--text-muted)">' + warnHtml + '</span>';
+          accountStatus.style.display = 'block';
+        }
         if (typeof MyCoins !== 'undefined') MyCoins.render();
       } catch (err) {
         accountMsg('Import failed: ' + err.message, true);

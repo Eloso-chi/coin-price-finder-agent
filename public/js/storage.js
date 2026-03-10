@@ -215,17 +215,44 @@ const CoinStorage = (() => {
         throw new Error('Invalid backup file format');
       }
       let imported = 0, skipped = 0, errors = 0;
-      for (const coin of data.coins) {
+      const warnings = [];
+      for (let i = 0; i < data.coins.length; i++) {
+        const coin = data.coins[i];
         try {
-          const already = await hasCoin(userId, coin);
+          // Validate: must be an object with at least one identifying field
+          if (!coin || typeof coin !== 'object' || Array.isArray(coin)) {
+            warnings.push('Row ' + (i + 1) + ': not a valid coin object — skipped');
+            errors++;
+            continue;
+          }
+          const hasSeries = typeof coin.series === 'string' && coin.series.trim();
+          const hasQuery  = typeof coin.query === 'string' && coin.query.trim();
+          const hasYear   = coin.year != null && String(coin.year).trim();
+          if (!hasSeries && !hasQuery && !hasYear) {
+            warnings.push('Row ' + (i + 1) + ': no series, query, or year — skipped');
+            errors++;
+            continue;
+          }
+          // Sanitize: coerce fields to expected types, strip unknown keys
+          const clean = {
+            series: String(coin.series || '').trim().slice(0, 200),
+            year:   String(coin.year || '').trim().slice(0, 10),
+            mint:   String(coin.mint || '').trim().toUpperCase().slice(0, 10),
+            grade:  String(coin.grade || '').trim().slice(0, 30),
+            weight: coin.weight ? String(coin.weight).trim().slice(0, 20) : null,
+            query:  String(coin.query || '').trim().slice(0, 300),
+            dateAdded: coin.dateAdded || null,
+          };
+          const already = await hasCoin(userId, clean);
           if (already) { skipped++; continue; }
-          await addCoin(userId, key, coin);
+          await addCoin(userId, key, clean);
           imported++;
         } catch {
+          warnings.push('Row ' + (i + 1) + ': encryption error — skipped');
           errors++;
         }
       }
-      return { imported, skipped, errors };
+      return { imported, skipped, errors, warnings };
     },
 
     /**
