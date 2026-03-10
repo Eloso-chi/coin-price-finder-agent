@@ -1,16 +1,21 @@
 # Coin Price Discovery Agent
 
-A dealer-oriented pricing tool that calculates **Fair Market Value (FMV)** for US coins and bullion bars by combining PCGS catalog data with eBay sold-comp analysis. It produces buy/sell recommendations with confidence scores — designed for quick, data-backed decisions at a coin show or behind a counter.
+A dealer-oriented pricing tool that calculates **Fair Market Value (FMV)** for US coins and bullion bars by combining PCGS catalog data, eBay sold-comp analysis, and Terapeak market data. It produces buy/sell recommendations with confidence scores — designed for quick, data-backed decisions at a coin show or behind a counter.
 
 ## What It Does
 
 1. **Identifies the coin** — accepts a PCGS cert number, barcode, PCGS coin number, or free-text description (e.g. "1881-CC Morgan dollar MS 64").
 2. **Enriches via PCGS** — fetches price guide value, population, auction history, mintage, and reference images from the PCGS CoinFacts API.
 3. **Pulls eBay sold comps** — queries up to three eBay APIs (Marketplace Insights → Finding → Browse) to collect recent sold prices, then scores and filters them for relevance.
-4. **Computes FMV** — blends PCGS and eBay data using a weighted median with outlier removal, producing a confidence-scored valuation.
-5. **Generates buy/sell decisions** — outputs max-buy thresholds (70/75/80% of FMV) and sell tiers (fast/normal/premium) with a recommendation.
+4. **Supplements with Terapeak data** — imports Terapeak CSV exports (manual upload or auto-import from `data/terapeak/`) for additional sold-comp coverage with daily quota tracking.
+5. **Computes FMV** — blends PCGS and eBay data using a weighted median with outlier removal, producing a confidence-scored valuation.
+6. **Generates buy/sell decisions** — outputs max-buy thresholds (70/75/80% of FMV) and sell tiers (fast/normal/premium) with a recommendation.
+7. **Batch pricing** — prices up to 25 coins in a single request.
+8. **Price history charting** — returns time-series sold-price data with optional spot-price metal overlay.
+9. **Live metals tracking** — background polling (every 30 min) with round-robin across providers, plus daily history snapshots.
+10. **Market matrix** — year × mint grid of median completed prices and cheapest BIN listings, enriched with Numista rarity data.
 
-Also supports **bullion bars** (any metal, any size) and **proof/mint sets** with dedicated input flows and eBay keyword strategies.
+Also supports **bullion bars** (any metal, any size), **proof/mint sets**, **rolls**, and **lunar series** with dedicated input flows and eBay keyword strategies.
 
 ---
 
@@ -18,10 +23,11 @@ Also supports **bullion bars** (any metal, any size) and **proof/mint sets** wit
 
 ### Prerequisites
 
-- **Node.js** 18+ (CommonJS)
+- **Node.js** 22+ (CommonJS)
 - **eBay Developer** account — [developer.ebay.com](https://developer.ebay.com/)
 - **PCGS Public API** key — [pcgs.com/publicapi/documentation](https://www.pcgs.com/publicapi/documentation)
 - *(Optional)* Gold API or Metals API key for live spot prices
+- *(Optional)* Numista API key for rarity/mintage enrichment
 
 ### Install
 
@@ -53,9 +59,15 @@ Optional variables:
 |----------|---------|---------|
 | `GOLDAPI_KEY` | Gold API key for spot prices | *(none)* |
 | `METALS_API_KEY` | Metals API key (fallback provider) | *(none)* |
+| `NUMISTA_API_KEY` | Numista API key for rarity/mintage data | *(none)* |
+| `ADMIN_API_KEY` | API key for admin/destructive endpoints | *(none — endpoints locked)* |
 | `PORT` | Server port | `3000` |
 | `EBAY_CACHE_TTL_MS` | eBay cache lifetime | `3600000` (1 hour) |
 | `EBAY_US_MIN_COMPS` | Minimum US comps before global fallback | `8` |
+| `EBAY_THROTTLE_MS` | eBay API throttle delay | `1100` |
+| `EBAY_TIMEOUT_MS` | eBay API timeout | `10000` |
+| `METALS_CACHE_TTL_MS` | Metals spot price cache lifetime | `2700000` (45 min) |
+| `METALS_POLL_MS` | Background metals polling interval | `1800000` (30 min) |
 
 ### Run
 
@@ -176,15 +188,55 @@ If an asking price is provided:
 
 ## API Endpoints
 
+### Core Pricing
+
 | Method | Path | Description |
 |--------|------|-------------|
 | `POST` | `/api/price` | Price a coin (main endpoint) |
 | `POST` | `/api/bar-price` | Price a bullion bar |
+| `POST` | `/api/pricing-batch` | Batch-price up to 25 coins in one request |
+| `GET` | `/api/coin-variant` | Design-series metadata for a denomination + year |
+| `GET` | `/api/coin-history` | Sold-price time-series (daily medians) with optional spot overlay |
+
+### Market & Metals
+
+| Method | Path | Description |
+|--------|------|-------------|
 | `GET` | `/api/market/ebay` | Live eBay market matrix (year × mint grid) |
 | `GET` | `/api/metals` | Get spot prices for multiple metals |
 | `GET` | `/api/metals/:metal` | Get a single metal's spot price |
-| `POST` | `/api/clear-cache` | Flush all caches (eBay + PCGS + market) |
-| `GET` | `/api/health` | Health check + config status |
+| `GET` | `/api/image-proxy` | Proxy coin images from allowlisted hosts (Numista) |
+
+### Terapeak Data Management
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/api/terapeak/import` | Upload a Terapeak CSV (multipart) 🔒 |
+| `POST` | `/api/terapeak/import-text` | Import CSV as pasted text 🔒 |
+| `GET` | `/api/terapeak/datasets` | List all imported datasets |
+| `GET` | `/api/terapeak/lookup` | Look up sold comps by search term |
+| `DELETE` | `/api/terapeak/datasets/:key` | Delete a specific dataset 🔒 |
+| `DELETE` | `/api/terapeak/datasets` | Clear all Terapeak data 🔒 |
+| `POST` | `/api/terapeak/purge-stale-csvs` | Delete CSV files older than N days 🔒 |
+
+### Terapeak Quota
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/terapeak/quota` | Get current daily quota status |
+| `POST` | `/api/terapeak/quota/record` | Record Terapeak queries 🔒 |
+| `POST` | `/api/terapeak/quota/set-used` | Set the used count 🔒 |
+| `POST` | `/api/terapeak/quota/reset` | Reset today's counter to 0 🔒 |
+| `POST` | `/api/terapeak/quota/set-limit` | Change the daily limit 🔒 |
+
+### Admin
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/api/clear-cache` | Flush all caches (eBay + PCGS + market + Numista + metals) 🔒 |
+| `GET` | `/api/health` | Health check + uptime |
+
+🔒 = requires `ADMIN_API_KEY` via `x-api-key` header or `apiKey` query param.
 
 ### Live eBay Market Tracker
 
@@ -217,17 +269,36 @@ npx jest __tests__/marketAggregator.test.js        # market matrix aggregator
 npx jest __tests__/marketRoute.test.js             # market route integration
 ```
 
-Runs **Jest** across 7 test suites (247 tests):
+Runs **Jest** across 26 test suites:
 
 | Suite | What it covers |
 |---|---|
 | `metalsSpotPrice.test.js` | Spot price service: TTL cache, round-robin rotation, fallback, error propagation, concurrency dedup |
 | `halfDollarSeries.test.js` | Half Dollar design resolver: all 8 eras, overrides (Bicentennial, Semiquincentennial), composition |
-| `coinSearch.relevance.test.js` | **Denomination relevance**: parseDescription extracts correct denomination/series, buildKeywords preserves it, scoreMatch awards series-match, no cross-denomination contamination |
-| `coinSearch.ebayKeywords.test.js` | **eBay keyword quality**: series fallback, weight injection, grade/designation pass-through, Semiquincentennial handling, positive/negative token assertions per denomination |
-| `coinSearch.fieldValidation.test.js` | **Field shapes**: required fields present & well-typed for parseDescription, buildKeywords, resolveCoinVariant; regression guards for past bugs |
-| `marketAggregator.test.js` | **Market matrix**: extractYear, extractMint, matchesGrade helpers; buildMarketMatrix median/BIN/key-date/grade-filter logic; fetchMarketMatrix caching & error resilience |
-| `marketRoute.test.js` | **Route integration**: 400 on missing series, 200 with correct response shape, parameter pass-through, 500 error handling |
+| `coinSearch.relevance.test.js` | Denomination relevance: parseDescription, buildKeywords, scoreMatch, no cross-denomination contamination |
+| `coinSearch.ebayKeywords.test.js` | eBay keyword quality: series fallback, weight injection, grade/designation pass-through |
+| `coinSearch.fieldValidation.test.js` | Field shapes: required fields present & well-typed; regression guards |
+| `marketAggregator.test.js` | Market matrix: extractYear/Mint/Grade helpers, median/BIN/key-date logic, caching |
+| `marketRoute.test.js` | Route integration: 400/200/500 response shapes, parameter pass-through |
+| `applyFilters.test.js` | Deny-list filtering, denomination detection, series conflict checking |
+| `applyFiltersRegression.test.js` | Regression tests for filter edge cases |
+| `cache.test.js` | TTLCache: get/set/eviction, JSON persistence, TTL expiry |
+| `computeValuation.test.js` | FMV computation: weighting, outlier removal, confidence scoring |
+| `constants.test.js` | Zodiac cycle, Perth Lunar series helpers |
+| `gradeHandling.test.js` | Grade parsing, normalization, comparison logic |
+| `keyDateCoverage.test.js` | Key date coverage across all series |
+| `keyDates.test.js` | Key date / semi-key detection |
+| `meltValue.test.js` | Melt value calculation for silver/gold coins |
+| `mintSetFilters.test.js` | Proof/mint set filtering logic |
+| `numistaService.test.js` | Numista API integration: search, type details, mintages, rarity |
+| `pcgsBullion.test.js` | PCGS bullion coin handling |
+| `pricingBatchRoute.test.js` | Batch pricing endpoint integration |
+| `responseValidator.test.js` | Response schema validation, numeric sanity, FMV reasonability |
+| `rollSearch.test.js` | Roll search keyword generation |
+| `seriesIntegrity.test.js` | Series data integrity across reference tables |
+| `stats.test.js` | Statistical functions: median, MAD, weighted median |
+| `terapeakFuzzyMatch.test.js` | Terapeak fuzzy comp matching |
+| `terapeakQuotaService.test.js` | Terapeak daily quota tracking, reset, threshold warnings |
 
 Test helpers live in `__tests__/helpers/coinTestConstants.js` (shared token lists, normalization, compound-word-aware `containsNone`).
 
@@ -244,12 +315,22 @@ src/
     barPriceRoute.js               POST /api/bar-price — bullion bar pricing
     metalsRoute.js                 GET /api/metals — spot price endpoints
     coinVariantRoute.js            GET /api/coin-variant — design series resolver
+    marketRoute.js                 GET /api/market/ebay — year×mint market matrix
+    coinHistoryRoute.js            GET /api/coin-history — sold-price time-series
+    imageProxyRoute.js             GET /api/image-proxy — proxied coin images
+    pricingBatchRoute.js           POST /api/pricing-batch — batch coin pricing
+    terapeakRoute.js               /api/terapeak/* — Terapeak data & quota management
   services/
     pcgsService.js                 PCGS CoinFacts API integration + parser
     ebayService.js                 eBay sold comps (3-tier API cascade)
     valuationService.js            FMV computation + buy/sell decisions
     metalsSpotPrice.js             Multi-provider spot price with round-robin
     MetalsSpotPriceError.js        Custom error class for metals failures
+    metalsHistoryService.js        Daily spot price history snapshots
+    marketAggregator.js            Year×mint market matrix builder + caching
+    numistaService.js              Numista API — search, mintages, rarity
+    terapeakService.js             Terapeak CSV import, lookup, eviction
+    terapeakQuotaService.js        Daily Terapeak query quota tracker
   data/
     halfDollarSeries.js            Half Dollar design eras + year-based resolver
     pcgsNumbers.js                 PCGS coin number lookup table (10 US series)
@@ -260,15 +341,15 @@ src/
   utils/
     cache.js                       TTLCache with optional JSON file persistence
     stats.js                       Statistical functions (median, MAD, weighted median)
+    coinMetalProfile.js            Metal detection for bullion/silver/gold coins
+    filters.js                     Deny-list filtering, denomination & series checks
+    responseValidator.js           /api/price response schema & sanity validation
 cache/
   ebay_cache.json                  Persisted eBay comp cache (1-hour TTL)
   pcgs_cache.json                  Persisted PCGS data cache (24-hour TTL)
-__tests__/
-  coinSearch.relevance.test.js     Denomination → eBay keyword correctness
-  coinSearch.ebayKeywords.test.js  eBay keyword building & token checks
-  coinSearch.fieldValidation.test.js  Field shape & regression guards
-  halfDollarSeries.test.js         Half Dollar design resolver
-  metalsSpotPrice.test.js          Spot price service
+data/
+  terapeak/                        Drop Terapeak CSV exports here for auto-import
+__tests__/                         26 Jest test suites (see Tests section)
   helpers/
     coinTestConstants.js           Shared token lists & test utilities
 ```

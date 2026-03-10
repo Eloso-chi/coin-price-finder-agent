@@ -7,3 +7,6 @@ cache/
 # Azure
 iisnode/
 *.publishsettings
+
+# Database
+*.db
