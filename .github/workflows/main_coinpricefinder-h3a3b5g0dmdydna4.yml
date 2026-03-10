@@ -14,23 +14,20 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
 
     - name: Set up Node.js version
-      uses: actions/setup-node@v1
+      uses: actions/setup-node@v4
       with:
         node-version: '22.x'
+        cache: 'npm'
     
-    - name: npm install, build, and test
-      run: |
-        npm install
-        npm run build --if-present
-        npm run test --if-present
+    - name: Install production dependencies
+      run: npm ci --omit=dev
 
     - name: 'Deploy to Azure Web App'
-      uses: azure/webapps-deploy@v2
+      uses: azure/webapps-deploy@v3
       with: 
         app-name: 'coinpricefinder-h3a3b5g0dmdydna4'
-        slot-name: 'production'
-        publish-profile: ${{ secrets.AzureAppService_PublishProfile_17dbc6a7ce094294ae5472150aac92c7 }}
+        publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
         package: .
