@@ -133,6 +133,46 @@ const CoinAuth = (() => {
     return Object.keys(_loadAccounts());
   }
 
+  /**
+   * Change password for the current user.
+   * Generates a new salt + key, re-encrypts the verifier, and returns the new
+   * key so the caller can re-encrypt coin inventory.
+   * @param {string} currentPassword
+   * @param {string} newPassword
+   * @returns {Promise<{newKey: CryptoKey}>}
+   * @throws if not logged in, current password wrong, or new password too short
+   */
+  async function changePassword(currentPassword, newPassword) {
+    if (!_session) throw new Error('Not logged in');
+    if (!newPassword || newPassword.length < 6) throw new Error('New password must be at least 6 characters');
+
+    const username = _session.username;
+    const accounts = _loadAccounts();
+    const acct = accounts[username];
+    if (!acct) throw new Error('Account not found');
+
+    // Verify current password
+    const oldSalt = CoinCrypto.base64ToBuf(acct.salt);
+    const oldKey = await CoinCrypto.deriveKey(currentPassword, oldSalt);
+    const valid = await CoinCrypto.checkVerifier(oldKey, acct.verifier);
+    if (!valid) throw new Error('Current password is incorrect');
+
+    // Derive new key with fresh salt
+    const newSalt = CoinCrypto.randomBytes(CoinCrypto.SALT_BYTES);
+    const newKey = await CoinCrypto.deriveKey(newPassword, newSalt);
+    const newVerifier = await CoinCrypto.createVerifier(newKey);
+
+    // Update account
+    acct.salt = CoinCrypto.bufToBase64(newSalt);
+    acct.verifier = newVerifier;
+    _saveAccounts(accounts);
+
+    // Update session
+    _session.key = newKey;
+
+    return { newKey };
+  }
+
   return {
     signup,
     login,
@@ -141,5 +181,6 @@ const CoinAuth = (() => {
     pendingReauth,
     deleteAccount,
     listAccounts,
+    changePassword,
   };
 })();

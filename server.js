@@ -73,6 +73,7 @@ const marketRoute      = require('./src/routes/marketRoute');
 const terapeakRoute    = require('./src/routes/terapeakRoute');
 const pricingBatchRoute = require('./src/routes/pricingBatchRoute');
 const imageProxyRoute   = require('./src/routes/imageProxyRoute');
+const coinHistoryRoute  = require('./src/routes/coinHistoryRoute');
 app.use('/api/price', apiLimiter, priceRoute);
 app.use('/api/metals', metalsRoute);
 app.use('/api/bar-price', apiLimiter, barPriceRoute);
@@ -81,6 +82,7 @@ app.use('/api/market/ebay', apiLimiter, marketRoute);
 app.use('/api/terapeak', terapeakRoute);
 app.use('/api/pricing-batch', apiLimiter, pricingBatchRoute);
 app.use('/api/image-proxy', imageProxyRoute);
+app.use('/api/coin-history', coinHistoryRoute);
 
 // Clear all caches (admin-only)
 app.post('/api/clear-cache', requireAdmin, (_req, res) => {
@@ -153,13 +155,21 @@ app.listen(PORT, '0.0.0.0', () => {
 
   // ── Background metals spot-price refresh (every 30 min) ──────────
   const metals = require('./src/services/metalsSpotPrice');
+  const metalsHistory = require('./src/services/metalsHistoryService');
   const METALS_POLL_MS = parseInt(process.env.METALS_POLL_MS, 10) || 30 * 60 * 1000; // 30 min
+
+  // Evict metals history entries older than 400 days on startup
+  metalsHistory.evictOld(400);
 
   async function refreshMetalsPrices() {
     try {
       const result = await metals.getMetalsSpotPrices(['XAU', 'XAG', 'XPT', 'XPD']);
       const sources = [...new Set(Object.values(result).map(r => r.source))];
       console.log(`  [metals] Background refresh ok — sources: ${sources.join(', ')}`);
+      // Record daily history snapshot for charting
+      for (const [sym, data] of Object.entries(result)) {
+        if (data.price) metalsHistory.recordDaily(sym, data.price, data.timestamp);
+      }
     } catch (err) {
       console.warn(`  [metals] Background refresh failed: ${err.message}`);
     }

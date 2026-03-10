@@ -693,6 +693,8 @@ function purgeStaleCSVs(folderPath, maxDays = 180) {
 function normalizeSearchKey(term) {
   return (term || '')
     .toLowerCase()
+    // Normalize zero→O in year-mint tokens: "1883-0" → "1883-O" (common typo)
+    .replace(/\b(\d{4})-0\b/g, '$1-O')
     // Split year-mint tokens: "1956-D" → "1956 d", "1878-CC" → "1878 cc"
     .replace(/\b(\d{4})-(cc|d|s|o|w|p)\b/gi, '$1 $2')
     .replace(/[^a-z0-9\s\-]/g, '')

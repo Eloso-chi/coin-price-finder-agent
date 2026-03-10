@@ -821,6 +821,8 @@
     .auth-dialog .auth-error { color: var(--red); font-size: 0.8rem; margin-top: 8px; display: none; }
     .auth-dialog .auth-toggle { font-size: 0.78rem; color: var(--text-muted); margin-top: 12px; text-align: center; }
     .auth-dialog .auth-toggle a { color: var(--accent); cursor: pointer; text-decoration: underline; }
+    .btn-sm { padding: 5px 10px; font-size: 0.78rem; border-radius: var(--radius); border: 1px solid var(--border); background: var(--card); color: var(--text-secondary); cursor: pointer; transition: border-color 0.15s, color 0.15s; }
+    .btn-sm:hover { border-color: var(--accent); color: var(--accent); }
     .add-coin-btn {
       display: inline-flex; align-items: center; gap: 6px; margin-top: 10px;
       padding: 6px 14px; border-radius: var(--radius); border: 1px solid var(--green);
@@ -908,6 +910,7 @@
     <button class="tab-btn" role="tab" id="tab-tracker" aria-controls="panel-tracker" aria-selected="false">Live eBay Tracker</button>
     <button class="tab-btn" role="tab" id="tab-terapeak" aria-controls="panel-terapeak" aria-selected="false">Sold Data</button>
     <button class="tab-btn" role="tab" id="tab-mycoins" aria-controls="panel-mycoins" aria-selected="false">My Coins</button>
+    <button class="tab-btn" role="tab" id="tab-history" aria-controls="panel-history" aria-selected="false">Price History</button>
     <button class="tab-btn" role="tab" id="tab-about" aria-controls="panel-about" aria-selected="false">About (read me)</button>
   </nav>
 
@@ -1560,6 +1563,15 @@
       <p style="color:var(--text-muted);font-size:0.82rem;margin:0 0 12px">
         Your collection is encrypted and stored locally in your browser. The server never sees your inventory.
       </p>
+      <div id="mycoins-account-bar" style="display:none;margin-bottom:14px;padding:10px 12px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);font-size:0.82rem">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <button id="mycoins-export" class="btn-sm" title="Download your collection as a backup file">&#x1F4E5; Export Backup</button>
+          <button id="mycoins-import" class="btn-sm" title="Restore coins from a backup file">&#x1F4E4; Import Backup</button>
+          <button id="mycoins-changepw" class="btn-sm" title="Change your password">&#x1F512; Change Password</button>
+          <input type="file" id="mycoins-import-file" accept=".json" style="display:none">
+        </div>
+        <div id="mycoins-account-status" style="margin-top:6px;font-size:0.8rem;color:var(--text-muted);display:none"></div>
+      </div>
       <div id="mycoins-content">
         <div class="mycoins-empty"><p>Log in to view your coin collection.</p></div>
       </div>
@@ -1567,7 +1579,57 @@
   </section>
 
   <!-- ══════════════════════════════════════════════════════ -->
-  <!-- TAB 6 — About This Site                               -->
+  <!-- TAB — Price History Chart                              -->
+  <!-- ══════════════════════════════════════════════════════ -->
+  <section id="panel-history" class="tab-panel" role="tabpanel" aria-labelledby="tab-history" aria-hidden="true">
+    <div class="card">
+      <h2>&#x1F4C8; Price History</h2>
+
+      <!-- Empty state: shown when no coin is selected -->
+      <div id="history-empty" style="color:var(--text-muted);font-size:0.9rem;padding:32px 0;text-align:center">
+        Search for a coin on the <strong>Price Discovery</strong> tab to see its price history here.
+        <br><span style="font-size:0.8rem">Or enter a coin name below and press Show Chart.</span>
+      </div>
+
+      <!-- Search row -->
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:12px">
+        <div class="form-group" style="flex:1;min-width:200px;margin-bottom:0">
+          <label for="history-query">Coin / Bullion</label>
+          <input type="text" id="history-query" placeholder='e.g. &quot;1881-S Morgan Dollar&quot; or &quot;American Silver Eagle&quot;' autocomplete="off">
+        </div>
+        <div class="form-group" style="width:120px;margin-bottom:0">
+          <label for="history-range">Range</label>
+          <select id="history-range">
+            <option value="90">90 days</option>
+            <option value="180">180 days</option>
+            <option value="365">1 year</option>
+          </select>
+        </div>
+        <button class="btn-primary" id="history-btn" style="height:38px">Show Chart</button>
+      </div>
+
+      <!-- Coin display name + range label -->
+      <div id="history-coin-header" style="display:none;margin-bottom:6px">
+        <strong id="history-coin-name" style="font-size:1rem;color:var(--text)"></strong>
+        <span id="history-range-label" style="font-size:0.82rem;color:var(--text-muted);margin-left:8px"></span>
+      </div>
+
+      <!-- Status & loading -->
+      <div id="history-status" style="color:var(--text-muted);font-size:0.85rem;margin-bottom:8px"></div>
+
+      <!-- Metal overlay explanation note -->
+      <div id="history-metal-note" style="display:none;font-size:0.8rem;color:var(--text-muted);background:var(--surface);border:1px solid var(--border-subtle);border-radius:var(--radius);padding:10px 14px;margin-bottom:12px;line-height:1.6">
+      </div>
+
+      <!-- Chart -->
+      <div id="history-chart-wrap" style="position:relative;width:100%;height:360px;display:none">
+        <canvas id="history-canvas" style="width:100%;height:100%"></canvas>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════ -->
+  <!-- TAB — About This Site                                 -->
   <!-- ══════════════════════════════════════════════════════ -->
   <section id="panel-about" class="tab-panel" role="tabpanel" aria-labelledby="tab-about" aria-hidden="true">
     <div class="card">
@@ -1664,6 +1726,31 @@
   </section>
 
   <!-- ── Auth Dialog (client-only, never contacts server) ── -->
+  <dialog class="auth-dialog" id="changepw-dialog">
+    <h2>Change Password</h2>
+    <div class="field">
+      <label for="changepw-current">Current Password</label>
+      <input type="password" id="changepw-current" autocomplete="current-password" placeholder="Enter current password">
+    </div>
+    <div class="field">
+      <label for="changepw-new">New Password</label>
+      <input type="password" id="changepw-new" autocomplete="new-password" placeholder="At least 6 characters">
+    </div>
+    <div class="field">
+      <label for="changepw-confirm">Confirm New Password</label>
+      <input type="password" id="changepw-confirm" autocomplete="new-password" placeholder="Re-enter new password">
+    </div>
+    <div class="auth-error" id="changepw-error"></div>
+    <div id="changepw-success" style="color:var(--green);font-size:0.8rem;margin-top:8px;display:none"></div>
+    <div class="auth-actions">
+      <button class="btn-primary" id="changepw-submit">Change Password</button>
+      <button class="btn-secondary" id="changepw-cancel">Cancel</button>
+    </div>
+    <p style="font-size:0.75rem;color:var(--text-muted);margin-top:12px">
+      ⚠️ We recommend exporting a backup <strong>before</strong> changing your password.
+    </p>
+  </dialog>
+
   <dialog class="auth-dialog" id="auth-dialog">
     <h2 id="auth-dialog-title">Log In</h2>
     <div class="field">
@@ -1736,6 +1823,15 @@
         // Auto-load My Coins when switching to that tab
         if (tab.id === 'tab-mycoins' && typeof MyCoins !== 'undefined') {
           MyCoins.render();
+        }
+        // Auto-load Price History when switching to that tab with a linked coin
+        if (tab.id === 'tab-history' && typeof CoinHistoryLink !== 'undefined'
+            && CoinHistoryLink._pending && CoinHistoryLink.query) {
+          CoinHistoryLink._pending = false;
+          const hqEl = document.getElementById('history-query');
+          if (hqEl) hqEl.value = CoinHistoryLink.query;
+          const hBtn = document.getElementById('history-btn');
+          if (hBtn) hBtn.click();
         }
       });
       // Keyboard: arrow keys to navigate tabs
@@ -1948,7 +2044,9 @@
     buildQuery() {
       const name  = this.els.coinName.value.trim();
       const year  = this.els.coinYear.value.trim();
-      const mint  = this.els.coinMint.value.trim().toUpperCase();
+      const mintRaw = this.els.coinMint.value.trim().toUpperCase();
+      // Auto-correct zero → letter O (common typo for New Orleans mint mark)
+      const mint  = mintRaw === '0' ? 'O' : mintRaw;
       const grade = this.els.grade.value.trim();
       const isSet = this._isSetName(name);
 
@@ -2042,7 +2140,7 @@
         coinData: {
           name:           this.els.coinName.value.trim(),
           year:           parseInt(this.els.coinYear.value, 10),
-          mintMark:       this.els.coinMint.value.trim().toUpperCase() || null,
+          mintMark:       (this.els.coinMint.value.trim().toUpperCase() === '0' ? 'O' : this.els.coinMint.value.trim().toUpperCase()) || null,
           grade:          this.els.grade.value.trim() || null,
           weight:         parseFloat(this.els.coinWeight.value) || null,
           setType:        this._isSetName(this.els.coinName.value.trim()) ? this.els.setType.value : null,
@@ -2054,6 +2152,22 @@
 
   // Boot CoinForm
   CoinForm.init();
+
+  /* ═══════════════════════════════════════════════════════════
+   *  CROSS-TAB COIN LINKAGE
+   *  Stores the current coin query from Price Discovery so the
+   *  History tab can auto-load it without retyping.
+   * ═══════════════════════════════════════════════════════════ */
+  const CoinHistoryLink = {
+    query: null,
+    displayHint: null,
+    _pending: false,
+    setCoin(query, displayHint) {
+      this.query = query;
+      this.displayHint = displayHint || query;
+      this._pending = true;
+    }
+  };
 
   /* ═══════════════════════════════════════════════════════════
    *  Quick-Search Autocomplete Suggestions
@@ -2818,8 +2932,19 @@
         || d.identification?.parsed?.series
         || '';
       const trackerWeight = d.query?.weight || null;
+      const trackerGrade = d.identification?.parsed?.grade
+        || d.pcgs?.grade
+        || d.coinData?.grade
+        || null;
       if (trackerSeries && typeof EbayTracker !== 'undefined') {
-        EbayTracker.setSeries(trackerSeries, trackerWeight);
+        EbayTracker.setSeries(trackerSeries, trackerWeight, trackerGrade);
+      }
+      // ── Also pass query to Price History tab for cross-tab linkage ──
+      // Use the full specific query (e.g. "1921 Morgan Dollar P MS-65")
+      // so the History chart shows only that coin, not the whole series.
+      const historyQuery = d.query?.input || trackerSeries;
+      if (historyQuery) {
+        CoinHistoryLink.setCoin(historyQuery, historyQuery);
       }
     } catch (_) { /* non-critical */ }
 
@@ -3710,11 +3835,20 @@
      * Clears any previous results and marks for auto-load on tab switch.
      * @param {string} series
      * @param {number|null} weight — for bullion coins (0.5, 0.25, etc.)
+     * @param {string|null} grade — e.g. "MS63", "AU58", "PR69"
      */
-    setSeries(series, weight) {
+    setSeries(series, weight, grade) {
       if (!series || !this.els || !this.els.series) return;
       this.els.series.value = series;
       this._weight = (weight && weight !== 1) ? weight : null;
+      // Set the grade dropdown if a grade was detected from Price Discovery
+      if (grade && this.els.grade) {
+        const normalized = grade.replace(/[\s-]/g, '').toUpperCase(); // "MS-63" → "MS63"
+        const opt = Array.from(this.els.grade.options).find(o => o.value === normalized);
+        if (opt) {
+          this.els.grade.value = normalized;
+        }
+      }
       // Clear stale results so the user sees fresh data when they switch tabs
       this._clearResults();
       // If the tracker tab is already visible, load immediately; otherwise mark pending
@@ -4446,6 +4580,466 @@
     }
 
     updateBadge();
+
+    /* ── Account actions: Export / Import / Change Password ── */
+    const accountBar     = document.getElementById('mycoins-account-bar');
+    const accountStatus  = document.getElementById('mycoins-account-status');
+    const exportBtn      = document.getElementById('mycoins-export');
+    const importBtn      = document.getElementById('mycoins-import');
+    const importFile     = document.getElementById('mycoins-import-file');
+    const changePwBtn    = document.getElementById('mycoins-changepw');
+    const cpDialog       = document.getElementById('changepw-dialog');
+    const cpCurrent      = document.getElementById('changepw-current');
+    const cpNew          = document.getElementById('changepw-new');
+    const cpConfirm      = document.getElementById('changepw-confirm');
+    const cpSubmit       = document.getElementById('changepw-submit');
+    const cpCancel       = document.getElementById('changepw-cancel');
+    const cpError        = document.getElementById('changepw-error');
+    const cpSuccess      = document.getElementById('changepw-success');
+
+    function showAccountBar() {
+      accountBar.style.display = CoinAuth.currentUser() ? 'block' : 'none';
+    }
+
+    function accountMsg(msg, isError) {
+      accountStatus.textContent = msg;
+      accountStatus.style.color = isError ? 'var(--red, #e74c3c)' : 'var(--green, #27ae60)';
+      accountStatus.style.display = 'block';
+      setTimeout(() => { accountStatus.style.display = 'none'; }, 6000);
+    }
+
+    // Show/hide account bar when badge updates
+    const _origUpdateBadge = updateBadge;
+    updateBadge = function() {
+      _origUpdateBadge();
+      showAccountBar();
+    };
+    showAccountBar();
+
+    // Export
+    exportBtn.addEventListener('click', async () => {
+      const user = CoinAuth.currentUser();
+      if (!user) return;
+      try {
+        const json = await CoinStorage.exportJSON(user.userId, user.key);
+        const blob = new Blob([json], { type: 'application/json' });
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        const date = new Date().toISOString().slice(0, 10);
+        a.href = url;
+        a.download = 'coin-collection-backup-' + date + '.json';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        accountMsg('Backup downloaded successfully.', false);
+      } catch (err) {
+        accountMsg('Export failed: ' + err.message, true);
+      }
+    });
+
+    // Import
+    importBtn.addEventListener('click', () => importFile.click());
+    importFile.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      importFile.value = '';
+      const user = CoinAuth.currentUser();
+      if (!user) return;
+      try {
+        const text = await file.text();
+        const result = await CoinStorage.importJSON(user.userId, user.key, text);
+        accountMsg('Imported ' + result.imported + ' coins, skipped ' + result.skipped + ' duplicates.', false);
+        if (typeof MyCoins !== 'undefined') MyCoins.render();
+      } catch (err) {
+        accountMsg('Import failed: ' + err.message, true);
+      }
+    });
+
+    // Change Password dialog
+    changePwBtn.addEventListener('click', () => {
+      cpCurrent.value = '';
+      cpNew.value = '';
+      cpConfirm.value = '';
+      cpError.style.display = 'none';
+      cpSuccess.style.display = 'none';
+      cpSubmit.disabled = false;
+      cpDialog.showModal();
+      cpCurrent.focus();
+    });
+
+    cpCancel.addEventListener('click', () => cpDialog.close());
+
+    cpSubmit.addEventListener('click', async () => {
+      cpError.style.display = 'none';
+      cpSuccess.style.display = 'none';
+      const cur = cpCurrent.value;
+      const np  = cpNew.value;
+      const nc  = cpConfirm.value;
+
+      if (!cur || !np) {
+        cpError.textContent = 'All fields are required.';
+        cpError.style.display = 'block';
+        return;
+      }
+      if (np.length < 6) {
+        cpError.textContent = 'New password must be at least 6 characters.';
+        cpError.style.display = 'block';
+        return;
+      }
+      if (np !== nc) {
+        cpError.textContent = 'New passwords do not match.';
+        cpError.style.display = 'block';
+        return;
+      }
+
+      cpSubmit.disabled = true;
+      cpSubmit.textContent = 'Encrypting…';
+      const user = CoinAuth.currentUser();
+      try {
+        const oldKey = user.key;
+        const { newKey } = await CoinAuth.changePassword(cur, np);
+        await CoinStorage.reEncryptAll(user.userId, oldKey, newKey);
+        cpSuccess.textContent = 'Password changed and coins re-encrypted successfully.';
+        cpSuccess.style.display = 'block';
+        setTimeout(() => cpDialog.close(), 2000);
+      } catch (err) {
+        cpError.textContent = err.message;
+        cpError.style.display = 'block';
+      } finally {
+        cpSubmit.disabled = false;
+        cpSubmit.textContent = 'Change Password';
+      }
+    });
+
+    cpConfirm.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') cpSubmit.click();
+    });
+
+  })();
+  </script>
+
+  <script>
+  /* ═══════════════════════════════════════════════════════════
+   *  PRICE HISTORY CHART (Canvas-based, no external deps)
+   *  Linked to Price Discovery via CoinHistoryLink.
+   * ═══════════════════════════════════════════════════════════ */
+  (function initHistoryChart() {
+    const queryEl    = document.getElementById('history-query');
+    const rangeEl    = document.getElementById('history-range');
+    const btn        = document.getElementById('history-btn');
+    const status     = document.getElementById('history-status');
+    const wrap       = document.getElementById('history-chart-wrap');
+    const canvas     = document.getElementById('history-canvas');
+    const emptyEl    = document.getElementById('history-empty');
+    const coinHeader = document.getElementById('history-coin-header');
+    const coinName   = document.getElementById('history-coin-name');
+    const rangeLabel = document.getElementById('history-range-label');
+    const metalNote  = document.getElementById('history-metal-note');
+    if (!queryEl || !canvas) return;
+
+    btn.addEventListener('click', fetchAndRender);
+    queryEl.addEventListener('keydown', e => { if (e.key === 'Enter') fetchAndRender(); });
+    // Re-fetch when range changes while a query is active
+    rangeEl.addEventListener('change', () => { if (queryEl.value.trim()) fetchAndRender(); });
+    // Hide empty state as soon as user starts typing
+    queryEl.addEventListener('input', () => {
+      if (queryEl.value.trim()) emptyEl.style.display = 'none';
+    });
+
+    const RANGE_LABELS = { '90': 'Last 90 days', '180': 'Last 180 days', '365': 'Last year' };
+
+    async function fetchAndRender() {
+      const query = queryEl.value.trim();
+      if (!query) { status.textContent = 'Enter a coin or bullion name.'; return; }
+      emptyEl.style.display = 'none';
+      coinHeader.style.display = 'none';
+      metalNote.style.display = 'none';
+      wrap.style.display = 'none';
+      status.innerHTML = '<div class="spinner" style="display:inline-block;width:14px;height:14px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle;margin-right:8px"></div> Loading price history\u2026';
+      btn.disabled = true;
+      try {
+        const url = '/api/coin-history?query=' + encodeURIComponent(query) + '&rangeDays=' + rangeEl.value;
+        const res = await fetch(url);
+        const data = await res.json();
+        if (!res.ok) {
+          status.textContent = data.error || 'We couldn\u2019t load history for this coin.';
+          return;
+        }
+        if (!data.prices || data.prices.length === 0) {
+          status.textContent = 'We don\u2019t have enough sales data to chart this coin over the selected period.';
+          return;
+        }
+
+        // Update header: display name + range
+        coinName.textContent = data.displayName;
+        rangeLabel.textContent = '\u2014 ' + (RANGE_LABELS[rangeEl.value] || rangeEl.value + ' days');
+        coinHeader.style.display = 'block';
+
+        // Status summary
+        let statusText = data.prices.length + ' data point' + (data.prices.length !== 1 ? 's' : '')
+          + ', ' + data.totalComps + ' comp' + (data.totalComps !== 1 ? 's' : '');
+        if (data.gradeFiltered) {
+          statusText += ' (grade-filtered)';
+        }
+        status.textContent = statusText;
+
+        // Metal overlay explanation note
+        if (data.metalOverlay && data.metalOverlay.prices && data.metalOverlay.prices.length > 0) {
+          const mName = data.metalOverlay.metal.charAt(0).toUpperCase() + data.metalOverlay.metal.slice(1);
+          metalNote.innerHTML = '\uD83E\uDE99 <strong>' + mName + ' spot overlay</strong> \u2014 '
+            + 'The dashed gold line shows the underlying ' + data.metalOverlay.metal
+            + ' spot price over the same period so you can compare metal-driven vs. numismatic value changes.';
+          metalNote.style.display = 'block';
+        } else {
+          metalNote.style.display = 'none';
+        }
+
+        wrap.style.display = 'block';
+        drawChart(canvas, data.displayName, data.prices, data.metalOverlay);
+      } catch (err) {
+        status.textContent = 'We couldn\u2019t load history for this coin.';
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    function drawChart(cvs, displayName, prices, metalOverlay) {
+      const dpr = window.devicePixelRatio || 1;
+      const rect = cvs.parentElement.getBoundingClientRect();
+      cvs.width = rect.width * dpr;
+      cvs.height = rect.height * dpr;
+      const W = rect.width, H = rect.height;
+      const ctx = cvs.getContext('2d');
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, W, H);
+
+      const hasOverlay = metalOverlay && metalOverlay.prices && metalOverlay.prices.length > 0;
+      const PAD_L = 68, PAD_R = hasOverlay ? 68 : 20, PAD_T = 36, PAD_B = 50;
+      const cw = W - PAD_L - PAD_R, ch = H - PAD_T - PAD_B;
+
+      // ── Coin series (left Y axis, blue) ──
+      const vals = prices.map(p => p[1]);
+      let minV = Math.min(...vals), maxV = Math.max(...vals);
+      if (minV === maxV) { minV -= 10; maxV += 10; }
+      const padV = (maxV - minV) * 0.08;
+      minV -= padV; maxV += padV;
+
+      // Parse all dates to establish shared X axis
+      const dates = prices.map(p => new Date(p[0] + 'T00:00:00'));
+      let allDates = dates.map(d => d.getTime());
+      let metalDates = [], metalVals = [];
+      let minM, maxM;
+
+      if (hasOverlay) {
+        metalDates = metalOverlay.prices.map(p => new Date(p[0] + 'T00:00:00'));
+        metalVals  = metalOverlay.prices.map(p => p[1]);
+        // If only 1-2 metal data points, extend as a flat reference line
+        // across the full coin date range so the overlay is always visible
+        if (metalDates.length < 3 && dates.length >= 2) {
+          const flatPrice = metalVals[metalVals.length - 1];
+          metalDates = [dates[0], dates[dates.length - 1]];
+          metalVals  = [flatPrice, flatPrice];
+        }
+        allDates = allDates.concat(metalDates.map(d => d.getTime()));
+        minM = Math.min(...metalVals); maxM = Math.max(...metalVals);
+        if (minM === maxM) { minM -= 5; maxM += 5; }
+        const padM = (maxM - minM) * 0.08;
+        minM -= padM; maxM += padM;
+      }
+
+      const minT = Math.min(...allDates), maxT = Math.max(...allDates);
+      const rangeT = maxT - minT || 1;
+
+      function xPos(d) { return PAD_L + ((d.getTime() - minT) / rangeT) * cw; }
+      function yPos(v) { return PAD_T + (1 - (v - minV) / (maxV - minV)) * ch; }
+      function yPosM(v) { return PAD_T + (1 - (v - minM) / (maxM - minM)) * ch; }
+
+      // ── Grid + left Y labels (coin prices) ──
+      ctx.strokeStyle = 'rgba(48,54,61,0.6)';
+      ctx.lineWidth = 1;
+      ctx.fillStyle = '#8b949e';
+      ctx.font = '11px -apple-system, sans-serif';
+      ctx.textAlign = 'right';
+      const yTicks = 5;
+      for (let i = 0; i <= yTicks; i++) {
+        const v = minV + (maxV - minV) * (i / yTicks);
+        const y = yPos(v);
+        ctx.beginPath(); ctx.moveTo(PAD_L, y); ctx.lineTo(W - PAD_R, y); ctx.stroke();
+        ctx.fillText('$' + v.toFixed(v >= 100 ? 0 : 2), PAD_L - 6, y + 4);
+      }
+
+      // ── Right Y labels (metal spot) ──
+      if (hasOverlay) {
+        ctx.fillStyle = '#d29922';
+        ctx.textAlign = 'left';
+        for (let i = 0; i <= yTicks; i++) {
+          const v = minM + (maxM - minM) * (i / yTicks);
+          const y = yPosM(v);
+          ctx.fillText('$' + v.toFixed(v >= 100 ? 0 : 2), W - PAD_R + 6, y + 4);
+        }
+      }
+
+      // ── X labels ──
+      ctx.fillStyle = '#8b949e';
+      ctx.textAlign = 'center';
+      const xLabelCount = Math.min(prices.length, 6);
+      const step = Math.max(1, Math.floor(prices.length / xLabelCount));
+      for (let i = 0; i < prices.length; i += step) {
+        const x = xPos(dates[i]);
+        const lbl = (dates[i].getMonth() + 1) + '/' + dates[i].getDate();
+        ctx.fillText(lbl, x, H - PAD_B + 18);
+        ctx.strokeStyle = 'rgba(48,54,61,0.6)'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(x, PAD_T); ctx.lineTo(x, H - PAD_B); ctx.stroke();
+      }
+
+      // ── Metal overlay area + line (drawn first, behind coin line) ──
+      if (hasOverlay) {
+        // Area fill
+        ctx.beginPath();
+        ctx.moveTo(xPos(metalDates[0]), yPosM(metalVals[0]));
+        for (let i = 1; i < metalVals.length; i++) ctx.lineTo(xPos(metalDates[i]), yPosM(metalVals[i]));
+        ctx.lineTo(xPos(metalDates[metalDates.length - 1]), H - PAD_B);
+        ctx.lineTo(xPos(metalDates[0]), H - PAD_B);
+        ctx.closePath();
+        const mGrad = ctx.createLinearGradient(0, PAD_T, 0, H - PAD_B);
+        mGrad.addColorStop(0, 'rgba(210,153,34,0.15)');
+        mGrad.addColorStop(1, 'rgba(210,153,34,0.02)');
+        ctx.fillStyle = mGrad;
+        ctx.fill();
+
+        // Line
+        ctx.beginPath();
+        ctx.moveTo(xPos(metalDates[0]), yPosM(metalVals[0]));
+        for (let i = 1; i < metalVals.length; i++) ctx.lineTo(xPos(metalDates[i]), yPosM(metalVals[i]));
+        ctx.strokeStyle = '#d29922';
+        ctx.lineWidth = 1.5;
+        ctx.lineJoin = 'round';
+        ctx.setLineDash([4, 3]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      // ── Coin statistics: median, Q1, Q3, IQR outlier thresholds ──
+      const sorted = vals.slice().sort((a, b) => a - b);
+      function percentile(arr, p) {
+        const idx = (arr.length - 1) * p;
+        const lo = Math.floor(idx), hi = Math.ceil(idx);
+        return lo === hi ? arr[lo] : arr[lo] + (arr[hi] - arr[lo]) * (idx - lo);
+      }
+      const median = percentile(sorted, 0.5);
+      const q1     = percentile(sorted, 0.25);
+      const q3     = percentile(sorted, 0.75);
+      const iqr    = q3 - q1;
+      const outlierLo = q1 - 1.5 * iqr;
+      const outlierHi = q3 + 1.5 * iqr;
+
+      // ── IQR band (Q1–Q3 shaded region) ──
+      const bandY1 = yPos(q3), bandY2 = yPos(q1);
+      ctx.fillStyle = 'rgba(88,166,255,0.10)';
+      ctx.fillRect(PAD_L, bandY1, cw, bandY2 - bandY1);
+      // Q1 / Q3 border lines
+      ctx.setLineDash([3, 4]);
+      ctx.strokeStyle = 'rgba(88,166,255,0.30)';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(PAD_L, bandY1); ctx.lineTo(W - PAD_R, bandY1); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(PAD_L, bandY2); ctx.lineTo(W - PAD_R, bandY2); ctx.stroke();
+      ctx.setLineDash([]);
+
+      // ── Median line ──
+      const medY = yPos(median);
+      ctx.setLineDash([6, 3]);
+      ctx.strokeStyle = '#3fb950';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(PAD_L, medY); ctx.lineTo(W - PAD_R, medY); ctx.stroke();
+      ctx.setLineDash([]);
+      // Median label (right side of chart area)
+      ctx.font = '10px -apple-system, sans-serif';
+      ctx.fillStyle = '#3fb950';
+      ctx.textAlign = 'right';
+      ctx.fillText('Median $' + median.toFixed(median >= 100 ? 0 : 2), W - PAD_R - 4, medY - 5);
+
+      // ── Coin series area fill ──
+      ctx.beginPath();
+      ctx.moveTo(xPos(dates[0]), yPos(vals[0]));
+      for (let i = 1; i < prices.length; i++) ctx.lineTo(xPos(dates[i]), yPos(vals[i]));
+      ctx.lineTo(xPos(dates[dates.length - 1]), H - PAD_B);
+      ctx.lineTo(xPos(dates[0]), H - PAD_B);
+      ctx.closePath();
+      const grad = ctx.createLinearGradient(0, PAD_T, 0, H - PAD_B);
+      grad.addColorStop(0, 'rgba(88,166,255,0.25)');
+      grad.addColorStop(1, 'rgba(88,166,255,0.02)');
+      ctx.fillStyle = grad;
+      ctx.fill();
+
+      // ── Coin series line ──
+      ctx.beginPath();
+      ctx.moveTo(xPos(dates[0]), yPos(vals[0]));
+      for (let i = 1; i < prices.length; i++) ctx.lineTo(xPos(dates[i]), yPos(vals[i]));
+      ctx.strokeStyle = '#58a6ff';
+      ctx.lineWidth = 2;
+      ctx.lineJoin = 'round';
+      ctx.stroke();
+
+      // Dots — outliers (outside 1.5×IQR) drawn in red, normal in blue
+      for (let i = 0; i < prices.length; i++) {
+        const v = vals[i];
+        const isOutlier = v < outlierLo || v > outlierHi;
+        const r = prices.length > 60 ? 1.5 : 3;
+        ctx.fillStyle = isOutlier ? '#f85149' : '#58a6ff';
+        ctx.beginPath(); ctx.arc(xPos(dates[i]), yPos(v), isOutlier ? r + 1 : r, 0, Math.PI * 2); ctx.fill();
+        if (isOutlier) {
+          ctx.strokeStyle = 'rgba(248,81,73,0.5)';
+          ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.arc(xPos(dates[i]), yPos(v), r + 3, 0, Math.PI * 2); ctx.stroke();
+        }
+      }
+
+      // ── Legend (top-left, always visible) ──
+      const lx = PAD_L + 8, ly = PAD_T - 26;
+      ctx.font = '11px -apple-system, sans-serif';
+      ctx.textAlign = 'left';
+      let legendX = lx;
+      // Coin line swatch
+      ctx.fillStyle = '#58a6ff';
+      ctx.fillRect(legendX, ly, 14, 3);
+      ctx.fillStyle = '#c9d1d9';
+      const coinLabel = displayName.length > 40 ? displayName.substring(0, 37) + '\u2026' : displayName;
+      ctx.fillText(coinLabel, legendX + 20, ly + 5);
+      legendX += 24 + ctx.measureText(coinLabel).width;
+      // Median swatch
+      ctx.setLineDash([4, 2]);
+      ctx.strokeStyle = '#3fb950'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(legendX, ly + 1.5); ctx.lineTo(legendX + 14, ly + 1.5); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#8b949e';
+      ctx.fillText('Median', legendX + 20, ly + 5);
+      legendX += 20 + ctx.measureText('Median').width + 8;
+      // IQR swatch
+      ctx.fillStyle = 'rgba(88,166,255,0.25)';
+      ctx.fillRect(legendX, ly - 4, 14, 10);
+      ctx.fillStyle = '#8b949e';
+      ctx.fillText('Q1\u2013Q3', legendX + 20, ly + 5);
+      legendX += 20 + ctx.measureText('Q1\u2013Q3').width + 8;
+      // Outlier swatch
+      ctx.fillStyle = '#f85149';
+      ctx.beginPath(); ctx.arc(legendX + 4, ly + 1.5, 3, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#8b949e';
+      ctx.fillText('Outlier', legendX + 14, ly + 5);
+      legendX += 14 + ctx.measureText('Outlier').width + 8;
+      // Metal line swatch (if overlay)
+      if (hasOverlay) {
+        ctx.fillStyle = '#d29922';
+        ctx.fillRect(legendX, ly, 14, 3);
+        ctx.setLineDash([3, 2]);
+        ctx.strokeStyle = '#d29922'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(legendX, ly + 1.5); ctx.lineTo(legendX + 14, ly + 1.5); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = '#c9d1d9';
+        const metalLabel = metalOverlay.metal.charAt(0).toUpperCase() + metalOverlay.metal.slice(1) + ' spot';
+        ctx.fillText(metalLabel, legendX + 20, ly + 5);
+      }
+    }
   })();
   </script>
 

@@ -173,5 +173,79 @@ const CoinStorage = (() => {
     getAllDecrypted,
     count,
     clearAll,
+
+    /**
+     * Export all coins for a user as a plain JSON array (decrypted).
+     * The user must be logged in (key required).
+     * @param {string} userId
+     * @param {CryptoKey} key
+     * @returns {Promise<string>} JSON string ready for download
+     */
+    async exportJSON(userId, key) {
+      const coins = await getAllDecrypted(userId, key);
+      // Strip internal fields, keep only user-facing data
+      const clean = coins.map(c => ({
+        series: c.series || '',
+        year: c.year || '',
+        mint: c.mint || '',
+        grade: c.grade || '',
+        weight: c.weight || null,
+        query: c.query || '',
+        dateAdded: c.dateAdded || null,
+      }));
+      return JSON.stringify({
+        format: 'coin-price-agent-backup-v1',
+        exportedAt: new Date().toISOString(),
+        count: clean.length,
+        coins: clean,
+      }, null, 2);
+    },
+
+    /**
+     * Import coins from a backup JSON string, encrypting each with the user's key.
+     * Skips duplicates (same coinHash already in inventory).
+     * @param {string} userId
+     * @param {CryptoKey} key
+     * @param {string} jsonStr — the raw JSON text from a backup file
+     * @returns {Promise<{imported: number, skipped: number, errors: number}>}
+     */
+    async importJSON(userId, key, jsonStr) {
+      const data = JSON.parse(jsonStr);
+      if (!data || data.format !== 'coin-price-agent-backup-v1' || !Array.isArray(data.coins)) {
+        throw new Error('Invalid backup file format');
+      }
+      let imported = 0, skipped = 0, errors = 0;
+      for (const coin of data.coins) {
+        try {
+          const already = await hasCoin(userId, coin);
+          if (already) { skipped++; continue; }
+          await addCoin(userId, key, coin);
+          imported++;
+        } catch {
+          errors++;
+        }
+      }
+      return { imported, skipped, errors };
+    },
+
+    /**
+     * Re-encrypt all coins for a user with a new key.
+     * Used during password change.
+     * @param {string} userId
+     * @param {CryptoKey} oldKey
+     * @param {CryptoKey} newKey
+     * @returns {Promise<number>} count of re-encrypted coins
+     */
+    async reEncryptAll(userId, oldKey, newKey) {
+      const coins = await getAllDecrypted(userId, oldKey);
+      const db = await openDB();
+      // Clear old records
+      await clearAll(userId);
+      // Re-encrypt with new key
+      for (const coin of coins) {
+        await addCoin(userId, newKey, coin);
+      }
+      return coins.length;
+    },
   };
 })();
