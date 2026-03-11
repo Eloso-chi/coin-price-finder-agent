@@ -416,12 +416,16 @@ function scoreMatch(comp, expected) {
     const mintRe = /\b\d{4}\s*[-]?\s*(CC|[SDPWO])\b/i;
     const mintHit = tLow.match(mintRe);
     let titleMint = mintHit ? mintHit[1].toUpperCase() : null;
-    // For sets, also check for mint city names (Denver, Philadelphia, San Francisco)
-    if (!titleMint && expected.isSet) {
-      const MINT_CITY_MAP = { 'denver': 'D', 'philadelphia': 'P', 'san francisco': 'S', 'west point': 'W' };
+    // Also check for mint city names (Carson City, Denver, etc.)
+    if (!titleMint) {
+      const MINT_CITY_MAP = { 'carson city': 'CC', 'denver': 'D', 'philadelphia': 'P', 'san francisco': 'S', 'west point': 'W' };
       for (const [city, mark] of Object.entries(MINT_CITY_MAP)) {
         if (tLow.includes(city)) { titleMint = mark; break; }
       }
+    }
+    // Standalone "CC" anywhere in title (unique two-letter mark, no false-positive risk)
+    if (!titleMint && /\bCC\b/.test(comp.title || '')) {
+      titleMint = 'CC';
     }
     if (titleMint === wantMint) {
       score += 10; notes.push('mint-match');
@@ -836,18 +840,22 @@ function applyFilters(comps, options, expected) {
   // a different mint mark than expected (e.g. user wants 1892-S but title says 1892-O)
   if (expected.mint) {
     const wantMint = expected.mint.toUpperCase();
-    const MINT_CITY_MAP = { 'denver': 'D', 'philadelphia': 'P', 'san francisco': 'S', 'west point': 'W' };
+    const MINT_CITY_MAP = { 'carson city': 'CC', 'denver': 'D', 'philadelphia': 'P', 'san francisco': 'S', 'west point': 'W' };
     removed.mintMismatch = 0;
     kept = kept.filter(c => {
       const tLow = (c.title || '').toLowerCase();
       const mintRe = /\b\d{4}\s*[-]?\s*(CC|[SDPWO])\b/i;
       const m = tLow.match(mintRe);
       let titleMint = m ? m[1].toUpperCase() : null;
-      // For sets, also recognise mint city names as mint marks
-      if (!titleMint && expected.isSet) {
+      // Also recognise mint city names as mint marks
+      if (!titleMint) {
         for (const [city, mark] of Object.entries(MINT_CITY_MAP)) {
           if (tLow.includes(city)) { titleMint = mark; break; }
         }
+      }
+      // Standalone "CC" anywhere in title (unique two-letter mark)
+      if (!titleMint && /\bCC\b/.test(c.title || '')) {
+        titleMint = 'CC';
       }
       if (!titleMint) return true; // no mint stated → benefit of the doubt
       if (titleMint === wantMint) return true;

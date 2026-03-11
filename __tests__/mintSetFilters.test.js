@@ -138,12 +138,11 @@ describe('scoreMatch — mint city name detection for sets', () => {
     expect(comp.matchNotes).not.toContain('mint-mismatch');
   });
 
-  test('city name detection ONLY fires for set searches', () => {
+  test('city name detection fires for all searches (not just sets)', () => {
     const comp = makeComp({ title: '2009 Denver Quarter' });
     scoreMatch(comp, NON_SET_EXPECTED);
-    // City name should NOT be used for non-set searches
-    expect(comp.matchNotes).not.toContain('mint-match');
-    expect(comp.matchNotes).not.toContain('mint-mismatch');
+    // City name should detect mint mark D for Denver
+    expect(comp.matchNotes).toContain('mint-match');
   });
 });
 

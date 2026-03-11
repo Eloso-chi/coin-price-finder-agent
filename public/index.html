@@ -821,6 +821,11 @@
     .auth-dialog .auth-error { color: var(--red); font-size: 0.8rem; margin-top: 8px; display: none; }
     .auth-dialog .auth-toggle { font-size: 0.78rem; color: var(--text-muted); margin-top: 12px; text-align: center; }
     .auth-dialog .auth-toggle a { color: var(--accent); cursor: pointer; text-decoration: underline; }
+    .recovery-phrase-box { background: var(--surface); border: 2px dashed var(--accent); border-radius: var(--radius); padding: 16px; margin: 12px 0; font-family: 'Courier New', monospace; font-size: 1.05rem; line-height: 1.8; text-align: center; color: var(--text); word-spacing: 6px; user-select: all; letter-spacing: 0.5px; }
+    .recovery-warning { font-size: 0.8rem; color: var(--text-secondary); line-height: 1.5; margin: 10px 0; }
+    .recovery-warning strong { color: var(--red); }
+    .recovery-checkbox { display: flex; align-items: flex-start; gap: 8px; margin: 14px 0 4px; font-size: 0.8rem; color: var(--text-secondary); }
+    .recovery-checkbox input { margin-top: 2px; accent-color: var(--accent); }
     .btn-sm { padding: 5px 10px; font-size: 0.78rem; border-radius: var(--radius); border: 1px solid var(--border); background: var(--card); color: var(--text-secondary); cursor: pointer; transition: border-color 0.15s, color 0.15s; }
     .btn-sm:hover { border-color: var(--accent); color: var(--accent); }
     .add-coin-btn {
@@ -1778,6 +1783,7 @@
           <li>No data is transmitted to the server during signup or login. The server does not know you have an account.</li>
           <li>Your account exists only in <strong>this browser</strong>. If you switch browsers or devices, you&rsquo;ll need to create a new account there.</li>
           <li>Logging out clears the in-memory encryption key immediately. Your encrypted data remains in the browser but is unreadable without your password.</li>
+          <li>At signup you receive a <strong>one-time recovery phrase</strong> (8 words). Write it down&mdash;it&rsquo;s the only way to recover your account if you forget your password.</li>
         </ul>
       </div>
 
@@ -1909,6 +1915,68 @@
     </div>
     <div class="auth-toggle" id="auth-toggle">
       Don't have an account? <a id="auth-switch">Sign Up</a>
+    </div>
+    <div class="auth-toggle" id="auth-recovery-link" style="margin-top:6px">
+      Forgot password? <a id="auth-use-recovery">Use Recovery Key</a>
+    </div>
+  </dialog>
+
+  <!-- ── Recovery Key Display (shown once after signup) ── -->
+  <dialog class="auth-dialog" id="recovery-show-dialog" style="max-width:420px">
+    <h2>&#x1F511; Your Recovery Key</h2>
+    <p class="recovery-warning">
+      <strong>Write these 8 words down and store them somewhere safe.</strong><br>
+      This is the <strong>only</strong> way to recover your account if you forget your password.
+      It will <strong>never be shown again</strong>.
+    </p>
+    <div class="recovery-phrase-box" id="recovery-phrase-display"></div>
+    <label class="recovery-checkbox">
+      <input type="checkbox" id="recovery-ack-check">
+      I have written down my recovery key
+    </label>
+    <div class="auth-actions">
+      <button class="btn-primary" id="recovery-ack-btn" disabled>I&rsquo;ve Saved It</button>
+    </div>
+  </dialog>
+
+  <!-- ── Recovery Login Dialog ── -->
+  <dialog class="auth-dialog" id="recovery-login-dialog">
+    <h2>&#x1F511; Recover Account</h2>
+    <div class="field">
+      <label for="recovery-username">Username</label>
+      <input type="text" id="recovery-username" autocomplete="username" placeholder="Your username">
+    </div>
+    <div class="field">
+      <label for="recovery-phrase-input">Recovery Phrase (8 words)</label>
+      <input type="text" id="recovery-phrase-input" autocomplete="off" placeholder="word1 word2 word3 ... word8">
+    </div>
+    <div class="auth-error" id="recovery-error"></div>
+    <div class="auth-actions">
+      <button class="btn-primary" id="recovery-submit">Recover</button>
+      <button class="btn-secondary" id="recovery-cancel">Cancel</button>
+    </div>
+    <div class="auth-toggle">
+      <a id="recovery-back-to-login">Back to Log In</a>
+    </div>
+  </dialog>
+
+  <!-- ── Set New Password After Recovery ── -->
+  <dialog class="auth-dialog" id="recovery-newpw-dialog">
+    <h2>&#x1F512; Set New Password</h2>
+    <p style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:12px">
+      Recovery successful! Set a new password for your account.
+    </p>
+    <div class="field">
+      <label for="recovery-new-pw">New Password</label>
+      <input type="password" id="recovery-new-pw" autocomplete="new-password" placeholder="At least 6 characters">
+    </div>
+    <div class="field">
+      <label for="recovery-confirm-pw">Confirm Password</label>
+      <input type="password" id="recovery-confirm-pw" autocomplete="new-password" placeholder="Re-enter new password">
+    </div>
+    <div class="auth-error" id="recovery-newpw-error"></div>
+    <div class="auth-actions">
+      <button class="btn-primary" id="recovery-newpw-submit">Set Password</button>
     </div>
   </dialog>
 
@@ -4764,12 +4832,16 @@
       hideError();
       try {
         if (isSignup) {
-          await CoinAuth.signup(username.value, password.value);
+          const result = await CoinAuth.signup(username.value, password.value);
+          dialog.close();
+          updateBadge();
+          // Show recovery key dialog
+          _showRecoveryPhrase(result.recoveryPhrase);
         } else {
           await CoinAuth.login(username.value, password.value);
+          dialog.close();
+          updateBadge();
         }
-        dialog.close();
-        updateBadge();
       } catch (err) {
         showError(err.message);
       }
@@ -4789,6 +4861,117 @@
     }
 
     updateBadge();
+
+    /* ── Recovery Key: show after signup ── */
+    const recoveryShowDlg   = document.getElementById('recovery-show-dialog');
+    const recoveryDisplay   = document.getElementById('recovery-phrase-display');
+    const recoveryAckCheck  = document.getElementById('recovery-ack-check');
+    const recoveryAckBtn    = document.getElementById('recovery-ack-btn');
+
+    function _showRecoveryPhrase(phrase) {
+      recoveryDisplay.textContent = phrase;
+      recoveryAckCheck.checked = false;
+      recoveryAckBtn.disabled = true;
+      recoveryShowDlg.showModal();
+    }
+
+    recoveryAckCheck.addEventListener('change', () => {
+      recoveryAckBtn.disabled = !recoveryAckCheck.checked;
+    });
+    recoveryAckBtn.addEventListener('click', () => {
+      recoveryShowDlg.close();
+    });
+    // Prevent closing without acknowledgment (ESC key)
+    recoveryShowDlg.addEventListener('cancel', (e) => {
+      e.preventDefault();
+    });
+
+    /* ── Recovery Login Flow ── */
+    const recoveryLoginDlg    = document.getElementById('recovery-login-dialog');
+    const recoveryUsername     = document.getElementById('recovery-username');
+    const recoveryPhraseInput = document.getElementById('recovery-phrase-input');
+    const recoveryError       = document.getElementById('recovery-error');
+    const recoverySubmit      = document.getElementById('recovery-submit');
+    const recoveryCancel      = document.getElementById('recovery-cancel');
+    const recoveryBackToLogin = document.getElementById('recovery-back-to-login');
+    const useRecoveryLink     = document.getElementById('auth-use-recovery');
+
+    function showRecoveryError(msg) { recoveryError.textContent = msg; recoveryError.style.display = 'block'; }
+    function hideRecoveryError() { recoveryError.style.display = 'none'; }
+
+    useRecoveryLink.addEventListener('click', () => {
+      dialog.close();
+      recoveryUsername.value = username.value || '';
+      recoveryPhraseInput.value = '';
+      hideRecoveryError();
+      recoveryLoginDlg.showModal();
+      (recoveryUsername.value ? recoveryPhraseInput : recoveryUsername).focus();
+    });
+
+    recoveryCancel.addEventListener('click', () => recoveryLoginDlg.close());
+    recoveryBackToLogin.addEventListener('click', () => {
+      recoveryLoginDlg.close();
+      openDialog();
+    });
+
+    recoverySubmit.addEventListener('click', async () => {
+      hideRecoveryError();
+      try {
+        await CoinAuth.loginWithRecovery(recoveryUsername.value, recoveryPhraseInput.value);
+        recoveryLoginDlg.close();
+        // Prompt for new password
+        _showNewPasswordDialog();
+      } catch (err) {
+        showRecoveryError(err.message);
+      }
+    });
+
+    recoveryPhraseInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') recoverySubmit.click();
+    });
+
+    /* ── Set New Password After Recovery ── */
+    const newPwDlg     = document.getElementById('recovery-newpw-dialog');
+    const newPwInput   = document.getElementById('recovery-new-pw');
+    const newPwConfirm = document.getElementById('recovery-confirm-pw');
+    const newPwError   = document.getElementById('recovery-newpw-error');
+    const newPwSubmit  = document.getElementById('recovery-newpw-submit');
+
+    function _showNewPasswordDialog() {
+      newPwInput.value = '';
+      newPwConfirm.value = '';
+      newPwError.style.display = 'none';
+      newPwDlg.showModal();
+      newPwInput.focus();
+    }
+
+    // Prevent closing without setting password (ESC key)
+    newPwDlg.addEventListener('cancel', (e) => {
+      e.preventDefault();
+    });
+
+    newPwSubmit.addEventListener('click', async () => {
+      newPwError.style.display = 'none';
+      const pw = newPwInput.value;
+      const confirm = newPwConfirm.value;
+      if (pw !== confirm) {
+        newPwError.textContent = 'Passwords do not match';
+        newPwError.style.display = 'block';
+        return;
+      }
+      try {
+        await CoinAuth.resetPasswordWithRecovery(pw);
+        newPwDlg.close();
+        updateBadge();
+      } catch (err) {
+        newPwError.textContent = err.message;
+        newPwError.style.display = 'block';
+      }
+    });
+
+    newPwConfirm.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') newPwSubmit.click();
+    });
 
     /* ── Account actions: Export / Import / Change Password ── */
     const accountBar     = document.getElementById('mycoins-account-bar');
@@ -4968,8 +5151,12 @@
       try {
         const oldKey = user.key;
         const { newKey } = await CoinAuth.changePassword(cur, np);
-        await CoinStorage.reEncryptAll(user.userId, oldKey, newKey);
-        cpSuccess.textContent = 'Password changed and coins re-encrypted successfully.';
+        // For legacy accounts (no wrappedDataKey), re-encrypt data with the new key.
+        // For new accounts the data key is unchanged, so no re-encryption needed.
+        if (oldKey !== user.key) {
+          await CoinStorage.reEncryptAll(user.userId, oldKey, user.key);
+        }
+        cpSuccess.textContent = 'Password changed successfully.';
         cpSuccess.style.display = 'block';
         setTimeout(() => cpDialog.close(), 2000);
       } catch (err) {

@@ -45,17 +45,33 @@ const CoinAuth = (() => {
     const key = await CoinCrypto.deriveKey(password, salt);
     const verifier = await CoinCrypto.createVerifier(key);
 
+    // Generate recovery phrase + derive a second verifier from it
+    const recovery = CoinCrypto.generateRecoveryPhrase();
+    const recoverySalt = CoinCrypto.randomBytes(CoinCrypto.SALT_BYTES);
+    const recoveryKey = await CoinCrypto.deriveKeyFromRecovery(recovery.seed, recoverySalt);
+    const recoveryVerifier = await CoinCrypto.createVerifier(recoveryKey);
+
+    // Generate a random data key and wrap it with both the password key and recovery key
+    const dataKey = await CoinCrypto.generateDataKey();
+    const wrappedDataKey = await CoinCrypto.wrapDataKey(key, dataKey);
+    const recoveryWrappedDataKey = await CoinCrypto.wrapDataKey(recoveryKey, dataKey);
+
     accounts[username] = {
       userId,
       salt: CoinCrypto.bufToBase64(salt),
       verifier,
+      recoverySeed: recovery.seed,
+      recoverySalt: CoinCrypto.bufToBase64(recoverySalt),
+      recoveryVerifier,
+      wrappedDataKey,
+      recoveryWrappedDataKey,
     };
     _saveAccounts(accounts);
 
-    _session = { username, userId, key };
+    _session = { username, userId, key: dataKey };
     localStorage.setItem(SESSION_KEY, username);
 
-    return { username, userId };
+    return { username, userId, recoveryPhrase: recovery.phrase };
   }
 
   /**
@@ -76,7 +92,15 @@ const CoinAuth = (() => {
     const valid = await CoinCrypto.checkVerifier(key, acct.verifier);
     if (!valid) throw new Error('Incorrect password');
 
-    _session = { username, userId: acct.userId, key };
+    // Unwrap the data key if present (new accounts), otherwise use password key (legacy)
+    let sessionKey = key;
+    if (acct.wrappedDataKey) {
+      sessionKey = await CoinCrypto.unwrapDataKey(
+        key, acct.wrappedDataKey.iv, acct.wrappedDataKey.wrappedKey
+      );
+    }
+
+    _session = { username, userId: acct.userId, key: sessionKey };
     localStorage.setItem(SESSION_KEY, username);
 
     return { username, userId: acct.userId };
@@ -134,6 +158,84 @@ const CoinAuth = (() => {
   }
 
   /**
+   * Log in using a recovery phrase. Derives the key from the stored
+   * recovery seed and verifies against the recovery verifier.
+   * After successful recovery login the caller should prompt the user
+   * to set a new password (via changePassword-style re-encrypt).
+   * @param {string} username
+   * @param {string} phrase - the 8-word recovery phrase
+   * @returns {Promise<{username, userId}>}
+   * @throws if account not found, no recovery key stored, or phrase wrong
+   */
+  async function loginWithRecovery(username, phrase) {
+    username = (username || '').trim();
+    const accounts = _loadAccounts();
+    const acct = accounts[username];
+    if (!acct) throw new Error('Account not found on this device');
+    if (!acct.recoverySeed || !acct.recoveryVerifier) {
+      throw new Error('No recovery key set for this account');
+    }
+    if (!acct.recoveryWrappedDataKey) {
+      throw new Error('This account was created before recovery was supported. Recovery is not available.');
+    }
+
+    const words = phrase.trim().toLowerCase().split(/\s+/);
+    if (words.length !== 8) throw new Error('Recovery phrase must be exactly 8 words');
+
+    // Derive key from stored seed and verify
+    const recoverySalt = CoinCrypto.base64ToBuf(acct.recoverySalt);
+    const recoveryKey = await CoinCrypto.deriveKeyFromRecovery(acct.recoverySeed, recoverySalt);
+    const valid = await CoinCrypto.checkVerifier(recoveryKey, acct.recoveryVerifier);
+    if (!valid) throw new Error('Recovery phrase does not match');
+
+    // Unwrap the data key using the recovery-derived key
+    const dataKey = await CoinCrypto.unwrapDataKey(
+      recoveryKey,
+      acct.recoveryWrappedDataKey.iv,
+      acct.recoveryWrappedDataKey.wrappedKey
+    );
+
+    _session = { username, userId: acct.userId, key: dataKey, needsPasswordReset: true };
+    localStorage.setItem(SESSION_KEY, username);
+
+    return { username, userId: acct.userId };
+  }
+
+  /**
+   * After recovery login, set a new password. Re-wraps the data key with
+   * the new password-derived key. No coin re-encryption needed because
+   * coins are encrypted with the data key (which doesn't change).
+   * @param {string} newPassword
+   * @returns {Promise<void>}
+   */
+  async function resetPasswordWithRecovery(newPassword) {
+    if (!_session) throw new Error('Not logged in');
+    if (!newPassword || newPassword.length < 6) throw new Error('New password must be at least 6 characters');
+
+    const username = _session.username;
+    const accounts = _loadAccounts();
+    const acct = accounts[username];
+    if (!acct) throw new Error('Account not found');
+
+    // The session key IS the data key (unwrapped during recovery login)
+    const dataKey = _session.key;
+
+    // Derive new password key and re-wrap the data key
+    const newSalt = CoinCrypto.randomBytes(CoinCrypto.SALT_BYTES);
+    const newKey = await CoinCrypto.deriveKey(newPassword, newSalt);
+    const newVerifier = await CoinCrypto.createVerifier(newKey);
+    const wrappedDataKey = await CoinCrypto.wrapDataKey(newKey, dataKey);
+
+    // Update account — preserve recovery key wrapping
+    acct.salt = CoinCrypto.bufToBase64(newSalt);
+    acct.verifier = newVerifier;
+    acct.wrappedDataKey = wrappedDataKey;
+    _saveAccounts(accounts);
+
+    _session.needsPasswordReset = false;
+  }
+
+  /**
    * Change password for the current user.
    * Generates a new salt + key, re-encrypts the verifier, and returns the new
    * key so the caller can re-encrypt coin inventory.
@@ -162,13 +264,22 @@ const CoinAuth = (() => {
     const newKey = await CoinCrypto.deriveKey(newPassword, newSalt);
     const newVerifier = await CoinCrypto.createVerifier(newKey);
 
+    // Re-wrap the data key with the new password key (if present)
+    if (acct.wrappedDataKey) {
+      const dataKey = _session.key; // already the unwrapped data key
+      acct.wrappedDataKey = await CoinCrypto.wrapDataKey(newKey, dataKey);
+    }
+
     // Update account
     acct.salt = CoinCrypto.bufToBase64(newSalt);
     acct.verifier = newVerifier;
     _saveAccounts(accounts);
 
-    // Update session
-    _session.key = newKey;
+    // Session key stays the same (it's the data key, not the password key)
+    // For legacy accounts without wrappedDataKey, update session to new key
+    if (!acct.wrappedDataKey) {
+      _session.key = newKey;
+    }
 
     return { newKey };
   }
@@ -176,6 +287,8 @@ const CoinAuth = (() => {
   return {
     signup,
     login,
+    loginWithRecovery,
+    resetPasswordWithRecovery,
     logout,
     currentUser,
     pendingReauth,
