@@ -154,6 +154,13 @@ async function resolveFromDescription(text) {
         trustResult = false;
       }
 
+      // Mint mismatch: if the parsed mint exists and API returned a different mint, reject.
+      const apiMint = (result.mint || '').toUpperCase();
+      if (trustResult && parsed.mint && apiMint && parsed.mint.toUpperCase() !== apiMint) {
+        console.warn(`[pcgs] Search result mint mismatch: parsed "${parsed.mint}", API returned "${apiMint}" — falling through to local table`);
+        trustResult = false;
+      }
+
       // Series mismatch: if we know the series from parsing (e.g. "Jefferson")
       // and the API returned a clearly different series (e.g. "Buffalo"),
       // reject the result.  Compare key tokens from the parsed series.
@@ -202,6 +209,13 @@ async function resolveFromDescription(text) {
 
       if (parsed.year && apiYear && parsed.year !== apiYear) {
         console.warn(`[pcgs] Table result year mismatch: parsed ${parsed.year}, API returned ${apiYear} for PCGS#${pcgsNo}`);
+        trustTable = false;
+      }
+
+      // Mint mismatch: if the parsed mint exists and table result returned a different mint, reject.
+      const tblMint = (tableResult.mint || '').toUpperCase();
+      if (trustTable && parsed.mint && tblMint && parsed.mint.toUpperCase() !== tblMint) {
+        console.warn(`[pcgs] Table result mint mismatch: parsed "${parsed.mint}", API returned "${tblMint}" for PCGS#${pcgsNo}`);
         trustTable = false;
       }
 
