@@ -883,7 +883,7 @@
     .mycoins-qty-btn:hover { background: var(--green-subtle); border-color: var(--green); color: var(--green); }
     .mycoins-qty-val { display: inline-block; min-width: 20px; text-align: center; font-weight: 600; vertical-align: middle; }
     .mycoins-summary {
-      display: flex; align-items: center; justify-content: space-between;
+      display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;
       padding: 16px 20px; background: var(--card); border: 1px solid var(--border);
       border-radius: var(--radius-lg); margin-bottom: 16px;
     }
@@ -1724,7 +1724,7 @@
         <div class="bulkadd-actions">
           <button id="bulkadd-submit" class="btn-sm-accent">Add to Collection</button>
           <button id="bulkadd-clear" class="btn-sm">Clear</button>
-          <span id="bulkadd-status" class="bulkadd-status"></span>
+          <span id="bulkadd-status" class="bulkadd-status" role="status" aria-live="polite"></span>
         </div>
       </div>
 
@@ -3353,19 +3353,19 @@
       const gid = 'gallery-' + Date.now();
       html += '<div class="fmv-gallery" id="' + gid + '" data-imgs=\'' + JSON.stringify(galleryImages) + '\'>';
       html += '<div class="fmv-gallery-main">';
-      html += '<img id="' + gid + '-main" src="' + galleryImages[0] + '" alt="' + _esc(coinLabel || 'Coin') + '" onerror="this.src=\'' + (galleryImages[1] || '') + '\'">';
+      html += '<img id="' + gid + '-main" src="' + _escUrl(galleryImages[0]) + '" alt="' + _esc(coinLabel || 'Coin') + '" onerror="this.src=\'' + _escUrl(galleryImages[1] || '') + '\'">';
       html += '<button class="gallery-nav gallery-nav-left" onclick="galleryNav(\'' + gid + '\',-1)">&lsaquo;</button>';
       html += '<button class="gallery-nav gallery-nav-right" onclick="galleryNav(\'' + gid + '\',1)">&rsaquo;</button>';
       html += '</div>';
       html += '<div class="fmv-gallery-thumbs">';
       galleryImages.slice(0, 4).forEach(function(url, i) {
-        html += '<img src="' + url.replace(/s-l500\./, 's-l96.') + '" data-idx="' + i + '" class="' + (i === 0 ? 'active' : '') + '" onclick="gallerySelect(\'' + gid + '\',' + i + ')">';
+        html += '<img src="' + _escUrl(url.replace(/s-l500\./, 's-l96.')) + '" data-idx="' + i + '" class="' + (i === 0 ? 'active' : '') + '" onclick="gallerySelect(\'' + gid + '\',' + i + ')">';
       });
       html += '</div>';
       if (galleryImages.length > 4) html += '<div class="fmv-gallery-count">' + galleryImages.length + ' photos</div>';
       html += '</div>';
     } else if (galleryImages.length === 1) {
-      html += '<div class="fmv-img"><img src="' + galleryImages[0] + '" alt="' + _esc(coinLabel || 'Coin') + '" onerror="this.parentElement.style.display=\'none\'"></div>';
+      html += '<div class="fmv-img"><img src="' + _escUrl(galleryImages[0]) + '" alt="' + _esc(coinLabel || 'Coin') + '" onerror="this.parentElement.style.display=\'none\'"></div>';
     }
     html += '<div class="fmv-left">';
     if (coinLabel) html += '<div class="coin-id">' + _esc(coinLabel) + '</div>';
@@ -3436,7 +3436,7 @@
                 '<span class="add-coin-owned">' +
                 '&#x2713; Added to My Coins' +
                 '<span class="add-coin-cost-wrap">' +
-                '<label style="color:var(--text-muted)">Cost?</label>' +
+                '<label for="add-coin-cost" style="color:var(--text-muted)">Cost?</label>' +
                 '<input type="text" class="add-coin-cost-input" id="add-coin-cost" placeholder="$" inputmode="decimal">' +
                 '</span>' +
                 '<span class="add-coin-qty-wrap">' +
@@ -3565,7 +3565,7 @@
     if (nm && nm.accessible && nm.type) {
       html += '<div class="card numista-panel">';
       html += '<h3>\uD83D\uDCDA Numista Catalogue';
-      if (nm.numistaUrl) html += ' <a href="' + nm.numistaUrl + '" target="_blank" rel="noopener" style="font-size:0.8rem;color:var(--accent);text-decoration:none">\u2197 View on Numista</a>';
+      if (nm.numistaUrl) html += ' <a href="' + _escUrl(nm.numistaUrl) + '" target="_blank" rel="noopener" style="font-size:0.8rem;color:var(--accent);text-decoration:none">\u2197 View on Numista</a>';
       html += '</h3>';
       html += '<div class="numista-grid">';
 
@@ -3592,7 +3592,7 @@
       // Right column: rarity + prices
       html += '<div class="numista-rarity-prices">';
       if (nm.rarity) {
-        html += '<div class="numista-rarity-box" style="border-left:4px solid ' + nm.rarity.color + '">';
+        html += '<div class="numista-rarity-box" style="border-left:4px solid ' + _esc(nm.rarity.color) + '">';
         html += '<div class="numista-rarity-label">Derived Rarity</div>';
         html += '<div class="numista-rarity-value" style="color:' + _esc(nm.rarity.color) + '">' + _esc(nm.rarity.label) + '</div>';
         html += '<div class="numista-rarity-score">Score: ' + nm.rarity.score + ' / 100</div>';
@@ -5130,6 +5130,7 @@
           const existing = await CoinStorage.getCoin(user.userId, user.key, coin);
           const merged = (existing ? existing.count || 1 : 0) + qty;
           await CoinStorage.updateCount(user.userId, user.key, existing.coinHash, merged);
+          if (costPer != null) await CoinStorage.updateCostPer(user.userId, user.key, existing.coinHash, costPer);
           _bulkAddMsg('Merged \u2014 ' + series + (year ? ' ' + year : '') + ' now \xD7' + merged, false);
         } else {
           await CoinStorage.addCoin(user.userId, user.key, coin);

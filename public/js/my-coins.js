@@ -14,6 +14,7 @@ const MyCoins = (() => {
   let _sortCol = 'coin';
   let _sortAsc = true;
   let _filterText = '';
+  let _filterTimer = null;
 
   function init() {
     _container = document.getElementById('mycoins-content');
@@ -234,7 +235,7 @@ const MyCoins = (() => {
       html += '</div>';
       html += '<div class="mycoins-total">';
       html += '<span class="mycoins-total-label">Unrealized P/L</span>';
-      html += '<span class="mycoins-total-value" style="color:' + (totalPL >= 0 ? 'var(--green)' : 'var(--red, #e74c3c)') + '">' + (totalPL >= 0 ? '+' : '') + _$(totalPL) + '</span>';
+      html += '<span class="mycoins-total-value" style="color:' + (totalPL >= 0 ? 'var(--green)' : 'var(--red, #e74c3c)') + '">' + (totalPL >= 0 ? '\u25B2 +' : '\u25BC ') + _$(totalPL) + '</span>';
       html += '</div>';
     }
     html += '<div class="mycoins-count">';
@@ -294,14 +295,15 @@ const MyCoins = (() => {
       // Cost (ea) — inline editable
       const costVal = c.costPer != null ? c.costPer.toFixed(2) : '';
       html += '<td class="mycoins-cost-cell" data-hash="' + _esc(c.coinHash) + '">';
-      html += '<input type="text" class="mycoins-cost-input" value="' + _esc(costVal) + '" placeholder="\u2014" inputmode="decimal">';
+      html += '<input type="text" class="mycoins-cost-input" value="' + _esc(costVal) + '" placeholder="\u2014" inputmode="decimal" aria-label="Cost per coin for ' + _esc(label) + '">';
       html += '</td>';
 
       // P/L column
       const pl = (it.fmv != null && c.costPer != null) ? (it.fmv - c.costPer) * qty : null;
       if (pl != null) {
         const plColor = pl >= 0 ? 'var(--green)' : 'var(--red, #e74c3c)';
-        html += '<td style="color:' + plColor + ';font-weight:600">' + (pl >= 0 ? '+' : '') + _$(pl) + '</td>';
+        const plArrow = pl >= 0 ? '\u25B2 +' : '\u25BC ';
+        html += '<td style="color:' + plColor + ';font-weight:600">' + plArrow + _$(pl) + '</td>';
       } else {
         html += '<td>\u2014</td>';
       }
@@ -321,7 +323,8 @@ const MyCoins = (() => {
     if (filterInput) {
       filterInput.addEventListener('input', () => {
         _filterText = filterInput.value;
-        _renderTable(items);
+        clearTimeout(_filterTimer);
+        _filterTimer = setTimeout(() => _renderTable(items), 180);
       });
       // Restore focus to search input after re-render
       if (_filterText) {
