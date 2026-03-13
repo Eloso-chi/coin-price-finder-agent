@@ -43,6 +43,7 @@ The authentication system is **entirely client-side** — the server has zero kn
 - **Login** — re-derives the key from the stored salt and checks the verifier. The `CryptoKey` lives only in memory.
 - **Page reload** — the in-memory key is lost. The UI detects the stale session via `pendingReauth()` and auto-opens the login dialog pre-filled with the username.
 - **Password change** — derives a new key with a fresh salt, updates the verifier, and re-encrypts all coins in IndexedDB via `CoinStorage.reEncryptAll()`.
+- **Recovery key** — at signup a random 128-bit seed is generated and presented as an 8-word phrase (from a 256-word BIP39 subset). A second AES-256 key is derived from the seed and used to wrap the same random data key that the password key wraps. If the user forgets their password, the recovery phrase unwraps the data key and lets them set a new password — no re-encryption of stored coins is needed. Legacy accounts created before the recovery key feature continue to work (password-derived key used directly).
 
 No passwords, keys, or collection data ever leave the browser. The server cannot read, access, or reconstruct any user data.
 
@@ -337,6 +338,23 @@ npx jest __tests__/marketAggregator.test.js        # market matrix aggregator
 npx jest __tests__/marketRoute.test.js             # market route integration
 ```
 
+### Test Metrics & Monitoring
+
+```bash
+npm run test:metrics    # run tests + append metrics to .test-metrics/test-runs.jsonl
+npm run test:summary    # print failure frequency, flaky tests, duration trends, slowest tests
+```
+
+The **Test Monitor** system records per-run metrics (timestamp, branch, commit, pass/fail counts, slowest files/tests, flake hints) to a JSONL log. The summary script surfaces:
+
+- **Failure frequency** — tests ranked by how often they fail
+- **Flaky test detection** — tests that pass and fail across runs
+- **Duration trends** — avg/min/max over recent runs
+- **Slowest tests** — tests exceeding the 500 ms budget
+- **New failures** — tests that broke since the last green run
+
+A Copilot agent persona (`.github/agents/test-monitor.agent.md`) can be invoked to diagnose failures, quarantine flaky tests, and suggest fixes. See [docs/testing/test-monitor.md](docs/testing/test-monitor.md) for full usage.
+
 Runs **Jest** across 26 test suites:
 
 | Suite | What it covers |
@@ -428,13 +446,26 @@ public/
     auth.js                        CoinAuth — client-only signup/login/logout/changePassword
     storage.js                     CoinStorage (IndexedDB) + BackupReminder (localStorage)
     my-coins.js                    MyCoins — portfolio rendering with parallel pricing
+    test-my-coins.js               Client-side test harness for CoinStorage
+  test-my-coins.html               Test runner page for storage/crypto tests
 __tests__/                         26 Jest test suites (see Tests section)
   helpers/
     coinTestConstants.js           Shared token lists & test utilities
 docs/
   ARCHITECTURE.md                  Technical architecture reference
-.github/workflows/
-  main_coinpricefinder-*.yml       CI/CD: GitHub Actions OIDC → Azure App Service
+  testing/
+    test-monitor.md                Test Monitor usage guide & command reference
+.github/
+  agents/
+    test-monitor.agent.md          Copilot agent persona for test health monitoring
+  copilot-instructions.md          Workspace-wide Copilot rules (testing, safety, conventions)
+  workflows/
+    main_coinpricefinder-*.yml     CI/CD: GitHub Actions OIDC → Azure App Service
+scripts/
+  test-metrics/
+    run-with-metrics.cjs           Jest wrapper — captures metrics to JSONL
+    summarize.cjs                  Summary reporter — failures, flakes, trends
+.test-metrics/                     JSONL test-run logs (git-ignored)
 ```
 
 ---
