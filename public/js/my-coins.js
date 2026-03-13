@@ -152,7 +152,7 @@ const MyCoins = (() => {
     const q = _filterText.toLowerCase();
     return items.filter(it => {
       const c = it.coin;
-      const text = (_coinLabel(c) + ' ' + (c.grade || '') + ' ' + (c.year || '')).toLowerCase();
+      const text = (_coinLabel(c) + ' ' + (c.grade || '') + ' ' + (c.year || '') + ' ' + (c.costPer != null ? '$' + c.costPer : '')).toLowerCase();
       return text.includes(q);
     });
   }
@@ -177,6 +177,14 @@ const MyCoins = (() => {
           va = (a.fmv || 0) * (a.coin.count || 1);
           vb = (b.fmv || 0) * (b.coin.count || 1);
           return va - vb;
+        case 'cost':
+          va = a.coin.costPer != null ? a.coin.costPer : -1;
+          vb = b.coin.costPer != null ? b.coin.costPer : -1;
+          return va - vb;
+        case 'pl':
+          va = (a.fmv != null && a.coin.costPer != null) ? (a.fmv - a.coin.costPer) * (a.coin.count || 1) : -Infinity;
+          vb = (b.fmv != null && b.coin.costPer != null) ? (b.fmv - b.coin.costPer) * (b.coin.count || 1) : -Infinity;
+          return va - vb;
         case 'ebay':
           va = a.avgEbay || 0; vb = b.avgEbay || 0; return va - vb;
         case 'added':
@@ -199,13 +207,17 @@ const MyCoins = (() => {
 
     // Compute totals over ALL items (not filtered)
     let totalFMV = 0;
+    let totalCost = 0;
     let totalUnits = 0;
     let pricedCount = 0;
+    let costCount = 0;
     items.forEach(it => {
       const qty = it.coin.count || 1;
       totalUnits += qty;
       if (it.fmv != null && !isNaN(it.fmv)) { totalFMV += it.fmv * qty; pricedCount++; }
+      if (it.coin.costPer != null && !isNaN(it.coin.costPer)) { totalCost += it.coin.costPer * qty; costCount++; }
     });
+    const totalPL = (costCount > 0) ? totalFMV - totalCost : null;
 
     let html = '';
 
@@ -215,6 +227,16 @@ const MyCoins = (() => {
     html += '<span class="mycoins-total-label">Portfolio Value</span>';
     html += '<span class="mycoins-total-value">' + _$(totalFMV) + '</span>';
     html += '</div>';
+    if (costCount > 0) {
+      html += '<div class="mycoins-total">';
+      html += '<span class="mycoins-total-label">Total Cost</span>';
+      html += '<span class="mycoins-total-value">' + _$(totalCost) + '</span>';
+      html += '</div>';
+      html += '<div class="mycoins-total">';
+      html += '<span class="mycoins-total-label">Unrealized P/L</span>';
+      html += '<span class="mycoins-total-value" style="color:' + (totalPL >= 0 ? 'var(--green)' : 'var(--red, #e74c3c)') + '">' + (totalPL >= 0 ? '+' : '') + _$(totalPL) + '</span>';
+      html += '</div>';
+    }
     html += '<div class="mycoins-count">';
     html += items.length + ' type(s), ' + totalUnits + ' coin(s)';
     if (pricedCount < items.length) html += ' &middot; ' + pricedCount + ' priced';
@@ -235,6 +257,8 @@ const MyCoins = (() => {
     html += '<th class="mycoins-sortable mycoins-qty-col" data-col="qty">Qty' + _sortArrow('qty') + '</th>';
     html += '<th class="mycoins-sortable" data-col="fmv">FMV (ea)' + _sortArrow('fmv') + '</th>';
     html += '<th class="mycoins-sortable" data-col="total">Total' + _sortArrow('total') + '</th>';
+    html += '<th class="mycoins-sortable" data-col="cost">Cost (ea)' + _sortArrow('cost') + '</th>';
+    html += '<th class="mycoins-sortable" data-col="pl">P/L' + _sortArrow('pl') + '</th>';
     html += '<th class="mycoins-sortable" data-col="ebay">Avg eBay' + _sortArrow('ebay') + '</th>';
     html += '<th>Range</th>';
     html += '<th class="mycoins-sortable" data-col="added">Added' + _sortArrow('added') + '</th>';
@@ -266,6 +290,22 @@ const MyCoins = (() => {
         : (it.pricingError ? '<span style="color:var(--text-muted);font-size:0.8em" title="' + _esc(it.pricingError) + '">No data</span>' : '\u2014');
       html += '<td class="mycoins-fmv">' + fmvCell + '</td>';
       html += '<td class="mycoins-fmv">' + _$(lineTotal) + '</td>';
+
+      // Cost (ea) — inline editable
+      const costVal = c.costPer != null ? c.costPer.toFixed(2) : '';
+      html += '<td class="mycoins-cost-cell" data-hash="' + _esc(c.coinHash) + '">';
+      html += '<input type="text" class="mycoins-cost-input" value="' + _esc(costVal) + '" placeholder="\u2014" inputmode="decimal">';
+      html += '</td>';
+
+      // P/L column
+      const pl = (it.fmv != null && c.costPer != null) ? (it.fmv - c.costPer) * qty : null;
+      if (pl != null) {
+        const plColor = pl >= 0 ? 'var(--green)' : 'var(--red, #e74c3c)';
+        html += '<td style="color:' + plColor + ';font-weight:600">' + (pl >= 0 ? '+' : '') + _$(pl) + '</td>';
+      } else {
+        html += '<td>\u2014</td>';
+      }
+
       html += '<td>' + _$(it.avgEbay) + '</td>';
       html += '<td class="mycoins-range">' + range + '</td>';
       html += '<td class="mycoins-date">' + _esc(added) + '</td>';
@@ -335,6 +375,39 @@ const MyCoins = (() => {
         if (!confirm(msg)) return;
         await CoinStorage.removeCoin(user.userId, hash);
         render();
+      });
+    });
+
+    // Bind inline cost editing (blur or Enter saves)
+    _container.querySelectorAll('.mycoins-cost-input').forEach(input => {
+      const cell = input.closest('.mycoins-cost-cell');
+      const hash = cell ? cell.getAttribute('data-hash') : null;
+
+      async function saveCost() {
+        const user = CoinAuth.currentUser();
+        if (!user || !hash) return;
+        const raw = input.value.trim().replace(/^\$/, '');
+        const val = raw === '' ? null : parseFloat(raw);
+        if (raw !== '' && (isNaN(val) || val < 0)) {
+          input.style.borderColor = 'var(--red, #e74c3c)';
+          return;
+        }
+        input.style.borderColor = '';
+        const item = items.find(it => it.coin.coinHash === hash);
+        if (!item) return;
+        const oldVal = item.coin.costPer;
+        if (val === oldVal || (val == null && oldVal == null)) return;
+        try {
+          await CoinStorage.updateCostPer(user.userId, user.key, hash, val);
+          item.coin.costPer = val;
+          _renderTable(items);
+        } catch { /* silent */ }
+      }
+
+      input.addEventListener('blur', saveCost);
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+        if (e.key === 'Escape') { input.blur(); }
       });
     });
   }

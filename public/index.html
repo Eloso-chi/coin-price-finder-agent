@@ -828,6 +828,17 @@
     .recovery-checkbox input { margin-top: 2px; accent-color: var(--accent); }
     .btn-sm { padding: 5px 10px; font-size: 0.78rem; border-radius: var(--radius); border: 1px solid var(--border); background: var(--card); color: var(--text-secondary); cursor: pointer; transition: border-color 0.15s, color 0.15s; }
     .btn-sm:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-sm-accent { padding: 5px 10px; font-size: 0.78rem; border-radius: var(--radius); border: 1px solid var(--accent); background: var(--accent-subtle); color: var(--accent); cursor: pointer; font-weight: 600; transition: background 0.15s, color 0.15s; }
+    .btn-sm-accent:hover { background: var(--accent); color: #fff; }
+
+    /* ── Bulk Add Form ──────────────────────────────────── */
+    #bulkadd-panel { display: none; margin-bottom: 14px; padding: 14px 14px 10px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
+    #bulkadd-panel .bulkadd-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 10px; }
+    #bulkadd-panel .bulkadd-field { display: flex; flex-direction: column; gap: 4px; }
+    #bulkadd-panel .bulkadd-field label { font-size: 0.72rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.04em; }
+    #bulkadd-panel .bulkadd-field input, #bulkadd-panel .bulkadd-field select { padding: 7px 10px; font-size: 0.85rem; width: 100%; box-sizing: border-box; }
+    #bulkadd-panel .bulkadd-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    #bulkadd-panel .bulkadd-status { font-size: 0.8rem; margin-left: 4px; }
     .add-coin-btn {
       display: inline-flex; align-items: center; gap: 6px; margin-top: 10px;
       padding: 6px 14px; border-radius: var(--radius); border: 1px solid var(--green);
@@ -889,6 +900,13 @@
     .mycoins-date { font-size: 0.78rem; color: var(--text-muted); }
     .mycoins-remove { background: transparent; border: none; color: var(--red); font-size: 1.1rem; cursor: pointer; padding: 2px 6px; border-radius: 4px; }
     .mycoins-remove:hover { background: var(--red-subtle); }
+    .mycoins-cost-cell { padding: 4px 6px !important; }
+    .mycoins-cost-input { width: 72px; padding: 4px 6px; font-size: 0.82rem; border: 1px solid var(--border-subtle); border-radius: 4px; background: var(--surface); color: var(--text); text-align: right; }
+    .mycoins-cost-input:focus { border-color: var(--accent); outline: none; }
+    .mycoins-cost-input::placeholder { color: var(--text-muted); }
+    .add-coin-cost-wrap { display: inline-flex; align-items: center; gap: 6px; margin-left: 8px; font-size: 0.8rem; }
+    .add-coin-cost-input { width: 64px; padding: 3px 6px; font-size: 0.8rem; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); color: var(--text); text-align: right; }
+    .add-coin-cost-input:focus { border-color: var(--accent); outline: none; }
     .mycoins-empty { text-align: center; padding: 40px 20px; color: var(--text-secondary); }
     .mycoins-loading { text-align: center; padding: 30px; color: var(--text-muted); }
     .mycoins-error { text-align: center; padding: 20px; color: var(--red); }
@@ -1663,6 +1681,7 @@
       </p>
       <div id="mycoins-account-bar" style="display:none;margin-bottom:14px;padding:10px 12px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);font-size:0.82rem">
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <button id="mycoins-bulkadd-toggle" class="btn-sm-accent" title="Manually add coins to your collection">&#x2795; Add Coins</button>
           <button id="mycoins-export" class="btn-sm" title="Download your collection as a backup file">&#x1F4E5; Export Backup</button>
           <button id="mycoins-import" class="btn-sm" title="Restore coins from a backup file">&#x1F4E4; Import Backup</button>
           <button id="mycoins-changepw" class="btn-sm" title="Change your password">&#x1F512; Change Password</button>
@@ -1670,6 +1689,45 @@
         </div>
         <div id="mycoins-account-status" style="margin-top:6px;font-size:0.8rem;color:var(--text-muted);display:none"></div>
       </div>
+      <!-- Bulk Add Form (collapsible) -->
+      <div id="bulkadd-panel">
+        <div class="bulkadd-row">
+          <div class="bulkadd-field" style="flex:2;min-width:160px">
+            <label for="bulkadd-series">Coin Name</label>
+            <input id="bulkadd-series" type="text" list="coin-names-list" placeholder="e.g. Morgan Dollar" autocomplete="off">
+          </div>
+          <div class="bulkadd-field" style="flex:0 0 72px">
+            <label for="bulkadd-year">Year</label>
+            <input id="bulkadd-year" type="text" maxlength="4" placeholder="e.g. 1921" inputmode="numeric" autocomplete="off">
+          </div>
+          <div class="bulkadd-field" style="flex:0 0 56px">
+            <label for="bulkadd-mint">Mint</label>
+            <input id="bulkadd-mint" type="text" maxlength="2" list="mint-marks-list" placeholder="S" autocomplete="off" style="text-transform:uppercase">
+          </div>
+          <div class="bulkadd-field" style="flex:1;min-width:100px">
+            <label for="bulkadd-grade">Grade</label>
+            <input id="bulkadd-grade" type="text" list="grades-list" placeholder="e.g. MS-65" autocomplete="off">
+          </div>
+          <div class="bulkadd-field" style="flex:0 0 72px">
+            <label for="bulkadd-weight">Weight</label>
+            <input id="bulkadd-weight" type="text" placeholder="oz" autocomplete="off">
+          </div>
+          <div class="bulkadd-field" style="flex:0 0 64px">
+            <label for="bulkadd-qty">Qty</label>
+            <input id="bulkadd-qty" type="number" min="1" max="9999" value="1" inputmode="numeric">
+          </div>
+          <div class="bulkadd-field" style="flex:0 0 80px">
+            <label for="bulkadd-cost">Cost (ea)</label>
+            <input id="bulkadd-cost" type="text" placeholder="$" inputmode="decimal" autocomplete="off">
+          </div>
+        </div>
+        <div class="bulkadd-actions">
+          <button id="bulkadd-submit" class="btn-sm-accent">Add to Collection</button>
+          <button id="bulkadd-clear" class="btn-sm">Clear</button>
+          <span id="bulkadd-status" class="bulkadd-status"></span>
+        </div>
+      </div>
+
       <div id="backup-prompt-container" style="display:none"></div>
       <div id="mycoins-content">
         <div class="mycoins-empty"><p>Log in to view your coin collection.</p></div>
@@ -1736,7 +1794,7 @@
 
       <div class="about-section">
         <h3>What Is Coin Price Agent?</h3>
-        <p>Coin Price Agent is a free research tool that helps coin collectors and dealers estimate the <strong>Fair Market Value (FMV)</strong> of U.S. coins and precious-metal bars. It aggregates real-time data from multiple sources&mdash;including eBay sold listings, Terapeak sold-comp data, PCGS price guides, and live precious-metal spot prices&mdash;and runs a proprietary valuation algorithm to produce a confidence-rated price estimate.</p>
+        <p>Coin Price Agent is a free research tool that helps coin collectors and dealers estimate the <strong>Fair Market Value (FMV)</strong> of U.S. coins and precious-metal bars. It aggregates real-time data from multiple industry sources&mdash;including recent sold-comp data, price guide references, and live precious-metal spot prices&mdash;and runs a proprietary valuation algorithm to produce a confidence-rated price estimate.</p>
       </div>
 
       <hr class="about-divider">
@@ -3377,9 +3435,31 @@
               wrap.innerHTML =
                 '<span class="add-coin-owned">' +
                 '&#x2713; Added to My Coins' +
+                '<span class="add-coin-cost-wrap">' +
+                '<label style="color:var(--text-muted)">Cost?</label>' +
+                '<input type="text" class="add-coin-cost-input" id="add-coin-cost" placeholder="$" inputmode="decimal">' +
+                '</span>' +
                 '<span class="add-coin-qty-wrap">' +
                 '<span class="add-coin-qty-val">1</span>' +
                 '</span></span>';
+              setTimeout(() => {
+                const costInput = document.getElementById('add-coin-cost');
+                if (costInput) {
+                  costInput.focus();
+                  async function _saveCost() {
+                    const raw = costInput.value.trim().replace(/^\$/, '');
+                    if (!raw) return;
+                    const val = parseFloat(raw);
+                    if (isNaN(val) || val < 0) return;
+                    const hash = await CoinCrypto.coinHash(_addCoin);
+                    await CoinStorage.updateCostPer(user.userId, user.key, hash, val);
+                    costInput.style.borderColor = 'var(--green)';
+                    costInput.disabled = true;
+                  }
+                  costInput.addEventListener('blur', _saveCost);
+                  costInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') costInput.blur(); });
+                }
+              }, 0);
             });
           }
         }, 0);
@@ -4973,7 +5053,7 @@
       if (e.key === 'Enter') newPwSubmit.click();
     });
 
-    /* ── Account actions: Export / Import / Change Password ── */
+    /* ── Account actions: Bulk Add / Export / Import / Change Password ── */
     const accountBar     = document.getElementById('mycoins-account-bar');
     const accountStatus  = document.getElementById('mycoins-account-status');
     const exportBtn      = document.getElementById('mycoins-export');
@@ -4988,6 +5068,95 @@
     const cpCancel       = document.getElementById('changepw-cancel');
     const cpError        = document.getElementById('changepw-error');
     const cpSuccess      = document.getElementById('changepw-success');
+
+    // ── Bulk Add Form ────────────────────────────────────────
+    const bulkAddToggle  = document.getElementById('mycoins-bulkadd-toggle');
+    const bulkAddPanel   = document.getElementById('bulkadd-panel');
+    const bulkAddSeries  = document.getElementById('bulkadd-series');
+    const bulkAddYear    = document.getElementById('bulkadd-year');
+    const bulkAddMint    = document.getElementById('bulkadd-mint');
+    const bulkAddGrade   = document.getElementById('bulkadd-grade');
+    const bulkAddWeight  = document.getElementById('bulkadd-weight');
+    const bulkAddQty     = document.getElementById('bulkadd-qty');
+    const bulkAddCost    = document.getElementById('bulkadd-cost');
+    const bulkAddSubmit  = document.getElementById('bulkadd-submit');
+    const bulkAddClear   = document.getElementById('bulkadd-clear');
+    const bulkAddStatus  = document.getElementById('bulkadd-status');
+
+    bulkAddToggle.addEventListener('click', () => {
+      const open = bulkAddPanel.style.display !== 'none';
+      bulkAddPanel.style.display = open ? 'none' : 'block';
+      bulkAddToggle.innerHTML = open ? '&#x2795; Add Coins' : '&#x2796; Add Coins';
+      if (!open) bulkAddSeries.focus();
+    });
+
+    function _bulkAddMsg(msg, isError) {
+      bulkAddStatus.textContent = msg;
+      bulkAddStatus.style.color = isError ? 'var(--red, #e74c3c)' : 'var(--green, #27ae60)';
+      setTimeout(() => { bulkAddStatus.textContent = ''; }, 5000);
+    }
+
+    bulkAddClear.addEventListener('click', () => {
+      bulkAddSeries.value = '';
+      bulkAddYear.value = '';
+      bulkAddMint.value = '';
+      bulkAddGrade.value = '';
+      bulkAddWeight.value = '';
+      bulkAddQty.value = '1';
+      bulkAddCost.value = '';
+      bulkAddStatus.textContent = '';
+      bulkAddSeries.focus();
+    });
+
+    bulkAddSubmit.addEventListener('click', async () => {
+      const user = CoinAuth.currentUser();
+      if (!user) return _bulkAddMsg('Please log in first.', true);
+      const series = bulkAddSeries.value.trim();
+      const year   = bulkAddYear.value.trim();
+      const mint   = bulkAddMint.value.trim().toUpperCase();
+      const grade  = bulkAddGrade.value.trim();
+      const weight = bulkAddWeight.value.trim() || null;
+      const qty    = Math.max(1, Math.min(9999, parseInt(bulkAddQty.value, 10) || 1));
+      const costRaw = bulkAddCost.value.trim().replace(/^\$/, '');
+      const costPer = costRaw ? parseFloat(costRaw) : null;
+      if (costRaw && (isNaN(costPer) || costPer < 0)) return _bulkAddMsg('Invalid cost value.', true);
+      if (!series && !year) return _bulkAddMsg('Enter at least a coin name or year.', true);
+      const coin = { series, year, mint, grade, weight, query: series + (year ? ' ' + year : ''), count: qty, costPer };
+      bulkAddSubmit.disabled = true;
+      bulkAddSubmit.textContent = 'Adding\u2026';
+      try {
+        const exists = await CoinStorage.hasCoin(user.userId, coin);
+        if (exists) {
+          const existing = await CoinStorage.getCoin(user.userId, user.key, coin);
+          const merged = (existing ? existing.count || 1 : 0) + qty;
+          await CoinStorage.updateCount(user.userId, user.key, existing.coinHash, merged);
+          _bulkAddMsg('Merged \u2014 ' + series + (year ? ' ' + year : '') + ' now \xD7' + merged, false);
+        } else {
+          await CoinStorage.addCoin(user.userId, user.key, coin);
+          _bulkAddMsg('Added ' + series + (year ? ' ' + year : '') + (qty > 1 ? ' \xD7' + qty : ''), false);
+        }
+        BackupReminder.recordAdd(user.userId);
+        // Keep form open with series retained for rapid entry
+        bulkAddYear.value = '';
+        bulkAddMint.value = '';
+        bulkAddGrade.value = '';
+        bulkAddWeight.value = '';
+        bulkAddQty.value = '1';
+        bulkAddCost.value = '';
+        bulkAddYear.focus();
+        if (typeof MyCoins !== 'undefined') MyCoins.render();
+      } catch (err) {
+        _bulkAddMsg('Failed: ' + err.message, true);
+      } finally {
+        bulkAddSubmit.disabled = false;
+        bulkAddSubmit.textContent = 'Add to Collection';
+      }
+    });
+
+    // Allow Enter key to submit from any bulk add field
+    [bulkAddSeries, bulkAddYear, bulkAddMint, bulkAddGrade, bulkAddWeight, bulkAddQty, bulkAddCost].forEach(el => {
+      el.addEventListener('keydown', (e) => { if (e.key === 'Enter') bulkAddSubmit.click(); });
+    });
 
     function showAccountBar() {
       accountBar.style.display = CoinAuth.currentUser() ? 'block' : 'none';

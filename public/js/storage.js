@@ -40,6 +40,7 @@ const CoinStorage = (() => {
   async function addCoin(userId, key, coin) {
     const db = await openDB();
     const hash = await CoinCrypto.coinHash(coin);
+    const costRaw = coin.costPer != null ? parseFloat(coin.costPer) : null;
     const plaintext = JSON.stringify({
       series: coin.series || '',
       year: coin.year || '',
@@ -48,6 +49,7 @@ const CoinStorage = (() => {
       weight: coin.weight || null,
       query: coin.query || '',
       count: Math.max(1, parseInt(coin.count, 10) || 1),
+      costPer: (costRaw != null && !isNaN(costRaw) && costRaw >= 0) ? costRaw : null,
       dateAdded: coin.dateAdded || new Date().toISOString(),
     });
     const { iv, ciphertext } = await CoinCrypto.encrypt(key, plaintext);
@@ -224,12 +226,47 @@ const CoinStorage = (() => {
     });
   }
 
+  /**
+   * Update the cost-per-coin of an existing coin.
+   * @param {string} userId
+   * @param {CryptoKey} key
+   * @param {string} coinHash
+   * @param {number|null} costPer - cost per coin (null to clear)
+   * @returns {Promise<void>}
+   */
+  async function updateCostPer(userId, key, coinHash, costPer) {
+    const db = await openDB();
+    const parsed = costPer != null ? parseFloat(costPer) : null;
+    const val = (parsed != null && !isNaN(parsed) && parsed >= 0) ? parsed : null;
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readonly');
+      const req = tx.objectStore(STORE_NAME).get([userId, coinHash]);
+      req.onsuccess = async () => {
+        if (!req.result) return reject(new Error('Coin not found'));
+        try {
+          const json = await CoinCrypto.decrypt(key, req.result.iv, req.result.ciphertext);
+          const coin = JSON.parse(json);
+          coin.costPer = val;
+          const plaintext = JSON.stringify(coin);
+          const encrypted = await CoinCrypto.encrypt(key, plaintext);
+          const db2 = await openDB();
+          const tx2 = db2.transaction(STORE_NAME, 'readwrite');
+          tx2.objectStore(STORE_NAME).put({ userId, coinHash, iv: encrypted.iv, ciphertext: encrypted.ciphertext });
+          tx2.oncomplete = () => resolve();
+          tx2.onerror = () => reject(tx2.error);
+        } catch (e) { reject(e); }
+      };
+      req.onerror = () => reject(req.error);
+    });
+  }
+
   return {
     openDB,
     addCoin,
     hasCoin,
     getCoin,
     updateCount,
+    updateCostPer,
     removeCoin,
     getAllEncrypted,
     getAllDecrypted,
@@ -254,6 +291,7 @@ const CoinStorage = (() => {
         weight: c.weight || null,
         query: c.query || '',
         count: c.count || 1,
+        costPer: c.costPer != null ? c.costPer : null,
         dateAdded: c.dateAdded || null,
       }));
       return JSON.stringify({
@@ -297,6 +335,7 @@ const CoinStorage = (() => {
             continue;
           }
           // Sanitize: coerce fields to expected types, strip unknown keys
+          const importedCost = coin.costPer != null ? parseFloat(coin.costPer) : null;
           const clean = {
             series: String(coin.series || '').trim().slice(0, 200),
             year:   String(coin.year || '').trim().slice(0, 10),
@@ -305,6 +344,7 @@ const CoinStorage = (() => {
             weight: coin.weight ? String(coin.weight).trim().slice(0, 20) : null,
             query:  String(coin.query || '').trim().slice(0, 300),
             count:  Math.max(1, parseInt(coin.count, 10) || 1),
+            costPer: (importedCost != null && !isNaN(importedCost) && importedCost >= 0) ? importedCost : null,
             dateAdded: coin.dateAdded || null,
           };
           const already = await hasCoin(userId, clean);
