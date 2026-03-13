@@ -31,4 +31,5 @@
 - Use `/apply-approved` to implement approved findings.
 - Use `/pre-commit` for a quick safety check before committing.
 - Review agents are read-only. The Implementer only acts on explicit `APPLY` commands.
+- Use the UX Reviewer agent for accessibility, responsive design, and interaction pattern checks on UI changes.
 - Shared review logic lives in `.github/skills/code-review/SKILL.md`.
