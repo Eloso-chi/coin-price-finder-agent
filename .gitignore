@@ -10,3 +10,6 @@ iisnode/
 
 # Database
 *.db
+
+# Test metrics data (local, append-only)
+.test-metrics/*.jsonl

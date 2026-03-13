@@ -1,0 +1,3 @@
+# Test Metrics Data
+# This directory stores append-only test run records.
+# The JSONL file is local to each developer and not committed to git.
