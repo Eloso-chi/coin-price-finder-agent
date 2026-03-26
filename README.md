@@ -31,7 +31,7 @@ The browser UI is a single-page app served from `public/index.html` with a dark 
 | **Melt Calculator** | Offline calculator for 80+ US coin types and 20 bar sizes. Auto-fetches spot prices from `/api/metals` and polls every 5 minutes. Shows per-coin, per-roll, and total melt values at spot and spot+premium. |
 | **Live eBay Tracker** | Market matrix from `/api/market/ebay`. Three display modes: Year × Mint (numismatic coins), Year × Grade (bullion), and Brand table (bars). Cells show median sold price, cheapest BIN link, key date badge, and Numista rarity. Color-coded legend. |
 | **Sold Data** | Terapeak CSV import UI (drag-and-drop or file picker) with search term input. Datasets list with delete. Visual daily quota meter (250/day default) with manual logging and reset. Admin endpoints require `x-api-key`. |
-| **My Coins** 🔒 | Auth-gated. Encrypted coin collection stored in IndexedDB. Shows portfolio summary (total FMV, coin count) and table with per-coin FMV, confidence, range, eBay average, date added, and remove button. Export/Import backup buttons and Change Password. |
+| **My Coins** 🔒 | Auth-gated. Encrypted coin collection stored in IndexedDB. Shows portfolio summary (total FMV, total cost, unrealized P/L, coin count) and full table with per-coin FMV, confidence, Troy Oz, cost basis, P/L, melt value, eBay average, range, notes, date added, and remove button. Checkbox column with select-all for multi-select bulk delete. Export/Import backup buttons (JSON and Excel .xlsx), Change Password. |
 | **Price History** 🔒 | Auth-gated. Canvas-drawn chart from `/api/coin-history`. Shows daily median prices with IQR band, outlier dots, and optional precious-metal spot overlay (dashed line). Supports 90/180/365-day ranges. |
 | **About** | Confidence score key, privacy/security explanation, how login works, feature previews for logged-out users, and legal disclaimer. |
 
@@ -51,14 +51,29 @@ No passwords, keys, or collection data ever leave the browser. The server cannot
 
 - **Database:** IndexedDB database `CoinVault`, object store `inventory`, composite key `[userId, coinHash]`.
 - **Per-coin encryption:** Each coin record is JSON-serialized and encrypted with AES-256-GCM using a random 12-byte IV. Only the encrypted ciphertext + IV are stored.
-- **Deduplication:** Coins are hashed by `SHA-256(series|year|mint|grade)` to prevent duplicates.
+- **Deduplication:** Coins are hashed by `SHA-256(series|year|mint|grade|notes)` to prevent duplicates while allowing distinct lots (e.g. same coin, different notes).
 - **"I Have This Coin" button:** Appears in Price Discovery results. If logged in, adds the coin to the encrypted collection with one click. If logged out, shows a lock icon that opens the login dialog.
 
 ### Export & Import Backup
 
 - **Export** — decrypts all coins and downloads a **plaintext JSON** file (`coin-collection-backup-YYYY-MM-DD.json`). The export contains `{format, exportedAt, count, coins[]}` with each coin's series, year, mint, grade, weight, query, and dateAdded. No encryption in the file — it's a portable backup.
 - **Import** — reads the JSON backup, validates the `coin-price-agent-backup-v1` format header, and re-encrypts each coin under the current user's key. Skips duplicates (by coinHash). Works across accounts — if a user loses their login and creates a new account, they can import a previous backup into the new account.
+### Excel (.xlsx) Import
 
+The app can import coin collections from Excel spreadsheets via `POST /api/import/excel`. The mapper (`src/utils/excelMapper.js`) handles:
+
+- **Flexible header matching** -- recognizes common column name variations (e.g. "Troy oz", "Tory oz", "troy_oz"; "Mint Mark", "mint_mark", "mintmark")
+- **Series normalization** -- maps informal names (e.g. "ASE" -> "American Silver Eagle", "canadian maple leaf" -> "Canadian Silver Maple Leaf") to canonical pricing engine names via a 20+ entry alias table
+- **Smart parsing** -- extracts year, mint mark, and series from free-text "Coin Name" column; prefers dedicated Year/Mint Mark columns when present
+- **Metal/weight detection** -- reads troy oz weight and maps to base metal (silver/gold) with fineness
+- **Year validation** -- requires 4-digit year between 1600-2099; rejects partial years
+- **Cost/notes/quantity pass-through** -- preserves cost basis, notes, and quantity from the spreadsheet
+
+The endpoint accepts `.xlsx` files up to 10 MB and returns the mapped coins in the standard backup JSON format, ready for client-side encryption and storage.
+
+### Auto-Seed Test Account
+
+On every page load, the app checks whether the `testcollector` demo account exists in localStorage. If missing (e.g. after a browser cache clear or codespace rebuild), it silently creates the account with 10 sample coins spanning different series (Morgans, Peace, Kennedy, Walking Liberty, ASE, Washington, Roosevelt, Buffalo, Lincoln). The seed runs in the background and logs out immediately, so the user always sees the normal login prompt. Credentials: `testcollector` / `Coins2026!`.
 ### Backup Reminder
 
 The `BackupReminder` module (in `storage.js`) tracks coin additions and time since last backup in `localStorage`. It shows a yellow banner in the My Coins tab prompting the user to export:
@@ -264,6 +279,7 @@ If an asking price is provided:
 | `POST` | `/api/price` | Price a coin (main endpoint) |
 | `POST` | `/api/bar-price` | Price a bullion bar |
 | `POST` | `/api/pricing-batch` | Batch-price up to 25 coins in one request |
+| `POST` | `/api/import/excel` | Import a coin collection from .xlsx spreadsheet |
 | `GET` | `/api/coin-variant` | Design-series metadata for a denomination + year |
 | `GET` | `/api/coin-history` | Sold-price time-series (daily medians) with optional spot overlay |
 
@@ -355,7 +371,7 @@ The **Test Monitor** system records per-run metrics (timestamp, branch, commit, 
 
 A Copilot agent persona (`.github/agents/test-monitor.agent.md`) can be invoked to diagnose failures, quarantine flaky tests, and suggest fixes. See [docs/testing/test-monitor.md](docs/testing/test-monitor.md) for full usage.
 
-Runs **Jest** across 26 test suites:
+Runs **Jest** across 28 test suites:
 
 | Suite | What it covers |
 |---|---|
@@ -385,6 +401,8 @@ Runs **Jest** across 26 test suites:
 | `stats.test.js` | Statistical functions: median, MAD, weighted median |
 | `terapeakFuzzyMatch.test.js` | Terapeak fuzzy comp matching |
 | `terapeakQuotaService.test.js` | Terapeak daily quota tracking, reset, threshold warnings |
+| `excelImport.test.js` | Excel mapper + route: header normalization, series aliases, year/mint parsing, error handling |
+| `storage.costPer.test.js` | Cost basis: inline edit, P/L computation, import sanitization, hash with notes |
 
 Test helpers live in `__tests__/helpers/coinTestConstants.js` (shared token lists, normalization, compound-word-aware `containsNone`).
 
@@ -403,6 +421,7 @@ src/
     coinVariantRoute.js            GET /api/coin-variant — design series resolver
     marketRoute.js                 GET /api/market/ebay — year×mint market matrix
     coinHistoryRoute.js            GET /api/coin-history — sold-price time-series
+    excelImportRoute.js            POST /api/import/excel — Excel spreadsheet import
     imageProxyRoute.js             GET /api/image-proxy — proxied coin images
     pricingBatchRoute.js           POST /api/pricing-batch — batch coin pricing
     terapeakRoute.js               /api/terapeak/* — Terapeak data & quota management
@@ -430,6 +449,7 @@ src/
     coinMetalProfile.js            Metal detection for bullion/silver/gold coins
     filters.js                     Deny-list filtering, denomination & series checks
     responseValidator.js           /api/price response schema & sanity validation
+    excelMapper.js                 Excel-to-backup converter (header aliases, series normalization)
 cache/
   ebay_cache.json                  Persisted eBay comp cache (1-hour TTL)
   pcgs_cache.json                  Persisted PCGS data cache (24-hour TTL)
@@ -448,7 +468,10 @@ public/
     my-coins.js                    MyCoins — portfolio rendering with parallel pricing
     test-my-coins.js               Client-side test harness for CoinStorage
   test-my-coins.html               Test runner page for storage/crypto tests
-__tests__/                         26 Jest test suites (see Tests section)
+samples/
+  test-collection.xlsx             Sample Excel import fixture
+  no-collectors-sheet.xlsx         Error-case fixture (missing sheet)
+__tests__/                         28 Jest test suites (see Tests section)
   helpers/
     coinTestConstants.js           Shared token lists & test utilities
 docs/

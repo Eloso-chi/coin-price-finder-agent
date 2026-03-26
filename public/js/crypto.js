@@ -175,6 +175,7 @@ const CoinCrypto = (() => {
       String(coin.year || ''),
       (coin.mint || '').trim().toUpperCase(),
       (coin.grade || '').trim().toUpperCase(),
+      (coin.notes || '').trim().toLowerCase(),
     ].join('|');
     return sha256(canonical);
   }

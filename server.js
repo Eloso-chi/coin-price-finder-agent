@@ -74,6 +74,7 @@ const terapeakRoute    = require('./src/routes/terapeakRoute');
 const pricingBatchRoute = require('./src/routes/pricingBatchRoute');
 const imageProxyRoute   = require('./src/routes/imageProxyRoute');
 const coinHistoryRoute  = require('./src/routes/coinHistoryRoute');
+const excelImportRoute  = require('./src/routes/excelImportRoute');
 app.use('/api/price', apiLimiter, priceRoute);
 app.use('/api/metals', metalsRoute);
 app.use('/api/bar-price', apiLimiter, barPriceRoute);
@@ -83,6 +84,7 @@ app.use('/api/terapeak', terapeakRoute);
 app.use('/api/pricing-batch', apiLimiter, pricingBatchRoute);
 app.use('/api/image-proxy', imageProxyRoute);
 app.use('/api/coin-history', coinHistoryRoute);
+app.use('/api/import/excel', apiLimiter, excelImportRoute);
 
 // Clear all caches (admin-only)
 app.post('/api/clear-cache', requireAdmin, (_req, res) => {

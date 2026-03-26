@@ -1,5 +1,5 @@
 // my-coins.js — "My Coins" tab: decrypt inventory, fetch pricing, render table
-// Depends on: CoinCrypto, CoinStorage, CoinAuth, _esc (from index.html)
+// Depends on: CoinCrypto, CoinStorage, CoinAuth, _esc, _escAttr (from index.html)
 
 'use strict';
 
@@ -15,6 +15,9 @@ const MyCoins = (() => {
   let _sortAsc = true;
   let _filterText = '';
   let _filterTimer = null;
+
+  // Spot price cache (fetched once per render)
+  let _spotPrices = null;  // { silver: number, gold: number } | null
 
   function init() {
     _container = document.getElementById('mycoins-content');
@@ -55,7 +58,8 @@ const MyCoins = (() => {
 
       _container.innerHTML = '<p class="mycoins-loading">Fetching pricing for ' + coins.length + ' coin(s)\u2026</p>';
 
-      // Fetch pricing in parallel with throttling
+      // Fetch spot prices (for melt value) and pricing in parallel
+      _spotPrices = await _fetchSpotPrices();
       const priced = await _fetchPricing(coins);
       _lastPriced = priced;
       _renderTable(priced);
@@ -125,6 +129,31 @@ const MyCoins = (() => {
     return results.filter(Boolean);
   }
 
+  async function _fetchSpotPrices() {
+    try {
+      const [sResp, gResp] = await Promise.all([
+        fetch('/api/metals/silver'), fetch('/api/metals/gold'),
+      ]);
+      const s = sResp.ok ? await sResp.json() : null;
+      const g = gResp.ok ? await gResp.json() : null;
+      return {
+        silver: s && Number.isFinite(s.price) ? s.price : null,
+        gold: g && Number.isFinite(g.price) ? g.price : null,
+      };
+    } catch { return { silver: null, gold: null }; }
+  }
+
+  function _melt(coin) {
+    if (!_spotPrices || !coin.weight) return null;
+    var metal = (coin.baseMetal || '').toLowerCase();
+    var spot = null;
+    if (metal === 'silver') spot = _spotPrices.silver;
+    else if (metal === 'gold') spot = _spotPrices.gold;
+    if (!spot) return null;
+    var fineness = Number.isFinite(coin.fineness) ? coin.fineness : 1;
+    return coin.weight * fineness * spot;
+  }
+
   function _buildQuery(coin) {
     const parts = [];
     if (coin.year) parts.push(String(coin.year));
@@ -172,6 +201,8 @@ const MyCoins = (() => {
           return va < vb ? -1 : va > vb ? 1 : 0;
         case 'qty':
           va = a.coin.count || 1; vb = b.coin.count || 1; return va - vb;
+        case 'toz':
+          va = a.coin.weight || 0; vb = b.coin.weight || 0; return va - vb;
         case 'fmv':
           va = a.fmv || 0; vb = b.fmv || 0; return va - vb;
         case 'total':
@@ -186,8 +217,13 @@ const MyCoins = (() => {
           va = (a.fmv != null && a.coin.costPer != null) ? (a.fmv - a.coin.costPer) * (a.coin.count || 1) : -Infinity;
           vb = (b.fmv != null && b.coin.costPer != null) ? (b.fmv - b.coin.costPer) * (b.coin.count || 1) : -Infinity;
           return va - vb;
+        case 'melt':
+          va = _melt(a.coin) || 0; vb = _melt(b.coin) || 0; return va - vb;
         case 'ebay':
           va = a.avgEbay || 0; vb = b.avgEbay || 0; return va - vb;
+        case 'notes':
+          va = (a.coin.notes || '').toLowerCase(); vb = (b.coin.notes || '').toLowerCase();
+          return va < vb ? -1 : va > vb ? 1 : 0;
         case 'added':
           va = a.coin.dateAdded || ''; vb = b.coin.dateAdded || '';
           return va < vb ? -1 : va > vb ? 1 : 0;
@@ -246,22 +282,31 @@ const MyCoins = (() => {
 
     // Search / filter bar
     html += '<div class="mycoins-filter-bar">';
-    html += '<input type="text" class="mycoins-filter-input" placeholder="Search coins\u2026" value="' + _esc(_filterText) + '">';
+    html += '<input type="text" class="mycoins-filter-input" placeholder="Search coins\u2026" value="' + _escAttr(_filterText) + '">';
     if (_filterText) html += '<span class="mycoins-filter-count">' + filtered.length + ' of ' + items.length + '</span>';
+    html += '</div>';
+
+    // Bulk delete bar (hidden until checkboxes selected)
+    html += '<div class="mycoins-bulk-bar" style="display:none">';
+    html += '<button class="mycoins-delete-selected btn-sm-danger" disabled>Delete Selected (<span class="mycoins-sel-count">0</span>)</button>';
     html += '</div>';
 
     // Table
     html += '<div class="mycoins-table-wrap"><table class="mycoins-table">';
     html += '<thead><tr>';
+    html += '<th class="mycoins-select-col"><input type="checkbox" class="mycoins-select-all" title="Select all"></th>';
     html += '<th class="mycoins-sortable" data-col="coin">Coin' + _sortArrow('coin') + '</th>';
     html += '<th class="mycoins-sortable" data-col="grade">Grade' + _sortArrow('grade') + '</th>';
     html += '<th class="mycoins-sortable mycoins-qty-col" data-col="qty">Qty' + _sortArrow('qty') + '</th>';
+    html += '<th class="mycoins-sortable" data-col="toz">Troy Oz' + _sortArrow('toz') + '</th>';
     html += '<th class="mycoins-sortable" data-col="fmv">FMV (ea)' + _sortArrow('fmv') + '</th>';
     html += '<th class="mycoins-sortable" data-col="total">Total' + _sortArrow('total') + '</th>';
     html += '<th class="mycoins-sortable" data-col="cost">Cost (ea)' + _sortArrow('cost') + '</th>';
     html += '<th class="mycoins-sortable" data-col="pl">P/L' + _sortArrow('pl') + '</th>';
+    html += '<th class="mycoins-sortable" data-col="melt">Melt' + _sortArrow('melt') + '</th>';
     html += '<th class="mycoins-sortable" data-col="ebay">Avg eBay' + _sortArrow('ebay') + '</th>';
     html += '<th>Range</th>';
+    html += '<th class="mycoins-sortable" data-col="notes">Notes' + _sortArrow('notes') + '</th>';
     html += '<th class="mycoins-sortable" data-col="added">Added' + _sortArrow('added') + '</th>';
     html += '<th></th>';
     html += '</tr></thead><tbody>';
@@ -275,27 +320,35 @@ const MyCoins = (() => {
         ? _$(it.rangeLow) + ' \u2013 ' + _$(it.rangeHigh)
         : '\u2014';
       const lineTotal = (it.fmv != null && !isNaN(it.fmv)) ? it.fmv * qty : null;
+      const meltVal = _melt(c);
 
       html += '<tr>';
+
+      // Checkbox
+      html += '<td class="mycoins-select-col"><input type="checkbox" class="mycoins-row-check" data-hash="' + _escAttr(c.coinHash) + '"></td>';
+
       html += '<td>' + _esc(label) + '</td>';
       html += '<td>' + _esc(c.grade || '\u2014') + '</td>';
 
       // Qty cell with inline +/- controls
       html += '<td class="mycoins-qty-cell">';
-      html += '<button class="mycoins-qty-btn" data-hash="' + _esc(c.coinHash) + '" data-delta="-1" title="Decrease quantity">&minus;</button>';
+      html += '<button class="mycoins-qty-btn" data-hash="' + _escAttr(c.coinHash) + '" data-delta="-1" title="Decrease quantity">&minus;</button>';
       html += '<span class="mycoins-qty-val">' + qty + '</span>';
-      html += '<button class="mycoins-qty-btn" data-hash="' + _esc(c.coinHash) + '" data-delta="1" title="Increase quantity">+</button>';
+      html += '<button class="mycoins-qty-btn" data-hash="' + _escAttr(c.coinHash) + '" data-delta="1" title="Increase quantity">+</button>';
       html += '</td>';
 
+      // Troy Oz
+      html += '<td class="mycoins-toz">' + (c.weight ? Number(c.weight).toFixed(4) : '\u2014') + '</td>';
+
       const fmvCell = it.fmv != null ? _$(it.fmv) + (it.confidence ? ' <span style="opacity:0.6;font-size:0.85em">(' + _esc(it.confidence) + ')</span>' : '')
-        : (it.pricingError ? '<span style="color:var(--text-muted);font-size:0.8em" title="' + _esc(it.pricingError) + '">No data</span>' : '\u2014');
+        : (it.pricingError ? '<span style="color:var(--text-muted);font-size:0.8em" title="' + _escAttr(it.pricingError) + '">No data</span>' : '\u2014');
       html += '<td class="mycoins-fmv">' + fmvCell + '</td>';
       html += '<td class="mycoins-fmv">' + _$(lineTotal) + '</td>';
 
       // Cost (ea) — inline editable
       const costVal = c.costPer != null ? c.costPer.toFixed(2) : '';
-      html += '<td class="mycoins-cost-cell" data-hash="' + _esc(c.coinHash) + '">';
-      html += '<input type="text" class="mycoins-cost-input" value="' + _esc(costVal) + '" placeholder="\u2014" inputmode="decimal" aria-label="Cost per coin for ' + _esc(label) + '">';
+      html += '<td class="mycoins-cost-cell" data-hash="' + _escAttr(c.coinHash) + '">';
+      html += '<input type="text" class="mycoins-cost-input" value="' + _escAttr(costVal) + '" placeholder="\u2014" inputmode="decimal" aria-label="Cost per coin for ' + _escAttr(label) + '">';
       html += '</td>';
 
       // P/L column
@@ -308,10 +361,17 @@ const MyCoins = (() => {
         html += '<td>\u2014</td>';
       }
 
+      // Melt value
+      html += '<td class="mycoins-melt">' + _$(meltVal) + '</td>';
+
       html += '<td>' + _$(it.avgEbay) + '</td>';
       html += '<td class="mycoins-range">' + range + '</td>';
+
+      // Notes
+      html += '<td class="mycoins-notes">' + _esc(c.notes || '') + '</td>';
+
       html += '<td class="mycoins-date">' + _esc(added) + '</td>';
-      html += '<td><button class="mycoins-remove" data-hash="' + _esc(c.coinHash) + '" title="Remove from collection">&times;</button></td>';
+      html += '<td><button class="mycoins-remove" data-hash="' + _escAttr(c.coinHash) + '" title="Remove from collection">&times;</button></td>';
       html += '</tr>';
     });
 
@@ -380,6 +440,45 @@ const MyCoins = (() => {
         render();
       });
     });
+
+    // ── Checkbox / bulk-delete bindings ──
+    const bulkBar = _container.querySelector('.mycoins-bulk-bar');
+    const delBtn = _container.querySelector('.mycoins-delete-selected');
+    const selCount = _container.querySelector('.mycoins-sel-count');
+    const selectAll = _container.querySelector('.mycoins-select-all');
+    const rowChecks = _container.querySelectorAll('.mycoins-row-check');
+
+    function _updateBulkBar() {
+      const checked = _container.querySelectorAll('.mycoins-row-check:checked');
+      const n = checked.length;
+      if (bulkBar) bulkBar.style.display = n > 0 ? 'flex' : 'none';
+      if (selCount) selCount.textContent = String(n);
+      if (delBtn) delBtn.disabled = n === 0;
+      if (selectAll) selectAll.checked = n > 0 && n === rowChecks.length;
+    }
+
+    if (selectAll) {
+      selectAll.addEventListener('change', () => {
+        rowChecks.forEach(cb => { cb.checked = selectAll.checked; });
+        _updateBulkBar();
+      });
+    }
+    rowChecks.forEach(cb => cb.addEventListener('change', _updateBulkBar));
+
+    if (delBtn) {
+      delBtn.addEventListener('click', async () => {
+        const checked = _container.querySelectorAll('.mycoins-row-check:checked');
+        const hashes = Array.from(checked).map(cb => cb.getAttribute('data-hash'));
+        if (!hashes.length) return;
+        if (!confirm('Delete ' + hashes.length + ' selected coin(s)? This cannot be undone.')) return;
+        const user = CoinAuth.currentUser();
+        if (!user) return;
+        for (const h of hashes) {
+          await CoinStorage.removeCoin(user.userId, h);
+        }
+        render();
+      });
+    }
 
     // Bind inline cost editing (blur or Enter saves)
     _container.querySelectorAll('.mycoins-cost-input').forEach(input => {

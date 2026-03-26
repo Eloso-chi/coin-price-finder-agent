@@ -904,6 +904,17 @@
     .mycoins-cost-input { width: 72px; padding: 4px 6px; font-size: 0.82rem; border: 1px solid var(--border-subtle); border-radius: 4px; background: var(--surface); color: var(--text); text-align: right; }
     .mycoins-cost-input:focus { border-color: var(--accent); outline: none; }
     .mycoins-cost-input::placeholder { color: var(--text-muted); }
+
+    /* ── Checkbox / bulk-delete / new columns ── */
+    .mycoins-select-col { width: 32px; text-align: center; padding: 4px !important; }
+    .mycoins-select-all, .mycoins-row-check { width: 15px; height: 15px; cursor: pointer; accent-color: var(--accent); }
+    .mycoins-bulk-bar { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
+    .mycoins-delete-selected { background: var(--red, #e74c3c); color: #fff; border: none; border-radius: var(--radius); padding: 5px 14px; font-size: 0.82rem; cursor: pointer; }
+    .mycoins-delete-selected:disabled { opacity: 0.5; cursor: default; }
+    .mycoins-toz { text-align: right; font-variant-numeric: tabular-nums; font-size: 0.82rem; color: var(--text-muted); }
+    .mycoins-melt { text-align: right; font-variant-numeric: tabular-nums; }
+    .mycoins-notes { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.78rem; color: var(--text-muted); }
+
     .add-coin-cost-wrap { display: inline-flex; align-items: center; gap: 6px; margin-left: 8px; font-size: 0.8rem; }
     .add-coin-cost-input { width: 64px; padding: 3px 6px; font-size: 0.8rem; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); color: var(--text); text-align: right; }
     .add-coin-cost-input:focus { border-color: var(--accent); outline: none; }
@@ -1684,8 +1695,10 @@
           <button id="mycoins-bulkadd-toggle" class="btn-sm-accent" title="Manually add coins to your collection">&#x2795; Add Coins</button>
           <button id="mycoins-export" class="btn-sm" title="Download your collection as a backup file">&#x1F4E5; Export Backup</button>
           <button id="mycoins-import" class="btn-sm" title="Restore coins from a backup file">&#x1F4E4; Import Backup</button>
+          <button id="mycoins-import-excel" class="btn-sm" title="Import coins from an Excel spreadsheet">&#x1F4CA; Import Excel</button>
           <button id="mycoins-changepw" class="btn-sm" title="Change your password">&#x1F512; Change Password</button>
           <input type="file" id="mycoins-import-file" accept=".json" style="display:none">
+          <input type="file" id="mycoins-import-excel-file" accept=".xlsx" style="display:none">
         </div>
         <div id="mycoins-account-status" style="margin-top:6px;font-size:0.8rem;color:var(--text-muted);display:none"></div>
       </div>
@@ -2059,6 +2072,10 @@
     // Only allow http/https URLs
     if (!/^https?:\/\//i.test(url)) return '';
     return _esc(url);
+  }
+  function _escAttr(str) {
+    if (str == null) return '';
+    return String(str).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
 
   /* ═══════════════════════════════════════════════════════════
@@ -5278,6 +5295,40 @@
       }
     });
 
+    // Excel import
+    const importExcelBtn  = document.getElementById('mycoins-import-excel');
+    const importExcelFile = document.getElementById('mycoins-import-excel-file');
+    importExcelBtn.addEventListener('click', () => importExcelFile.click());
+    importExcelFile.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      importExcelFile.value = '';
+      const user = CoinAuth.currentUser();
+      if (!user) return;
+      try {
+        accountMsg('Uploading spreadsheet\u2026', false);
+        const form = new FormData();
+        form.append('file', file);
+        const resp = await fetch('/api/import/excel', { method: 'POST', body: form });
+        if (!resp.ok) {
+          const err = await resp.json().catch(() => ({ error: 'Upload failed' }));
+          throw new Error(err.error || 'Server returned ' + resp.status);
+        }
+        const { payload, summary } = await resp.json();
+        // Import the mapped coins through the normal JSON import path
+        const json = JSON.stringify(payload);
+        const result = await CoinStorage.importJSON(user.userId, user.key, json);
+        let msg = 'Excel: ' + result.imported + ' coin(s) imported';
+        if (result.skipped) msg += ', ' + result.skipped + ' duplicate(s) skipped';
+        if (summary.failedRows) msg += ', ' + summary.failedRows + ' row(s) could not be mapped';
+        msg += '.';
+        accountMsg(msg, summary.failedRows > 0);
+        if (typeof MyCoins !== 'undefined') MyCoins.render();
+      } catch (err) {
+        accountMsg('Excel import failed: ' + err.message, true);
+      }
+    });
+
     // Change Password dialog
     changePwBtn.addEventListener('click', () => {
       cpCurrent.value = '';
@@ -5342,6 +5393,53 @@
       if (e.key === 'Enter') cpSubmit.click();
     });
 
+  })();
+
+  /* ═══════════════════════════════════════════════════════════
+   *  AUTO-SEED — ensure the testcollector demo account exists
+   *  Runs once per browser session; no-op if the account is
+   *  already present. Does NOT auto-log-in.
+   * ═══════════════════════════════════════════════════════════ */
+  (function seedTestAccount() {
+    var SEED_USER = 'testcollector';
+    var SEED_PASS = 'Coins2026!';
+    var SEED_COINS = [
+      { series: 'Morgan Dollar',              year: '1921', mint: 'D', grade: 'MS-65', weight: null, count: 3,  query: '1921-D Morgan Dollar MS-65' },
+      { series: 'Morgan Dollar',              year: '1878', mint: 'S', grade: 'VF-30', weight: null, count: 1,  query: '1878-S Morgan Dollar VF-30' },
+      { series: 'Peace Dollar',               year: '1923', mint: 'P', grade: 'MS-63', weight: null, count: 2,  query: '1923 Peace Dollar MS-63' },
+      { series: 'Kennedy Half Dollar',        year: '1964', mint: 'P', grade: 'PR-69', weight: null, count: 1,  query: '1964 Kennedy Half Dollar PR-69' },
+      { series: 'Walking Liberty Half Dollar', year:'1941', mint: 'S', grade: 'VF-25', weight: null, count: 1,  query: '1941-S Walking Liberty Half Dollar VF-25' },
+      { series: 'American Silver Eagle',      year: '2024', mint: 'P', grade: 'MS-70', weight: 1,    count: 20, query: '2024 American Silver Eagle MS-70' },
+      { series: 'Washington Quarter',         year: '1932', mint: 'D', grade: 'VG-10', weight: null, count: 1,  query: '1932-D Washington Quarter VG-10' },
+      { series: 'Roosevelt Dime',             year: '1946', mint: 'P', grade: 'MS-66', weight: null, count: 5,  query: '1946 Roosevelt Dime MS-66' },
+      { series: 'Buffalo Nickel',             year: '1937', mint: 'D', grade: 'MS-64', weight: null, count: 1,  query: '1937-D Buffalo Nickel MS-64' },
+      { series: 'Lincoln Cent',               year: '1909', mint: 'S', grade: 'VF-20', weight: null, count: 1,  query: '1909-S Lincoln Cent VF-20' },
+    ];
+
+    // Already exists — nothing to do
+    var accounts;
+    try { accounts = JSON.parse(localStorage.getItem('cpf_accounts')) || {}; } catch (e) { accounts = {}; }
+    if (accounts[SEED_USER]) return;
+
+    // Run async in background so it never blocks the UI
+    (async function () {
+      try {
+        // Create the account (sets _session internally)
+        await CoinAuth.signup(SEED_USER, SEED_PASS);
+
+        // Add the seed coins
+        var session = CoinAuth.currentUser();
+        for (var i = 0; i < SEED_COINS.length; i++) {
+          await CoinStorage.addCoin(session.userId, session.key, SEED_COINS[i]);
+        }
+
+        // Log out so the user still sees the normal login prompt
+        CoinAuth.logout();
+        console.log('[seed] testcollector account created with ' + SEED_COINS.length + ' coins');
+      } catch (err) {
+        console.warn('[seed] could not create test account:', err.message);
+      }
+    })();
   })();
   </script>
 

@@ -50,6 +50,9 @@ const CoinStorage = (() => {
       query: coin.query || '',
       count: Math.max(1, parseInt(coin.count, 10) || 1),
       costPer: (costRaw != null && !isNaN(costRaw) && costRaw >= 0) ? costRaw : null,
+      notes: coin.notes || null,
+      baseMetal: coin.baseMetal || null,
+      fineness: coin.fineness != null ? parseFloat(coin.fineness) || null : null,
       dateAdded: coin.dateAdded || new Date().toISOString(),
     });
     const { iv, ciphertext } = await CoinCrypto.encrypt(key, plaintext);
@@ -292,6 +295,9 @@ const CoinStorage = (() => {
         query: c.query || '',
         count: c.count || 1,
         costPer: c.costPer != null ? c.costPer : null,
+        notes: c.notes || null,
+        baseMetal: c.baseMetal || null,
+        fineness: c.fineness != null ? c.fineness : null,
         dateAdded: c.dateAdded || null,
       }));
       return JSON.stringify({
@@ -345,6 +351,9 @@ const CoinStorage = (() => {
             query:  String(coin.query || '').trim().slice(0, 300),
             count:  Math.max(1, parseInt(coin.count, 10) || 1),
             costPer: (importedCost != null && !isNaN(importedCost) && importedCost >= 0) ? importedCost : null,
+            notes:    coin.notes ? String(coin.notes).trim().slice(0, 500) : null,
+            baseMetal: coin.baseMetal ? String(coin.baseMetal).trim().slice(0, 20) : null,
+            fineness:  coin.fineness != null ? parseFloat(coin.fineness) || null : null,
             dateAdded: coin.dateAdded || null,
           };
           const already = await hasCoin(userId, clean);
