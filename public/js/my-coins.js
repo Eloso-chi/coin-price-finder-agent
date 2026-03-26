@@ -132,7 +132,7 @@ const MyCoins = (() => {
   async function _fetchSpotPrices() {
     try {
       const [sResp, gResp] = await Promise.all([
-        fetch('/api/metals/silver'), fetch('/api/metals/gold'),
+        fetch('/api/metals/XAG'), fetch('/api/metals/XAU'),
       ]);
       const s = sResp.ok ? await sResp.json() : null;
       const g = gResp.ok ? await gResp.json() : null;
@@ -145,13 +145,16 @@ const MyCoins = (() => {
 
   function _melt(coin) {
     if (!_spotPrices || !coin.weight) return null;
+    var w = Number(coin.weight);
+    if (!Number.isFinite(w) || w <= 0) return null;
     var metal = (coin.baseMetal || '').toLowerCase();
     var spot = null;
     if (metal === 'silver') spot = _spotPrices.silver;
     else if (metal === 'gold') spot = _spotPrices.gold;
     if (!spot) return null;
-    var fineness = Number.isFinite(coin.fineness) ? coin.fineness : 1;
-    return coin.weight * fineness * spot;
+    var f = Number(coin.fineness);
+    var fineness = Number.isFinite(f) && f > 0 ? f : 1;
+    return w * fineness * spot;
   }
 
   function _buildQuery(coin) {

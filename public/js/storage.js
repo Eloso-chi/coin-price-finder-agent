@@ -357,7 +357,17 @@ const CoinStorage = (() => {
             dateAdded: coin.dateAdded || null,
           };
           const already = await hasCoin(userId, clean);
-          if (already) { skipped++; continue; }
+          if (already) {
+            // Auto-differentiate: append "lot N" to notes so each gets a unique hash
+            var lotNum = 2;
+            var original = clean.notes || '';
+            while (await hasCoin(userId, clean)) {
+              clean.notes = (original ? original + ' | ' : '') + 'lot ' + lotNum;
+              lotNum++;
+              if (lotNum > 50) break; // safety cap
+            }
+            if (lotNum > 50) { skipped++; continue; }
+          }
           await addCoin(userId, key, clean);
           imported++;
         } catch {
