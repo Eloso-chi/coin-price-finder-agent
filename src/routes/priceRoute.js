@@ -364,7 +364,8 @@ router.post('/', async (req, res) => {
     let resolvedMintage = pcgsMintage;
     let mintageSource   = pcgsMintage ? 'pcgs' : null;
     if (!resolvedMintage) {
-      const staticLookup = lookupMintage(mintSeries, mintYear, mintMark, mintWeight);
+      const mintFinish = identification.parsed?.finish || (expected.isProof ? 'Proof' : null);
+      const staticLookup = lookupMintage(mintSeries, mintYear, mintMark, mintWeight, mintFinish);
       if (staticLookup.mintage) {
         resolvedMintage = staticLookup.mintage;
         mintageSource   = 'static';

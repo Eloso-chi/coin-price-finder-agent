@@ -1263,37 +1263,96 @@ const MINTAGE_DATA = {
   },
 
   // ══════════════════════════════════════════════════════════════
-  // MEXICAN LIBERTAD — SILVER (1982–present)
+  // MEXICAN LIBERTAD — SILVER BU (1982–present, 1 oz)
+  // Sources: Wikipedia (Krause Standard Catalog refs 8-9, 11-12, 14);
+  //          Banco de México SIE CM27 (2023-2024);
+  //          Banco de México archived silver-coins.html (2000-2012)
+  // Full Banxico history available via SIE-API series SM122 w/ Bmx-Token
   // ══════════════════════════════════════════════════════════════
   'mexican silver libertad': {
-    '1982-P': 1049890, '1983-P': 1999700, '1984-P': 500000, '1985-P': 2017000,
-    '1986-P': 1999600, '1987-P': 500000, '1988-P': 1000000, '1989-P': 1000000,
-    '1990-P': 1000000, '1991-P': 1000000, '1992-P': 1000000, '1993-P': 500000,
-    '1994-P': 400000, '1995-P': 500000, '1996-P': 500000, '1997-P': 500000,
-    '1998-P': 700000, '1999-P': 800000, '2000-P': 340000, '2001-P': 500000,
-    '2002-P': 500000, '2003-P': 400000, '2004-P': 350000, '2005-P': 350000,
-    '2006-P': 500000, '2007-P': 500000, '2008-P': 800000, '2009-P': 1100000,
-    '2010-P': 1050000, '2011-P': 1600000, '2012-P': 1000000, '2013-P': 1050000,
-    '2014-P': 1001300, '2015-P': 1076000, '2016-P': 997800, '2017-P': 506400,
-    '2018-P': 510000, '2019-P': 501000, '2020-P': 450000, '2021-P': 500000,
-    '2022-P': 400000, '2023-P': 350000, '2024-P': 350000,
+    '1982-P': 1050000, '1983-P': 1002200, '1984-P': 1015500, '1985-P': 2017000,
+    '1986-P': 1699426, '1987-P': 500000, '1988-P': 1000000, '1989-P': 1396500,
+    '1990-P': 1200000, '1991-P': 1650518, '1992-P': 2458000, '1993-P': 1000000,
+    '1994-P': 400000, '1995-P': 500000, '1997-P': 100000,
+    '1998-P': 67000, '1999-P': 95000, '2000-P': 455000, '2001-P': 385000,
+    '2002-P': 955000, '2003-P': 200000, '2004-P': 550000, '2005-P': 600000,
+    '2006-P': 300000, '2007-P': 200000, '2008-P': 950000, '2009-P': 1650000,
+    '2010-P': 1000000, '2011-P': 1200000, '2012-P': 746400, '2013-P': 774100,
+    '2014-P': 429200, '2015-P': 901500, '2016-P': 1437500, '2017-P': 636000,
+    '2018-P': 300000, '2019-P': 402000, '2020-P': 300000, '2021-P': 450000,
+    '2022-P': 350000, '2023-P': 613000, '2024-P': 718000,
   },
 
   // ══════════════════════════════════════════════════════════════
-  // MEXICAN LIBERTAD — GOLD (1981–present)
+  // MEXICAN LIBERTAD — GOLD BU (1981–present, 1 oz)
+  // Sources: Wikipedia (Krause Standard Catalog refs 8-9, 11-12);
+  //          Don Bailey Numismatic Services (ref 10) for early years;
+  //          Banxico SIE CM10 (2023-2024 "put into circulation")
+  // Full Banxico history available via SIE-API series SM110 w/ Bmx-Token
+  // Notes: 1981-1990 were .900 fineness; 1991+ are .999
+  //        No 1oz minted 1982-1984, 1986-1990, 1995-1999, 2001
   // ══════════════════════════════════════════════════════════════
   'mexican gold libertad': {
-    '1981-P': 109000, '1982-P': 73000, '1983-P': 40000, '1984-P': 40000,
-    '1985-P': 30000, '1986-P': 20000, '1987-P': 20000, '1988-P': 15000,
-    '1989-P': 10000, '1990-P': 10000, '1991-P': 10000, '1992-P': 10000,
-    '1993-P': 5000, '1994-P': 5000, '1995-P': 5000, '1996-P': 5000,
-    '1997-P': 5000, '1998-P': 5000, '1999-P': 5000, '2000-P': 5500,
-    '2001-P': 5000, '2002-P': 6000, '2003-P': 5000, '2004-P': 5000,
-    '2005-P': 6000, '2006-P': 7000, '2007-P': 8000, '2008-P': 10000,
-    '2009-P': 12000, '2010-P': 15000, '2011-P': 14000, '2012-P': 10000,
-    '2013-P': 12000, '2014-P': 12000, '2015-P': 10000, '2016-P': 10000,
-    '2017-P': 8000, '2018-P': 7000, '2019-P': 7000, '2020-P': 8000,
-    '2021-P': 7000, '2022-P': 6000, '2023-P': 5000, '2024-P': 5000,
+    '1981-P': 596000, '1991-P': 109193, '1992-P': 46281, '1993-P': 73881,
+    '1994-P': 1000, '2000-P': 2730, '2002-P': 15000, '2003-P': 500,
+    '2004-P': 3000, '2006-P': 4000, '2007-P': 2500, '2008-P': 800,
+    '2009-P': 6200, '2010-P': 4000, '2013-P': 2350, '2014-P': 4050,
+    '2015-P': 4800, '2016-P': 4100, '2017-P': 900, '2018-P': 2050,
+    '2019-P': 2000, '2020-P': 1100, '2021-P': 1050, '2022-P': 1900,
+  },
+
+  // ══════════════════════════════════════════════════════════════
+  // MEXICAN LIBERTAD — SILVER PROOF (1983–present, 1 oz)
+  // Sources: Wikipedia (Krause Standard Catalog refs 8-9, 11-12, 14);
+  //          Banco de México SIE CM27 proof quality (2023-2024);
+  //          Banxico archived silver-coins.html (2000-2012)
+  // Full Banxico history available via SIE-API series SM129 w/ Bmx-Token
+  // Notes: (p)=proof only; 2015+ reverse proof (rp) minted separately
+  //        Figures here are proof-only; rp not included
+  // ══════════════════════════════════════════════════════════════
+  'mexican silver libertad proof': {
+    '1983-P': 998, '1986-P': 30006, '1987-P': 12000, '1988-P': 10000,
+    '1993-P': 5002, '1995-P': 2000, '1996-P': 1200, '1997-P': 1500,
+    '1998-P': 2500, '1999-P': 600, '2000-P': 1600, '2001-P': 4100,
+    '2002-P': 3800, '2003-P': 5400, '2004-P': 3000, '2005-P': 3300,
+    '2007-P': 5800, '2008-P': 11000, '2009-P': 6200, '2010-P': 1300,
+    '2012-P': 4200, '2013-P': 9100, '2014-P': 4700, '2015-P': 6400,
+    '2016-P': 13250, '2017-P': 8650, '2018-P': 10000, '2019-P': 5500,
+    '2020-P': 5850, '2021-P': 3340, '2022-P': 3400,
+    '2023-P': 16850, '2024-P': 18500,
+  },
+
+  // ══════════════════════════════════════════════════════════════
+  // MEXICAN LIBERTAD — GOLD PROOF (2002–present, 1 oz)
+  // Sources: Wikipedia (Krause Standard Catalog refs 8-9, 11-12);
+  //          Banxico SIE CM10 (2023-2024 "put into circulation")
+  // Full Banxico history available via SIE-API series SM115 w/ Bmx-Token
+  // ══════════════════════════════════════════════════════════════
+  'mexican gold libertad proof': {
+    '2002-P': 200, '2003-P': 800, '2004-P': 200, '2005-P': 400,
+    '2006-P': 520, '2007-P': 500, '2008-P': 800,
+    '2009-P': 600, '2010-P': 1000, '2011-P': 1100,
+    '2013-P': 300, '2014-P': 250, '2015-P': 500, '2016-P': 2100,
+    '2017-P': 600, '2018-P': 1000, '2019-P': 1000,
+    '2020-P': 250, '2021-P': 350, '2022-P': 1200,
+  },
+
+  // ══════════════════════════════════════════════════════════════
+  // AMERICAN SILVER EAGLE — PROOF (1986–present, West Point)
+  // ══════════════════════════════════════════════════════════════
+  'american silver eagle proof': {
+    '1986-S': 1446778, '1987-S': 904732, '1988-S': 557370, '1989-S': 617694,
+    '1990-S': 695510, '1991-S': 511925, '1992-S': 498654, '1993-P': 405913,
+    '1994-P': 372168, '1995-P': 438511, '1995-W': 30125,
+    '1996-P': 500000, '1997-P': 435368, '1998-P': 450000, '1999-P': 549769,
+    '2000-P': 600000, '2001-W': 746398, '2002-W': 647342, '2003-W': 747831,
+    '2004-W': 801602, '2005-W': 816663, '2006-W': 1092477, '2007-W': 821759,
+    '2008-W': 700979, '2010-W': 849861, '2011-W': 849861, '2011-S': 99882,
+    '2012-W': 869970, '2012-S': 224981, '2013-W': 934812, '2014-W': 904765,
+    '2015-W': 801489, '2016-W': 785122, '2017-W': 963555, '2017-S': 249506,
+    '2018-W': 856425, '2018-S': 200000, '2019-W': 882949, '2019-S': 181606,
+    '2020-W': 371411, '2020-S': 93196, '2021-W': 327293, '2021-S': 175091,
+    '2022-W': 300000, '2022-S': 200000, '2023-W': 300000, '2024-W': 250000,
   },
 
   // ══════════════════════════════════════════════════════════════
@@ -1897,6 +1956,10 @@ const SERIES_ALIASES = {
   'ase':                 'american silver eagle',
   'silver eagle':        'american silver eagle',
   'american silver eagle': 'american silver eagle',
+  // ASE Proof
+  'ase proof':                      'american silver eagle proof',
+  'silver eagle proof':             'american silver eagle proof',
+  'american silver eagle proof':    'american silver eagle proof',
   'st gaudens':          'st. gaudens double eagle',
   'st. gaudens':         'st. gaudens double eagle',
   'saint gaudens':                  'st. gaudens double eagle',
@@ -2000,6 +2063,12 @@ const SERIES_ALIASES = {
   'gold libertad':       'mexican gold libertad',
   'mexican gold libertad': 'mexican gold libertad',
   'libertad':            'mexican silver libertad',
+  // Mexican Libertad Proof
+  'silver libertad proof':          'mexican silver libertad proof',
+  'mexican silver libertad proof':  'mexican silver libertad proof',
+  'libertad proof':                 'mexican silver libertad proof',
+  'gold libertad proof':            'mexican gold libertad proof',
+  'mexican gold libertad proof':    'mexican gold libertad proof',
   // Austrian Philharmonic
   'silver philharmonic': 'austrian silver philharmonic',
   'philharmonic':        'austrian silver philharmonic',
@@ -2195,15 +2264,30 @@ function normalizeSeries(series) {
  * @param {number} year    e.g. 1893
  * @param {string} [mint]  e.g. "S", "CC", "D", "P", "O", "W"
  * @param {number} [weight] e.g. 0.5, 0.25, 0.1 (oz) for fractional bullion
+ * @param {string} [finish] e.g. "Proof" -- routes to proof-specific table when available
  * @returns {{ mintage: number|null, series: string|null }}
  */
-function lookupMintage(series, year, mint, weight) {
+function lookupMintage(series, year, mint, weight, finish) {
   const canonical = normalizeSeries(series);
   if (!canonical || !year) return { mintage: null, series: canonical };
 
   const m = (mint || 'P').toUpperCase().trim();
   const key = `${year}-${m}`;
   const pKey = `${year}-P`;
+
+  // ── Try proof-specific table first when finish is Proof ──
+  if (finish && /proof/i.test(finish)) {
+    const proofKey = canonical + ' proof';
+    const proofTable = MINTAGE_DATA[proofKey] || MINTAGE_DATA[normalizeSeries(series + ' proof')];
+    if (proofTable) {
+      if (proofTable[key] != null) return { mintage: proofTable[key], series: proofKey };
+      if (!mint && proofTable[pKey] != null) return { mintage: proofTable[pKey], series: proofKey };
+      // Try any mint for this year (proof may use different mint mark)
+      for (const [k, v] of Object.entries(proofTable)) {
+        if (k.startsWith(`${year}-`)) return { mintage: v, series: proofKey };
+      }
+    }
+  }
 
   // ── Try weight-specific fractional table first ──
   if (weight && weight !== 1) {
