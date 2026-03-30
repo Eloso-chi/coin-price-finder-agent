@@ -176,6 +176,7 @@ const CoinCrypto = (() => {
       (coin.mint || '').trim().toUpperCase(),
       (coin.grade || '').trim().toUpperCase(),
       (coin.notes || '').trim().toLowerCase(),
+      (coin.label || '').trim().toLowerCase(),
     ].join('|');
     return sha256(canonical);
   }

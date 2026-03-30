@@ -55,7 +55,7 @@ router.post('/', async (req, res) => {
     }
 
     const opts = {
-      timeWindowDays: options?.timeWindowDays || 90,
+      timeWindowDays: options?.timeWindowDays || 180,
       requirePCGSOnly: !!options?.requirePCGSOnly,
       exactGradeOnly: !!options?.exactGradeOnly,
       usMinComps: options?.usMinComps || 8,
@@ -133,7 +133,7 @@ router.post('/', async (req, res) => {
       // Enrich pcgs object with parsed finish so buildKeywords can use it
       const parsedFinish = identification.parsed?.finish || null;
       if (parsedFinish && !pcgs.finish) pcgs.finish = parsedFinish;
-      ebayKeywords = ebayService.buildKeywords(pcgs, String(query), resolvedWeight);
+      ebayKeywords = ebayService.buildKeywords(pcgs, String(query), resolvedWeight, coinData?.label);
     }
 
     // ── 2a. Semiquincentennial circulating coin enrichment ──
@@ -200,6 +200,11 @@ router.post('/', async (req, res) => {
       grade: isSet ? null : (pcgs.grade || identification.parsed?.grade),
       designation: pcgs.designation || identification.parsed?.designation,
       finish: identification.parsed?.finish || null,
+      isProof: !isSet && (
+        (identification.parsed?.finish === 'Proof') ||
+        (identification.parsed?.grade === 'Proof') ||
+        /^(PF|PR)[-\s]?\d/i.test(pcgs.grade || identification.parsed?.grade || '')
+      ),
       metal: expectedMetal,
       weight: resolvedWeight || null,
       zodiacAnimal: zodiacAnimal,
@@ -208,6 +213,7 @@ router.post('/', async (req, res) => {
       isSet: isSet,
       setType: resolvedSetType || null,
       perthSeriesLabel: perthSeriesLabel,
+      label: coinData?.label || null,
       _gradeSource: identification.parsed?._gradeSource || null,
       _rawQuery: String(query),
     };

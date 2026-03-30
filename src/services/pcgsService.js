@@ -388,6 +388,7 @@ function parseDescription(text) {
   } else if (/\bproof\b/i.test(t) && !result.grade && !result.finish) {
     // Standalone "proof" without "set" and without a finish qualifier → grade
     result.grade = 'Proof';
+    result.finish = 'Proof';
   }
 
   // Weight: extract "1/2 oz", "1/4 oz", "1/10 oz", "1.5 oz", "5 oz", "10 oz", etc.

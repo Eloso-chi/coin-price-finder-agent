@@ -473,6 +473,19 @@ function scoreMatch(comp, expected) {
   // PCGS slab bonus
   if (/\bpcgs\b/i.test(tLow)) { score += 5; notes.push('pcgs-slab'); }
 
+  // ── Proof vs BU mismatch ──
+  // When the user is searching for a proof coin, penalize BU/non-proof comps
+  // and vice versa. Plain "proof" in title is the discriminator.
+  const userWantsProof = expected.isProof
+    || (expected.grade && /^(proof|pr|pf)/i.test(expected.grade))
+    || (expected.finish === 'Proof');
+  const titleHasProof = /\bproof\b/i.test(tLow);
+  if (userWantsProof && !titleHasProof) {
+    score -= 25; notes.push('proof-mismatch-want-proof');
+  } else if (!userWantsProof && titleHasProof && !expected.isSet) {
+    score -= 25; notes.push('proof-mismatch-unwanted-proof');
+  }
+
   // ── Grade-type classification + mismatch penalty ──
   // gradeType was set during normalization via classifyGradeType();
   // re-classify here in case it wasn't set (e.g. cached comps from older format)
@@ -534,12 +547,21 @@ function scoreMatch(comp, expected) {
     'satin finish', 'first strike', 'first day', 'first release',
     'antiqued', 'high relief', 'piedfort', 'privy'];
   const queryLower = (expected._rawQuery || '').toLowerCase();
+  const labelLower = (expected.label || '').toLowerCase();
   const hasVariantInQuery = VARIANT_TOKENS.some(t => queryLower.includes(t))
-    || (expected.finish && expected.finish !== 'Uncirculated');
+    || (expected.finish && expected.finish !== 'Uncirculated')
+    || !!labelLower;
   if (!hasVariantInQuery) {
     const hasVariantInTitle = VARIANT_TOKENS.some(t => tLow.includes(t));
     if (hasVariantInTitle) {
       score -= 30; notes.push('variant-mismatch');
+    }
+  } else if (labelLower) {
+    // Label specified: reward comps whose title contains the label, penalize those without
+    if (tLow.includes(labelLower)) {
+      score += 10; notes.push('label-match');
+    } else {
+      score -= 20; notes.push('label-mismatch');
     }
   }
 
@@ -709,6 +731,17 @@ function applyFilters(comps, options, expected) {
     });
   }
 
+  // Proof-match filter: when searching for a proof coin, keep ONLY listings
+  // that contain "proof" in the title. BU/uncirculated comps should not be
+  // blended into proof pricing — they are fundamentally different products.
+  if (expected.isProof) {
+    removed.notProof = 0;
+    kept = kept.filter(c => {
+      if (!/\bproof\b/i.test(c.title)) { removed.notProof++; return false; }
+      return true;
+    });
+  }
+
   // USD only for stats
   kept = kept.filter(c => {
     if (c.totalUsd === null) { removed.nonUsd++; return false; }
@@ -823,8 +856,10 @@ function applyFilters(comps, options, expected) {
       'reverse proof', 'burnished', 'enhanced reverse proof',
       'satin finish', 'antiqued', 'high relief', 'piedfort', 'privy'];
     const qLow = (expected._rawQuery || '').toLowerCase();
+    const labelLow = (expected.label || '').toLowerCase();
     const queryWantsVariant = VARIANT_TOKENS.some(t => qLow.includes(t))
-      || (expected.finish && expected.finish !== 'Uncirculated');
+      || (expected.finish && expected.finish !== 'Uncirculated')
+      || !!labelLow;
     if (!queryWantsVariant) {
       removed.variantMismatch = 0;
       kept = kept.filter(c => {
@@ -1001,7 +1036,7 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
   }
 
   const opts = {
-    timeWindowDays: options.timeWindowDays || 90,
+    timeWindowDays: options.timeWindowDays || 180,
     requirePCGSOnly: !!options.requirePCGSOnly,
     exactGradeOnly: !!options.exactGradeOnly,
     usMinComps: options.usMinComps || US_MIN_COMPS,
@@ -1228,9 +1263,10 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
  * Build eBay search keywords from PCGS enrichment + raw query.
  * @param {object} pcgsData
  * @param {string} rawQuery
- * @param {number} [weight]  e.g. 0.5, 1.5, 2 — omitted or 1 means standard 1 oz
+ * @param {number} [weight]  e.g. 0.5, 1.5, 2 --- omitted or 1 means standard 1 oz
+ * @param {string} [label]   e.g. 'First Strike', 'Early Releases'
  */
-function buildKeywords(pcgsData, rawQuery, weight) {
+function buildKeywords(pcgsData, rawQuery, weight, label) {
   const parts = [];
   if (pcgsData?.year) parts.push(String(pcgsData.year));
   // Append mint mark with hyphen joining to year (e.g. "1892-S") so eBay
@@ -1245,6 +1281,8 @@ function buildKeywords(pcgsData, rawQuery, weight) {
   if (pcgsData?.series) parts.push(pcgsData.series);
   if (pcgsData?.finish) parts.push(pcgsData.finish);
   if (pcgsData?.grade && pcgsData.grade !== 'Proof') parts.push(pcgsData.grade);
+  // When grade is bare "Proof" and finish wasn't already added, inject the keyword
+  if (pcgsData?.grade === 'Proof' && !pcgsData?.finish) parts.push('Proof');
   if (pcgsData?.designation) parts.push(pcgsData.designation);
   // Inject weight for bullion coins so eBay comps match the right size.
   if (weight) {
@@ -1254,6 +1292,8 @@ function buildKeywords(pcgsData, rawQuery, weight) {
       : weight + ' oz';
     parts.push(weightStr);
   }
+  // Append graded slab label (e.g. "First Strike", "Early Releases")
+  if (label) parts.push(label);
   // Require at least a series/denomination in the keywords;
   // year + mint alone (e.g. "1956 -D") is too vague and matches wrong coins
   const hasSeries = !!pcgsData?.series;

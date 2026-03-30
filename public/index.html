@@ -21,6 +21,7 @@
       --green-subtle: rgba(63,185,80,0.15);
       --red:     #f85149;
       --red-subtle: rgba(248,81,73,0.15);
+      --accent-red: #c0392b;
       --yellow:  #d29922;
       --yellow-subtle: rgba(210,153,34,0.15);
       --radius:  8px;
@@ -55,6 +56,8 @@
     .tab-bar {
       display: flex; gap: 0; border-bottom: 1px solid var(--border);
       margin-bottom: 24px; position: relative;
+      overflow-x: auto; -webkit-overflow-scrolling: touch;
+      scrollbar-width: thin;
     }
     .tab-btn {
       background: none; border: none; color: var(--text-secondary);
@@ -114,6 +117,7 @@
     .btn:active { transform: scale(0.98); }
     .btn:disabled { opacity: 0.5; cursor: wait; transform: none; }
     .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    button:focus-visible, [role="tab"]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
     /* ── Advanced Options Toggle ─────────────────────────── */
     .advanced-toggle {
@@ -183,7 +187,7 @@
     .fmv-hero { padding: 28px 24px; text-align:center; }
     .fmv-row { display:flex; align-items:center; gap:24px; text-align:left; }
     .fmv-gallery { flex-shrink:0; display:flex; flex-direction:column; align-items:center; gap:6px; }
-    .fmv-gallery-main { width:120px; height:120px; border-radius:12px; overflow:hidden; background:var(--card-bg); border:1px solid var(--border); cursor:pointer; position:relative; }
+    .fmv-gallery-main { width:120px; height:120px; border-radius:12px; overflow:hidden; background:var(--card); border:1px solid var(--border); cursor:pointer; position:relative; }
     .fmv-gallery-main img { width:100%; height:100%; object-fit:contain; transition: opacity 0.25s; }
     .fmv-gallery-main .gallery-nav { position:absolute; top:50%; transform:translateY(-50%); background:rgba(0,0,0,0.45); color:#fff; border:none; border-radius:50%; width:22px; height:22px; font-size:13px; cursor:pointer; display:flex; align-items:center; justify-content:center; opacity:0; transition:opacity 0.2s; line-height:1; padding:0; }
     .fmv-gallery-main:hover .gallery-nav { opacity:1; }
@@ -195,10 +199,10 @@
     .fmv-gallery-thumbs img:hover { opacity:1; }
     .fmv-gallery-count { font-size:0.7rem; color:var(--text-secondary); margin-top:2px; }
     /* Legacy single image fallback */
-    .fmv-img { flex-shrink:0; width:100px; height:100px; border-radius:12px; overflow:hidden; background:var(--card-bg); border:1px solid var(--border); }
+    .fmv-img { flex-shrink:0; width:100px; height:100px; border-radius:12px; overflow:hidden; background:var(--card); border:1px solid var(--border); }
     .fmv-img img { width:100%; height:100%; object-fit:contain; }
     .fmv-row .fmv-left { flex:1; min-width:0; }
-    .fmv-hero .coin-id { font-size:1.15rem; font-weight:700; color:var(--text-primary); margin-bottom:6px; line-height:1.3; word-wrap:break-word; }
+    .fmv-hero .coin-id { font-size:1.15rem; font-weight:700; color:var(--text); margin-bottom:6px; line-height:1.3; word-wrap:break-word; }
     .fmv-hero .fmv-left .confidence { font-size:0.88rem; margin-top:6px; }
     .fmv-row .fmv-right { text-align:right; flex-shrink:0; }
     .fmv-hero .label { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-secondary); margin-bottom: 4px; }
@@ -211,11 +215,11 @@
 
     /* ── Lunar Comparison Panel ─────────────────────────── */
     .lunar-panel { margin-top: 16px; }
-    .lunar-panel h3 { font-size: 1rem; font-weight: 700; margin: 0 0 12px; color: var(--text-primary); }
+    .lunar-panel h3 { font-size: 1rem; font-weight: 700; margin: 0 0 12px; color: var(--text); }
     .lunar-panel .lunar-animal { color: var(--accent); }
     .lunar-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
     @media (max-width: 640px) { .lunar-grid { grid-template-columns: 1fr; } }
-    .lunar-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+    .lunar-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
     .lunar-card.premium-high   { border-left: 3px solid var(--green); }
     .lunar-card.premium-medium { border-left: 3px solid var(--accent); }
     .lunar-card.premium-low    { border-left: 3px solid var(--text-muted); }
@@ -224,7 +228,7 @@
     .lunar-card .lc-country { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 8px; }
     .lunar-card .lc-row { display: flex; justify-content: space-between; font-size: 0.82rem; padding: 3px 0; }
     .lunar-card .lc-row .lc-label { color: var(--text-secondary); }
-    .lunar-card .lc-row .lc-val { font-weight: 600; color: var(--text-primary); }
+    .lunar-card .lc-row .lc-val { font-weight: 600; color: var(--text); }
     .lunar-card .lc-premium { display: inline-block; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; padding: 2px 8px; border-radius: 4px; margin-top: 8px; }
     .lunar-card .lc-premium.high   { background: rgba(0,200,83,.15); color: var(--green); }
     .lunar-card .lc-premium.medium { background: rgba(255,171,0,.15); color: var(--accent); }
@@ -384,12 +388,12 @@
     .fmv-chip-rarity { background: rgba(100,70,200,0.08); border-color: rgba(100,70,200,0.25); cursor: pointer; }
     /* ── Numista Panel ─────────────────────────────────────── */
     .numista-panel { margin-top: 16px; }
-    .numista-panel h3 { font-size: 1rem; font-weight: 700; margin: 0 0 12px; color: var(--text-primary); display: flex; align-items: center; gap: 8px; }
+    .numista-panel h3 { font-size: 1rem; font-weight: 700; margin: 0 0 12px; color: var(--text); display: flex; align-items: center; gap: 8px; }
     .numista-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
     .numista-info { font-size: 0.85rem; }
-    .numista-title { font-weight: 700; font-size: 0.95rem; color: var(--text-primary); margin-bottom: 8px; }
+    .numista-title { font-weight: 700; font-size: 0.95rem; color: var(--text); margin-bottom: 8px; }
     .numista-detail { margin-bottom: 4px; color: var(--text-secondary); line-height: 1.5; }
-    .numista-label { font-weight: 600; color: var(--text-primary); }
+    .numista-label { font-weight: 600; color: var(--text); }
     .numista-rarity-prices { display: flex; flex-direction: column; gap: 12px; }
     .numista-rarity-box { padding: 12px 16px; background: var(--surface); border-radius: 8px; }
     .numista-rarity-label { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-secondary); margin-bottom: 4px; }
@@ -400,10 +404,10 @@
     .numista-prices-label { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-secondary); margin-bottom: 8px; }
     .numista-prices-table { width: 100%; border-collapse: collapse; }
     .numista-prices-table td { padding: 3px 8px; font-size: 0.82rem; border-bottom: 1px solid var(--border-subtle); }
-    .numista-grade { font-weight: 600; color: var(--text-primary); }
+    .numista-grade { font-weight: 600; color: var(--text); }
     .numista-price { text-align: right; color: var(--accent); font-weight: 600; }
     .numista-images { grid-column: 1 / -1; display: flex; justify-content: center; gap: 12px; margin-top: 8px; }
-    .numista-img { width: 80px; height: 80px; object-fit: contain; border-radius: 50%; border: 2px solid var(--border-subtle); background: #f0f0f0; }
+    .numista-img { width: 80px; height: 80px; object-fit: contain; border-radius: 50%; border: 2px solid var(--border-subtle); background: var(--surface); }
     .numista-issue-note { font-size: 0.8rem; color: var(--text-muted); margin-top: 8px; padding: 8px 12px; background: rgba(100,100,100,0.05); border-radius: 6px; }
     @media (max-width: 640px) { .numista-grid { grid-template-columns: 1fr; } }
     /* ── Mintage Banner ────────────────────────────────────── */
@@ -415,7 +419,7 @@
     }
     .mintage-banner .mintage-icon { font-size: 1.4rem; }
     .mintage-banner .mintage-label { color: var(--text-secondary); font-size: 0.82rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
-    .mintage-banner .mintage-value { font-size: 1.2rem; font-weight: 700; color: var(--text-primary); }
+    .mintage-banner .mintage-value { font-size: 1.2rem; font-weight: 700; color: var(--text); }
     .mintage-banner .mintage-source { font-size: 0.72rem; color: var(--text-secondary); opacity: 0.7; }
 
     /* ── Collapsible PCGS Details ─────────────────────────── */
@@ -816,7 +820,8 @@
     }
     .auth-dialog .auth-actions { display: flex; gap: 8px; margin-top: 16px; }
     .auth-dialog .auth-actions button { flex: 1; padding: 8px; border-radius: var(--radius); border: 1px solid var(--border); cursor: pointer; font-size: 0.85rem; }
-    .auth-dialog .btn-primary { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 600; }
+    .btn-primary { background: var(--accent); color: #000; border: 1px solid var(--accent); font-weight: 600; padding: 8px 16px; border-radius: var(--radius); cursor: pointer; font-size: 0.85rem; }
+    .auth-dialog .btn-primary { padding: 8px; }
     .auth-dialog .btn-secondary { background: transparent; color: var(--text-secondary); }
     .auth-dialog .auth-error { color: var(--red); font-size: 0.8rem; margin-top: 8px; display: none; }
     .auth-dialog .auth-toggle { font-size: 0.78rem; color: var(--text-muted); margin-top: 12px; text-align: center; }
@@ -882,6 +887,12 @@
     }
     .mycoins-qty-btn:hover { background: var(--green-subtle); border-color: var(--green); color: var(--green); }
     .mycoins-qty-val { display: inline-block; min-width: 20px; text-align: center; font-weight: 600; vertical-align: middle; }
+    @media (max-width: 768px) {
+      .mycoins-qty-btn { width: 44px; height: 44px; font-size: 1.1rem; }
+      .mycoins-select-all, .mycoins-row-check { width: 22px; height: 22px; }
+      .mycoins-remove { padding: 10px 12px; font-size: 1.3rem; }
+      .gallery-nav { width: 44px !important; height: 44px !important; font-size: 1.2rem !important; }
+    }
     .mycoins-summary {
       display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;
       padding: 16px 20px; background: var(--card); border: 1px solid var(--border);
@@ -921,7 +932,7 @@
     .mycoins-empty { text-align: center; padding: 40px 20px; color: var(--text-secondary); }
     .mycoins-loading { text-align: center; padding: 30px; color: var(--text-muted); }
     .mycoins-error { text-align: center; padding: 20px; color: var(--red); }
-    .backup-prompt { padding: 12px 16px; margin-bottom: 14px; background: #332b00; border: 1px solid #665500; border-radius: var(--radius); font-size: 0.84rem; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .backup-prompt { padding: 12px 16px; margin-bottom: 14px; background: var(--yellow-subtle, #332b00); border: 1px solid var(--yellow, #665500); border-radius: var(--radius); font-size: 0.84rem; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
     .backup-prompt-icon { font-size: 1.2rem; flex-shrink: 0; }
     .backup-prompt-text { flex: 1; color: var(--text); line-height: 1.4; }
     .backup-prompt-actions { display: flex; gap: 6px; flex-shrink: 0; }
@@ -1006,6 +1017,16 @@
     .about-section li { margin-bottom: 4px; }
     .about-divider { border: none; border-top: 1px solid var(--border-subtle); margin: 20px 0; }
     .about-disclaimer { font-size: 0.78rem; color: var(--text-muted); line-height: 1.7; margin-top: 12px; }
+
+    /* ── Reduced Motion ───────────────────────────────────── */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0s !important;
+        animation-delay: 0s !important;
+        transition-duration: 0s !important;
+        transition-delay: 0s !important;
+      }
+    }
   </style>
 </head>
 <body>
@@ -1025,13 +1046,13 @@
 
   <!-- ── Tab Navigation ─────────────────────────────────── -->
   <nav class="tab-bar" role="tablist" aria-label="Main tools">
-    <button class="tab-btn" role="tab" id="tab-price" aria-controls="panel-price" aria-selected="true">Price Discovery</button>
-    <button class="tab-btn" role="tab" id="tab-melt" aria-controls="panel-melt" aria-selected="false">Melt Calculator</button>
-    <button class="tab-btn" role="tab" id="tab-tracker" aria-controls="panel-tracker" aria-selected="false">Live eBay Tracker</button>
-    <button class="tab-btn" role="tab" id="tab-terapeak" aria-controls="panel-terapeak" aria-selected="false">Sold Data</button>
-    <button class="tab-btn" role="tab" id="tab-mycoins" aria-controls="panel-mycoins" aria-selected="false">My Coins</button>
-    <button class="tab-btn" role="tab" id="tab-history" aria-controls="panel-history" aria-selected="false">Price History</button>
-    <button class="tab-btn" role="tab" id="tab-about" aria-controls="panel-about" aria-selected="false">About (read me)</button>
+    <button class="tab-btn" role="tab" id="tab-price" aria-controls="panel-price" aria-selected="true" tabindex="0">Price Discovery</button>
+    <button class="tab-btn" role="tab" id="tab-melt" aria-controls="panel-melt" aria-selected="false" tabindex="-1">Melt Calculator</button>
+    <button class="tab-btn" role="tab" id="tab-tracker" aria-controls="panel-tracker" aria-selected="false" tabindex="-1">Live eBay Tracker</button>
+    <button class="tab-btn" role="tab" id="tab-terapeak" aria-controls="panel-terapeak" aria-selected="false" tabindex="-1">Sold Data</button>
+    <button class="tab-btn" role="tab" id="tab-mycoins" aria-controls="panel-mycoins" aria-selected="false" tabindex="-1">My Coins</button>
+    <button class="tab-btn" role="tab" id="tab-history" aria-controls="panel-history" aria-selected="false" tabindex="-1">Price History</button>
+    <button class="tab-btn" role="tab" id="tab-about" aria-controls="panel-about" aria-selected="false" tabindex="-1">About (read me)</button>
   </nav>
 
   <!-- ── Auth Teaser Banner (shown when logged out) ── -->
@@ -1202,6 +1223,22 @@
               <option value="PF-70">
             </datalist>
             <span class="hint">Sheldon scale — PCGS, NGC, or raw estimate</span>
+          </div>
+          <div class="field">
+            <label for="coinLabel">Label</label>
+            <select id="coinLabel">
+              <option value="">(none)</option>
+              <option value="First Strike">First Strike</option>
+              <option value="Early Releases">Early Releases</option>
+              <option value="First Day of Issue">First Day of Issue</option>
+              <option value="Burnished">Burnished</option>
+              <option value="Reverse Proof">Reverse Proof</option>
+              <option value="Enhanced Reverse Proof">Enhanced Reverse Proof</option>
+              <option value="Satin Finish">Satin Finish</option>
+              <option value="Antiqued">Antiqued</option>
+              <option value="High Relief">High Relief</option>
+            </select>
+            <span class="hint">Graded slab label (PCGS / NGC)</span>
           </div>
           <div class="field">
             <label for="askingPrice">Asking Price</label>
@@ -1721,6 +1758,21 @@
             <label for="bulkadd-grade">Grade</label>
             <input id="bulkadd-grade" type="text" list="grades-list" placeholder="e.g. MS-65" autocomplete="off">
           </div>
+          <div class="bulkadd-field" style="flex:1;min-width:120px">
+            <label for="bulkadd-label">Label</label>
+            <select id="bulkadd-label">
+              <option value="">(none)</option>
+              <option value="First Strike">First Strike</option>
+              <option value="Early Releases">Early Releases</option>
+              <option value="First Day of Issue">First Day of Issue</option>
+              <option value="Burnished">Burnished</option>
+              <option value="Reverse Proof">Reverse Proof</option>
+              <option value="Enhanced Reverse Proof">Enhanced Reverse Proof</option>
+              <option value="Satin Finish">Satin Finish</option>
+              <option value="Antiqued">Antiqued</option>
+              <option value="High Relief">High Relief</option>
+            </select>
+          </div>
           <div class="bulkadd-field" style="flex:0 0 72px">
             <label for="bulkadd-weight">Weight</label>
             <input id="bulkadd-weight" type="text" placeholder="oz" autocomplete="off">
@@ -1944,6 +1996,15 @@
   </section>
 
   <!-- ── Auth Dialog (client-only, never contacts server) ── -->
+  <dialog class="auth-dialog" id="confirm-dialog" style="max-width:380px">
+    <h2 id="confirm-dialog-title">Confirm</h2>
+    <p id="confirm-dialog-msg" style="font-size:0.88rem;color:var(--text-secondary);line-height:1.5;margin:8px 0 16px"></p>
+    <div class="auth-actions">
+      <button class="btn-primary" id="confirm-dialog-yes">Yes</button>
+      <button class="btn-secondary" id="confirm-dialog-no">Cancel</button>
+    </div>
+  </dialog>
+
   <dialog class="auth-dialog" id="changepw-dialog">
     <h2>Change Password</h2>
     <div class="field">
@@ -2125,10 +2186,12 @@
         }
         tabs.forEach(t => {
           t.setAttribute('aria-selected', 'false');
+          t.setAttribute('tabindex', '-1');
           document.getElementById(t.getAttribute('aria-controls'))
             .setAttribute('aria-hidden', 'true');
         });
         tab.setAttribute('aria-selected', 'true');
+        tab.setAttribute('tabindex', '0');
         document.getElementById(tab.getAttribute('aria-controls'))
           .setAttribute('aria-hidden', 'false');
         // Auto-load Live eBay Tracker when switching to it with a pending search
@@ -2223,6 +2286,7 @@
         coinYear:      document.getElementById('coinYear'),
         coinMint:      document.getElementById('coinMint'),
         grade:         document.getElementById('coinGrade'),
+        coinLabel:     document.getElementById('coinLabel'),
         coinWeight:    document.getElementById('coinWeight'),
         quickWeight:   document.getElementById('quickWeight'),
         setType:       document.getElementById('setType'),
@@ -2465,6 +2529,7 @@
           year:           parseInt(this.els.coinYear.value, 10),
           mintMark:       (this.els.coinMint.value.trim().toUpperCase() === '0' ? 'O' : this.els.coinMint.value.trim().toUpperCase()) || null,
           grade:          this.els.grade.value.trim() || null,
+          label:          this.els.coinLabel.value || null,
           weight:         parseFloat(this.els.coinWeight.value) || null,
           setType:        this._isSetName(this.els.coinName.value.trim()) ? this.els.setType.value : null,
           pcgsNumber:     this.els.pcgsNumber.value.trim() || null
@@ -2781,6 +2846,7 @@
         if (lb.extended) lbText += ' (extended from ' + lb.requested + 'd)';
         html += '<span class="' + lbClass + '" title="How far back eBay sales were searched">' + lbText + '</span>';
       }
+      if (d.coinData?.label) html += '<span class="fmv-chip" title="Graded slab label">&#x1F3F7;&#xFE0F; ' + _esc(d.coinData.label) + '</span>';
       html += '</div>';
       html += '</div>';
 
@@ -3306,6 +3372,7 @@
       const mk = d.coinData?.mintMark || d.identification?.parsed?.mint;
       let nm = d.coinData?.name || d.pcgs?.series || d.identification?.parsed?.series || '';
       const gr = d.coinData?.grade || d.identification?.parsed?.grade;
+      const lb = d.coinData?.label || null;
       const wt = d.query?.weight;
       // Lunar enrichment — append "Year of the <Animal>" for Lunar series
       if (yr && /lunar|year of/i.test(nm)) {
@@ -3319,6 +3386,7 @@
       if (nm) parts.push(nm);
       if (wt && wt !== 1) parts.push(wt + ' oz');
       if (gr) parts.push(gr);
+      if (lb) parts.push(lb);
       return parts.join(' ');
     })();
 
@@ -3371,8 +3439,8 @@
       html += '<div class="fmv-gallery" id="' + gid + '" data-imgs=\'' + JSON.stringify(galleryImages) + '\'>';
       html += '<div class="fmv-gallery-main">';
       html += '<img id="' + gid + '-main" src="' + _escUrl(galleryImages[0]) + '" alt="' + _esc(coinLabel || 'Coin') + '" onerror="this.src=\'' + _escUrl(galleryImages[1] || '') + '\'">';
-      html += '<button class="gallery-nav gallery-nav-left" onclick="galleryNav(\'' + gid + '\',-1)">&lsaquo;</button>';
-      html += '<button class="gallery-nav gallery-nav-right" onclick="galleryNav(\'' + gid + '\',1)">&rsaquo;</button>';
+      html += '<button class="gallery-nav gallery-nav-left" aria-label="Previous image" onclick="galleryNav(\'' + gid + '\',-1)">&lsaquo;</button>';
+      html += '<button class="gallery-nav gallery-nav-right" aria-label="Next image" onclick="galleryNav(\'' + gid + '\',1)">&rsaquo;</button>';
       html += '</div>';
       html += '<div class="fmv-gallery-thumbs">';
       galleryImages.slice(0, 4).forEach(function(url, i) {
@@ -3402,6 +3470,7 @@
         year:   _cd.year || d.pcgs?.year || '',
         mint:   _cd.mintMark || _cd.mint || d.pcgs?.mint || '',
         grade:  _cd.grade || '',
+        label:  _cd.label || null,
         weight: d.query?.weight || null,
         query:  (typeof d.query === 'object' ? d.query?.input : d.query) || '',
       };
@@ -5093,6 +5162,7 @@
     const bulkAddYear    = document.getElementById('bulkadd-year');
     const bulkAddMint    = document.getElementById('bulkadd-mint');
     const bulkAddGrade   = document.getElementById('bulkadd-grade');
+    const bulkAddLabel   = document.getElementById('bulkadd-label');
     const bulkAddWeight  = document.getElementById('bulkadd-weight');
     const bulkAddQty     = document.getElementById('bulkadd-qty');
     const bulkAddCost    = document.getElementById('bulkadd-cost');
@@ -5118,6 +5188,7 @@
       bulkAddYear.value = '';
       bulkAddMint.value = '';
       bulkAddGrade.value = '';
+      bulkAddLabel.value = '';
       bulkAddWeight.value = '';
       bulkAddQty.value = '1';
       bulkAddCost.value = '';
@@ -5132,13 +5203,14 @@
       const year   = bulkAddYear.value.trim();
       const mint   = bulkAddMint.value.trim().toUpperCase();
       const grade  = bulkAddGrade.value.trim();
+      const label  = bulkAddLabel.value || null;
       const weight = bulkAddWeight.value.trim() || null;
       const qty    = Math.max(1, Math.min(9999, parseInt(bulkAddQty.value, 10) || 1));
       const costRaw = bulkAddCost.value.trim().replace(/^\$/, '');
       const costPer = costRaw ? parseFloat(costRaw) : null;
       if (costRaw && (isNaN(costPer) || costPer < 0)) return _bulkAddMsg('Invalid cost value.', true);
       if (!series && !year) return _bulkAddMsg('Enter at least a coin name or year.', true);
-      const coin = { series, year, mint, grade, weight, query: series + (year ? ' ' + year : ''), count: qty, costPer };
+      const coin = { series, year, mint, grade, label, weight, query: series + (year ? ' ' + year : ''), count: qty, costPer };
       bulkAddSubmit.disabled = true;
       bulkAddSubmit.textContent = 'Adding\u2026';
       try {
@@ -5158,6 +5230,7 @@
         bulkAddYear.value = '';
         bulkAddMint.value = '';
         bulkAddGrade.value = '';
+        bulkAddLabel.value = '';
         bulkAddWeight.value = '';
         bulkAddQty.value = '1';
         bulkAddCost.value = '';
