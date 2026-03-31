@@ -710,6 +710,22 @@ function applyFilters(comps, options, expected) {
     return true;
   });
 
+  // Non-bullion denomination filter: when searching for a bullion series,
+  // drop listings that are circulating denomination coins (centavos, pesos, etc.)
+  // which share keywords like "libertad" but are not bullion.
+  if (expected.weight) {
+    const NON_BULLION_DENOM_RE = /\b(centavo|centavos|peso[s]?|\d+\s*cent(?:avo)?)\b/i;
+    removed.nonBullionDenom = 0;
+    kept = kept.filter(c => {
+      const tLow = (c.title || '').toLowerCase();
+      if (NON_BULLION_DENOM_RE.test(tLow) && !/\b(?:oz|ounce|onza|troy|bullion)\b/i.test(tLow)) {
+        removed.nonBullionDenom++;
+        return false;
+      }
+      return true;
+    });
+  }
+
   // Set-match filter: when searching for a mint/proof set, keep ONLY listings
   // that contain "set" in the title. Individual coins, accessories, and other
   // non-set items are almost never what the user wants.

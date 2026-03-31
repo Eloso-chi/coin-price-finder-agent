@@ -8,6 +8,7 @@
 const { TTLCache } = require('../utils/cache');
 const stats = require('../utils/stats');
 const { zodiacForYear, perthLunarSeries } = require('../data/constants');
+const { getMetalsSpotPrice } = require('./metalsSpotPrice');
 
 // ── In-memory cache (5-minute TTL, not persisted to disk) ────
 const _cache = new TTLCache({ defaultTTL: 5 * 60 * 1000 });
@@ -20,6 +21,33 @@ const BULLION_SERIES_RE = /\b(silver\s*eagle|gold\s*eagle|platinum\s*eagle|liber
 
 // Bar query detection — bars don't have mint marks or years like coins
 const BAR_RE = /\b(gold|silver|platinum|palladium)\s+bar\b/i;
+
+// Earliest production year for bullion series (1 oz coins).
+// Comps with years before these are NOT the same coin — e.g. pre-1982 Mexican
+// coins that happen to have "libertad" in their name are circulating currency,
+// not bullion Libertads.
+const BULLION_FIRST_YEAR = {
+  'libertad':       1982,  // silver Libertad BU; 1981 for gold
+  'silver eagle':   1986,
+  'gold eagle':     1986,
+  'platinum eagle': 1997,
+  'maple leaf':     1979,  // gold; silver 1988
+  'philharmonic':   1989,  // gold; silver 2008
+  'britannia':      1987,  // gold; silver 1997
+  'krugerrand':     1967,
+  'panda':          1982,  // gold; silver 1989
+  'kookaburra':     1990,
+  'koala':          2007,  // platinum 1988
+  'kangaroo':       1986,
+  'gold buffalo':   2006,
+  'polar bear':     2018,
+};
+
+// Non-bullion coin terms that contaminate bullion searches.
+// Old Mexican coins, commemoratives, etc. share keywords like "libertad"
+// but are circulating denomination coins, not bullion.
+const BULLION_DENY_DENOM_RE = /\b(centavo|centavos|peso[s]?|\d+\s*cent(?:avo)?)\b/i;
+const BULLION_OK_RE = /\b(?:oz|ounce|onza|troy|bullion)\b/i;
 
 /**
  * Detect if a series name looks like bullion (grade matrix mode).
@@ -582,12 +610,15 @@ async function fetchMarketMatrix({
     console.log(`[marketAggregator] Lunar series detected: keywords="${keywords}", yearRange=${lunarYearRange?.min}-${lunarYearRange?.max}`);
   }
 
-  if (weight && weight !== 1) {
+  // Append weight to keywords so eBay returns size-appropriate listings.
+  // For 1 oz bullion, "1 oz" is critical to exclude fractional and non-bullion coins.
+  const bullion = !isBarSeries(series) && isBullionSeries(series);
+  const effectiveWeight = weight || (bullion ? 1 : null);
+  if (effectiveWeight && effectiveWeight !== 1) {
     const WEIGHT_LABELS = { 0.5: '1/2', 0.25: '1/4', 0.1: '1/10', 0.05: '1/20' };
-    const wStr = WEIGHT_LABELS[weight] ? WEIGHT_LABELS[weight] + ' oz' : weight + ' oz';
+    const wStr = WEIGHT_LABELS[effectiveWeight] ? WEIGHT_LABELS[effectiveWeight] + ' oz' : effectiveWeight + ' oz';
     keywords = keywords + ' ' + wStr;
-  } else if (isPerthLunar) {
-    // Default 1 oz for Perth Lunar
+  } else if (effectiveWeight === 1 || isPerthLunar) {
     keywords += ' 1 oz';
   }
 
@@ -598,7 +629,30 @@ async function fetchMarketMatrix({
   // This returns comps from Insights + Finding APIs
   const detectedMetal = _detectMetal(series);
   const expectedOpts = { series, _rawQuery: keywords, metal: detectedMetal, isRoll };
+  if (effectiveWeight) expectedOpts.weight = effectiveWeight;
   if (brandFilter) expectedOpts._brandFilter = brandFilter;
+
+  // Fetch spot price so weight/melt sanity filters can fire (non-fatal).
+  if (detectedMetal && effectiveWeight) {
+    const METAL_SYM = { silver: 'XAG', gold: 'XAU', platinum: 'XPT', palladium: 'XPD' };
+    const sym = METAL_SYM[detectedMetal];
+    if (sym) {
+      try {
+        const spot = await getMetalsSpotPrice(sym, 'USD');
+        expectedOpts.meltPerOz = spot.price;
+      } catch { /* non-fatal */ }
+    }
+  }
+
+  // Determine earliest production year for this bullion series.
+  // Comps with years before this are non-bullion coins that share keywords.
+  let firstYear = null;
+  if (bullion) {
+    const sLow = series.toLowerCase();
+    for (const [token, yr] of Object.entries(BULLION_FIRST_YEAR)) {
+      if (sLow.includes(token)) { firstYear = yr; break; }
+    }
+  }
 
   const soldResult = await ebayService.fetchSoldComps(keywords, {
     timeWindowDays,
@@ -638,8 +692,41 @@ async function fetchMarketMatrix({
     console.log(`[marketAggregator] Lunar year filter: completed ${preBefore}→${completedComps.length}, active ${activeBefore}→${activeComps.length}`);
   }
 
+  // ── Filter bullion comps before earliest production year ──
+  // Prevents non-bullion coins (e.g. 1962 Mexico "libertad" peso) from appearing.
+  if (firstYear) {
+    const filterByFirstYear = (comps) => comps.filter(c => {
+      const year = extractYear(c.title);
+      if (!year) return true; // no year stated — keep (benefit of doubt)
+      return year >= firstYear;
+    });
+    const cBefore = completedComps.length;
+    completedComps = filterByFirstYear(completedComps);
+    const aBefore = activeComps.length;
+    activeComps = filterByFirstYear(activeComps);
+    if (cBefore !== completedComps.length || aBefore !== activeComps.length) {
+      console.log(`[marketAggregator] Pre-${firstYear} filter: completed ${cBefore}→${completedComps.length}, active ${aBefore}→${activeComps.length}`);
+    }
+  }
+
+  // ── Filter non-bullion denomination coins from bullion searches ──
+  // Old circulating coins (centavos, pesos) share keywords like "libertad"
+  // but are not bullion. Only filter when we're in bullion mode.
+  if (bullion) {
+    const filterNonBullion = (comps) => comps.filter(c => {
+      const t = c.title || '';
+      return !(BULLION_DENY_DENOM_RE.test(t) && !BULLION_OK_RE.test(t));
+    });
+    const cBefore = completedComps.length;
+    completedComps = filterNonBullion(completedComps);
+    const aBefore = activeComps.length;
+    activeComps = filterNonBullion(activeComps);
+    if (cBefore !== completedComps.length || aBefore !== activeComps.length) {
+      console.log(`[marketAggregator] Non-bullion denom filter: completed ${cBefore}→${completedComps.length}, active ${aBefore}→${activeComps.length}`);
+    }
+  }
+
   const bar = isBarSeries(series);
-  const bullion = !bar && isBullionSeries(series);
   const matrix = bar
     ? buildBarMatrix({
         completedComps,
