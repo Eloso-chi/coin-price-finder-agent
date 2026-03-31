@@ -7,7 +7,7 @@
 const axios = require('axios');
 const { TTLCache } = require('../utils/cache');
 const stats = require('../utils/stats');
-const { isDenied, detectDenomination, hasSeriesConflict, isCompositionMismatch } = require('../utils/filters');
+const { isDenied, detectDenomination, hasSeriesConflict, isCompositionMismatch, BULLION_DENY_DENOM_RE, BULLION_OK_RE } = require('../utils/filters');
 const terapeakService = require('./terapeakService');
 
 // ── Config ──────────────────────────────────────────────────
@@ -714,11 +714,10 @@ function applyFilters(comps, options, expected) {
   // drop listings that are circulating denomination coins (centavos, pesos, etc.)
   // which share keywords like "libertad" but are not bullion.
   if (expected.weight) {
-    const NON_BULLION_DENOM_RE = /\b(centavo|centavos|peso[s]?|\d+\s*cent(?:avo)?)\b/i;
     removed.nonBullionDenom = 0;
     kept = kept.filter(c => {
-      const tLow = (c.title || '').toLowerCase();
-      if (NON_BULLION_DENOM_RE.test(tLow) && !/\b(?:oz|ounce|onza|troy|bullion)\b/i.test(tLow)) {
+      const t = c.title || '';
+      if (BULLION_DENY_DENOM_RE.test(t) && !BULLION_OK_RE.test(t)) {
         removed.nonBullionDenom++;
         return false;
       }

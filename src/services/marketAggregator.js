@@ -9,6 +9,7 @@ const { TTLCache } = require('../utils/cache');
 const stats = require('../utils/stats');
 const { zodiacForYear, perthLunarSeries } = require('../data/constants');
 const { getMetalsSpotPrice } = require('./metalsSpotPrice');
+const { BULLION_DENY_DENOM_RE, BULLION_OK_RE } = require('../utils/filters');
 
 // ── In-memory cache (5-minute TTL, not persisted to disk) ────
 const _cache = new TTLCache({ defaultTTL: 5 * 60 * 1000 });
@@ -43,11 +44,8 @@ const BULLION_FIRST_YEAR = {
   'polar bear':     2018,
 };
 
-// Non-bullion coin terms that contaminate bullion searches.
-// Old Mexican coins, commemoratives, etc. share keywords like "libertad"
-// but are circulating denomination coins, not bullion.
-const BULLION_DENY_DENOM_RE = /\b(centavo|centavos|peso[s]?|\d+\s*cent(?:avo)?)\b/i;
-const BULLION_OK_RE = /\b(?:oz|ounce|onza|troy|bullion)\b/i;
+// Non-bullion coin terms (BULLION_DENY_DENOM_RE, BULLION_OK_RE) imported
+// from ../utils/filters.js — single source of truth shared with ebayService.
 
 /**
  * Detect if a series name looks like bullion (grade matrix mode).

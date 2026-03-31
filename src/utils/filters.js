@@ -64,7 +64,13 @@ function detectDenomination(text) {
   return null;
 }
 
-module.exports = { DENY_PATTERNS, ROLL_PATTERN, isDenied, detectDenomination, hasSeriesConflict, isCompositionMismatch };
+// ── Non-bullion denomination filter for bullion searches ────────────
+// Circulating coins (centavos, pesos) share keywords like "libertad"
+// but are not bullion.  Used by both ebayService and marketAggregator.
+const BULLION_DENY_DENOM_RE = /\b(centavo|centavos|peso[s]?|\d+\s*cent(?:avo)?)\b/i;
+const BULLION_OK_RE = /\b(?:oz|ounce|onza|troy|bullion)\b/i;
+
+module.exports = { DENY_PATTERNS, ROLL_PATTERN, isDenied, detectDenomination, hasSeriesConflict, isCompositionMismatch, BULLION_DENY_DENOM_RE, BULLION_OK_RE };
 
 // ── Silver / Clad era composition detection ─────────────────────────
 // US circulating coins transitioned from 90% silver to clad at known dates.

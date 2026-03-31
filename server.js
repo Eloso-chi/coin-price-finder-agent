@@ -39,7 +39,13 @@ app.use(helmet({
       objectSrc:  ["'none'"],
       frameAncestors: ["'none'"],
     }
-  }
+  },
+  // Enforce HTTPS via Strict-Transport-Security header.
+  // Azure App Service terminates TLS; HSTS tells browsers to always use HTTPS.
+  strictTransportSecurity: {
+    maxAge: 31536000,          // 1 year
+    includeSubDomains: true,
+  },
 }));
 
 // Global rate limiter — 100 requests per minute per IP
