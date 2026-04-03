@@ -128,6 +128,8 @@ function extractMint(title) {
 function matchesGrade(title, gradeFilter) {
   if (!gradeFilter || gradeFilter === 'All') return true;
   const filterNorm = gradeFilter.replace(/[\s-]/g, '').toUpperCase();
+  // Bare "PROOF" without a number — match any title containing "proof"
+  if (filterNorm === 'PROOF') return /\bproof\b/i.test(title);
   // Build a regex that matches the grade token in the title
   const m = filterNorm.match(/^(MS|PR|PF|SP|AU|XF|EF|VF|F|VG|G|AG|PO)(\d{1,2}\+?)$/i);
   if (!m) return true; // unparseable filter → pass all
@@ -623,10 +625,20 @@ async function fetchMarketMatrix({
   // Detect if the user is searching for rolls (e.g. "Franklin Half Dollar Roll")
   const isRoll = /\brolls?\b/i.test(series);
 
+  // Detect bare "Proof" grade — inject into keywords and set proof flags
+  const isProofSearch = grade && /^proof$/i.test(grade.replace(/[\s-]/g, ''));
+  if (isProofSearch && !/proof/i.test(keywords)) {
+    keywords += ' Proof';
+  }
+
   // Fetch completed sales via the existing fetchSoldComps pipeline
   // This returns comps from Insights + Finding APIs
   const detectedMetal = _detectMetal(series);
   const expectedOpts = { series, _rawQuery: keywords, metal: detectedMetal, isRoll };
+  if (isProofSearch) {
+    expectedOpts.isProof = true;
+    expectedOpts.finish = 'Proof';
+  }
   if (effectiveWeight) expectedOpts.weight = effectiveWeight;
   if (brandFilter) expectedOpts._brandFilter = brandFilter;
 

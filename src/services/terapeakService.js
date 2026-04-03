@@ -697,6 +697,9 @@ function normalizeSearchKey(term) {
     .replace(/\b(\d{4})-0\b/g, '$1-O')
     // Split year-mint tokens: "1956-D" → "1956 d", "1878-CC" → "1878 cc"
     .replace(/\b(\d{4})-(cc|d|s|o|w|p)\b/gi, '$1 $2')
+    // Collapse "N oz" → "Noz" so "1 oz" matches dataset keys like "1oz".
+    // Must run BEFORE non-alphanumeric stripping so fractions like "1/2 oz" are handled.
+    .replace(/\b(\d+(?:[\/\.]\d+)?)\s*oz\b/g, '$1oz')
     .replace(/[^a-z0-9\s\-]/g, '')
     .replace(/\s+/g, ' ')
     .trim();

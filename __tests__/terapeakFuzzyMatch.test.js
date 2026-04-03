@@ -112,9 +112,9 @@ describe('normalizeSearchKey', () => {
     expect(normalizeSearchKey(undefined)).toBe('');
   });
 
-  // This is a known behavior: slashes are stripped
-  test('strips slashes (so "1/2" becomes "12")', () => {
-    expect(normalizeSearchKey('1/2 oz Libertad')).toBe('12 oz libertad');
+  // Fractions: slash stripped after oz-collapse, so "1/2 oz" → "12oz"
+  test('collapses fractional oz before stripping slashes', () => {
+    expect(normalizeSearchKey('1/2 oz Libertad')).toBe('12oz libertad');
   });
 });
 

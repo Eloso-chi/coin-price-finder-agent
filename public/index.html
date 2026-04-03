@@ -1206,7 +1206,10 @@
         <div class="grade-price-grid">
           <div class="field">
             <label for="coinGrade">Grade</label>
-            <input id="coinGrade" type="text" placeholder="e.g. MS-65, VF-30, PF-69DCAM" list="grades-list" autocomplete="off">
+            <div style="display:flex;gap:8px;align-items:center">
+            <input id="coinGrade" type="text" placeholder="e.g. MS-65, VF-30, PF-69DCAM" list="grades-list" autocomplete="off" style="flex:1">
+            <label style="display:flex;align-items:center;gap:4px;font-size:0.82rem;white-space:nowrap;cursor:pointer"><input type="checkbox" id="coinProof"> Proof</label>
+            </div>
             <datalist id="grades-list">
               <option value="AG-3"><option value="G-4"><option value="G-6">
               <option value="VG-8"><option value="VG-10"><option value="F-12">
@@ -2286,6 +2289,7 @@
         coinYear:      document.getElementById('coinYear'),
         coinMint:      document.getElementById('coinMint'),
         grade:         document.getElementById('coinGrade'),
+        coinProof:     document.getElementById('coinProof'),
         coinLabel:     document.getElementById('coinLabel'),
         coinWeight:    document.getElementById('coinWeight'),
         quickWeight:   document.getElementById('quickWeight'),
@@ -2425,6 +2429,13 @@
       this.els.coinName.addEventListener('input', check);
       this.els.coinName.addEventListener('change', check);
       this.els.setType.addEventListener('change', () => this._updatePreview());
+      // Auto-toggle proof checkbox when grade field suggests proof
+      this.els.grade.addEventListener('input', () => {
+        const g = this.els.grade.value.trim();
+        if (/^(PF|PR)[-\s]?\d/i.test(g)) this.els.coinProof.checked = true;
+        this._updatePreview();
+      });
+      this.els.coinProof.addEventListener('change', () => this._updatePreview());
     },
 
     /* ── Build query string from structured fields ────────── */
@@ -2437,6 +2448,7 @@
       const grade = this.els.grade.value.trim();
       const isSet = this._isSetName(name);
 
+      const proof = this.els.coinProof.checked;
       if (!name && !year) return '';
 
       let parts = [];
@@ -2447,6 +2459,8 @@
         parts.push('US ' + setLabel);
       } else {
         if (name) parts.push(name);
+        // Append "Proof" before grade when checkbox is checked and not already in name/grade
+        if (proof && !/\bproof\b/i.test(name) && !/\b(PF|PR)[-\s]?\d/i.test(grade)) parts.push('Proof');
         if (grade) parts.push(grade);
       }
 
@@ -2529,6 +2543,7 @@
           year:           parseInt(this.els.coinYear.value, 10),
           mintMark:       (this.els.coinMint.value.trim().toUpperCase() === '0' ? 'O' : this.els.coinMint.value.trim().toUpperCase()) || null,
           grade:          this.els.grade.value.trim() || null,
+          finish:         this.els.coinProof.checked ? 'Proof' : null,
           label:          this.els.coinLabel.value || null,
           weight:         parseFloat(this.els.coinWeight.value) || null,
           setType:        this._isSetName(this.els.coinName.value.trim()) ? this.els.setType.value : null,
@@ -3374,6 +3389,11 @@
       const gr = d.coinData?.grade || d.identification?.parsed?.grade;
       const lb = d.coinData?.label || null;
       const wt = d.query?.weight;
+      // Strip grade/finish terms from the name when the grade field already
+      // captures them (prevents "Mexican Silver Libertad proof Proof").
+      if (gr && nm) {
+        nm = nm.replace(/\b(proof|reverse proof|enhanced reverse proof|burnished|satin finish|antiqued|uncirculated|BU)\b\s*/gi, '').trim();
+      }
       // Lunar enrichment — append "Year of the <Animal>" for Lunar series
       if (yr && /lunar|year of/i.test(nm)) {
         const animal = zodiacAnimal(Number(yr));

@@ -141,7 +141,7 @@ router.post('/', async (req, res) => {
       ebayKeywords = `${yr} ${setLabels[resolvedSetType] || 'US proof set'}`.trim();
     } else {
       // Enrich pcgs object with parsed finish so buildKeywords can use it
-      const parsedFinish = identification.parsed?.finish || null;
+      const parsedFinish = coinData?.finish || identification.parsed?.finish || null;
       if (parsedFinish && !pcgs.finish) pcgs.finish = parsedFinish;
       ebayKeywords = ebayService.buildKeywords(pcgs, String(query), resolvedWeight, validLabel);
     }
@@ -209,8 +209,9 @@ router.post('/', async (req, res) => {
       series: pcgs.series || identification.parsed?.series,
       grade: isSet ? null : (pcgs.grade || identification.parsed?.grade),
       designation: pcgs.designation || identification.parsed?.designation,
-      finish: identification.parsed?.finish || null,
+      finish: coinData?.finish || identification.parsed?.finish || null,
       isProof: !isSet && (
+        coinData?.finish === 'Proof' ||
         (identification.parsed?.finish === 'Proof') ||
         (identification.parsed?.grade === 'Proof') ||
         /^(PF|PR)[-\s]?\d/i.test(pcgs.grade || identification.parsed?.grade || '')
@@ -374,7 +375,7 @@ router.post('/', async (req, res) => {
     let resolvedMintage = pcgsMintage;
     let mintageSource   = pcgsMintage ? 'pcgs' : null;
     if (!resolvedMintage) {
-      const mintFinish = identification.parsed?.finish || (expected.isProof ? 'Proof' : null);
+      const mintFinish = coinData?.finish || identification.parsed?.finish || (expected.isProof ? 'Proof' : null);
       const staticLookup = lookupMintage(mintSeries, mintYear, mintMark, mintWeight, mintFinish);
       if (staticLookup.mintage) {
         resolvedMintage = staticLookup.mintage;

@@ -60,15 +60,20 @@ async function throttle() {
 function detectWeightFromTitle(title) {
   if (!title) return null;
   const t = title.toLowerCase();
+  // Weight-unit suffix: matches "oz", "ozt", "ounce", "ounces",
+  // "troy oz", "troy ounce", "troy ounce oz", etc.
+  const OZ = '(?:troy\\s+)?(?:ounces?(?:\\s+oz)?|ozt?|oz)\\b';
   // Specific fractions first (before generic integer pattern)
-  if (/\b1\/20\s*oz/i.test(t))    return 0.05;
-  if (/\b1\/10\s*oz/i.test(t))    return 0.1;
-  if (/\b1\/4\s*oz/i.test(t))     return 0.25;
-  if (/\bquarter\s*oz/i.test(t))  return 0.25;
-  if (/\b1\/2\s*oz/i.test(t))     return 0.5;
-  if (/\bhalf\s*oz/i.test(t))     return 0.5;
-  // Generic "N oz" — integers and decimals (e.g. "1 oz", "2oz", "1.5 oz")
-  const m = t.match(/\b(\d+(?:\.\d+)?)\s*oz\b/);
+  const fracRe = new RegExp('\\b(1\\/20|1\\/10|1\\/4|1\\/2)\\s*' + OZ, 'i');
+  const fracMatch = t.match(fracRe);
+  if (fracMatch) {
+    const frac = { '1/20': 0.05, '1/10': 0.1, '1/4': 0.25, '1/2': 0.5 };
+    return frac[fracMatch[1]] || null;
+  }
+  if (/\bquarter\s*(?:troy\s+)?(?:ounce|ozt?|oz)\b/i.test(t))  return 0.25;
+  if (/\bhalf\s*(?:troy\s+)?(?:ounce|ozt?|oz)\b/i.test(t))     return 0.5;
+  // Generic "N oz/ounce/ozt" — integers and decimals (e.g. "1 oz", "2oz", "1.5 ounce")
+  const m = t.match(new RegExp('\\b(\\d+(?:\\.\\d+)?)\\s*' + OZ, 'i'));
   if (m) return parseFloat(m[1]);
   return null;
 }
@@ -1226,8 +1231,33 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
         console.log(`[ebay] Finding API US (${tierDays}d): ${mergedUS.length} comps`);
       } catch (err) {
         console.warn(`[ebay] Finding API US unavailable: ${err.response?.status || err.message}`);
-        tripCircuit('finding');
-        if (!usResult) usResult = { stats: null, comps: [], removed: {}, error: { message: err.message } };
+        // When Finding API fails and keywords contain proof/finish terms,
+        // retry with those terms stripped.  eBay's Finding API sometimes
+        // returns 500 for "Proof" in the query while returning valid results
+        // without it.  applyFilters will remove non-proof comps.
+        const proofTermRe = /\b(Proof|Reverse Proof|Enhanced Reverse Proof|Burnished|Satin Finish|Antiqued)\b/i;
+        if (proofTermRe.test(keywords)) {
+          const strippedKw = keywords.replace(proofTermRe, '').replace(/\s{2,}/g, ' ').trim();
+          try {
+            console.log(`[ebay] Retrying Finding API without proof term: "${strippedKw}"`);
+            const rawRetry = await fetchFindingTier(strippedKw, tierDays, opts.maxPages, 'US');
+            const dedupedRetry = dedup(rawRetry);
+            const scoredRetry = dedupedRetry.map(c => scoreMatch(c, expected));
+            const filterRetry = applyFilters(scoredRetry, opts, expected);
+            const mergedRetry = usResult ? dedup([...usResult.comps, ...filterRetry.kept]) : filterRetry.kept;
+            const mergedPrices = mergedRetry.map(c => c.totalUsd);
+            usResult = { stats: stats.summarize(mergedPrices), comps: mergedRetry, removed: filterRetry.removed, error: null };
+            apiUsed = 'finding';
+            console.log(`[ebay] Finding API retry US (${tierDays}d): ${mergedRetry.length} comps (proof-term stripped)`);
+          } catch (retryErr) {
+            console.warn(`[ebay] Finding API retry also failed: ${retryErr.response?.status || retryErr.message}`);
+            tripCircuit('finding');
+            if (!usResult) usResult = { stats: null, comps: [], removed: {}, error: { message: err.message } };
+          }
+        } else {
+          tripCircuit('finding');
+          if (!usResult) usResult = { stats: null, comps: [], removed: {}, error: { message: err.message } };
+        }
       }
     }
 
