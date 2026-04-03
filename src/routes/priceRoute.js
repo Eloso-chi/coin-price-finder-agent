@@ -17,6 +17,13 @@ const { zodiacForYear, perthLunarSeries } = require('../data/constants');
 const { validateSeriesIntegrity, validateNumericSanity } = require('../utils/responseValidator');
 const { hasSeriesConflict, detectDenomination } = require('../utils/filters');
 
+// ── Allowed graded-slab label values (must match frontend <select> options) ──
+const ALLOWED_LABELS = new Set([
+  'First Strike', 'Early Releases', 'First Day of Issue',
+  'Burnished', 'Reverse Proof', 'Enhanced Reverse Proof',
+  'Satin Finish', 'Antiqued', 'High Relief',
+]);
+
 // ── Semiquincentennial circulating denomination map ──
 // Maps parsed "semiquincentennial <denom>" keywords to their canonical series
 const SEMI250_DENOM_MAP = {
@@ -111,6 +118,9 @@ router.post('/', async (req, res) => {
     // Detect roll searches (e.g. "1960 P lincoln cent roll")
     const isRoll = !!(coinData?.isRoll || identification.parsed?.isRoll);
 
+    // Validate label against allowlist (used in both keyword building and expected object)
+    const validLabel = (coinData?.label && ALLOWED_LABELS.has(coinData.label)) ? coinData.label : null;
+
     let ebayKeywords;
     if (isRoll) {
       // For rolls, build targeted keywords (PCGS won't price these)
@@ -133,7 +143,7 @@ router.post('/', async (req, res) => {
       // Enrich pcgs object with parsed finish so buildKeywords can use it
       const parsedFinish = identification.parsed?.finish || null;
       if (parsedFinish && !pcgs.finish) pcgs.finish = parsedFinish;
-      ebayKeywords = ebayService.buildKeywords(pcgs, String(query), resolvedWeight, coinData?.label);
+      ebayKeywords = ebayService.buildKeywords(pcgs, String(query), resolvedWeight, validLabel);
     }
 
     // ── 2a. Semiquincentennial circulating coin enrichment ──
@@ -213,7 +223,7 @@ router.post('/', async (req, res) => {
       isSet: isSet,
       setType: resolvedSetType || null,
       perthSeriesLabel: perthSeriesLabel,
-      label: coinData?.label || null,
+      label: validLabel,
       _gradeSource: identification.parsed?._gradeSource || null,
       _rawQuery: String(query),
     };

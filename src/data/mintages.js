@@ -2287,6 +2287,9 @@ function lookupMintage(series, year, mint, weight, finish) {
         if (k.startsWith(`${year}-`)) return { mintage: v, series: proofKey };
       }
     }
+    // Proof requested but no proof table or no matching year -- don't fall
+    // through to the BU table; returning BU mintage for a proof coin is wrong.
+    return { mintage: null, series: canonical };
   }
 
   // ── Try weight-specific fractional table first ──

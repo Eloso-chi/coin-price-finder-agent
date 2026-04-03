@@ -19,7 +19,7 @@ function requireAdmin(req, res, next) {
     // are locked-down by default on a fresh deploy.
     return res.status(403).json({ error: 'Admin API key not configured on server' });
   }
-  const provided = req.headers['x-api-key'] || req.query.apiKey;
+  const provided = req.headers['x-api-key'];
   if (provided !== ADMIN_API_KEY) {
     return res.status(401).json({ error: 'Invalid or missing API key' });
   }
@@ -67,6 +67,15 @@ const apiLimiter = rateLimit({
   message: { error: 'Too many API requests, please try again later' }
 });
 
+// Dedicated limiter for file upload (Excel import) — tighter to prevent abuse
+const uploadLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many upload requests, please try again later' }
+});
+
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -90,7 +99,7 @@ app.use('/api/terapeak', terapeakRoute);
 app.use('/api/pricing-batch', apiLimiter, pricingBatchRoute);
 app.use('/api/image-proxy', imageProxyRoute);
 app.use('/api/coin-history', coinHistoryRoute);
-app.use('/api/import/excel', apiLimiter, excelImportRoute);
+app.use('/api/import/excel', uploadLimiter, excelImportRoute);
 
 // Clear all caches (admin-only)
 app.post('/api/clear-cache', requireAdmin, (_req, res) => {

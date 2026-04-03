@@ -399,6 +399,20 @@ function scoreMatch(comp, expected) {
       score += 15; notes.push('grade-exact');
     } else if (/pcgs|ngc|anacs|icg/i.test(tLow)) {
       score += 5; notes.push('certified');
+      // Check for numeric grade mismatch: if the comp title has a formal
+      // grade (e.g. MS63) that differs from the expected grade (e.g. MS65),
+      // apply a penalty proportional to the distance.  In Morgan dollars
+      // the jump from MS64 to MS65 can be 2-5x in price.
+      const wantNum = parseInt((g.match(/\d+/) || [])[0], 10);
+      const titleGradeMatch = tLow.match(/\b(?:ms|pr|pf|sp|au|xf|ef|vf|vg|ag|fr|po)\s*[-]?\s*(\d{1,2})\b/i);
+      const titleNum = titleGradeMatch ? parseInt(titleGradeMatch[1], 10) : null;
+      if (wantNum && titleNum != null && titleNum !== wantNum) {
+        const diff = Math.abs(wantNum - titleNum);
+        // Steeper penalty for larger gaps; even 1 grade point matters at MS65+
+        const penalty = diff >= 3 ? 40 : diff === 2 ? 30 : 20;
+        score -= penalty;
+        notes.push('grade-num-mismatch(' + titleNum + 'vs' + wantNum + ')');
+      }
     }
     // BU-term matching: if user searched "BU" or "Choice BU" etc.,
     // also give credit for comp titles with matching BU terms
@@ -946,6 +960,27 @@ function applyFilters(comps, options, expected) {
     });
   }
 
+  // Grade-number mismatch hard filter: when the user searches for a specific
+  // numeric grade (e.g. MS65), drop comps whose title explicitly states a
+  // different grade number (e.g. MS63, MS64).  The price difference between
+  // adjacent Mint State grades can be 2-5x for key dates.
+  if (expected.grade) {
+    const wantGradeNum = parseInt((expected.grade.match(/\d+/) || [])[0], 10);
+    if (wantGradeNum) {
+      const GRADE_RE = /\b(ms|pr|pf|sp|au|xf|ef|vf|vg|ag|fr|po)\s*[-]?\s*(\d{1,2})\b/gi;
+      removed.gradeNumMismatch = 0;
+      kept = kept.filter(c => {
+        const tLow = (c.title || '').toLowerCase();
+        const grades = [...tLow.matchAll(GRADE_RE)].map(m => parseInt(m[2], 10));
+        if (grades.length === 0) return true; // no grade stated → benefit of the doubt
+        // Keep if any grade in the title matches the expected grade
+        if (grades.includes(wantGradeNum)) return true;
+        removed.gradeNumMismatch++;
+        return false;
+      });
+    }
+  }
+
   // requirePCGSOnly
   if (options.requirePCGSOnly) {
     kept = kept.filter(c => {
@@ -1233,7 +1268,11 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
   if (!globalResult) globalResult = { stats: null, comps: [], removed: {}, error: { message: 'Finding API skipped/unavailable' } };
 
   // ── Attempt 3: Browse API (active listings — last resort) ──
-  if (usResult.comps.length < opts.usMinComps) {
+  // Only use Browse fallback when we have NO sold comps at all.
+  // When Terapeak provided partial sold data, prefer those real sold comps
+  // over active listings — sold data at any quantity is more reliable for FMV.
+  const soldCompsCount = (usResult?.comps || []).filter(c => c._source !== 'browse').length;
+  if (usResult.comps.length < opts.usMinComps && soldCompsCount === 0) {
     try {
       const browseComps = await browseSearch(keywords, PER_PAGE * opts.maxPages, expected._brandFilter || null);
       const dedupedBrowse = dedup(browseComps);

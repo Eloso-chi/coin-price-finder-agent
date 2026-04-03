@@ -24,6 +24,12 @@ router.post('/', upload.single('file'), (req, res) => {
     return res.status(400).json({ error: 'No file uploaded. Attach a .xlsx file as field "file".' });
   }
 
+  // Magic-byte check: .xlsx files are ZIP archives (PK header: 0x50 0x4B 0x03 0x04)
+  const buf = req.file.buffer;
+  if (buf.length < 4 || buf[0] !== 0x50 || buf[1] !== 0x4B || buf[2] !== 0x03 || buf[3] !== 0x04) {
+    return res.status(400).json({ error: 'File does not appear to be a valid .xlsx file.' });
+  }
+
   try {
     const result = mapExcelToBackup(req.file.buffer);
 
@@ -37,8 +43,9 @@ router.post('/', upload.single('file'), (req, res) => {
       summary: result.summary,
     });
   } catch (err) {
-    // Multer or XLSX parse error
-    return res.status(400).json({ error: 'Failed to parse Excel file: ' + (err.message || 'unknown error') });
+    // Log full error server-side; return generic message to client
+    console.error('[/api/import/excel] Parse error:', err.message || err);
+    return res.status(400).json({ error: 'Invalid or corrupted Excel file. Please check the file and try again.' });
   }
 });
 

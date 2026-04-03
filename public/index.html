@@ -1996,7 +1996,7 @@
   </section>
 
   <!-- ── Auth Dialog (client-only, never contacts server) ── -->
-  <dialog class="auth-dialog" id="confirm-dialog" style="max-width:380px">
+  <dialog class="auth-dialog" id="confirm-dialog" aria-labelledby="confirm-dialog-title" style="max-width:380px">
     <h2 id="confirm-dialog-title">Confirm</h2>
     <p id="confirm-dialog-msg" style="font-size:0.88rem;color:var(--text-secondary);line-height:1.5;margin:8px 0 16px"></p>
     <div class="auth-actions">
@@ -3438,7 +3438,7 @@
       const gid = 'gallery-' + Date.now();
       html += '<div class="fmv-gallery" id="' + gid + '" data-imgs=\'' + JSON.stringify(galleryImages) + '\'>';
       html += '<div class="fmv-gallery-main">';
-      html += '<img id="' + gid + '-main" src="' + _escUrl(galleryImages[0]) + '" alt="' + _esc(coinLabel || 'Coin') + '" onerror="this.src=\'' + _escUrl(galleryImages[1] || '') + '\'">';
+      html += '<img id="' + gid + '-main" src="' + _escUrl(galleryImages[0]) + '" alt="' + _escAttr(coinLabel || 'Coin') + '" onerror="this.src=\'' + _escUrl(galleryImages[1] || '') + '\'">';
       html += '<button class="gallery-nav gallery-nav-left" aria-label="Previous image" onclick="galleryNav(\'' + gid + '\',-1)">&lsaquo;</button>';
       html += '<button class="gallery-nav gallery-nav-right" aria-label="Next image" onclick="galleryNav(\'' + gid + '\',1)">&rsaquo;</button>';
       html += '</div>';
@@ -3450,7 +3450,7 @@
       if (galleryImages.length > 4) html += '<div class="fmv-gallery-count">' + galleryImages.length + ' photos</div>';
       html += '</div>';
     } else if (galleryImages.length === 1) {
-      html += '<div class="fmv-img"><img src="' + _escUrl(galleryImages[0]) + '" alt="' + _esc(coinLabel || 'Coin') + '" onerror="this.parentElement.style.display=\'none\'"></div>';
+      html += '<div class="fmv-img"><img src="' + _escUrl(galleryImages[0]) + '" alt="' + _escAttr(coinLabel || 'Coin') + '" onerror="this.parentElement.style.display=\'none\'"></div>';
     }
     html += '<div class="fmv-left">';
     if (coinLabel) html += '<div class="coin-id">' + _esc(coinLabel) + '</div>';
@@ -3588,7 +3588,7 @@
       }
     }
     if (meltInfo && meltInfo.composition) { const cClass = meltInfo.isClad ? 'clad' : (meltInfo.metal === 'gold' ? 'gold' : 'silver'); html += '<span class="fmv-chip fmv-chip-comp ' + cClass + '" title="Coin composition">\u2699\uFE0F ' + _esc(meltInfo.composition) + '</span>'; }
-    if (mintage) html += '<span class="fmv-chip" title="Mintage for this year/mint (source: ' + _esc(mintageSource) + ')">\uD83C\uDFED Mintage: ' + Number(mintage).toLocaleString() + '</span>';
+    if (mintage) html += '<span class="fmv-chip" title="Mintage for this year/mint (source: ' + _escAttr(mintageSource) + ')">\uD83C\uDFED Mintage: ' + Number(mintage).toLocaleString() + '</span>';
     if (usCompsAll.length) {
       let chipText = '\uD83D\uDCE6 Comps: ' + chipPoolCount + ' ' + chipPoolLabel;
       if (chipExcluded > 0) chipText += ' (' + chipExcluded + ' ' + (chipPool.usedPool === 'graded' ? 'raw' : 'graded') + ' excluded)';
@@ -4787,13 +4787,13 @@
         let html = '';
         for (const ds of datasets) {
           const date = ds.lastImport ? new Date(ds.lastImport).toLocaleDateString() : 'unknown';
-          html += '<div class="tp-dataset-item" data-key="' + this._esc(ds.key) + '">';
+          html += '<div class="tp-dataset-item" data-key="' + _escAttr(ds.key) + '">';
           html += '<div class="tp-dataset-info">';
           html += '<div class="tp-dataset-term">' + this._esc(ds.searchTerm) + '</div>';
           html += '<div class="tp-dataset-meta">' + ds.compCount + ' sold comps \u2022 Last import: ' + date + ' \u2022 Imported ' + (ds.importCount || 1) + 'x</div>';
           html += '</div>';
           html += '<div class="tp-dataset-actions">';
-          html += '<button class="tp-btn-sm tp-btn-del" onclick="TerapeakImporter._deleteDataset(\'' + this._esc(ds.key) + '\')">\uD83D\uDDD1 Delete</button>';
+          html += '<button class="tp-btn-sm tp-btn-del" onclick="TerapeakImporter._deleteDataset(\'' + _escAttr(ds.key) + '\')">\uD83D\uDDD1 Delete</button>';
           html += '</div>';
           html += '</div>';
         }

@@ -59,8 +59,25 @@ async function _priceOne(item) {
       if (BULLION_1OZ_DEFAULT.some(b => sl.includes(b))) weight = 1;
     }
 
+    // Detect proof / roll / set from parsed description
+    const isRoll = !!(coinData.isRoll || parsed.isRoll);
+    const isSet  = !!(parsed.setType);
+    const isProof = !isSet && (
+      parsed.finish === 'Proof' ||
+      parsed.grade  === 'Proof' ||
+      /^(PF|PR)[-\s]?\d/i.test(grade)
+    );
+
     // Lunar enrichment
-    let expected = { year, mint, series, grade, weight };
+    let expected = {
+      year, mint, series, grade, weight,
+      finish:  parsed.finish || null,
+      isProof,
+      isRoll,
+      isSet,
+      setType: parsed.setType || null,
+      _rawQuery: String(query),
+    };
     if (year && /lunar/i.test(series)) {
       expected.zodiacAnimal = zodiacForYear(Number(year));
       expected.isLunarCoin = true;
@@ -88,8 +105,8 @@ async function _priceOne(item) {
     const isBullion = BULLION_1OZ_DEFAULT.some(b => (series || '').toLowerCase().includes(b));
     const result = computeValuation(pcgs, ebay, null, gradeNum, {
       isBullion,
-      isSet: false,
-      isRoll: false,
+      isSet,
+      isRoll,
     });
     const val = result.valuation || {};
 

@@ -148,6 +148,7 @@ Optional variables:
 | `PORT` | Server port | `3000` |
 | `EBAY_CACHE_TTL_MS` | eBay cache lifetime | `3600000` (1 hour) |
 | `EBAY_US_MIN_COMPS` | Minimum US comps before global fallback | `8` |
+| `EBAY_DEFAULT_LOOKBACK_DAYS` | Default eBay sold-comp lookback window (auto-extends to 365 if too few comps) | `180` |
 | `EBAY_THROTTLE_MS` | eBay API throttle delay | `1100` |
 | `EBAY_TIMEOUT_MS` | eBay API timeout | `10000` |
 | `METALS_CACHE_TTL_MS` | Metals spot price cache lifetime | `2700000` (45 min) |
@@ -371,7 +372,7 @@ The **Test Monitor** system records per-run metrics (timestamp, branch, commit, 
 
 A Copilot agent persona (`.github/agents/test-monitor.agent.md`) can be invoked to diagnose failures, quarantine flaky tests, and suggest fixes. See [docs/testing/test-monitor.md](docs/testing/test-monitor.md) for full usage.
 
-Runs **Jest** across 28 test suites:
+Runs **Jest** across 31 test suites:
 
 | Suite | What it covers |
 |---|---|
@@ -403,6 +404,9 @@ Runs **Jest** across 28 test suites:
 | `terapeakQuotaService.test.js` | Terapeak daily quota tracking, reset, threshold warnings |
 | `excelImport.test.js` | Excel mapper + route: header normalization, series aliases, year/mint parsing, error handling |
 | `storage.costPer.test.js` | Cost basis: inline edit, P/L computation, import sanitization, hash with notes |
+| `priceRoute.test.js` | Price route integration: validation, label allowlist, proof detection, cert routing, bullion defaults, rolls, error handling |
+| `pcgsService.test.js` | PCGS service: lookupByCert, lookupByCoinNumberAndGrade, resolveFromDescription, _mapResponse |
+| `ebayFetchSoldComps.test.js` | eBay orchestrator: Terapeak tier, Finding API, Browse fallback, caching, scoring, buildKeywords, classifyGradeType, detectWeightFromTitle, dedup |
 
 Test helpers live in `__tests__/helpers/coinTestConstants.js` (shared token lists, normalization, compound-word-aware `containsNone`).
 
@@ -490,6 +494,42 @@ scripts/
     summarize.cjs                  Summary reporter — failures, flakes, trends
 .test-metrics/                     JSONL test-run logs (git-ignored)
 ```
+
+---
+
+## Recent Changes
+
+### Scoring & Filtering Accuracy
+
+- **Grade-number mismatch penalty** -- `scoreMatch()` now extracts numeric grades from comp titles (e.g. MS63, PF69) and penalizes comps whose grade differs from the search target (-20 to -40 points based on distance). Previously an MS63 comp could score 95 ("exact") against an MS65 search.
+- **Grade-number hard filter** -- `applyFilters()` drops comps whose title explicitly states a different grade number than the expected grade. Comps with no grade stated are kept (benefit of the doubt).
+- **Browse fallback restriction** -- Browse API active listings now only trigger when there are zero sold comps. Previously, partial Terapeak sold data (e.g. 5 of 8 needed) would be discarded in favor of active listings.
+
+### Batch Pricing Parity
+
+- **Enriched `pricingBatchRoute` expected object** -- now detects and passes `isProof`, `finish`, `isRoll`, `isSet`, `setType`, and `_rawQuery` to `fetchSoldComps()`, matching the main `/api/price` route. Proof/roll/set filtering now works correctly for My Coins batch pricing.
+
+### Security & Hardening
+
+- **Label allowlist** -- `priceRoute` validates `coinData.label` against a server-side `ALLOWED_LABELS` Set before using it in keyword building or the expected object.
+- **Excel magic-byte check** -- upload endpoint verifies ZIP/PK header before parsing.
+- **Sanitized Excel error messages** -- parse errors are logged server-side; client receives a generic message.
+- **Removed query-param API key** -- `requireAdmin` only reads `x-api-key` header.
+- **XSS hardening** -- switched `_esc()` to `_escAttr()` for HTML attribute contexts (alt, title, data-key, onclick).
+- **Dedicated upload rate limiter** -- Excel import uses its own 5 req/min limiter instead of the shared API limiter.
+- **Aria-labelledby** on confirm dialog for screen readers.
+
+### Performance
+
+- **Event delegation** -- My Coins tab wires a single set of delegated handlers on `init()` that survive re-renders, replacing per-element binding after every `_renderTable()` call.
+- **Batch pricing** -- My Coins now uses `POST /api/pricing-batch` (chunks of 25) instead of individual `/api/price` calls per coin.
+- **Spot price cache** -- 5-minute TTL cache prevents redundant `/api/metals` calls across re-renders.
+- **Import hash prefetch** -- `importJSON()` prefetches all existing coin hashes into a `Set` for O(1) duplicate checks instead of per-coin IDB queries.
+
+### Data Fixes
+
+- **Proof mintage fallback** -- `lookupMintage()` returns `{ mintage: null }` when proof finish is requested but no proof table exists, instead of falling through to the BU mintage table.
+- **`EBAY_DEFAULT_LOOKBACK_DAYS`** env var documented (default: 180, auto-extends to 365 if too few comps).
 
 ---
 

@@ -325,6 +325,11 @@ const CoinStorage = (() => {
       }
       let imported = 0, skipped = 0, errors = 0;
       const warnings = [];
+
+      // Prefetch all existing coin hashes into a Set for O(1) dupe checks
+      const existingRecords = await getAllEncrypted(userId);
+      const existingHashes = new Set(existingRecords.map(r => r.coinHash));
+
       for (let i = 0; i < data.coins.length; i++) {
         const coin = data.coins[i];
         try {
@@ -359,19 +364,21 @@ const CoinStorage = (() => {
             fineness:  coin.fineness != null ? parseFloat(coin.fineness) || null : null,
             dateAdded: coin.dateAdded || null,
           };
-          const already = await hasCoin(userId, clean);
-          if (already) {
+          var hash = await CoinCrypto.coinHash(clean);
+          if (existingHashes.has(hash)) {
             // Auto-differentiate: append "lot N" to notes so each gets a unique hash
             var lotNum = 2;
             var original = clean.notes || '';
-            while (await hasCoin(userId, clean)) {
+            while (existingHashes.has(hash)) {
               clean.notes = (original ? original + ' | ' : '') + 'lot ' + lotNum;
+              hash = await CoinCrypto.coinHash(clean);
               lotNum++;
               if (lotNum > 50) break; // safety cap
             }
             if (lotNum > 50) { skipped++; continue; }
           }
           await addCoin(userId, key, clean);
+          existingHashes.add(hash); // track newly added hash
           imported++;
         } catch {
           warnings.push('Row ' + (i + 1) + ': encryption error — skipped');
