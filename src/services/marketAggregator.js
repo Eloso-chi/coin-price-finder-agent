@@ -574,7 +574,15 @@ async function fetchMarketMatrix({
   let brandFilter = null;
 
   // Build keywords — series name + optional weight for bullion coins
-  let keywords = series;
+  // Normalize demonyms to country names for eBay API compatibility
+  // (e.g. "Mexican Silver Libertad" → "Mexico Silver Libertad")
+  let keywords = series
+    .replace(/\bMexican\b/gi, 'Mexico')
+    .replace(/\bCanadian\b/gi, 'Canada')
+    .replace(/\bAustralian\b/gi, 'Australia')
+    .replace(/\bAustrian\b/gi, 'Austria')
+    .replace(/\bBritish\b/gi, 'Great Britain')
+    .replace(/\bChinese\b/gi, 'China');
 
   if (isPerthLunar) {
     // Extract the animal and find which series this falls into.

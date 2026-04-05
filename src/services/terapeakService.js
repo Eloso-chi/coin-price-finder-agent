@@ -61,6 +61,7 @@ const COLUMN_MAP = {
   'date': 'soldDate',
   'last sold date': 'soldDate',
   'transaction date': 'soldDate',
+  'listing end date': 'soldDate',
 
   // Sold price
   'sold price': 'price',
@@ -71,6 +72,11 @@ const COLUMN_MAP = {
   'average sold price': 'price',
   'sold for': 'price',
   'total price': 'price',
+  'accepted price': 'price',
+
+  // Total (price + shipping combined -- used when separate fields absent)
+  'total': 'total',
+  'subtotal': 'total',
 
   // Shipping
   'shipping': 'shipping',
@@ -117,6 +123,20 @@ const COLUMN_MAP = {
   'listing format': 'listingType',
   'listing type': 'listingType',
   'type': 'listingType',
+
+  // Location / country (informational -- stored but not critical)
+  'country': 'country',
+  'buyer country': 'country',
+  'location': 'country',
+  'buyer location': 'country',
+  'item location': 'country',
+
+  // Bids (helps distinguish auction vs BIN)
+  'bids': 'bids',
+  'number of bids': 'bids',
+
+  // Currency
+  'currency': 'currency',
 };
 
 /**
@@ -167,11 +187,26 @@ function rowToComp(mappedRow, searchTerm) {
 
   const rawPrice = parseFloat(String(mappedRow.price || '0').replace(/[$,£€]/g, ''));
   const rawShipping = parseFloat(String(mappedRow.shipping || '0').replace(/[$,£€]/g, ''));
+  const rawTotal = parseFloat(String(mappedRow.total || '0').replace(/[$,£€]/g, ''));
   const price = isNaN(rawPrice) ? 0 : rawPrice;
   const shipping = isNaN(rawShipping) ? 0 : rawShipping;
-  const totalUsd = price + shipping;
+
+  // Real Terapeak exports may provide a "Total" column (price + shipping)
+  // without separate price/shipping columns.  Use it as the authoritative
+  // totalUsd when the individual fields are missing or zero.
+  let totalUsd;
+  if (price > 0) {
+    totalUsd = price + shipping;
+  } else if (!isNaN(rawTotal) && rawTotal > 0) {
+    totalUsd = rawTotal;
+  } else {
+    totalUsd = 0;
+  }
 
   if (totalUsd <= 0) return null;
+
+  // Currency -- default USD; real exports may include a Currency column
+  const currency = (mappedRow.currency || 'USD').toUpperCase().trim();
 
   // Parse sold date
   let soldDate = null;
@@ -212,12 +247,12 @@ function rowToComp(mappedRow, searchTerm) {
     imageUrl: mappedRow.imageUrl || null,
     additionalImages: [],
     soldDate: soldDate,
-    price: price,
+    price: price > 0 ? price : totalUsd,
     shipping: shipping,
     totalUsd: totalUsd,
-    currency: 'USD',
-    location: 'US',
-    listingType: mappedRow.listingType || 'Sold',
+    currency: currency,
+    location: mappedRow.country || 'US',
+    listingType: mappedRow.listingType || (parseInt(mappedRow.bids) > 0 ? 'Auction' : 'Sold'),
     conditionId: conditionId,
     _certificationAspect: null,
     _compositionAspect: null,

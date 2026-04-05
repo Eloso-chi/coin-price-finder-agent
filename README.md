@@ -489,6 +489,8 @@ docs/
   workflows/
     main_coinpricefinder-*.yml     CI/CD: GitHub Actions OIDC → Azure App Service
 scripts/
+  terapeak-export.py               Semi-automated Terapeak CSV exporter (Playwright)
+  seedFromEbay.js                  Bulk seed from Finding API (dead — API decommissioned)
   test-metrics/
     run-with-metrics.cjs           Jest wrapper — captures metrics to JSONL
     summarize.cjs                  Summary reporter — failures, flakes, trends
@@ -530,6 +532,13 @@ scripts/
 
 - **Proof mintage fallback** -- `lookupMintage()` returns `{ mintage: null }` when proof finish is requested but no proof table exists, instead of falling through to the BU mintage table.
 - **`EBAY_DEFAULT_LOOKBACK_DAYS`** env var documented (default: 180, auto-extends to 365 if too few comps).
+
+### Terapeak Data Pipeline
+
+- **Synthetic data warning** -- all 525 CSV files in `data/terapeak/` are generated (fake IDs, random prices, hardcoded sellers). They serve as fallback/demo data only.
+- **Finding API decommissioned** -- eBay shut down the Finding API on February 4, 2025. `seedFromEbay.js` and the auto-seed bridge in `ebayService.js` are dead code.
+- **Real data via CSV export** -- manual Terapeak CSV export from eBay Seller Hub Research is the only reliable source of real sold data.
+- **Semi-automated exporter** -- `scripts/terapeak-export.py` uses Playwright to automate Terapeak searches and CSV downloads. Two-phase workflow: `--login` opens a visible browser for manual eBay login (saves cookies), then `--run` loops through all 525 coin search terms, exports CSVs, and uploads them to the running server. Requires Python 3.10+, `playwright`, and `requests`. See `data/terapeak/README.md` for details.
 
 ---
 

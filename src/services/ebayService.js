@@ -359,7 +359,8 @@ function normalizeItem(item) {
     conditionDisplayName: item.condition?.[0]?.conditionDisplayName?.[0] || null,
     _detectedMetal: detectMetalFromTitle(title),
     matchScore: null,
-    matchNotes: []
+    matchNotes: [],
+    _source: 'finding'
   };
 }
 
@@ -1218,6 +1219,22 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
     if ((!usResult || usResult.comps.length < opts.usMinComps) && !circuitTripped('finding')) {
       try {
         const rawUS = await fetchFindingTier(keywords, tierDays, opts.maxPages, 'US');
+
+        // ── Auto-seed: save raw Finding API results to Terapeak store ──
+        // This accumulates real sold data over time so future lookups hit
+        // the local store first, reducing API calls and building history.
+        if (rawUS.length > 0) {
+          try {
+            const seedComps = rawUS.map(c => ({ ...c, _source: 'finding-auto', matchNotes: [...(c.matchNotes || []), 'finding-auto-seed'] }));
+            const seedResult = terapeakService.importComps(keywords, seedComps, { source: 'finding-auto', lastSeedDate: new Date().toISOString() });
+            if (seedResult.newComps > 0) {
+              console.log(`[ebay] Auto-seed: saved ${seedResult.newComps} new comps for "${keywords}" (${seedResult.totalStored} total)`);
+            }
+          } catch (seedErr) {
+            console.warn(`[ebay] Auto-seed failed (non-fatal): ${seedErr.message}`);
+          }
+        }
+
         const dedupedUS = dedup(rawUS);
         const scoredUS = dedupedUS.map(c => scoreMatch(c, expected));
         const filterUS = applyFilters(scoredUS, opts, expected);
@@ -1235,12 +1252,29 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
         // retry with those terms stripped.  eBay's Finding API sometimes
         // returns 500 for "Proof" in the query while returning valid results
         // without it.  applyFilters will remove non-proof comps.
+        // Also strip country names that can trigger eBay 500 errors.
         const proofTermRe = /\b(Proof|Reverse Proof|Enhanced Reverse Proof|Burnished|Satin Finish|Antiqued)\b/i;
-        if (proofTermRe.test(keywords)) {
-          const strippedKw = keywords.replace(proofTermRe, '').replace(/\s{2,}/g, ' ').trim();
+        const countryRe = /\b(Mexico|Mexican|Canada|Canadian|Australia|Australian|Austria|Austrian|Great Britain|British|China|Chinese)\b/gi;
+        const hasStrippable = proofTermRe.test(keywords) || countryRe.test(keywords);
+        if (hasStrippable) {
+          const strippedKw = keywords.replace(proofTermRe, '').replace(countryRe, '').replace(/\s{2,}/g, ' ').trim();
           try {
-            console.log(`[ebay] Retrying Finding API without proof term: "${strippedKw}"`);
+            console.log(`[ebay] Retrying Finding API with simplified keywords: "${strippedKw}"`);
             const rawRetry = await fetchFindingTier(strippedKw, tierDays, opts.maxPages, 'US');
+
+            // Auto-seed retry results too (use original keywords as store key)
+            if (rawRetry.length > 0) {
+              try {
+                const seedComps = rawRetry.map(c => ({ ...c, _source: 'finding-auto', matchNotes: [...(c.matchNotes || []), 'finding-auto-seed'] }));
+                const seedResult = terapeakService.importComps(keywords, seedComps, { source: 'finding-auto', lastSeedDate: new Date().toISOString() });
+                if (seedResult.newComps > 0) {
+                  console.log(`[ebay] Auto-seed (retry): saved ${seedResult.newComps} new comps for "${keywords}"`);
+                }
+              } catch (seedErr) {
+                console.warn(`[ebay] Auto-seed (retry) failed (non-fatal): ${seedErr.message}`);
+              }
+            }
+
             const dedupedRetry = dedup(rawRetry);
             const scoredRetry = dedupedRetry.map(c => scoreMatch(c, expected));
             const filterRetry = applyFilters(scoredRetry, opts, expected);
@@ -1248,7 +1282,7 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
             const mergedPrices = mergedRetry.map(c => c.totalUsd);
             usResult = { stats: stats.summarize(mergedPrices), comps: mergedRetry, removed: filterRetry.removed, error: null };
             apiUsed = 'finding';
-            console.log(`[ebay] Finding API retry US (${tierDays}d): ${mergedRetry.length} comps (proof-term stripped)`);
+            console.log(`[ebay] Finding API retry US (${tierDays}d): ${mergedRetry.length} comps (simplified keywords)`);
           } catch (retryErr) {
             console.warn(`[ebay] Finding API retry also failed: ${retryErr.response?.status || retryErr.message}`);
             tripCircuit('finding');
@@ -1279,6 +1313,20 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
   if (!globalResult && !circuitTripped('finding')) {
     try {
       const rawGlobal = await fetchFindingTier(keywords, actualDays, opts.maxPages, null);
+
+      // Auto-seed global results too (broader pool of real sold data)
+      if (rawGlobal.length > 0) {
+        try {
+          const seedComps = rawGlobal.map(c => ({ ...c, _source: 'finding-auto', matchNotes: [...(c.matchNotes || []), 'finding-auto-seed'] }));
+          const seedResult = terapeakService.importComps(keywords, seedComps, { source: 'finding-auto', lastSeedDate: new Date().toISOString() });
+          if (seedResult.newComps > 0) {
+            console.log(`[ebay] Auto-seed (global): saved ${seedResult.newComps} new comps for "${keywords}"`);
+          }
+        } catch (seedErr) {
+          console.warn(`[ebay] Auto-seed (global) failed (non-fatal): ${seedErr.message}`);
+        }
+      }
+
       const dedupedGlobal = dedup(rawGlobal);
       const scoredGlobal = dedupedGlobal.map(c => scoreMatch(c, expected));
       const filterGlobal = applyFilters(scoredGlobal, opts, expected);
@@ -1362,7 +1410,19 @@ function buildKeywords(pcgsData, rawQuery, weight, label) {
   } else if (pcgsData?.mint) {
     parts.push(pcgsData.mint);
   }
-  if (pcgsData?.series) parts.push(pcgsData.series);
+  if (pcgsData?.series) {
+    // Normalize demonyms to country names for eBay compatibility.
+    // eBay listings use "Mexico Libertad" not "Mexican Libertad";
+    // the Finding API returns HTTP 500 for "Mexican Silver Libertad".
+    let seriesKw = pcgsData.series
+      .replace(/\bMexican\b/gi, 'Mexico')
+      .replace(/\bCanadian\b/gi, 'Canada')
+      .replace(/\bAustralian\b/gi, 'Australia')
+      .replace(/\bAustrian\b/gi, 'Austria')
+      .replace(/\bBritish\b/gi, 'Great Britain')
+      .replace(/\bChinese\b/gi, 'China');
+    parts.push(seriesKw);
+  }
   if (pcgsData?.finish) parts.push(pcgsData.finish);
   if (pcgsData?.grade && pcgsData.grade !== 'Proof') parts.push(pcgsData.grade);
   // When grade is bare "Proof" and finish wasn't already added, inject the keyword

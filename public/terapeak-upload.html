@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Terapeak CSV Upload</title>
+<style>
+  :root { --bg: #0d1117; --surface: #161b22; --border: #30363d; --text: #e6edf3;
+    --muted: #8b949e; --accent: #58a6ff; --green: #3fb950; --red: #f85149; --yellow: #d29922; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    background: var(--bg); color: var(--text); padding: 20px; max-width: 900px; margin: 0 auto; }
+  h1 { font-size: 1.5rem; margin-bottom: 4px; }
+  .subtitle { color: var(--muted); font-size: 0.85rem; margin-bottom: 20px; }
+
+  /* API key input */
+  .api-key-bar { display: flex; gap: 8px; align-items: center; margin-bottom: 16px; }
+  .api-key-bar label { font-size: 0.85rem; color: var(--muted); white-space: nowrap; }
+  .api-key-bar input { flex: 1; background: var(--surface); border: 1px solid var(--border);
+    color: var(--text); padding: 6px 10px; border-radius: 6px; font-size: 0.85rem; }
+
+  /* Drop zone */
+  .drop-zone { border: 2px dashed var(--border); border-radius: 12px; padding: 40px 20px;
+    text-align: center; cursor: pointer; transition: all 0.2s; background: var(--surface); }
+  .drop-zone:hover, .drop-zone.drag-over { border-color: var(--accent); background: rgba(88,166,255,0.05); }
+  .drop-zone p { color: var(--muted); font-size: 0.95rem; }
+  .drop-zone .icon { font-size: 2.5rem; margin-bottom: 8px; }
+  .drop-zone input[type="file"] { display: none; }
+  .drop-zone .hint { font-size: 0.75rem; color: var(--muted); margin-top: 8px; }
+
+  /* Stats bar */
+  .stats { display: flex; gap: 16px; margin: 16px 0; font-size: 0.85rem; color: var(--muted); }
+  .stats .stat { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 8px 14px; }
+  .stats .val { font-size: 1.1rem; color: var(--text); font-weight: 600; }
+
+  /* Results table */
+  .results { margin-top: 16px; }
+  .results table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  .results th { text-align: left; padding: 8px; border-bottom: 1px solid var(--border);
+    color: var(--muted); font-weight: 500; }
+  .results td { padding: 6px 8px; border-bottom: 1px solid var(--border); }
+  .results tr:hover { background: rgba(255,255,255,0.03); }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; font-weight: 500; }
+  .badge-ok { background: rgba(63,185,80,0.15); color: var(--green); }
+  .badge-err { background: rgba(248,81,73,0.15); color: var(--red); }
+  .badge-skip { background: rgba(210,153,34,0.15); color: var(--yellow); }
+  .badge-wait { background: rgba(139,148,158,0.15); color: var(--muted); }
+
+  /* Progress bar */
+  .progress-wrap { margin: 16px 0; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .progress-bar { height: 100%; background: var(--accent); transition: width 0.3s; width: 0; }
+
+  /* How-to section */
+  .howto { margin-top: 24px; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 16px; font-size: 0.85rem; }
+  .howto h3 { font-size: 0.95rem; margin-bottom: 8px; }
+  .howto ol { padding-left: 20px; color: var(--muted); }
+  .howto li { margin-bottom: 6px; }
+  .howto code { background: rgba(255,255,255,0.06); padding: 1px 5px; border-radius: 3px; font-size: 0.8rem; }
+</style>
+</head>
+<body>
+
+<h1>Terapeak CSV Upload</h1>
+<p class="subtitle">Drag and drop Terapeak CSV exports to import real sold data into the pricing engine.</p>
+
+<div class="api-key-bar">
+  <label for="apiKey">Admin API Key:</label>
+  <input type="password" id="apiKey" placeholder="Enter your ADMIN_API_KEY" autocomplete="off">
+</div>
+
+<div class="drop-zone" id="dropZone">
+  <div class="icon">&#128230;</div>
+  <p>Drop CSV files here or <strong>click to browse</strong></p>
+  <p class="hint">Accepts multiple files. Search term is derived from filename.<br>
+    e.g. <code>1878-CC_Morgan_Silver_Dollar.csv</code> &rarr; "1878-CC Morgan Silver Dollar"</p>
+  <input type="file" id="fileInput" accept=".csv" multiple>
+</div>
+
+<div class="progress-wrap" id="progressWrap" style="display:none;">
+  <div class="progress-bar" id="progressBar"></div>
+</div>
+
+<div class="stats" id="statsBar" style="display:none;">
+  <div class="stat">Total: <span class="val" id="statTotal">0</span></div>
+  <div class="stat">Imported: <span class="val" id="statOk">0</span></div>
+  <div class="stat">Comps: <span class="val" id="statComps">0</span></div>
+  <div class="stat">Skipped: <span class="val" id="statSkip">0</span></div>
+  <div class="stat">Errors: <span class="val" id="statErr">0</span></div>
+</div>
+
+<div class="results" id="results"></div>
+
+<div class="howto">
+  <h3>How to export from Terapeak</h3>
+  <ol>
+    <li>Go to <a href="https://www.ebay.com/sh/research" target="_blank" style="color:var(--accent)">eBay Seller Hub &gt; Research</a></li>
+    <li>Search for a coin (e.g. "1878-CC Morgan Silver Dollar")</li>
+    <li>Make sure the <strong>Sold</strong> tab is selected</li>
+    <li>Scroll down to the sold listings table</li>
+    <li>Click the <strong>Download</strong> or <strong>Export</strong> button</li>
+    <li>Save the CSV, then drag it here</li>
+    <li>Repeat for each coin -- you can drop multiple files at once!</li>
+  </ol>
+</div>
+
+<script>
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+const progressWrap = document.getElementById('progressWrap');
+const progressBar = document.getElementById('progressBar');
+const statsBar = document.getElementById('statsBar');
+const resultsDiv = document.getElementById('results');
+
+// ── Helpers ──
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+function filenameToSearchTerm(name) {
+  return name.replace(/\.csv$/i, '').replace(/_/g, ' ').trim();
+}
+
+function getApiKey() {
+  return document.getElementById('apiKey').value.trim();
+}
+
+// ── Drag & Drop ──
+dropZone.addEventListener('click', () => fileInput.click());
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  const files = Array.from(e.dataTransfer.files).filter(f => f.name.toLowerCase().endsWith('.csv'));
+  if (files.length) processFiles(files);
+});
+fileInput.addEventListener('change', () => {
+  const files = Array.from(fileInput.files);
+  if (files.length) processFiles(files);
+  fileInput.value = '';
+});
+
+// ── Upload logic ──
+let stats = { total: 0, ok: 0, err: 0, skip: 0, comps: 0 };
+
+async function processFiles(files) {
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    alert('Please enter the Admin API Key first.');
+    document.getElementById('apiKey').focus();
+    return;
+  }
+
+  stats = { total: files.length, ok: 0, err: 0, skip: 0, comps: 0 };
+  updateStats();
+  statsBar.style.display = 'flex';
+  progressWrap.style.display = 'block';
+  progressBar.style.width = '0%';
+
+  // Build results table
+  let html = '<table><thead><tr><th>File</th><th>Search Term</th><th>Status</th><th>Comps</th><th>Details</th></tr></thead><tbody>';
+  for (const f of files) {
+    const rowId = 'row-' + f.name.replace(/[^a-zA-Z0-9]/g, '_');
+    html += '<tr id="' + esc(rowId) + '"><td>' + esc(f.name) + '</td><td>' + esc(filenameToSearchTerm(f.name)) +
+      '</td><td><span class="badge badge-wait">pending</span></td><td>--</td><td>--</td></tr>';
+  }
+  html += '</tbody></table>';
+  resultsDiv.innerHTML = html;
+
+  // Process sequentially (avoid overwhelming server)
+  for (let i = 0; i < files.length; i++) {
+    const f = files[i];
+    const rowId = 'row-' + f.name.replace(/[^a-zA-Z0-9]/g, '_');
+    const row = document.getElementById(rowId);
+    const cells = row ? row.querySelectorAll('td') : [];
+
+    // Update status to uploading
+    if (cells[2]) cells[2].innerHTML = '<span class="badge badge-wait">uploading...</span>';
+
+    try {
+      const searchTerm = filenameToSearchTerm(f.name);
+      const formData = new FormData();
+      formData.append('file', f);
+      formData.append('searchTerm', searchTerm);
+
+      const resp = await fetch('/api/terapeak/import', {
+        method: 'POST',
+        headers: { 'x-api-key': apiKey },
+        body: formData
+      });
+
+      const data = await resp.json();
+
+      if (resp.ok && data.status === 'ok') {
+        const comps = data.parse?.validComps || 0;
+        const added = data.import?.added || 0;
+        const dupes = data.import?.duplicates || 0;
+        stats.ok++;
+        stats.comps += comps;
+        if (cells[2]) cells[2].innerHTML = '<span class="badge badge-ok">imported</span>';
+        if (cells[3]) cells[3].textContent = comps;
+        if (cells[4]) cells[4].textContent = added + ' new, ' + dupes + ' dupes';
+      } else if (resp.status === 422) {
+        stats.skip++;
+        if (cells[2]) cells[2].innerHTML = '<span class="badge badge-skip">no data</span>';
+        if (cells[4]) cells[4].textContent = data.error || 'No valid comps';
+      } else {
+        stats.err++;
+        if (cells[2]) cells[2].innerHTML = '<span class="badge badge-err">error</span>';
+        if (cells[4]) cells[4].textContent = data.error || 'HTTP ' + resp.status;
+      }
+    } catch (err) {
+      stats.err++;
+      if (cells[2]) cells[2].innerHTML = '<span class="badge badge-err">error</span>';
+      if (cells[4]) cells[4].textContent = err.message;
+    }
+
+    // Update progress
+    const pct = Math.round(((i + 1) / files.length) * 100);
+    progressBar.style.width = pct + '%';
+    updateStats();
+  }
+}
+
+function updateStats() {
+  document.getElementById('statTotal').textContent = stats.total;
+  document.getElementById('statOk').textContent = stats.ok;
+  document.getElementById('statComps').textContent = stats.comps;
+  document.getElementById('statSkip').textContent = stats.skip;
+  document.getElementById('statErr').textContent = stats.err;
+}
+</script>
+</body>
+</html>
