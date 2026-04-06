@@ -106,7 +106,7 @@ async function _priceOne(item) {
     const isBullion = BULLION_1OZ_DEFAULT.some(b => (series || '').toLowerCase().includes(b));
 
     // Greysheet wholesale lookup (non-fatal)
-    const pcgsNo = pcgs?.pcgsNo || null;
+    const pcgsNo = pcgs?.pcgsCoinNumber || pcgs?.pcgsNo || null;
     const greysheet = pcgsNo ? await greysheetService.fetchPriceByPcgsNumber(pcgsNo, gradeNum) : null;
 
     const result = computeValuation(pcgs, ebay, null, gradeNum, {

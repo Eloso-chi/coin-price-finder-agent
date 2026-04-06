@@ -297,7 +297,7 @@ router.post('/', async (req, res) => {
 
     // ── 5a. Greysheet wholesale price lookup ──
     // Use PCGS number if available; non-fatal if unavailable or API not configured.
-    const pcgsNo = pcgs?.pcgsNo || coinData?.pcgsNumber || null;
+    const pcgsNo = pcgs?.pcgsCoinNumber || pcgs?.pcgsNo || coinData?.pcgsNumber || null;
     const gradeNum = userGrade ? parseInt(String(userGrade).replace(/[^\d]/g, ''), 10) || null : null;
     const greysheet = pcgsNo ? await greysheetService.fetchPriceByPcgsNumber(pcgsNo, gradeNum) : null;
 
