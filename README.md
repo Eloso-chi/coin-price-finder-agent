@@ -8,7 +8,8 @@ A dealer-oriented pricing tool that calculates **Fair Market Value (FMV)** for U
 2. **Enriches via PCGS** — fetches price guide value, population, auction history, mintage, and reference images from the PCGS CoinFacts API.
 3. **Pulls eBay sold comps** — queries up to three eBay APIs (Marketplace Insights → Finding → Browse) to collect recent sold prices, then scores and filters them for relevance.
 4. **Supplements with Terapeak data** — imports Terapeak CSV exports (manual upload or auto-import from `data/terapeak/`) for additional sold-comp coverage with daily quota tracking.
-5. **Computes FMV** — blends PCGS and eBay data using a weighted median with outlier removal, producing a confidence-scored valuation.
+5. **Fetches Greysheet wholesale pricing** -- queries the CDN Public API V2 by PCGS coin number for wholesale (GreyVal), retail (CPG), PCGS, NGC, and Blue Book values.
+6. **Computes FMV** -- blends PCGS, eBay, auction, and Greysheet data using a weighted median with outlier removal, producing a confidence-scored valuation.
 6. **Generates buy/sell decisions** — outputs max-buy thresholds (70/75/80% of FMV) and sell tiers (fast/normal/premium) with a recommendation.
 7. **Batch pricing** — prices up to 25 coins in a single request.
 8. **Price history charting** — returns time-series sold-price data with optional spot-price metal overlay.
@@ -143,8 +144,9 @@ Optional variables:
 |----------|---------|---------|
 | `GOLDAPI_KEY` | Gold API key for spot prices | *(none)* |
 | `METALS_API_KEY` | Metals API key (fallback provider) | *(none)* |
-| `NUMISTA_API_KEY` | Numista API key for rarity/mintage data | *(none)* |
-| `ADMIN_API_KEY` | API key for admin/destructive endpoints | *(none — endpoints locked)* |
+| `NUMISTA_API_KEY` | Numista API key for rarity/mintage data | *(none)* || `GREYSHEET_API_TOKEN` | Greysheet CDN Public API V2 token | *(none)* |
+| `GREYSHEET_API_KEY` | Greysheet CDN Public API V2 key | *(none)* |
+| `GREYSHEET_BASE_URL` | Greysheet API base URL override | `https://cpgpublicapiv2.greysheet.com/api` || `ADMIN_API_KEY` | API key for admin/destructive endpoints | *(none — endpoints locked)* |
 | `PORT` | Server port | `3000` |
 | `EBAY_CACHE_TTL_MS` | eBay cache lifetime | `3600000` (1 hour) |
 | `EBAY_US_MIN_COMPS` | Minimum US comps before global fallback | `8` |
@@ -190,6 +192,16 @@ Response (abbreviated):
     "rangeHigh": 890.00,
     "confidence": 82
   },
+  "greysheet": {
+    "gsid": 7486,
+    "name": "1881-CC $1 MS",
+    "gradeLabel": "MS64",
+    "wholesale": 775,
+    "retail": 900,
+    "pcgsVal": 900,
+    "ngcVal": 850,
+    "blueBookVal": 700
+  },
   "decisions": {
     "buy": {
       "max70": 584.50,
@@ -213,15 +225,16 @@ Response (abbreviated):
 
 ### FMV Core
 
-Fair Market Value is a blended estimate from up to three data sources:
+Fair Market Value is a blended estimate from up to four data sources:
 
 | Source | Weight (Certified) | Weight (Raw) |
 |--------|-------------------|--------------|
-| eBay Sold Comps | 65% | 80% |
-| PCGS Price Guide | 25% | 20% |
-| PCGS Auction History | 10% | — |
+| eBay Sold Comps | 55% | 70% |
+| PCGS Price Guide | 15% | 10% |
+| PCGS Auction History | 10% | -- |
+| Greysheet Wholesale | 20% | 20% |
 
-If a source is unavailable, weights are renormalized among the remaining sources.
+If a source is unavailable (e.g. no Greysheet credentials), weights are renormalized among the remaining sources.
 
 The eBay component uses a **weighted median** that favors recent sales (recency decay: `1 / (1 + daysSince/90)`) and high-relevance matches (match score from `scoreMatch()`).
 
@@ -240,8 +253,7 @@ A 0–100 score reflecting how trustworthy the FMV estimate is:
 | Match quality (avg score) | Up to 15–25 pts |
 | PCGS verified | +10 |
 | PCGS price guide available | +10 |
-| Auction data available | +5 |
-| 20+ comps bonus | +10–15 |
+| Auction data available | +5 || Greysheet data available | +5 || 20+ comps bonus | +10–15 |
 | Global fallback penalty | −5 to −15 |
 | Fewer than 5 comps | −10 |
 
@@ -372,7 +384,7 @@ The **Test Monitor** system records per-run metrics (timestamp, branch, commit, 
 
 A Copilot agent persona (`.github/agents/test-monitor.agent.md`) can be invoked to diagnose failures, quarantine flaky tests, and suggest fixes. See [docs/testing/test-monitor.md](docs/testing/test-monitor.md) for full usage.
 
-Runs **Jest** across 31 test suites:
+Runs **Jest** across 32 test suites:
 
 | Suite | What it covers |
 |---|---|
@@ -406,6 +418,7 @@ Runs **Jest** across 31 test suites:
 | `storage.costPer.test.js` | Cost basis: inline edit, P/L computation, import sanitization, hash with notes |
 | `priceRoute.test.js` | Price route integration: validation, label allowlist, proof detection, cert routing, bullion defaults, rolls, error handling |
 | `pcgsService.test.js` | PCGS service: lookupByCert, lookupByCoinNumberAndGrade, resolveFromDescription, _mapResponse |
+| `greysheetService.test.js` | Greysheet CDN API V2: fetchPriceByPcgsNumber, fetchPriceByGsid, fetchCollectible, caching, retry, CAC filtering |
 | `ebayFetchSoldComps.test.js` | eBay orchestrator: Terapeak tier, Finding API, Browse fallback, caching, scoring, buildKeywords, classifyGradeType, detectWeightFromTitle, dedup |
 
 Test helpers live in `__tests__/helpers/coinTestConstants.js` (shared token lists, normalization, compound-word-aware `containsNone`).
@@ -433,6 +446,7 @@ src/
     pcgsService.js                 PCGS CoinFacts API integration + parser
     ebayService.js                 eBay sold comps (3-tier API cascade)
     valuationService.js            FMV computation + buy/sell decisions
+    greysheetService.js            Greysheet CDN Public API V2 (wholesale pricing)
     metalsSpotPrice.js             Multi-provider spot price with round-robin
     MetalsSpotPriceError.js        Custom error class for metals failures
     metalsHistoryService.js        Daily spot price history snapshots
@@ -475,7 +489,7 @@ public/
 samples/
   test-collection.xlsx             Sample Excel import fixture
   no-collectors-sheet.xlsx         Error-case fixture (missing sheet)
-__tests__/                         28 Jest test suites (see Tests section)
+__tests__/                         32 Jest test suites (see Tests section)
   helpers/
     coinTestConstants.js           Shared token lists & test utilities
 docs/
@@ -538,7 +552,14 @@ scripts/
 - **Synthetic data warning** -- all 525 CSV files in `data/terapeak/` are generated (fake IDs, random prices, hardcoded sellers). They serve as fallback/demo data only.
 - **Finding API decommissioned** -- eBay shut down the Finding API on February 4, 2025. `seedFromEbay.js` and the auto-seed bridge in `ebayService.js` are dead code.
 - **Real data via CSV export** -- manual Terapeak CSV export from eBay Seller Hub Research is the only reliable source of real sold data.
-- **Semi-automated exporter** -- `scripts/terapeak-export.py` uses Playwright to automate Terapeak searches and CSV downloads. Two-phase workflow: `--login` opens a visible browser for manual eBay login (saves cookies), then `--run` loops through all 525 coin search terms, exports CSVs, and uploads them to the running server. Requires Python 3.10+, `playwright`, and `requests`. See `data/terapeak/README.md` for details.
+- **Semi-automated exporter** -- `scripts/terapeak-export.py` uses Playwright to automate Terapeak searches and CSV downloads. Two-phase workflow: `--login` opens a visible browser for manual eBay login (saves cookies), then `--run` loops through all 525 coin search terms, exports CSVs, and uploads them to the running server. Supports `--batch N` for safe incremental scraping (small runs with priority sort and bot-detection abort), `--priority` for thin-data-first ordering, and `--resume` to continue after interruption. Requires Python 3.10+, `playwright`, and `requests`. See `data/terapeak/README.md` for details.
+
+### Greysheet API Integration
+
+- **CDN Public API V2** -- `greysheetService.js` fetches wholesale pricing (GreyVal), retail (CPG), PCGS, NGC, and Blue Book values by PCGS coin number. Requires a Greysheet Dealer+ subscription and API credentials (`GREYSHEET_API_TOKEN`, `GREYSHEET_API_KEY`).
+- **FMV blend updated** -- Greysheet wholesale is now the 4th data source at 20% weight. Certified blend: eBay 55% + PCGS Guide 15% + Auction 10% + Greysheet 20%. Raw blend: eBay 70% + PCGS 10% + Greysheet 20%. Weights renormalize automatically when Greysheet is unavailable.
+- **Confidence boost** -- Greysheet data adds +5 confidence points to the valuation score.
+- **Response enrichment** -- `/api/price` and `/api/pricing-batch` responses include a `greysheet` object with GSID, wholesale/retail values, and all five pricing sources.
 
 ---
 

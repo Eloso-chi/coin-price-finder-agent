@@ -18,6 +18,7 @@ server.js                              Express entry point (port 3000)
 │   ├─ pcgsService.js                  PCGS CoinFacts API (cert, coin#, description)
 │   ├─ ebayService.js                  eBay sold comps (3-tier API cascade)
 │   ├─ valuationService.js             FMV blend + buy/sell decision engine
+│   ├─ greysheetService.js             Greysheet CDN Public API V2 (wholesale pricing)
 │   ├─ metalsSpotPrice.js              Multi-provider spot price (round-robin)
 │   └─ MetalsSpotPriceError.js         Custom error class
 │
@@ -37,7 +38,8 @@ server.js                              Express entry point (port 3000)
 │
 ├─ cache/
 │   ├─ ebay_cache.json                 Persisted eBay comp cache
-│   └─ pcgs_cache.json                 Persisted PCGS data cache
+│   ├─ pcgs_cache.json                 Persisted PCGS data cache
+│   └─ greysheet_cache.json            Persisted Greysheet pricing cache (24h TTL)
 │
 └─ __tests__/
     └─ metalsSpotPrice.test.js         Jest tests for spot price service
@@ -88,15 +90,23 @@ Request
   ├── 4. Key Date Detection ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   │   lookupKeyDate(series, year, mint) → { isKeyDate, tier?, note? }
   │
-  ├── 5. Valuation + Decisions ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  │   computeValuation(pcgs, ebay, askingPrice, userGrade)
+  ├── 5. Greysheet Wholesale Lookup ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  │   greysheetService.fetchPriceByPcgsNumber(pcgsCoinNumber, grade)
+  │   ├─ Returns: { greyVal, cpgVal, pcgsVal, ngcVal, blueBookVal, gsid, name }
+  │   ├─ Non-fatal: returns null if no credentials or API unavailable
+  │   └─ Cached 24h with file persistence (cache/greysheet_cache.json)
+  │
+  ├── 6. Valuation + Decisions ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  │   computeValuation(pcgs, ebay, askingPrice, userGrade, { greysheet })
   │   ├─ Split comps into graded vs raw pools (user intent decides pool)
   │   ├─ Compute weighted median (recency + match score weights)
-  │   ├─ Blend: certified or raw weights (see README "FMV Core")
-  │   ├─ Confidence score (0–100)
-  │   ├─ Range = FMV ± max(stddev, FMV × 0.05)
+  │   ├─ Blend: certified (55/15/10/20) or raw (70/10/20) weights
+  │   │   eBay + PCGS Guide + Auction + Greysheet wholesale
+  │   │   (renormalizes if any source is missing)
+  │   ├─ Confidence score (0-100, +5 for Greysheet)
+  │   ├─ Range = FMV +/- max(stddev, FMV x 0.05)
   │   ├─ Buy thresholds: 70% / 75% / 80% of FMV
-  │   └─ Sell tiers: fast(0.92×) / normal / premium(1.05× or 1.15×) / offerFloor
+  │   └─ Sell tiers: fast(0.92x) / normal / premium(1.05x or 1.15x) / offerFloor
   │
   ├── 6. Mintage Lookup ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   │   PCGS mintage available? → use it (source: "pcgs")
@@ -106,7 +116,7 @@ Request
   │   { pcgs: { certNumber, pcgsCoinNumber }, ebay: { timeWindowDays, itemIds } }
   │
   └── 8. Response ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      JSON with: query, identification, pcgs, ebay, valuation,
+      JSON with: query, identification, pcgs, ebay, greysheet, valuation,
       decisions, keyDate, mintageData, lunarComparison, reproducibility
 ```
 
@@ -300,6 +310,18 @@ Three independent caches serve different data characteristics:
 | **Why 45 min** | Spot prices update throughout the trading day but sub-hourly precision is sufficient for melt calculations |
 | **In-flight dedup** | Concurrent requests for the same metal share a single provider fetch |
 
+### Greysheet Price Cache
+
+| Property | Value |
+|----------|-------|
+| **Class** | `TTLCache` (src/utils/cache.js) |
+| **Default TTL** | 24 hours (86,400,000 ms) |
+| **Persistence** | `cache/greysheet_cache.json` (debounced writes) |
+| **Key patterns** | `gs:pcgs:{pcgsNumber}:{grade}`, `gs:gsid:{gsid}:{grade}`, `gs:collectible:{gsid}` |
+| **Why 24h TTL** | Greysheet wholesale prices update weekly; daily cache is conservative |
+| **Negative caching** | `null` results are cached to avoid repeated API calls for coins not in the Greysheet catalog |
+| **Clear** | `greysheetService._cache.clear()` |
+
 ### TTLCache Internals
 
 The `TTLCache` class wraps a `Map` with per-entry expiration:
@@ -410,7 +432,8 @@ The eBay component uses `computeWeightedMedian(comps)` instead of a simple media
 | `verified` (PCGS certified) | +10 |
 | `hasPcgsGuide` | +10 |
 | `hasAuction` | +5 |
-| 20+ US comps | +10–15 bonus |
+| `hasGreysheet` | +5 |
+| 20+ US comps | +10-15 bonus |
 | `usedFallback` | −5 to −15 penalty |
 | < 5 US comps | −10 penalty |
 | `isBar` mode | Adjusted base (no PCGS expectation) |
@@ -435,6 +458,9 @@ The valuation engine separates eBay comps by `gradeType`:
 | `EBAY_CLIENT_SECRET` | Yes | — | eBay client secret (for OAuth flows) |
 | `GOLDAPI_KEY` | No | — | goldapi.io access token |
 | `METALS_API_KEY` | No | — | metals-api.com access token |
+| `GREYSHEET_API_TOKEN` | No | — | Greysheet CDN Public API V2 token |
+| `GREYSHEET_API_KEY` | No | — | Greysheet CDN Public API V2 key |
+| `GREYSHEET_BASE_URL` | No | `https://cpgpublicapiv2.greysheet.com/api` | Greysheet API base URL override |
 | `PORT` | No | `3000` | HTTP server port |
 | `PCGS_BASE_URL` | No | `https://api.pcgs.com/publicapi` | PCGS API base URL |
 | `EBAY_FINDING_ENDPOINT` | No | `https://svcs.ebay.com/...` | eBay Finding API endpoint |
