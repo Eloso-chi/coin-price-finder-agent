@@ -8,6 +8,7 @@ const router  = express.Router();
 
 const pcgsService  = require('../services/pcgsService');
 const ebayService  = require('../services/ebayService');
+const greysheetService = require('../services/greysheetService');
 const { computeValuation } = require('../services/valuationService');
 const { lookupKeyDate } = require('../data/keyDates');
 const { zodiacForYear, perthLunarSeries } = require('../data/constants');
@@ -103,10 +104,16 @@ async function _priceOne(item) {
 
     // Valuation
     const isBullion = BULLION_1OZ_DEFAULT.some(b => (series || '').toLowerCase().includes(b));
+
+    // Greysheet wholesale lookup (non-fatal)
+    const pcgsNo = pcgs?.pcgsNo || null;
+    const greysheet = pcgsNo ? await greysheetService.fetchPriceByPcgsNumber(pcgsNo, gradeNum) : null;
+
     const result = computeValuation(pcgs, ebay, null, gradeNum, {
       isBullion,
       isSet,
       isRoll,
+      greysheet,
     });
     const val = result.valuation || {};
 

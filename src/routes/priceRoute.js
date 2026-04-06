@@ -6,6 +6,7 @@ const router = express.Router();
 
 const pcgsService = require('../services/pcgsService');
 const ebayService = require('../services/ebayService');
+const greysheetService = require('../services/greysheetService');
 const { computeValuation } = require('../services/valuationService');
 const { getMetalsSpotPrice } = require('../services/metalsSpotPrice');
 const numistaService = require('../services/numistaService');
@@ -294,7 +295,13 @@ router.post('/', async (req, res) => {
     const seriesForBullion = (identification.parsed?.series || pcgs.series || '').toLowerCase();
     const isBullion = BULLION_1OZ_DEFAULT.some(b => seriesForBullion.includes(b));
 
-    const { valuation, decisions } = computeValuation(pcgs, ebay, askingPrice || null, userGrade, { isBullion });
+    // ── 5a. Greysheet wholesale price lookup ──
+    // Use PCGS number if available; non-fatal if unavailable or API not configured.
+    const pcgsNo = pcgs?.pcgsNo || coinData?.pcgsNumber || null;
+    const gradeNum = userGrade ? parseInt(String(userGrade).replace(/[^\d]/g, ''), 10) || null : null;
+    const greysheet = pcgsNo ? await greysheetService.fetchPriceByPcgsNumber(pcgsNo, gradeNum) : null;
+
+    const { valuation, decisions } = computeValuation(pcgs, ebay, askingPrice || null, userGrade, { isBullion, greysheet });
 
     // ── 5b. Runtime series integrity guardrail ──
     // Detect if PCGS resolved to a conflicting series (e.g., query="Jefferson"
@@ -432,6 +439,16 @@ router.post('/', async (req, res) => {
         usedFallback: ebay.usedFallback,
         lookback: ebay.lookback || { requested: opts.timeWindowDays, used: opts.timeWindowDays, extended: false }
       },
+      greysheet: greysheet ? {
+        gsid: greysheet.gsid,
+        name: greysheet.name,
+        gradeLabel: greysheet.gradeLabel,
+        wholesale: greysheet.greyVal,
+        retail: greysheet.cpgVal,
+        pcgsVal: greysheet.pcgsVal,
+        ngcVal: greysheet.ngcVal,
+        blueBookVal: greysheet.blueBookVal
+      } : null,
       valuation,
       decisions,
       numista: numista || null,

@@ -96,7 +96,7 @@ describe('computeValuation — basic FMV', () => {
 // ═══════════════════════════════════════════════════════════════
 
 describe('computeValuation — certified vs raw blend', () => {
-  test('certified coin uses 65/25/10 blend', () => {
+  test('certified coin uses 55/15/10/20 blend (renorm without Greysheet)', () => {
     const comps = makeComps([100, 100, 100, 100, 100]);
     const pcgs = mockPcgs({
       verified: true,
@@ -104,21 +104,22 @@ describe('computeValuation — certified vs raw blend', () => {
       auction: { medianUsd: 110 },
     });
     const result = computeValuation(pcgs, mockEbay({ usComps: comps }));
-    // With eBay=100, PCGS=120, Auction=110:
-    // FMV = 0.65*100 + 0.25*120 + 0.10*110 = 65 + 30 + 11 = 106
-    expect(result.valuation.fmvCore).toBeCloseTo(106, 0);
+    // Without Greysheet, weights renormalize 55/15/10 -> 68.75/18.75/12.5
+    // FMV = 0.6875*100 + 0.1875*120 + 0.125*110 = 68.75 + 22.5 + 13.75 = 105
+    expect(result.valuation.fmvCore).toBeCloseTo(105, 0);
     expect(result.valuation.explanation.some(e => /certified/i.test(e))).toBe(true);
   });
 
-  test('raw coin uses 80/20 blend', () => {
+  test('raw coin uses 70/10/20 blend (renorm without Greysheet)', () => {
     const comps = makeComps([100, 100, 100, 100, 100]);
     const pcgs = mockPcgs({
       verified: false,
       priceGuide: { valueUsd: 120 },
     });
     const result = computeValuation(pcgs, mockEbay({ usComps: comps }), null, null);
-    // FMV = 0.80*100 + 0.20*120 = 80 + 24 = 104
-    expect(result.valuation.fmvCore).toBeCloseTo(104, 0);
+    // Without Greysheet, weights renormalize 70/10 -> 87.5/12.5
+    // FMV = 0.875*100 + 0.125*120 = 87.5 + 15 = 102.5
+    expect(result.valuation.fmvCore).toBeCloseTo(102.5, 0);
     expect(result.valuation.explanation.some(e => /raw/i.test(e))).toBe(true);
   });
 

@@ -4,13 +4,13 @@
 const stats = require('../utils/stats');
 
 /**
- * Compute FMV and dealer decisions from PCGS data + eBay comps.
+ * Compute FMV and dealer decisions from PCGS data + eBay comps + Greysheet.
  *
  * @param {object} pcgs       – pcgsService result
  * @param {object} ebay       – ebayService result  { us, global, usedFallback }
  * @param {number|null} askingPrice
  * @param {string|null} userGrade – grade FROM USER INPUT (not PCGS-resolved)
- * @param {object} [opts]     – { isBullion: boolean }
+ * @param {object} [opts]     – { isBullion: boolean, greysheet: object|null }
  * @returns {object} { valuation, decisions }
  */
 function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts = {}) {
@@ -69,33 +69,41 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
   const pcgsGuide    = pcgs?.priceGuide?.valueUsd || null;
   const auctionMedian = pcgs?.auction?.medianUsd || null;
 
+  // ── Gather Greysheet wholesale ──
+  const gsData = opts.greysheet || null;
+  const greysheetVal = gsData?.greyVal || null;
+
   // ── Blend ──
   let fmv = null;
   let method;
 
   if (isCertified) {
-    // Certified default: 0.65 eBay + 0.25 PCGS Guide + 0.10 Auction
-    const weights = { ebay: 0.65, pcgs: 0.25, auction: 0.10 };
+    // Certified: eBay 55% + PCGS Guide 15% + Auction 10% + Greysheet 20%
+    // If Greysheet unavailable, weights renormalize to eBay 65/PCGS 25/Auction 10
+    const weights = { ebay: 0.55, pcgs: 0.15, auction: 0.10, greysheet: 0.20 };
     const available = {};
     if (ebayMedian != null) available.ebay = ebayMedian;
     if (pcgsGuide != null) available.pcgs = pcgsGuide;
     if (auctionMedian != null) available.auction = auctionMedian;
+    if (greysheetVal != null) available.greysheet = greysheetVal;
 
     fmv = blendSources(available, weights);
     method = 'certified-blend';
 
     const usedSources = Object.keys(available).join('+');
-    explanation.push(`Certified coin blend (${usedSources}). Base weights: eBay 65%, PCGS Guide 25%, Auction 10%.`);
+    explanation.push(`Certified coin blend (${usedSources}). Base weights: eBay 55%, PCGS Guide 15%, Auction 10%, Greysheet 20%.`);
   } else {
-    // Raw coin: 0.80 eBay + 0.20 PCGS grade-band midpoint
-    const weights = { ebay: 0.80, pcgs: 0.20 };
+    // Raw coin: eBay 70% + PCGS 10% + Greysheet 20%
+    // If Greysheet unavailable, weights renormalize to eBay 80/PCGS 20
+    const weights = { ebay: 0.70, pcgs: 0.10, greysheet: 0.20 };
     const available = {};
     if (ebayMedian != null) available.ebay = ebayMedian;
     if (pcgsGuide != null) available.pcgs = pcgsGuide;
+    if (greysheetVal != null) available.greysheet = greysheetVal;
 
     fmv = blendSources(available, weights);
     method = 'raw-blend';
-    explanation.push(`Raw coin blend. Base weights: eBay 80%, PCGS 20%.`);
+    explanation.push(`Raw coin blend. Base weights: eBay 70%, PCGS 10%, Greysheet 20%.`);
   }
 
   if (fmv == null) {
@@ -125,6 +133,9 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
   if (terapeakCount > 0) {
     explanation.push(`${terapeakCount} Terapeak sold comps used (verified eBay sales data).`);
   }
+  if (greysheetVal != null) {
+    explanation.push(`Greysheet wholesale: $${greysheetVal.toFixed(2)}${gsData.cpgVal ? ` (retail CPG: $${gsData.cpgVal.toFixed(2)})` : ''}.`);
+  }
   if (isBullion) {
     explanation.push('Bullion coin — using steeper recency weighting (30-day half-life) to track metal price shifts.');
   }
@@ -148,6 +159,7 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
     usedFallback,
     hasPcgsGuide: pcgsGuide != null,
     hasAuction: auctionMedian != null,
+    hasGreysheet: greysheetVal != null,
     isBar,
     pcgsFound,
     browseOnly,
@@ -298,7 +310,7 @@ function fallbackPenalty(usCompCount) {
  * sample size, dispersion, and match quality — things that matter for
  * commodity bullion.
  */
-function computeConfidence({ verified, usCompCount, glCompCount, dispersion, avgMatchScore, usedFallback, hasPcgsGuide, hasAuction, isBar, pcgsFound, browseOnly, soldRatio }) {
+function computeConfidence({ verified, usCompCount, glCompCount, dispersion, avgMatchScore, usedFallback, hasPcgsGuide, hasAuction, hasGreysheet, isBar, pcgsFound, browseOnly, soldRatio }) {
   let c = 0;
 
   if (isBar) {
@@ -328,6 +340,7 @@ function computeConfidence({ verified, usCompCount, glCompCount, dispersion, avg
     if (verified) c += 10;                      // Verified by PCGS
     if (hasPcgsGuide) c += 10;                  // PCGS guide available
     if (hasAuction) c += 5;
+    if (hasGreysheet) c += 5;                    // Greysheet wholesale available
     if (usedFallback) c += fallbackPenalty(usCompCount);
     if (usCompCount < 5) c -= 10;
   }
