@@ -545,6 +545,9 @@ def do_search_and_export(page, search_term, download_dir):
     if "/sh/research" not in actual_url:
         print(f"    WARNING: Redirected to {actual_url}")
         page.screenshot(path=str(download_dir / f"_debug_redirect_{search_term[:30]}.png"))
+        # Bot detection wall -- return sentinel so caller can abort
+        if "distil" in actual_url or "splashui" in actual_url or "block" in actual_url:
+            return "BOT_BLOCKED"
 
     # Find and fill the Terapeak search box (NOT the main eBay search bar)
     # Terapeak input placeholder: "Enter keywords, MPN, UPC, EPID, EAN or ISBN"
@@ -785,6 +788,23 @@ def do_export_run(args):
         terms = [t for t in terms if t["term"] not in completed]
         print(f"Resuming: skipping {before - len(terms)} already completed")
 
+    # Priority sort: thin-data CSVs first (fewest existing rows)
+    if args.priority:
+        def _csv_rows(t):
+            csv_path = CSV_DIR / t['filename']
+            if csv_path.exists():
+                try:
+                    return sum(1 for _ in open(csv_path)) - 1  # subtract header
+                except Exception:
+                    return 999
+            return 0  # missing file = top priority
+        terms.sort(key=_csv_rows)
+        print(f"Priority sort: thin-data coins first")
+
+    # Shuffle within batch to avoid predictable access patterns
+    if args.batch:
+        random.shuffle(terms)
+
     # Apply limit
     if args.limit:
         terms = terms[:args.limit]
@@ -884,6 +904,7 @@ def do_export_run(args):
     failed = 0
     uploaded = 0
     consecutive_crashes = 0
+    consecutive_blocks = 0
     next_coffee = random.randint(*COFFEE_BREAK_EVERY)
 
     for i, entry in enumerate(terms):
@@ -904,6 +925,30 @@ def do_export_run(args):
 
         try:
             csv_path = do_search_and_export(page, term, DOWNLOAD_DIR)
+
+            # Bot detection abort
+            if csv_path == "BOT_BLOCKED":
+                consecutive_blocks += 1
+                print(f"BOT BLOCKED ({consecutive_blocks}/3)")
+                if consecutive_blocks >= 3:
+                    print("\n  BOT DETECTION: 3 consecutive blocks. Stopping.")
+                    print("  Wait a few hours before retrying.")
+                    save_progress(progress)
+                    break
+                # Long cooldown before trying the next one
+                cooldown = random.uniform(120, 300)
+                print(f"  ... cooling down for {cooldown:.0f}s ...")
+                time.sleep(cooldown)
+                # Recycle browser to get fresh fingerprint
+                try:
+                    page = launch_browser()
+                except Exception:
+                    pass
+                failed += 1
+                progress.setdefault("failed", []).append(term)
+                continue
+
+            consecutive_blocks = 0
 
             if csv_path and csv_path.exists():
                 # Verify CSV has content
@@ -1013,7 +1058,9 @@ Examples:
   python3 scripts/terapeak-export.py --run --limit 10   # Export first 10
   python3 scripts/terapeak-export.py --run --filter "Morgan"  # Morgans only
   python3 scripts/terapeak-export.py --run --resume     # Continue after interruption
-  python3 scripts/terapeak-export.py --dry-run          # Show what would be exported
+  python3 scripts/terapeak-export.py --batch 10              # Smart batch: 10 coins, priority order
+  python3 scripts/terapeak-export.py --batch 8 --filter "Perth"  # 8 Perth coins, thinnest first
+  python3 scripts/terapeak-export.py --dry-run --priority    # Show order with priority sort
   python3 scripts/terapeak-export.py --check            # Check cookie freshness
         """,
     )
@@ -1026,8 +1073,18 @@ Examples:
     parser.add_argument("--resume", action="store_true", help="Skip already-completed coins")
     parser.add_argument("--filter", type=str, help="Only export terms matching this regex")
     parser.add_argument("--limit", type=int, help="Max number of coins to export")
+    parser.add_argument("--priority", action="store_true", help="Sort by data quality: thin-data coins first")
+    parser.add_argument("--batch", type=int, metavar="N", help="Run N coins then stop (use with cron/scheduler)")
 
     args = parser.parse_args()
+
+    # --batch N implies --run --resume --priority --limit N
+    if args.batch:
+        args.run = True
+        args.resume = True
+        args.priority = True
+        if not args.limit:
+            args.limit = args.batch
 
     ok = True
     if args.login:
