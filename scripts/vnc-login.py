@@ -16,7 +16,7 @@ with sync_playwright() as p:
     )
     context = browser.new_context(
         viewport={"width": 1280, "height": 900},
-        user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+        user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36",
     )
     # Mask webdriver flag
     context.add_init_script("Object.defineProperty(navigator, 'webdriver', { get: () => false });")

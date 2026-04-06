@@ -93,6 +93,7 @@ COFFEE_BREAK_EVERY = (12, 25)      # random interval
 COFFEE_BREAK_DURATION = (30, 90)   # 30-90 second pause
 
 import random
+import math
 
 
 def has_display():
@@ -104,10 +105,115 @@ def rand_delay(range_tuple):
     time.sleep(random.uniform(*range_tuple))
 
 
-def human_type(element, text):
-    """Type text character by character with random delays, like a human."""
-    for ch in text:
-        element.type(ch, delay=random.uniform(*DELAY_TYPING) * 1000)  # Playwright delay is in ms
+# ── Human mouse/scroll simulation ──────────────────────────
+# Distil and similar fingerprinters track mouse trajectory, speed curves,
+# and scroll behavior.  Teleporting the cursor is a dead giveaway.
+
+def _bezier_point(t, p0, p1, p2, p3):
+    """Cubic bezier interpolation at parameter t."""
+    u = 1 - t
+    return (u**3 * p0 + 3 * u**2 * t * p1
+            + 3 * u * t**2 * p2 + t**3 * p3)
+
+
+def human_mouse_move(page, target_x, target_y, steps=None):
+    """Move mouse along a slightly curved bezier path to (target_x, target_y).
+    Mimics natural hand tremor with small random offsets per step."""
+    # Get current mouse position (default to a random spot if unknown)
+    start_x = getattr(page, '_mouse_x', random.randint(100, 400))
+    start_y = getattr(page, '_mouse_y', random.randint(100, 300))
+
+    dist = math.hypot(target_x - start_x, target_y - start_y)
+    if steps is None:
+        steps = max(12, int(dist / 8) + random.randint(-3, 5))
+
+    # Two random control points for a natural curve
+    cp1x = start_x + (target_x - start_x) * 0.3 + random.uniform(-40, 40)
+    cp1y = start_y + (target_y - start_y) * 0.2 + random.uniform(-30, 30)
+    cp2x = start_x + (target_x - start_x) * 0.7 + random.uniform(-30, 30)
+    cp2y = start_y + (target_y - start_y) * 0.8 + random.uniform(-20, 20)
+
+    for i in range(1, steps + 1):
+        t = i / steps
+        # Ease-out curve: fast start, slow finish (like a real hand)
+        t_ease = 1 - (1 - t) ** 2.2
+        x = _bezier_point(t_ease, start_x, cp1x, cp2x, target_x)
+        y = _bezier_point(t_ease, start_y, cp1y, cp2y, target_y)
+        # Tiny tremor
+        x += random.uniform(-1.5, 1.5)
+        y += random.uniform(-1.5, 1.5)
+        page.mouse.move(x, y)
+        # Variable speed: faster in the middle, slower at endpoints
+        speed = 0.003 + 0.012 * (1 - abs(2 * t - 1))
+        time.sleep(speed + random.uniform(0, 0.005))
+
+    # Snap to exact target at the end
+    page.mouse.move(target_x, target_y)
+    page._mouse_x = target_x
+    page._mouse_y = target_y
+
+
+def human_click(page, element):
+    """Move mouse to element center with bezier path, then click."""
+    box = element.bounding_box()
+    if not box:
+        element.click()
+        return
+    # Click slightly off-center (real users don't hit dead center)
+    cx = box["x"] + box["width"] * random.uniform(0.3, 0.7)
+    cy = box["y"] + box["height"] * random.uniform(0.35, 0.65)
+    human_mouse_move(page, cx, cy)
+    rand_delay((0.05, 0.15))
+    page.mouse.click(cx, cy)
+    rand_delay(DELAY_MICRO)
+
+
+def human_scroll(page, direction="down", distance=None):
+    """Scroll using mouse wheel events with variable speed, like a real scroll wheel."""
+    if distance is None:
+        distance = random.randint(250, 600)
+    # Number of discrete wheel ticks
+    ticks = random.randint(4, 10)
+    per_tick = distance / ticks
+    sign = 1 if direction == "down" else -1
+
+    for _ in range(ticks):
+        delta = per_tick * sign + random.uniform(-20, 20)
+        page.mouse.wheel(0, delta)
+        time.sleep(random.uniform(0.04, 0.18))
+
+    # Tiny pause after scroll, like a human reading
+    time.sleep(random.uniform(0.3, 1.0))
+
+
+def human_idle(page):
+    """Simulate a brief idle period -- human looking at the page. Occasionally
+    wiggle the mouse a little."""
+    idle_time = random.uniform(1.5, 4.0)
+    end = time.time() + idle_time
+    while time.time() < end:
+        if random.random() < 0.3:
+            # Small mouse wiggle
+            dx = random.uniform(-30, 30)
+            dy = random.uniform(-20, 20)
+            cx = getattr(page, '_mouse_x', 640) + dx
+            cy = getattr(page, '_mouse_y', 450) + dy
+            cx = max(10, min(1260, cx))
+            cy = max(10, min(880, cy))
+            page.mouse.move(cx, cy)
+            page._mouse_x = cx
+            page._mouse_y = cy
+        time.sleep(random.uniform(0.3, 0.8))
+
+
+def human_type(element, text, page=None):
+    """Type text character by character with random delays, like a human.
+    If page is provided, occasionally pause mid-word (like thinking)."""
+    for i, ch in enumerate(text):
+        element.type(ch, delay=random.uniform(*DELAY_TYPING) * 1000)
+        # Occasional mid-word pause (thinking about what to type next)
+        if page and random.random() < 0.06 and i > 0:
+            time.sleep(random.uniform(0.3, 0.8))
     rand_delay(DELAY_MICRO)
 
 
@@ -250,14 +356,19 @@ def do_login():
             headless=False,
             args=["--disable-blink-features=AutomationControlled"],
         )
+        vw = 1280 + random.randint(-40, 40)
+        vh = 900 + random.randint(-30, 30)
         context = browser.new_context(
-            viewport={"width": 1280, "height": 900},
+            viewport={"width": vw, "height": vh},
             user_agent=(
                 "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
                 "AppleWebKit/537.36 (KHTML, like Gecko) "
-                "Chrome/120.0.0.0 Safari/537.36"
+                "Chrome/134.0.0.0 Safari/537.36"
             ),
         )
+        context.add_init_script("""
+            Object.defineProperty(navigator, 'webdriver', { get: () => false });
+        """)
         page = context.new_page()
 
         print("Opening eBay login page...")
@@ -423,8 +534,11 @@ def do_search_and_export(page, search_term, download_dir):
     page.goto(EBAY_RESEARCH_URL, wait_until="domcontentloaded")
     rand_delay(DELAY_PAGE_LOAD)
 
-    # Wait a bit for SPA to render
-    time.sleep(3)
+    # Simulate human arrival: idle look-around + small scroll
+    human_idle(page)
+    human_scroll(page, "down", random.randint(80, 200))
+    time.sleep(random.uniform(0.5, 1.5))
+    human_scroll(page, "up", random.randint(60, 150))
 
     # Debug: log redirects (keep this -- it's useful)
     actual_url = page.url
@@ -458,10 +572,10 @@ def do_search_and_export(page, search_term, download_dir):
 
     # Clear and type search term like a human
     rand_delay(DELAY_BEFORE_CLICK)
-    search_input.click()
+    human_click(page, search_input)
     search_input.fill("")
     rand_delay(DELAY_MICRO)
-    human_type(search_input, search_term)
+    human_type(search_input, search_term, page=page)
     rand_delay(DELAY_MICRO)
 
     # Click the "Research" button (not Enter, which triggers main eBay search)
@@ -481,7 +595,7 @@ def do_search_and_export(page, search_term, download_dir):
 
     if research_btn:
         rand_delay(DELAY_BEFORE_CLICK)
-        research_btn.click()
+        human_click(page, research_btn)
     else:
         # Fallback to Enter on the Terapeak input
         rand_delay(DELAY_BEFORE_CLICK)
@@ -498,10 +612,12 @@ def do_search_and_export(page, search_term, download_dir):
     # Extra wait for Terapeak SPA to render results
     time.sleep(3)
 
-    # Scroll down progressively to reveal the sold listings table and Export button
-    for scroll_pct in [30, 60, 90, 100]:
-        page.evaluate(f'window.scrollTo(0, document.body.scrollHeight * {scroll_pct} / 100)')
-        time.sleep(0.5)
+    # Scroll down progressively with mouse wheel to reveal sold listings table
+    for _ in range(random.randint(3, 5)):
+        human_scroll(page, "down", random.randint(200, 500))
+        time.sleep(random.uniform(0.3, 0.8))
+    # Brief idle -- human scanning results
+    human_idle(page)
 
     # Debug: viewport-only screenshot (full_page=True can OOM on heavy pages)
     page.screenshot(path=str(download_dir / f"_debug_after_search_{search_term[:30]}.png"))
@@ -726,16 +842,21 @@ def do_export_run(args):
                 "--window-size=1280,900",
             ],
         )
+        vw = 1280 + random.randint(-40, 40)
+        vh = 900 + random.randint(-30, 30)
         context = browser.new_context(
-            viewport={"width": 1280, "height": 900},
+            viewport={"width": vw, "height": vh},
             user_agent=(
                 "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
                 "AppleWebKit/537.36 (KHTML, like Gecko) "
-                "Chrome/125.0.0.0 Safari/537.36"
+                "Chrome/134.0.0.0 Safari/537.36"
             ),
         )
         context.add_init_script("""
             Object.defineProperty(navigator, 'webdriver', { get: () => false });
+            Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
+            Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
+            window.chrome = { runtime: {} };
         """)
         load_cookies(context)
         page = context.new_page()
