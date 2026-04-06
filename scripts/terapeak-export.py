@@ -698,8 +698,25 @@ def do_export_run(args):
     else:
         print(f"  Using display: {os.environ.get('DISPLAY', 'default')}")
 
-    with sync_playwright() as p:
-        browser = p.chromium.launch(
+    # ── Browser lifecycle helpers ─────────────────────────────
+    # Chromium leaks memory on long-running SPA navigations.
+    # Recycle the browser every BROWSER_RECYCLE_EVERY coins to avoid OOM crashes.
+    BROWSER_RECYCLE_EVERY = 40
+
+    pw_instance = sync_playwright().start()
+    browser = None
+    context = None
+    page = None
+
+    def launch_browser():
+        nonlocal browser, context, page
+        if browser:
+            try:
+                save_cookies(context)
+                browser.close()
+            except Exception:
+                pass
+        browser = pw_instance.chromium.launch(
             headless=use_headless,
             args=[
                 "--disable-blink-features=AutomationControlled",
@@ -717,110 +734,140 @@ def do_export_run(args):
                 "Chrome/125.0.0.0 Safari/537.36"
             ),
         )
-
-        # Mask webdriver fingerprint
         context.add_init_script("""
             Object.defineProperty(navigator, 'webdriver', { get: () => false });
         """)
-
-        # Load saved cookies
         load_cookies(context)
         page = context.new_page()
+        return page
 
-        # Verify login
-        print("Verifying session...")
-        page.goto(EBAY_RESEARCH_URL, wait_until="domcontentloaded")
-        time.sleep(3)
+    # Initial launch + verify
+    page = launch_browser()
+    print("Verifying session...")
+    page.goto(EBAY_RESEARCH_URL, wait_until="domcontentloaded")
+    time.sleep(3)
+    verify_url = page.url
+    print(f"  Verification URL: {verify_url}")
+    DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True)
+    page.screenshot(path=str(DOWNLOAD_DIR / "_debug_verify_session.png"))
 
-        # Debug: capture verification page state
-        verify_url = page.url
-        print(f"  Verification URL: {verify_url}")
-        DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True)
-        page.screenshot(path=str(DOWNLOAD_DIR / "_debug_verify_session.png"))
+    if not is_logged_in(page):
+        print("ERROR: Session expired. Run --login-manual to refresh cookies.")
+        browser.close()
+        pw_instance.stop()
+        return
 
-        if not is_logged_in(page):
-            print("ERROR: Session expired. Run --login-manual to refresh cookies.")
-            browser.close()
-            return
+    print("Session valid. Starting exports...\n")
 
-        print("Session valid. Starting exports...\n")
+    success = 0
+    failed = 0
+    uploaded = 0
+    consecutive_crashes = 0
+    next_coffee = random.randint(*COFFEE_BREAK_EVERY)
 
-        success = 0
-        failed = 0
-        uploaded = 0
-        next_coffee = random.randint(*COFFEE_BREAK_EVERY)  # take a break after N coins
+    for i, entry in enumerate(terms):
+        term = entry["term"]
+        pct = round((i + 1) / len(terms) * 100)
 
-        for i, entry in enumerate(terms):
-            term = entry["term"]
-            pct = round((i + 1) / len(terms) * 100)
-
-            print(f"  [{pct:3d}%] {term}...", end=" ", flush=True)
-
+        # Recycle browser every N coins to prevent OOM
+        if i > 0 and i % BROWSER_RECYCLE_EVERY == 0:
+            print(f"  ... recycling browser (memory management) ...")
             try:
-                csv_path = do_search_and_export(page, term, DOWNLOAD_DIR)
+                page = launch_browser()
+                consecutive_crashes = 0
+            except Exception as e:
+                print(f"  FATAL: Browser restart failed: {e}")
+                break
 
-                if csv_path and csv_path.exists():
-                    # Verify CSV has content
-                    size = csv_path.stat().st_size
-                    if size < 50:
-                        print(f"EMPTY (file too small: {size}B)")
-                        failed += 1
-                        progress.setdefault("failed", []).append(term)
-                        continue
+        print(f"  [{pct:3d}%] {term}...", end=" ", flush=True)
 
-                    # Copy to data/terapeak/
-                    dest = CSV_DIR / entry["filename"]
-                    csv_path.rename(dest) if csv_path != dest else None
+        try:
+            csv_path = do_search_and_export(page, term, DOWNLOAD_DIR)
 
-                    # Upload to app
-                    ok, msg = upload_csv(dest, term)
-                    if ok:
-                        print(f"OK ({msg})")
-                        uploaded += 1
-                    else:
-                        print(f"SAVED but upload failed: {msg}")
-
-                    success += 1
-                    progress.setdefault("completed", []).append(term)
-                else:
-                    print("NO EXPORT (no results or button not found)")
+            if csv_path and csv_path.exists():
+                # Verify CSV has content
+                size = csv_path.stat().st_size
+                if size < 50:
+                    print(f"EMPTY (file too small: {size}B)")
                     failed += 1
                     progress.setdefault("failed", []).append(term)
+                    continue
 
-            except PlaywrightTimeout:
-                print("TIMEOUT")
-                failed += 1
-                progress.setdefault("failed", []).append(term)
-            except Exception as e:
-                print(f"ERROR: {e}")
-                failed += 1
-                progress.setdefault("failed", []).append(term)
+                # Copy to data/terapeak/
+                dest = CSV_DIR / entry["filename"]
+                csv_path.rename(dest) if csv_path != dest else None
 
-            # Save progress after each item (for resume)
-            save_progress(progress)
-
-            # Human-like delay between searches
-            if i < len(terms) - 1:
-                # Occasional "coffee break" -- long pause to look natural
-                if (i + 1) >= next_coffee:
-                    pause = random.uniform(*COFFEE_BREAK_DURATION)
-                    print(f"  ... taking a {pause:.0f}s break (human pacing) ...")
-                    time.sleep(pause)
-                    next_coffee = i + 1 + random.randint(*COFFEE_BREAK_EVERY)
+                # Upload to app
+                ok, msg = upload_csv(dest, term)
+                if ok:
+                    print(f"OK ({msg})")
+                    uploaded += 1
                 else:
-                    rand_delay(DELAY_BETWEEN_SEARCHES)
+                    print(f"SAVED but upload failed: {msg}")
 
-            # Re-check login every 25 searches (sessions can expire)
-            if (i + 1) % 25 == 0:
-                if not is_logged_in(page):
-                    print("\n  SESSION EXPIRED. Saving progress...")
+                success += 1
+                progress.setdefault("completed", []).append(term)
+            else:
+                print("NO EXPORT (no results or button not found)")
+                failed += 1
+                progress.setdefault("failed", []).append(term)
+
+        except PlaywrightTimeout:
+            print("TIMEOUT")
+            failed += 1
+            progress.setdefault("failed", []).append(term)
+        except Exception as e:
+            err_str = str(e)
+            print(f"ERROR: {err_str}")
+            failed += 1
+            progress.setdefault("failed", []).append(term)
+
+            # Auto-recover from page/browser crashes
+            if "crash" in err_str.lower() or "target closed" in err_str.lower():
+                consecutive_crashes += 1
+                if consecutive_crashes >= 5:
+                    print("\n  TOO MANY CRASHES. Stopping to avoid infinite loop.")
                     save_progress(progress)
-                    print(f"  Run --login to refresh, then --run --resume to continue.")
                     break
+                print(f"  ... browser crashed, restarting ({consecutive_crashes}/5) ...")
+                try:
+                    page = launch_browser()
+                except Exception as e2:
+                    print(f"  FATAL: Browser restart failed: {e2}")
+                    save_progress(progress)
+                    break
+            else:
+                consecutive_crashes = 0
 
-        # Refresh cookies before closing (extends session for next run)
+        # Save progress after each item (for resume)
+        save_progress(progress)
+
+        # Human-like delay between searches
+        if i < len(terms) - 1:
+            # Occasional "coffee break" -- long pause to look natural
+            if (i + 1) >= next_coffee:
+                pause = random.uniform(*COFFEE_BREAK_DURATION)
+                print(f"  ... taking a {pause:.0f}s break (human pacing) ...")
+                time.sleep(pause)
+                next_coffee = i + 1 + random.randint(*COFFEE_BREAK_EVERY)
+            else:
+                rand_delay(DELAY_BETWEEN_SEARCHES)
+
+        # Re-check login every 25 searches (sessions can expire)
+        if (i + 1) % 25 == 0:
+            if not is_logged_in(page):
+                print("\n  SESSION EXPIRED. Saving progress...")
+                save_progress(progress)
+                print(f"  Run --login to refresh, then --run --resume to continue.")
+                break
+
+    # Cleanup
+    try:
         save_cookies(context)
         browser.close()
+    except Exception:
+        pass
+    pw_instance.stop()
 
     print(f"\n=== Export Complete ===")
     print(f"  Succeeded:  {success}")
