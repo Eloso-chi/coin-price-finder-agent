@@ -106,8 +106,17 @@ async function _priceOne(item) {
     const isBullion = BULLION_1OZ_DEFAULT.some(b => (series || '').toLowerCase().includes(b));
 
     // Greysheet wholesale lookup (non-fatal)
+    // When no PCGS number (generic / yearless coin), fall back to Type GSID lookup.
     const pcgsNo = pcgs?.pcgsCoinNumber || pcgs?.pcgsNo || null;
-    const greysheet = pcgsNo ? await greysheetService.fetchPriceByPcgsNumber(pcgsNo, gradeNum) : null;
+    let greysheet = pcgsNo ? await greysheetService.fetchPriceByPcgsNumber(pcgsNo, gradeNum) : null;
+    if (!greysheet) {
+      const parsedMetal = parsed?.metal || null;
+      greysheet = await greysheetService.fetchTypePrice(query, gradeNum, {
+        series,
+        metal: parsedMetal,
+        weight,
+      });
+    }
 
     const result = computeValuation(pcgs, ebay, null, gradeNum, {
       isBullion,

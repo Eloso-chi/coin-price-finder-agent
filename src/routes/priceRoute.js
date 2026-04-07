@@ -297,9 +297,18 @@ router.post('/', async (req, res) => {
 
     // ── 5a. Greysheet wholesale price lookup ──
     // Use PCGS number if available; non-fatal if unavailable or API not configured.
+    // When no PCGS number (generic / yearless coin), fall back to Type GSID lookup.
     const pcgsNo = pcgs?.pcgsCoinNumber || pcgs?.pcgsNo || coinData?.pcgsNumber || null;
     const gradeNum = userGrade ? parseInt(String(userGrade).replace(/[^\d]/g, ''), 10) || null : null;
-    const greysheet = pcgsNo ? await greysheetService.fetchPriceByPcgsNumber(pcgsNo, gradeNum) : null;
+    let greysheet = pcgsNo ? await greysheetService.fetchPriceByPcgsNumber(pcgsNo, gradeNum) : null;
+    if (!greysheet) {
+      const parsedMetal = identification.parsed?.metal || null;
+      greysheet = await greysheetService.fetchTypePrice(String(query), gradeNum, {
+        series: identification.parsed?.series || pcgs.series || '',
+        metal: parsedMetal,
+        weight: resolvedWeight,
+      });
+    }
 
     const { valuation, decisions } = computeValuation(pcgs, ebay, askingPrice || null, userGrade, { isBullion, greysheet });
 

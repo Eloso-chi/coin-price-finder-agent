@@ -444,3 +444,108 @@ describe('fetchCollectible', () => {
     expect(result.denomination).toBe('');
   });
 });
+
+// ── fetchTypePrice (generic / yearless coin lookup) ──────────
+describe('fetchTypePrice', () => {
+  beforeEach(() => greysheetService._cache.clear());
+
+  test('returns Type pricing for Silver Libertad 1 oz', async () => {
+    const typeResp = {
+      OpCode: 200,
+      Data: [{
+        GsId: 393495,
+        Name: 'Libertad 1 Onza Silver, 31.1g MS [Type]',
+        PricingData: [
+          {
+            Grade: 65,
+            GradeLabel: 'MS65',
+            GreyVal: '76.68',
+            CpgVal: '105.00',
+            PcgsVal: '',
+            NgcVal: '',
+            BlueBookVal: '70.00',
+            IsCac: false
+          }
+        ]
+      }]
+    };
+    axios.get.mockResolvedValueOnce({ data: typeResp });
+
+    const result = await greysheetService.fetchTypePrice('Mexican Silver Libertad 1 oz', 65);
+    expect(result).not.toBeNull();
+    expect(result.gsid).toBe(393495);
+    expect(result.greyVal).toBe(76.68);
+    expect(result.cpgVal).toBe(105.0);
+    expect(result.isType).toBe(true);
+    expect(result.lookupKey).toBe('libertad|1|silver');
+  });
+
+  test('returns Type pricing for ASE via hints', async () => {
+    const typeResp = {
+      OpCode: 200,
+      Data: [{
+        GsId: 72469,
+        Name: 'American Silver Eagle (ASE) $1 One Ounce MS [Type]',
+        PricingData: [
+          {
+            Grade: 69,
+            GradeLabel: 'MS69',
+            GreyVal: '74.71',
+            CpgVal: '100.00',
+            PcgsVal: '',
+            NgcVal: '',
+            BlueBookVal: '65.00',
+            IsCac: false
+          }
+        ]
+      }]
+    };
+    axios.get.mockResolvedValueOnce({ data: typeResp });
+
+    const result = await greysheetService.fetchTypePrice('American Silver Eagle', 69, {
+      series: 'Silver Eagle',
+      weight: 1,
+      metal: 'silver'
+    });
+    expect(result).not.toBeNull();
+    expect(result.gsid).toBe(72469);
+    expect(result.greyVal).toBe(74.71);
+    expect(result.isType).toBe(true);
+  });
+
+  test('returns null for unrecognized series', async () => {
+    const result = await greysheetService.fetchTypePrice('Somali Elephant 1 oz', 65);
+    expect(result).toBeNull();
+    // No API call should have been made
+    expect(axios.get).not.toHaveBeenCalled();
+  });
+
+  test('returns null when API returns no pricing', async () => {
+    axios.get.mockResolvedValueOnce({ data: { OpCode: 200, Data: [] } });
+
+    const result = await greysheetService.fetchTypePrice('Gold Krugerrand 1 oz', 65);
+    expect(result).toBeNull();
+  });
+
+  test('uses hints to disambiguate Maple Leaf', async () => {
+    const goldResp = {
+      OpCode: 200,
+      Data: [{
+        GsId: 213178,
+        Name: 'Gold Maple Leaf G$50 One Ounce MS [Type]',
+        PricingData: [{
+          Grade: 69, GradeLabel: 'MS69',
+          GreyVal: '2850.00', CpgVal: '2980.00',
+          PcgsVal: '', NgcVal: '', BlueBookVal: '2700.00',
+          IsCac: false
+        }]
+      }]
+    };
+    axios.get.mockResolvedValueOnce({ data: goldResp });
+
+    const result = await greysheetService.fetchTypePrice('Maple Leaf 1 oz', 69, { metal: 'gold' });
+    expect(result).not.toBeNull();
+    expect(result.gsid).toBe(213178);
+    expect(result.lookupKey).toBe('maple leaf|1|gold');
+  });
+});

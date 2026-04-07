@@ -237,10 +237,31 @@ async function fetchCollectible(gsid) {
   }
 }
 
+/**
+ * Fetch Greysheet Type pricing for a generic / yearless coin.
+ * Uses the GSID Type map to resolve a series-level price.
+ *
+ * @param {string} queryText -- free-text coin description
+ * @param {number|null} grade -- numeric grade (optional)
+ * @param {object} [hints]  -- optional { series, metal, weight }
+ * @returns {object|null} same shape as fetchPriceByPcgsNumber result, plus { isType: true, lookupKey }
+ */
+async function fetchTypePrice(queryText, grade, hints = {}) {
+  const { lookupTypeGsid } = require('../data/greysheetTypeMap');
+  const match = lookupTypeGsid(queryText, hints);
+  if (!match) return null;
+
+  const result = await fetchPriceByGsid(match.gsid, grade);
+  if (!result) return null;
+
+  return { ...result, isType: true, lookupKey: match.lookupKey };
+}
+
 module.exports = {
   fetchPriceByPcgsNumber,
   fetchPriceByGsid,
   fetchCollectible,
+  fetchTypePrice,
   // Exposed for testing
   _cache: cache
 };
