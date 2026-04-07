@@ -11,9 +11,22 @@ const DENY_PATTERNS = [
   /\blots?\b/i, /\bcollection\b/i, ROLL_PATTERN, /\bestate\b/i,
   /\breplica\b/i, /\bcopy\b/i, /\bcleaned\b/i, /\bpolished\b/i,
   /\bfake\b/i, /\btoken\b/i, /\bplated\b/i,
-  // Coin accessories / storage — not actual coins
+  // Coin accessories / storage -- not actual coins
   /\balbum\b/i, /\bfolder\b/i, /\bwhitman\b/i, /\bdansco\b/i,
-  /\blittleton\b/i, /\bmap\b/i, /\bpush.?pin\b/i
+  /\blittleton\b/i, /\bmap\b/i, /\bpush.?pin\b/i,
+  // Jewelry / wearables -- coin-derived but not actual coins
+  /\bring[s]?\b/i, /\bnecklace\b/i, /\bpendant\b/i,
+  /\bbracelet\b/i, /\bcufflink/i, /\bbuckle\b/i,
+  /\bkeychain\b/i, /\bearring/i,
+  // Non-coin merchandise
+  /\bmagnet\b/i, /\bposter\b/i, /\bornament\b/i,
+  /\bbutton\b/i, /\bshirt\b/i, /\bpatch\b/i,
+  // Books / media
+  /\bbook\b/i, /\bencyclopedia\b/i, /\bcatalog(?:ue)?\b/i,
+  // Stamps (careful: exclude die-striking terms via negative lookahead)
+  /\bstamps?\b(?!\s*(?:die|error|double|over|variet))/i,
+  // Misc non-coin items
+  /\bcoin\s*roll\s*hunt/i, /\bmedal\b/i
 ];
 
 /**
