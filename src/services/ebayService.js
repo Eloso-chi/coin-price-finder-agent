@@ -1146,6 +1146,21 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
 
   if (terapeakData && terapeakData.comps && terapeakData.comps.length > 0) {
     let tpComps = terapeakData.comps;
+
+    // ── Grade-type pool split: use only the matching pool ──
+    // Graded coins (PCGS MS65, NGC AU58) sell for very different prices than
+    // raw coins.  Mixing them distorts FMV.  Split into separate pools and
+    // use only the pool that matches the user's query.
+    const wantsGraded = !!expected.grade;
+    const beforeSplit = tpComps.length;
+    tpComps = tpComps.filter(c => {
+      const gt = c.gradeType || classifyGradeType(c);
+      return wantsGraded ? gt === 'graded' : gt === 'raw';
+    });
+    if (tpComps.length !== beforeSplit) {
+      console.log(`[ebay] Terapeak grade-split: ${beforeSplit} → ${tpComps.length} (${wantsGraded ? 'graded' : 'raw'} only)`);
+    }
+
     // Filter by time window if soldDate available
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - requestedDays);
