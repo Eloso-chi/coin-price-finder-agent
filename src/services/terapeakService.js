@@ -19,6 +19,7 @@ if (!fs.existsSync(CACHE_DIR)) fs.mkdirSync(CACHE_DIR, { recursive: true });
 
 // ── Persistent store ────────────────────────────────────────
 let _store = null;
+let _savePending = null;
 
 function loadStore() {
   if (_store) return _store;
@@ -31,7 +32,17 @@ function loadStore() {
 }
 
 function saveStore() {
-  fs.writeFileSync(STORE_PATH, JSON.stringify(_store, null, 2));
+  // Debounced async write -- coalesces rapid successive calls into one I/O.
+  if (_savePending) clearTimeout(_savePending);
+  _savePending = setTimeout(() => {
+    _savePending = null;
+    const data = JSON.stringify(_store, null, 2);
+    fs.writeFile(STORE_PATH, data, (err) => {
+      if (err && process.env.NODE_ENV !== 'test') {
+        console.error('[terapeak] Failed to save store:', err.message);
+      }
+    });
+  }, 500);
 }
 
 // ── Column name mapping ─────────────────────────────────────

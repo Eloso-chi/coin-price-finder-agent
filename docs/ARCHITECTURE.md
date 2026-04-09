@@ -10,39 +10,79 @@ Technical reference for the Coin Price Discovery Agent. Covers module layout, da
 server.js                              Express entry point (port 3000)
 │
 ├─ src/routes/
-│   ├─ priceRoute.js                   POST /api/price  — coin pricing orchestrator
-│   ├─ barPriceRoute.js                POST /api/bar-price — bullion bar pricing
-│   └─ metalsRoute.js                  GET /api/metals[/:metal] — spot prices
+│   ├─ priceRoute.js                   POST /api/price  -- coin pricing orchestrator
+│   ├─ barPriceRoute.js                POST /api/bar-price -- bullion bar pricing
+│   ├─ pricingBatchRoute.js            POST /api/pricing-batch -- batch pricing (up to 25)
+│   ├─ metalsRoute.js                  GET /api/metals[/:metal] -- spot prices
+│   ├─ marketRoute.js                  GET /api/market/ebay -- year x mint market matrix
+│   ├─ coinHistoryRoute.js             GET /api/coin-history -- sold-price time-series
+│   ├─ coinVariantRoute.js             GET /api/coin-variant -- design series resolver
+│   ├─ excelImportRoute.js             POST /api/import/excel -- Excel spreadsheet import
+│   ├─ imageProxyRoute.js              GET /api/image-proxy -- proxied coin images
+│   └─ terapeakRoute.js                /api/terapeak/* -- Terapeak data & quota management
 │
 ├─ src/services/
 │   ├─ pcgsService.js                  PCGS CoinFacts API (cert, coin#, description)
-│   ├─ ebayService.js                  eBay sold comps (3-tier API cascade)
+│   ├─ ebayService.js                  eBay sold comps (3-tier API cascade + grade-type pool split)
 │   ├─ valuationService.js             FMV blend + buy/sell decision engine
 │   ├─ greysheetService.js             Greysheet CDN Public API V2 (wholesale pricing)
 │   ├─ metalsSpotPrice.js              Multi-provider spot price (round-robin)
-│   └─ MetalsSpotPriceError.js         Custom error class
+│   ├─ MetalsSpotPriceError.js         Custom error class
+│   ├─ metalsHistoryService.js         Daily spot price history snapshots
+│   ├─ marketAggregator.js             Year x mint market matrix builder + caching
+│   ├─ numistaService.js               Numista API -- search, mintages, rarity
+│   ├─ terapeakService.js              Terapeak CSV import, fuzzy lookup, eviction, auto-import
+│   └─ terapeakQuotaService.js         Daily Terapeak query quota tracker
 │
 ├─ src/data/
 │   ├─ pcgsNumbers.js                  Static PCGS coin number lookup (10 US series)
 │   ├─ keyDates.js                     Key date / semi-key detection tables
 │   ├─ mintages.js                     Mintage reference data by series/year/mint
+│   ├─ halfDollarSeries.js             Half Dollar design eras + year-based resolver
 │   ├─ constants.js                    Zodiac cycle + Perth Lunar series helpers
 │   └─ lunarReference.js               Perth / Royal / RAMint lunar comparison
 │
 ├─ src/utils/
 │   ├─ cache.js                        TTLCache class (in-memory + optional file persistence)
-│   └─ stats.js                        Statistical functions (median, MAD, weighted median, etc.)
+│   ├─ stats.js                        Statistical functions (median, MAD, weighted median, etc.)
+│   ├─ filters.js                      Deny-list filtering, denomination & series checks
+│   ├─ coinMetalProfile.js             Metal detection for bullion/silver/gold coins
+│   ├─ responseValidator.js            /api/price response schema & sanity validation
+│   └─ excelMapper.js                  Excel-to-backup converter (header aliases, series normalization)
+│
+├─ src/greysheet/
+│   └─ greysheetTypeMap.js             Series-to-GSID mapping for Greysheet API lookups
 │
 ├─ public/
-│   └─ index.html                      SPA frontend (dark theme, two tabs)
+│   ├─ index.html                      SPA frontend (dark theme, 7 tabs)
+│   └─ js/
+│       ├─ crypto.js                   CoinCrypto -- WebCrypto wrapper (PBKDF2 + AES-256-GCM)
+│       ├─ auth.js                     CoinAuth -- client-only signup/login/logout
+│       ├─ storage.js                  CoinStorage (IndexedDB) + BackupReminder (localStorage)
+│       └─ my-coins.js                 MyCoins -- portfolio rendering with batch pricing
 │
 ├─ cache/
-│   ├─ ebay_cache.json                 Persisted eBay comp cache
-│   ├─ pcgs_cache.json                 Persisted PCGS data cache
-│   └─ greysheet_cache.json            Persisted Greysheet pricing cache (24h TTL)
+│   ├─ ebay_cache.json                 Persisted eBay comp cache (1h TTL)
+│   ├─ pcgs_cache.json                 Persisted PCGS data cache (24h TTL)
+│   ├─ greysheet_cache.json            Persisted Greysheet pricing cache (24h TTL)
+│   ├─ numista_cache.json              Persisted Numista data cache (24h TTL)
+│   ├─ metals_spot.json                Persisted metals spot prices (stale fallback)
+│   ├─ metals_history.json             Daily spot price snapshots
+│   └─ terapeak_sold.json              Imported Terapeak comp data
 │
-└─ __tests__/
-    └─ metalsSpotPrice.test.js         Jest tests for spot price service
+├─ data/
+│   └─ terapeak/                       650 Terapeak CSV exports (real sold data)
+│
+├─ scripts/
+│   ├─ terapeak-export.py              Semi-automated Terapeak CSV exporter (Playwright)
+│   ├─ terapeak-page2.py               Page 2 enrichment scraper (extends CSVs beyond 50 rows)
+│   ├─ clean-csvs.js                   CSV junk cleaner (deny-pattern purge)
+│   ├─ vnc-login.py                    VNC + eBay login helper for Playwright sessions
+│   └─ test-metrics/                   Jest metrics capture + summary reporter
+│
+└─ __tests__/                          34 Jest test suites
+    └─ helpers/
+        └─ coinTestConstants.js        Shared token lists & test utilities
 ```
 
 ---
@@ -73,16 +113,20 @@ Request
   │
   ├── 3. eBay Sold Comps ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   │   fetchSoldComps(keywords, opts, expected)
+  │   ├─ Tier 0: Terapeak local store (terapeakService.lookupComps)
+  │   │   Fuzzy-matches imported CSV data; no API call needed
+  │   │   If enough comps found → skip live API tiers entirely
+  │   │
   │   ├─ US query (EBAY-US) ─┐
-  │   │                      │  Each query runs the 3-tier cascade:
+  │   │                      │  Each query runs the 3-tier API cascade:
   │   │   ① Marketplace Insights API (sold data, best quality)
-  │   │   ② Finding API (completedItems, sold=true)
-  │   │   ③ Browse API (active listings, last resort)
+  │   │   ② Finding API (completedItems, sold=true) -- DECOMMISSIONED Feb 2025
+  │   │   ③ Browse API (active listings, last resort -- only if zero sold comps)
   │   │                      │
   │   │   Each result → dedup → deny-list filter → metal filter
   │   │   → scoreMatch(item, expected) → sort → limit
   │   │
-  │   ├─ Check: US comps ≥ usMinComps (default 8)?
+  │   ├─ Check: US comps >= usMinComps (default 8)?
   │   │   └─ NO → Global query (EBAY-US + international)
   │   │
   │   └─ Return { us: { comps, stats }, global: { ... }, usedFallback }
@@ -108,14 +152,14 @@ Request
   │   ├─ Buy thresholds: 70% / 75% / 80% of FMV
   │   └─ Sell tiers: fast(0.92x) / normal / premium(1.05x or 1.15x) / offerFloor
   │
-  ├── 6. Mintage Lookup ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  ├── 7. Mintage Lookup ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   │   PCGS mintage available? → use it (source: "pcgs")
   │   Else → lookupMintage(series, year, mint, weight) (source: "static")
   │
-  ├── 7. Reproducibility Metadata ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  ├── 8. Reproducibility Metadata ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   │   { pcgs: { certNumber, pcgsCoinNumber }, ebay: { timeWindowDays, itemIds } }
   │
-  └── 8. Response ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  └── 9. Response ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       JSON with: query, identification, pcgs, ebay, greysheet, valuation,
       decisions, keyDate, mintageData, lunarComparison, reproducibility
 ```
@@ -334,24 +378,30 @@ The `TTLCache` class wraps a `Map` with per-entry expiration:
 
 ---
 
-## eBay Service — API Cascade
+## eBay Service -- Comp Acquisition Cascade
 
-The 3-tier cascade maximizes data quality while handling API limitations:
+The cascade maximizes data quality while handling API limitations. Terapeak local data is checked first; live APIs are only called if local data is insufficient:
 
 ```
 ┌───────────────────────────────────────────────────────────┐
+│  Tier 0: Terapeak Local Store                             │
+│  Highest quality -- real sold prices from CSV exports     │
+│  terapeakService.lookupComps() with fuzzy matching        │
+│  No API call needed; no rate limits                       │
+│  If enough comps → skip all live API tiers                │
+├───────────────────────────────────────────────────────────┤
 │  Tier 1: Marketplace Insights API                         │
-│  Best quality — actual sold prices + dates                │
+│  Good quality -- actual sold prices + dates               │
 │  Requires: eBay Partner oauth token                       │
 │  If circuit-tripped or fails → fall through               │
 ├───────────────────────────────────────────────────────────┤
 │  Tier 2: Finding API (findCompletedItems)                 │
-│  Good quality — sold items with prices                    │
-│  Requires: EBAY_APP_ID                                    │
-│  If circuit-tripped or fails → fall through               │
+│  DECOMMISSIONED by eBay (Feb 4, 2025)                    │
+│  Code remains but always falls through                    │
 ├───────────────────────────────────────────────────────────┤
 │  Tier 3: Browse API (search)                              │
-│  Last resort — ACTIVE listings (not sold)                 │
+│  Last resort -- ACTIVE listings (not sold)                │
+│  Only triggers when zero sold comps exist                 │
 │  Requires: OAuth client credentials flow                  │
 │  Confidence penalty applied in valuation                  │
 └───────────────────────────────────────────────────────────┘
@@ -361,9 +411,12 @@ The 3-tier cascade maximizes data quality while handling API limitations:
 
 **Throttling:** A global 1,100 ms minimum gap between any eBay API call prevents rate-limit issues.
 
+**Grade-type pool split:** After comps are collected, `classifyGradeType()` separates them into graded vs raw pools based on whether the title contains slab/grade indicators. The valuation engine selects the appropriate pool based on user intent (graded if grade specified, raw otherwise) and falls back to all comps if the preferred pool has fewer than 3 entries.
+
 **Scoring:** Each comp is scored via `scoreMatch(item, expected)`:
 - **+10** per matching attribute (year, mint, series, grade, metal, zodiac)
-- **−30** per mismatching attribute where the comp contains a different specific value
+- **-30** per mismatching attribute where the comp contains a different specific value
+- Grade-number mismatch: -20 to -40 based on distance from expected grade
 - Comps below score threshold are deprioritized; the deny-list (`isDenied`) removes lots, replicas, cleaned coins, etc.
 
 **Outlier removal:** MAD-based outlier removal (via `stats.removeOutliersMAD`) filters extreme prices before statistics are computed.
@@ -397,6 +450,93 @@ When the user provides a free-text description (not a cert number), `resolveFrom
 - **Metal**: gold, silver, platinum, palladium, copper
 - **Weight**: `1 oz`, `1/2 oz`, `1/4 oz`, `1/10 oz`, `1/20 oz`, `1.5 oz`, `2 oz`, `5 oz`, `10 oz`
 - **Set type**: proof set, silver proof set, prestige proof set, mint set
+
+---
+
+## Terapeak Scraper Architecture
+
+The project uses two Python scripts (Playwright-based) and one Node.js script to build and maintain the Terapeak sold-comp dataset. All run inside a VNC session (Xtigervnc :1, port 5901, noVNC on 6080).
+
+### Page 1 Scraper -- `scripts/terapeak-export.py`
+
+Automates Terapeak CSV downloads from eBay Seller Hub Research:
+
+```
+┌─ Phase 1: Login ──────────────────────────────────────────┐
+│  --login flag → visible browser, manual eBay sign-in      │
+│  Cookies saved to scripts/cache.cookies.json              │
+├─ Phase 2: Batch Run ─────────────────────────────────────┤
+│  --run flag → headless browser (or headed via VNC)        │
+│  For each coin in schedule:                               │
+│    1. Navigate to Terapeak Research (Sold Items)          │
+│    2. Enter search keywords + date range (90 days)        │
+│    3. Wait for results table to render                    │
+│    4. Click "Download CSV" button                         │
+│    5. Write .meta file (search_term, scraped_at)          │
+│    6. POST CSV to server /api/terapeak/import             │
+│  Browser recycled every 40 coins (fresh context)          │
+│  Auto-recovery on crash (up to 5 retries)                 │
+│  Bot-detection abort: stops batch on CAPTCHA/block        │
+└───────────────────────────────────────────────────────────┘
+```
+
+Key flags: `--batch N` (coin count), `--priority` (thin-data-first), `--resume` (continue after crash).
+
+### Page 2 Enrichment Scraper -- `scripts/terapeak-page2.py`
+
+Extends CSVs from 50 rows (page 1 limit) to ~100 rows by scraping page 2:
+
+```
+┌─ Candidate Selection ─────────────────────────────────────┐
+│  get_candidates(min_rows=50): scan data/terapeak/*.csv    │
+│  Select files with exactly 50 rows (likely truncated)     │
+├─ Scraping ────────────────────────────────────────────────┤
+│  For each candidate:                                      │
+│    1. Read .meta file for original search_term            │
+│    2. Navigate to Terapeak, enter search, load results    │
+│    3. Click pagination "Next" button                      │
+│    4. Scrape page 2 rows from the results table           │
+│    5. append_to_csv() with composite-key dedup            │
+│       Key: itemId | soldDate | soldPrice                  │
+│    6. Update .meta with enrichment timestamp              │
+└───────────────────────────────────────────────────────────┘
+```
+
+Pagination selector: `button.pagination__next:not([disabled])`. Results per page control: `select[aria-label="Results per page"]` with 10/20/50 options.
+
+### CSV Cleanup -- `scripts/clean-csvs.js`
+
+One-time (or periodic) purge of junk rows from all CSV files:
+
+- Loads deny patterns from `src/utils/filters.js` (`DENY_PATTERNS`) plus `EXTRA_DENY` patterns for sports cards, stamps, toys, greeting cards, media items
+- Scans every CSV in `data/terapeak/`, testing each row's title against the combined deny list
+- `--dry-run`: reports counts per file without modifying anything
+- `--run`: rewrites files in place, removing matched rows
+- Handles CSVs with or without headers, preserving the original format
+
+### Terapeak Fuzzy Matching -- `terapeakService.js`
+
+When the pricing engine calls `lookupComps(keywords, expected)`:
+
+1. Tokenize search keywords
+2. For each imported dataset, compute bidirectional token overlap
+3. Apply hard guards: year must match, weight must match (if specified), metal must match, mint must not conflict
+4. Return comps from the best-matching dataset, scored and sorted
+5. Each comp passes through `isDenied()` and denomination/series filters before use
+
+### VNC Environment
+
+The scrapers require a graphical environment for Playwright's Chromium:
+
+| Component | Config |
+|-----------|--------|
+| Display server | Xtigervnc :1, geometry 1280x800 |
+| VNC port | 5901 |
+| noVNC / websockify | Port 6080 |
+| VNC password | `coin2026` |
+| Login helper | `scripts/vnc-login.py` |
+
+VNC sessions may die between codespace restarts -- always verify with `ps aux | grep Xtigervnc` before running scrapers.
 
 ---
 

@@ -69,7 +69,7 @@ router.get('/', async (req, res) => {
   } catch (err) {
     console.error('[/api/market/ebay] Error:', err.message);
     return res.status(500).json({
-      error: err.message || 'Internal server error',
+      error: 'Internal server error',
       series: req.query.series || null,
     });
   }

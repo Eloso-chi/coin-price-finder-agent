@@ -77,10 +77,14 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
   let fmv = null;
   let method;
 
+  // #51: Dynamic weights based on grade tier.
+  // High-grade coins (MS67+) trade at auction, not eBay commodity market.
+  // Low-grade / raw coins are best reflected by eBay street prices.
+  const gradeNum = parseGradeNumber(userGrade);
+  const gradeTier = getGradeTier(gradeNum, isCertified);
+
   if (isCertified) {
-    // Certified: eBay 55% + PCGS Guide 15% + Auction 10% + Greysheet 20%
-    // If Greysheet unavailable, weights renormalize to eBay 65/PCGS 25/Auction 10
-    const weights = { ebay: 0.55, pcgs: 0.15, auction: 0.10, greysheet: 0.20 };
+    const weights = GRADE_WEIGHTS[gradeTier] || GRADE_WEIGHTS.mid;
     const available = {};
     if (ebayMedian != null) available.ebay = ebayMedian;
     if (pcgsGuide != null) available.pcgs = pcgsGuide;
@@ -90,8 +94,9 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
     fmv = blendSources(available, weights);
     method = 'certified-blend';
 
+    const pct = (k) => Math.round(weights[k] * 100);
     const usedSources = Object.keys(available).join('+');
-    explanation.push(`Certified coin blend (${usedSources}). Base weights: eBay 55%, PCGS Guide 15%, Auction 10%, Greysheet 20%.`);
+    explanation.push(`Certified coin blend (${usedSources}), grade tier: ${gradeTier}. Weights: eBay ${pct('ebay')}%, PCGS Guide ${pct('pcgs')}%, Auction ${pct('auction')}%, Greysheet ${pct('greysheet')}%.`);
   } else {
     // Raw coin: eBay 70% + PCGS 10% + Greysheet 20%
     // If Greysheet unavailable, weights renormalize to eBay 80/PCGS 20
@@ -163,9 +168,16 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
     isBar,
     pcgsFound,
     browseOnly,
-    soldRatio
+    soldRatio,
+    population: pcgs?.population?.thisGrade ?? null
   });
   explanation.push(`Confidence ${confidence}/100.`);
+
+  // #50: Low-pop explanation
+  const popGrade = pcgs?.population?.thisGrade;
+  if (popGrade != null && popGrade < 200 && !isBar) {
+    explanation.push(`⚠ Low population (${popGrade}) — thin market, confidence reduced.`);
+  }
 
   if (usedFallback && !browseOnly) {
     explanation.push('⚠ US comps below threshold; global/Browse API data used — confidence reduced.');
@@ -178,17 +190,21 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
   const rangeHigh = +(fmv + margin).toFixed(2);
 
   // ── Buy / Sell decisions ──
-  const max70 = +(fmv * 0.70).toFixed(2);
-  const max75 = +(fmv * 0.75).toFixed(2);
-  const max80 = +(fmv * 0.80).toFixed(2);
+  // #52: Sliding buy spread — higher-value coins need tighter margins.
+  const { low: buyLow, mid: buyMid, high: buyHigh, recLabel } = buySpreadForValue(fmv);
+
+  const maxLow  = +(fmv * buyLow).toFixed(2);
+  const maxMid  = +(fmv * buyMid).toFixed(2);
+  const maxHigh = +(fmv * buyHigh).toFixed(2);
 
   const buyNotes = [];
   let recommendation = null;
   if (askingPrice != null) {
-    if (askingPrice <= max75) { recommendation = 'BUY'; buyNotes.push(`Asking $${askingPrice} ≤ 75% FMV ($${max75}).`); }
-    else if (askingPrice <= max80) { recommendation = 'BUY'; buyNotes.push(`Asking $${askingPrice} ≤ 80% FMV ($${max80}) — thin margin.`); }
-    else { recommendation = 'PASS'; buyNotes.push(`Asking $${askingPrice} > 80% FMV ($${max80}).`); }
+    if (askingPrice <= maxMid) { recommendation = 'BUY'; buyNotes.push(`Asking $${askingPrice} <= ${Math.round(buyMid * 100)}% FMV ($${maxMid}).`); }
+    else if (askingPrice <= maxHigh) { recommendation = 'BUY'; buyNotes.push(`Asking $${askingPrice} <= ${Math.round(buyHigh * 100)}% FMV ($${maxHigh}) -- thin margin.`); }
+    else { recommendation = 'PASS'; buyNotes.push(`Asking $${askingPrice} > ${Math.round(buyHigh * 100)}% FMV ($${maxHigh}).`); }
   }
+  if (recLabel) buyNotes.push(recLabel);
 
   const medForSell = ebayMedian || fmv;
   const p25 = usPrices.length >= 4 ? stats.percentile(usPrices, 25) : medForSell * 0.92;
@@ -229,9 +245,10 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
     },
     decisions: {
       buy: {
-        max70,
-        max75,
-        max80,
+        max70: maxLow,
+        max75: maxMid,
+        max80: maxHigh,
+        spreadTier: { low: buyLow, mid: buyMid, high: buyHigh },
         askingPrice: askingPrice || null,
         recommendation,
         notes: buyNotes
@@ -248,6 +265,39 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
 }
 
 // ── Helpers ─────────────────────────────────────────────────
+
+// ── #51: Grade-tier weight tables for certified coins ───────
+// High-grade coins (MS67+) trade at auction houses, not eBay commodity market.
+// Low-grade circulated coins are best reflected by eBay street prices.
+const GRADE_WEIGHTS = {
+  low:  { ebay: 0.65, pcgs: 0.10, auction: 0.05, greysheet: 0.20 },
+  mid:  { ebay: 0.55, pcgs: 0.15, auction: 0.10, greysheet: 0.20 },
+  high: { ebay: 0.30, pcgs: 0.20, auction: 0.25, greysheet: 0.25 },
+};
+
+function parseGradeNumber(gradeStr) {
+  if (!gradeStr) return null;
+  const m = String(gradeStr).match(/(\d+)/);
+  return m ? parseInt(m[1], 10) : null;
+}
+
+function getGradeTier(gradeNum, isCertified) {
+  if (!isCertified || gradeNum == null) return 'mid';
+  if (gradeNum >= 67) return 'high';
+  if (gradeNum <= 58) return 'low';   // AU58 and below
+  return 'mid';                       // MS60-MS66
+}
+
+// ── #52: Sliding buy spread based on FMV value ──────────────
+// Higher-value coins need tighter dealer margins — no one buys a $10k coin at 70%.
+// Returns { low, mid, high } as decimal multipliers and a label.
+function buySpreadForValue(fmv) {
+  if (fmv <= 50)   return { low: 0.60, mid: 0.70, high: 0.75, recLabel: 'Buy spread: standard (FMV under $50).' };
+  if (fmv <= 200)  return { low: 0.70, mid: 0.75, high: 0.80, recLabel: null };
+  if (fmv <= 1000) return { low: 0.75, mid: 0.80, high: 0.85, recLabel: 'Buy spread: tightened for $200-$1k range.' };
+  if (fmv <= 5000) return { low: 0.80, mid: 0.85, high: 0.90, recLabel: 'Buy spread: tight for $1k-$5k range.' };
+  return              { low: 0.85, mid: 0.90, high: 0.95, recLabel: 'Buy spread: very tight for $5k+ range.' };
+}
 
 /**
  * Blend available sources with fallback weight renormalization.
@@ -310,7 +360,7 @@ function fallbackPenalty(usCompCount) {
  * sample size, dispersion, and match quality — things that matter for
  * commodity bullion.
  */
-function computeConfidence({ verified, usCompCount, glCompCount, dispersion, avgMatchScore, usedFallback, hasPcgsGuide, hasAuction, hasGreysheet, isBar, pcgsFound, browseOnly, soldRatio }) {
+function computeConfidence({ verified, usCompCount, glCompCount, dispersion, avgMatchScore, usedFallback, hasPcgsGuide, hasAuction, hasGreysheet, isBar, pcgsFound, browseOnly, soldRatio, population }) {
   let c = 0;
 
   if (isBar) {
@@ -358,12 +408,21 @@ function computeConfidence({ verified, usCompCount, glCompCount, dispersion, avg
     c -= 10;
   }
 
+  // ── #50: Low-population penalty ──
+  // Thin markets mean one outlier sale can dominate the weighted median.
+  // Scaled: pop < 50 → -15, pop 50-99 → -10, pop 100-199 → -5
+  if (population != null && population < 200 && !isBar) {
+    if (population < 50) c -= 15;
+    else if (population < 100) c -= 10;
+    else c -= 5;
+  }
+
   return Math.max(0, Math.min(100, Math.round(c)));
 }
 
 function _emptyDecisions(askingPrice) {
   return {
-    buy: { max70: null, max75: null, max80: null, askingPrice: askingPrice || null, recommendation: null, notes: ['Insufficient data'] },
+    buy: { max70: null, max75: null, max80: null, spreadTier: null, askingPrice: askingPrice || null, recommendation: null, notes: ['Insufficient data'] },
     sell: { fast: null, normal: null, premium: null, offerFloor: null, notes: ['Insufficient data'] }
   };
 }

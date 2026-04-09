@@ -29,9 +29,17 @@ function loadStore() {
 }
 
 function saveStore() {
-  try {
-    fs.writeFileSync(STORE_PATH, JSON.stringify(_store, null, 2));
-  } catch { /* best-effort */ }
+  // Debounced async write -- coalesces rapid successive calls into one I/O.
+  if (saveStore._pending) clearTimeout(saveStore._pending);
+  saveStore._pending = setTimeout(() => {
+    saveStore._pending = null;
+    const data = JSON.stringify(_store, null, 2);
+    fs.writeFile(STORE_PATH, data, (err) => {
+      if (err && process.env.NODE_ENV !== 'test') {
+        console.error('[metalsHistory] Failed to save store:', err.message);
+      }
+    });
+  }, 500);
 }
 
 /**

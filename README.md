@@ -334,7 +334,7 @@ If an asking price is provided:
 | `POST` | `/api/clear-cache` | Flush all caches (eBay + PCGS + market + Numista + metals) 🔒 |
 | `GET` | `/api/health` | Health check + uptime |
 
-🔒 = requires `ADMIN_API_KEY` via `x-api-key` header or `apiKey` query param.
+🔒 = requires `ADMIN_API_KEY` via `x-api-key` header.
 
 ### Live eBay Market Tracker
 
@@ -384,7 +384,7 @@ The **Test Monitor** system records per-run metrics (timestamp, branch, commit, 
 
 A Copilot agent persona (`.github/agents/test-monitor.agent.md`) can be invoked to diagnose failures, quarantine flaky tests, and suggest fixes. See [docs/testing/test-monitor.md](docs/testing/test-monitor.md) for full usage.
 
-Runs **Jest** across 32 test suites:
+Runs **Jest** across 34 test suites:
 
 | Suite | What it covers |
 |---|---|
@@ -420,6 +420,8 @@ Runs **Jest** across 32 test suites:
 | `pcgsService.test.js` | PCGS service: lookupByCert, lookupByCoinNumberAndGrade, resolveFromDescription, _mapResponse |
 | `greysheetService.test.js` | Greysheet CDN API V2: fetchPriceByPcgsNumber, fetchPriceByGsid, fetchCollectible, caching, retry, CAC filtering |
 | `ebayFetchSoldComps.test.js` | eBay orchestrator: Terapeak tier, Finding API, Browse fallback, caching, scoring, buildKeywords, classifyGradeType, detectWeightFromTitle, dedup |
+| `filters.test.js` | Deny-list patterns, `isDenied()`, `detectDenomMismatch()` edge cases |
+| `greysheetTypeMap.test.js` | Greysheet type-map series resolution, PCGS-to-GSID mapping |
 
 Test helpers live in `__tests__/helpers/coinTestConstants.js` (shared token lists, normalization, compound-word-aware `containsNone`).
 
@@ -468,6 +470,8 @@ src/
     filters.js                     Deny-list filtering, denomination & series checks
     responseValidator.js           /api/price response schema & sanity validation
     excelMapper.js                 Excel-to-backup converter (header aliases, series normalization)
+  greysheet/
+    greysheetTypeMap.js            Series-to-GSID mapping for Greysheet API lookups
 cache/
   ebay_cache.json                  Persisted eBay comp cache (1-hour TTL)
   pcgs_cache.json                  Persisted PCGS data cache (24-hour TTL)
@@ -489,7 +493,7 @@ public/
 samples/
   test-collection.xlsx             Sample Excel import fixture
   no-collectors-sheet.xlsx         Error-case fixture (missing sheet)
-__tests__/                         32 Jest test suites (see Tests section)
+__tests__/                         34 Jest test suites (see Tests section)
   helpers/
     coinTestConstants.js           Shared token lists & test utilities
 docs/
@@ -504,7 +508,10 @@ docs/
     main_coinpricefinder-*.yml     CI/CD: GitHub Actions OIDC → Azure App Service
 scripts/
   terapeak-export.py               Semi-automated Terapeak CSV exporter (Playwright)
-  seedFromEbay.js                  Bulk seed from Finding API (dead — API decommissioned)
+  terapeak-page2.py                Page 2 enrichment scraper (extends CSVs beyond 50 rows)
+  clean-csvs.js                    CSV junk cleaner (deny-pattern purge across all CSVs)
+  vnc-login.py                     VNC + eBay login helper for Playwright sessions
+  seedFromEbay.js                  Bulk seed from Finding API (dead -- API decommissioned)
   test-metrics/
     run-with-metrics.cjs           Jest wrapper — captures metrics to JSONL
     summarize.cjs                  Summary reporter — failures, flakes, trends
@@ -517,6 +524,7 @@ scripts/
 
 ### Scoring & Filtering Accuracy
 
+- **Grade-type pool split** -- `classifyGradeType()` in `ebayService.js` separates eBay comps into graded vs raw pools. If the user specifies a grade, the valuation engine prefers graded comps; if no grade, it prefers raw. Falls back to all comps if the preferred pool has fewer than 3 entries. The `gradePool` field in the response shows which pool was used and counts for each.
 - **Grade-number mismatch penalty** -- `scoreMatch()` now extracts numeric grades from comp titles (e.g. MS63, PF69) and penalizes comps whose grade differs from the search target (-20 to -40 points based on distance). Previously an MS63 comp could score 95 ("exact") against an MS65 search.
 - **Grade-number hard filter** -- `applyFilters()` drops comps whose title explicitly states a different grade number than the expected grade. Comps with no grade stated are kept (benefit of the doubt).
 - **Browse fallback restriction** -- Browse API active listings now only trigger when there are zero sold comps. Previously, partial Terapeak sold data (e.g. 5 of 8 needed) would be discarded in favor of active listings.
@@ -549,10 +557,19 @@ scripts/
 
 ### Terapeak Data Pipeline
 
-- **Synthetic data warning** -- all 525 CSV files in `data/terapeak/` are generated (fake IDs, random prices, hardcoded sellers). They serve as fallback/demo data only.
+The project includes 650 Terapeak CSV files in `data/terapeak/` containing real sold-comp data scraped from eBay Seller Hub Research. The data pipeline has three stages:
+
+**Stage 1: Page 1 Scraping** -- `scripts/terapeak-export.py` uses Playwright to automate Terapeak searches and CSV downloads. It loops through all coin search terms, exports 50 rows per coin, and uploads CSVs to the running server via `/api/terapeak/import`. Features: `--login` for manual eBay cookie capture, `--run` for headless batch execution, `--batch N` for safe incremental scraping, `--priority` for thin-data-first ordering, `--resume` to continue after interruption, browser recycling every 40 coins, and auto-recovery from crashes (up to 5). Requires VNC (Xtigervnc :1), Python 3.12+, and Playwright.
+
+**Stage 2: Page 2 Enrichment** -- `scripts/terapeak-page2.py` extends existing CSVs beyond 50 rows by navigating to page 2 of Terapeak results. It identifies candidate coins (exactly 50 rows = likely truncated), clicks the Next pagination button, scrapes additional rows, and appends them with composite-key deduplication (itemId|soldDate|soldPrice). Enrichment brought many coins from 50 to 95--100 rows.
+
+**Stage 3: CSV Cleanup** -- `scripts/clean-csvs.js` purges junk rows (stamps, sports cards, trading cards, toys, media) that contaminated CSV files due to generic search terms. Uses `isDenied()` from `src/utils/filters.js` plus extended deny patterns. Run with `--dry-run` to preview or `--run` to rewrite files in place. Initial cleanup removed 4,050 junk rows across 427 of 650 files.
+
+**Auto-import** -- on server startup, `terapeakService.autoImportFolder()` scans `data/terapeak/*.csv` and imports any files newer than 7 days. The server currently loads ~796 datasets with ~27,000 total comps.
+
+**Search term quality matters** -- generic terms like "US Mint Set" capture unrelated items (stamps, cards). Better terms include the full coin name (e.g. "2005 US Mint Uncirculated Coin Set" instead of "2005 US Mint Set"). Some mint set CSVs are thin after cleanup and need re-scraping with improved terms.
+
 - **Finding API decommissioned** -- eBay shut down the Finding API on February 4, 2025. `seedFromEbay.js` and the auto-seed bridge in `ebayService.js` are dead code.
-- **Real data via CSV export** -- manual Terapeak CSV export from eBay Seller Hub Research is the only reliable source of real sold data.
-- **Semi-automated exporter** -- `scripts/terapeak-export.py` uses Playwright to automate Terapeak searches and CSV downloads. Two-phase workflow: `--login` opens a visible browser for manual eBay login (saves cookies), then `--run` loops through all 525 coin search terms, exports CSVs, and uploads them to the running server. Supports `--batch N` for safe incremental scraping (small runs with priority sort and bot-detection abort), `--priority` for thin-data-first ordering, and `--resume` to continue after interruption. Requires Python 3.10+, `playwright`, and `requests`. See `data/terapeak/README.md` for details.
 
 ### Greysheet API Integration
 

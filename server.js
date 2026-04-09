@@ -3,6 +3,7 @@
 
 require('dotenv').config();
 
+const crypto = require('crypto');
 const express = require('express');
 const path = require('path');
 const helmet = require('helmet');
@@ -19,8 +20,9 @@ function requireAdmin(req, res, next) {
     // are locked-down by default on a fresh deploy.
     return res.status(403).json({ error: 'Admin API key not configured on server' });
   }
-  const provided = req.headers['x-api-key'];
-  if (provided !== ADMIN_API_KEY) {
+  const provided = req.headers['x-api-key'] || '';
+  if (provided.length !== ADMIN_API_KEY.length ||
+      !crypto.timingSafeEqual(Buffer.from(provided), Buffer.from(ADMIN_API_KEY))) {
     return res.status(401).json({ error: 'Invalid or missing API key' });
   }
   next();
@@ -31,7 +33,10 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc:  ["'self'", "'unsafe-inline'"],   // inline <script> in SPA
+      // NOTE: unsafe-inline is required — index.html contains two large inline
+      // <script> blocks (~3,400 lines total: main app logic + history chart).
+      // Moving them to external files is tracked as a future refactor.
+      scriptSrc:  ["'self'", "'unsafe-inline'"],
       styleSrc:   ["'self'", "'unsafe-inline'"],   // inline <style> in SPA
       imgSrc:     ["'self'", 'data:', 'https://i.ebayimg.com', 'https://images.pcgs.com', 'https://*.ebayimg.com'],
       connectSrc: ["'self'"],
@@ -97,7 +102,7 @@ app.use('/api/coin-variant', coinVariantRoute);
 app.use('/api/market/ebay', apiLimiter, marketRoute);
 app.use('/api/terapeak', terapeakRoute);
 app.use('/api/pricing-batch', apiLimiter, pricingBatchRoute);
-app.use('/api/image-proxy', imageProxyRoute);
+app.use('/api/image-proxy', apiLimiter, imageProxyRoute);
 app.use('/api/coin-history', coinHistoryRoute);
 app.use('/api/import/excel', uploadLimiter, excelImportRoute);
 

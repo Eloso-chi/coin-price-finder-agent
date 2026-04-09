@@ -108,6 +108,6 @@ describe('GET /api/market/ebay', () => {
 
     const { status, body } = await get('/api/market/ebay?series=Test');
     expect(status).toBe(500);
-    expect(body).toHaveProperty('error', 'eBay API failed');
+    expect(body).toHaveProperty('error', 'Internal server error');
   });
 });

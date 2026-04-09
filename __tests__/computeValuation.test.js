@@ -263,6 +263,229 @@ describe('computeValuation — buy/sell decisions', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════
+//  #50: Low-population confidence penalty
+// ═══════════════════════════════════════════════════════════════
+
+describe('computeValuation -- low-pop confidence penalty (#50)', () => {
+  test('pop < 50 gets largest penalty', () => {
+    const comps = makeComps([100, 105, 110, 115, 120]);
+    const highPop = computeValuation(
+      mockPcgs({ population: { thisGrade: 5000 }, pcgsNo: 1234 }),
+      mockEbay({ usComps: comps })
+    );
+    const lowPop = computeValuation(
+      mockPcgs({ population: { thisGrade: 30 }, pcgsNo: 1234 }),
+      mockEbay({ usComps: comps })
+    );
+    expect(lowPop.valuation.confidence).toBeLessThan(highPop.valuation.confidence);
+    expect(highPop.valuation.confidence - lowPop.valuation.confidence).toBeGreaterThanOrEqual(15);
+  });
+
+  test('pop 50-99 gets moderate penalty', () => {
+    const comps = makeComps([100, 105, 110, 115, 120]);
+    const highPop = computeValuation(
+      mockPcgs({ population: { thisGrade: 5000 }, pcgsNo: 1234 }),
+      mockEbay({ usComps: comps })
+    );
+    const midPop = computeValuation(
+      mockPcgs({ population: { thisGrade: 75 }, pcgsNo: 1234 }),
+      mockEbay({ usComps: comps })
+    );
+    expect(midPop.valuation.confidence).toBeLessThan(highPop.valuation.confidence);
+    expect(highPop.valuation.confidence - midPop.valuation.confidence).toBeGreaterThanOrEqual(10);
+  });
+
+  test('pop 100-199 gets small penalty', () => {
+    const comps = makeComps([100, 105, 110, 115, 120]);
+    const highPop = computeValuation(
+      mockPcgs({ population: { thisGrade: 5000 }, pcgsNo: 1234 }),
+      mockEbay({ usComps: comps })
+    );
+    const thinPop = computeValuation(
+      mockPcgs({ population: { thisGrade: 150 }, pcgsNo: 1234 }),
+      mockEbay({ usComps: comps })
+    );
+    expect(thinPop.valuation.confidence).toBeLessThan(highPop.valuation.confidence);
+    expect(highPop.valuation.confidence - thinPop.valuation.confidence).toBeGreaterThanOrEqual(5);
+  });
+
+  test('pop >= 200 gets no penalty', () => {
+    const comps = makeComps([100, 105, 110, 115, 120]);
+    const pop200 = computeValuation(
+      mockPcgs({ population: { thisGrade: 200 }, pcgsNo: 1234 }),
+      mockEbay({ usComps: comps })
+    );
+    const pop5000 = computeValuation(
+      mockPcgs({ population: { thisGrade: 5000 }, pcgsNo: 1234 }),
+      mockEbay({ usComps: comps })
+    );
+    expect(pop200.valuation.confidence).toBe(pop5000.valuation.confidence);
+  });
+
+  test('low-pop explanation note is present', () => {
+    const comps = makeComps([100, 105, 110, 115, 120]);
+    const result = computeValuation(
+      mockPcgs({ population: { thisGrade: 30 }, pcgsNo: 1234 }),
+      mockEbay({ usComps: comps })
+    );
+    expect(result.valuation.explanation.some(e => /low population/i.test(e))).toBe(true);
+  });
+
+  test('bars skip low-pop penalty', () => {
+    const comps = makeComps([100, 105, 110, 115, 120]);
+    const barLowPop = computeValuation(
+      mockPcgs({ _isBar: true, population: { thisGrade: 10 } }),
+      mockEbay({ usComps: comps })
+    );
+    const barHighPop = computeValuation(
+      mockPcgs({ _isBar: true, population: { thisGrade: 5000 } }),
+      mockEbay({ usComps: comps })
+    );
+    expect(barLowPop.valuation.confidence).toBe(barHighPop.valuation.confidence);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  #51: Dynamic FMV weight by grade tier
+// ═══════════════════════════════════════════════════════════════
+
+describe('computeValuation -- dynamic grade weights (#51)', () => {
+  test('MS67+ shifts weight toward PCGS auction', () => {
+    // eBay median ~100, PCGS guide 150, Auction 160
+    // High-grade tier: eBay 30%, PCGS 20%, Auction 25%, Greysheet 25%
+    // Mid-grade tier:  eBay 55%, PCGS 15%, Auction 10%, Greysheet 20%
+    const comps = makeComps([100, 100, 100, 100, 100], { gradeType: 'graded' });
+    const pcgs = mockPcgs({
+      verified: true,
+      priceGuide: { valueUsd: 150 },
+      auction: { medianUsd: 160 },
+    });
+
+    const midGrade = computeValuation(pcgs, mockEbay({ usComps: comps }), null, 'MS-65');
+    const highGrade = computeValuation(pcgs, mockEbay({ usComps: comps }), null, 'MS-68');
+
+    // High-grade FMV should be higher because auction (160) gets more weight
+    expect(highGrade.valuation.fmvCore).toBeGreaterThan(midGrade.valuation.fmvCore);
+  });
+
+  test('AU58 and below shifts weight toward eBay', () => {
+    const comps = makeComps([100, 100, 100, 100, 100], { gradeType: 'graded' });
+    const pcgs = mockPcgs({
+      verified: true,
+      priceGuide: { valueUsd: 150 },
+      auction: { medianUsd: 160 },
+    });
+
+    const midGrade = computeValuation(pcgs, mockEbay({ usComps: comps }), null, 'MS-64');
+    const lowGrade = computeValuation(pcgs, mockEbay({ usComps: comps }), null, 'VF-30');
+
+    // Low-grade FMV should be lower because eBay (100) gets more weight
+    expect(lowGrade.valuation.fmvCore).toBeLessThan(midGrade.valuation.fmvCore);
+  });
+
+  test('no userGrade defaults to mid tier', () => {
+    const comps = makeComps([100, 100, 100, 100, 100]);
+    const pcgs = mockPcgs({
+      verified: true,
+      priceGuide: { valueUsd: 120 },
+      auction: { medianUsd: 110 },
+    });
+
+    const noGrade = computeValuation(pcgs, mockEbay({ usComps: comps }));
+    // Without Greysheet, weights renormalize 55/15/10 -> 68.75/18.75/12.5
+    // FMV = 0.6875*100 + 0.1875*120 + 0.125*110 = 105
+    expect(noGrade.valuation.fmvCore).toBeCloseTo(105, 0);
+  });
+
+  test('raw coins always use raw blend (not grade-tiered)', () => {
+    const comps = makeComps([100, 100, 100, 100, 100]);
+    const pcgs = mockPcgs({
+      verified: false,
+      priceGuide: { valueUsd: 120 },
+    });
+
+    const result = computeValuation(pcgs, mockEbay({ usComps: comps }));
+    expect(result.valuation.explanation.some(e => /raw coin blend/i.test(e))).toBe(true);
+  });
+
+  test('explanation mentions grade tier for certified', () => {
+    const comps = makeComps([100, 100, 100, 100, 100], { gradeType: 'graded' });
+    const pcgs = mockPcgs({
+      verified: true,
+      priceGuide: { valueUsd: 120 },
+    });
+    const result = computeValuation(pcgs, mockEbay({ usComps: comps }), null, 'MS-68');
+    expect(result.valuation.explanation.some(e => /grade tier.*high/i.test(e))).toBe(true);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  #52: Sliding buy spread by FMV value
+// ═══════════════════════════════════════════════════════════════
+
+describe('computeValuation -- sliding buy spread (#52)', () => {
+  test('low-value coin (<=$50) gets wide spread', () => {
+    const comps = makeComps([30, 30, 30, 30, 30]);
+    const result = computeValuation(mockPcgs(), mockEbay({ usComps: comps }), 20);
+    // max70 should be 60% of FMV for <$50 tier
+    const fmv = result.valuation.fmvCore;
+    expect(result.decisions.buy.max70).toBeCloseTo(fmv * 0.60, 0);
+    expect(result.decisions.buy.max75).toBeCloseTo(fmv * 0.70, 0);
+    expect(result.decisions.buy.max80).toBeCloseTo(fmv * 0.75, 0);
+  });
+
+  test('mid-value coin ($50-$200) gets standard spread', () => {
+    const comps = makeComps([100, 100, 100, 100, 100]);
+    const result = computeValuation(mockPcgs(), mockEbay({ usComps: comps }), 70);
+    const fmv = result.valuation.fmvCore;
+    expect(result.decisions.buy.max70).toBeCloseTo(fmv * 0.70, 0);
+    expect(result.decisions.buy.max75).toBeCloseTo(fmv * 0.75, 0);
+    expect(result.decisions.buy.max80).toBeCloseTo(fmv * 0.80, 0);
+  });
+
+  test('high-value coin ($1k-$5k) gets tight spread', () => {
+    const comps = makeComps([2000, 2000, 2000, 2000, 2000]);
+    const result = computeValuation(mockPcgs(), mockEbay({ usComps: comps }), 1500);
+    const fmv = result.valuation.fmvCore;
+    expect(result.decisions.buy.max70).toBeCloseTo(fmv * 0.80, 0);
+    expect(result.decisions.buy.max75).toBeCloseTo(fmv * 0.85, 0);
+    expect(result.decisions.buy.max80).toBeCloseTo(fmv * 0.90, 0);
+  });
+
+  test('very high-value coin ($5k+) gets very tight spread', () => {
+    const comps = makeComps([10000, 10000, 10000, 10000, 10000]);
+    const result = computeValuation(mockPcgs(), mockEbay({ usComps: comps }), 8000);
+    const fmv = result.valuation.fmvCore;
+    expect(result.decisions.buy.max70).toBeCloseTo(fmv * 0.85, 0);
+    expect(result.decisions.buy.max75).toBeCloseTo(fmv * 0.90, 0);
+    expect(result.decisions.buy.max80).toBeCloseTo(fmv * 0.95, 0);
+  });
+
+  test('BUY recommendation uses sliding thresholds', () => {
+    // $10k coin at $9k asking = 90% FMV → BUY with tight spread
+    const comps = makeComps([10000, 10000, 10000, 10000, 10000]);
+    const result = computeValuation(mockPcgs(), mockEbay({ usComps: comps }), 9000);
+    // $5k+ tier: mid=90%, high=95%. $9k <= 90% of $10k → BUY
+    expect(result.decisions.buy.recommendation).toBe('BUY');
+  });
+
+  test('PASS recommendation uses sliding thresholds', () => {
+    // $10k coin at $9800 asking = 98% FMV → PASS even with tight spread
+    const comps = makeComps([10000, 10000, 10000, 10000, 10000]);
+    const result = computeValuation(mockPcgs(), mockEbay({ usComps: comps }), 9800);
+    expect(result.decisions.buy.recommendation).toBe('PASS');
+  });
+
+  test('spreadTier is included in response', () => {
+    const comps = makeComps([100, 100, 100, 100, 100]);
+    const result = computeValuation(mockPcgs(), mockEbay({ usComps: comps }), 70);
+    expect(result.decisions.buy.spreadTier).toBeDefined();
+    expect(result.decisions.buy.spreadTier.low).toBeLessThan(result.decisions.buy.spreadTier.mid);
+    expect(result.decisions.buy.spreadTier.mid).toBeLessThan(result.decisions.buy.spreadTier.high);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════
 //  Grade pool selection
 // ═══════════════════════════════════════════════════════════════
 

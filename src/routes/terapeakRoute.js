@@ -1,6 +1,7 @@
 // src/routes/terapeakRoute.js — Terapeak CSV import API
 // CommonJS
 
+const crypto = require('crypto');
 const express = require('express');
 const multer = require('multer');
 const router = express.Router();
@@ -14,8 +15,9 @@ function requireAdmin(req, res, next) {
   if (!ADMIN_API_KEY) {
     return res.status(403).json({ error: 'Admin API key not configured on server' });
   }
-  const provided = req.headers['x-api-key'] || req.query.apiKey;
-  if (provided !== ADMIN_API_KEY) {
+  const provided = req.headers['x-api-key'] || '';
+  if (provided.length !== ADMIN_API_KEY.length ||
+      !crypto.timingSafeEqual(Buffer.from(provided), Buffer.from(ADMIN_API_KEY))) {
     return res.status(401).json({ error: 'Invalid or missing API key' });
   }
   next();
