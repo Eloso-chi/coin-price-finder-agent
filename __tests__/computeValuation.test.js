@@ -625,3 +625,162 @@ describe('computeValuation — edge cases', () => {
     expect(result.decisions.buy.notes).toContain('Insufficient data');
   });
 });
+
+// ═══════════════════════════════════════════════════════════════
+//  #53: Bullion spot+premium FMV mode
+// ═══════════════════════════════════════════════════════════════
+
+describe('computeValuation — bullion spot+premium (#53)', () => {
+  // Silver spot ~$30/oz, comps selling for ~$35 → premium ~16.7%
+  const silverSpot = 30;
+  const silverComps = makeComps([33, 34, 35, 36, 37]);
+
+  test('uses spot+premium mode when isBullion and spotPrice provided', () => {
+    const result = computeValuation(
+      mockPcgs(),
+      mockEbay({ usComps: silverComps }),
+      null, null,
+      { isBullion: true, spotPrice: silverSpot }
+    );
+    expect(result.valuation.method).toBe('bullion-spot-premium');
+    expect(result.valuation.bullionSpot).not.toBeNull();
+    expect(result.valuation.bullionSpot.spotPrice).toBe(silverSpot);
+    expect(result.valuation.bullionSpot.premiumPct).toBeGreaterThan(0);
+    // FMV should be close to spot + premium (~$35)
+    expect(result.valuation.fmvCore).toBeGreaterThan(silverSpot);
+    expect(result.valuation.fmvCore).toBeLessThan(40);
+  });
+
+  test('FMV tracks spot price, not just eBay median', () => {
+    // Spot jumps to $40 but comps still reflect $35 sales (lag)
+    const highSpot = 40;
+    const result = computeValuation(
+      mockPcgs(),
+      mockEbay({ usComps: silverComps }),
+      null, null,
+      { isBullion: true, spotPrice: highSpot }
+    );
+    // FMV should be above $40 (spot) even though comps average $35
+    // Premium would be negative from comps, clamped to -5%
+    expect(result.valuation.fmvCore).toBeGreaterThanOrEqual(highSpot * 0.95);
+    expect(result.valuation.method).toBe('bullion-spot-premium');
+  });
+
+  test('clamps negative premium to -5%', () => {
+    // Spot way above market (e.g. just spiked) — comps at $35, spot at $50
+    const result = computeValuation(
+      mockPcgs(),
+      mockEbay({ usComps: silverComps }),
+      null, null,
+      { isBullion: true, spotPrice: 50 }
+    );
+    // Premium should be clamped to -5%, so FMV >= spot * 0.95
+    expect(result.valuation.fmvCore).toBeGreaterThanOrEqual(50 * 0.95 - 0.01);
+  });
+
+  test('clamps excessive silver premium to 100%', () => {
+    // Very cheap spot but high comp prices (shouldn't happen, but guard)
+    const cheapComps = makeComps([80, 85, 90]);
+    const result = computeValuation(
+      mockPcgs(),
+      mockEbay({ usComps: cheapComps }),
+      null, null,
+      { isBullion: true, spotPrice: 30 }
+    );
+    // Premium would be ~180%, clamped to 100% → FMV = 30 * 2 = $60
+    expect(result.valuation.fmvCore).toBeLessThanOrEqual(60.01);
+  });
+
+  test('clamps gold premium to 40%', () => {
+    // Gold bar: spot $2000, comps at $3000 (50% premium → clamp to 40%)
+    const goldComps = makeComps([2800, 2900, 3000, 3100]);
+    const result = computeValuation(
+      mockPcgs(),
+      mockEbay({ usComps: goldComps }),
+      null, null,
+      { isBullion: true, spotPrice: 2000 }
+    );
+    // Clamped to 40%: FMV should be <= 2000 * 1.40 = $2800
+    expect(result.valuation.fmvCore).toBeLessThanOrEqual(2800.01);
+  });
+
+  test('falls back to standard blend when spotPrice is null', () => {
+    const result = computeValuation(
+      mockPcgs(),
+      mockEbay({ usComps: silverComps }),
+      null, null,
+      { isBullion: true, spotPrice: null }
+    );
+    expect(result.valuation.method).not.toBe('bullion-spot-premium');
+    expect(result.valuation.bullionSpot).toBeNull();
+  });
+
+  test('falls back to standard blend when not bullion', () => {
+    const result = computeValuation(
+      mockPcgs(),
+      mockEbay({ usComps: silverComps }),
+      null, null,
+      { isBullion: false, spotPrice: silverSpot }
+    );
+    expect(result.valuation.method).not.toBe('bullion-spot-premium');
+  });
+
+  test('falls back when ebayMedian is suspiciously low vs spot', () => {
+    // Comps at $5 with spot $30 — probably bad data, skip spot+premium
+    const junkComps = makeComps([4, 5, 6]);
+    const result = computeValuation(
+      mockPcgs(),
+      mockEbay({ usComps: junkComps }),
+      null, null,
+      { isBullion: true, spotPrice: silverSpot }
+    );
+    // $5 < $30 * 0.5 = $15, so it should NOT use spot+premium
+    expect(result.valuation.method).not.toBe('bullion-spot-premium');
+  });
+
+  test('blends Greysheet at 15% when available', () => {
+    const greysheet = { greyVal: 32, cpgVal: 36 };
+    const result = computeValuation(
+      mockPcgs(),
+      mockEbay({ usComps: silverComps }),
+      null, null,
+      { isBullion: true, spotPrice: silverSpot, greysheet }
+    );
+    expect(result.valuation.method).toBe('bullion-spot-premium');
+    // FMV should be pulled slightly toward Greysheet $32
+    const withoutGs = computeValuation(
+      mockPcgs(),
+      mockEbay({ usComps: silverComps }),
+      null, null,
+      { isBullion: true, spotPrice: silverSpot }
+    );
+    // With greysheet < spot+premium FMV, should pull down slightly
+    expect(result.valuation.fmvCore).not.toEqual(withoutGs.valuation.fmvCore);
+  });
+
+  test('includes bullionSpot metadata in response', () => {
+    const result = computeValuation(
+      mockPcgs(),
+      mockEbay({ usComps: silverComps }),
+      null, null,
+      { isBullion: true, spotPrice: silverSpot }
+    );
+    expect(result.valuation.bullionSpot).toMatchObject({
+      spotPrice: expect.any(Number),
+      premiumPct: expect.any(Number),
+      ebayMedian: expect.any(Number),
+    });
+  });
+
+  test('buy/sell decisions still work with spot+premium FMV', () => {
+    const result = computeValuation(
+      mockPcgs(),
+      mockEbay({ usComps: silverComps }),
+      25, null,
+      { isBullion: true, spotPrice: silverSpot }
+    );
+    expect(result.decisions.buy.recommendation).toBe('BUY');
+    expect(result.decisions.sell.fast).toBeGreaterThan(0);
+    expect(result.decisions.sell.normal).toBeGreaterThan(0);
+  });
+});

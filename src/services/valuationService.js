@@ -10,7 +10,7 @@ const stats = require('../utils/stats');
  * @param {object} ebay       – ebayService result  { us, global, usedFallback }
  * @param {number|null} askingPrice
  * @param {string|null} userGrade – grade FROM USER INPUT (not PCGS-resolved)
- * @param {object} [opts]     – { isBullion: boolean, greysheet: object|null }
+ * @param {object} [opts]     – { isBullion: boolean, greysheet: object|null, spotPrice: number|null }
  * @returns {object} { valuation, decisions }
  */
 function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts = {}) {
@@ -73,13 +73,44 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
   const gsData = opts.greysheet || null;
   const greysheetVal = gsData?.greyVal || null;
 
+  // ── Spot price for bullion premium calculation ──
+  const spotPrice = opts.spotPrice || null;
+
   // ── Blend ──
   let fmv = null;
   let method;
 
+  // #53: Bullion spot+premium FMV mode.
+  // For bullion coins where we have both a spot price and eBay comps,
+  // derive the current market premium from comps and anchor FMV to live spot.
+  // This tracks metal price moves instantly instead of lagging with 30-day median.
+  if (isBullion && spotPrice > 0 && ebayMedian != null && ebayMedian > spotPrice * 0.5) {
+    const rawPremium = (ebayMedian - spotPrice) / spotPrice;
+    // Clamp premium to reasonable bounds: -5% to +100% for silver, -5% to +40% for gold
+    // (gold premiums are tighter; silver rounds/bars can carry 20-80% retail premium)
+    const maxPremium = spotPrice > 500 ? 0.40 : 1.00;  // gold threshold ~$500/oz
+    const premiumPct = Math.max(-0.05, Math.min(rawPremium, maxPremium));
+    fmv = spotPrice * (1 + premiumPct);
+    method = 'bullion-spot-premium';
+
+    explanation.push(
+      `Bullion spot+premium: spot $${spotPrice.toFixed(2)}, `
+      + `comp-derived premium ${(premiumPct * 100).toFixed(1)}%, `
+      + `FMV = $${fmv.toFixed(2)}. `
+      + `(eBay median $${ebayMedian.toFixed(2)} used to derive premium.)`
+    );
+
+    // If Greysheet is available, blend it in at 15% weight for a reality check
+    if (greysheetVal != null) {
+      fmv = fmv * 0.85 + greysheetVal * 0.15;
+      explanation.push(`Greysheet blend: 85% spot-premium + 15% wholesale ($${greysheetVal.toFixed(2)}).`);
+    }
+  }
   // #51: Dynamic weights based on grade tier.
   // High-grade coins (MS67+) trade at auction, not eBay commodity market.
   // Low-grade / raw coins are best reflected by eBay street prices.
+  // Skip if bullion spot+premium mode already computed FMV above.
+  if (fmv == null) {
   const gradeNum = parseGradeNumber(userGrade);
   const gradeTier = getGradeTier(gradeNum, isCertified);
 
@@ -110,6 +141,7 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
     method = 'raw-blend';
     explanation.push(`Raw coin blend. Base weights: eBay 70%, PCGS 10%, Greysheet 20%.`);
   }
+  } // end if (fmv == null) — bullion spot+premium may have set it above
 
   if (fmv == null) {
     explanation.push('NO DATA: unable to compute FMV — no comps or guide prices available.');
@@ -241,7 +273,13 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
         rawCount: usRaw.length,
         poolCount: usComps.length,
         totalCount: usCompsAll.length
-      }
+      },
+      method,
+      bullionSpot: method === 'bullion-spot-premium' ? {
+        spotPrice: +spotPrice.toFixed(2),
+        premiumPct: +((fmv / spotPrice - 1) * 100).toFixed(1),
+        ebayMedian: +ebayMedian.toFixed(2),
+      } : null
     },
     decisions: {
       buy: {

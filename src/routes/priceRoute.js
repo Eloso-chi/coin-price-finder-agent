@@ -310,7 +310,13 @@ router.post('/', async (req, res) => {
       });
     }
 
-    const { valuation, decisions } = computeValuation(pcgs, ebay, askingPrice || null, userGrade, { isBullion, greysheet });
+    const { valuation, decisions } = computeValuation(pcgs, ebay, askingPrice || null, userGrade, {
+      isBullion,
+      greysheet,
+      spotPrice: (isBullion && expected.meltPerOz && resolvedWeight)
+        ? expected.meltPerOz * resolvedWeight
+        : null,
+    });
 
     // ── 5b. Runtime series integrity guardrail ──
     // Detect if PCGS resolved to a conflicting series (e.g., query="Jefferson"

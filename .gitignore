@@ -13,3 +13,5 @@ iisnode/
 
 # Test metrics data (local, append-only)
 .test-metrics/*.jsonl
+scripts/__pycache__/
+scripts/cache.cookies.json
