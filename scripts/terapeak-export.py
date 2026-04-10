@@ -206,10 +206,36 @@ def human_idle(page):
         time.sleep(random.uniform(0.3, 0.8))
 
 
+# Characters near each key on a QWERTY keyboard for realistic typos
+_NEARBY_KEYS = {
+    'a': 'sqwz', 'b': 'vghn', 'c': 'xdfv', 'd': 'sfecx', 'e': 'wrsdf',
+    'f': 'dgrtcv', 'g': 'fhtyb', 'h': 'gjyun', 'i': 'ujko', 'j': 'hkuinm',
+    'k': 'jloi', 'l': 'kop', 'm': 'njk', 'n': 'bhjm', 'o': 'iklp',
+    'p': 'ol', 'q': 'wa', 'r': 'edft', 's': 'adwxz', 't': 'rfgy',
+    'u': 'yhji', 'v': 'cfgb', 'w': 'qase', 'x': 'zsdc', 'y': 'tghu',
+    'z': 'asx', '1': '2q', '2': '13qw', '3': '24we', '4': '35er',
+    '5': '46rt', '6': '57ty', '7': '68yu', '8': '79ui', '9': '80io',
+    '0': '9op',
+}
+
+
 def human_type(element, text, page=None):
     """Type text character by character with random delays, like a human.
+    Occasionally makes a typo (nearby key), pauses, backspaces, and retypes.
     If page is provided, occasionally pause mid-word (like thinking)."""
     for i, ch in enumerate(text):
+        # ~4% chance of typo on letters/digits (skip spaces and punctuation)
+        if ch.lower() in _NEARBY_KEYS and random.random() < 0.04:
+            # Type a wrong (nearby) key
+            wrong = random.choice(_NEARBY_KEYS[ch.lower()])
+            if ch.isupper():
+                wrong = wrong.upper()
+            element.type(wrong, delay=random.uniform(*DELAY_TYPING) * 1000)
+            # Brief pause -- "oh wait, that's wrong"
+            time.sleep(random.uniform(0.15, 0.45))
+            element.press("Backspace")
+            time.sleep(random.uniform(0.08, 0.2))
+            # Now type the correct character
         element.type(ch, delay=random.uniform(*DELAY_TYPING) * 1000)
         # Occasional mid-word pause (thinking about what to type next)
         if page and random.random() < 0.06 and i > 0:
@@ -801,9 +827,11 @@ def do_export_run(args):
         terms.sort(key=_csv_rows)
         print(f"Priority sort: thin-data coins first")
 
-    # Shuffle within batch to avoid predictable access patterns
-    if args.batch:
+    # Shuffle to avoid predictable alphabetical access patterns
+    # (default on; disable with --no-shuffle when order matters)
+    if args.shuffle:
         random.shuffle(terms)
+        print(f"Shuffled order for human-like access pattern")
 
     # Apply limit
     if args.limit:
@@ -1074,6 +1102,8 @@ Examples:
     parser.add_argument("--filter", type=str, help="Only export terms matching this regex")
     parser.add_argument("--limit", type=int, help="Max number of coins to export")
     parser.add_argument("--priority", action="store_true", help="Sort by data quality: thin-data coins first")
+    parser.add_argument("--shuffle", action="store_true", default=True, help="Shuffle order for human-like patterns (default: on)")
+    parser.add_argument("--no-shuffle", action="store_false", dest="shuffle", help="Disable shuffle (preserve alphabetical order)")
     parser.add_argument("--batch", type=int, metavar="N", help="Run N coins then stop (use with cron/scheduler)")
 
     args = parser.parse_args()
