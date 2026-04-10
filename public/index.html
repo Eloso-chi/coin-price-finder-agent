@@ -2170,21 +2170,29 @@
   (function initTabs() {
     const tabs = document.querySelectorAll('.tab-btn');
 
+    // Safe dialog opener — closes first if already open, prevents InvalidStateError
+    function _openAuthDialog() {
+      try {
+        const dlg = document.getElementById('auth-dialog');
+        if (!dlg) return;
+        if (dlg.open) dlg.close();
+        dlg.showModal();
+      } catch (err) {
+        console.error('[auth] Failed to open dialog:', err);
+      }
+    }
+
     // Teaser banner login button
     const teaserLogin = document.getElementById('auth-teaser-login');
     if (teaserLogin) {
-      teaserLogin.addEventListener('click', () => {
-        const dlg = document.getElementById('auth-dialog');
-        if (dlg) dlg.showModal();
-      });
+      teaserLogin.addEventListener('click', _openAuthDialog);
     }
 
     tabs.forEach(tab => {
       tab.addEventListener('click', () => {
         // Auth gate: if locked tab clicked while logged out, open login dialog
         if (AUTH_GATED_TABS.includes(tab.id) && !CoinAuth.currentUser()) {
-          const dlg = document.getElementById('auth-dialog');
-          if (dlg) dlg.showModal();
+          _openAuthDialog();
           return;
         }
         tabs.forEach(t => {
@@ -3577,7 +3585,7 @@
           const btn = document.getElementById('add-coin-btn');
           if (btn) btn.addEventListener('click', () => {
             const dlg = document.getElementById('auth-dialog');
-            if (dlg) dlg.showModal();
+            if (dlg) { if (dlg.open) dlg.close(); dlg.showModal(); }
           });
         }, 0);
       }
@@ -5006,6 +5014,7 @@
       username.value = '';
       password.value = '';
       hideError();
+      if (dialog.open) dialog.close();
       dialog.showModal();
       username.focus();
     }
@@ -5042,6 +5051,7 @@
     if (pending) {
       setMode(false);
       username.value = pending;
+      if (dialog.open) dialog.close();
       dialog.showModal();
       password.focus();
     }
@@ -5332,7 +5342,7 @@
     document.querySelectorAll('.about-teaser-login').forEach(btn => {
       btn.addEventListener('click', () => {
         const dlg = document.getElementById('auth-dialog');
-        if (dlg) dlg.showModal();
+        if (dlg) { if (dlg.open) dlg.close(); dlg.showModal(); }
       });
     });
 
