@@ -315,11 +315,28 @@ function parseCSV(csvData, searchTerm) {
   const comps = [];
   let skipped = 0;
 
+  // Terapeak CSVs use a multi-row format: when a listing sold multiple times
+  // (multi-quantity or best-offer), the first row has the title + item ID and
+  // subsequent rows for the same listing have blank title/ID but valid
+  // price/date/shipping.  Carry forward from the previous row so we don't
+  // lose those sales.
+  let lastTitle = '';
+
   for (const record of records) {
     // Map raw columns to canonical names
     const mapped = {};
     for (const [rawCol, canonName] of Object.entries(colMapping)) {
       mapped[canonName] = record[rawCol];
+    }
+
+    // Carry forward title from previous row when blank (multi-sale listings)
+    // Do NOT carry forward itemId — each blank row is a separate sale event
+    // of the same multi-quantity listing and must not be deduped against it.
+    if (mapped.title && mapped.title.trim()) {
+      lastTitle = mapped.title;
+    } else {
+      mapped.title = lastTitle;
+      mapped.itemId = '';  // force blank so dedup uses title+price key instead
     }
 
     const comp = rowToComp(mapped, searchTerm);

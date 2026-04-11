@@ -8,6 +8,8 @@ const terapeakService = require('../services/terapeakService');
 const stats = require('../utils/stats');
 const { getCoinMetalProfile } = require('../utils/coinMetalProfile');
 const { getHistory, METAL_SYMBOLS } = require('../services/metalsHistoryService');
+const { classifyGradeType } = require('../services/ebayService');
+const { isDenied } = require('../utils/filters');
 
 const VALID_RANGES = new Set([90, 180, 365]);
 
@@ -55,6 +57,29 @@ router.get('/', (req, res) => {
     const d = new Date(c.soldDate);
     return !isNaN(d.getTime()) && d >= cutoff;
   });
+
+  // ── Align with Price Discovery filtering ──
+  // 1. Remove denied titles (lots, replicas, etc.)
+  compsInRange = compsInRange.filter(c => !isDenied(c.title || ''));
+
+  // 2. Grade-type split: when no specific grade is in the query, use raw
+  //    comps only (graded/slabbed coins sell at different prices).
+  const wantsGraded = !!queryGrade;
+  compsInRange = compsInRange.filter(c => {
+    const gt = c.gradeType || classifyGradeType(c);
+    return wantsGraded ? gt === 'graded' : gt === 'raw';
+  });
+
+  // 3. MAD outlier removal (same 3.5× threshold as Price Discovery)
+  if (compsInRange.length >= 5) {
+    const prices = compsInRange.map(c => c.totalUsd).sort((a, b) => a - b);
+    const med = stats.median(prices);
+    const deviations = prices.map(p => Math.abs(p - med));
+    const mad = stats.median(deviations) || 1;
+    compsInRange = compsInRange.filter(c =>
+      Math.abs(c.totalUsd - med) <= 3.5 * mad
+    );
+  }
 
   // When a specific grade was requested, filter comps to that grade.
   // Match against the listing title (e.g. "PCGS MS-63", "NGC MS 63").
