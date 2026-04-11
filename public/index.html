@@ -2170,13 +2170,18 @@
   (function initTabs() {
     const tabs = document.querySelectorAll('.tab-btn');
 
-    // Safe dialog opener — closes first if already open, prevents InvalidStateError
+    // Safe dialog opener — delegates to initAuthUI's openDialog (which calls
+    // setMode) once it's ready; falls back to raw showModal before that.
     function _openAuthDialog() {
       try {
-        const dlg = document.getElementById('auth-dialog');
-        if (!dlg) return;
-        if (dlg.open) dlg.close();
-        dlg.showModal();
+        if (typeof window._openAuthDialog === 'function') {
+          window._openAuthDialog();
+        } else {
+          const dlg = document.getElementById('auth-dialog');
+          if (!dlg) return;
+          if (dlg.open) dlg.close();
+          dlg.showModal();
+        }
       } catch (err) {
         console.error('[auth] Failed to open dialog:', err);
       }
@@ -3584,8 +3589,7 @@
         setTimeout(() => {
           const btn = document.getElementById('add-coin-btn');
           if (btn) btn.addEventListener('click', () => {
-            const dlg = document.getElementById('auth-dialog');
-            if (dlg) { if (dlg.open) dlg.close(); dlg.showModal(); }
+            if (typeof window._openAuthDialog === 'function') window._openAuthDialog();
           });
         }, 0);
       }
@@ -5019,6 +5023,10 @@
       username.focus();
     }
 
+    // Expose globally so all entry points (teaser, about CTAs, locked tabs,
+    // "I have this coin") go through setMode() which wires the Sign Up link.
+    window._openAuthDialog = openDialog;
+
     trigger.addEventListener('click', openDialog);
     cancel.addEventListener('click', () => dialog.close());
     dialog.addEventListener('close', hideError);
@@ -5341,8 +5349,7 @@
     // About section CTA buttons → open auth dialog
     document.querySelectorAll('.about-teaser-login').forEach(btn => {
       btn.addEventListener('click', () => {
-        const dlg = document.getElementById('auth-dialog');
-        if (dlg) { if (dlg.open) dlg.close(); dlg.showModal(); }
+        if (typeof window._openAuthDialog === 'function') window._openAuthDialog();
       });
     });
 
