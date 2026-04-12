@@ -648,6 +648,43 @@ def do_search_and_export(page, search_term, download_dir):
     # Brief idle -- human scanning results
     human_idle(page)
 
+    # ── Sort by "Date last sold" (descending = most recent first) ──
+    # Default sort is Best Match.  Clicking the column header once sorts
+    # ascending (oldest first); clicking again sorts descending (newest first).
+    # We want descending so page 1 captures the most recent sales.
+    try:
+        date_header = page.query_selector(
+            'th:has-text("Date last sold"), '
+            'th:has-text("Date Last Sold"), '
+            'button:has-text("Date last sold")'
+        )
+        if date_header:
+            rand_delay(DELAY_BEFORE_CLICK)
+            human_click(page, date_header)
+            time.sleep(random.uniform(1.5, 3.0))
+            try:
+                page.wait_for_load_state("networkidle", timeout=10000)
+            except PlaywrightTimeout:
+                pass
+            # Check sort direction via JS (handles both th and button inside th)
+            sort_dir = date_header.evaluate(
+                "el => (el.getAttribute('aria-sort') || el.closest('th')?.getAttribute('aria-sort') || '')"
+            )
+            if sort_dir == "ascending":
+                rand_delay(DELAY_BEFORE_CLICK)
+                human_click(page, date_header)
+                time.sleep(random.uniform(1.5, 3.0))
+                try:
+                    page.wait_for_load_state("networkidle", timeout=10000)
+                except PlaywrightTimeout:
+                    pass
+            # Re-scroll after sort reloads
+            for _ in range(random.randint(2, 4)):
+                human_scroll(page, "down", random.randint(200, 500))
+                time.sleep(random.uniform(0.3, 0.7))
+    except Exception as e:
+        print(f"    (sort by date skipped: {e})")
+
     # Debug: viewport-only screenshot (full_page=True can OOM on heavy pages)
     page.screenshot(path=str(download_dir / f"_debug_after_search_{search_term[:30]}.png"))
 
@@ -768,6 +805,7 @@ def do_search_and_export(page, search_term, download_dir):
             "",  # seller (not shown in Terapeak table)
             format_type,
             row.get("url", ""),
+            row.get("qty", ""),
         ])
 
     if not csv_rows:
@@ -781,7 +819,8 @@ def do_search_and_export(page, search_term, download_dir):
     with open(csv_path, "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(["Item Title", "Item ID", "Sold Date", "Sold Price",
-                         "Shipping", "Condition", "Seller", "Format", "Item URL"])
+                         "Shipping", "Condition", "Seller", "Format", "Item URL",
+                         "Quantity Sold"])
         writer.writerows(csv_rows)
 
     return csv_path

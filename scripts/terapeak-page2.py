@@ -95,6 +95,33 @@ upload_csv = _mod.upload_csv
 # Browser recycle interval
 BROWSER_RECYCLE_EVERY = 40
 
+# ── Bullion series eligible for deep pagination (page 3+) ──
+# These high-volume series typically have 100+ sold listings on Terapeak.
+BULLION_PATTERNS = [
+    r'\blibertad\b',
+    r'\bsilver eagle\b',
+    r'\bgold eagle\b',
+    r'\bpanda\b',
+    r'\bperth\b',
+    r'\bkookaburra\b',
+    r'\bkangaroo\b',
+    r'\blunar\b',
+    r'\bkoala\b',
+    r'\bmaple leaf\b',
+    r'\bbritannia\b',
+    r'\bkrugerrand\b',
+    r'\bphilharmonic\b',
+    r'\bgold buffalo\b',
+    r'\bplatinum eagle\b',
+    r'\bpalladium eagle\b',
+    r'\bpolar bear\b',
+]
+_BULLION_RE = re.compile('|'.join(BULLION_PATTERNS), re.IGNORECASE)
+
+def is_bullion_term(search_term):
+    """Return True if the search term matches a bullion series eligible for deep pagination."""
+    return bool(_BULLION_RE.search(search_term))
+
 
 # ── Candidate Selection ─────────────────────────────────────
 def get_candidates(min_rows=50, filter_pattern=None):
@@ -190,10 +217,11 @@ SCRAPE_TABLE_JS = """() => {
 }"""
 
 
-def do_search_and_scrape_page2(page, search_term, download_dir):
+def do_search_and_scrape_page2(page, search_term, download_dir, max_pages=2):
     """
-    Search Terapeak for search_term, then navigate to page 2 and scrape.
-    Returns path to a temporary CSV with page-2 rows, or None on failure.
+    Search Terapeak for search_term, then navigate to pages 2..max_pages and scrape.
+    For bullion series, max_pages can be higher (e.g., 6) to capture deeper history.
+    Returns (csv_path, row_count) tuple, or None on failure, or "BOT_BLOCKED".
     """
     # Navigate to Research page
     page.goto(EBAY_RESEARCH_URL, wait_until="domcontentloaded")
@@ -281,12 +309,44 @@ def do_search_and_scrape_page2(page, search_term, download_dir):
         time.sleep(random.uniform(0.3, 0.8))
     human_idle(page)
 
+    # ── Sort by "Date last sold" (descending = most recent first) ──
+    # Default is Best Match.  Click once for ascending, again for descending.
+    try:
+        date_header = page.query_selector(
+            'th:has-text("Date last sold"), '
+            'th:has-text("Date Last Sold"), '
+            'button:has-text("Date last sold")'
+        )
+        if date_header:
+            rand_delay(DELAY_BEFORE_CLICK)
+            human_click(page, date_header)
+            time.sleep(random.uniform(1.5, 3.0))
+            try:
+                page.wait_for_load_state("networkidle", timeout=10000)
+            except PlaywrightTimeout:
+                pass
+            # Check sort direction via JS (handles both th and button inside th)
+            sort_dir = date_header.evaluate(
+                "el => (el.getAttribute('aria-sort') || el.closest('th')?.getAttribute('aria-sort') || '')"
+            )
+            if sort_dir == "ascending":
+                rand_delay(DELAY_BEFORE_CLICK)
+                human_click(page, date_header)
+                time.sleep(random.uniform(1.5, 3.0))
+                try:
+                    page.wait_for_load_state("networkidle", timeout=10000)
+                except PlaywrightTimeout:
+                    pass
+            for _ in range(random.randint(2, 4)):
+                human_scroll(page, "down", random.randint(200, 500))
+                time.sleep(random.uniform(0.3, 0.7))
+    except Exception as e:
+        print(f"    (sort by date skipped: {e})")
+
     # Debug screenshot of page 1
     page.screenshot(path=str(download_dir / f"_debug_p2_page1_{search_term[:30]}.png"))
 
     # ── Set "Results per page" to 50 (max) ──────────────────
-    # Terapeak has a <select aria-label="Results per page"> with 10/20/50 options.
-    # Setting this to 50 maximizes the rows we get from page 2.
     try:
         rpp_select = page.query_selector('select[aria-label="Results per page"]')
         if rpp_select:
@@ -299,100 +359,114 @@ def do_search_and_scrape_page2(page, search_term, download_dir):
                 except PlaywrightTimeout:
                     pass
                 time.sleep(2)
-                # Re-scroll after page reloads with new row count
                 for _ in range(random.randint(5, 8)):
                     human_scroll(page, "down", random.randint(300, 600))
                     time.sleep(random.uniform(0.3, 0.7))
     except Exception:
-        pass  # Non-critical -- proceed with whatever page size is set
+        pass  # Non-critical
 
-    # ── Click "Next" / page 2 pagination button ────────────
-    # Terapeak uses: <button class="pagination__next" aria-label="Go to next page">
+    # ── Paginate through pages 2..max_pages and scrape each ──
+    all_csv_rows = []
     next_selectors = [
-        # Exact match -- confirmed via DOM inspection Apr 2026
         'button.pagination__next:not([disabled])',
         'button[aria-label="Go to next page"]:not([disabled])',
-        # Fallbacks in case class/aria changes
         '.pagination__next',
         'button[aria-label="Next page"]',
         'a[aria-label="Next page"]',
         'nav.pagination button:last-of-type:not([disabled])',
     ]
 
-    next_btn = None
-    for sel in next_selectors:
-        try:
-            el = page.query_selector(sel)
-            if el and el.is_visible() and el.is_enabled():
-                next_btn = el
+    for page_num in range(2, max_pages + 1):
+        # Find the Next button
+        next_btn = None
+        for sel in next_selectors:
+            try:
+                el = page.query_selector(sel)
+                if el and el.is_visible() and el.is_enabled():
+                    next_btn = el
+                    break
+            except Exception:
+                continue
+
+        if not next_btn:
+            if page_num == 2:
+                print(f"NO PAGE 2 (pagination not found)")
+                page.screenshot(path=str(download_dir / f"_debug_p2_no_pagination_{search_term[:30]}.png"))
+                return None
+            else:
+                # Ran out of pages naturally
                 break
-        except Exception:
-            continue
 
-    if not next_btn:
-        print(f"NO PAGE 2 (pagination not found)")
-        page.screenshot(path=str(download_dir / f"_debug_p2_no_pagination_{search_term[:30]}.png"))
-        return None
+        # Click next page
+        rand_delay(DELAY_BEFORE_CLICK)
+        human_click(page, next_btn)
+        rand_delay(DELAY_PAGE_LOAD)
 
-    # Click page 2
-    rand_delay(DELAY_BEFORE_CLICK)
-    human_click(page, next_btn)
-    rand_delay(DELAY_PAGE_LOAD)
+        try:
+            page.wait_for_load_state("networkidle", timeout=20000)
+        except PlaywrightTimeout:
+            pass
 
-    # Wait for page 2 to load
-    try:
-        page.wait_for_load_state("networkidle", timeout=20000)
-    except PlaywrightTimeout:
-        pass
+        time.sleep(3)
 
-    time.sleep(3)
+        # Scroll to reveal results
+        for _ in range(random.randint(3, 5)):
+            human_scroll(page, "down", random.randint(200, 500))
+            time.sleep(random.uniform(0.3, 0.8))
+        human_idle(page)
 
-    # Scroll to reveal page 2 results
-    for _ in range(random.randint(3, 5)):
-        human_scroll(page, "down", random.randint(200, 500))
-        time.sleep(random.uniform(0.3, 0.8))
-    human_idle(page)
+        # Debug screenshot
+        page.screenshot(path=str(download_dir / f"_debug_p2_page{page_num}_{search_term[:30]}.png"))
 
-    # Debug screenshot of page 2
-    page.screenshot(path=str(download_dir / f"_debug_p2_page2_{search_term[:30]}.png"))
+        # Scrape this page's DOM table
+        scraped = page.evaluate(SCRAPE_TABLE_JS)
+        rows = scraped.get("rows", [])
 
-    # ── Scrape page 2 DOM table ─────────────────────────────
-    scraped = page.evaluate(SCRAPE_TABLE_JS)
-    rows = scraped.get("rows", [])
+        if not rows:
+            break  # No data on this page -- stop paginating
 
-    if not rows:
-        print(f"NO DATA on page 2 ({scraped.get('tableCount', 0)} tables)")
-        page.screenshot(path=str(download_dir / f"_debug_p2_no_data_{search_term[:30]}.png"))
-        return None
+        page_csv_rows = []
+        for row in rows:
+            title = row.get("title", "")
+            price = row.get("price", "")
+            if not title and not price:
+                continue
+            if not title and row.get("itemId"):
+                title = f"[Removed] Item {row['itemId']}"
 
-    # Convert to CSV records
-    csv_rows = []
-    for row in rows:
-        title = row.get("title", "")
-        price = row.get("price", "")
-        if not title and not price:
-            continue
-        if not title and row.get("itemId"):
-            title = f"[Removed] Item {row['itemId']}"
+            bids = row.get("bids", "")
+            if bids == "-":
+                bids = ""
 
-        bids = row.get("bids", "")
-        if bids == "-":
-            bids = ""
+            page_csv_rows.append([
+                title,
+                row.get("itemId", ""),
+                row.get("date", ""),
+                price,
+                row.get("shipping", ""),
+                "",        # condition
+                "",        # seller
+                row.get("format", ""),
+                row.get("url", ""),
+                row.get("qty", ""),
+            ])
 
-        csv_rows.append([
-            title,
-            row.get("itemId", ""),
-            row.get("date", ""),
-            price,
-            row.get("shipping", ""),
-            "",        # condition
-            "",        # seller
-            row.get("format", ""),
-            row.get("url", ""),
-        ])
+        if page_csv_rows:
+            all_csv_rows.extend(page_csv_rows)
+            if max_pages > 2:
+                print(f"p{page_num}:{len(page_csv_rows)} ", end="", flush=True)
+        else:
+            break  # Scraped rows but none usable
 
-    if not csv_rows:
-        print(f"NO USABLE ROWS on page 2 (scraped {len(rows)} raw rows)")
+        # Human-like pause between pages (longer for deeper pages)
+        base_delay = random.uniform(2.5, 6.0)
+        # Every 2-3 pages, take a longer "reading" pause (human scanning results)
+        if page_num % random.randint(2, 3) == 0:
+            base_delay += random.uniform(4.0, 10.0)
+        time.sleep(base_delay)
+
+    if not all_csv_rows:
+        print(f"NO USABLE ROWS across pages 2-{max_pages}")
         return None
 
     # Write to temp CSV (will be merged into the main CSV)
@@ -401,10 +475,11 @@ def do_search_and_scrape_page2(page, search_term, download_dir):
     with open(csv_path, "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(["Item Title", "Item ID", "Sold Date", "Sold Price",
-                         "Shipping", "Condition", "Seller", "Format", "Item URL"])
-        writer.writerows(csv_rows)
+                         "Shipping", "Condition", "Seller", "Format", "Item URL",
+                         "Quantity Sold"])
+        writer.writerows(all_csv_rows)
 
-    return csv_path, len(csv_rows)
+    return csv_path, len(all_csv_rows)
 
 
 def append_to_csv(main_csv_path, page2_csv_path):
@@ -489,12 +564,19 @@ def do_page2_run(args):
         candidates = candidates[:args.limit]
 
     if args.dry_run:
-        print(f"\nDRY RUN -- {len(candidates)} coins qualify for page 2 enrichment:")
+        print(f"\nDRY RUN -- {len(candidates)} coins qualify for page 2+ enrichment:")
+        bullion_count = 0
         # Sort by row count for display
         for i, c in enumerate(sorted(candidates, key=lambda x: -x["row_count"]), 1):
-            print(f"  {i:3d}. {c['term']:<50s}  ({c['row_count']} rows)")
-        est_min = len(candidates) * 20 / 60  # ~20 sec per coin (search + page 2)
-        print(f"\nEstimated time: ~{est_min:.0f} minutes")
+            is_bull = is_bullion_term(c["term"])
+            if is_bull:
+                bullion_count += 1
+            max_pg = args.max_pages if args.max_pages else (6 if is_bull else 2)
+            tag = f"[bullion p2-{max_pg}]" if is_bull else "[p2]"
+            print(f"  {i:3d}. {c['term']:<50s}  ({c['row_count']} rows) {tag}")
+        est_min = len(candidates) * 20 / 60  # ~20 sec per coin per page
+        print(f"\nBullion series: {bullion_count}/{len(candidates)}")
+        print(f"Estimated time: ~{est_min:.0f} minutes (more for bullion deep-page)")
         return
 
     print(f"\nEnriching {len(candidates)} coins with page 2 data...")
@@ -592,8 +674,12 @@ def do_page2_run(args):
 
         print(f"  [{pct:3d}%] {term}...", end=" ", flush=True)
 
+        # Bullion series get deeper pagination (up to 6 pages = 300 results)
+        # Non-bullion stays at page 2 only (100 results)
+        effective_max_pages = args.max_pages if args.max_pages else (6 if is_bullion_term(term) else 2)
+
         try:
-            result = do_search_and_scrape_page2(page, term, DOWNLOAD_DIR)
+            result = do_search_and_scrape_page2(page, term, DOWNLOAD_DIR, max_pages=effective_max_pages)
 
             # Bot detection
             if result == "BOT_BLOCKED":
@@ -668,6 +754,12 @@ def do_page2_run(args):
                 print(f"  ... taking a {pause:.0f}s break ...")
                 time.sleep(pause)
                 next_coffee = i + 1 + random.randint(*COFFEE_BREAK_EVERY)
+            elif effective_max_pages > 2 and random.random() < 0.3:
+                # Deep pagination coins: 30% chance of a short "scroll break"
+                # between coins to vary the rhythm
+                micro = random.uniform(15, 45)
+                print(f"  ... short pause {micro:.0f}s ...")
+                time.sleep(micro)
             else:
                 rand_delay(DELAY_BETWEEN_SEARCHES)
 
@@ -707,11 +799,13 @@ Examples:
   python3 scripts/terapeak-page2.py --run --min-rows 45       # Custom threshold
         """,
     )
-    parser.add_argument("--run", action="store_true", help="Run page 2 enrichment")
+    parser.add_argument("--run", action="store_true", help="Run page 2+ enrichment")
     parser.add_argument("--dry-run", action="store_true", help="Show candidates without scraping")
     parser.add_argument("--filter", type=str, help="Only enrich terms matching this regex")
     parser.add_argument("--limit", type=int, help="Max number of coins to enrich")
     parser.add_argument("--min-rows", type=int, default=50, help="Min rows to qualify (default: 50)")
+    parser.add_argument("--max-pages", type=int, default=None,
+                        help="Max pages to scrape (default: 6 for bullion, 2 for others)")
 
     args = parser.parse_args()
 

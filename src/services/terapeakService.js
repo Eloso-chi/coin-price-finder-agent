@@ -272,7 +272,8 @@ function rowToComp(mappedRow, searchTerm) {
     matchScore: null,
     matchNotes: ['terapeak-csv-import'],
     _source: 'terapeak',
-    gradeType: null
+    gradeType: null,
+    quantitySold: parseInt(mappedRow.quantity) || null,
   };
   comp.gradeType = classifyGradeType(comp);
   return comp;
