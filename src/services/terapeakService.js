@@ -372,7 +372,7 @@ function importComps(searchTerm, comps, meta = {}) {
   const existing = store[normalizedKey]?.comps || [];
   const existingIds = new Set(existing.map(c => c.itemId).filter(Boolean));
   const existingTitles = new Set(existing.map(c =>
-    (c.title || '').toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 80) + '|' + Math.round(c.totalUsd || 0)
+    (c.title || '').toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 80) + '|' + Math.round(c.totalUsd || 0) + '|' + (c.soldDate || '')
   ));
 
   let newCount = 0;
@@ -380,8 +380,8 @@ function importComps(searchTerm, comps, meta = {}) {
   for (const comp of comps) {
     // Check by itemId
     if (comp.itemId && existingIds.has(comp.itemId)) { dupCount++; continue; }
-    // Check by title+price
-    const key = (comp.title || '').toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 80) + '|' + Math.round(comp.totalUsd || 0);
+    // Check by title+price+date (date included so same listing sold on different dates isn't deduped)
+    const key = (comp.title || '').toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 80) + '|' + Math.round(comp.totalUsd || 0) + '|' + (comp.soldDate || '');
     if (existingTitles.has(key)) { dupCount++; continue; }
 
     existing.push(comp);
@@ -400,6 +400,13 @@ function importComps(searchTerm, comps, meta = {}) {
 
   _store = store;
   saveStore();
+
+  // Invalidate eBay result cache — cached price responses were computed from
+  // the old Terapeak dataset and are now stale.  Lazy require to avoid
+  // circular dependency (ebayService requires terapeakService).
+  if (newCount > 0) {
+    try { require('./ebayService').clearCache(); } catch (_) { /* ok */ }
+  }
 
   return {
     key: normalizedKey,

@@ -409,30 +409,34 @@ def do_search_and_scrape_page2(page, search_term, download_dir):
 
 def append_to_csv(main_csv_path, page2_csv_path):
     """Append page 2 rows to the main CSV, deduplicating by composite key
-    (Item ID + Sold Date + Sold Price).  Terapeak shows the same Item ID
+    (Title + Item ID + Sold Date + Sold Price).  Terapeak shows the same Item ID
     across multiple pages because listings sell repeatedly over time.
-    We want to keep rows that represent genuinely different data points."""
+    We want to keep rows that represent genuinely different data points.
+    Title is included so that blank-itemId sub-rows from different listings
+    (different sellers/images) with the same date+price are not falsely deduped."""
     # Build composite keys from existing rows
     existing_keys = set()
     with open(main_csv_path, newline="") as f:
         reader = csv.reader(f)
         header = next(reader, None)
         for row in reader:
-            # Key: itemId|soldDate|soldPrice  (columns 1, 2, 3)
+            # Key: title|itemId|soldDate|soldPrice  (columns 0, 1, 2, 3)
+            title = row[0].strip().lower() if len(row) >= 1 else ""
             item_id = row[1].strip() if len(row) >= 2 else ""
             sold_date = row[2].strip() if len(row) >= 3 else ""
             sold_price = row[3].strip() if len(row) >= 4 else ""
-            key = f"{item_id}|{sold_date}|{sold_price}"
+            key = f"{title}|{item_id}|{sold_date}|{sold_price}"
             existing_keys.add(key)
 
     # Read page 2 rows, skip duplicates
     new_rows = []
     skipped = 0
     for row in _read_csv_rows(page2_csv_path):
+        title = row[0].strip().lower() if len(row) >= 1 else ""
         item_id = row[1].strip() if len(row) >= 2 else ""
         sold_date = row[2].strip() if len(row) >= 3 else ""
         sold_price = row[3].strip() if len(row) >= 4 else ""
-        key = f"{item_id}|{sold_date}|{sold_price}"
+        key = f"{title}|{item_id}|{sold_date}|{sold_price}"
         if key in existing_keys:
             skipped += 1
             continue
