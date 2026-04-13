@@ -771,6 +771,10 @@ function normalizeSearchKey(term) {
     // Collapse "N oz" → "Noz" so "1 oz" matches dataset keys like "1oz".
     // Must run BEFORE non-alphanumeric stripping so fractions like "1/2 oz" are handled.
     .replace(/\b(\d+(?:[\/\.]\d+)?)\s*oz\b/g, '$1oz')
+    // Strip standalone Roman numerals (i, ii, iii, iv, v) -- these are series
+    // labels (e.g. "Lunar III") that don't appear in Terapeak dataset keys
+    // and poison fuzzy matching by inflating the token count.
+    .replace(/\b(i{1,3}|iv|v)\b/g, '')
     .replace(/[^a-z0-9\s\-]/g, '')
     .replace(/\s+/g, ' ')
     .trim();
