@@ -123,6 +123,23 @@ def is_bullion_term(search_term):
     return bool(_BULLION_RE.search(search_term))
 
 
+def get_completed_terms_from_log(log_path):
+    """Parse a page2 log file and return a set of search terms already processed (OK or NO PAGE 2)."""
+    completed = set()
+    if not log_path or not Path(log_path).exists():
+        return completed
+    with open(log_path, "r") as f:
+        for line in f:
+            # Match lines like: "  [ 48%] 1988 American Silver Eagle... p2:50 ..." or "... NO PAGE 2"
+            m = re.match(r'^\s+\[\s*\d+%\]\s+(.+?)\.\.\.', line)
+            if m:
+                term = m.group(1).strip()
+                # Only count lines that completed (OK or NO PAGE 2), not errors
+                if 'OK' in line or 'NO PAGE 2' in line:
+                    completed.add(term)
+    return completed
+
+
 # ── Candidate Selection ─────────────────────────────────────
 def get_candidates(min_rows=50, filter_pattern=None):
     """Find coins with >= min_rows in their CSV (page 1 was full).
@@ -556,6 +573,17 @@ def do_page2_run(args):
         print("No candidates found. All coins have fewer rows than the threshold.")
         return
 
+    # Resume: skip already-completed coins from a previous log
+    if args.resume:
+        done_terms = get_completed_terms_from_log(args.resume)
+        if done_terms:
+            before = len(candidates)
+            candidates = [c for c in candidates if c["term"] not in done_terms]
+            print(f"  Resume: skipping {before - len(candidates)} already-completed coins from {args.resume}")
+            if not candidates:
+                print("All candidates already completed. Nothing to do.")
+                return
+
     # Shuffle for anti-pattern detection
     random.shuffle(candidates)
 
@@ -806,6 +834,8 @@ Examples:
     parser.add_argument("--min-rows", type=int, default=50, help="Min rows to qualify (default: 50)")
     parser.add_argument("--max-pages", type=int, default=None,
                         help="Max pages to scrape (default: 6 for bullion, 2 for others)")
+    parser.add_argument("--resume", type=str, metavar="LOGFILE",
+                        help="Skip coins already completed in this log file (e.g. cache/terapeak_eagles_p2.log)")
 
     args = parser.parse_args()
 
