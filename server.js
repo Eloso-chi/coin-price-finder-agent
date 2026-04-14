@@ -203,4 +203,45 @@ app.listen(PORT, '0.0.0.0', () => {
   // Repeat every 30 minutes
   setInterval(refreshMetalsPrices, METALS_POLL_MS);
   console.log(`  Metals spot price: polling every ${METALS_POLL_MS / 60000} min (round-robin across ${metals._providers.length} providers)`);
+
+  // ── Background Greysheet history refresh (weekly) ──────────
+  const greysheetHistory = require('./src/services/greysheetHistoryService');
+  const { runRefresh: runGreysheetRefresh } = require('./scripts/greysheet-refresh');
+  const GS_REFRESH_INTERVAL_DAYS = parseInt(process.env.GS_REFRESH_DAYS, 10) || 7;
+  const GS_REFRESH_MS = GS_REFRESH_INTERVAL_DAYS * 24 * 60 * 60 * 1000;
+
+  // Evict Greysheet history entries older than 200 days on startup
+  greysheetHistory.evictOld(200);
+
+  function needsGreysheetRefresh() {
+    const lastRun = greysheetHistory.getLastRefreshDate();
+    if (!lastRun) return true;
+    const daysSince = (Date.now() - new Date(lastRun + 'T00:00:00Z').getTime()) / 86_400_000;
+    return daysSince >= GS_REFRESH_INTERVAL_DAYS;
+  }
+
+  async function doGreysheetRefresh() {
+    try {
+      console.log('  [greysheet] Starting weekly price refresh...');
+      const result = await runGreysheetRefresh({ delayMs: 500 });
+      console.log(`  [greysheet] Refresh complete: ${result.totalSnapshots} snapshots, ${result.coinsTracked} coins tracked`);
+    } catch (err) {
+      console.warn(`  [greysheet] Refresh failed: ${err.message}`);
+    }
+  }
+
+  // Check on startup if a refresh is due (delayed 10s to not block startup)
+  setTimeout(() => {
+    if (needsGreysheetRefresh()) {
+      console.log(`  [greysheet] Last refresh: ${greysheetHistory.getLastRefreshDate() || 'never'} — starting refresh...`);
+      doGreysheetRefresh();
+    } else {
+      console.log(`  [greysheet] Last refresh: ${greysheetHistory.getLastRefreshDate()} — next in ${GS_REFRESH_INTERVAL_DAYS}d (${greysheetHistory.coinCount()} coins tracked)`);
+    }
+  }, 10_000);
+
+  // Safety-net interval: re-check every 24h in case the app stays up for weeks
+  setInterval(() => {
+    if (needsGreysheetRefresh()) doGreysheetRefresh();
+  }, 24 * 60 * 60 * 1000);
 });

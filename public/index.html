@@ -1273,7 +1273,7 @@
       </button>
       <div id="adv-options" class="advanced-options" role="region">
         <label><span>PCGS Coin #</span><input id="pcgsNumber" type="text" placeholder="e.g. 7187" style="font-size:0.85rem"></label>
-        <label><span>Lookback Days</span><input id="optDays" type="number" value="90" min="7" max="365"></label>
+        <label><span>Lookback Days</span><input id="optDays" type="number" value="90" min="7" max="180"></label>
         <label><span>Min Comps</span><input id="optMin" type="number" value="8" min="1" max="50"></label>
         <label><span>Max Pages</span><input id="optPages" type="number" value="3" min="1" max="10"></label>
         <label class="checkbox-label"><input id="optPCGS" type="checkbox"> <span>PCGS-Only</span></label>
@@ -1827,7 +1827,6 @@
           <select id="history-range">
             <option value="90">90 days</option>
             <option value="180">180 days</option>
-            <option value="365">1 year</option>
           </select>
         </div>
         <button class="btn-primary" id="history-btn" style="height:38px">Show Chart</button>
@@ -5582,7 +5581,7 @@
       if (queryEl.value.trim()) emptyEl.style.display = 'none';
     });
 
-    const RANGE_LABELS = { '90': 'Last 90 days', '180': 'Last 180 days', '365': 'Last year' };
+    const RANGE_LABELS = { '90': 'Last 90 days', '180': 'Last 180 days' };
 
     async function fetchAndRender() {
       const query = queryEl.value.trim();
@@ -5625,13 +5624,26 @@
           metalNote.innerHTML = '\uD83E\uDE99 <strong>' + mName + ' spot overlay</strong> \u2014 '
             + 'The dashed gold line shows the underlying ' + data.metalOverlay.metal
             + ' spot price over the same period so you can compare metal-driven vs. numismatic value changes.';
+          if (data.greysheetOverlay && (data.greysheetOverlay.current.wholesale || data.greysheetOverlay.current.retail)) {
+            const gsParts = [];
+            if (data.greysheetOverlay.current.wholesale) gsParts.push('Wholesale (dealer bid): $' + data.greysheetOverlay.current.wholesale.toFixed(2));
+            if (data.greysheetOverlay.current.retail)    gsParts.push('Retail (CPG): $' + data.greysheetOverlay.current.retail.toFixed(2));
+            metalNote.innerHTML += '<br>\uD83D\uDCCB <strong>Greysheet dealer pricing</strong> \u2014 ' + gsParts.join(' \u00B7 ');
+          }
+          metalNote.style.display = 'block';
+        } else if (data.greysheetOverlay && (data.greysheetOverlay.current.wholesale || data.greysheetOverlay.current.retail)) {
+          const gsParts = [];
+          if (data.greysheetOverlay.current.wholesale) gsParts.push('Wholesale (dealer bid): $' + data.greysheetOverlay.current.wholesale.toFixed(2));
+          if (data.greysheetOverlay.current.retail)    gsParts.push('Retail (CPG): $' + data.greysheetOverlay.current.retail.toFixed(2));
+          metalNote.innerHTML = '\uD83D\uDCCB <strong>Greysheet dealer pricing</strong> \u2014 ' + gsParts.join(' \u00B7 ')
+            + '. Green dashed lines show dealer bid/retail reference levels.';
           metalNote.style.display = 'block';
         } else {
           metalNote.style.display = 'none';
         }
 
         wrap.style.display = 'block';
-        drawChart(canvas, data.displayName, data.prices, data.metalOverlay);
+        drawChart(canvas, data.displayName, data.prices, data.metalOverlay, data.greysheetOverlay);
       } catch (err) {
         status.textContent = 'We couldn\u2019t load history for this coin.';
       } finally {
@@ -5639,7 +5651,7 @@
       }
     }
 
-    function drawChart(cvs, displayName, prices, metalOverlay) {
+    function drawChart(cvs, displayName, prices, metalOverlay, gsOverlay) {
       const dpr = window.devicePixelRatio || 1;
       const rect = cvs.parentElement.getBoundingClientRect();
       cvs.width = rect.width * dpr;
@@ -5655,7 +5667,13 @@
 
       // ── Coin series (left Y axis, blue) ──
       const vals = prices.map(p => p[1]);
-      let minV = Math.min(...vals), maxV = Math.max(...vals);
+      // Include Greysheet values in Y range so reference lines aren't clipped
+      var gsValsForRange = [];
+      if (gsOverlay && gsOverlay.current) {
+        if (gsOverlay.current.wholesale) gsValsForRange.push(gsOverlay.current.wholesale);
+        if (gsOverlay.current.retail)    gsValsForRange.push(gsOverlay.current.retail);
+      }
+      let minV = Math.min(...vals, ...gsValsForRange), maxV = Math.max(...vals, ...gsValsForRange);
       if (minV === maxV) { minV -= 10; maxV += 10; }
       const padV = (maxV - minV) * 0.08;
       minV -= padV; maxV += padV;
@@ -5816,7 +5834,7 @@
       ctx.lineJoin = 'round';
       ctx.stroke();
 
-      // Dots — outliers (outside 1.5×IQR) drawn in red, normal in blue
+      // Dots -- outliers (outside 1.5xIQR) drawn in red, normal in blue
       for (let i = 0; i < prices.length; i++) {
         const v = vals[i];
         const isOutlier = v < outlierLo || v > outlierHi;
@@ -5828,6 +5846,53 @@
           ctx.lineWidth = 1;
           ctx.beginPath(); ctx.arc(xPos(dates[i]), yPos(v), r + 3, 0, Math.PI * 2); ctx.stroke();
         }
+      }
+
+      // ── Greysheet dealer reference lines ──
+      // Uses left Y axis (same scale as eBay sold prices).
+      // If we have multiple snapshots: draw trend line. Otherwise: horizontal reference line.
+      const hasGs = gsOverlay && gsOverlay.current && (gsOverlay.current.wholesale || gsOverlay.current.retail);
+      const GS_COLORS = { wholesale: '#e5534b', retail: '#bc8cff' };
+      const GS_LABELS = { wholesale: 'GS Wholesale', retail: 'GS Retail' };
+
+      if (hasGs) {
+        ['wholesale', 'retail'].forEach(function(type) {
+          const currentVal = gsOverlay.current[type];
+          if (!currentVal) return;
+          const trendData = gsOverlay[type]; // array of [date, val] or null
+          const color = GS_COLORS[type];
+
+          if (trendData && trendData.length >= 2) {
+            // Trend line (multiple snapshots)
+            ctx.beginPath();
+            var td = trendData.map(function(p) { return [new Date(p[0] + 'T00:00:00'), p[1]]; });
+            ctx.moveTo(xPos(td[0][0]), yPos(td[0][1]));
+            for (var ti = 1; ti < td.length; ti++) ctx.lineTo(xPos(td[ti][0]), yPos(td[ti][1]));
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash([6, 4]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+          } else {
+            // Single point or no history -- draw flat reference line
+            var gY = yPos(currentVal);
+            if (gY >= PAD_T && gY <= H - PAD_B) {
+              ctx.beginPath();
+              ctx.moveTo(PAD_L, gY);
+              ctx.lineTo(W - PAD_R, gY);
+              ctx.strokeStyle = color;
+              ctx.lineWidth = 1.5;
+              ctx.setLineDash([6, 4]);
+              ctx.stroke();
+              ctx.setLineDash([]);
+              // Label on right side
+              ctx.font = '10px -apple-system, sans-serif';
+              ctx.fillStyle = color;
+              ctx.textAlign = 'left';
+              ctx.fillText(GS_LABELS[type] + ' $' + currentVal.toFixed(currentVal >= 100 ? 0 : 2), PAD_L + 4, gY - 5);
+            }
+          }
+        });
       }
 
       // ── Legend (top-left, always visible) ──
@@ -5873,6 +5938,20 @@
         ctx.fillStyle = '#c9d1d9';
         const metalLabel = metalOverlay.metal.charAt(0).toUpperCase() + metalOverlay.metal.slice(1) + ' spot';
         ctx.fillText(metalLabel, legendX + 20, ly + 5);
+        legendX += 24 + ctx.measureText(metalLabel).width;
+      }
+      // Greysheet swatches (if overlay)
+      if (hasGs) {
+        ['wholesale', 'retail'].forEach(function(type) {
+          if (!gsOverlay.current[type]) return;
+          ctx.setLineDash([4, 3]);
+          ctx.strokeStyle = GS_COLORS[type]; ctx.lineWidth = 1.5;
+          ctx.beginPath(); ctx.moveTo(legendX, ly + 1.5); ctx.lineTo(legendX + 14, ly + 1.5); ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.fillStyle = '#c9d1d9';
+          ctx.fillText(GS_LABELS[type], legendX + 20, ly + 5);
+          legendX += 24 + ctx.measureText(GS_LABELS[type]).width;
+        });
       }
     }
   })();

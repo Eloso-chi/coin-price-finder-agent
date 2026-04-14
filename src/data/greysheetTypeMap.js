@@ -124,17 +124,18 @@ const TYPE_GSID_MAP = {
 
 const SERIES_PATTERNS = [
   // Bullion: the series keyword, default metal, optional metal override
-  { re: /\bsilver\s*eagle\b/i,     series: 'silver eagle',     metal: 'silver' },
+  // defaultWeight: used when query text has no explicit weight (e.g. "Silver Eagle" → 1 oz)
+  { re: /\bsilver\s*eagle\b/i,     series: 'silver eagle',     metal: 'silver',    defaultWeight: 1 },
   { re: /\bgold\s*eagle\b/i,       series: 'gold eagle',       metal: 'gold'   },
-  { re: /\bplatinum\s*eagle\b/i,   series: 'platinum eagle',   metal: 'platinum' },
-  { re: /\bpalladium\s*eagle\b/i,  series: 'palladium eagle',  metal: 'palladium' },
-  { re: /\bgold\s*buffalo\b/i,     series: 'gold buffalo',     metal: 'gold'   },
+  { re: /\bplatinum\s*eagle\b/i,   series: 'platinum eagle',   metal: 'platinum',  defaultWeight: 1 },
+  { re: /\bpalladium\s*eagle\b/i,  series: 'palladium eagle',  metal: 'palladium', defaultWeight: 1 },
+  { re: /\bgold\s*buffalo\b/i,     series: 'gold buffalo',     metal: 'gold',      defaultWeight: 1 },
   { re: /\bmaple\s*leaf\b/i,       series: 'maple leaf',       metal: null     },  // need metal from context
-  { re: /\bkookaburra\b/i,         series: 'kookaburra',       metal: 'silver' },
+  { re: /\bkookaburra\b/i,         series: 'kookaburra',       metal: 'silver',    defaultWeight: 1 },
   { re: /\bkangaroo\b/i,           series: 'kangaroo',         metal: null     },
   { re: /\blunar\b/i,              series: 'lunar',            metal: null     },
   { re: /\bphilharmonic\b/i,       series: 'philharmonic',     metal: null     },
-  { re: /\bkrugerrand\b/i,         series: 'krugerrand',       metal: 'gold'   },
+  { re: /\bkrugerrand\b/i,         series: 'krugerrand',       metal: 'gold',      defaultWeight: 1 },
   { re: /\bpanda\b/i,              series: 'panda',            metal: null     },
   { re: /\blibertad\b/i,           series: 'libertad',         metal: null     },
   // US Classics
@@ -200,7 +201,7 @@ function lookupTypeGsid(queryText, hints = {}) {
   if (!matched) return null;
 
   const metal  = hints.metal || _detectMetal(text) || matched.metal;
-  const weight = hints.weight || _detectWeight(text);
+  const weight = hints.weight || _detectWeight(text) || matched.defaultWeight || null;
 
   // Build lookup key(s) -- try most specific to least specific
   const candidates = [];

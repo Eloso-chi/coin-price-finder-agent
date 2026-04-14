@@ -7,6 +7,7 @@ const router = express.Router();
 const pcgsService = require('../services/pcgsService');
 const ebayService = require('../services/ebayService');
 const greysheetService = require('../services/greysheetService');
+const greysheetHistory = require('../services/greysheetHistoryService');
 const { computeValuation } = require('../services/valuationService');
 const { getMetalsSpotPrice } = require('../services/metalsSpotPrice');
 const numistaService = require('../services/numistaService');
@@ -308,6 +309,15 @@ router.post('/', async (req, res) => {
         metal: parsedMetal,
         weight: resolvedWeight,
       });
+    }
+
+    // Piggyback: record Greysheet snapshot for history charting (zero extra API calls)
+    if (greysheet && (greysheet.greyVal || greysheet.cpgVal)) {
+      const gsHistKey = greysheetHistory.makeKey(
+        pcgsNo || greysheet.gsid,
+        gradeNum
+      );
+      greysheetHistory.recordSnapshot(gsHistKey, greysheet.greyVal, greysheet.cpgVal);
     }
 
     const { valuation, decisions } = computeValuation(pcgs, ebay, askingPrice || null, userGrade, {

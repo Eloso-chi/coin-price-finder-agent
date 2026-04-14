@@ -5,13 +5,15 @@ const express = require('express');
 const router = express.Router();
 
 const terapeakService = require('../services/terapeakService');
+const greysheetService = require('../services/greysheetService');
+const greysheetHistory = require('../services/greysheetHistoryService');
 const stats = require('../utils/stats');
 const { getCoinMetalProfile } = require('../utils/coinMetalProfile');
 const { getHistory, METAL_SYMBOLS } = require('../services/metalsHistoryService');
 const { classifyGradeType } = require('../services/ebayService');
 const { isDenied } = require('../utils/filters');
 
-const VALID_RANGES = new Set([90, 180, 365]);
+const VALID_RANGES = new Set([90, 180]);
 
 /**
  * GET /api/coin-history?query=...&rangeDays=90
@@ -21,7 +23,7 @@ const VALID_RANGES = new Set([90, 180, 365]);
  * silver/gold US coin, includes a metalOverlay with the underlying
  * spot price history for the same date range.
  */
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   const query = (req.query.query || '').trim();
   if (!query) {
     return res.status(400).json({ error: 'query parameter is required' });
@@ -157,6 +159,44 @@ router.get('/', (req, res) => {
     }
   }
 
+  // ── Greysheet reference prices (dealer values) ──
+  // Try history first (trend line), fall back to current API value (flat reference line).
+  // Non-blocking: if Greysheet is unavailable, chart still renders.
+  let greysheetOverlay = null;
+  try {
+    const gradeNum = queryGrade
+      ? parseInt(queryGrade.replace(/[^\d]/g, ''), 10) || null
+      : null;
+
+    // Provide weight + metal hints from the metal profile so Type GSID resolution
+    // succeeds even when the query text lacks explicit weight (e.g. "Silver Eagle")
+    const gs = await greysheetService.fetchTypePrice(query, gradeNum, {
+      metal: profile.metal || undefined,
+      weight: profile.pureOzt || undefined
+    });
+    const lookupId = gs?.gsid || null;
+
+    if (gs && (gs.greyVal || gs.cpgVal)) {
+      // Record today's snapshot (piggyback, zero extra API calls)
+      const histKey = greysheetHistory.makeKey(lookupId, gradeNum);
+      greysheetHistory.recordSnapshot(histKey, gs.greyVal, gs.cpgVal);
+
+      // Get history for trend line
+      const hist = greysheetHistory.getHistory(histKey, rangeDays);
+
+      greysheetOverlay = {
+        wholesale: hist.wholesale.length > 0 ? hist.wholesale : null,
+        retail:    hist.retail.length > 0    ? hist.retail    : null,
+        current: {
+          wholesale: gs.greyVal || null,
+          retail:    gs.cpgVal  || null
+        },
+        name:      gs.name || null,
+        gradeLabel: gs.gradeLabel || null
+      };
+    }
+  } catch (_) { /* non-fatal */ }
+
   res.json({
     displayName,
     currency: 'USD',
@@ -165,7 +205,8 @@ router.get('/', (req, res) => {
     prices,
     totalComps: compsInRange.length,
     gradeFiltered: gradeFiltered || false,
-    metalOverlay
+    metalOverlay,
+    greysheetOverlay
   });
 });
 
