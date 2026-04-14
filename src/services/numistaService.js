@@ -7,7 +7,7 @@ const { TTLCache } = require('../utils/cache');
 const path = require('path');
 
 const API_BASE = 'https://api.numista.com/v3';
-const API_KEY = process.env.NUMISTA_API_KEY || '';
+function getApiKey() { return process.env.NUMISTA_API_KEY || ''; }
 
 // 24-hour TTL cache, persisted to disk
 const cache = new TTLCache({
@@ -48,7 +48,8 @@ function rarityFromMintage(mintage) {
  * Returns null on failure (non-fatal).
  */
 async function apiGet(endpoint, params = {}) {
-  if (!API_KEY) return null;
+  const key = getApiKey();
+  if (!key) return null;
 
   const url = new URL(`${API_BASE}${endpoint}`);
   for (const [k, v] of Object.entries(params)) {
@@ -57,7 +58,7 @@ async function apiGet(endpoint, params = {}) {
 
   try {
     const resp = await fetch(url.toString(), {
-      headers: { 'Numista-API-Key': API_KEY },
+      headers: { 'Numista-API-Key': key },
       signal: AbortSignal.timeout(8000)
     });
     if (!resp.ok) {
@@ -241,7 +242,7 @@ function scoreMatch(type, parsed) {
  * @returns {object}          – { accessible, type, issue, rarity, numistaUrl, prices, composition, references, limitations }
  */
 async function lookupCoin(parsed, country) {
-  if (!API_KEY) {
+  if (!getApiKey()) {
     return {
       accessible: false,
       type: null,
@@ -430,7 +431,7 @@ async function lookupCoin(parsed, country) {
  */
 async function batchRarityForSeries(series, cells, country) {
   const result = new Map();
-  if (!API_KEY || !series || !cells || cells.length === 0) return result;
+  if (!getApiKey() || !series || !cells || cells.length === 0) return result;
 
   const batchCacheKey = `batchRarity:${series}:${country || 'us'}`;
   const cached = cache.get(batchCacheKey);

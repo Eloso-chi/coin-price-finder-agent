@@ -1249,6 +1249,15 @@
             <span class="hint">Seller's asking price for buy/pass calc</span>
           </div>
           <div class="field">
+            <label for="saleContext">Sale Context</label>
+            <select id="saleContext">
+              <option value="ebay" selected>eBay Retail</option>
+              <option value="private">LCS / Private Sale</option>
+              <option value="wholesale">Dealer Wholesale</option>
+            </select>
+            <span class="hint">Adjusts buy/sell thresholds for platform fees</span>
+          </div>
+          <div class="field">
             <label for="coinWeight">Weight</label>
             <select id="coinWeight">
               <option value="">1 oz</option>
@@ -2539,6 +2548,7 @@
         return {
           query: q,
           askingPrice: parseFloat(this.els.quickAsk.value) || null,
+          saleContext: (document.getElementById('saleContext') || {}).value || 'ebay',
           weight: parseFloat(this.els.quickWeight.value) || null,
           coinData: null
         };
@@ -2550,6 +2560,7 @@
       return {
         query: this.buildQuery(),
         askingPrice: parseFloat(this.els.askingPrice.value) || null,
+        saleContext: (document.getElementById('saleContext') || {}).value || 'ebay',
         coinData: {
           name:           this.els.coinName.value.trim(),
           year:           parseInt(this.els.coinYear.value, 10),
@@ -2874,6 +2885,16 @@
         html += '<span class="' + lbClass + '" title="How far back eBay sales were searched">' + lbText + '</span>';
       }
       if (d.coinData?.label) html += '<span class="fmv-chip" title="Graded slab label">&#x1F3F7;&#xFE0F; ' + _esc(d.coinData.label) + '</span>';
+      // Low-data warning badge (#40)
+      if (v.lowData) {
+        html += '<div style="margin-top:6px;padding:6px 10px;background:rgba(220,38,38,0.08);border:1px solid rgba(220,38,38,0.35);border-radius:6px;font-size:0.78rem;color:#dc2626">';
+        html += '&#9888;&#65039; <strong>Low confidence</strong> -- only ' + (v.compCount || 0) + ' sold comp' + (v.compCount === 1 ? '' : 's') + '. Cross-reference with dealer prices before buying or selling.';
+        html += '</div>';
+      }
+      // Sale context chip (#55)
+      if (v.saleContext && v.saleContext !== 'eBay Retail') {
+        html += '<span class="fmv-chip" style="background:rgba(100,70,200,0.08);border-color:rgba(100,70,200,0.25);color:#6446c8;font-weight:600" title="Buy/sell thresholds adjusted for sale venue">&#x1F3F7;&#xFE0F; ' + _esc(v.saleContext) + '</span>';
+      }
       html += '</div>';
       html += '</div>';
 
@@ -2901,6 +2922,17 @@
       html += '</tbody></table>';
       if (sell.notes?.length) html += '<p class="card-notes">' + _esc(sell.notes.join(' ')) + '</p>';
       html += '</div></div>';
+
+      // \u2500\u2500 Adjacent-year context (#41)
+      if (d.adjacentYears && d.adjacentYears.length > 0) {
+        html += '<div class="card" style="margin-top:12px;background:rgba(99,110,123,0.04);border:1px solid rgba(99,110,123,0.15)">';
+        html += '<div style="font-size:0.82rem;font-weight:700;color:var(--text-muted);margin-bottom:6px">&#128269; Nearby Years (for context only -- not used in FMV)</div>';
+        html += '<div style="display:flex;gap:12px;flex-wrap:wrap">';
+        for (var ay of d.adjacentYears) {
+          html += '<span class="fmv-chip" style="font-size:0.82rem" title="' + ay.compCount + ' comps">' + ay.year + ': ' + $(ay.median) + ' <small style="color:var(--text-muted)">(' + ay.compCount + ')</small></span>';
+        }
+        html += '</div></div>';
+      }
 
       // \u2500\u2500 eBay Stats
       html += '<details class="card pcgs-details" open>';

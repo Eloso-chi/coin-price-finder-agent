@@ -18,6 +18,8 @@ const { resolveCoinVariant } = require('../data/halfDollarSeries');
 const { zodiacForYear, perthLunarSeries } = require('../data/constants');
 const { validateSeriesIntegrity, validateNumericSanity } = require('../utils/responseValidator');
 const { hasSeriesConflict, detectDenomination } = require('../utils/filters');
+const terapeakService = require('../services/terapeakService');
+const stats = require('../utils/stats');
 
 // ── Allowed graded-slab label values (must match frontend <select> options) ──
 const ALLOWED_LABELS = new Set([
@@ -25,6 +27,29 @@ const ALLOWED_LABELS = new Set([
   'Burnished', 'Reverse Proof', 'Enhanced Reverse Proof',
   'Satin Finish', 'Antiqued', 'High Relief',
 ]);
+
+// ── #41: Adjacent-year context ──
+// When exact coin has few/no comps, look up Terapeak data for same series +/- 2 years.
+// Returns informational context only -- NOT blended into FMV.
+function buildAdjacentYearContext(series, year, metal, soldCount) {
+  if (!series || !year || soldCount >= 5) return null;
+  const results = [];
+  for (let delta = -2; delta <= 2; delta++) {
+    if (delta === 0) continue;
+    const adjYear = year + delta;
+    const adjQuery = `${adjYear} ${series}`;
+    const data = terapeakService.lookupComps(adjQuery, { metal: metal || null });
+    if (!data || !data.comps || data.comps.length === 0) continue;
+    const prices = data.comps.map(c => c.totalUsd).filter(p => p != null);
+    if (prices.length < 2) continue;
+    results.push({
+      year: adjYear,
+      median: +stats.median(prices).toFixed(2),
+      compCount: prices.length,
+    });
+  }
+  return results.length > 0 ? results : null;
+}
 
 // ── Semiquincentennial circulating denomination map ──
 // Maps parsed "semiquincentennial <denom>" keywords to their canonical series
@@ -58,10 +83,14 @@ function resolveSemi250Series(series) {
 
 router.post('/', async (req, res) => {
   try {
-    const { query, askingPrice, options, coinData, weight: bodyWeight } = req.body || {};
+    const { query, askingPrice, options, coinData, weight: bodyWeight, saleContext: rawSaleCtx } = req.body || {};
     if (!query) {
       return res.status(400).json({ error: 'query field is required' });
     }
+
+    // #55: Validate sale context
+    const VALID_SALE_CONTEXTS = new Set(['ebay', 'private', 'wholesale']);
+    const saleContext = VALID_SALE_CONTEXTS.has(rawSaleCtx) ? rawSaleCtx : 'ebay';
 
     const opts = {
       timeWindowDays: options?.timeWindowDays || 180,
@@ -323,6 +352,7 @@ router.post('/', async (req, res) => {
     const { valuation, decisions } = computeValuation(pcgs, ebay, askingPrice || null, userGrade, {
       isBullion,
       greysheet,
+      saleContext,
       spotPrice: (isBullion && expected.meltPerOz && resolvedWeight)
         ? expected.meltPerOz * resolvedWeight
         : null,
@@ -476,6 +506,12 @@ router.post('/', async (req, res) => {
       } : null,
       valuation,
       decisions,
+      adjacentYears: buildAdjacentYearContext(
+        pcgs.series || identification.parsed?.series,
+        pcgs.year || identification.parsed?.year,
+        identification.parsed?.metal,
+        valuation.compCount || 0
+      ),
       numista: numista || null,
       reproducibility,
       trackerSeries: trackerSeries || null,

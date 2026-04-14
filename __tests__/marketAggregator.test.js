@@ -7,12 +7,15 @@
 const {
   buildMarketMatrix,
   buildGradeMatrix,
+  buildBarMatrix,
   fetchMarketMatrix,
   extractYear,
   extractMint,
   extractGrade,
+  extractBrand,
   matchesGrade,
   isBullionSeries,
+  isBarSeries,
   clearCache,
 } = require('../src/services/marketAggregator');
 
@@ -785,5 +788,172 @@ describe('fetchMarketMatrix — bullion auto-detection', () => {
 
     expect(result.mode).toBe('year-mint');
     expect(result.mintMarks).toBeDefined();
+  });
+
+  test('filters pre-first-year comps for bullion (e.g. pre-1982 Libertad)', async () => {
+    mockEbayService.fetchSoldComps
+      .mockResolvedValueOnce({
+        us: { comps: [
+          { title: '1975 Mexico Gold Libertad Peso', totalUsd: 800 },  // pre-1982 — should be filtered
+          { title: '1990 Mexico Silver Libertad 1oz BU', totalUsd: 35 },  // post-1982 — keep
+        ] },
+        global: { comps: [] },
+      });
+
+    const result = await fetchMarketMatrix({
+      series: 'Mexico Silver Libertad',
+      grade: 'All',
+      timeWindowDays: 90,
+      lookupKeyDate: mockLookupKeyDate,
+      ebayService: mockEbayService,
+    });
+
+    // The 1975 comp should be filtered — only 1990 should remain
+    const years = result.years || [];
+    expect(years).not.toContain(1975);
+    if (result.cells.length > 0) {
+      expect(result.cells.every(c => c.year >= 1982)).toBe(true);
+    }
+  });
+
+  test('filters non-bullion denomination comps (centavos, pesos)', async () => {
+    mockEbayService.fetchSoldComps
+      .mockResolvedValueOnce({
+        us: { comps: [
+          { title: '1986 Mexico 50 Centavos Libertad', totalUsd: 2 },  // centavos — should be filtered
+          { title: '2020 Mexico Silver Libertad 1 oz BU', totalUsd: 38 },  // bullion — keep
+        ] },
+        global: { comps: [] },
+      });
+
+    const result = await fetchMarketMatrix({
+      series: 'Mexico Silver Libertad',
+      grade: 'All',
+      timeWindowDays: 90,
+      lookupKeyDate: mockLookupKeyDate,
+      ebayService: mockEbayService,
+    });
+
+    // centavos comp should be filtered by BULLION_DENY_DENOM_RE
+    const allTitles = result.cells.map(c => c.year);
+    // If centavos was filtered, we should not see a $2 cell
+    if (result.cells.length > 0) {
+      const cheapCells = result.cells.filter(c => c.medianCompleted && c.medianCompleted.value < 5);
+      expect(cheapCells.length).toBe(0);
+    }
+  });
+
+  test('returns mode "bar" for bar series', async () => {
+    mockEbayService.fetchSoldComps
+      .mockResolvedValueOnce({
+        us: { comps: [
+          { title: 'PAMP Suisse 1 oz Gold Bar .9999', totalUsd: 2500 },
+          { title: 'Valcambi 1 oz Gold Bar .9999', totalUsd: 2480 },
+        ] },
+        global: { comps: [] },
+      });
+
+    const result = await fetchMarketMatrix({
+      series: 'Gold Bar 1 oz',
+      grade: 'All',
+      timeWindowDays: 90,
+      lookupKeyDate: mockLookupKeyDate,
+      ebayService: mockEbayService,
+    });
+
+    expect(result.mode).toBe('bar');
+    expect(result.brands).toBeDefined();
+    expect(result.summary.brandCount).toBeGreaterThan(0);
+  });
+});
+
+/* ═══════════════════════════════════════════════════════════
+ *  buildBarMatrix
+ * ═══════════════════════════════════════════════════════════ */
+describe('buildBarMatrix', () => {
+  test('groups by brand and calculates medians', () => {
+    const comps = [
+      { title: 'PAMP Suisse 1oz Gold Bar', totalUsd: 2500 },
+      { title: 'PAMP Suisse 1oz Gold Bar', totalUsd: 2480 },
+      { title: 'Valcambi 1oz Gold Bar', totalUsd: 2470 },
+      { title: 'Generic Refiner 1oz Gold Bar', totalUsd: 2450 },
+    ];
+
+    const result = buildBarMatrix({
+      completedComps: comps,
+      activeComps: [],
+      series: 'Gold Bar 1 oz',
+      lookbackDays: 90,
+    });
+
+    expect(result.mode).toBe('bar');
+    expect(result.brands).toContain('PAMP');
+    expect(result.brands).toContain('Valcambi');
+    // PAMP has 2 comps, should have a median
+    const pamp = result.cells.find(c => c.brand === 'PAMP');
+    expect(pamp.medianCompleted.value).toBe(2490);
+    expect(pamp.medianCompleted.sampleSize).toBe(2);
+  });
+
+  test('classifies unknown brand as Generic', () => {
+    const comps = [
+      { title: '1oz Gold Bar .9999 Fine', totalUsd: 2450 },
+    ];
+    const result = buildBarMatrix({ completedComps: comps, activeComps: [] });
+    expect(result.brands).toContain('Generic');
+  });
+
+  test('includes active BIN listings', () => {
+    const result = buildBarMatrix({
+      completedComps: [],
+      activeComps: [
+        { title: 'PAMP 1oz Gold Bar', totalUsd: 2600, listingType: 'Fixed price' },
+      ],
+    });
+    const pamp = result.cells.find(c => c.brand === 'PAMP');
+    expect(pamp.cheapestBin.value).toBe(2600);
+  });
+});
+
+/* ═══════════════════════════════════════════════════════════
+ *  extractBrand
+ * ═══════════════════════════════════════════════════════════ */
+describe('extractBrand', () => {
+  test('identifies known brands', () => {
+    expect(extractBrand('PAMP Suisse 1oz Gold Bar')).toBe('PAMP');
+    expect(extractBrand('Valcambi 1oz Silver Bar')).toBe('Valcambi');
+    expect(extractBrand('Credit Suisse 10oz Gold Bar')).toBe('Credit Suisse');
+    expect(extractBrand('Johnson Matthey 100oz Silver')).toBe('JM');
+    expect(extractBrand('Engelhard 1oz Gold')).toBe('Engelhard');
+  });
+
+  test('returns Generic for unknown brand', () => {
+    expect(extractBrand('Random Gold Bar 1oz')).toBe('Generic');
+  });
+
+  test('returns Generic for empty/null', () => {
+    expect(extractBrand('')).toBe('Generic');
+    expect(extractBrand(null)).toBe('Generic');
+  });
+
+  test('is case-insensitive', () => {
+    expect(extractBrand('pamp suisse gold bar')).toBe('PAMP');
+    expect(extractBrand('ENGELHARD silver bar')).toBe('Engelhard');
+  });
+});
+
+/* ═══════════════════════════════════════════════════════════
+ *  isBarSeries
+ * ═══════════════════════════════════════════════════════════ */
+describe('isBarSeries', () => {
+  test('detects gold/silver bar queries', () => {
+    expect(isBarSeries('Gold Bar 1 oz')).toBe(true);
+    expect(isBarSeries('Silver Bar 10 oz')).toBe(true);
+    expect(isBarSeries('Platinum Bar')).toBe(true);
+  });
+
+  test('does not match non-bar series', () => {
+    expect(isBarSeries('American Silver Eagle')).toBe(false);
+    expect(isBarSeries('Morgan Dollar')).toBe(false);
   });
 });

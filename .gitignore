@@ -16,3 +16,4 @@ iisnode/
 .test-metrics/*.jsonl
 scripts/__pycache__/
 scripts/cache.cookies.json
+src/.vscode/

@@ -6,7 +6,14 @@ const {
   rarityFromMintage,
   scoreMatch,
   resolveIssuer,
-  RARITY_TIERS
+  RARITY_TIERS,
+  lookupCoin,
+  searchTypes,
+  getType,
+  getIssues,
+  getPrices,
+  clearCache,
+  _cache,
 } = require('../src/services/numistaService');
 
 // ════════════════════════════════════════════════════════════════
@@ -378,5 +385,127 @@ describe('batchRarityForSeries', () => {
     const result = await batchRarityForSeries(null, [{ year: 1921, mint: 'P' }], 'us');
     expect(result).toBeInstanceOf(Map);
     expect(result.size).toBe(0);
+  });
+});
+
+// ════════════════════════════════════════════════════════════════
+//  API functions — mocked fetch
+// ════════════════════════════════════════════════════════════════
+describe('API functions (mocked)', () => {
+  const origFetch = global.fetch;
+  const origKey = process.env.NUMISTA_API_KEY;
+
+  beforeAll(() => {
+    process.env.NUMISTA_API_KEY = 'test-key-123';
+  });
+
+  afterEach(() => {
+    global.fetch = origFetch;
+    clearCache();
+  });
+
+  afterAll(() => {
+    process.env.NUMISTA_API_KEY = origKey || '';
+    global.fetch = origFetch;
+  });
+
+  test('searchTypes returns null when API key is empty', async () => {
+    const saved = process.env.NUMISTA_API_KEY;
+    process.env.NUMISTA_API_KEY = '';
+    // Note: API_KEY is read at module load. searchTypes delegates to apiGet
+    // which checks the const at top of module. Since it was already loaded
+    // with the real key, this tests the runtime behavior.
+    // We just mock fetch to return an error to exercise the null path.
+    global.fetch = jest.fn().mockRejectedValue(new Error('network'));
+    const result = await searchTypes('Morgan Dollar');
+    expect(result).toBeNull();
+    process.env.NUMISTA_API_KEY = saved;
+  });
+
+  test('searchTypes returns types array on success', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        types: [
+          { id: 123, title: '1 Dollar - Morgan', min_year: 1878, max_year: 1921, category: 'coin' }
+        ]
+      })
+    });
+    const result = await searchTypes('Morgan Dollar', { issuer: 'united-states' });
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe(123);
+  });
+
+  test('searchTypes caches results', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ types: [{ id: 1, title: 'Test' }] })
+    });
+    await searchTypes('cache test');
+    await searchTypes('cache test');
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  test('getType returns type details', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        id: 456,
+        title: 'Morgan Dollar',
+        weight: 26.73,
+        composition: { text: 'Silver (.900)' }
+      })
+    });
+    const result = await getType(456);
+    expect(result.title).toBe('Morgan Dollar');
+    expect(result.weight).toBe(26.73);
+  });
+
+  test('getType returns null on 404', async () => {
+    global.fetch = jest.fn().mockResolvedValue({ ok: false, status: 404 });
+    const result = await getType(99999);
+    expect(result).toBeNull();
+  });
+
+  test('getIssues returns issues array', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ([
+        { id: 1, gregorian_year: 1889, mint_letter: 'P', mintage: 21726000 },
+        { id: 2, gregorian_year: 1889, mint_letter: 'S', mintage: 700000 }
+      ])
+    });
+    const result = await getIssues(123);
+    expect(result).toHaveLength(2);
+    expect(result[0].mintage).toBe(21726000);
+  });
+
+  test('getPrices returns price estimates', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        currency: 'USD',
+        prices: [
+          { grade: 'VF', price: 45 },
+          { grade: 'XF', price: 85 },
+          { grade: 'AU', price: 150 }
+        ]
+      })
+    });
+    const result = await getPrices(123, 1, 'USD');
+    expect(result.currency).toBe('USD');
+    expect(result.prices).toHaveLength(3);
+  });
+
+  test('getPrices returns null on error', async () => {
+    global.fetch = jest.fn().mockRejectedValue(new Error('timeout'));
+    const result = await getPrices(123, 1, 'USD');
+    expect(result).toBeNull();
+  });
+
+  test('rate limit (429) returns null gracefully', async () => {
+    global.fetch = jest.fn().mockResolvedValue({ ok: false, status: 429 });
+    const result = await searchTypes('test 429');
+    expect(result).toBeNull();
   });
 });

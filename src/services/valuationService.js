@@ -10,7 +10,7 @@ const stats = require('../utils/stats');
  * @param {object} ebay       – ebayService result  { us, global, usedFallback }
  * @param {number|null} askingPrice
  * @param {string|null} userGrade – grade FROM USER INPUT (not PCGS-resolved)
- * @param {object} [opts]     – { isBullion: boolean, greysheet: object|null, spotPrice: number|null }
+ * @param {object} [opts]     – { isBullion: boolean, greysheet: object|null, spotPrice: number|null, saleContext: string }
  * @returns {object} { valuation, decisions }
  */
 function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts = {}) {
@@ -225,9 +225,21 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
   // #52: Sliding buy spread — higher-value coins need tighter margins.
   const { low: buyLow, mid: buyMid, high: buyHigh, recLabel } = buySpreadForValue(fmv);
 
-  const maxLow  = +(fmv * buyLow).toFixed(2);
-  const maxMid  = +(fmv * buyMid).toFixed(2);
-  const maxHigh = +(fmv * buyHigh).toFixed(2);
+  // #55: Sale context adjustment.
+  // eBay prices include ~13% platform friction (fees + shipping).
+  // LCS/Private = no platform friction → buy thresholds shift up, sell estimates shift down.
+  // Dealer Wholesale = buying at wholesale → buy thresholds shift down significantly.
+  const saleContext = opts.saleContext || 'ebay';
+  const CONTEXT_ADJUSTMENTS = {
+    'ebay':      { buyAdj: 0,     sellAdj: 0,     label: 'eBay Retail' },
+    'private':   { buyAdj: 0.07,  sellAdj: -0.10, label: 'LCS / Private Sale' },
+    'wholesale': { buyAdj: -0.10, sellAdj: -0.20, label: 'Dealer Wholesale' },
+  };
+  const ctxAdj = CONTEXT_ADJUSTMENTS[saleContext] || CONTEXT_ADJUSTMENTS['ebay'];
+
+  const maxLow  = +(fmv * Math.min(buyLow + ctxAdj.buyAdj, 0.99)).toFixed(2);
+  const maxMid  = +(fmv * Math.min(buyMid + ctxAdj.buyAdj, 0.99)).toFixed(2);
+  const maxHigh = +(fmv * Math.min(buyHigh + ctxAdj.buyAdj, 0.99)).toFixed(2);
 
   const buyNotes = [];
   let recommendation = null;
@@ -246,10 +258,10 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
   const premiumMult = isScarcePop ? 1.15 : 1.05;
   if (isScarcePop) sellNotes.push(`Low population (${pcgs.population.thisGrade}) supports premium pricing.`);
 
-  const fast    = +(medForSell * 0.92).toFixed(2);
-  const normal  = +medForSell.toFixed(2);
-  const premium = +(medForSell * premiumMult).toFixed(2);
-  const offerFloor = +Math.min(p25, medForSell * 0.92).toFixed(2);
+  const fast    = +(medForSell * (0.92 + ctxAdj.sellAdj)).toFixed(2);
+  const normal  = +(medForSell * (1.00 + ctxAdj.sellAdj)).toFixed(2);
+  const premium = +(medForSell * (premiumMult + ctxAdj.sellAdj)).toFixed(2);
+  const offerFloor = +Math.min(p25 * (1 + ctxAdj.sellAdj), medForSell * (0.92 + ctxAdj.sellAdj)).toFixed(2);
 
   return {
     valuation: {
@@ -257,6 +269,8 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
       rangeLow,
       rangeHigh,
       confidence,
+      lowData: soldCount < 3,
+      compCount: soldCount,
       explanation,
       dataSource: {
         soldCount,
@@ -275,6 +289,7 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
         totalCount: usCompsAll.length
       },
       method,
+      saleContext: ctxAdj.label,
       bullionSpot: method === 'bullion-spot-premium' ? {
         spotPrice: +spotPrice.toFixed(2),
         premiumPct: +((fmv / spotPrice - 1) * 100).toFixed(1),

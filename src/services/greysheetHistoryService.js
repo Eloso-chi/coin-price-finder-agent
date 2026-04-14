@@ -19,7 +19,8 @@ function loadStore() {
   if (_store) return _store;
   try {
     if (fs.existsSync(STORE_PATH)) {
-      _store = JSON.parse(fs.readFileSync(STORE_PATH, 'utf8'));
+      const raw = JSON.parse(fs.readFileSync(STORE_PATH, 'utf8'));
+      _store = (raw && typeof raw === 'object' && !Array.isArray(raw)) ? raw : {};
     } else {
       _store = {};
     }
@@ -144,14 +145,16 @@ function evictOld(maxDays = 200) {
   let evicted = 0;
 
   for (const key of Object.keys(store)) {
-    for (const date of Object.keys(store[key])) {
+    const bucket = store[key];
+    if (!bucket || typeof bucket !== 'object') continue; // skip metadata keys
+    for (const date of Object.keys(bucket)) {
       if (date < cutoffStr) {
-        delete store[key][date];
+        delete bucket[date];
         evicted++;
       }
     }
     // Remove empty keys
-    if (Object.keys(store[key]).length === 0) {
+    if (Object.keys(bucket).length === 0) {
       delete store[key];
     }
   }

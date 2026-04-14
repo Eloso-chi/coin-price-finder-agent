@@ -1116,7 +1116,8 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
   let actualDays = requestedDays;
 
   // ── Attempt 0: Terapeak imported sold data (highest priority — real sold comps) ──
-  let terapeakData = terapeakService.lookupComps(keywords, { metal: expected.metal || null });
+  const tpOpts = { metal: expected.metal || null, grade: expected.grade || null };
+  let terapeakData = terapeakService.lookupComps(keywords, tpOpts);
 
   // Also try the raw user query for Terapeak when keywords differ significantly.
   // Keywords are built from parsed fields and may lose critical tokens
@@ -1126,7 +1127,7 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
     const rawNorm = expected._rawQuery.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();
     const kwNorm  = keywords.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();
     if (rawNorm !== kwNorm) {
-      const rawData = terapeakService.lookupComps(expected._rawQuery, { metal: expected.metal || null });
+      const rawData = terapeakService.lookupComps(expected._rawQuery, tpOpts);
       if (rawData && rawData.comps && rawData.comps.length > 0) {
         if (!terapeakData || !terapeakData.comps || terapeakData.comps.length === 0) {
           terapeakData = rawData;

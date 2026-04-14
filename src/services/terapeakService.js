@@ -24,7 +24,8 @@ let _savePending = null;
 function loadStore() {
   if (_store) return _store;
   try {
-    _store = JSON.parse(fs.readFileSync(STORE_PATH, 'utf8'));
+    const raw = JSON.parse(fs.readFileSync(STORE_PATH, 'utf8'));
+    _store = (raw && typeof raw === 'object' && !Array.isArray(raw)) ? raw : {};
   } catch {
     _store = {};
   }
@@ -425,6 +426,7 @@ function importComps(searchTerm, comps, meta = {}) {
  * @param {string} keywords — search query
  * @param {object} [opts] — optional hints
  * @param {string} [opts.metal] — expected metal (e.g. 'silver', 'gold')
+ * @param {string} [opts.grade] — expected grade (e.g. 'MS65', 'AU58')
  */
 function lookupComps(keywords, opts = {}) {
   const store = loadStore();
@@ -442,6 +444,9 @@ function lookupComps(keywords, opts = {}) {
   // Detect metal from the query so we can prefer matching-metal datasets.
   // Also accept an explicit metal hint from the caller (e.g. expected.metal).
   const queryMetal = _detectMetalFromText(keywords) || (opts.metal ? opts.metal.toLowerCase() : null);
+
+  // Detect grade from query or explicit hint so we can prefer grade-specific datasets.
+  const queryGrade = _extractGrade(keywords) || (opts.grade ? opts.grade.toUpperCase().replace(/[\s-]/g, '') : null);
 
   // Does the search query contain a specific year?  If not we'll merge
   // comps from ALL matching datasets for better coverage.
@@ -540,6 +545,17 @@ function lookupComps(keywords, opts = {}) {
       continue; // e.g. query "Silver Eagle" vs dataset "Silver Eagle Proof" — skip
     }
 
+    // ── Grade guard: when query has a grade (e.g. "MS65"), reject
+    //    datasets with a DIFFERENT grade.  When query has NO grade,
+    //    reject grade-specific datasets (they'd bias toward one grade). ──
+    const keyGrade = _extractGrade(data.searchTerm || key);
+    if (queryGrade && keyGrade && keyGrade !== queryGrade) {
+      continue; // e.g. query "Morgan MS65" vs dataset "Morgan MS63" — skip
+    }
+    if (!queryGrade && keyGrade) {
+      continue; // e.g. query "Morgan" vs dataset "Morgan MS65" — skip
+    }
+
     if (strongSide >= 0.65 && combined > 0.55) {
       // Bonus: prefer "Generic" datasets when the query has no year,
       // since they represent the broadest market view.
@@ -558,7 +574,12 @@ function lookupComps(keywords, opts = {}) {
       if (!queryMetal && keyMetal === 'platinum')   metalBonus = -0.05;
       if (!queryMetal && keyMetal === 'palladium')  metalBonus = -0.05;
 
-      candidates.push({ key, data, score: combined + bonus + metalBonus, isGeneric, keyMetal });
+      // Grade bonus: when query specifies a grade, boost grade-matching datasets
+      // over grade-less (base) datasets.  Grade-specific data is more relevant.
+      let gradeBonus = 0;
+      if (queryGrade && keyGrade === queryGrade) gradeBonus = 0.15;
+
+      candidates.push({ key, data, score: combined + bonus + metalBonus + gradeBonus, isGeneric, keyMetal, keyGrade });
     }
   }
 
@@ -811,6 +832,17 @@ function detectWeightFromQuery(text) {
 }
 
 /**
+ * Extract a formal grade token (e.g. "MS65", "AU58", "VF35") from text.
+ * Returns the normalized grade string (uppercased, no spaces/hyphens) or null.
+ */
+function _extractGrade(text) {
+  if (!text) return null;
+  const m = text.match(/\b(MS|PR|PF|SP|AU|XF|EF|VF|VG|AG|FR|PO)\s*[-]?\s*(\d{1,2}\+?)\b/i);
+  if (!m) return null;
+  return (m[1] + m[2]).toUpperCase(); // e.g. "MS65", "AU58", "VF35+"
+}
+
+/**
  * Detect precious metal from a text string (query or dataset name).
  * Returns 'gold', 'silver', 'platinum', 'palladium', or null.
  */
@@ -940,6 +972,7 @@ module.exports = {
   normalizeSearchKey,
   detectWeightFromQuery,
   detectMetal: _detectMetalFromText,
+  extractGrade: _extractGrade,
   // Exposed for testing
   mapColumn,
   rowToComp,
