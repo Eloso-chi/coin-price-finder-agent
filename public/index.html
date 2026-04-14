@@ -3357,9 +3357,10 @@
         EbayTracker.setSeries(trackerSeries, trackerWeight, trackerGrade);
       }
       // ── Also pass query to Price History tab for cross-tab linkage ──
-      // Use the full specific query (e.g. "1921 Morgan Dollar P MS-65")
-      // so the History chart shows only that coin, not the whole series.
-      const historyQuery = d.query?.input || trackerSeries;
+      // Prefer eBay keywords (resolved with weight, zodiac animal, series label)
+      // over raw user input which may contain noise tokens ("series III")
+      // that break Terapeak dataset matching.
+      const historyQuery = d.ebay?.keywords || d.query?.input || trackerSeries;
       if (historyQuery) {
         CoinHistoryLink.setCoin(historyQuery, historyQuery);
       }
