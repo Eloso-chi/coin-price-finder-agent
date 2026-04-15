@@ -54,18 +54,13 @@ router.post('/import', requireAdmin, upload.single('file'), (req, res) => {
       return res.status(400).json({ error: 'searchTerm is required — the keyword you searched in Terapeak' });
     }
 
-    // ── Quota: record the Terapeak search that produced this CSV ──
-    // Each CSV export = 1 search + typically a few filter tweaks.
-    // Default: count as 1 query. Client can override via queryCount field.
+    // ── Quota: log the import for tracking, but don't enforce the limit ──
+    // Imports are uploads of already-scraped data — the actual Terapeak
+    // search already happened.  Blocking imports doesn't reduce eBay load.
     const queryCount = Math.max(1, parseInt(req.body?.queryCount) || 1);
-    const quota = quotaService.recordQueries(queryCount, `import: ${searchTerm}`);
-    if (!quota.ok) {
-      return res.status(429).json({
-        error: 'Terapeak daily query limit reached',
-        quota: { used: quota.used, remaining: quota.remaining, limit: quota.limit },
-        message: quota.warning
-      });
-    }
+    const quota = quotaService.getStatus();
+    // Still log it for visibility, but never block
+    quotaService.recordQueries(queryCount, `import: ${searchTerm}`);
 
     // Parse CSV
     const { comps, skipped, columns, unmappedColumns, totalRows } = terapeakService.parseCSV(req.file.buffer, searchTerm);
