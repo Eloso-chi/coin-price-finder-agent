@@ -85,6 +85,8 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ── Routes ──────────────────────────────────────────────────
+const authRoute        = require('./src/routes/authRoute');
+const coinRoute        = require('./src/routes/coinRoute');
 const priceRoute       = require('./src/routes/priceRoute');
 const metalsRoute      = require('./src/routes/metalsRoute');
 const barPriceRoute    = require('./src/routes/barPriceRoute');
@@ -95,6 +97,8 @@ const pricingBatchRoute = require('./src/routes/pricingBatchRoute');
 const imageProxyRoute   = require('./src/routes/imageProxyRoute');
 const coinHistoryRoute  = require('./src/routes/coinHistoryRoute');
 const excelImportRoute  = require('./src/routes/excelImportRoute');
+app.use('/api/auth', authRoute);
+app.use('/api/coins', coinRoute);
 app.use('/api/price', apiLimiter, priceRoute);
 app.use('/api/metals', metalsRoute);
 app.use('/api/bar-price', apiLimiter, barPriceRoute);
@@ -139,6 +143,34 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`  PCGS configured: ${!!process.env.PCGS_API_KEY}`);
   console.log(`  Metals configured: ${!!(process.env.GOLDAPI_KEY || process.env.METALS_API_KEY)}`);
 
+  // ── Auto-seed testcollector account (server-side) ──────────
+  const authService = require('./src/services/authService');
+  const coinStorageService = require('./src/services/coinStorageService');
+
+  if (!authService.userExists('testcollector')) {
+    const SEED_COINS = [
+      { series: 'Morgan Dollar',              year: '1921', mint: 'D', grade: 'MS-65', weight: null, count: 3,  query: '1921-D Morgan Dollar MS-65' },
+      { series: 'Morgan Dollar',              year: '1878', mint: 'S', grade: 'VF-30', weight: null, count: 1,  query: '1878-S Morgan Dollar VF-30' },
+      { series: 'Peace Dollar',               year: '1923', mint: 'P', grade: 'MS-63', weight: null, count: 2,  query: '1923 Peace Dollar MS-63' },
+      { series: 'Kennedy Half Dollar',        year: '1964', mint: 'P', grade: 'PR-69', weight: null, count: 1,  query: '1964 Kennedy Half Dollar PR-69' },
+      { series: 'Walking Liberty Half Dollar', year:'1941', mint: 'S', grade: 'VF-25', weight: null, count: 1,  query: '1941-S Walking Liberty Half Dollar VF-25' },
+      { series: 'American Silver Eagle',      year: '2024', mint: 'P', grade: 'MS-70', weight: 1,    count: 20, query: '2024 American Silver Eagle MS-70' },
+      { series: 'Washington Quarter',         year: '1932', mint: 'D', grade: 'VG-10', weight: null, count: 1,  query: '1932-D Washington Quarter VG-10' },
+      { series: 'Roosevelt Dime',             year: '1946', mint: 'P', grade: 'MS-66', weight: null, count: 5,  query: '1946 Roosevelt Dime MS-66' },
+      { series: 'Buffalo Nickel',             year: '1937', mint: 'D', grade: 'MS-64', weight: null, count: 1,  query: '1937-D Buffalo Nickel MS-64' },
+      { series: 'Lincoln Cent',               year: '1909', mint: 'S', grade: 'VF-20', weight: null, count: 1,  query: '1909-S Lincoln Cent VF-20' },
+    ];
+    authService.signup('testcollector', 'Coins2026!').then(result => {
+      for (const coin of SEED_COINS) {
+        coinStorageService.addCoin(result.userId, coin);
+      }
+      console.log(`  [seed] testcollector account created with ${SEED_COINS.length} coins`);
+    }).catch(err => {
+      console.warn(`  [seed] could not create test account: ${err.message}`);
+    });
+  } else {
+    console.log(`  [seed] testcollector account already exists`);
+  }
   // ── Startup: auto-import Terapeak CSVs from data/terapeak/ folder ──
   const terapeakService = require('./src/services/terapeakService');
 

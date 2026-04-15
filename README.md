@@ -22,7 +22,7 @@ Also supports **bullion bars** (any metal, any size), **proof/mint sets**, **rol
 
 ## Frontend — Web UI
 
-The browser UI is a single-page app served from `public/index.html` with a dark theme and seven tabbed panels. All client-side JavaScript is split across four modules loaded in order: `crypto.js` → `auth.js` → `storage.js` → `my-coins.js`.
+The browser UI is a single-page app served from `public/index.html` with a dark theme and seven tabbed panels. Client-side JavaScript is split across three modules loaded in order: `auth.js` → `storage.js` → `my-coins.js`. Authentication and coin storage are handled server-side via JWT + bcrypt.
 
 ### Tabs
 
@@ -32,28 +32,29 @@ The browser UI is a single-page app served from `public/index.html` with a dark 
 | **Melt Calculator** | Offline calculator for 80+ US coin types and 20 bar sizes. Auto-fetches spot prices from `/api/metals` and polls every 5 minutes. Shows per-coin, per-roll, and total melt values at spot and spot+premium. |
 | **Live eBay Tracker** | Market matrix from `/api/market/ebay`. Three display modes: Year × Mint (numismatic coins), Year × Grade (bullion), and Brand table (bars). Cells show median sold price, cheapest BIN link, key date badge, and Numista rarity. Color-coded legend. |
 | **Sold Data** | Terapeak CSV import UI (drag-and-drop or file picker) with search term input. Datasets list with delete. Visual daily quota meter (250/day default) with manual logging and reset. Admin endpoints require `x-api-key`. |
-| **My Coins** 🔒 | Auth-gated. Encrypted coin collection stored in IndexedDB. Shows portfolio summary (total FMV, total cost, unrealized P/L, coin count) and full table with per-coin FMV, confidence, Troy Oz, cost basis, P/L, melt value, eBay average, range, notes, date added, and remove button. Checkbox column with select-all for multi-select bulk delete. Export/Import backup buttons (JSON and Excel .xlsx), Change Password. |
+| **My Coins** 🔒 | Auth-gated. Server-side coin collection (persisted in `cache/user_coins.json`). Shows portfolio summary (total FMV, total cost, unrealized P/L, coin count) and full table with per-coin FMV, confidence, Troy Oz, cost basis, P/L, melt value, eBay average, range, notes, date added, and remove button. Checkbox column with select-all for multi-select bulk delete. Export/Import backup buttons (JSON and Excel .xlsx), Change Password. |
 | **Price History** 🔒 | Auth-gated. Canvas-drawn chart from `/api/coin-history`. Shows daily median prices with IQR band, outlier dots, and optional precious-metal spot overlay (dashed line). Supports 90/180/365-day ranges. |
 | **About** | Confidence score key, privacy/security explanation, how login works, feature previews for logged-out users, and legal disclaimer. |
 
-### Zero-Knowledge Auth System
+### Server-Side Auth (bcrypt + JWT)
 
-The authentication system is **entirely client-side** — the server has zero knowledge of accounts, passwords, or collection data.
+Authentication is handled server-side. Accounts and coin data persist across browser restarts, cache clears, and device changes.
 
-- **Signup** — generates a UUID user ID, derives an AES-256-GCM encryption key from username + password via PBKDF2 (600,000 iterations, SHA-256), encrypts a known plaintext as a password verifier, and stores `{userId, salt, verifier}` in `localStorage`.
-- **Login** — re-derives the key from the stored salt and checks the verifier. The `CryptoKey` lives only in memory.
-- **Page reload** — the in-memory key is lost. The UI detects the stale session via `pendingReauth()` and auto-opens the login dialog pre-filled with the username.
-- **Password change** — derives a new key with a fresh salt, updates the verifier, and re-encrypts all coins in IndexedDB via `CoinStorage.reEncryptAll()`.
-- **Recovery key** — at signup a random 128-bit seed is generated and presented as an 8-word phrase (from a 256-word BIP39 subset). A second AES-256 key is derived from the seed and used to wrap the same random data key that the password key wraps. If the user forgets their password, the recovery phrase unwraps the data key and lets them set a new password — no re-encryption of stored coins is needed. Legacy accounts created before the recovery key feature continue to work (password-derived key used directly).
+- **Signup** — `POST /api/auth/signup` with `{username, password}`. Server hashes the password with bcrypt (12 rounds), generates a UUID, stores the account in `cache/users.json`, and returns a signed JWT.
+- **Login** — `POST /api/auth/login` with `{username, password}`. Server verifies bcrypt hash, returns a JWT (7-day expiry).
+- **Session** — the JWT is held in memory on the client (not localStorage). Lost on page close/reload -- user must re-login, but all data persists server-side.
+- **Password change** — `POST /api/auth/change-password` with Bearer token + `{currentPassword, newPassword}`. No coin re-encryption needed (coins are stored as plaintext on the server).
+- **JWT secret** — set `JWT_SECRET` in your environment for persistent sessions across server restarts. If unset, a random secret is generated on startup (all sessions expire on restart).
+- **Username rules** — lowercased, alphanumeric + dots/hyphens/underscores, max 50 chars. Password minimum 6 chars.
 
-No passwords, keys, or collection data ever leave the browser. The server cannot read, access, or reconstruct any user data.
+The previous zero-knowledge client-side auth system (PBKDF2 + AES-256-GCM with IndexedDB encryption) has been replaced. `crypto.js` is no longer loaded.
 
-### Encrypted Coin Storage
+### Server-Side Coin Storage
 
-- **Database:** IndexedDB database `CoinVault`, object store `inventory`, composite key `[userId, coinHash]`.
-- **Per-coin encryption:** Each coin record is JSON-serialized and encrypted with AES-256-GCM using a random 12-byte IV. Only the encrypted ciphertext + IV are stored.
-- **Deduplication:** Coins are hashed by `SHA-256(series|year|mint|grade|notes)` to prevent duplicates while allowing distinct lots (e.g. same coin, different notes).
-- **"I Have This Coin" button:** Appears in Price Discovery results. If logged in, adds the coin to the encrypted collection with one click. If logged out, shows a lock icon that opens the login dialog.
+- **Store:** `cache/user_coins.json` -- plaintext JSON keyed by userId. No client-side encryption (coins live on the user's own server).
+- **API:** All CRUD via `/api/coins/*` endpoints with Bearer JWT auth. `GET /api/coins` (list), `POST /api/coins` (add), `PUT /api/coins/:hash` (update count/cost), `DELETE /api/coins/:hash` (remove), `GET /api/coins/export`, `POST /api/coins/import`, `POST /api/coins/bulk-delete`.
+- **Deduplication:** Coins are hashed by `SHA-256(series|year|mint.upper|grade.upper|notes|label)` to prevent duplicates while allowing distinct lots.
+- **"I Have This Coin" button:** Appears in Price Discovery results. If logged in, adds the coin to the server-side collection with one click. If logged out, shows a lock icon that opens the login dialog.
 
 ### Export & Import Backup
 
@@ -74,24 +75,16 @@ The endpoint accepts `.xlsx` files up to 10 MB and returns the mapped coins in t
 
 ### Auto-Seed Test Account
 
-On every page load, the app checks whether the `testcollector` demo account exists in localStorage. If missing (e.g. after a browser cache clear or codespace rebuild), it silently creates the account with 10 sample coins spanning different series (Morgans, Peace, Kennedy, Walking Liberty, ASE, Washington, Roosevelt, Buffalo, Lincoln). The seed runs in the background and logs out immediately, so the user always sees the normal login prompt. Credentials: `testcollector` / `Coins2026!`.
-### Backup Reminder
+On server startup, if the `testcollector` account does not exist in `cache/users.json`, the server creates it with 10 sample coins (Morgans, Peace, Kennedy, Walking Liberty, ASE, Washington, Roosevelt, Buffalo, Lincoln). The seed is server-side, so the account persists across browser clears and restarts. Credentials: `testcollector` / `Coins2026!`.
+### Backup & Export
 
-The `BackupReminder` module (in `storage.js`) tracks coin additions and time since last backup in `localStorage`. It shows a yellow banner in the My Coins tab prompting the user to export:
-
-| Trigger | Message |
-|---------|---------|
-| First coin ever added | "You added your first coin! Export a backup so you never lose your collection." |
-| 10+ coins added since last backup | "You've added several coins since your last backup. Time to save a copy!" |
-| 30+ days since last backup | "It's been a while since your last backup. Export one to stay safe." |
-
-Dismissing snoozes the prompt for 7 days. Exporting resets all counters.
+Since coins are now stored server-side, data survives browser clears. The Export button still downloads a JSON backup for offline safekeeping. The `BackupReminder` module is a no-op in server mode (coins are not at risk of browser-side data loss).
 
 ### Auth-Gated Tabs
 
 The My Coins and Price History tabs are locked for logged-out users:
 
-- Tab buttons show a 🔒 lock icon and muted styling.
+- Tab buttons show a lock icon and muted styling.
 - Clicking a locked tab opens the login dialog instead of switching panels.
 - A teaser banner below the tab bar reads "Unlock My Coins & Price History" with a login CTA.
 - The About tab shows feature preview cards with mocked UI (sample portfolio table, sample price chart) and login buttons.
@@ -146,7 +139,9 @@ Optional variables:
 | `METALS_API_KEY` | Metals API key (fallback provider) | *(none)* |
 | `NUMISTA_API_KEY` | Numista API key for rarity/mintage data | *(none)* || `GREYSHEET_API_TOKEN` | Greysheet CDN Public API V2 token | *(none)* |
 | `GREYSHEET_API_KEY` | Greysheet CDN Public API V2 key | *(none)* |
-| `GREYSHEET_BASE_URL` | Greysheet API base URL override | `https://cpgpublicapiv2.greysheet.com/api` || `ADMIN_API_KEY` | API key for admin/destructive endpoints | *(none — endpoints locked)* |
+| `GREYSHEET_BASE_URL` | Greysheet API base URL override | `https://cpgpublicapiv2.greysheet.com/api` |
+| `ADMIN_API_KEY` | API key for admin/destructive endpoints | *(none -- endpoints locked)* |
+| `JWT_SECRET` | Secret key for signing JWTs (auth tokens) | *(random on startup -- sessions expire on restart)* |
 | `PORT` | Server port | `3000` |
 | `EBAY_CACHE_TTL_MS` | eBay cache lifetime | `3600000` (1 hour) |
 | `EBAY_US_MIN_COMPS` | Minimum US comps before global fallback | `8` |
@@ -296,6 +291,25 @@ If an asking price is provided:
 | `GET` | `/api/coin-variant` | Design-series metadata for a denomination + year |
 | `GET` | `/api/coin-history` | Sold-price time-series (daily medians) with optional spot overlay |
 
+### Authentication & Coin Collection
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/api/auth/signup` | Create a new account |
+| `POST` | `/api/auth/login` | Log in (returns JWT) |
+| `GET` | `/api/auth/me` | Verify token + get user info |
+| `POST` | `/api/auth/change-password` | Change password (requires Bearer token) |
+| `GET` | `/api/coins` | List all coins for authenticated user |
+| `POST` | `/api/coins` | Add a coin |
+| `PUT` | `/api/coins/:hash` | Update coin count or cost |
+| `DELETE` | `/api/coins/:hash` | Remove a coin |
+| `GET` | `/api/coins/export` | Export collection as backup JSON |
+| `POST` | `/api/coins/import` | Import coins from backup |
+| `POST` | `/api/coins/bulk-delete` | Delete multiple coins by hash |
+| `GET` | `/api/coins/count` | Get coin count |
+
+All `/api/coins/*` endpoints require `Authorization: Bearer <jwt>` header.
+
 ### Market & Metals
 
 | Method | Path | Description |
@@ -415,7 +429,7 @@ Runs **Jest** across 34 test suites:
 | `terapeakFuzzyMatch.test.js` | Terapeak fuzzy comp matching |
 | `terapeakQuotaService.test.js` | Terapeak daily quota tracking, reset, threshold warnings |
 | `excelImport.test.js` | Excel mapper + route: header normalization, series aliases, year/mint parsing, error handling |
-| `storage.costPer.test.js` | Cost basis: inline edit, P/L computation, import sanitization, hash with notes |
+| `storage.costPer.test.js` | Cost basis: addCoin/updateCostPer validation, export/import round-trip, costPer sanitization |
 | `priceRoute.test.js` | Price route integration: validation, label allowlist, proof detection, cert routing, bullion defaults, rolls, error handling |
 | `pcgsService.test.js` | PCGS service: lookupByCert, lookupByCoinNumberAndGrade, resolveFromDescription, _mapResponse |
 | `greysheetService.test.js` | Greysheet CDN API V2: fetchPriceByPcgsNumber, fetchPriceByGsid, fetchCollectible, caching, retry, CAC filtering |
@@ -434,16 +448,18 @@ server.js                          Express entry point
 public/index.html                  Single-page frontend (dark theme)
 src/
   routes/
-    priceRoute.js                  POST /api/price — coin pricing orchestrator
-    barPriceRoute.js               POST /api/bar-price — bullion bar pricing
-    metalsRoute.js                 GET /api/metals — spot price endpoints
-    coinVariantRoute.js            GET /api/coin-variant — design series resolver
-    marketRoute.js                 GET /api/market/ebay — year×mint market matrix
-    coinHistoryRoute.js            GET /api/coin-history — sold-price time-series
-    excelImportRoute.js            POST /api/import/excel — Excel spreadsheet import
-    imageProxyRoute.js             GET /api/image-proxy — proxied coin images
-    pricingBatchRoute.js           POST /api/pricing-batch — batch coin pricing
-    terapeakRoute.js               /api/terapeak/* — Terapeak data & quota management
+    priceRoute.js                  POST /api/price -- coin pricing orchestrator
+    barPriceRoute.js               POST /api/bar-price -- bullion bar pricing
+    metalsRoute.js                 GET /api/metals -- spot price endpoints
+    coinVariantRoute.js            GET /api/coin-variant -- design series resolver
+    marketRoute.js                 GET /api/market/ebay -- year x mint market matrix
+    coinHistoryRoute.js            GET /api/coin-history -- sold-price time-series
+    excelImportRoute.js            POST /api/import/excel -- Excel spreadsheet import
+    imageProxyRoute.js             GET /api/image-proxy -- proxied coin images
+    pricingBatchRoute.js           POST /api/pricing-batch -- batch coin pricing
+    terapeakRoute.js               /api/terapeak/* -- Terapeak data & quota management
+    authRoute.js                   /api/auth/* -- signup, login, change-password (bcrypt + JWT)
+    coinRoute.js                   /api/coins/* -- collection CRUD (requires Bearer JWT)
   services/
     pcgsService.js                 PCGS CoinFacts API integration + parser
     ebayService.js                 eBay sold comps (3-tier API cascade)
@@ -456,6 +472,8 @@ src/
     numistaService.js              Numista API — search, mintages, rarity
     terapeakService.js             Terapeak CSV import, lookup, eviction
     terapeakQuotaService.js        Daily Terapeak query quota tracker
+    authService.js                 Server-side auth (bcrypt + JWT, cache/users.json)
+    coinStorageService.js          Server-side coin CRUD (cache/user_coins.json)
   data/
     halfDollarSeries.js            Half Dollar design eras + year-based resolver
     pcgsNumbers.js                 PCGS coin number lookup table (10 US series)
@@ -479,15 +497,16 @@ cache/
   metals_history.json              Daily spot price snapshots
   terapeak_sold.json               Imported Terapeak comp data
   numista_cache.json               Persisted Numista data cache (24-hour TTL)
+  users.json                       Server-side user accounts (bcrypt hashes)
+  user_coins.json                  Server-side coin collections (plaintext JSON)
 data/
   terapeak/                        Drop Terapeak CSV exports here for auto-import
 public/
   index.html                       SPA frontend (dark theme, 7 tabs)
   js/
-    crypto.js                      CoinCrypto — WebCrypto wrapper (PBKDF2 + AES-256-GCM)
-    auth.js                        CoinAuth — client-only signup/login/logout/changePassword
-    storage.js                     CoinStorage (IndexedDB) + BackupReminder (localStorage)
-    my-coins.js                    MyCoins — portfolio rendering with parallel pricing
+    auth.js                        CoinAuth -- server-backed signup/login/logout (JWT in memory)
+    storage.js                     CoinStorage -- server-backed coin CRUD via /api/coins/*
+    my-coins.js                    MyCoins -- portfolio rendering with parallel pricing
     test-my-coins.js               Client-side test harness for CoinStorage
   test-my-coins.html               Test runner page for storage/crypto tests
 samples/

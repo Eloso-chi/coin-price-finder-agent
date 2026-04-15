@@ -1,267 +1,230 @@
-// storage.js — Encrypted IndexedDB inventory store (client-side only)
-// Depends on: CoinCrypto (crypto.js)
-// Never sends data to the server.
+// storage.js — Server-backed coin inventory store
+// Calls /api/coins/* endpoints. Auth token comes from CoinAuth.currentUser().
+// Signature-compatible with the old client-side IndexedDB version:
+//   methods accept (userId, key, ...) but ignore those params.
 
 'use strict';
 
 const CoinStorage = (() => {
-  const DB_NAME = 'CoinVault';
-  const DB_VERSION = 1;
-  const STORE_NAME = 'inventory';
-
-  let _db = null;
-
-  /**
-   * Open (or create) the IndexedDB database.
-   * @returns {Promise<IDBDatabase>}
-   */
-  function openDB() {
-    if (_db) return Promise.resolve(_db);
-    return new Promise((resolve, reject) => {
-      const req = indexedDB.open(DB_NAME, DB_VERSION);
-      req.onupgradeneeded = () => {
-        const db = req.result;
-        if (!db.objectStoreNames.contains(STORE_NAME)) {
-          db.createObjectStore(STORE_NAME, { keyPath: ['userId', 'coinHash'] });
-        }
-      };
-      req.onsuccess = () => { _db = req.result; resolve(_db); };
-      req.onerror = () => reject(req.error);
-    });
+  function _authHeaders() {
+    const user = CoinAuth.currentUser();
+    const h = { 'Content-Type': 'application/json' };
+    if (user && user.token) h['Authorization'] = 'Bearer ' + user.token;
+    return h;
   }
 
   /**
-   * Add or update a coin in the encrypted inventory.
-   * @param {string} userId
-   * @param {CryptoKey} key - AES-GCM key
-   * @param {object} coin - { series, year, mint, grade, weight, query }
+   * Add or update a coin.
+   * @param {string} _userId - ignored (server derives from token)
+   * @param {*} _key - ignored (no client-side encryption)
+   * @param {object} coin
    * @returns {Promise<string>} coinHash
    */
-  async function addCoin(userId, key, coin) {
-    const db = await openDB();
-    const hash = await CoinCrypto.coinHash(coin);
-    const costRaw = coin.costPer != null ? parseFloat(coin.costPer) : null;
-    const plaintext = JSON.stringify({
-      series: coin.series || '',
-      year: coin.year || '',
-      mint: coin.mint || '',
-      grade: coin.grade || '',
-      weight: coin.weight || null,
-      query: coin.query || '',
-      count: Math.max(1, parseInt(coin.count, 10) || 1),
-      costPer: (costRaw != null && !isNaN(costRaw) && costRaw >= 0) ? costRaw : null,
-      notes: coin.notes || null,
-      label: coin.label || null,
-      baseMetal: coin.baseMetal || null,
-      fineness: coin.fineness != null ? parseFloat(coin.fineness) || null : null,
-      dateAdded: coin.dateAdded || new Date().toISOString(),
+  async function addCoin(_userId, _key, coin) {
+    const resp = await fetch('/api/coins', {
+      method: 'POST',
+      headers: _authHeaders(),
+      body: JSON.stringify(coin),
     });
-    const { iv, ciphertext } = await CoinCrypto.encrypt(key, plaintext);
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction(STORE_NAME, 'readwrite');
-      tx.objectStore(STORE_NAME).put({ userId, coinHash: hash, iv, ciphertext });
-      tx.oncomplete = () => resolve(hash);
-      tx.onerror = () => reject(tx.error);
-    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || 'Failed to add coin');
+    return data.coinHash;
   }
 
   /**
-   * Check if a coin already exists in inventory.
-   * @param {string} userId
-   * @param {object} coin - { series, year, mint, grade }
+   * Check if a coin exists.
+   * @param {string} _userId - ignored
+   * @param {object} coin
    * @returns {Promise<boolean>}
    */
-  async function hasCoin(userId, coin) {
-    const db = await openDB();
-    const hash = await CoinCrypto.coinHash(coin);
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction(STORE_NAME, 'readonly');
-      const req = tx.objectStore(STORE_NAME).get([userId, hash]);
-      req.onsuccess = () => resolve(!!req.result);
-      req.onerror = () => reject(req.error);
+  async function hasCoin(_userId, coin) {
+    const resp = await fetch('/api/coins/get', {
+      method: 'POST',
+      headers: _authHeaders(),
+      body: JSON.stringify(coin),
     });
+    if (!resp.ok) return false;
+    const data = await resp.json();
+    return !!data.coin;
   }
 
   /**
-   * Remove a coin from inventory.
-   * @param {string} userId
-   * @param {string} coinHash
-   * @returns {Promise<void>}
-   */
-  async function removeCoin(userId, coinHash) {
-    const db = await openDB();
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction(STORE_NAME, 'readwrite');
-      tx.objectStore(STORE_NAME).delete([userId, coinHash]);
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error);
-    });
-  }
-
-  /**
-   * Get all encrypted inventory records for a user.
-   * @param {string} userId
-   * @returns {Promise<Array<{userId, coinHash, iv, ciphertext}>>}
-   */
-  async function getAllEncrypted(userId) {
-    const db = await openDB();
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction(STORE_NAME, 'readonly');
-      const store = tx.objectStore(STORE_NAME);
-      const results = [];
-      const req = store.openCursor();
-      req.onsuccess = () => {
-        const cursor = req.result;
-        if (!cursor) return resolve(results);
-        if (cursor.value.userId === userId) results.push(cursor.value);
-        cursor.continue();
-      };
-      req.onerror = () => reject(req.error);
-    });
-  }
-
-  /**
-   * Decrypt all inventory records for a user.
-   * @param {string} userId
-   * @param {CryptoKey} key
-   * @returns {Promise<Array<{coinHash, ...coinData}>>}
-   */
-  async function getAllDecrypted(userId, key) {
-    const records = await getAllEncrypted(userId);
-    const decrypted = [];
-    for (const rec of records) {
-      try {
-        const json = await CoinCrypto.decrypt(key, rec.iv, rec.ciphertext);
-        const coin = JSON.parse(json);
-        coin.coinHash = rec.coinHash;
-        decrypted.push(coin);
-      } catch {
-        // Skip records that fail to decrypt (shouldn't happen with correct key)
-      }
-    }
-    return decrypted;
-  }
-
-  /**
-   * Count coins in inventory for a user.
-   * @param {string} userId
-   * @returns {Promise<number>}
-   */
-  async function count(userId) {
-    const records = await getAllEncrypted(userId);
-    return records.length;
-  }
-
-  /**
-   * Clear all inventory for a user.
-   * @param {string} userId
-   * @returns {Promise<void>}
-   */
-  async function clearAll(userId) {
-    const records = await getAllEncrypted(userId);
-    const db = await openDB();
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction(STORE_NAME, 'readwrite');
-      const store = tx.objectStore(STORE_NAME);
-      for (const rec of records) {
-        store.delete([rec.userId, rec.coinHash]);
-      }
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error);
-    });
-  }
-
-  /**
-   * Get a single decrypted coin by its identifying fields.
-   * @param {string} userId
-   * @param {CryptoKey} key
-   * @param {object} coin - { series, year, mint, grade }
+   * Get a single coin by identifying fields.
+   * @param {string} _userId - ignored
+   * @param {*} _key - ignored
+   * @param {object} coin
    * @returns {Promise<object|null>}
    */
-  async function getCoin(userId, key, coin) {
-    const db = await openDB();
-    const hash = await CoinCrypto.coinHash(coin);
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction(STORE_NAME, 'readonly');
-      const req = tx.objectStore(STORE_NAME).get([userId, hash]);
-      req.onsuccess = async () => {
-        if (!req.result) return resolve(null);
-        try {
-          const json = await CoinCrypto.decrypt(key, req.result.iv, req.result.ciphertext);
-          const data = JSON.parse(json);
-          data.coinHash = hash;
-          resolve(data);
-        } catch { resolve(null); }
-      };
-      req.onerror = () => reject(req.error);
+  async function getCoin(_userId, _key, coin) {
+    const resp = await fetch('/api/coins/get', {
+      method: 'POST',
+      headers: _authHeaders(),
+      body: JSON.stringify(coin),
     });
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    return data.coin || null;
   }
 
   /**
-   * Update the count (quantity) of an existing coin.
-   * @param {string} userId
-   * @param {CryptoKey} key
+   * Update coin quantity.
+   * @param {string} _userId - ignored
+   * @param {*} _key - ignored
    * @param {string} coinHash
-   * @param {number} newCount - must be >= 1
-   * @returns {Promise<void>}
+   * @param {number} newCount
    */
-  async function updateCount(userId, key, coinHash, newCount) {
-    const db = await openDB();
-    const count = Math.max(1, parseInt(newCount, 10) || 1);
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction(STORE_NAME, 'readonly');
-      const req = tx.objectStore(STORE_NAME).get([userId, coinHash]);
-      req.onsuccess = async () => {
-        if (!req.result) return reject(new Error('Coin not found'));
-        try {
-          const json = await CoinCrypto.decrypt(key, req.result.iv, req.result.ciphertext);
-          const coin = JSON.parse(json);
-          coin.count = count;
-          const plaintext = JSON.stringify(coin);
-          const encrypted = await CoinCrypto.encrypt(key, plaintext);
-          const db2 = await openDB();
-          const tx2 = db2.transaction(STORE_NAME, 'readwrite');
-          tx2.objectStore(STORE_NAME).put({ userId, coinHash, iv: encrypted.iv, ciphertext: encrypted.ciphertext });
-          tx2.oncomplete = () => resolve();
-          tx2.onerror = () => reject(tx2.error);
-        } catch (e) { reject(e); }
-      };
-      req.onerror = () => reject(req.error);
+  async function updateCount(_userId, _key, coinHash, newCount) {
+    const resp = await fetch('/api/coins/' + encodeURIComponent(coinHash), {
+      method: 'PUT',
+      headers: _authHeaders(),
+      body: JSON.stringify({ count: newCount }),
     });
+    if (!resp.ok) {
+      const data = await resp.json().catch(() => ({}));
+      throw new Error(data.error || 'Failed to update count');
+    }
   }
 
   /**
-   * Update the cost-per-coin of an existing coin.
-   * @param {string} userId
-   * @param {CryptoKey} key
+   * Update cost per coin.
+   * @param {string} _userId - ignored
+   * @param {*} _key - ignored
    * @param {string} coinHash
-   * @param {number|null} costPer - cost per coin (null to clear)
-   * @returns {Promise<void>}
+   * @param {number|null} costPer
    */
-  async function updateCostPer(userId, key, coinHash, costPer) {
-    const db = await openDB();
-    const parsed = costPer != null ? parseFloat(costPer) : null;
-    const val = (parsed != null && !isNaN(parsed) && parsed >= 0) ? parsed : null;
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction(STORE_NAME, 'readonly');
-      const req = tx.objectStore(STORE_NAME).get([userId, coinHash]);
-      req.onsuccess = async () => {
-        if (!req.result) return reject(new Error('Coin not found'));
-        try {
-          const json = await CoinCrypto.decrypt(key, req.result.iv, req.result.ciphertext);
-          const coin = JSON.parse(json);
-          coin.costPer = val;
-          const plaintext = JSON.stringify(coin);
-          const encrypted = await CoinCrypto.encrypt(key, plaintext);
-          const db2 = await openDB();
-          const tx2 = db2.transaction(STORE_NAME, 'readwrite');
-          tx2.objectStore(STORE_NAME).put({ userId, coinHash, iv: encrypted.iv, ciphertext: encrypted.ciphertext });
-          tx2.oncomplete = () => resolve();
-          tx2.onerror = () => reject(tx2.error);
-        } catch (e) { reject(e); }
-      };
-      req.onerror = () => reject(req.error);
+  async function updateCostPer(_userId, _key, coinHash, costPer) {
+    const resp = await fetch('/api/coins/' + encodeURIComponent(coinHash), {
+      method: 'PUT',
+      headers: _authHeaders(),
+      body: JSON.stringify({ costPer }),
     });
+    if (!resp.ok) {
+      const data = await resp.json().catch(() => ({}));
+      throw new Error(data.error || 'Failed to update cost');
+    }
+  }
+
+  /**
+   * Remove a coin by hash.
+   * @param {string} _userId - ignored
+   * @param {string} coinHash
+   */
+  async function removeCoin(_userId, coinHash) {
+    const resp = await fetch('/api/coins/' + encodeURIComponent(coinHash), {
+      method: 'DELETE',
+      headers: _authHeaders(),
+    });
+    if (!resp.ok) {
+      const data = await resp.json().catch(() => ({}));
+      throw new Error(data.error || 'Failed to remove coin');
+    }
+  }
+
+  /**
+   * Get all coins (plaintext) for authenticated user.
+   * @param {string} _userId - ignored
+   * @param {*} _key - ignored
+   * @returns {Promise<object[]>}
+   */
+  async function getAllDecrypted(_userId, _key) {
+    const resp = await fetch('/api/coins', { headers: _authHeaders() });
+    if (!resp.ok) return [];
+    const data = await resp.json();
+    return data.coins || [];
+  }
+
+  /** Alias for getAllDecrypted (no encryption in server mode). */
+  async function getAllEncrypted(_userId) {
+    return getAllDecrypted(_userId);
+  }
+
+  /**
+   * Count of coins.
+   * @param {string} _userId - ignored
+   * @returns {Promise<number>}
+   */
+  async function count(_userId) {
+    const resp = await fetch('/api/coins/count', { headers: _authHeaders() });
+    if (!resp.ok) return 0;
+    const data = await resp.json();
+    return data.count || 0;
+  }
+
+  /**
+   * Clear all coins for the user.
+   * @param {string} _userId - ignored
+   */
+  async function clearAll(_userId) {
+    const coins = await getAllDecrypted(_userId);
+    for (const coin of coins) {
+      await removeCoin(_userId, coin.coinHash);
+    }
+  }
+
+  /**
+   * Export all coins as a backup JSON string.
+   * @param {string} _userId - ignored
+   * @param {*} _key - ignored
+   * @returns {Promise<string>} JSON string
+   */
+  async function exportJSON(_userId, _key) {
+    const resp = await fetch('/api/coins/export', { headers: _authHeaders() });
+    if (!resp.ok) throw new Error('Export failed');
+    const data = await resp.json();
+    return JSON.stringify(data, null, 2);
+  }
+
+  /**
+   * Import coins from a backup JSON string.
+   * @param {string} _userId - ignored
+   * @param {*} _key - ignored
+   * @param {string} jsonStr
+   * @returns {Promise<{imported, skipped, errors, warnings}>}
+   */
+  async function importJSON(_userId, _key, jsonStr) {
+    const data = JSON.parse(jsonStr);
+    if (!data || data.format !== 'coin-price-agent-backup-v1' || !Array.isArray(data.coins)) {
+      throw new Error('Invalid backup file format');
+    }
+    const resp = await fetch('/api/coins/import', {
+      method: 'POST',
+      headers: _authHeaders(),
+      body: jsonStr,
+    });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err.error || 'Import failed');
+    }
+    const result = await resp.json();
+    return { imported: result.imported || 0, skipped: result.skipped || 0, errors: 0, warnings: [] };
+  }
+
+  /** No-op -- no client-side DB to open. */
+  function openDB() { return Promise.resolve(null); }
+
+  /** No-op -- no client-side encryption to redo. */
+  async function reEncryptAll() { return 0; }
+
+  /**
+   * Client-side coinHash -- matches server coinStorageService.coinHash().
+   * Used by inline "I Have This Coin" qty +/- buttons.
+   * @param {object} coin
+   * @returns {Promise<string>} hex digest (64 chars)
+   */
+  async function coinHash(coin) {
+    const input = [
+      (coin.series || '').trim().toLowerCase(),
+      String(coin.year || ''),
+      (coin.mint || '').trim().toUpperCase(),
+      (coin.grade || '').trim().toUpperCase(),
+      (coin.notes || '').trim().toLowerCase(),
+      (coin.label || '').trim().toLowerCase(),
+    ].join('|');
+    const buf = new TextEncoder().encode(input);
+    const hashBuf = await crypto.subtle.digest('SHA-256', buf);
+    return Array.from(new Uint8Array(hashBuf))
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('');
   }
 
   return {
@@ -276,219 +239,19 @@ const CoinStorage = (() => {
     getAllDecrypted,
     count,
     clearAll,
-
-    /**
-     * Export all coins for a user as a plain JSON array (decrypted).
-     * The user must be logged in (key required).
-     * @param {string} userId
-     * @param {CryptoKey} key
-     * @returns {Promise<string>} JSON string ready for download
-     */
-    async exportJSON(userId, key) {
-      const coins = await getAllDecrypted(userId, key);
-      // Strip internal fields, keep only user-facing data
-      const clean = coins.map(c => ({
-        series: c.series || '',
-        year: c.year || '',
-        mint: c.mint || '',
-        grade: c.grade || '',
-        weight: c.weight || null,
-        query: c.query || '',
-        count: c.count || 1,
-        costPer: c.costPer != null ? c.costPer : null,
-        notes: c.notes || null,
-        label: c.label || null,
-        baseMetal: c.baseMetal || null,
-        fineness: c.fineness != null ? c.fineness : null,
-        dateAdded: c.dateAdded || null,
-      }));
-      return JSON.stringify({
-        format: 'coin-price-agent-backup-v1',
-        exportedAt: new Date().toISOString(),
-        count: clean.length,
-        coins: clean,
-      }, null, 2);
-    },
-
-    /**
-     * Import coins from a backup JSON string, encrypting each with the user's key.
-     * Skips duplicates (same coinHash already in inventory).
-     * @param {string} userId
-     * @param {CryptoKey} key
-     * @param {string} jsonStr — the raw JSON text from a backup file
-     * @returns {Promise<{imported: number, skipped: number, errors: number}>}
-     */
-    async importJSON(userId, key, jsonStr) {
-      const data = JSON.parse(jsonStr);
-      if (!data || data.format !== 'coin-price-agent-backup-v1' || !Array.isArray(data.coins)) {
-        throw new Error('Invalid backup file format');
-      }
-      let imported = 0, skipped = 0, errors = 0;
-      const warnings = [];
-
-      // Prefetch all existing coin hashes into a Set for O(1) dupe checks
-      const existingRecords = await getAllEncrypted(userId);
-      const existingHashes = new Set(existingRecords.map(r => r.coinHash));
-
-      for (let i = 0; i < data.coins.length; i++) {
-        const coin = data.coins[i];
-        try {
-          // Validate: must be an object with at least one identifying field
-          if (!coin || typeof coin !== 'object' || Array.isArray(coin)) {
-            warnings.push('Row ' + (i + 1) + ': not a valid coin object — skipped');
-            errors++;
-            continue;
-          }
-          const hasSeries = typeof coin.series === 'string' && coin.series.trim();
-          const hasQuery  = typeof coin.query === 'string' && coin.query.trim();
-          const hasYear   = coin.year != null && String(coin.year).trim();
-          if (!hasSeries && !hasQuery && !hasYear) {
-            warnings.push('Row ' + (i + 1) + ': no series, query, or year — skipped');
-            errors++;
-            continue;
-          }
-          // Sanitize: coerce fields to expected types, strip unknown keys
-          const importedCost = coin.costPer != null ? parseFloat(coin.costPer) : null;
-          const clean = {
-            series: String(coin.series || '').trim().slice(0, 200),
-            year:   String(coin.year || '').trim().slice(0, 10),
-            mint:   String(coin.mint || '').trim().toUpperCase().slice(0, 10),
-            grade:  String(coin.grade || '').trim().slice(0, 30),
-            weight: coin.weight ? String(coin.weight).trim().slice(0, 20) : null,
-            query:  String(coin.query || '').trim().slice(0, 300),
-            count:  Math.max(1, parseInt(coin.count, 10) || 1),
-            costPer: (importedCost != null && !isNaN(importedCost) && importedCost >= 0) ? importedCost : null,
-            notes:    coin.notes ? String(coin.notes).trim().slice(0, 500) : null,
-            label:    coin.label ? String(coin.label).trim().slice(0, 50) : null,
-            baseMetal: coin.baseMetal ? String(coin.baseMetal).trim().slice(0, 20) : null,
-            fineness:  coin.fineness != null ? parseFloat(coin.fineness) || null : null,
-            dateAdded: coin.dateAdded || null,
-          };
-          var hash = await CoinCrypto.coinHash(clean);
-          if (existingHashes.has(hash)) {
-            // Auto-differentiate: append "lot N" to notes so each gets a unique hash
-            var lotNum = 2;
-            var original = clean.notes || '';
-            while (existingHashes.has(hash)) {
-              clean.notes = (original ? original + ' | ' : '') + 'lot ' + lotNum;
-              hash = await CoinCrypto.coinHash(clean);
-              lotNum++;
-              if (lotNum > 50) break; // safety cap
-            }
-            if (lotNum > 50) { skipped++; continue; }
-          }
-          await addCoin(userId, key, clean);
-          existingHashes.add(hash); // track newly added hash
-          imported++;
-        } catch {
-          warnings.push('Row ' + (i + 1) + ': encryption error — skipped');
-          errors++;
-        }
-      }
-      return { imported, skipped, errors, warnings };
-    },
-
-    /**
-     * Re-encrypt all coins for a user with a new key.
-     * Used during password change.
-     * @param {string} userId
-     * @param {CryptoKey} oldKey
-     * @param {CryptoKey} newKey
-     * @returns {Promise<number>} count of re-encrypted coins
-     */
-    async reEncryptAll(userId, oldKey, newKey) {
-      const coins = await getAllDecrypted(userId, oldKey);
-      const db = await openDB();
-      // Clear old records
-      await clearAll(userId);
-      // Re-encrypt with new key
-      for (const coin of coins) {
-        await addCoin(userId, newKey, coin);
-      }
-      return coins.length;
-    },
+    exportJSON,
+    importJSON,
+    reEncryptAll,
+    coinHash,
   };
 })();
 
-// ── BackupReminder — tracks when users should back up their collection ──
+// BackupReminder — coins are now server-side so backup is less critical.
+// Keep the interface but make it a lightweight no-op.
 const BackupReminder = (() => {
-  const STORAGE_KEY = 'cpf_backup_state';
-  const ADDS_THRESHOLD = 10;      // prompt after this many adds without backup
-  const DAYS_THRESHOLD = 30;      // prompt after this many days without backup
-
-  function _load(userId) {
-    try {
-      const all = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
-      return all[userId] || { addsSinceBackup: 0, lastBackupDate: null, dismissed: null };
-    } catch { return { addsSinceBackup: 0, lastBackupDate: null, dismissed: null }; }
-  }
-
-  function _save(userId, state) {
-    try {
-      const all = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
-      all[userId] = state;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
-    } catch { /* localStorage full or unavailable */ }
-  }
-
-  /** Call after a coin is added. */
-  function recordAdd(userId) {
-    const s = _load(userId);
-    s.addsSinceBackup++;
-    s.dismissed = null;  // new add clears any previous dismissal
-    _save(userId, s);
-  }
-
-  /** Call after a successful backup export. */
-  function recordBackup(userId) {
-    const s = _load(userId);
-    s.addsSinceBackup = 0;
-    s.lastBackupDate = new Date().toISOString();
-    s.dismissed = null;
-    _save(userId, s);
-  }
-
-  /** Call when user clicks "Remind Me Later". */
-  function dismiss(userId) {
-    const s = _load(userId);
-    s.dismissed = new Date().toISOString();
-    _save(userId, s);
-  }
-
-  /**
-   * Check if a backup prompt should be shown.
-   * @param {string} userId
-   * @returns {{ needed: boolean, reason: string|null }}
-   */
-  function check(userId) {
-    const s = _load(userId);
-
-    // Don't re-show if dismissed within the last 7 days
-    if (s.dismissed) {
-      const dismissedAgo = Date.now() - new Date(s.dismissed).getTime();
-      if (dismissedAgo < 7 * 24 * 60 * 60 * 1000) return { needed: false, reason: null };
-    }
-
-    // First coin ever added and never backed up
-    if (s.addsSinceBackup >= 1 && !s.lastBackupDate) {
-      return { needed: true, reason: 'first' };
-    }
-
-    // Threshold of adds reached
-    if (s.addsSinceBackup >= ADDS_THRESHOLD) {
-      return { needed: true, reason: 'adds' };
-    }
-
-    // Too many days since last backup
-    if (s.lastBackupDate) {
-      const daysSince = (Date.now() - new Date(s.lastBackupDate).getTime()) / (24 * 60 * 60 * 1000);
-      if (daysSince >= DAYS_THRESHOLD) {
-        return { needed: true, reason: 'time' };
-      }
-    }
-
-    return { needed: false, reason: null };
-  }
-
+  function recordAdd() {}
+  function recordBackup() {}
+  function dismiss() {}
+  function check() { return { needed: false, reason: null }; }
   return { recordAdd, recordBackup, dismiss, check };
 })();

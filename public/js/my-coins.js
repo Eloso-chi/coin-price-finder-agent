@@ -1,5 +1,5 @@
-// my-coins.js — "My Coins" tab: decrypt inventory, fetch pricing, render table
-// Depends on: CoinCrypto, CoinStorage, CoinAuth, _esc, _escAttr (from index.html)
+// my-coins.js — "My Coins" tab: fetch inventory, price, render table
+// Depends on: CoinStorage, CoinAuth, _esc, _escAttr (from index.html)
 
 'use strict';
 
@@ -247,7 +247,7 @@ const MyCoins = (() => {
 
     if (_loading) return;
     _loading = true;
-    _container.innerHTML = '<p class="mycoins-loading">Decrypting inventory\u2026</p>';
+    _container.innerHTML = '<p class="mycoins-loading">Loading inventory\u2026</p>';
 
     try {
       const coins = await CoinStorage.getAllDecrypted(user.userId, user.key);
