@@ -15,8 +15,7 @@ const GS_BASE      = (process.env.GREYSHEET_BASE_URL || 'https://cpgpublicapiv2.
 const TIMEOUT       = 10_000;
 
 // Ensure cache directory exists
-const CACHE_DIR = path.join(__dirname, '..', '..', 'cache');
-if (!fs.existsSync(CACHE_DIR)) fs.mkdirSync(CACHE_DIR, { recursive: true });
+const CACHE_DIR = require('../utils/cachePath').CACHE_DIR;
 
 const cache = new TTLCache({
   defaultTTL: 86_400_000,  // 24h

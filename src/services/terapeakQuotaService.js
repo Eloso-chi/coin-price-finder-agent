@@ -8,11 +8,11 @@
 const fs = require('fs');
 const path = require('path');
 
-const CACHE_DIR = path.join(__dirname, '..', '..', 'cache');
+const CACHE_DIR = require('../utils/cachePath').CACHE_DIR;
 const QUOTA_PATH = path.join(CACHE_DIR, 'terapeak_quota.json');
 const DAILY_LIMIT = 250;
 
-if (!fs.existsSync(CACHE_DIR)) fs.mkdirSync(CACHE_DIR, { recursive: true });
+// (CACHE_DIR mkdir handled by cachePath.js)
 
 // ── Persistent state ────────────────────────────────────────
 let _state = null;

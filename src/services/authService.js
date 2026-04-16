@@ -10,8 +10,8 @@ const path = require('path');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
+const { CACHE_DIR } = require('../utils/cachePath');
 
-const CACHE_DIR = path.resolve(__dirname, '..', '..', 'cache');
 const STORE_PATH = path.join(CACHE_DIR, 'users.json');
 const BCRYPT_ROUNDS = 12;
 
@@ -22,7 +22,9 @@ const BCRYPT_ROUNDS = 12;
 const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(48).toString('hex');
 const JWT_EXPIRY = '7d';
 
-if (!fs.existsSync(CACHE_DIR)) fs.mkdirSync(CACHE_DIR, { recursive: true });
+if (!process.env.JWT_SECRET) {
+  console.warn('  [auth] WARNING: JWT_SECRET not set -- sessions will not survive restarts.');
+}
 
 // ── Store ───────────────────────────────────────────────────
 let _store = null;

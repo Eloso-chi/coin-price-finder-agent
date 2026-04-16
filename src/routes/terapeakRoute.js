@@ -255,12 +255,13 @@ router.post('/quota/set-limit', requireAdmin, express.json(), (req, res) => {
 
 /**
  * POST /api/terapeak/purge-stale-csvs
- * Delete CSV files from data/terapeak/ where every comp is older than 180 days.
+ * Delete CSV files from TERAPEAK_DATA_DIR where every comp is older than 180 days.
  * Body (optional): { maxDays: number }
  */
 router.post('/purge-stale-csvs', requireAdmin, express.json(), (req, res) => {
   const maxDays = parseInt(req.body?.maxDays) || 180;
-  const result = terapeakService.purgeStaleCSVs('data/terapeak', maxDays);
+  const dataDir = process.env.TERAPEAK_DATA_DIR || 'data/terapeak';
+  const result = terapeakService.purgeStaleCSVs(dataDir, maxDays);
   res.json({ status: 'ok', ...result });
 });
 

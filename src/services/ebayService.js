@@ -36,8 +36,7 @@ function tripCircuit(apiName) {
 // Long-lived cache: sold data doesn't change, so cache aggressively
 const path = require('path');
 const fs = require('fs');
-const CACHE_DIR = path.join(__dirname, '..', '..', 'cache');
-if (!fs.existsSync(CACHE_DIR)) fs.mkdirSync(CACHE_DIR, { recursive: true });
+const CACHE_DIR = require('../utils/cachePath').CACHE_DIR;
 const cache = new TTLCache({ defaultTTL: CACHE_TTL, filePath: path.join(CACHE_DIR, 'ebay_cache.json') });
 
 // ── Request Throttle ────────────────────────────────────────
@@ -565,7 +564,10 @@ function scoreMatch(comp, expected) {
     'colorized', 'coloured', 'colorised', 'colour', 'enameled',
     'reverse proof', 'burnished', 'enhanced reverse proof',
     'satin finish', 'first strike', 'first day', 'first release',
-    'antiqued', 'high relief', 'piedfort', 'privy'];
+    'first releases', 'antiqued', 'high relief', 'piedfort', 'privy',
+    'prooflike', 'ruthenium', 'hologram',
+    'flag label', 'brown label', 'blue label', 'black label',
+    'mercanti', 'moy signed', 'reagan'];
   const queryLower = (expected._rawQuery || '').toLowerCase();
   const labelLower = (expected.label || '').toLowerCase();
   const hasVariantInQuery = VARIANT_TOKENS.some(t => queryLower.includes(t))
@@ -889,7 +891,10 @@ function applyFilters(comps, options, expected) {
     const VARIANT_TOKENS = ['golden', 'gilded', 'gold plated', 'gold-plated',
       'colorized', 'coloured', 'colorised', 'enameled',
       'reverse proof', 'burnished', 'enhanced reverse proof',
-      'satin finish', 'antiqued', 'high relief', 'piedfort', 'privy'];
+      'satin finish', 'antiqued', 'high relief', 'piedfort', 'privy',
+      'prooflike', 'ruthenium', 'hologram',
+      'flag label', 'brown label', 'blue label', 'black label',
+      'mercanti', 'moy signed', 'reagan'];
     const qLow = (expected._rawQuery || '').toLowerCase();
     const labelLow = (expected.label || '').toLowerCase();
     const queryWantsVariant = VARIANT_TOKENS.some(t => qLow.includes(t))

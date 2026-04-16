@@ -10,7 +10,7 @@ const { MetalsSpotPriceError } = require('./MetalsSpotPriceError');
 /* ---------- Configuration ---------- */
 
 const CACHE_TTL_MS = parseInt(process.env.METALS_CACHE_TTL_MS, 10) || 45 * 60 * 1000; // 45 min
-const DISK_CACHE_PATH = path.resolve(__dirname, '../../cache/metals_spot.json');
+const DISK_CACHE_PATH = path.join(require('../utils/cachePath').CACHE_DIR, 'metals_spot.json');
 
 const GOLDAPI_KEY   = () => process.env.GOLDAPI_KEY   || '';
 const METALS_API_KEY = () => process.env.METALS_API_KEY || '';

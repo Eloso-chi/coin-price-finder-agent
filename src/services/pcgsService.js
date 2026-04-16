@@ -13,8 +13,7 @@ const PCGS_BASE   = (process.env.PCGS_BASE_URL || 'https://api.pcgs.com/publicap
 const TIMEOUT      = 10000;
 
 // Ensure cache directory exists
-const CACHE_DIR = path.join(__dirname, '..', '..', 'cache');
-if (!fs.existsSync(CACHE_DIR)) fs.mkdirSync(CACHE_DIR, { recursive: true });
+const CACHE_DIR = require('../utils/cachePath').CACHE_DIR;
 
 const cache = new TTLCache({ defaultTTL: 86_400_000, filePath: path.join(CACHE_DIR, 'pcgs_cache.json') }); // 24h, persisted
 

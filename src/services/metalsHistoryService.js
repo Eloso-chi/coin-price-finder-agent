@@ -7,10 +7,10 @@
 const fs   = require('fs');
 const path = require('path');
 
-const CACHE_DIR  = path.resolve(__dirname, '..', '..', 'cache');
+const CACHE_DIR  = require('../utils/cachePath').CACHE_DIR;
 const STORE_PATH = path.join(CACHE_DIR, 'metals_history.json');
 
-if (!fs.existsSync(CACHE_DIR)) fs.mkdirSync(CACHE_DIR, { recursive: true });
+// (CACHE_DIR mkdir handled by cachePath.js)
 
 let _store = null;
 

@@ -142,6 +142,10 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`  eBay configured: ${!!(process.env.EBAY_APP_ID && process.env.EBAY_CLIENT_SECRET)}`);
   console.log(`  PCGS configured: ${!!process.env.PCGS_API_KEY}`);
   console.log(`  Metals configured: ${!!(process.env.GOLDAPI_KEY || process.env.METALS_API_KEY)}`);
+  console.log(`  Cache dir: ${require('./src/utils/cachePath').CACHE_DIR}`);
+  if (process.env.CACHE_DIR) {
+    console.log(`  Cache dir (custom): ${process.env.CACHE_DIR}`);
+  }
 
   // ── Auto-seed testcollector account (server-side) ──────────
   const authService = require('./src/services/authService');
@@ -173,6 +177,7 @@ app.listen(PORT, '0.0.0.0', () => {
   }
   // ── Startup: auto-import Terapeak CSVs from data/terapeak/ folder ──
   const terapeakService = require('./src/services/terapeakService');
+  const TERAPEAK_DATA_DIR = process.env.TERAPEAK_DATA_DIR || 'data/terapeak';
 
   // Evict stale Terapeak comps (>180 days old) before importing new data
   const evictResult = terapeakService.evictStaleComps(180);
@@ -181,14 +186,14 @@ app.listen(PORT, '0.0.0.0', () => {
   }
 
   // Purge CSV files where every comp is older than 180 days
-  const purgeResult = terapeakService.purgeStaleCSVs('data/terapeak', 180);
+  const purgeResult = terapeakService.purgeStaleCSVs(TERAPEAK_DATA_DIR, 180);
   if (purgeResult.deleted > 0) {
     console.log(`  Terapeak CSV purge: deleted ${purgeResult.deleted} stale file(s): ${purgeResult.deletedFiles.join(', ')}`);
   }
 
-  const autoResult = terapeakService.autoImportFolder('data/terapeak');
+  const autoResult = terapeakService.autoImportFolder(TERAPEAK_DATA_DIR);
   if (autoResult.imported > 0) {
-    console.log(`  Terapeak auto-import: ${autoResult.imported} new file(s) loaded from data/terapeak/`);
+    console.log(`  Terapeak auto-import: ${autoResult.imported} new file(s) loaded from ${TERAPEAK_DATA_DIR}/`);
     // Clear eBay cache when Terapeak data changes — prevents stale
     // cached results from hiding freshly imported comp data
     const ebayService = require('./src/services/ebayService');

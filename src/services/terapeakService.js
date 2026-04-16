@@ -12,10 +12,10 @@ const path = require('path');
 const { parse } = require('csv-parse/sync');
 const { isDenied } = require('../utils/filters');
 
-const CACHE_DIR = path.join(__dirname, '..', '..', 'cache');
+const CACHE_DIR = require('../utils/cachePath').CACHE_DIR;
 const STORE_PATH = path.join(CACHE_DIR, 'terapeak_sold.json');
 
-if (!fs.existsSync(CACHE_DIR)) fs.mkdirSync(CACHE_DIR, { recursive: true });
+// (CACHE_DIR mkdir handled by cachePath.js)
 
 // ── Persistent store ────────────────────────────────────────
 let _store = null;

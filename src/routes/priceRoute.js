@@ -23,9 +23,13 @@ const stats = require('../utils/stats');
 
 // ── Allowed graded-slab label values (must match frontend <select> options) ──
 const ALLOWED_LABELS = new Set([
-  'First Strike', 'Early Releases', 'First Day of Issue',
+  'First Strike', 'Early Releases', 'First Releases', 'First Day of Issue',
   'Burnished', 'Reverse Proof', 'Enhanced Reverse Proof',
-  'Satin Finish', 'Antiqued', 'High Relief',
+  'Satin Finish', 'Antiqued', 'High Relief', 'Prooflike',
+  'Colorized', 'Privy', 'Type 1', 'Type 2',
+  'Gilded', 'Ruthenium', 'Hologram', 'Gold Plated',
+  'Flag Label', 'Brown Label', 'Blue Label', 'Black Label',
+  'Mercanti Signed', 'Moy Signed', 'Reagan Signed',
 ]);
 
 // ── #41: Adjacent-year context ──

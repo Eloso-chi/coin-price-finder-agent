@@ -5,6 +5,7 @@
 
 const { TTLCache } = require('../utils/cache');
 const path = require('path');
+const { CACHE_DIR } = require('../utils/cachePath');
 
 const API_BASE = 'https://api.numista.com/v3';
 function getApiKey() { return process.env.NUMISTA_API_KEY || ''; }
@@ -12,7 +13,7 @@ function getApiKey() { return process.env.NUMISTA_API_KEY || ''; }
 // 24-hour TTL cache, persisted to disk
 const cache = new TTLCache({
   defaultTTL: 86_400_000,
-  filePath: path.join(__dirname, '../../cache/numista_cache.json')
+  filePath: path.join(CACHE_DIR, 'numista_cache.json')
 });
 
 // ── Rarity tiers derived from mintage ───────────────────────────────────
