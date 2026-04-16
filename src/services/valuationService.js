@@ -73,6 +73,12 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
   const gsData = opts.greysheet || null;
   const greysheetVal = gsData?.greyVal || null;
 
+  // #54: Greysheet wholesale-to-retail spread as liquidity signal
+  // Narrow spread = liquid (easy to buy/sell), wide = illiquid (hard to sell)
+  const gsSpreadPct = (gsData?.greyVal > 0 && gsData?.cpgVal > 0)
+    ? +((gsData.cpgVal - gsData.greyVal) / gsData.greyVal * 100).toFixed(1)
+    : null;
+
   // ── Spot price for bullion premium calculation ──
   const spotPrice = opts.spotPrice || null;
 
@@ -201,7 +207,8 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
     pcgsFound,
     browseOnly,
     soldRatio,
-    population: pcgs?.population?.thisGrade ?? null
+    population: pcgs?.population?.thisGrade ?? null,
+    greysheetSpreadPct: gsSpreadPct
   });
   explanation.push(`Confidence ${confidence}/100.`);
 
@@ -290,6 +297,12 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
       },
       method,
       saleContext: ctxAdj.label,
+      greysheetSpread: gsSpreadPct != null ? {
+        spreadPct: gsSpreadPct,
+        liquidity: gsSpreadPct <= 15 ? 'high' : gsSpreadPct <= 30 ? 'moderate' : 'low',
+        wholesale: gsData.greyVal,
+        retail: gsData.cpgVal
+      } : null,
       bullionSpot: method === 'bullion-spot-premium' ? {
         spotPrice: +spotPrice.toFixed(2),
         premiumPct: +((fmv / spotPrice - 1) * 100).toFixed(1),
@@ -413,7 +426,7 @@ function fallbackPenalty(usCompCount) {
  * sample size, dispersion, and match quality — things that matter for
  * commodity bullion.
  */
-function computeConfidence({ verified, usCompCount, glCompCount, dispersion, avgMatchScore, usedFallback, hasPcgsGuide, hasAuction, hasGreysheet, isBar, pcgsFound, browseOnly, soldRatio, population }) {
+function computeConfidence({ verified, usCompCount, glCompCount, dispersion, avgMatchScore, usedFallback, hasPcgsGuide, hasAuction, hasGreysheet, isBar, pcgsFound, browseOnly, soldRatio, population, greysheetSpreadPct }) {
   let c = 0;
 
   if (isBar) {
@@ -468,6 +481,14 @@ function computeConfidence({ verified, usCompCount, glCompCount, dispersion, avg
     if (population < 50) c -= 15;
     else if (population < 100) c -= 10;
     else c -= 5;
+  }
+
+  // ── #54: Greysheet liquidity spread signal ──
+  // Narrow wholesale-to-retail spread = liquid market = more reliable FMV.
+  // Wide spread = illiquid, harder to sell, less reliable.
+  if (greysheetSpreadPct != null) {
+    if (greysheetSpreadPct <= 15) c += 5;        // Tight spread — liquid
+    else if (greysheetSpreadPct >= 40) c -= 5;   // Wide spread — illiquid
   }
 
   return Math.max(0, Math.min(100, Math.round(c)));

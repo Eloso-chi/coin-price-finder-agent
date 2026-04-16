@@ -62,13 +62,15 @@ router.get('/', (req, res) => {
       received += chunk.length;
       if (received > MAX_SIZE) {
         upstream.destroy();
-        if (!res.headersSent) res.status(413).end();
+        // Headers already sent (200) -- can't change status code.
+        // Just terminate the response to free the connection.
+        res.end();
         return;
       }
       res.write(chunk);
     });
     upstream.on('end', () => res.end());
-    upstream.on('error', () => { if (!res.headersSent) res.status(502).end(); });
+    upstream.on('error', () => { if (!res.headersSent) res.status(502).end(); else res.end(); });
   });
 
   proxyReq.on('error', () => { if (!res.headersSent) res.status(502).end(); });
@@ -76,3 +78,4 @@ router.get('/', (req, res) => {
 });
 
 module.exports = router;
+module.exports._allowedHosts = ALLOWED_HOSTS;

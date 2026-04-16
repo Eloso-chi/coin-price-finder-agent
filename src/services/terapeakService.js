@@ -13,6 +13,7 @@ const { parse } = require('csv-parse/sync');
 const { isDenied } = require('../utils/filters');
 
 const CACHE_DIR = require('../utils/cachePath').CACHE_DIR;
+const cosmos = require('../utils/cosmosClient');
 const STORE_PATH = path.join(CACHE_DIR, 'terapeak_sold.json');
 
 // (CACHE_DIR mkdir handled by cachePath.js)
@@ -402,6 +403,20 @@ function importComps(searchTerm, comps, meta = {}) {
 
   _store = store;
   saveStore();
+
+  // Write-through to Cosmos DB (#98)
+  if (cosmos.isEnabled() && newCount > 0) {
+    const doc = {
+      id: normalizedKey.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 200),
+      searchTerm: normalizedKey,
+      comps: existing,
+      lastImport: store[normalizedKey].lastImport,
+      importCount: store[normalizedKey].importCount,
+    };
+    cosmos.container('terapeak-sold').items.upsert(doc).catch(err => {
+      if (process.env.NODE_ENV !== 'test') console.error('[terapeak] Cosmos write-through failed:', err.message);
+    });
+  }
 
   // Invalidate eBay result cache — cached price responses were computed from
   // the old Terapeak dataset and are now stale.  Lazy require to avoid

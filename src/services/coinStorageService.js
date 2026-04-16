@@ -10,6 +10,7 @@ const path = require('path');
 const crypto = require('crypto');
 
 const CACHE_DIR = require('../utils/cachePath').CACHE_DIR;
+const cosmos = require('../utils/cosmosClient');
 const STORE_PATH = path.join(CACHE_DIR, 'user_coins.json');
 
 // (CACHE_DIR mkdir handled by cachePath.js)
@@ -67,9 +68,6 @@ function coinHash(coin) {
  * @returns {string} coinHash
  */
 function addCoin(userId, coin) {
-  const store = loadStore();
-  if (!store[userId]) store[userId] = [];
-
   const hash = coinHash(coin);
   const costRaw = coin.costPer != null ? parseFloat(coin.costPer) : null;
 
@@ -90,17 +88,24 @@ function addCoin(userId, coin) {
     dateAdded: coin.dateAdded || new Date().toISOString(),
   };
 
-  // Check for duplicate
-  const existing = store[userId].findIndex(c => c.coinHash === hash);
-  if (existing >= 0) {
-    // Update existing entry
-    store[userId][existing] = entry;
+  if (cosmos.isEnabled()) {
+    const doc = { id: hash, userId, ...entry };
+    // Upsert handles both insert and update
+    cosmos.container('user-coins').items.upsert(doc).catch(err => {
+      if (process.env.NODE_ENV !== 'test') console.error('[coinStorage] Cosmos upsert failed:', err.message);
+    });
   } else {
-    store[userId].push(entry);
+    const store = loadStore();
+    if (!store[userId]) store[userId] = [];
+    const existing = store[userId].findIndex(c => c.coinHash === hash);
+    if (existing >= 0) {
+      store[userId][existing] = entry;
+    } else {
+      store[userId].push(entry);
+    }
+    _store = store;
+    saveStore();
   }
-
-  _store = store;
-  saveStore();
   return hash;
 }
 
@@ -111,6 +116,12 @@ function addCoin(userId, coin) {
  * @returns {boolean}
  */
 function hasCoin(userId, coin) {
+  if (cosmos.isEnabled()) {
+    // Sync call -- use file fallback for sync-only callers
+    const store = loadStore();
+    const hash = coinHash(coin);
+    return (store[userId] || []).some(c => c.coinHash === hash);
+  }
   const store = loadStore();
   const hash = coinHash(coin);
   return (store[userId] || []).some(c => c.coinHash === hash);
@@ -123,6 +134,14 @@ function hasCoin(userId, coin) {
  * @returns {boolean}
  */
 function removeCoin(userId, hash) {
+  if (cosmos.isEnabled()) {
+    cosmos.container('user-coins').item(hash, userId).delete().catch(err => {
+      if (err.code !== 404 && process.env.NODE_ENV !== 'test') {
+        console.error('[coinStorage] Cosmos delete failed:', err.message);
+      }
+    });
+    // Also update file store for sync reads
+  }
   const store = loadStore();
   if (!store[userId]) return false;
   const before = store[userId].length;
@@ -144,6 +163,36 @@ function getAllCoins(userId) {
 }
 
 /**
+ * Async version that reads from Cosmos DB when available.
+ * @param {string} userId
+ * @returns {Promise<object[]>}
+ */
+async function getAllCoinsAsync(userId) {
+  if (cosmos.isEnabled()) {
+    const { resources } = await cosmos.container('user-coins').items
+      .query({ query: 'SELECT * FROM c WHERE c.userId = @uid', parameters: [{ name: '@uid', value: userId }] })
+      .fetchAll();
+    return resources.map(doc => ({
+      coinHash: doc.coinHash,
+      series: doc.series,
+      year: doc.year,
+      mint: doc.mint,
+      grade: doc.grade,
+      weight: doc.weight,
+      query: doc.query,
+      count: doc.count,
+      costPer: doc.costPer,
+      notes: doc.notes,
+      label: doc.label,
+      baseMetal: doc.baseMetal,
+      fineness: doc.fineness,
+      dateAdded: doc.dateAdded,
+    }));
+  }
+  return getAllCoins(userId);
+}
+
+/**
  * Update the count of a coin.
  * @param {string} userId
  * @param {string} hash
@@ -151,10 +200,19 @@ function getAllCoins(userId) {
  * @returns {boolean}
  */
 function updateCount(userId, hash, newCount) {
+  const count = Math.max(1, parseInt(newCount, 10) || 1);
+  if (cosmos.isEnabled()) {
+    cosmos.container('user-coins').item(hash, userId).read().then(({ resource }) => {
+      resource.count = count;
+      return cosmos.container('user-coins').item(hash, userId).replace(resource);
+    }).catch(err => {
+      if (process.env.NODE_ENV !== 'test') console.error('[coinStorage] Cosmos updateCount failed:', err.message);
+    });
+  }
   const store = loadStore();
   const coin = (store[userId] || []).find(c => c.coinHash === hash);
   if (!coin) return false;
-  coin.count = Math.max(1, parseInt(newCount, 10) || 1);
+  coin.count = count;
   _store = store;
   saveStore();
   return true;
@@ -168,11 +226,20 @@ function updateCount(userId, hash, newCount) {
  * @returns {boolean}
  */
 function updateCostPer(userId, hash, costPer) {
+  const parsed = costPer != null ? parseFloat(costPer) : null;
+  const val = (parsed != null && !isNaN(parsed) && parsed >= 0) ? parsed : null;
+  if (cosmos.isEnabled()) {
+    cosmos.container('user-coins').item(hash, userId).read().then(({ resource }) => {
+      resource.costPer = val;
+      return cosmos.container('user-coins').item(hash, userId).replace(resource);
+    }).catch(err => {
+      if (process.env.NODE_ENV !== 'test') console.error('[coinStorage] Cosmos updateCostPer failed:', err.message);
+    });
+  }
   const store = loadStore();
   const coin = (store[userId] || []).find(c => c.coinHash === hash);
   if (!coin) return false;
-  const parsed = costPer != null ? parseFloat(costPer) : null;
-  coin.costPer = (parsed != null && !isNaN(parsed) && parsed >= 0) ? parsed : null;
+  coin.costPer = val;
   _store = store;
   saveStore();
   return true;
@@ -195,6 +262,12 @@ function count(userId) {
  * @returns {number} count deleted
  */
 function bulkDelete(userId, hashes) {
+  if (cosmos.isEnabled()) {
+    const cont = cosmos.container('user-coins');
+    for (const h of hashes) {
+      cont.item(h, userId).delete().catch(() => {});
+    }
+  }
   const store = loadStore();
   if (!store[userId]) return 0;
   const hashSet = new Set(hashes);
@@ -281,6 +354,7 @@ module.exports = {
   hasCoin,
   removeCoin,
   getAllCoins,
+  getAllCoinsAsync,
   updateCount,
   updateCostPer,
   count,

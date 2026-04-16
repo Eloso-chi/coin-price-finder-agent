@@ -8,6 +8,7 @@ const fs   = require('fs');
 const path = require('path');
 
 const CACHE_DIR  = require('../utils/cachePath').CACHE_DIR;
+const cosmos     = require('../utils/cosmosClient');
 const STORE_PATH = path.join(CACHE_DIR, 'metals_history.json');
 
 // (CACHE_DIR mkdir handled by cachePath.js)
@@ -62,6 +63,17 @@ function recordDaily(metal, price, timestamp) {
     store[metal][dateKey] = Math.round(price * 100) / 100;
     _store = store;
     saveStore();
+
+    // Write-through to Cosmos DB (#98)
+    if (cosmos.isEnabled()) {
+      cosmos.container('metals-history').items.upsert({
+        id: metal,
+        metal,
+        prices: store[metal],
+      }).catch(err => {
+        if (process.env.NODE_ENV !== 'test') console.error('[metalsHistory] Cosmos write-through failed:', err.message);
+      });
+    }
   }
 }
 

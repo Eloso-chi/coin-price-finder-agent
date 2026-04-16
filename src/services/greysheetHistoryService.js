@@ -9,6 +9,7 @@ const fs   = require('fs');
 const path = require('path');
 
 const CACHE_DIR  = require('../utils/cachePath').CACHE_DIR;
+const cosmos     = require('../utils/cosmosClient');
 const STORE_PATH = path.join(CACHE_DIR, 'greysheet_history.json');
 
 // (CACHE_DIR mkdir handled by cachePath.js)
@@ -75,6 +76,19 @@ function recordSnapshot(lookupKey, greyVal, cpgVal) {
     if (cpgVal  != null) store[lookupKey][dateKey].r = Math.round(cpgVal  * 100) / 100;
     _store = store;
     saveStore();
+
+    // Write-through to Cosmos DB (#98)
+    if (cosmos.isEnabled()) {
+      const docId = lookupKey.replace(/[^a-zA-Z0-9_-]/g, '_');
+      cosmos.container('greysheet-history').items.upsert({
+        id: docId,
+        coinKey: lookupKey,
+        snapshots: store[lookupKey],
+      }).catch(err => {
+        if (process.env.NODE_ENV !== 'test') console.error('[greysheetHistory] Cosmos write-through failed:', err.message);
+      });
+    }
+
     return true;
   }
   return false;

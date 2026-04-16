@@ -26,6 +26,7 @@
   },
   "homepage": "https://github.com/Eloso-chi/coin-price-finder-agent#readme",
   "dependencies": {
+    "@azure/cosmos": "^4.9.2",
     "axios": "^1.13.5",
     "bcryptjs": "^3.0.3",
     "csv-parse": "^6.1.0",

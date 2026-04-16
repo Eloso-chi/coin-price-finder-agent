@@ -161,14 +161,80 @@ describe('path extension validation', () => {
 describe('upstream response handling', () => {
   let mockServer;
   let mockPort;
+  const ALLOWED = imageProxy._allowedHosts;
 
-  // We can't test with the real allowlist unless we add localhost.
-  // Instead, test the core logic by temporarily patching the allowlist.
-  // Since the allowlist is a const Set in the module, we test upstream
-  // handling indirectly by verifying error codes for non-200 and non-image.
+  beforeAll((done) => {
+    mockServer = http.createServer((req, res) => {
+      const url = req.url;
+      if (url === '/ok.jpg') {
+        const body = Buffer.alloc(100, 0xff);
+        res.writeHead(200, { 'Content-Type': 'image/jpeg', 'Content-Length': body.length });
+        res.end(body);
+      } else if (url === '/not-image.jpg') {
+        res.writeHead(200, { 'Content-Type': 'text/html' });
+        res.end('<html>gotcha</html>');
+      } else if (url === '/big.jpg') {
+        // Stream >2MB
+        res.writeHead(200, { 'Content-Type': 'image/jpeg' });
+        const chunk = Buffer.alloc(512 * 1024, 0xab);
+        for (let i = 0; i < 6; i++) res.write(chunk); // 3MB
+        res.end();
+      } else if (url === '/404.jpg') {
+        res.writeHead(404);
+        res.end();
+      } else if (url === '/500.jpg') {
+        res.writeHead(500);
+        res.end();
+      } else {
+        res.writeHead(404);
+        res.end();
+      }
+    });
+    mockServer.listen(0, '127.0.0.1', () => {
+      mockPort = mockServer.address().port;
+      ALLOWED.add('127.0.0.1');
+      done();
+    });
+  });
 
-  test('returns 403 for upstream that is not allowlisted', async () => {
-    const res = await request(app).get('/api/image-proxy?url=' + encodeURIComponent('http://localhost:9999/image.png'));
-    expect(res.status).toBe(403);
+  afterAll((done) => {
+    ALLOWED.delete('127.0.0.1');
+    mockServer.close(done);
+  });
+
+  function mockUrl(path) {
+    return encodeURIComponent(`http://127.0.0.1:${mockPort}${path}`);
+  }
+
+  test('proxies valid image with correct Content-Type', async () => {
+    const res = await request(app).get('/api/image-proxy?url=' + mockUrl('/ok.jpg'));
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toBe('image/jpeg');
+    expect(res.headers['cache-control']).toMatch(/public.*max-age=86400/);
+    expect(res.body.length).toBe(100);
+  });
+
+  test('rejects upstream that returns non-image Content-Type', async () => {
+    const res = await request(app).get('/api/image-proxy?url=' + mockUrl('/not-image.jpg'));
+    expect(res.status).toBe(502);
+    expect(res.body.error).toMatch(/not.*image/i);
+  });
+
+  test('truncates response when upstream exceeds 2MB size limit', async () => {
+    const res = await request(app).get('/api/image-proxy?url=' + mockUrl('/big.jpg'));
+    // Headers already sent as 200 before size exceeded, but body is truncated
+    expect(res.status).toBe(200);
+    // Body should be smaller than 3MB (the full upstream payload)
+    expect(res.body.length).toBeLessThan(3 * 1024 * 1024);
+  });
+
+  test('forwards upstream 404 status', async () => {
+    const res = await request(app).get('/api/image-proxy?url=' + mockUrl('/404.jpg'));
+    expect(res.status).toBe(404);
+  });
+
+  test('forwards upstream 500 status', async () => {
+    const res = await request(app).get('/api/image-proxy?url=' + mockUrl('/500.jpg'));
+    expect(res.status).toBe(500);
   });
 });

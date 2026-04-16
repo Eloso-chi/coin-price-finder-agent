@@ -2894,6 +2894,15 @@
       if (v.saleContext && v.saleContext !== 'eBay Retail') {
         html += '<span class="fmv-chip" style="background:rgba(100,70,200,0.08);border-color:rgba(100,70,200,0.25);color:#6446c8;font-weight:600" title="Buy/sell thresholds adjusted for sale venue">&#x1F3F7;&#xFE0F; ' + _esc(v.saleContext) + '</span>';
       }
+      // Greysheet liquidity spread chip (#54) — bar section
+      if (v.greysheetSpread) {
+        var liq = v.greysheetSpread;
+        var liqColor = liq.liquidity === 'high' ? '#16a34a' : liq.liquidity === 'moderate' ? '#b8860b' : '#dc2626';
+        var liqBg = liq.liquidity === 'high' ? 'rgba(22,163,74,0.08)' : liq.liquidity === 'moderate' ? 'rgba(218,165,32,0.08)' : 'rgba(220,38,38,0.08)';
+        html += '<span class="fmv-chip" style="background:' + liqBg + ';color:' + liqColor + ';border-color:' + liqColor + '40" title="Greysheet wholesale $' + liq.wholesale.toFixed(2) + ' vs retail $' + liq.retail.toFixed(2) + ' — ' + liq.liquidity + ' liquidity">';
+        html += '\uD83D\uDCCA Spread: ' + liq.spreadPct.toFixed(0) + '% (' + liq.liquidity + ' liquidity)';
+        html += '</span>';
+      }
       html += '</div>';
       html += '</div>';
 
@@ -3681,6 +3690,21 @@
       html += '<div style="margin-top:6px;padding:6px 10px;background:rgba(218,165,32,0.08);border:1px solid rgba(218,165,32,0.3);border-radius:6px;font-size:0.78rem;color:#b8860b">';
       html += '\u26a0\ufe0f <strong>Limited sold data</strong> \u2014 Only ' + ds.soldCount + ' of ' + ds.totalComps + ' comps are verified sales. FMV may be less accurate.';
       html += '</div>';
+    }
+    // Low-data warning (#40) — mirror of bar section
+    if (v.lowData) {
+      html += '<div style="margin-top:6px;padding:6px 10px;background:rgba(220,38,38,0.08);border:1px solid rgba(220,38,38,0.35);border-radius:6px;font-size:0.78rem;color:#dc2626">';
+      html += '&#9888;&#65039; <strong>Low confidence</strong> -- only ' + (v.compCount || 0) + ' sold comp' + (v.compCount === 1 ? '' : 's') + '. Cross-reference with dealer prices before buying or selling.';
+      html += '</div>';
+    }
+    // Greysheet liquidity spread chip (#54)
+    if (v.greysheetSpread) {
+      var liq = v.greysheetSpread;
+      var liqColor = liq.liquidity === 'high' ? '#16a34a' : liq.liquidity === 'moderate' ? '#b8860b' : '#dc2626';
+      var liqBg = liq.liquidity === 'high' ? 'rgba(22,163,74,0.08)' : liq.liquidity === 'moderate' ? 'rgba(218,165,32,0.08)' : 'rgba(220,38,38,0.08)';
+      html += '<span class="fmv-chip" style="background:' + liqBg + ';color:' + liqColor + ';border-color:' + liqColor + '40" title="Greysheet wholesale $' + liq.wholesale.toFixed(2) + ' vs retail $' + liq.retail.toFixed(2) + ' — ' + liq.liquidity + ' liquidity">';
+      html += '\uD83D\uDCCA Spread: ' + liq.spreadPct.toFixed(0) + '% (' + liq.liquidity + ' liquidity)';
+      html += '</span>';
     }
     html += '</div>';
 
