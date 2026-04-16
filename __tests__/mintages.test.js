@@ -113,6 +113,53 @@ describe('lookupMintage — fractional weight', () => {
     // The function should still find the 1oz BU entry
     expect(result).toBeDefined();
   });
+
+  test('Gold Eagle 1/2 oz returns fractional table mintage', () => {
+    const result = lookupMintage('American Gold Eagle', 1986, 'P', 0.5);
+    expect(result.mintage).toBe(599566);
+    expect(result.series).toMatch(/1\/2 oz/);
+  });
+
+  test('Gold Eagle 1/4 oz returns fractional table mintage', () => {
+    const result = lookupMintage('American Gold Eagle', 1986, 'P', 0.25);
+    expect(result.mintage).toBe(726031);
+    expect(result.series).toMatch(/1\/4 oz/);
+  });
+
+  test('Gold Eagle 1/10 oz returns fractional table mintage', () => {
+    const result = lookupMintage('American Gold Eagle', 1986, 'P', 0.1);
+    expect(result.mintage).toBe(912609);
+    expect(result.series).toMatch(/1\/10 oz/);
+  });
+
+  test('Gold Eagle 1/10 oz with no mint defaults to P-mint', () => {
+    const result = lookupMintage('American Gold Eagle', 1986, null, 0.1);
+    expect(result.mintage).toBe(912609);
+  });
+
+  test('Gold Eagle 1/2 oz W-mint returns W-mint mintage', () => {
+    const result = lookupMintage('American Gold Eagle', 2006, 'W', 0.5);
+    expect(result.mintage).toBe(15164);
+    expect(result.series).toMatch(/1\/2 oz/);
+  });
+
+  test('Gold Eagle 1 oz (weight=1) uses standard table, not fractional', () => {
+    const result = lookupMintage('American Gold Eagle', 1986, 'P', 1);
+    expect(result.mintage).toBeGreaterThan(0);
+    expect(result.series).not.toMatch(/oz/);
+  });
+
+  test('Fractional weight for year not in table returns null', () => {
+    const result = lookupMintage('American Gold Eagle', 1850, 'P', 0.25);
+    expect(result.mintage).toBeNull();
+  });
+
+  test('Unmapped fractional weight (e.g. 0.75) falls back to standard table', () => {
+    const result = lookupMintage('American Gold Eagle', 1986, 'P', 0.75);
+    // 0.75 is not in the fractionMap, so it falls to the standard 1 oz table
+    expect(result.mintage).toBeGreaterThan(0);
+    expect(result.series).not.toMatch(/oz/);
+  });
 });
 
 /* ════════════════════════════════════════════════════════════

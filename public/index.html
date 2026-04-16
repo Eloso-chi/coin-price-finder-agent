@@ -3733,6 +3733,17 @@
     if (sell.notes?.length) html += '<p class="card-notes">' + _esc(sell.notes.join(' ')) + '</p>';
     html += '</div></div>';
 
+    // ── Adjacent-year context (#41) — coin path
+    if (d.adjacentYears && d.adjacentYears.length > 0) {
+      html += '<div class="card" style="margin-top:12px;background:rgba(99,110,123,0.04);border:1px solid rgba(99,110,123,0.15)">';
+      html += '<div style="font-size:0.82rem;font-weight:700;color:var(--text-muted);margin-bottom:6px">&#128269; Nearby Years (for context only -- not used in FMV)</div>';
+      html += '<div style="display:flex;gap:12px;flex-wrap:wrap">';
+      for (var ay of d.adjacentYears) {
+        html += '<span class="fmv-chip" style="font-size:0.82rem" title="' + ay.compCount + ' comps">' + ay.year + ': ' + $(ay.median) + ' <small style="color:var(--text-muted)">(' + ay.compCount + ')</small></span>';
+      }
+      html += '</div></div>';
+    }
+
     // ── Numista Catalogue Panel ────────────────────────
     const nm = d.numista;
     if (nm && nm.accessible && nm.type) {

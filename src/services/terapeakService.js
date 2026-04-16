@@ -963,6 +963,89 @@ function autoImportFolder(folderPath, opts = {}) {
 }
 
 /**
+ * Import Terapeak CSVs from Azure Blob Storage instead of the local filesystem.
+ * Mirrors autoImportFolder() but reads from the blob container.
+ * Only activates when TERAPEAK_BLOB_ACCOUNT + TERAPEAK_BLOB_CONTAINER are set.
+ *
+ * @param {object} [opts] - { force: boolean, maxAgeMs: number }
+ * @returns {Promise<{ imported: number, skipped: number, errors: string[], freshSkipped: number }>}
+ */
+async function autoImportFromBlob(opts = {}) {
+  const blob = require('../utils/blobClient');
+  if (!blob.isEnabled()) return { imported: 0, skipped: 0, errors: [], freshSkipped: 0 };
+
+  const { force = false, maxAgeMs = 7 * 24 * 60 * 60 * 1000 } = opts;
+  let imported = 0, skipped = 0, freshSkipped = 0;
+  const errors = [];
+
+  try {
+    const blobs = await blob.listBlobs();
+    const csvBlobs = blobs.filter(b => /\.(csv|tsv|txt)$/i.test(b.name));
+    if (csvBlobs.length === 0) return { imported: 0, skipped: 0, errors: [], freshSkipped: 0 };
+
+    // Quick staleness check (same logic as autoImportFolder)
+    if (!force) {
+      const store = loadStore();
+      const now = Date.now();
+      const datasets = Object.values(store);
+      if (datasets.length > 0) {
+        const oldestImport = Math.min(...datasets.map(d => new Date(d.lastImport).getTime()));
+        const allFresh = (now - oldestImport) < maxAgeMs;
+        if (allFresh) {
+          const anyModified = csvBlobs.some(b => b.lastModified.getTime() > oldestImport);
+          if (!anyModified) {
+            console.log(`[terapeak] Blob data is fresh (imported ${Math.round((now - oldestImport) / 60000)}m ago) — skipping. Use force=true to override.`);
+            return { imported: 0, skipped: csvBlobs.length, errors: [], freshSkipped: csvBlobs.length };
+          }
+        }
+      }
+    }
+
+    for (const blobInfo of csvBlobs) {
+      try {
+        const fileName = blobInfo.name;
+        const searchTerm = fileName.replace(/\.[^.]+$/, '').replace(/[_]+/g, ' ').trim();
+
+        // Per-file freshness
+        if (!force) {
+          const store = loadStore();
+          const key = normalizeSearchKey(searchTerm);
+          const existing = store[key];
+          if (existing?.lastImport) {
+            const lastImportMs = new Date(existing.lastImport).getTime();
+            if ((Date.now() - lastImportMs) < maxAgeMs && blobInfo.lastModified.getTime() <= lastImportMs) {
+              freshSkipped++;
+              skipped++;
+              continue;
+            }
+          }
+        }
+
+        const csvData = await blob.downloadBlob(fileName);
+        if (!csvData) { skipped++; continue; }
+
+        const { comps } = parseCSV(csvData, searchTerm);
+        if (comps.length === 0) { skipped++; continue; }
+
+        const result = importComps(searchTerm, comps, { fileName, autoImported: true });
+        if (result.newComps > 0) {
+          console.log(`[terapeak] Blob-imported ${fileName}: ${result.newComps} new comps for "${searchTerm}" (${result.totalStored} total)`);
+          imported++;
+        } else {
+          skipped++;
+        }
+      } catch (err) {
+        errors.push(`${blobInfo.name}: ${err.message}`);
+      }
+    }
+  } catch (err) {
+    errors.push(`Blob listing failed: ${err.message}`);
+  }
+
+  return { imported, skipped, errors, freshSkipped };
+}
+
+/**
  * Derive search term from a CSV filename, checking for .meta companion file.
  */
 function deriveSearchTerm(folderPath, file) {
@@ -984,6 +1067,7 @@ module.exports = {
   evictStaleComps,
   purgeStaleCSVs,
   autoImportFolder,
+  autoImportFromBlob,
   normalizeSearchKey,
   detectWeightFromQuery,
   detectMetal: _detectMetalFromText,

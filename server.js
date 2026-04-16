@@ -137,7 +137,7 @@ app.get('/api/health', (_req, res) => {
 });
 
 // ── Start ───────────────────────────────────────────────────
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, '0.0.0.0', async () => {
   console.log(`CoinPriceDiscoveryAgent listening on http://localhost:${PORT}`);
   console.log(`  eBay configured: ${!!(process.env.EBAY_APP_ID && process.env.EBAY_CLIENT_SECRET)}`);
   console.log(`  PCGS configured: ${!!process.env.PCGS_API_KEY}`);
@@ -191,17 +191,35 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log(`  Terapeak CSV purge: deleted ${purgeResult.deleted} stale file(s): ${purgeResult.deletedFiles.join(', ')}`);
   }
 
-  const autoResult = terapeakService.autoImportFolder(TERAPEAK_DATA_DIR);
+  // Try blob storage first (#99), then fall back to local folder
+  const blobClient = require('./src/utils/blobClient');
+  let autoResult = { imported: 0, errors: [] };
+  if (blobClient.isEnabled()) {
+    try {
+      autoResult = await terapeakService.autoImportFromBlob();
+      if (autoResult.imported > 0) {
+        console.log(`  Terapeak blob-import: ${autoResult.imported} new file(s) from Azure Blob Storage`);
+      }
+      if (autoResult.errors.length > 0) {
+        console.warn(`  Terapeak blob-import errors: ${autoResult.errors.join('; ')}`);
+      }
+    } catch (err) {
+      console.warn(`  Terapeak blob-import failed, falling back to local: ${err.message}`);
+    }
+  }
+  // Always run local folder import too (may have CSVs not yet uploaded to blob)
+  const localResult = terapeakService.autoImportFolder(TERAPEAK_DATA_DIR);
+  if (localResult.imported > 0) {
+    console.log(`  Terapeak auto-import: ${localResult.imported} new file(s) loaded from ${TERAPEAK_DATA_DIR}/`);
+    autoResult.imported += localResult.imported;
+  }
+  if (localResult.errors.length > 0) {
+    console.warn(`  Terapeak auto-import errors: ${localResult.errors.join('; ')}`);
+  }
   if (autoResult.imported > 0) {
-    console.log(`  Terapeak auto-import: ${autoResult.imported} new file(s) loaded from ${TERAPEAK_DATA_DIR}/`);
-    // Clear eBay cache when Terapeak data changes — prevents stale
-    // cached results from hiding freshly imported comp data
     const ebayService = require('./src/services/ebayService');
     ebayService.clearCache();
     console.log(`  eBay cache cleared (Terapeak data updated)`);
-  }
-  if (autoResult.errors.length > 0) {
-    console.warn(`  Terapeak auto-import errors: ${autoResult.errors.join('; ')}`);
   }
 
   const datasets = terapeakService.listDatasets();

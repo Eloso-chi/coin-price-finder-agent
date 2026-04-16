@@ -509,3 +509,125 @@ describe('API functions (mocked)', () => {
     expect(result).toBeNull();
   });
 });
+
+// ════════════════════════════════════════════════════════════════
+//  lookupCoin — full mocked pipeline
+// ════════════════════════════════════════════════════════════════
+describe('lookupCoin (mocked API)', () => {
+  const origFetch = global.fetch;
+
+  beforeAll(() => {
+    process.env.NUMISTA_API_KEY = 'test-key-123';
+  });
+
+  afterEach(() => {
+    global.fetch = origFetch;
+    clearCache();
+  });
+
+  afterAll(() => {
+    global.fetch = origFetch;
+  });
+
+  function mockFetchSequence(...responses) {
+    let callIdx = 0;
+    global.fetch = jest.fn(() => {
+      const resp = responses[callIdx] || responses[responses.length - 1];
+      callIdx++;
+      return Promise.resolve(resp);
+    });
+  }
+
+  test('full lookup for Morgan Dollar 1889 returns type, issue, rarity, prices', async () => {
+    mockFetchSequence(
+      // searchTypes
+      { ok: true, json: async () => ({ types: [{ id: 100, title: '1 Dollar - Morgan', min_year: 1878, max_year: 1921, category: 'coin' }] }) },
+      // getType
+      { ok: true, json: async () => ({
+        id: 100, title: 'Morgan Dollar', min_year: 1878, max_year: 1921,
+        issuer: { name: 'United States' },
+        value: { text: '1 Dollar' },
+        composition: { text: 'Silver (.900)' },
+        weight: 26.73, size: 38.1,
+        url: 'https://en.numista.com/catalogue/pieces100.html',
+        references: [{ catalogue: { abbreviation: 'KM' }, number: '110' }]
+      }) },
+      // getIssues
+      { ok: true, json: async () => ([
+        { id: 1, gregorian_year: 1889, mint_letter: 'P', mintage: 21726811 },
+        { id: 2, gregorian_year: 1889, mint_letter: 'S', mintage: 700000 }
+      ]) },
+      // getPrices
+      { ok: true, json: async () => ({ currency: 'USD', prices: [{ grade: 'VF', price: 35 }, { grade: 'XF', price: 65 }] }) }
+    );
+
+    const result = await lookupCoin({ series: 'Morgan Dollar', year: 1889, mint: 'P' }, 'us');
+    expect(result.accessible).toBe(true);
+    expect(result.type.title).toBe('Morgan Dollar');
+    expect(result.type.issuer).toBe('United States');
+    expect(result.type.weight).toBe(26.73);
+    expect(result.issue.year).toBe(1889);
+    expect(result.issue.mintage).toBe(21726811);
+    expect(result.rarity.label).toBe('Very Common');
+    expect(result.prices.currency).toBe('USD');
+    expect(result.prices.estimates).toHaveLength(2);
+    expect(result.composition).toBe('Silver (.900)');
+    expect(result.numistaUrl).toContain('numista.com');
+    expect(result.references).toEqual([{ catalogue: 'KM', number: '110' }]);
+  });
+
+  test('lookup with no matching types returns limitation', async () => {
+    mockFetchSequence(
+      { ok: true, json: async () => ({ types: [] }) },
+      { ok: true, json: async () => ({ types: [] }) }  // broader retry
+    );
+
+    const result = await lookupCoin({ series: 'NonExistent Coin', year: 2099 }, 'us');
+    expect(result.accessible).toBe(true);
+    expect(result.type).toBeNull();
+    expect(result.limitations).toContain('No matching types found in Numista catalogue');
+  });
+
+  test('lookup with empty parsed fields returns insufficient data', async () => {
+    const result = await lookupCoin({}, 'us');
+    expect(result.accessible).toBe(true);
+    expect(result.limitations).toContain('Insufficient data to search Numista');
+  });
+
+  test('lookup caches results on second call', async () => {
+    mockFetchSequence(
+      { ok: true, json: async () => ({ types: [{ id: 50, title: 'Test', min_year: 2000, max_year: 2020, category: 'coin' }] }) },
+      { ok: true, json: async () => ({ id: 50, title: 'Test' }) },
+      { ok: true, json: async () => ([]) },
+    );
+
+    await lookupCoin({ series: 'Test', year: 2010 }, 'us');
+    const callCount = global.fetch.mock.calls.length;
+    await lookupCoin({ series: 'Test', year: 2010 }, 'us');
+    // Second call should use cache — no additional fetch calls
+    expect(global.fetch.mock.calls.length).toBe(callCount);
+  });
+
+  test('lookup with mint letter S finds correct issue', async () => {
+    mockFetchSequence(
+      { ok: true, json: async () => ({ types: [{ id: 200, title: 'ASE', min_year: 1986, max_year: 2024, category: 'coin' }] }) },
+      { ok: true, json: async () => ({ id: 200, title: 'ASE' }) },
+      { ok: true, json: async () => ([
+        { id: 10, gregorian_year: 1986, mint_letter: 'P', mintage: 5393005 },
+        { id: 11, gregorian_year: 1986, mint_letter: 'S', mintage: 1446778 }
+      ]) },
+      { ok: true, json: async () => ({ currency: 'USD', prices: [] }) }
+    );
+
+    const result = await lookupCoin({ series: 'ASE', year: 1986, mint: 'S' }, 'us');
+    expect(result.issue.mintLetter).toBe('S');
+    expect(result.issue.mintage).toBe(1446778);
+  });
+
+  test('lookup handles API error gracefully', async () => {
+    global.fetch = jest.fn().mockRejectedValue(new Error('Network timeout'));
+    const result = await lookupCoin({ series: 'Morgan Dollar', year: 1889 }, 'us');
+    expect(result.accessible).toBe(true);
+    expect(result.type).toBeNull();
+  });
+});
