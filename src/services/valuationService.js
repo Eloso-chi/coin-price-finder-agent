@@ -159,6 +159,15 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
 
   fmv = +fmv.toFixed(2);
 
+  // #56: Toning / visual appeal multiplier.
+  // Coins with exceptional toning or eye appeal command premiums above
+  // raw market value.  Clamped to [1.0, 2.0] to prevent abuse.
+  const appealMultiplier = Math.min(2.0, Math.max(1.0, Number(opts.appealMultiplier) || 1.0));
+  if (appealMultiplier > 1.0) {
+    fmv = +(fmv * appealMultiplier).toFixed(2);
+    explanation.push(`🎨 Appeal multiplier ${appealMultiplier.toFixed(2)}× applied (toning/eye appeal premium).`);
+  }
+
   // ── Data source analysis ──
   // Count how many comps are actual sold vs active-for-sale (Browse API)
   const soldComps = usComps.filter(c => c._source !== 'browse');
@@ -257,7 +266,7 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
   }
   if (recLabel) buyNotes.push(recLabel);
 
-  const medForSell = ebayMedian || fmv;
+  const medForSell = (ebayMedian ? ebayMedian * appealMultiplier : fmv);
   const p25 = usPrices.length >= 4 ? stats.percentile(usPrices, 25) : medForSell * 0.92;
   const isScarcePop = pcgs?.population?.thisGrade != null && pcgs.population.thisGrade < 200;
 
@@ -297,6 +306,7 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
       },
       method,
       saleContext: ctxAdj.label,
+      appealMultiplier: appealMultiplier > 1.0 ? appealMultiplier : null,
       greysheetSpread: gsSpreadPct != null ? {
         spreadPct: gsSpreadPct,
         liquidity: gsSpreadPct <= 15 ? 'high' : gsSpreadPct <= 30 ? 'moderate' : 'low',

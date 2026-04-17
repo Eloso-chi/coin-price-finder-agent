@@ -87,7 +87,7 @@ function resolveSemi250Series(series) {
 
 router.post('/', async (req, res) => {
   try {
-    const { query, askingPrice, options, coinData, weight: bodyWeight, saleContext: rawSaleCtx } = req.body || {};
+    const { query, askingPrice, options, coinData, weight: bodyWeight, saleContext: rawSaleCtx, appealMultiplier: rawAppeal } = req.body || {};
     if (!query) {
       return res.status(400).json({ error: 'query field is required' });
     }
@@ -95,6 +95,9 @@ router.post('/', async (req, res) => {
     // #55: Validate sale context
     const VALID_SALE_CONTEXTS = new Set(['ebay', 'private', 'wholesale']);
     const saleContext = VALID_SALE_CONTEXTS.has(rawSaleCtx) ? rawSaleCtx : 'ebay';
+
+    // #56: Appeal multiplier — clamp to [1.0, 2.0], default 1.0.
+    const appealMultiplier = Math.min(2.0, Math.max(1.0, Number(rawAppeal) || 1.0));
 
     const opts = {
       timeWindowDays: options?.timeWindowDays || 180,
@@ -357,6 +360,7 @@ router.post('/', async (req, res) => {
       isBullion,
       greysheet,
       saleContext,
+      appealMultiplier,
       spotPrice: (isBullion && expected.meltPerOz && resolvedWeight)
         ? expected.meltPerOz * resolvedWeight
         : null,

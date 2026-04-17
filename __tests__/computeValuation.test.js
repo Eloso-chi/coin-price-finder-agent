@@ -784,3 +784,53 @@ describe('computeValuation — bullion spot+premium (#53)', () => {
     expect(result.decisions.sell.normal).toBeGreaterThan(0);
   });
 });
+
+// ═══════════════════════════════════════════════════════════════
+//  #56: Appeal / toning multiplier
+// ═══════════════════════════════════════════════════════════════
+describe('computeValuation — appeal multiplier (#56)', () => {
+  const prices = [90, 95, 100, 105, 110];
+  const pcgs = mockPcgs();
+  const ebay = mockEbay({ usComps: makeComps(prices) });
+
+  test('no multiplier leaves FMV unchanged', () => {
+    const base = computeValuation(pcgs, ebay, null, null, {});
+    const explicit = computeValuation(pcgs, ebay, null, null, { appealMultiplier: 1.0 });
+    expect(explicit.valuation.fmvCore).toBe(base.valuation.fmvCore);
+    expect(explicit.valuation.appealMultiplier).toBeNull();
+  });
+
+  test('1.25x multiplier increases FMV by 25%', () => {
+    const base = computeValuation(pcgs, ebay, null, null, {});
+    const boosted = computeValuation(pcgs, ebay, null, null, { appealMultiplier: 1.25 });
+    expect(boosted.valuation.fmvCore).toBeCloseTo(base.valuation.fmvCore * 1.25, 0);
+    expect(boosted.valuation.appealMultiplier).toBe(1.25);
+  });
+
+  test('multiplier is clamped to max 2.0', () => {
+    const base = computeValuation(pcgs, ebay, null, null, {});
+    const capped = computeValuation(pcgs, ebay, null, null, { appealMultiplier: 5.0 });
+    expect(capped.valuation.fmvCore).toBeCloseTo(base.valuation.fmvCore * 2.0, 0);
+    expect(capped.valuation.appealMultiplier).toBe(2.0);
+  });
+
+  test('multiplier below 1.0 is clamped to 1.0', () => {
+    const base = computeValuation(pcgs, ebay, null, null, {});
+    const floored = computeValuation(pcgs, ebay, null, null, { appealMultiplier: 0.5 });
+    expect(floored.valuation.fmvCore).toBe(base.valuation.fmvCore);
+    expect(floored.valuation.appealMultiplier).toBeNull();
+  });
+
+  test('explanation includes appeal note when multiplier > 1', () => {
+    const result = computeValuation(pcgs, ebay, null, null, { appealMultiplier: 1.5 });
+    expect(result.valuation.explanation.some(e => /appeal multiplier/i.test(e))).toBe(true);
+  });
+
+  test('buy/sell decisions use multiplied FMV', () => {
+    const base = computeValuation(pcgs, ebay, 80, null, {});
+    const boosted = computeValuation(pcgs, ebay, 80, null, { appealMultiplier: 1.5 });
+    // Higher FMV → higher buy thresholds → more likely to recommend BUY
+    expect(boosted.decisions.buy.max70).toBeGreaterThan(base.decisions.buy.max70);
+    expect(boosted.decisions.sell.normal).toBeGreaterThan(base.decisions.sell.normal);
+  });
+});

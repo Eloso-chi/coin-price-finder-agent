@@ -317,3 +317,160 @@ describe('lookupComps – cross-series isolation', () => {
     }
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════════
+// lookupComps — grade-specific dataset selection (#94)
+// ═══════════════════════════════════════════════════════════════════════
+describe('lookupComps – grade-specific datasets', () => {
+  const MOCK_COMP = {
+    title: 'Test comp',
+    price: 50,
+    soldDate: '2025-01-15',
+    totalUsd: 50,
+    source: 'terapeak'
+  };
+
+  function injectStore(datasets) {
+    const CACHE_DIR = path.join(__dirname, '..', 'cache');
+    const STORE_PATH = path.join(CACHE_DIR, 'terapeak_sold.json');
+    if (!fs.existsSync(CACHE_DIR)) fs.mkdirSync(CACHE_DIR, { recursive: true });
+    const store = {};
+    for (const [key, searchTerm] of datasets) {
+      const normalized = normalizeSearchKey(key);
+      store[normalized] = {
+        searchTerm: searchTerm || key,
+        comps: [{ ...MOCK_COMP, title: key }],
+        lastImport: new Date().toISOString(),
+        importCount: 1
+      };
+    }
+    fs.writeFileSync(STORE_PATH, JSON.stringify(store, null, 2));
+    terapeakService._resetStoreCache && terapeakService._resetStoreCache();
+  }
+
+  const STORE_PATH = path.join(__dirname, '..', 'cache', 'terapeak_sold.json');
+  let savedStore;
+  beforeAll(() => {
+    try { savedStore = fs.readFileSync(STORE_PATH, 'utf8'); } catch { savedStore = '{}'; }
+  });
+  afterAll(() => {
+    fs.writeFileSync(STORE_PATH, savedStore);
+  });
+
+  test('query with MS65 prefers MS65 dataset over base dataset', () => {
+    injectStore([
+      ['1883 Morgan Silver Dollar', '1883 Morgan Silver Dollar'],
+      ['1883 Morgan Silver Dollar MS63', '1883 Morgan Silver Dollar MS63'],
+      ['1883 Morgan Silver Dollar MS65', '1883 Morgan Silver Dollar MS65'],
+    ]);
+    const result = lookupComps('1883 Morgan Silver Dollar MS65');
+    expect(result).not.toBeNull();
+    expect(result.comps[0].title).toContain('MS65');
+  });
+
+  test('query with MS63 does NOT return MS65 dataset', () => {
+    injectStore([
+      ['1883 Morgan Silver Dollar', '1883 Morgan Silver Dollar'],
+      ['1883 Morgan Silver Dollar MS63', '1883 Morgan Silver Dollar MS63'],
+      ['1883 Morgan Silver Dollar MS65', '1883 Morgan Silver Dollar MS65'],
+    ]);
+    const result = lookupComps('1883 Morgan Silver Dollar MS63');
+    expect(result).not.toBeNull();
+    expect(result.comps[0].title).not.toContain('MS65');
+    expect(result.comps[0].title).toContain('MS63');
+  });
+
+  test('query WITHOUT grade does NOT return grade-specific dataset', () => {
+    injectStore([
+      ['1883 Morgan Silver Dollar', '1883 Morgan Silver Dollar'],
+      ['1883 Morgan Silver Dollar MS65', '1883 Morgan Silver Dollar MS65'],
+    ]);
+    const result = lookupComps('1883 Morgan Silver Dollar');
+    expect(result).not.toBeNull();
+    expect(result.comps[0].title).not.toContain('MS65');
+  });
+
+  test('falls back to base dataset when grade-specific not available', () => {
+    injectStore([
+      ['1883 Morgan Silver Dollar', '1883 Morgan Silver Dollar'],
+      ['1883 Morgan Silver Dollar MS63', '1883 Morgan Silver Dollar MS63'],
+    ]);
+    // Query for MS65 but only MS63 grade-specific exists
+    const result = lookupComps('1883 Morgan Silver Dollar MS65');
+    expect(result).not.toBeNull();
+    // Should fall back to the base (ungraded) dataset, not the MS63 one
+    expect(result.comps[0].title).not.toContain('MS63');
+  });
+
+  test('opts.grade hint is used when grade not in keywords', () => {
+    injectStore([
+      ['1921 Peace Dollar', '1921 Peace Dollar'],
+      ['1921 Peace Dollar MS64', '1921 Peace Dollar MS64'],
+    ]);
+    const result = lookupComps('1921 Peace Dollar', { grade: 'MS-64' });
+    expect(result).not.toBeNull();
+    expect(result.comps[0].title).toContain('MS64');
+  });
+
+  test('grade matching is case-insensitive', () => {
+    injectStore([
+      ['1889 Morgan Silver Dollar', '1889 Morgan Silver Dollar'],
+      ['1889 Morgan Silver Dollar AU58', '1889 Morgan Silver Dollar AU58'],
+    ]);
+    const result = lookupComps('1889 Morgan Silver Dollar au58');
+    expect(result).not.toBeNull();
+    expect(result.comps[0].title).toContain('AU58');
+  });
+
+  test('circulated grades work (VF35, XF45)', () => {
+    injectStore([
+      ['1917 Walking Liberty Half Dollar', '1917 Walking Liberty Half Dollar'],
+      ['1917 Walking Liberty Half Dollar VF35', '1917 Walking Liberty Half Dollar VF35'],
+      ['1917 Walking Liberty Half Dollar XF45', '1917 Walking Liberty Half Dollar XF45'],
+    ]);
+    const result = lookupComps('1917 Walking Liberty Half Dollar VF35');
+    expect(result).not.toBeNull();
+    expect(result.comps[0].title).toContain('VF35');
+  });
+
+  test('proof grades work (PR69, PF70)', () => {
+    injectStore([
+      ['2024 Silver Eagle Proof', '2024 Silver Eagle Proof'],
+      ['2024 Silver Eagle Proof PR69', '2024 Silver Eagle Proof PR69'],
+    ]);
+    const result = lookupComps('2024 Silver Eagle Proof PR69');
+    expect(result).not.toBeNull();
+    expect(result.comps[0].title).toContain('PR69');
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// extractGrade
+// ═══════════════════════════════════════════════════════════════════════
+describe('extractGrade', () => {
+  const { extractGrade } = terapeakService;
+
+  test('extracts MS grades', () => {
+    expect(extractGrade('1883 Morgan Silver Dollar MS65')).toBe('MS65');
+    expect(extractGrade('Morgan MS-63')).toBe('MS63');
+    expect(extractGrade('Morgan ms 70')).toBe('MS70');
+  });
+
+  test('extracts circulated grades', () => {
+    expect(extractGrade('Walking Liberty VF35')).toBe('VF35');
+    expect(extractGrade('AU-58 Morgan')).toBe('AU58');
+    expect(extractGrade('VG8 Barber')).toBe('VG8');
+  });
+
+  test('extracts proof grades', () => {
+    expect(extractGrade('2024 Eagle PR69')).toBe('PR69');
+    expect(extractGrade('Silver Eagle PF70')).toBe('PF70');
+  });
+
+  test('returns null when no grade present', () => {
+    expect(extractGrade('1883 Morgan Silver Dollar')).toBeNull();
+    expect(extractGrade('American Silver Eagle 1oz')).toBeNull();
+    expect(extractGrade('')).toBeNull();
+    expect(extractGrade(null)).toBeNull();
+  });
+});

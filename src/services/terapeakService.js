@@ -447,9 +447,20 @@ function lookupComps(keywords, opts = {}) {
   const store = loadStore();
   const normalizedSearch = normalizeSearchKey(keywords);
 
-  // Exact match
-  if (store[normalizedSearch]) {
+  // Detect grade from query or explicit hint so we can prefer grade-specific datasets.
+  const queryGrade = _extractGrade(keywords) || (opts.grade ? opts.grade.toUpperCase().replace(/[\s-]/g, '') : null);
+
+  // Exact match — but only use it when no grade hint is pushing us toward
+  // a grade-specific dataset.  When a grade hint exists, fall through to
+  // fuzzy matching so the grade bonus can select the right dataset.
+  if (store[normalizedSearch] && !queryGrade) {
     return store[normalizedSearch];
+  }
+  // Also try exact match with grade appended (e.g. "1883 morgan silver dollar ms65")
+  if (queryGrade) {
+    const gradedKey = normalizedSearch.replace(/\s+(ms|pr|pf|sp|au|xf|ef|vf|vg|ag|fr|po)\s*\d{1,2}\+?\s*$/i, '').trim()
+      + ' ' + queryGrade.toLowerCase();
+    if (store[gradedKey]) return store[gradedKey];
   }
 
   // Detect weight from the ORIGINAL (un-normalized) query and dataset searchTerm
@@ -459,9 +470,6 @@ function lookupComps(keywords, opts = {}) {
   // Detect metal from the query so we can prefer matching-metal datasets.
   // Also accept an explicit metal hint from the caller (e.g. expected.metal).
   const queryMetal = _detectMetalFromText(keywords) || (opts.metal ? opts.metal.toLowerCase() : null);
-
-  // Detect grade from query or explicit hint so we can prefer grade-specific datasets.
-  const queryGrade = _extractGrade(keywords) || (opts.grade ? opts.grade.toUpperCase().replace(/[\s-]/g, '') : null);
 
   // Does the search query contain a specific year?  If not we'll merge
   // comps from ALL matching datasets for better coverage.
