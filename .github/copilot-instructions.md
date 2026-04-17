@@ -33,3 +33,9 @@
 - Review agents are read-only. The Implementer only acts on explicit `APPLY` commands.
 - Use the UX Reviewer agent for accessibility, responsive design, and interaction pattern checks on UI changes.
 - Shared review logic lives in `.github/skills/code-review/SKILL.md`.
+
+## Onboarding
+
+- Use `/onboard` at the start of a new conversation to bootstrap full project understanding.
+- Reads all repo memory files, architecture docs, and key source file exports.
+- Produces a Readiness Report confirming what was learned.

@@ -33,10 +33,11 @@ server.js                              Express entry point (port 3000)
 │   ├─ metalsHistoryService.js         Daily spot price history snapshots
 │   ├─ marketAggregator.js             Year x mint market matrix builder + caching
 │   ├─ numistaService.js               Numista API -- search, mintages, rarity
-│   ├─ terapeakService.js              Terapeak CSV import, fuzzy lookup, eviction, auto-import
+│   ├─ terapeakService.js              Terapeak CSV import, fuzzy lookup, eviction, auto-import (local + blob)
 │   ├─ terapeakQuotaService.js         Daily Terapeak query quota tracker
-│   ├─ authService.js                  Server-side auth (bcrypt + JWT, cache/users.json)
-│   └─ coinStorageService.js           Server-side coin CRUD (cache/user_coins.json)
+│   ├─ greysheetHistoryService.js      Daily Greysheet price history snapshots
+│   ├─ authService.js                  Server-side auth (bcrypt + JWT, dual-mode Cosmos + local JSON)
+│   └─ coinStorageService.js           Server-side coin CRUD (dual-mode Cosmos + local JSON)
 │
 ├─ src/data/
 │   ├─ pcgsNumbers.js                  Static PCGS coin number lookup (10 US series)
@@ -52,7 +53,10 @@ server.js                              Express entry point (port 3000)
 │   ├─ filters.js                      Deny-list filtering, denomination & series checks
 │   ├─ coinMetalProfile.js             Metal detection for bullion/silver/gold coins
 │   ├─ responseValidator.js            /api/price response schema & sanity validation
-│   └─ excelMapper.js                  Excel-to-backup converter (header aliases, series normalization)
+│   ├─ excelMapper.js                  Excel-to-backup converter (header aliases, series normalization)
+│   ├─ cachePath.js                    Centralized CACHE_DIR from env var
+│   ├─ cosmosClient.js                 Azure Cosmos DB client singleton (env-var gated)
+│   └─ blobClient.js                   Azure Blob Storage client (managed identity)
 │
 ├─ src/greysheet/
 │   └─ greysheetTypeMap.js             Series-to-GSID mapping for Greysheet API lookups
@@ -71,21 +75,24 @@ server.js                              Express entry point (port 3000)
 │   ├─ numista_cache.json              Persisted Numista data cache (24h TTL)
 │   ├─ metals_spot.json                Persisted metals spot prices (stale fallback)
 │   ├─ metals_history.json             Daily spot price snapshots
+│   ├─ greysheet_history.json          Daily Greysheet price snapshots
 │   ├─ terapeak_sold.json              Imported Terapeak comp data
 │   ├─ users.json                      Server-side user accounts (bcrypt hashes + UUIDs)
 │   └─ user_coins.json                 Server-side coin collections (plaintext JSON by userId)
 │
 ├─ data/
-│   └─ terapeak/                       650 Terapeak CSV exports (real sold data)
+│   └─ terapeak/                       ~1,200 Terapeak CSV exports (real sold data)
 │
 ├─ scripts/
 │   ├─ terapeak-export.py              Semi-automated Terapeak CSV exporter (Playwright)
 │   ├─ terapeak-page2.py               Page 2 enrichment scraper (extends CSVs beyond 50 rows)
 │   ├─ clean-csvs.js                   CSV junk cleaner (deny-pattern purge)
+│   ├─ migrate-to-cosmos.js            One-time migration of history data to Cosmos DB
+│   ├─ upload-csvs-to-blob.js          Upload Terapeak CSVs to Azure Blob Storage
 │   ├─ vnc-login.py                    VNC + eBay login helper for Playwright sessions
 │   └─ test-metrics/                   Jest metrics capture + summary reporter
 │
-└─ __tests__/                          37 Jest test suites
+└─ __tests__/                          38 Jest test suites
     └─ helpers/
         └─ coinTestConstants.js        Shared token lists & test utilities
 ```
@@ -268,7 +275,14 @@ Request (valid metals: XAU, XAG, XPT, XPD)
     "rangeHigh": 890.00,
     "confidence": 82,
     "explanation": ["Certified coin blend (ebay+pcgs+auction)..."],
-    "gradePool": { "wantsGraded": true, "usedPool": "graded", "gradedCount": 12, "rawCount": 3 }
+    "gradePool": { "wantsGraded": true, "usedPool": "graded", "gradedCount": 12, "rawCount": 3 },
+    "lowData": false,
+    "compCount": 15,
+    "greysheetSpread": { "spreadPct": 12.5, "liquidity": "tight", "wholesale": 800, "retail": 900 },
+    "adjacentYears": [
+      { "year": 1880, "median": 420, "compCount": 8 },
+      { "year": 1882, "median": 395, "compCount": 12 }
+    ]
   },
   "decisions": {
     "buy": { "max70": 584.50, "max75": 626.25, "max80": 668.00, "askingPrice": 650, "recommendation": "BUY (thin margin)", "notes": [] },
@@ -578,6 +592,8 @@ The eBay component uses `computeWeightedMedian(comps)` instead of a simple media
 | `hasPcgsGuide` | +10 |
 | `hasAuction` | +5 |
 | `hasGreysheet` | +5 |
+| Greysheet spread <=15% | +5 (tight = liquid market) |
+| Greysheet spread >=40% | -5 (wide = illiquid) |
 | 20+ US comps | +10-15 bonus |
 | `usedFallback` | −5 to −15 penalty |
 | < 5 US comps | −10 penalty |
@@ -618,6 +634,14 @@ The valuation engine separates eBay comps by `gradeType`:
 | `METALS_CACHE_TTL_MS` | No | `2700000` | Metals cache TTL (ms) |
 | `JWT_SECRET` | No | *(random on startup)* | Secret for signing auth JWTs. Random = sessions expire on server restart |
 | `ADMIN_API_KEY` | No | -- | API key for admin/destructive endpoints |
+| `CACHE_DIR` | No | `../../cache` | Path to file-cache directory (Azure Files: `/mnt/cache`) |
+| `COSMOS_ENDPOINT` | No | -- | Azure Cosmos DB endpoint (enables dual-mode writes) |
+| `COSMOS_KEY` | No | -- | Azure Cosmos DB key (optional; managed identity preferred) |
+| `TERAPEAK_BLOB_ACCOUNT` | No | -- | Azure Blob Storage account name |
+| `TERAPEAK_BLOB_CONTAINER` | No | -- | Azure Blob Storage container name |
+| `TERAPEAK_DATA_DIR` | No | `data/terapeak` | Local directory for Terapeak CSV files |
+| `METALS_POLL_MS` | No | `300000` | Metals spot-price polling interval (ms) |
+| `EBAY_DEFAULT_LOOKBACK_DAYS` | No | `180` | Default sold-comp lookback window (auto-extends to 365 if thin) |
 
 ---
 
@@ -703,7 +727,7 @@ Server-backed coin CRUD via `/api/coins/*`. All methods accept `(userId, key, ..
 
 | Property | Value |
 |----------|-------|
-| Store file | `cache/users.json` |
+| Store file | `cache/users.json` + Azure Cosmos `users` container (dual-mode) |
 | Password hashing | bcrypt, 12 rounds |
 | JWT signing | HS256, 7-day expiry |
 | JWT secret | `JWT_SECRET` env var or random on startup |
@@ -723,7 +747,7 @@ Server-backed coin CRUD via `/api/coins/*`. All methods accept `(userId, key, ..
 
 | Property | Value |
 |----------|-------|
-| Store file | `cache/user_coins.json` |
+| Store file | `cache/user_coins.json` + Azure Cosmos `user-coins` container (dual-mode) |
 | Key structure | `{ [userId]: coin[] }` |
 | Coin hash | SHA-256 of `series\|year\|mint\|grade\|notes\|label` (full 64-char hex) |
 | Save strategy | Debounced 300ms async write (sync for `_resetStore`) |
@@ -788,6 +812,6 @@ Price Discovery --CoinHistoryLink.setCoin()--> Price History
 
 | Location | Module | Contents |
 |----------|--------|---------|
-| `cache/users.json` | authService | `{ [username]: { userId, hash, createdAt } }` |
-| `cache/user_coins.json` | coinStorageService | `{ [userId]: coin[] }` |
+| `cache/users.json` + Cosmos `users` | authService | `{ [username]: { userId, hash, createdAt } }` |
+| `cache/user_coins.json` + Cosmos `user-coins` | coinStorageService | `{ [userId]: coin[] }` |
 | In-memory `_session` | CoinAuth (client) | `{ username, userId, token }` -- lost on reload |

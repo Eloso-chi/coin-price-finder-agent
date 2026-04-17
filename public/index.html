@@ -1870,7 +1870,16 @@
 
       <div class="about-section">
         <h3>What Is Coin Price Agent?</h3>
-        <p>Coin Price Agent is a free research tool that helps coin collectors and dealers estimate the <strong>Fair Market Value (FMV)</strong> of U.S. coins and precious-metal bars. It aggregates real-time data from multiple industry sources&mdash;including recent sold-comp data, price guide references, and live precious-metal spot prices&mdash;and runs a proprietary valuation algorithm to produce a confidence-rated price estimate.</p>
+        <p>Coin Price Agent is a free research tool that helps coin collectors and dealers estimate the <strong>Fair Market Value (FMV)</strong> of U.S. coins and precious-metal bars. It aggregates real-time data from multiple industry sources&mdash;including recent sold-comp data, dealer wholesale price guides, population and auction records, and live precious-metal spot prices&mdash;and runs a proprietary valuation algorithm to produce a confidence-rated price estimate with buy/sell recommendations.</p>
+        <p style="margin-top:8px">Key capabilities include:</p>
+        <ul>
+          <li><strong>Multi-source valuation</strong> &mdash; blends sold comps, price guides, wholesale pricing, and auction data into a single FMV</li>
+          <li><strong>Low-data awareness</strong> &mdash; warns you when fewer than 5 comparable sales were found and shows adjacent-year context for sparse coins</li>
+          <li><strong>Key date detection</strong> &mdash; automatically flags key dates and semi-key dates with mintage data</li>
+          <li><strong>Cost tracking</strong> &mdash; record your cost basis and see profit/loss per coin and across your portfolio</li>
+          <li><strong>Spreadsheet import</strong> &mdash; bulk-import your collection from Excel or CSV files</li>
+          <li><strong>Melt value</strong> &mdash; calculates intrinsic metal value using live spot prices for gold, silver, platinum, and palladium</li>
+        </ul>
       </div>
 
       <hr class="about-divider">
@@ -1879,10 +1888,13 @@
         <h3>&#x1F50D; Confidence Score Key</h3>
         <p>Every valuation includes a confidence percentage (0&ndash;100%) that tells you how reliable the estimate is. The score is calculated from:</p>
         <ul>
-          <li><strong>Sample size</strong> &mdash; how many comparable sold listings were found</li>
+          <li><strong>Sample size</strong> &mdash; how many comparable sold listings were found (20+ comps earns a bonus)</li>
           <li><strong>Price consistency</strong> &mdash; how tightly the sold prices cluster together</li>
           <li><strong>Match quality</strong> &mdash; how closely comparable listings match your coin&rsquo;s year, mint, and grade</li>
-          <li><strong>PCGS verification</strong> &mdash; whether PCGS data corroborates the estimate</li>
+          <li><strong>Price guide verification</strong> &mdash; whether independent price guide data corroborates the estimate</li>
+          <li><strong>Wholesale spread</strong> &mdash; tight dealer bid/ask spreads boost confidence; wide spreads reduce it</li>
+          <li><strong>Auction records</strong> &mdash; verified auction results add additional confidence</li>
+          <li><strong>Population data</strong> &mdash; coins with very low certified populations receive a confidence penalty</li>
           <li><strong>Data source</strong> &mdash; sold listings score higher than active (asking-price) listings</li>
         </ul>
         <div style="margin-top:10px;display:flex;flex-direction:column;gap:6px">
@@ -1896,13 +1908,13 @@
 
       <div class="about-section">
         <h3>&#x1F512; Privacy &amp; Security</h3>
-        <p>Your coin collection data is <strong>never sent to our server</strong>. Here&rsquo;s how it works:</p>
+        <p>We take your privacy seriously. Here&rsquo;s how your data is handled:</p>
         <ul>
-          <li>All collection data is stored <strong>locally in your browser</strong>&mdash;it never leaves your device.</li>
-          <li>Every coin record is <strong>encrypted using industry-standard encryption</strong> before being written to storage. Only you hold the decryption key.</li>
-          <li>Encryption keys are derived from your password using a <strong>modern key-stretching algorithm</strong>&mdash;your password is never stored or transmitted.</li>
-          <li>The server has <strong>zero knowledge</strong> of your inventory. It cannot read, access, or reconstruct your collection.</li>
-          <li>If you clear your browser data, your encrypted collection is permanently deleted&mdash;we have no backup because we never had your data.</li>
+          <li>Your password is <strong>never stored in readable form</strong>&mdash;it is hashed using bcrypt (an industry-standard one-way hashing algorithm) before being saved.</li>
+          <li>Your coin collection is stored <strong>on our server</strong> so it persists across browser sessions and devices. No client-side encryption is used&mdash;the server stores your coin records in plaintext.</li>
+          <li>We do <strong>not</strong> collect email addresses, real names, or any other personal identification. Your account consists of a username, a hashed password, and your coin data.</li>
+          <li>Your data is backed up to a cloud database for durability. If you clear your browser data, <strong>your collection is not lost</strong>&mdash;just log back in.</li>
+          <li>All communication between your browser and the server is encrypted via HTTPS.</li>
         </ul>
       </div>
 
@@ -1910,14 +1922,13 @@
 
       <div class="about-section">
         <h3>&#x1F464; How Login Works</h3>
-        <p>The login system is <strong>client-only</strong>&mdash;no server accounts, no emails, no personal information.</p>
+        <p>The login system is simple&mdash;<strong>no emails, no personal information</strong>.</p>
         <ul>
-          <li>When you create an account, a unique user ID and encryption key are derived from your username and password <strong>entirely in your browser</strong> using standard cryptographic methods.</li>
-          <li>A password verifier (a one-way hash) is stored in your browser so you can log back in, but your actual password is never stored anywhere.</li>
-          <li>No data is transmitted to the server during signup or login. The server does not know you have an account.</li>
-          <li>Your account exists only in <strong>this browser</strong>. If you switch browsers or devices, you&rsquo;ll need to create a new account there.</li>
-          <li>Logging out clears the in-memory encryption key immediately. Your encrypted data remains in the browser but is unreadable without your password.</li>
-          <li>At signup you receive a <strong>one-time recovery phrase</strong> (8 words). Write it down&mdash;it&rsquo;s the only way to recover your account if you forget your password.</li>
+          <li>When you sign up, you choose a <strong>username and password</strong>. Your password is hashed with bcrypt on the server&mdash;it is never stored in readable form.</li>
+          <li>A unique user ID is generated server-side and associated with your account.</li>
+          <li>When you log in, the server verifies your credentials and issues a <strong>session token</strong> (JWT) that expires after 7 days. The token is held in memory only&mdash;refreshing the page requires you to log in again.</li>
+          <li>Your account <strong>works across browsers and devices</strong>&mdash;just log in with the same username and password anywhere.</li>
+          <li>Logging out clears the session token immediately. Your collection remains safely on the server.</li>
         </ul>
       </div>
 
@@ -1926,19 +1937,19 @@
       <div class="about-section" id="about-feature-preview">
         <h3>&#x1F31F; Member Features Preview</h3>
         <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:14px">
-          Log in to unlock these features&mdash;free, no email required, everything stays in your browser.
+          Log in to unlock these features&mdash;free, no email required.
         </p>
         <div class="feature-preview">
           <div class="feature-preview-card">
             <h4>&#x1FA99; My Coin Collection</h4>
-            <p>Track every coin you own with live portfolio valuation. Add coins from search results with one click.</p>
+            <p>Track every coin you own with live portfolio valuation, cost basis, and profit/loss. Add coins from search results with one click, or bulk-import from a spreadsheet.</p>
             <div class="feature-preview-mock">
               <table>
-                <thead><tr><th>Coin</th><th>Grade</th><th>FMV</th><th>Added</th></tr></thead>
+                <thead><tr><th>Coin</th><th>Grade</th><th>Label</th><th>Qty</th><th>FMV</th><th>Cost</th><th>P/L</th></tr></thead>
                 <tbody>
-                  <tr><td>1881-S Morgan Dollar</td><td>MS-65</td><td style="color:var(--green)">$285</td><td>Jun 12</td></tr>
-                  <tr><td>1916-D Mercury Dime</td><td>VG-8</td><td style="color:var(--green)">$1,150</td><td>Jun 10</td></tr>
-                  <tr><td>2024 American Silver Eagle</td><td>MS-70</td><td style="color:var(--green)">$42</td><td>Jun 8</td></tr>
+                  <tr><td>1881-S Morgan Dollar</td><td>MS-65</td><td style="color:var(--accent)">Key Date</td><td>1</td><td style="color:var(--green)">$285</td><td>$210</td><td style="color:var(--green)">+$75</td></tr>
+                  <tr><td>1916-D Mercury Dime</td><td>VG-8</td><td></td><td>1</td><td style="color:var(--green)">$1,150</td><td>$980</td><td style="color:var(--green)">+$170</td></tr>
+                  <tr><td>2024 Silver Eagle</td><td>MS-70</td><td style="color:var(--text-muted)">Bullion</td><td>3</td><td style="color:var(--green)">$42</td><td>$38</td><td style="color:var(--green)">+$12</td></tr>
                 </tbody>
               </table>
             </div>
@@ -1948,7 +1959,7 @@
           </div>
           <div class="feature-preview-card">
             <h4>&#x1F4C8; Price History Charts</h4>
-            <p>See how prices have moved over 90 days, 180 days, or a full year with eBay sold data overlays.</p>
+            <p>See how prices have moved over 90 days, 180 days, or a full year with sold-data overlays.</p>
             <div class="feature-preview-mock" style="height:100px;display:flex;align-items:flex-end;gap:3px;padding:8px 0">
               <div style="width:8%;height:40%;background:var(--accent);border-radius:2px 2px 0 0;opacity:0.4"></div>
               <div style="width:8%;height:55%;background:var(--accent);border-radius:2px 2px 0 0;opacity:0.5"></div>
@@ -1979,7 +1990,7 @@
           <strong>Not professional advice.</strong> Nothing on this site constitutes financial, investment, legal, or professional numismatic advice. The valuations and market data shown here are for <strong>informational and research purposes only</strong>. Always do your own research and consult qualified professionals before making buying or selling decisions.
         </p>
         <p class="about-disclaimer">
-          <strong>No guarantee of accuracy.</strong> All estimates are based on publicly available data (eBay sold listings, PCGS price guides, live metal spot prices) that may be incomplete, delayed, or incorrect. Actual market prices can vary significantly based on coin condition, buyer demand, market volatility, and countless other factors this tool cannot account for. Information may become outdated at any time.
+          <strong>No guarantee of accuracy.</strong> All estimates are based on publicly available data (sold listings, price guides, dealer wholesale pricing, live metal spot prices) that may be incomplete, delayed, or incorrect. Actual market prices can vary significantly based on coin condition, buyer demand, market volatility, and countless other factors this tool cannot account for. Information may become outdated at any time.
         </p>
         <p class="about-disclaimer">
           <strong>Provided &ldquo;as is&rdquo; and &ldquo;as available.&rdquo;</strong> This tool is provided without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose, and non-infringement. We make no promises that the site will be available, uninterrupted, error-free, or that defects will be corrected.
@@ -1994,7 +2005,7 @@
           <strong>External links.</strong> This site may contain links to third-party websites or services. We have no control over, and assume no responsibility for, the content, privacy policies, or practices of any third-party sites. Following external links is at your own risk.
         </p>
         <p class="about-disclaimer">
-          <strong>No data collection.</strong> We do not collect, store, or transmit any personal information or coin collection data. All user data remains in your browser. We are not responsible for data loss resulting from clearing your browser data, switching devices, or browser updates.
+          <strong>Minimal data collection.</strong> We store only your username, a one-way password hash, and your coin collection data on our server. We do not collect email addresses, real names, or any other personal identification. Your data is backed up to a cloud database for durability but is not shared with third parties.
         </p>
         <p class="about-disclaimer">
           <strong>Changes.</strong> We reserve the right to modify, suspend, or discontinue any part of this site or these terms at any time without notice.
@@ -2006,7 +2017,7 @@
     </div>
   </section>
 
-  <!-- ── Auth Dialog (client-only, never contacts server) ── -->
+  <!-- ── Auth Dialogs ── -->
   <dialog class="auth-dialog" id="confirm-dialog" aria-labelledby="confirm-dialog-title" style="max-width:380px">
     <h2 id="confirm-dialog-title">Confirm</h2>
     <p id="confirm-dialog-msg" style="font-size:0.88rem;color:var(--text-secondary);line-height:1.5;margin:8px 0 16px"></p>
@@ -5033,7 +5044,7 @@
   TerapeakQuota.init();
 
   /* ═══════════════════════════════════════════════════════════
-   *  AUTH UI — client-only login/signup dialog
+   *  AUTH UI — login/signup dialog
    * ═══════════════════════════════════════════════════════════ */
   (function initAuthUI() {
     const badge     = document.getElementById('user-badge');

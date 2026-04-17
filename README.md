@@ -15,6 +15,7 @@ A dealer-oriented pricing tool that calculates **Fair Market Value (FMV)** for U
 8. **Price history charting** — returns time-series sold-price data with optional spot-price metal overlay.
 9. **Live metals tracking** — background polling (every 30 min) with round-robin across providers, plus daily history snapshots.
 10. **Market matrix** — year × mint grid of median completed prices and cheapest BIN listings, enriched with Numista rarity data.
+11. **Azure infrastructure** — secrets in Key Vault (managed identity), dual-mode Cosmos DB write-through for all persistent data, Blob Storage for Terapeak CSVs, Azure Files for cache persistence.
 
 Also supports **bullion bars** (any metal, any size), **proof/mint sets**, **rolls**, and **lunar series** with dedicated input flows and eBay keyword strategies.
 
@@ -32,7 +33,7 @@ The browser UI is a single-page app served from `public/index.html` with a dark 
 | **Melt Calculator** | Offline calculator for 80+ US coin types and 20 bar sizes. Auto-fetches spot prices from `/api/metals` and polls every 5 minutes. Shows per-coin, per-roll, and total melt values at spot and spot+premium. |
 | **Live eBay Tracker** | Market matrix from `/api/market/ebay`. Three display modes: Year × Mint (numismatic coins), Year × Grade (bullion), and Brand table (bars). Cells show median sold price, cheapest BIN link, key date badge, and Numista rarity. Color-coded legend. |
 | **Sold Data** | Terapeak CSV import UI (drag-and-drop or file picker) with search term input. Datasets list with delete. Visual daily quota meter (250/day default) with manual logging and reset. Admin endpoints require `x-api-key`. |
-| **My Coins** 🔒 | Auth-gated. Server-side coin collection (persisted in `cache/user_coins.json`). Shows portfolio summary (total FMV, total cost, unrealized P/L, coin count) and full table with per-coin FMV, confidence, Troy Oz, cost basis, P/L, melt value, eBay average, range, notes, date added, and remove button. Checkbox column with select-all for multi-select bulk delete. Export/Import backup buttons (JSON and Excel .xlsx), Change Password. |
+| **My Coins** 🔒 | Auth-gated. Server-side coin collection (persisted in `cache/user_coins.json` + Azure Cosmos DB write-through). Shows portfolio summary (total FMV, total cost, unrealized P/L, coin count) and full table with per-coin FMV, confidence, Troy Oz, cost basis, P/L, melt value, eBay average, range, notes, date added, and remove button. Checkbox column with select-all for multi-select bulk delete. Export/Import backup buttons (JSON and Excel .xlsx), Change Password. |
 | **Price History** 🔒 | Auth-gated. Canvas-drawn chart from `/api/coin-history`. Shows daily median prices with IQR band, outlier dots, and optional precious-metal spot overlay (dashed line). Supports 90/180/365-day ranges. |
 | **About** | Confidence score key, privacy/security explanation, how login works, feature previews for logged-out users, and legal disclaimer. |
 
@@ -146,6 +147,11 @@ Optional variables:
 | `EBAY_CACHE_TTL_MS` | eBay cache lifetime | `3600000` (1 hour) |
 | `EBAY_US_MIN_COMPS` | Minimum US comps before global fallback | `8` |
 | `EBAY_DEFAULT_LOOKBACK_DAYS` | Default eBay sold-comp lookback window (auto-extends to 365 if too few comps) | `180` |
+| `CACHE_DIR` | Directory for persistent JSON caches (Azure Files mount point) | `./cache` |
+| `COSMOS_ENDPOINT` | Azure Cosmos DB endpoint (enables dual-mode write-through) | *(none -- file-only)* |
+| `COSMOS_KEY` | Azure Cosmos DB auth key | *(none)* |
+| `TERAPEAK_BLOB_ACCOUNT` | Azure Storage account name for Terapeak CSV blobs | *(none -- local only)* |
+| `TERAPEAK_BLOB_CONTAINER` | Blob container name for Terapeak CSVs | *(none)* |
 | `EBAY_THROTTLE_MS` | eBay API throttle delay | `1100` |
 | `EBAY_TIMEOUT_MS` | eBay API timeout | `10000` |
 | `METALS_CACHE_TTL_MS` | Metals spot price cache lifetime | `2700000` (45 min) |
@@ -398,7 +404,7 @@ The **Test Monitor** system records per-run metrics (timestamp, branch, commit, 
 
 A Copilot agent persona (`.github/agents/test-monitor.agent.md`) can be invoked to diagnose failures, quarantine flaky tests, and suggest fixes. See [docs/testing/test-monitor.md](docs/testing/test-monitor.md) for full usage.
 
-Runs **Jest** across 34 test suites:
+Runs **Jest** across 38 test suites:
 
 | Suite | What it covers |
 |---|---|
@@ -419,7 +425,7 @@ Runs **Jest** across 34 test suites:
 | `keyDates.test.js` | Key date / semi-key detection |
 | `meltValue.test.js` | Melt value calculation for silver/gold coins |
 | `mintSetFilters.test.js` | Proof/mint set filtering logic |
-| `numistaService.test.js` | Numista API integration: search, type details, mintages, rarity |
+| `numistaService.test.js` | Numista API integration: search, type details, mintages, rarity, lookupCoin pipeline |
 | `pcgsBullion.test.js` | PCGS bullion coin handling |
 | `pricingBatchRoute.test.js` | Batch pricing endpoint integration |
 | `responseValidator.test.js` | Response schema validation, numeric sanity, FMV reasonability |
@@ -436,6 +442,9 @@ Runs **Jest** across 34 test suites:
 | `ebayFetchSoldComps.test.js` | eBay orchestrator: Terapeak tier, Finding API, Browse fallback, caching, scoring, buildKeywords, classifyGradeType, detectWeightFromTitle, dedup |
 | `filters.test.js` | Deny-list patterns, `isDenied()`, `detectDenomMismatch()` edge cases |
 | `greysheetTypeMap.test.js` | Greysheet type-map series resolution, PCGS-to-GSID mapping |
+| `imageProxyRoute.test.js` | SSRF prevention: allowlist enforcement, non-image rejection, size limits, upstream error forwarding |
+| `mintages.test.js` | Mintage lookups: normalizeSeries, BU/proof routing, fractional weight (Gold Eagle 1/2, 1/4, 1/10 oz), BU/proof isolation |
+| `terapeakService.test.js` | Terapeak CSV import: parseCSV, importComps, evictStaleComps, autoImportFolder, normalizeSearchKey, mapColumn, rowToComp |
 
 Test helpers live in `__tests__/helpers/coinTestConstants.js` (shared token lists, normalization, compound-word-aware `containsNone`).
 
@@ -472,8 +481,8 @@ src/
     numistaService.js              Numista API — search, mintages, rarity
     terapeakService.js             Terapeak CSV import, lookup, eviction
     terapeakQuotaService.js        Daily Terapeak query quota tracker
-    authService.js                 Server-side auth (bcrypt + JWT, cache/users.json)
-    coinStorageService.js          Server-side coin CRUD (cache/user_coins.json)
+    authService.js                 Server-side auth (bcrypt + JWT, dual-mode Cosmos + local JSON)
+    coinStorageService.js          Server-side coin CRUD (dual-mode Cosmos + local JSON)
   data/
     halfDollarSeries.js            Half Dollar design eras + year-based resolver
     pcgsNumbers.js                 PCGS coin number lookup table (10 US series)
@@ -488,6 +497,9 @@ src/
     filters.js                     Deny-list filtering, denomination & series checks
     responseValidator.js           /api/price response schema & sanity validation
     excelMapper.js                 Excel-to-backup converter (header aliases, series normalization)
+    cachePath.js                   Centralized CACHE_DIR from env var
+    cosmosClient.js                Azure Cosmos DB client singleton (env-var gated)
+    blobClient.js                  Azure Blob Storage client (env-var gated, managed identity)
   greysheet/
     greysheetTypeMap.js            Series-to-GSID mapping for Greysheet API lookups
 cache/
@@ -499,6 +511,7 @@ cache/
   numista_cache.json               Persisted Numista data cache (24-hour TTL)
   users.json                       Server-side user accounts (bcrypt hashes)
   user_coins.json                  Server-side coin collections (plaintext JSON)
+  greysheet_history.json           Daily Greysheet price snapshots
 data/
   terapeak/                        Drop Terapeak CSV exports here for auto-import
 public/
@@ -512,7 +525,7 @@ public/
 samples/
   test-collection.xlsx             Sample Excel import fixture
   no-collectors-sheet.xlsx         Error-case fixture (missing sheet)
-__tests__/                         34 Jest test suites (see Tests section)
+__tests__/                         38 Jest test suites (see Tests section)
   helpers/
     coinTestConstants.js           Shared token lists & test utilities
 docs/
@@ -529,6 +542,8 @@ scripts/
   terapeak-export.py               Semi-automated Terapeak CSV exporter (Playwright)
   terapeak-page2.py                Page 2 enrichment scraper (extends CSVs beyond 50 rows)
   clean-csvs.js                    CSV junk cleaner (deny-pattern purge across all CSVs)
+  migrate-to-cosmos.js             One-time migration of history data to Azure Cosmos DB
+  upload-csvs-to-blob.js           Upload Terapeak CSVs to Azure Blob Storage
   vnc-login.py                     VNC + eBay login helper for Playwright sessions
   seedFromEbay.js                  Bulk seed from Finding API (dead -- API decommissioned)
   test-metrics/
@@ -576,7 +591,7 @@ scripts/
 
 ### Terapeak Data Pipeline
 
-The project includes 650 Terapeak CSV files in `data/terapeak/` containing real sold-comp data scraped from eBay Seller Hub Research. The data pipeline has three stages:
+The project includes ~1,200 Terapeak CSV files in `data/terapeak/` containing real sold-comp data scraped from eBay Seller Hub Research. The data pipeline has three stages:
 
 **Stage 1: Page 1 Scraping** -- `scripts/terapeak-export.py` uses Playwright to automate Terapeak searches and CSV downloads. It loops through all coin search terms, exports 50 rows per coin, and uploads CSVs to the running server via `/api/terapeak/import`. Features: `--login` for manual eBay cookie capture, `--run` for headless batch execution, `--batch N` for safe incremental scraping, `--priority` for thin-data-first ordering, `--resume` to continue after interruption, browser recycling every 40 coins, and auto-recovery from crashes (up to 5). Requires VNC (Xtigervnc :1), Python 3.12+, and Playwright.
 
@@ -584,7 +599,7 @@ The project includes 650 Terapeak CSV files in `data/terapeak/` containing real 
 
 **Stage 3: CSV Cleanup** -- `scripts/clean-csvs.js` purges junk rows (stamps, sports cards, trading cards, toys, media) that contaminated CSV files due to generic search terms. Uses `isDenied()` from `src/utils/filters.js` plus extended deny patterns. Run with `--dry-run` to preview or `--run` to rewrite files in place. Initial cleanup removed 4,050 junk rows across 427 of 650 files.
 
-**Auto-import** -- on server startup, `terapeakService.autoImportFolder()` scans `data/terapeak/*.csv` and imports any files newer than 7 days. The server currently loads ~796 datasets with ~27,000 total comps.
+**Auto-import** -- on server startup, `terapeakService.autoImportFolder()` scans `data/terapeak/*.csv` and imports any files newer than 7 days. If `TERAPEAK_BLOB_ACCOUNT` + `TERAPEAK_BLOB_CONTAINER` are set, `autoImportFromBlob()` reads CSVs from Azure Blob Storage first, then falls back to local folder. The server currently loads ~1,218 datasets with ~68,000 total comps.
 
 **Search term quality matters** -- generic terms like "US Mint Set" capture unrelated items (stamps, cards). Better terms include the full coin name (e.g. "2005 US Mint Uncirculated Coin Set" instead of "2005 US Mint Set"). Some mint set CSVs are thin after cleanup and need re-scraping with improved terms.
 
@@ -596,6 +611,20 @@ The project includes 650 Terapeak CSV files in `data/terapeak/` containing real 
 - **FMV blend updated** -- Greysheet wholesale is now the 4th data source at 20% weight. Certified blend: eBay 55% + PCGS Guide 15% + Auction 10% + Greysheet 20%. Raw blend: eBay 70% + PCGS 10% + Greysheet 20%. Weights renormalize automatically when Greysheet is unavailable.
 - **Confidence boost** -- Greysheet data adds +5 confidence points to the valuation score.
 - **Response enrichment** -- `/api/price` and `/api/pricing-batch` responses include a `greysheet` object with GSID, wholesale/retail values, and all five pricing sources.
+
+### Azure Infrastructure
+
+- **Key Vault** (#97) -- All 9 API secrets moved to `coinpricefinder-kv`. App Service reads them via `@Microsoft.KeyVault(SecretUri=...)` references. Managed identity (`0a61d4ad-36de-4b31-860a-eaaf4b3c86b7`) has Key Vault Secrets User role. No application code changes needed.
+- **Cosmos DB** (#98) -- `coinpricefinder-cosmos` (serverless) with database `coinprice` and 5 containers: `users`, `user-coins`, `terapeak-sold`, `greysheet-history`, `metals-history`. Dual-mode write-through: all writes go to both local JSON and Cosmos. `src/utils/cosmosClient.js` provides a singleton gated by `COSMOS_ENDPOINT` env var. Migration script: `scripts/migrate-to-cosmos.js` (history data only -- no synthetic Terapeak or user data).
+- **Blob Storage** (#99) -- `terapeak-csvs` container on `coinpricecache01`. `src/utils/blobClient.js` uses `DefaultAzureCredential` (managed identity in prod, `az login` locally). `autoImportFromBlob()` in terapeakService reads CSVs from blob first, local folder second. Upload script: `scripts/upload-csvs-to-blob.js`.
+- **Azure Files** (#95) -- Storage account `coinpricecache01`, share `appcache` (1 GB) mounted at `/mnt/cache`. `CACHE_DIR=/mnt/cache` on App Service. `src/utils/cachePath.js` centralizes the path.
+
+### Valuation Enhancements
+
+- **Low-data indicator** (#40) -- When `soldCount < 5`, the response includes `lowData: true` and `compCount`. UI shows a red warning: "Low confidence -- only N sold comps."
+- **Greysheet liquidity spread** (#54) -- `computeConfidence()` now factors in the wholesale-to-retail spread: tight spread (<=15%) adds +5 confidence, wide spread (>=40%) subtracts -5. Response includes `greysheetSpread: { spreadPct, liquidity, wholesale, retail }`. UI shows a color-coded chip (green/yellow/red).
+- **Adjacent-year context** (#41) -- `buildAdjacentYearContext()` in priceRoute queries Terapeak for the same series +/- 2 years when `soldCount < 5`. Returns `adjacentYears: [{ year, median, compCount }]`. Displayed in both bar and coin UI paths as informational chips (not blended into FMV).
+- **Image proxy SSRF fix** (#35) -- Fixed a bug where the 2 MB size limit handler called `upstream.destroy()` but never called `res.end()`, causing connection hang. Exposed `_allowedHosts` for testing.
 
 ---
 
