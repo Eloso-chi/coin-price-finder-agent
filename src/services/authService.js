@@ -67,14 +67,19 @@ async function signup(username, password) {
 
   if (cosmos.isEnabled()) {
     const cont = cosmos.container('users');
-    // Check existence
+    // Check existence in both Cosmos and file store
+    let exists = false;
     try {
-      await cont.item(username, username).read();
-      throw new Error('Username already exists');
+      const { resource } = await cont.item(username, username).read();
+      if (resource) exists = true;
     } catch (err) {
-      if (err.code !== 404 && err.message !== 'Username already exists') throw err;
-      if (err.message === 'Username already exists') throw err;
+      if (err.code !== 404) throw err;
     }
+    if (!exists) {
+      const store = loadStore();
+      if (store[username]) exists = true;
+    }
+    if (exists) throw new Error('Username already exists');
     await cont.items.create({ id: username, username, ...acct });
   } else {
     const store = loadStore();
@@ -101,16 +106,20 @@ async function login(username, password) {
   if (cosmos.isEnabled()) {
     try {
       const { resource } = await cosmos.container('users').item(username, username).read();
-      acct = resource;
+      acct = resource || null;
     } catch (err) {
-      if (err.code === 404) throw new Error('Account not found');
-      throw err;
+      if (err.code !== 404) throw err;
+      // Not in Cosmos -- fall through to file store
     }
-  } else {
+  }
+
+  // Fall back to file store (handles pre-Cosmos accounts)
+  if (!acct) {
     const store = loadStore();
     acct = store[username];
-    if (!acct) throw new Error('Account not found');
   }
+
+  if (!acct) throw new Error('Account not found');
 
   const valid = await bcrypt.compare(password, acct.hash);
   if (!valid) throw new Error('Incorrect password');
@@ -130,28 +139,37 @@ async function changePassword(username, currentPassword, newPassword) {
   username = (username || '').trim().toLowerCase();
   if (!newPassword || newPassword.length < 6) throw new Error('New password must be at least 6 characters');
 
+  let doc;
+  let source = 'file'; // track where the account was found
+
   if (cosmos.isEnabled()) {
-    const cont = cosmos.container('users');
-    let doc;
     try {
-      const { resource } = await cont.item(username, username).read();
-      doc = resource;
+      const { resource } = await cosmos.container('users').item(username, username).read();
+      if (resource) { doc = resource; source = 'cosmos'; }
     } catch (err) {
-      if (err.code === 404) throw new Error('Account not found');
-      throw err;
+      if (err.code !== 404) throw err;
+      // Not in Cosmos -- fall through to file store
     }
-    const valid = await bcrypt.compare(currentPassword, doc.hash);
-    if (!valid) throw new Error('Current password is incorrect');
-    doc.hash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
-    await cont.item(username, username).replace(doc);
-  } else {
+  }
+
+  // Fall back to file store (handles pre-Cosmos accounts)
+  if (!doc) {
     const store = loadStore();
-    const acct = store[username];
-    if (!acct) throw new Error('Account not found');
-    const valid = await bcrypt.compare(currentPassword, acct.hash);
-    if (!valid) throw new Error('Current password is incorrect');
-    acct.hash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
-    _store = store;
+    doc = store[username];
+    source = 'file';
+  }
+
+  if (!doc) throw new Error('Account not found');
+
+  const valid = await bcrypt.compare(currentPassword, doc.hash);
+  if (!valid) throw new Error('Current password is incorrect');
+  doc.hash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+
+  if (source === 'cosmos') {
+    await cosmos.container('users').item(username, username).replace(doc);
+  } else {
+    _store = loadStore();
+    _store[username] = doc;
     saveStore();
   }
 }
