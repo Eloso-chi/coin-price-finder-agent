@@ -299,4 +299,23 @@ app.listen(PORT, '0.0.0.0', async () => {
   setInterval(() => {
     if (needsGreysheetRefresh()) doGreysheetRefresh();
   }, 24 * 60 * 60 * 1000);
+
+  // ── Periodic blob re-import (every 30 min) ──────────────────
+  // Picks up new CSVs uploaded directly to blob by scraping scripts (#107)
+  const BLOB_REIMPORT_MS = parseInt(process.env.BLOB_REIMPORT_MS, 10) || 30 * 60 * 1000;
+  if (blobClient.isEnabled()) {
+    setInterval(async () => {
+      try {
+        const result = await terapeakService.autoImportFromBlob();
+        if (result.imported > 0) {
+          console.log(`  [terapeak] Blob re-import: ${result.imported} new file(s)`);
+          const ebayService = require('./src/services/ebayService');
+          ebayService.clearCache();
+        }
+      } catch (err) {
+        console.warn(`  [terapeak] Blob re-import failed: ${err.message}`);
+      }
+    }, BLOB_REIMPORT_MS);
+    console.log(`  Terapeak blob re-import: polling every ${BLOB_REIMPORT_MS / 60000} min`);
+  }
 });

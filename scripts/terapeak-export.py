@@ -68,14 +68,24 @@ CSV_DIR = TERAPEAK_DIR  # where to save exported CSVs
 APP_URL = os.environ.get("APP_URL", "http://localhost:3000")
 ADMIN_API_KEY = os.environ.get("ADMIN_API_KEY", "")
 
-# Auto-read ADMIN_API_KEY from .env if not set in environment
-if not ADMIN_API_KEY:
+# Azure Blob config (for direct-to-blob upload, bypassing local server)
+BLOB_ACCOUNT = os.environ.get("TERAPEAK_BLOB_ACCOUNT", "")
+BLOB_CONTAINER = os.environ.get("TERAPEAK_BLOB_CONTAINER", "")
+
+# Auto-read keys from .env if not set in environment
+if not ADMIN_API_KEY or not BLOB_ACCOUNT:
     env_file = PROJECT_DIR / ".env"
     if env_file.exists():
         for line in env_file.read_text().splitlines():
-            if line.startswith("ADMIN_API_KEY="):
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            if line.startswith("ADMIN_API_KEY=") and not ADMIN_API_KEY:
                 ADMIN_API_KEY = line.split("=", 1)[1].strip()
-                break
+            elif line.startswith("TERAPEAK_BLOB_ACCOUNT=") and not BLOB_ACCOUNT:
+                BLOB_ACCOUNT = line.split("=", 1)[1].strip()
+            elif line.startswith("TERAPEAK_BLOB_CONTAINER=") and not BLOB_CONTAINER:
+                BLOB_CONTAINER = line.split("=", 1)[1].strip()
 
 EBAY_RESEARCH_URL = "https://www.ebay.com/sh/research"
 EBAY_LOGIN_URL = "https://signin.ebay.com/ws/eBayISAPI.dll?SignIn"
@@ -323,9 +333,45 @@ def get_search_terms():
     return terms
 
 
+# ── Upload to Azure Blob Storage ────────────────────────────
+def upload_to_blob(csv_path):
+    """Upload a CSV file directly to Azure Blob Storage.
+    Returns (True, message) on success, (False, message) on failure."""
+    if not BLOB_ACCOUNT or not BLOB_CONTAINER:
+        return False, "Blob not configured (set TERAPEAK_BLOB_ACCOUNT + TERAPEAK_BLOB_CONTAINER)"
+    try:
+        from azure.storage.blob import BlobServiceClient
+        from azure.identity import DefaultAzureCredential
+    except ImportError:
+        return False, "azure-storage-blob or azure-identity not installed"
+
+    try:
+        blob_name = os.path.basename(csv_path)
+        url = f"https://{BLOB_ACCOUNT}.blob.core.windows.net"
+        credential = DefaultAzureCredential()
+        service = BlobServiceClient(url, credential=credential)
+        container = service.get_container_client(BLOB_CONTAINER)
+        with open(csv_path, "rb") as f:
+            container.upload_blob(blob_name, f, overwrite=True,
+                                  content_settings={"content_type": "text/csv"})
+        size_kb = os.path.getsize(csv_path) / 1024
+        return True, f"blob:{blob_name} ({size_kb:.1f} KB)"
+    except Exception as e:
+        return False, f"Blob upload error: {e}"
+
+
 # ── Upload to App ───────────────────────────────────────────
 def upload_csv(csv_path, search_term):
-    """POST a CSV file to the app's Terapeak import endpoint."""
+    """Upload a CSV: try Azure Blob first, fall back to app server POST."""
+    # Try blob upload first (decoupled from local server)
+    if BLOB_ACCOUNT and BLOB_CONTAINER:
+        ok, msg = upload_to_blob(csv_path)
+        if ok:
+            return True, msg
+        # Blob failed -- fall back to server POST
+        print(f"    [blob fallback] {msg}")
+
+    # Fall back to HTTP POST to local server
     url = f"{APP_URL}/api/terapeak/import"
     headers = {}
     if ADMIN_API_KEY:

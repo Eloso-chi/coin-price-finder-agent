@@ -265,4 +265,40 @@ router.post('/purge-stale-csvs', requireAdmin, express.json(), (req, res) => {
   res.json({ status: 'ok', ...result });
 });
 
+/**
+ * POST /api/terapeak/reimport
+ * Re-import Terapeak CSVs from Azure Blob + local folder.
+ * Bypasses freshness skip when force=true in body.
+ * Admin-only.
+ */
+router.post('/reimport', requireAdmin, express.json(), async (req, res) => {
+  const force = req.body?.force === true;
+  const dataDir = process.env.TERAPEAK_DATA_DIR || 'data/terapeak';
+  const results = { blob: null, local: null };
+
+  try {
+    // Blob import
+    const blobClient = require('../utils/blobClient');
+    if (blobClient.isEnabled()) {
+      results.blob = await terapeakService.autoImportFromBlob({ force });
+    } else {
+      results.blob = { skipped: true, reason: 'Blob storage not configured' };
+    }
+
+    // Local folder import
+    results.local = terapeakService.autoImportFolder(dataDir, { force });
+
+    // Clear eBay cache if new data was imported
+    const totalImported = (results.blob?.imported || 0) + (results.local?.imported || 0);
+    if (totalImported > 0) {
+      const ebayService = require('../services/ebayService');
+      ebayService.clearCache();
+    }
+
+    res.json({ status: 'ok', force, ...results, totalImported });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
