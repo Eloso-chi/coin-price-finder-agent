@@ -1,7 +1,7 @@
 // __tests__/greysheetTypeMap.test.js -- Tests for Greysheet Type GSID lookup
 'use strict';
 
-const { lookupTypeGsid, TYPE_GSID_MAP, _detectMetal, _detectWeight } = require('../src/data/greysheetTypeMap');
+const { lookupTypeGsid, TYPE_GSID_MAP, _detectMetal, _detectWeight, _detectFinish } = require('../src/data/greysheetTypeMap');
 
 describe('greysheetTypeMap', () => {
 
@@ -402,6 +402,119 @@ describe('greysheetTypeMap', () => {
     it('has no duplicate GSIDs', () => {
       const vals = Object.values(TYPE_GSID_MAP);
       expect(new Set(vals).size).toBe(vals.length);
+    });
+  });
+
+  // ── _detectFinish ──────────────────────────────────────────
+  describe('_detectFinish', () => {
+    it('detects proof', () => expect(_detectFinish('Silver Eagle Proof')).toBe('proof'));
+    it('detects reverse proof', () => expect(_detectFinish('Libertad Reverse Proof')).toBe('reverse proof'));
+    it('detects burnished', () => expect(_detectFinish('ASE Burnished')).toBe('burnished'));
+    it('detects satin', () => expect(_detectFinish('Buffalo Nickel Satin Finish')).toBe('satin'));
+    it('detects PR (case-sensitive)', () => expect(_detectFinish('ASE PR DCAM')).toBe('proof'));
+    it('returns null for MS coins', () => expect(_detectFinish('Silver Eagle 1 oz')).toBeNull());
+    it('returns null for null', () => expect(_detectFinish(null)).toBeNull());
+    it('returns null for empty', () => expect(_detectFinish('')).toBeNull());
+    it('prefers reverse proof over plain proof', () => {
+      expect(_detectFinish('Libertad Reverse Proof 1 oz')).toBe('reverse proof');
+    });
+  });
+
+  // ── lookupTypeGsid: Proof finish ───────────────────────────
+  describe('lookupTypeGsid - proof finish', () => {
+
+    it('resolves ASE Proof', () => {
+      const r = lookupTypeGsid('American Silver Eagle 1 oz Proof');
+      expect(r).not.toBeNull();
+      expect(r.gsid).toBe(72470);
+      expect(r.lookupKey).toBe('silver eagle|1|proof');
+    });
+
+    it('resolves AGE 1 oz Proof', () => {
+      const r = lookupTypeGsid('Gold Eagle 1 oz Proof');
+      expect(r).not.toBeNull();
+      expect(r.gsid).toBe(74303);
+    });
+
+    it('resolves AGE 1/10 oz Proof', () => {
+      const r = lookupTypeGsid('Gold Eagle 1/10 oz Proof');
+      expect(r).not.toBeNull();
+      expect(r.gsid).toBe(74286);
+    });
+
+    it('resolves Platinum Eagle 1 oz Proof', () => {
+      const r = lookupTypeGsid('Platinum Eagle 1 oz Proof');
+      expect(r).not.toBeNull();
+      expect(r.gsid).toBe(74275);
+    });
+
+    it('resolves Silver Libertad 1 oz Proof', () => {
+      const r = lookupTypeGsid('Mexican Silver Libertad 1 oz Proof');
+      expect(r).not.toBeNull();
+      expect(r.gsid).toBe(393825);
+      expect(r.lookupKey).toBe('libertad|1|silver|proof');
+    });
+
+    it('resolves Silver Libertad 1/2 oz Proof', () => {
+      const r = lookupTypeGsid('Silver Libertad 1/2 oz Proof');
+      expect(r).not.toBeNull();
+      expect(r.gsid).toBe(393821);
+    });
+
+    it('resolves Silver Libertad 1/20 oz Proof', () => {
+      const r = lookupTypeGsid('Silver Libertad 1/20 oz Proof');
+      expect(r).not.toBeNull();
+      expect(r.gsid).toBe(374246);
+    });
+
+    it('resolves Gold Libertad 1 oz Proof', () => {
+      const r = lookupTypeGsid('Gold Libertad 1 oz Proof');
+      expect(r).not.toBeNull();
+      expect(r.gsid).toBe(393960);
+    });
+
+    it('resolves Silver Panda 1 oz Proof', () => {
+      const r = lookupTypeGsid('Chinese Silver Panda 1 oz Proof');
+      expect(r).not.toBeNull();
+      expect(r.gsid).toBe(395448);
+    });
+
+    it('resolves Gold Panda 1 oz Proof', () => {
+      const r = lookupTypeGsid('Chinese Gold Panda 1 oz Proof');
+      expect(r).not.toBeNull();
+      expect(r.gsid).toBe(395440);
+    });
+
+    it('resolves Silver Maple Leaf 1 oz Proof', () => {
+      const r = lookupTypeGsid('Silver Maple Leaf 1 oz Proof');
+      expect(r).not.toBeNull();
+      expect(r.gsid).toBe(396685);
+    });
+
+    it('resolves Silver Lunar 1/2 oz Proof', () => {
+      const r = lookupTypeGsid('Australian Lunar Silver 1/2 oz Proof');
+      expect(r).not.toBeNull();
+      expect(r.gsid).toBe(395571);
+    });
+
+    it('uses finish hint to resolve Proof', () => {
+      const r = lookupTypeGsid('Silver Eagle 1 oz', { finish: 'proof' });
+      expect(r).not.toBeNull();
+      expect(r.gsid).toBe(72470);
+    });
+
+    it('falls back to MS when proof key does not exist', () => {
+      // Gold Buffalo has no proof entry -- should fall back to MS
+      const r = lookupTypeGsid('Gold Buffalo 1 oz Proof');
+      expect(r).not.toBeNull();
+      expect(r.gsid).toBe(74456); // MS fallback
+    });
+
+    it('returns MS when no proof keyword present', () => {
+      // Same query without "Proof" should return MS
+      const r = lookupTypeGsid('Silver Eagle 1 oz');
+      expect(r).not.toBeNull();
+      expect(r.gsid).toBe(72469); // MS
     });
   });
 });

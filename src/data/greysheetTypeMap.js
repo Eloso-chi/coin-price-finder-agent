@@ -5,7 +5,7 @@
 // PCGS-number-based Greysheet lookup cannot resolve.
 //
 // Built by walking the Greysheet CDN Public API V2 catalog tree.
-// Last refreshed: 2026-04-07
+// Last refreshed: 2026-04-19
 'use strict';
 
 // ── Type GSID Map ───────────────────────────────────────────
@@ -18,33 +18,44 @@
 
 const TYPE_GSID_MAP = {
   // ── US Eagles ──────────────────────────────────────────────
-  'silver eagle|1':        72469,   // ASE $1 One Ounce MS [Type]
-  'gold eagle|0.1':        74227,   // AGE $5 1/10 Ounce MS [Type]
-  'gold eagle|0.25':       74228,   // AGE $10 1/4 Ounce MS [Type]
-  'gold eagle|0.5':        74229,   // AGE $25 1/2 Ounce MS [Type]
-  'gold eagle|1':          74237,   // AGE G$50 One Ounce MS [Type]
-  'platinum eagle|0.1':    74263,   // APE $10 1/10 Ounce MS [Type]
-  'platinum eagle|0.25':   74265,   // APE $25 1/4 Ounce MS [Type]
-  'platinum eagle|0.5':    74266,   // APE P$50 1/2 Ounce MS [Type]
-  'platinum eagle|1':      74270,   // APE P$100 One Ounce MS [Type]
-  'palladium eagle|1':     376573,  // Palladium Eagle $25 One Ounce MS [Type]
-  'gold buffalo|1':        74456,   // Gold Buffalo One Ounce G$50 MS [Type]
+  'silver eagle|1':              72469,   // ASE $1 One Ounce MS [Type]
+  'silver eagle|1|proof':        72470,   // ASE $1 One Ounce PR DCAM [Type]
+  'gold eagle|0.1':              74227,   // AGE $5 1/10 Ounce MS [Type]
+  'gold eagle|0.1|proof':        74286,   // AGE $5 1/10 Ounce PR DCAM [Type]
+  'gold eagle|0.25':             74228,   // AGE $10 1/4 Ounce MS [Type]
+  'gold eagle|0.25|proof':       74291,   // AGE $10 1/4 Ounce PR DCAM [Type]
+  'gold eagle|0.5':              74229,   // AGE $25 1/2 Ounce MS [Type]
+  'gold eagle|0.5|proof':        74297,   // AGE $25 1/2 Ounce PR DCAM [Type]
+  'gold eagle|1':                74237,   // AGE G$50 One Ounce MS [Type]
+  'gold eagle|1|proof':          74303,   // AGE G$50 One Ounce PR DCAM [Type]
+  'platinum eagle|0.1':          74263,   // APE $10 1/10 Ounce MS [Type]
+  'platinum eagle|0.1|proof':    74285,   // APE $10 1/10 Ounce PR DCAM [Type]
+  'platinum eagle|0.25':         74265,   // APE $25 1/4 Ounce MS [Type]
+  'platinum eagle|0.25|proof':   74284,   // APE $25 1/4 Ounce PR DCAM [Type]
+  'platinum eagle|0.5':          74266,   // APE P$50 1/2 Ounce MS [Type]
+  'platinum eagle|0.5|proof':    74283,   // APE P$50 1/2 Ounce PR DCAM [Type]
+  'platinum eagle|1':            74270,   // APE P$100 One Ounce MS [Type]
+  'platinum eagle|1|proof':      74275,   // APE P$100 One Ounce PR DCAM [Type]
+  'palladium eagle|1':           376573,  // Palladium Eagle $25 One Ounce MS [Type]
+  'gold buffalo|1':              74456,   // Gold Buffalo One Ounce G$50 MS [Type]
 
   // ── Canada ─────────────────────────────────────────────────
-  'maple leaf|1|silver':   373777,  // Silver Maple Leaf S$5 One Ounce MS [Type]
-  'maple leaf|1|gold':     213178,  // Gold Maple Leaf G$50 One Ounce MS [Type]
-  'maple leaf|0.5|gold':   373780,  // Gold Maple Leaf G$20 Half Ounce MS [Type]
-  'maple leaf|0.25|gold':  373787,  // Gold Maple Leaf G$10 Quarter Ounce MS [Type]
-  'maple leaf|0.1|gold':   373793,  // Gold Maple Leaf G$5 One-Tenth Ounce MS [Type]
-  'maple leaf|1|platinum': 320561,  // Platinum Maple Leaf P$50 One Ounce MS [Type]
+  'maple leaf|1|silver':         373777,  // Silver Maple Leaf S$5 One Ounce MS [Type]
+  'maple leaf|1|silver|proof':   396685,  // Silver Maple Leaf S$5 One Ounce PR [Type]
+  'maple leaf|1|gold':           213178,  // Gold Maple Leaf G$50 One Ounce MS [Type]
+  'maple leaf|0.5|gold':         373780,  // Gold Maple Leaf G$20 Half Ounce MS [Type]
+  'maple leaf|0.25|gold':        373787,  // Gold Maple Leaf G$10 Quarter Ounce MS [Type]
+  'maple leaf|0.1|gold':         373793,  // Gold Maple Leaf G$5 One-Tenth Ounce MS [Type]
+  'maple leaf|1|platinum':       320561,  // Platinum Maple Leaf P$50 One Ounce MS [Type]
   // Note: Canadian Gold Maple Leaf 1/20 oz and Silver Polar Bear have no Greysheet Type entries.
 
   // ── Australia ──────────────────────────────────────────────
-  'kookaburra|1':          393577,  // Kookaburra S$1 1oz Silver MS [Type]
-  'kangaroo|1|silver':     393506,  // Kangaroo S$1 1oz Silver MS [Type]
-  'lunar|1|silver':        393681,  // Lunar Series S$1 Silver, One Ounce MS [Type]
-  'lunar|0.5|silver':      395570,  // Lunar 1/2 oz Silver MS [Type]
-  'lunar|1|gold':          393627,  // Lunar G$100 Gold, 1996- MS [Type]
+  'kookaburra|1':                393577,  // Kookaburra S$1 1oz Silver MS [Type]
+  'kangaroo|1|silver':           393506,  // Kangaroo S$1 1oz Silver MS [Type]
+  'lunar|1|silver':              393681,  // Lunar Series S$1 Silver, One Ounce MS [Type]
+  'lunar|0.5|silver':            395570,  // Lunar 1/2 oz Silver MS [Type]
+  'lunar|0.5|silver|proof':      395571,  // Lunar 1/2 oz Silver PR DCAM [Type]
+  'lunar|1|gold':                393627,  // Lunar G$100 Gold, 1996- MS [Type]
   // Note: AU Gold Kangaroo weights, Gold Lunar 1/10 and 1/20 have no separate Type entries.
 
   // ── Austria ────────────────────────────────────────────────
@@ -60,22 +71,33 @@ const TYPE_GSID_MAP = {
   // Note: Silver Krugerrand and Gold KR 1/20 oz have no Type entries.
 
   // ── China ──────────────────────────────────────────────────
-  'panda|1|gold':          395439,  // Panda Gold G100Y 1982-2016 1oz MS [Type]
-  'panda|1|silver':        373776,  // Panda Silver S10Y 1989- 1oz MS [Type]
+  'panda|1|gold':                395439,  // Panda Gold G100Y 1982-2016 1oz MS [Type]
+  'panda|1|gold|proof':          395440,  // Panda Gold G100Y 1986-1996 1oz PR DCAM [Type]
+  'panda|1|silver':              373776,  // Panda Silver S10Y 1989- 1oz MS [Type]
+  'panda|1|silver|proof':        395448,  // Panda Silver S10Y 1 Ounce PR DCAM [Type]
 
   // ── Mexico: Silver Libertad ────────────────────────────────
-  'libertad|1|silver':     393495,  // Libertad 1 Onza Silver 31.1g MS [Type]
-  'libertad|0.5|silver':   393819,  // Libertad 1/2 Onza Silver 15.6g MS [Type]
-  'libertad|0.25|silver':  393815,  // Libertad 1/4 Onza Silver 7.78g MS [Type]
-  'libertad|0.1|silver':   393739,  // Libertad 1/10 Onza Silver 3.1g MS [Type]
-  'libertad|0.05|silver':  374245,  // Libertad 1/20 Onza Silver 1.56g MS [Type]
+  'libertad|1|silver':           393495,  // Libertad 1 Onza Silver 31.1g MS [Type]
+  'libertad|1|silver|proof':     393825,  // Libertad 1 Onza Silver 31.1g PR DCAM [Type]
+  'libertad|0.5|silver':         393819,  // Libertad 1/2 Onza Silver 15.6g MS [Type]
+  'libertad|0.5|silver|proof':   393821,  // Libertad 1/2 Onza Silver 15.6g PR [Type]
+  'libertad|0.25|silver':        393815,  // Libertad 1/4 Onza Silver 7.78g MS [Type]
+  'libertad|0.25|silver|proof':  393817,  // Libertad 1/4 Onza Silver 7.78g PR DCAM [Type]
+  'libertad|0.1|silver':         393739,  // Libertad 1/10 Onza Silver 3.1g MS [Type]
+  'libertad|0.1|silver|proof':   393741,  // Libertad 1/10 Onza Silver 3.1g PR [Type]
+  'libertad|0.05|silver':        374245,  // Libertad 1/20 Onza Silver 1.56g MS [Type]
+  'libertad|0.05|silver|proof':  374246,  // Libertad 1/20 Onza Silver 1.56g PR DCAM [Type]
 
   // ── Mexico: Gold Libertad ──────────────────────────────────
-  'libertad|1|gold':       393496,  // Libertad 1 Onza Gold 31.1g MS [Type]
-  'libertad|0.5|gold':     393956,  // Libertad 1/2 Onza Gold 15.6g MS [Type]
-  'libertad|0.25|gold':    393912,  // Libertad 1/4 Onza Gold 7.78g MS [Type]
-  'libertad|0.1|gold':     393931,  // Libertad 1/10 Onza Gold 3.1g MS [Type]
-  'libertad|0.05|gold':    393932,  // Libertad 1/20 Onza Gold 1.56g MS [Type]
+  'libertad|1|gold':             393496,  // Libertad 1 Onza Gold 31.1g MS [Type]
+  'libertad|1|gold|proof':       393960,  // Libertad 1 Onza Gold 31.1g PR DCAM [Type]
+  'libertad|0.5|gold':           393956,  // Libertad 1/2 Onza Gold 15.6g MS [Type]
+  'libertad|0.5|gold|proof':     393958,  // Libertad 1/2 Onza Gold 15.6g PR DCAM [Type]
+  'libertad|0.25|gold':          393912,  // Libertad 1/4 Onza Gold 7.78g MS [Type]
+  // Note: Libertad 1/4 oz and 1/10 oz Gold Proof have no Greysheet Type entries.
+  'libertad|0.1|gold':           393931,  // Libertad 1/10 Onza Gold 3.1g MS [Type]
+  'libertad|0.05|gold':          393932,  // Libertad 1/20 Onza Gold 1.56g MS [Type]
+  'libertad|0.05|gold|proof':    393954,  // Libertad 1/20 Onza Gold 1.56g PR DCAM [Type]
 
   // ── US Classic: Dollars ────────────────────────────────────
   'morgan|silver':         72404,   // Morgan $1 Pre-1921 MS [Type]
@@ -105,7 +127,6 @@ const TYPE_GSID_MAP = {
 
   // ── Series not in Greysheet Type catalog ───────────────────
   // The following Generic series have NO Greysheet [Type] entries:
-  // - British Gold/Silver Britannia (all weights)
   // - Canadian Silver Polar Bear (all weights)
   // - Canadian Gold Maple Leaf 1/20 oz
   // - Silver Krugerrand 1 oz
@@ -113,6 +134,7 @@ const TYPE_GSID_MAP = {
   // - Austrian Gold Philharmonic fractional (Euro-era)
   // - Australian Gold Kangaroo (weight-specific)
   // - Australian Gold/Silver Lunar 2oz, 1/4oz (gold)
+  // - Gold Buffalo Proof, Palladium Eagle Proof
   // - Indian Head Cent
   // - Lincoln Wheat Cent
   // - Jefferson War Nickel
@@ -179,11 +201,23 @@ function _detectWeight(text) {
   return null;
 }
 
+// Finish / strike-type detection from text
+function _detectFinish(text) {
+  if (!text) return null;
+  const t = text.toLowerCase();
+  if (/\breverse\s*proof\b/.test(t))  return 'reverse proof';
+  if (/\bproof\b/.test(t))            return 'proof';
+  if (/\bburnished\b/.test(t))        return 'burnished';
+  if (/\bsatin\b/.test(t))            return 'satin';
+  if (/\bPR\b/.test(text))            return 'proof';  // case-sensitive PR
+  return null;
+}
+
 /**
  * Look up the Greysheet Type GSID for a yearless / generic coin query.
  *
- * @param {string} queryText   -- free-text coin description (e.g. "Mexican Silver Libertad 1 oz")
- * @param {object} [hints]     -- optional { series, metal, weight } from prior parsing
+ * @param {string} queryText   -- free-text coin description (e.g. "Mexican Silver Libertad 1 oz Proof")
+ * @param {object} [hints]     -- optional { series, metal, weight, finish } from prior parsing
  * @returns {{ gsid: number, lookupKey: string }|null}
  */
 function lookupTypeGsid(queryText, hints = {}) {
@@ -202,16 +236,22 @@ function lookupTypeGsid(queryText, hints = {}) {
 
   const metal  = hints.metal || _detectMetal(text) || matched.metal;
   const weight = hints.weight || _detectWeight(text) || matched.defaultWeight || null;
+  const finish = hints.finish || _detectFinish(text);
 
-  // Build lookup key(s) -- try most specific to least specific
+  // Build base lookup key(s) -- most specific to least specific
+  const baseKeys = [];
+  if (weight && metal) baseKeys.push(`${matched.series}|${weight}|${metal}`);
+  if (weight)          baseKeys.push(`${matched.series}|${weight}`);
+  if (metal)           baseKeys.push(`${matched.series}|${metal}`);
+
+  // When a finish is detected, try finish-qualified keys first,
+  // then fall back to the base (MS) key.
   const candidates = [];
-
-  // "series|weight|metal" (bullion with weight + metal)
-  if (weight && metal) candidates.push(`${matched.series}|${weight}|${metal}`);
-  // "series|weight" (bullion with weight, implied metal like ASE)
-  if (weight)          candidates.push(`${matched.series}|${weight}`);
-  // "series|metal" (classic coins keyed by metal/composition)
-  if (metal)           candidates.push(`${matched.series}|${metal}`);
+  if (finish === 'proof') {
+    for (const k of baseKeys) candidates.push(`${k}|proof`);
+  }
+  // Always include the base (MS) keys as fallback
+  candidates.push(...baseKeys);
 
   for (const key of candidates) {
     if (TYPE_GSID_MAP[key] !== undefined) {
@@ -228,4 +268,5 @@ module.exports = {
   // Exposed for testing
   _detectMetal,
   _detectWeight,
+  _detectFinish,
 };

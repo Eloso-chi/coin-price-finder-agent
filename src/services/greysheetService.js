@@ -242,7 +242,7 @@ async function fetchCollectible(gsid) {
  *
  * @param {string} queryText -- free-text coin description
  * @param {number|null} grade -- numeric grade (optional)
- * @param {object} [hints]  -- optional { series, metal, weight }
+ * @param {object} [hints]  -- optional { series, metal, weight, finish }
  * @returns {object|null} same shape as fetchPriceByPcgsNumber result, plus { isType: true, lookupKey }
  */
 async function fetchTypePrice(queryText, grade, hints = {}) {
