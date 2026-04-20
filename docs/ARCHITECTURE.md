@@ -13,6 +13,7 @@ server.js                              Express entry point (port 3000)
 │   ├─ priceRoute.js                   POST /api/price  -- coin pricing orchestrator
 │   ├─ barPriceRoute.js                POST /api/bar-price -- bullion bar pricing
 │   ├─ pricingBatchRoute.js            POST /api/pricing-batch -- batch pricing (up to 25)
+│   ├─ bulkEvaluateRoute.js            POST /api/bulk-evaluate + SSE streaming (lot evaluator)
 │   ├─ metalsRoute.js                  GET /api/metals[/:metal] -- spot prices
 │   ├─ marketRoute.js                  GET /api/market/ebay -- year x mint market matrix
 │   ├─ coinHistoryRoute.js             GET /api/coin-history -- sold-price time-series
@@ -28,6 +29,7 @@ server.js                              Express entry point (port 3000)
 │   ├─ ebayService.js                  eBay sold comps (3-tier API cascade + grade-type pool split)
 │   ├─ valuationService.js             FMV blend + buy/sell decision engine
 │   ├─ greysheetService.js             Greysheet CDN Public API V2 (wholesale pricing)
+│   ├─ bulkEvaluateService.js           Bulk lot evaluator engine (per-coin FMV + lot summary)
 │   ├─ metalsSpotPrice.js              Multi-provider spot price (round-robin)
 │   ├─ MetalsSpotPriceError.js         Custom error class
 │   ├─ metalsHistoryService.js         Daily spot price history snapshots
@@ -59,10 +61,10 @@ server.js                              Express entry point (port 3000)
 │   └─ blobClient.js                   Azure Blob Storage client (managed identity)
 │
 ├─ src/greysheet/
-│   └─ greysheetTypeMap.js             Series-to-GSID mapping for Greysheet API lookups
+│   └─ greysheetTypeMap.js             Series-to-GSID mapping (55 MS + 18 Proof) + finish detection
 │
 ├─ public/
-│   ├─ index.html                      SPA frontend (dark theme, 7 tabs)
+│   ├─ index.html                      SPA frontend (dark theme, 8 tabs)
 │   └─ js/
 │       ├─ auth.js                     CoinAuth -- server-backed login/signup (JWT in memory)
 │       ├─ storage.js                  CoinStorage -- server-backed coin CRUD via /api/coins/*
@@ -84,7 +86,7 @@ server.js                              Express entry point (port 3000)
 │   └─ terapeak/                       ~1,200 Terapeak CSV exports (real sold data)
 │
 ├─ scripts/
-│   ├─ terapeak-export.py              Semi-automated Terapeak CSV exporter (Playwright)
+│   ├─ terapeak-export.py              Semi-automated Terapeak CSV exporter (Playwright + blob upload)
 │   ├─ terapeak-page2.py               Page 2 enrichment scraper (extends CSVs beyond 50 rows)
 │   ├─ clean-csvs.js                   CSV junk cleaner (deny-pattern purge)
 │   ├─ migrate-to-cosmos.js            One-time migration of history data to Cosmos DB
@@ -92,7 +94,7 @@ server.js                              Express entry point (port 3000)
 │   ├─ vnc-login.py                    VNC + eBay login helper for Playwright sessions
 │   └─ test-metrics/                   Jest metrics capture + summary reporter
 │
-└─ __tests__/                          38 Jest test suites
+└─ __tests__/                          40 Jest test suites
     └─ helpers/
         └─ coinTestConstants.js        Shared token lists & test utilities
 ```
@@ -150,7 +152,13 @@ Request
   │   greysheetService.fetchPriceByPcgsNumber(pcgsCoinNumber, grade)
   │   ├─ Returns: { greyVal, cpgVal, pcgsVal, ngcVal, blueBookVal, gsid, name }
   │   ├─ Non-fatal: returns null if no credentials or API unavailable
-  │   └─ Cached 24h with file persistence (cache/greysheet_cache.json)
+  │   ├─ Cached 24h with file persistence (cache/greysheet_cache.json)
+  │   └─ Type fallback (world coins without PCGS numbers):
+  │       greysheetService.fetchTypePrice(queryText, { finish })
+  │       ├─ greysheetTypeMap.lookupTypeGsid(queryText, hints)
+  │       ├─ _detectFinish(text) → proof / reverse proof / burnished / satin / null
+  │       ├─ Finish-aware: tries `series|proof` GSID keys first, falls back to MS
+  │       └─ 73 total type GSIDs: 55 MS + 18 Proof
   │
   ├── 6. Valuation + Decisions ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   │   computeValuation(pcgs, ebay, askingPrice, userGrade, { greysheet })
@@ -203,6 +211,48 @@ Request (valid metals: XAU, XAG, XPT, XPD)
   │           On failure → rotate to next provider
   │
   └── Response { metals: [{ metal, price, timestamp, source }] }
+```
+
+### Bulk Lot Evaluation -- `POST /api/bulk-evaluate`
+
+```
+POST { text | items | file(.xlsx) }
+  │
+  ├── 1. Parse Input ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  │   ├─ Text: one coin per line, pipe-delimited fields (query | qty=N | grade=X)
+  │   ├─ JSON: { items: [{query, qty, grade, year, mintMark, weight, series}] }
+  │   └─ Excel: mapExcelToBackup() via excelMapper.js
+  │
+  ├── 2. Create Job ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  │   ├─ Validate: 1-500 coins, max 3 concurrent jobs server-wide
+  │   ├─ Check result cache (SHA-256 of input array, 1hr TTL)
+  │   └─ Return { jobId, coinCount } with 202 status
+  │
+  ├── 3. SSE Stream (GET /api/bulk-evaluate/:jobId/stream) ━━━━━━━━━
+  │   Client connects → receives events as coins complete
+  │   Late-connecting clients get replay of already-completed results
+  │
+  ├── 4. Per-Coin Evaluation (10 parallel) ━━━━━━━━━━━━━━━━━━━━━━━━━
+  │   For each coin:
+  │   ├─ pcgsService.parseDescription → resolve identity
+  │   ├─ getCoinMetalProfile → detect metal/weight/bullion
+  │   ├─ getMetalsSpotPrice → live spot for melt calculation
+  │   ├─ ebayService.fetchSoldComps (1 page, 90 days)
+  │   ├─ greysheetService (PCGS number or type fallback)
+  │   ├─ computeValuation → FMV, range, confidence, method
+  │   └─ Emit SSE "coin" event with result
+  │
+  ├── 5. Lot Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  │   computeLotSummary(results):
+  │   ├─ Totals: coinCount, pricedCount, failedCount, totalFmv, totalMelt
+  │   ├─ Avg confidence, bullion count/pct
+  │   ├─ Discounts: sizeDiscount(0-20%) + confidencePenalty(5%) + concentrationPenalty(3%)
+  │   ├─ Concentration flags: coins > 25% of lot value
+  │   └─ Buy tiers: cherryPick(55-65%), fairLot(70-80%), fullRetail(85-90% minus fees)
+  │
+  └── 6. Complete ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      Emit SSE "summary" + "done" events
+      Results cached for 1 hour; poll via GET /api/bulk-evaluate/:jobId
 ```
 
 ---
@@ -385,6 +435,17 @@ Three independent caches serve different data characteristics:
 | **Negative caching** | `null` results are cached to avoid repeated API calls for coins not in the Greysheet catalog |
 | **Clear** | `greysheetService._cache.clear()` |
 
+### Bulk Evaluate Result Cache
+
+| Property | Value |
+|----------|-------|
+| **Class** | In-memory `Map` (bulkEvaluateService.js) |
+| **Default TTL** | 1 hour (3,600,000 ms) |
+| **Persistence** | None (in-memory only) |
+| **Key pattern** | SHA-256 hash of the JSON-serialized input coin array |
+| **Why 1h TTL** | Lot evaluations are expensive (many API calls); caching avoids re-pricing identical submissions |
+| **Eviction** | Lazy prune on new job submission |
+
 ### TTLCache Internals
 
 The `TTLCache` class wraps a `Map` with per-entry expiration:
@@ -492,7 +553,8 @@ Automates Terapeak CSV downloads from eBay Seller Hub Research:
 │    3. Wait for results table to render                    │
 │    4. Click "Download CSV" button                         │
 │    5. Write .meta file (search_term, scraped_at)          │
-│    6. POST CSV to server /api/terapeak/import             │
+│    6. Upload CSV to Azure Blob Storage (upload_to_blob)   │
+│       Falls back to POST /api/terapeak/import if no creds │
 │  Browser recycled every 40 coins (fresh context)          │
 │  Auto-recovery on crash (up to 5 retries)                 │
 │  Bot-detection abort: stops batch on CAPTCHA/block        │
@@ -642,6 +704,7 @@ The valuation engine separates eBay comps by `gradeType`:
 | `TERAPEAK_DATA_DIR` | No | `data/terapeak` | Local directory for Terapeak CSV files |
 | `METALS_POLL_MS` | No | `300000` | Metals spot-price polling interval (ms) |
 | `EBAY_DEFAULT_LOOKBACK_DAYS` | No | `180` | Default sold-comp lookback window (auto-extends to 365 if thin) |
+| `BLOB_REIMPORT_MS` | No | `1800000` | Periodic blob re-import interval (ms; 30 min default) |
 
 ---
 
@@ -716,7 +779,7 @@ Server-backed coin CRUD via `/api/coins/*`. All methods accept `(userId, key, ..
 | `exportJSON(_userId, _key)` | GET `/api/coins/export` -> returns JSON string |
 | `importJSON(_userId, _key, jsonStr)` | POST `/api/coins/import` -> returns `{imported, skipped}` |
 | `coinHash(coin)` | Client-side SHA-256 (matches server `coinStorageService.coinHash()`) |
-| `reEncryptAll()` | No-op (no client-side encryption) |
+| `reEncryptAll()` | No-op (server-side storage, no client-side encryption) |
 | `clearAll(_userId)` | Iterates and deletes all coins |
 
 **BackupReminder** (also in `storage.js`) is a no-op in server mode -- `check()` always returns `{needed: false}`.

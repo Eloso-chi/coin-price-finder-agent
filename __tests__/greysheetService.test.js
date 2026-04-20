@@ -244,28 +244,36 @@ describe('fetchPriceByPcgsNumber', () => {
   });
 
   test('retries on 429 then succeeds', async () => {
+    jest.useFakeTimers();
     const err429 = new Error('Too Many Requests');
     err429.response = { status: 429 };
     axios.get
       .mockRejectedValueOnce(err429)
       .mockResolvedValueOnce({ data: MOCK_PRICING_RESPONSE });
 
-    const result = await greysheetService.fetchPriceByPcgsNumber('7130', 65);
+    const promise = greysheetService.fetchPriceByPcgsNumber('7130', 65);
+    await jest.advanceTimersByTimeAsync(2000);
+    const result = await promise;
     expect(result).not.toBeNull();
     expect(result.greyVal).toBe(275);
     expect(axios.get).toHaveBeenCalledTimes(2);
+    jest.useRealTimers();
   });
 
   test('retries on 500 then succeeds', async () => {
+    jest.useFakeTimers();
     const err500 = new Error('Internal Server Error');
     err500.response = { status: 500 };
     axios.get
       .mockRejectedValueOnce(err500)
       .mockResolvedValueOnce({ data: MOCK_PRICING_RESPONSE });
 
-    const result = await greysheetService.fetchPriceByPcgsNumber('7130', 65);
+    const promise = greysheetService.fetchPriceByPcgsNumber('7130', 65);
+    await jest.advanceTimersByTimeAsync(2000);
+    const result = await promise;
     expect(result).not.toBeNull();
     expect(axios.get).toHaveBeenCalledTimes(2);
+    jest.useRealTimers();
   });
 
   test('does not retry on 401', async () => {
@@ -279,6 +287,7 @@ describe('fetchPriceByPcgsNumber', () => {
   });
 
   test('returns null after exhausting retries', async () => {
+    jest.useFakeTimers();
     const err500 = new Error('Server Error');
     err500.response = { status: 500 };
     axios.get
@@ -286,9 +295,12 @@ describe('fetchPriceByPcgsNumber', () => {
       .mockRejectedValueOnce(err500)
       .mockRejectedValueOnce(err500);
 
-    const result = await greysheetService.fetchPriceByPcgsNumber('7130', 65);
+    const promise = greysheetService.fetchPriceByPcgsNumber('7130', 65);
+    await jest.advanceTimersByTimeAsync(5000);
+    const result = await promise;
     expect(result).toBeNull();
     expect(axios.get).toHaveBeenCalledTimes(3); // initial + 2 retries
+    jest.useRealTimers();
   });
 
   test('caches null results (negative caching)', async () => {

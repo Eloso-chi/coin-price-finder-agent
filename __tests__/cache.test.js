@@ -167,22 +167,24 @@ describe('TTLCache — file persistence', () => {
     expect(c.size).toBe(0);
   });
 
-  test('set() triggers debounced file write', (done) => {
+  test('set() triggers debounced file write', async () => {
+    jest.useFakeTimers();
     const fp = tmpFile('write');
     cleanup(fp);
     const c = new TTLCache({ filePath: fp, defaultTTL: 60_000 });
     c.set('persisted', 'value');
-    // Debounce is 500ms — check after 600ms
-    setTimeout(() => {
-      expect(fs.existsSync(fp)).toBe(true);
-      const raw = JSON.parse(fs.readFileSync(fp, 'utf8'));
-      expect(raw.persisted.val).toBe('value');
-      cleanup(fp);
-      done();
-    }, 700);
+    jest.advanceTimersByTime(600);
+    jest.useRealTimers();
+    // Allow the async fs.writeFile callback to flush
+    await new Promise(r => setTimeout(r, 50));
+    expect(fs.existsSync(fp)).toBe(true);
+    const raw = JSON.parse(fs.readFileSync(fp, 'utf8'));
+    expect(raw.persisted.val).toBe('value');
+    cleanup(fp);
   });
 
-  test('delete() triggers file write', (done) => {
+  test('delete() triggers file write', async () => {
+    jest.useFakeTimers();
     const fp = tmpFile('delete');
     const futureExp = Date.now() + 60_000;
     fs.writeFileSync(fp, JSON.stringify({
@@ -191,27 +193,28 @@ describe('TTLCache — file persistence', () => {
     }));
     const c = new TTLCache({ filePath: fp });
     c.delete('a');
-    setTimeout(() => {
-      const raw = JSON.parse(fs.readFileSync(fp, 'utf8'));
-      expect(raw.a).toBeUndefined();
-      expect(raw.b.val).toBe(2);
-      cleanup(fp);
-      done();
-    }, 700);
+    jest.advanceTimersByTime(600);
+    jest.useRealTimers();
+    await new Promise(r => setTimeout(r, 50));
+    const raw = JSON.parse(fs.readFileSync(fp, 'utf8'));
+    expect(raw.a).toBeUndefined();
+    expect(raw.b.val).toBe(2);
+    cleanup(fp);
   });
 
-  test('clear() triggers file write', (done) => {
+  test('clear() triggers file write', async () => {
+    jest.useFakeTimers();
     const fp = tmpFile('clear');
     fs.writeFileSync(fp, JSON.stringify({
       x: { val: 1, exp: Date.now() + 60_000 },
     }));
     const c = new TTLCache({ filePath: fp });
     c.clear();
-    setTimeout(() => {
-      const raw = JSON.parse(fs.readFileSync(fp, 'utf8'));
-      expect(Object.keys(raw).length).toBe(0);
-      cleanup(fp);
-      done();
-    }, 700);
+    jest.advanceTimersByTime(600);
+    jest.useRealTimers();
+    await new Promise(r => setTimeout(r, 50));
+    const raw = JSON.parse(fs.readFileSync(fp, 'utf8'));
+    expect(Object.keys(raw).length).toBe(0);
+    cleanup(fp);
   });
 });

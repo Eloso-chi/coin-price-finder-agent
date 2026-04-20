@@ -34,13 +34,13 @@ accessibility review on UI changes in the coin-price-finder-agent codebase.
 | Area | Details |
 |------|---------|
 | Architecture | Single-page app, vanilla JS, no framework, no build step |
-| Layout | 7 tabs: Price Discovery, Market, Metals, Price History, My Coins, About, Admin |
+| Layout | 8 tabs: Price Discovery, Melt Calculator, Live eBay Tracker, Lot Evaluator, Sold Data, My Coins, Price History, About |
 | Theme | Dark theme using CSS custom properties (`--bg`, `--card`, `--text`, `--accent`, etc.) |
-| Auth | Client-side login dialog (modal `<dialog>`), IndexedDB storage |
+| Auth | Server-side bcrypt + JWT; client-side login dialog (modal `<dialog>`), session token in memory |
 | Tables | My Coins tab renders a sortable/filterable table from JS |
 | Forms | Price Discovery form, Bulk Add form, login/signup dialogs |
 | Responsive | Media queries for mobile; tab bar collapses |
-| Chart | Chart.js for price history |
+| Chart | Canvas-based price history chart (no external chart library) |
 
 ## Review Checklist
 

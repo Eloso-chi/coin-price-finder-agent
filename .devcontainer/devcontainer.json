@@ -1,0 +1,14 @@
+{
+  "forwardPorts": [3000, 6080],
+  "portsAttributes": {
+    "6080": {
+      "label": "noVNC",
+      "visibility": "public",
+      "onAutoForward": "openBrowser"
+    },
+    "3000": {
+      "label": "App Server",
+      "onAutoForward": "silent"
+    }
+  }
+}

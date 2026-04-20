@@ -31,12 +31,12 @@ security review on assigned files in the coin-price-finder-agent codebase.
 | Area | Implementation |
 |------|---------------|
 | Server | Express 5.2 + Helmet (CSP) + express-rate-limit |
-| Auth | Client-only: WebCrypto PBKDF2 600K iterations, AES-256-GCM, IndexedDB |
-| Recovery | 8-word phrase, data key wrapping (password key + recovery key) |
+| Auth | Server-side: bcrypt (12 rounds) + JWT (HS256, 7-day expiry) via authService.js |
+| Storage | Server-side: plaintext JSON + Azure Cosmos DB dual-mode write-through |
 | Admin endpoints | Protected by `ADMIN_API_KEY` via `x-api-key` header |
-| Secrets | `.env` file, never committed (in `.gitignore`) |
-| External APIs | eBay (OAuth), PCGS, Numista (API keys), metals (4 providers) |
-| File uploads | Terapeak CSV via multer (multipart) |
+| Secrets | `.env` file (never committed); Azure Key Vault in production |
+| External APIs | eBay (OAuth), PCGS, Numista (API keys), Greysheet CDN V2, metals (3 providers) |
+| File uploads | Terapeak CSV + Excel .xlsx via multer (multipart), magic-byte validation |
 | Image proxy | Allowlisted hosts only (Numista) |
 
 ## Review Checklist

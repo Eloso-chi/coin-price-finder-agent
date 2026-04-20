@@ -31,7 +31,7 @@ Your job is to keep the test suite fast, deterministic, and comprehensive.
 |------|-------|
 | Runtime | Node.js >= 22, CommonJS |
 | Test runner | Jest 30 (`npm test` = `jest --verbose`) |
-| Test files | `__tests__/*.test.js` (26 suites) |
+| Test files | `__tests__/*.test.js` (40 suites, ~2,043 tests) |
 | Test helpers | `__tests__/helpers/` (excluded from Jest) |
 | Mocking | axios-mock-adapter |
 | Metrics script | `npm run test:metrics` |
@@ -128,8 +128,10 @@ Prioritize test coverage for:
 - Pricing logic (`computeValuation`, `valuationService`)
 - eBay scoring and filtering (`ebayService`, `applyFilters`)
 - PCGS resolution (`pcgsService`)
-- Crypto and auth (`crypto.js`, `auth.js`)
+- Server-side auth (`authService.js`, `coinStorageService.js`)
 - Cache correctness (`cache.js`)
+- Bulk lot evaluator (`bulkEvaluateService.js`, `bulkEvaluateRoute.js`)
+- Greysheet type mapping and finish detection (`greysheetTypeMap.js`)
 
 ## Example Invocations
 

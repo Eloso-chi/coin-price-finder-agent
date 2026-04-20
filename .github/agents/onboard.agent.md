@@ -43,12 +43,15 @@ Read the first 50 lines of each to understand the module interface:
 3. `src/services/valuationService.js` -- exported functions
 4. `src/services/terapeakService.js` -- exported functions
 5. `src/services/greysheetService.js` -- exported functions
-6. `src/services/authService.js` -- exported functions
-7. `src/services/coinStorageService.js` -- exported functions
-8. `src/utils/cosmosClient.js` -- Cosmos DB client
-9. `src/utils/blobClient.js` -- Blob Storage client
-10. `src/utils/cachePath.js` -- cache directory config
-11. `src/routes/priceRoute.js` -- main pricing endpoint (first 80 lines for buildAdjacentYearContext)
+6. `src/services/bulkEvaluateService.js` -- lot evaluator engine
+7. `src/services/authService.js` -- exported functions
+8. `src/services/coinStorageService.js` -- exported functions
+9. `src/routes/bulkEvaluateRoute.js` -- bulk evaluate + SSE streaming
+10. `src/data/greysheetTypeMap.js` -- series-to-GSID mapping + finish detection
+11. `src/utils/cosmosClient.js` -- Cosmos DB client
+12. `src/utils/blobClient.js` -- Blob Storage client
+13. `src/utils/cachePath.js` -- cache directory config
+14. `src/routes/priceRoute.js` -- main pricing endpoint (first 80 lines for buildAdjacentYearContext)
 
 ### Phase 4: Verification
 

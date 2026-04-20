@@ -12,10 +12,11 @@ A dealer-oriented pricing tool that calculates **Fair Market Value (FMV)** for U
 6. **Computes FMV** -- blends PCGS, eBay, auction, and Greysheet data using a weighted median with outlier removal, producing a confidence-scored valuation.
 6. **Generates buy/sell decisions** — outputs max-buy thresholds (70/75/80% of FMV) and sell tiers (fast/normal/premium) with a recommendation.
 7. **Batch pricing** — prices up to 25 coins in a single request.
-8. **Price history charting** — returns time-series sold-price data with optional spot-price metal overlay.
-9. **Live metals tracking** — background polling (every 30 min) with round-robin across providers, plus daily history snapshots.
-10. **Market matrix** — year × mint grid of median completed prices and cheapest BIN listings, enriched with Numista rarity data.
-11. **Azure infrastructure** — secrets in Key Vault (managed identity), dual-mode Cosmos DB write-through for all persistent data, Blob Storage for Terapeak CSVs, Azure Files for cache persistence.
+8. **Lot evaluator** — bulk-prices 50--500 coins via SSE streaming, applies lot-level discounts (size, confidence, concentration), and outputs three buy tiers (cherry-pick, fair lot, full retail).
+9. **Price history charting** — returns time-series sold-price data with optional spot-price metal overlay.
+10. **Live metals tracking** — background polling (every 30 min) with round-robin across providers, plus daily history snapshots.
+11. **Market matrix** — year × mint grid of median completed prices and cheapest BIN listings, enriched with Numista rarity data.
+12. **Azure infrastructure** — secrets in Key Vault (managed identity), dual-mode Cosmos DB write-through for all persistent data, Blob Storage for Terapeak CSVs, Azure Files for cache persistence.
 
 Also supports **bullion bars** (any metal, any size), **proof/mint sets**, **rolls**, and **lunar series** with dedicated input flows and eBay keyword strategies.
 
@@ -23,7 +24,7 @@ Also supports **bullion bars** (any metal, any size), **proof/mint sets**, **rol
 
 ## Frontend — Web UI
 
-The browser UI is a single-page app served from `public/index.html` with a dark theme and seven tabbed panels. Client-side JavaScript is split across three modules loaded in order: `auth.js` → `storage.js` → `my-coins.js`. Authentication and coin storage are handled server-side via JWT + bcrypt.
+The browser UI is a single-page app served from `public/index.html` with a dark theme and eight tabbed panels. Client-side JavaScript is split across three modules loaded in order: `auth.js` → `storage.js` → `my-coins.js`. Authentication and coin storage are handled server-side via JWT + bcrypt.
 
 ### Tabs
 
@@ -32,6 +33,7 @@ The browser UI is a single-page app served from `public/index.html` with a dark 
 | **Price Discovery** | Main search — two sub-modes: Coin (structured or quick-search entry) and Bar/Bullion. Submits to `/api/price` or `/api/bar-price`. Renders FMV hero card with image gallery, confidence score, buy/sell decisions, metadata chips, eBay stats, comp list, and raw JSON. |
 | **Melt Calculator** | Offline calculator for 80+ US coin types and 20 bar sizes. Auto-fetches spot prices from `/api/metals` and polls every 5 minutes. Shows per-coin, per-roll, and total melt values at spot and spot+premium. |
 | **Live eBay Tracker** | Market matrix from `/api/market/ebay`. Three display modes: Year × Mint (numismatic coins), Year × Grade (bullion), and Brand table (bars). Cells show median sold price, cheapest BIN link, key date badge, and Numista rarity. Color-coded legend. |
+| **Lot Evaluator** | Bulk collection pricing tool. Accepts a text list (one coin per line, pipe-delimited fields), JSON array, or Excel upload. Submits to `POST /api/bulk-evaluate`, then streams results via SSE. Shows per-coin FMV table with progress bar, lot summary card (total FMV, melt, avg confidence, bullion %), and three buy tiers (cherry-pick, fair lot, full retail). Applies lot-level discounts for size, low confidence, and concentration risk. Export results as CSV or JSON. |
 | **Sold Data** | Terapeak CSV import UI (drag-and-drop or file picker) with search term input. Datasets list with delete. Visual daily quota meter (250/day default) with manual logging and reset. Admin endpoints require `x-api-key`. |
 | **My Coins** 🔒 | Auth-gated. Server-side coin collection (persisted in `cache/user_coins.json` + Azure Cosmos DB write-through). Shows portfolio summary (total FMV, total cost, unrealized P/L, coin count) and full table with per-coin FMV, confidence, Troy Oz, cost basis, P/L, melt value, eBay average, range, notes, date added, and remove button. Checkbox column with select-all for multi-select bulk delete. Export/Import backup buttons (JSON and Excel .xlsx), Change Password. |
 | **Price History** 🔒 | Auth-gated. Canvas-drawn chart from `/api/coin-history`. Shows daily median prices with IQR band, outlier dots, and optional precious-metal spot overlay (dashed line). Supports 90/180/365-day ranges. |
@@ -59,8 +61,8 @@ The previous zero-knowledge client-side auth system (PBKDF2 + AES-256-GCM with I
 
 ### Export & Import Backup
 
-- **Export** — decrypts all coins and downloads a **plaintext JSON** file (`coin-collection-backup-YYYY-MM-DD.json`). The export contains `{format, exportedAt, count, coins[]}` with each coin's series, year, mint, grade, weight, query, and dateAdded. No encryption in the file — it's a portable backup.
-- **Import** — reads the JSON backup, validates the `coin-price-agent-backup-v1` format header, and re-encrypts each coin under the current user's key. Skips duplicates (by coinHash). Works across accounts — if a user loses their login and creates a new account, they can import a previous backup into the new account.
+- **Export** — downloads a **plaintext JSON** file (`coin-collection-backup-YYYY-MM-DD.json`). The export contains `{format, exportedAt, count, coins[]}` with each coin's series, year, mint, grade, weight, query, and dateAdded.
+- **Import** — reads the JSON backup, validates the `coin-price-agent-backup-v1` format header, and adds each coin to the server-side collection. Skips duplicates (by coinHash). Works across accounts — if a user loses their login and creates a new account, they can import a previous backup into the new account.
 ### Excel (.xlsx) Import
 
 The app can import coin collections from Excel spreadsheets via `POST /api/import/excel`. The mapper (`src/utils/excelMapper.js`) handles:
@@ -72,7 +74,7 @@ The app can import coin collections from Excel spreadsheets via `POST /api/impor
 - **Year validation** -- requires 4-digit year between 1600-2099; rejects partial years
 - **Cost/notes/quantity pass-through** -- preserves cost basis, notes, and quantity from the spreadsheet
 
-The endpoint accepts `.xlsx` files up to 10 MB and returns the mapped coins in the standard backup JSON format, ready for client-side encryption and storage.
+The endpoint accepts `.xlsx` files up to 10 MB and returns the mapped coins in the standard backup JSON format, ready for import into the server-side collection.
 
 ### Auto-Seed Test Account
 
@@ -147,6 +149,7 @@ Optional variables:
 | `EBAY_CACHE_TTL_MS` | eBay cache lifetime | `3600000` (1 hour) |
 | `EBAY_US_MIN_COMPS` | Minimum US comps before global fallback | `8` |
 | `EBAY_DEFAULT_LOOKBACK_DAYS` | Default eBay sold-comp lookback window (auto-extends to 365 if too few comps) | `180` |
+| `BLOB_REIMPORT_MS` | Periodic blob re-import interval (30 min default) | `1800000` |
 | `CACHE_DIR` | Directory for persistent JSON caches (Azure Files mount point) | `./cache` |
 | `COSMOS_ENDPOINT` | Azure Cosmos DB endpoint (enables dual-mode write-through) | *(none -- file-only)* |
 | `COSMOS_KEY` | Azure Cosmos DB auth key | *(none)* |
@@ -297,6 +300,40 @@ If an asking price is provided:
 | `GET` | `/api/coin-variant` | Design-series metadata for a denomination + year |
 | `GET` | `/api/coin-history` | Sold-price time-series (daily medians) with optional spot overlay |
 
+### Bulk Lot Evaluator
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/api/bulk-evaluate` | Submit a lot for evaluation (returns `jobId`) |
+| `GET` | `/api/bulk-evaluate/:jobId/stream` | SSE stream of per-coin results + lot summary |
+| `GET` | `/api/bulk-evaluate/:jobId` | Poll job status and completed results |
+
+**POST body formats:**
+
+- **Text** -- `{ "text": "1921 Morgan Dollar | qty=5 | grade=MS-63\n2024 ASE" }` (one coin per line, pipe-delimited fields)
+- **JSON** -- `{ "items": [{"query": "1921 Morgan Dollar", "qty": 5, "grade": "MS-63"}] }`
+- **Excel** -- multipart form upload of `.xlsx` file (reuses the Excel mapper)
+
+**SSE events:** `coin` (per-result with index/total), `summary` (lot-level analysis), `done`, `error`.
+
+**Lot pricing formula:**
+
+| Discount | Condition | Amount |
+|----------|-----------|--------|
+| Size | 11--50 coins: 5%, 51--100: 10%, 101--250: 15%, 251--500: 20% | 0--20% |
+| Confidence | Avg confidence < 60 | 5% |
+| Concentration | Any single coin > 50% of lot value | 3% |
+
+**Buy tiers** (applied to total FMV after discounts):
+
+| Tier | Range | Description |
+|------|-------|-------------|
+| Cherry-Pick | 55--65% | Max dealer profit |
+| Fair Lot | 70--80% | Standard lot purchase |
+| Full Retail | 85--90% minus fees | Near-retail, minus platform/seller fees |
+
+**Limits:** 500 coins max per job, 10 coins evaluated in parallel, max 3 concurrent jobs server-wide, 1-hour result cache (keyed by SHA-256 of input).
+
 ### Authentication & Coin Collection
 
 | Method | Path | Description |
@@ -336,6 +373,7 @@ All `/api/coins/*` endpoints require `Authorization: Bearer <jwt>` header.
 | `DELETE` | `/api/terapeak/datasets/:key` | Delete a specific dataset 🔒 |
 | `DELETE` | `/api/terapeak/datasets` | Clear all Terapeak data 🔒 |
 | `POST` | `/api/terapeak/purge-stale-csvs` | Delete CSV files older than N days 🔒 |
+| `POST` | `/api/terapeak/reimport` | Trigger manual blob re-import (supports `force=true`) 🔒 |
 
 ### Terapeak Quota
 
@@ -404,7 +442,7 @@ The **Test Monitor** system records per-run metrics (timestamp, branch, commit, 
 
 A Copilot agent persona (`.github/agents/test-monitor.agent.md`) can be invoked to diagnose failures, quarantine flaky tests, and suggest fixes. See [docs/testing/test-monitor.md](docs/testing/test-monitor.md) for full usage.
 
-Runs **Jest** across 38 test suites:
+Runs **Jest** across 40 test suites:
 
 | Suite | What it covers |
 |---|---|
@@ -445,6 +483,8 @@ Runs **Jest** across 38 test suites:
 | `imageProxyRoute.test.js` | SSRF prevention: allowlist enforcement, non-image rejection, size limits, upstream error forwarding |
 | `mintages.test.js` | Mintage lookups: normalizeSeries, BU/proof routing, fractional weight (Gold Eagle 1/2, 1/4, 1/10 oz), BU/proof isolation |
 | `terapeakService.test.js` | Terapeak CSV import: parseCSV, importComps, evictStaleComps, autoImportFolder, normalizeSearchKey, mapColumn, rowToComp |
+| `bulkEvaluateService.test.js` | Lot evaluator engine: sizeDiscount tiers, confidencePenalty, concentrationPenalty, computeLotSummary, constants |
+| `bulkEvaluateRoute.test.js` | Bulk-evaluate route: parseTextInput, parseJsonInput, POST validation, poll 404 handling |
 
 Test helpers live in `__tests__/helpers/coinTestConstants.js` (shared token lists, normalization, compound-word-aware `containsNone`).
 
@@ -466,6 +506,7 @@ src/
     excelImportRoute.js            POST /api/import/excel -- Excel spreadsheet import
     imageProxyRoute.js             GET /api/image-proxy -- proxied coin images
     pricingBatchRoute.js           POST /api/pricing-batch -- batch coin pricing
+    bulkEvaluateRoute.js            POST /api/bulk-evaluate + SSE streaming (lot evaluator)
     terapeakRoute.js               /api/terapeak/* -- Terapeak data & quota management
     authRoute.js                   /api/auth/* -- signup, login, change-password (bcrypt + JWT)
     coinRoute.js                   /api/coins/* -- collection CRUD (requires Bearer JWT)
@@ -473,6 +514,7 @@ src/
     pcgsService.js                 PCGS CoinFacts API integration + parser
     ebayService.js                 eBay sold comps (3-tier API cascade)
     valuationService.js            FMV computation + buy/sell decisions
+    bulkEvaluateService.js          Bulk lot evaluator engine (per-coin FMV + lot summary)
     greysheetService.js            Greysheet CDN Public API V2 (wholesale pricing)
     metalsSpotPrice.js             Multi-provider spot price with round-robin
     MetalsSpotPriceError.js        Custom error class for metals failures
@@ -515,7 +557,7 @@ cache/
 data/
   terapeak/                        Drop Terapeak CSV exports here for auto-import
 public/
-  index.html                       SPA frontend (dark theme, 7 tabs)
+  index.html                       SPA frontend (dark theme, 8 tabs)
   js/
     auth.js                        CoinAuth -- server-backed signup/login/logout (JWT in memory)
     storage.js                     CoinStorage -- server-backed coin CRUD via /api/coins/*
@@ -593,17 +635,37 @@ scripts/
 
 The project includes ~1,200 Terapeak CSV files in `data/terapeak/` containing real sold-comp data scraped from eBay Seller Hub Research. The data pipeline has three stages:
 
-**Stage 1: Page 1 Scraping** -- `scripts/terapeak-export.py` uses Playwright to automate Terapeak searches and CSV downloads. It loops through all coin search terms, exports 50 rows per coin, and uploads CSVs to the running server via `/api/terapeak/import`. Features: `--login` for manual eBay cookie capture, `--run` for headless batch execution, `--batch N` for safe incremental scraping, `--priority` for thin-data-first ordering, `--resume` to continue after interruption, browser recycling every 40 coins, and auto-recovery from crashes (up to 5). Requires VNC (Xtigervnc :1), Python 3.12+, and Playwright.
+**Stage 1: Page 1 Scraping** -- `scripts/terapeak-export.py` uses Playwright to automate Terapeak searches and CSV downloads. It loops through all coin search terms, exports 50 rows per coin, and uploads CSVs directly to Azure Blob Storage via the Azure SDK (`upload_to_blob()`), falling back to HTTP POST to the local server if blob credentials are unavailable. Features: `--login` for manual eBay cookie capture, `--run` for headless batch execution, `--batch N` for safe incremental scraping, `--priority` for thin-data-first ordering, `--resume` to continue after interruption, browser recycling every 40 coins, and auto-recovery from crashes (up to 5). Requires VNC (Xtigervnc :1), Python 3.12+, and Playwright.
 
 **Stage 2: Page 2 Enrichment** -- `scripts/terapeak-page2.py` extends existing CSVs beyond 50 rows by navigating to page 2 of Terapeak results. It identifies candidate coins (exactly 50 rows = likely truncated), clicks the Next pagination button, scrapes additional rows, and appends them with composite-key deduplication (itemId|soldDate|soldPrice). Enrichment brought many coins from 50 to 95--100 rows.
 
 **Stage 3: CSV Cleanup** -- `scripts/clean-csvs.js` purges junk rows (stamps, sports cards, trading cards, toys, media) that contaminated CSV files due to generic search terms. Uses `isDenied()` from `src/utils/filters.js` plus extended deny patterns. Run with `--dry-run` to preview or `--run` to rewrite files in place. Initial cleanup removed 4,050 junk rows across 427 of 650 files.
 
-**Auto-import** -- on server startup, `terapeakService.autoImportFolder()` scans `data/terapeak/*.csv` and imports any files newer than 7 days. If `TERAPEAK_BLOB_ACCOUNT` + `TERAPEAK_BLOB_CONTAINER` are set, `autoImportFromBlob()` reads CSVs from Azure Blob Storage first, then falls back to local folder. The server currently loads ~1,218 datasets with ~68,000 total comps.
+**Auto-import** -- on server startup, `terapeakService.autoImportFolder()` scans `data/terapeak/*.csv` and imports any files newer than 7 days. If `TERAPEAK_BLOB_ACCOUNT` + `TERAPEAK_BLOB_CONTAINER` are set, `autoImportFromBlob()` reads CSVs from Azure Blob Storage first, then falls back to local folder. A 30-minute periodic timer re-polls blob storage for new uploads (configurable via `BLOB_REIMPORT_MS`), and `POST /api/terapeak/reimport` provides an admin endpoint for manual triggers. When new data is imported, the eBay comp cache is automatically cleared. The server currently loads ~1,218 datasets with ~68,000 total comps.
 
 **Search term quality matters** -- generic terms like "US Mint Set" capture unrelated items (stamps, cards). Better terms include the full coin name (e.g. "2005 US Mint Uncirculated Coin Set" instead of "2005 US Mint Set"). Some mint set CSVs are thin after cleanup and need re-scraping with improved terms.
 
 - **Finding API decommissioned** -- eBay shut down the Finding API on February 4, 2025. `seedFromEbay.js` and the auto-seed bridge in `ebayService.js` are dead code.
+
+### Stale Encryption Cleanup (#105)
+
+- **Removed stale client-side encryption references** -- the old IndexedDB + WebCrypto architecture was replaced by server-side storage, but ~8 stale remnants remained in the codebase. Cleaned up: misleading "encrypted locally in your browser" UI text, dead `reEncryptAll()` code path, `'Encrypting...'` button text during password change, stale `_key` params accepted but ignored in storage.js methods, and outdated JSDoc comments in coinStorageService.js. All user-facing text now consistently describes server-side plaintext storage.
+
+### Scraper Blob Upload & Auto-Reimport (#106, #107)
+
+- **Direct blob upload from scrapers** (#106) -- `terapeak-export.py` now uploads CSVs directly to Azure Blob Storage via the Azure SDK (`upload_to_blob()` using `DefaultAzureCredential`), bypassing the HTTP server. Falls back to `POST /api/terapeak/import` when blob credentials are unavailable. `terapeak-page2.py` inherits the same upload logic.
+- **Periodic blob re-import** (#107) -- server.js runs a 30-minute timer that polls `autoImportFromBlob()` for new CSV uploads. `POST /api/terapeak/reimport` admin endpoint provides manual trigger (supports `force=true` to reimport all, not just new files). eBay comp cache is automatically cleared when new data is imported. Configurable via `BLOB_REIMPORT_MS` env var.
+
+### Bulk Lot Evaluator (#108)
+
+- **Lot evaluator tab** -- new "Lot Evaluator" tab in the UI for bulk collection pricing. Accepts text (one coin per line, pipe-delimited fields like `query | qty=N | grade=X`), JSON array paste, or Excel upload.
+- **SSE streaming** -- `POST /api/bulk-evaluate` creates a job and returns a `jobId`. Clients connect to `GET /api/bulk-evaluate/:jobId/stream` for real-time Server-Sent Events: `coin` (per-result), `summary` (lot analysis), `done`, `error`. Late-connecting clients get replay of already-completed results.
+- **Per-coin evaluation** -- each coin goes through the full pricing pipeline: PCGS resolve, metal profile detection, spot price lookup, eBay sold comps (1 page, 90 days), Greysheet type/number lookup, and FMV computation.
+- **Lot pricing formula** -- size discount (0--20% based on coin count), confidence penalty (5% if avg < 60), concentration penalty (3% if any single coin > 50% of lot value). Three buy tiers: cherry-pick (55--65%), fair lot (70--80%), full retail (85--90% minus fees).
+- **Concurrency** -- 10 coins evaluated in parallel per job, max 3 concurrent jobs server-wide. 500-coin limit per job.
+- **Caching** -- 1-hour TTL cache keyed by SHA-256 hash of the input array. Identical re-submissions return cached results instantly.
+- **Poll endpoint** -- `GET /api/bulk-evaluate/:jobId` returns job status and all completed results for clients that can't use SSE.
+- **Export** -- CSV and JSON export buttons in the UI download full per-coin results plus lot summary.
 
 ### Greysheet API Integration
 
@@ -611,6 +673,7 @@ The project includes ~1,200 Terapeak CSV files in `data/terapeak/` containing re
 - **FMV blend updated** -- Greysheet wholesale is now the 4th data source at 20% weight. Certified blend: eBay 55% + PCGS Guide 15% + Auction 10% + Greysheet 20%. Raw blend: eBay 70% + PCGS 10% + Greysheet 20%. Weights renormalize automatically when Greysheet is unavailable.
 - **Confidence boost** -- Greysheet data adds +5 confidence points to the valuation score.
 - **Response enrichment** -- `/api/price` and `/api/pricing-batch` responses include a `greysheet` object with GSID, wholesale/retail values, and all five pricing sources.
+- **Proof/finish support** (#109) -- `greysheetTypeMap.js` now stores Proof GSIDs alongside MS entries (73 total: 55 MS + 18 Proof). `_detectFinish(text)` identifies proof, reverse proof, burnished, and satin finishes from query text. `lookupTypeGsid()` is finish-aware: when a proof finish is detected, it tries `series|proof` keys first and falls back to MS. The `finish` hint is passed through from `priceRoute.js` to `fetchTypePrice()`.
 
 ### Azure Infrastructure
 

@@ -73,15 +73,19 @@ describe('lookupByCert', () => {
   });
 
   test('retries on 429 and 5xx errors', async () => {
+    jest.useFakeTimers();
     const err429 = new Error('Too Many Requests');
     err429.response = { status: 429 };
     axios.get
       .mockRejectedValueOnce(err429)
       .mockResolvedValueOnce({ data: MOCK_COIN_RESPONSE });
 
-    const result = await pcgsService.lookupByCert('11111111');
+    const promise = pcgsService.lookupByCert('11111111');
+    await jest.advanceTimersByTimeAsync(2000);
+    const result = await promise;
     expect(result.verified).toBe(true);
     expect(axios.get).toHaveBeenCalledTimes(2);
+    jest.useRealTimers();
   });
 
   test('passes correct URL and auth headers', async () => {

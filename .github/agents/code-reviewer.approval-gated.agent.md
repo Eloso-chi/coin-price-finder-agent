@@ -40,8 +40,8 @@ review pipeline.
 | Server | Express 5.2, Helmet, express-rate-limit |
 | Test runner | Jest 30 (`npm test`) |
 | Client | Vanilla JS, single-page app (`public/index.html`) |
-| Auth | Client-only WebCrypto (PBKDF2 + AES-256-GCM), IndexedDB |
-| APIs | eBay (Finding + Browse), PCGS, Numista v3, metals (4 providers) |
+| Auth | Server-side bcrypt + JWT (authService.js), session token in memory |
+| APIs | eBay (Marketplace Insights + Browse), PCGS, Numista v3, Greysheet CDN V2, metals (3 providers) |
 | Caching | Custom TTLCache with JSON disk persistence |
 
 ## Operating Procedure

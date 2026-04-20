@@ -1052,6 +1052,7 @@
     <button class="tab-btn" role="tab" id="tab-terapeak" aria-controls="panel-terapeak" aria-selected="false" tabindex="-1">Sold Data</button>
     <button class="tab-btn" role="tab" id="tab-mycoins" aria-controls="panel-mycoins" aria-selected="false" tabindex="-1">My Coins</button>
     <button class="tab-btn" role="tab" id="tab-history" aria-controls="panel-history" aria-selected="false" tabindex="-1">Price History</button>
+    <button class="tab-btn" role="tab" id="tab-bulk" aria-controls="panel-bulk" aria-selected="false" tabindex="-1">Lot Evaluator</button>
     <button class="tab-btn" role="tab" id="tab-about" aria-controls="panel-about" aria-selected="false" tabindex="-1">About (read me)</button>
   </nav>
 
@@ -1863,6 +1864,75 @@
       <div id="history-chart-wrap" style="position:relative;width:100%;height:360px;display:none">
         <canvas id="history-canvas" style="width:100%;height:100%"></canvas>
       </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════ -->
+  <!-- TAB — Lot Evaluator (Bulk Collection Evaluator)       -->
+  <!-- ══════════════════════════════════════════════════════ -->
+  <section id="panel-bulk" class="tab-panel" role="tabpanel" aria-labelledby="tab-bulk" aria-hidden="true">
+    <div class="card">
+      <h2>Lot Evaluator</h2>
+      <p class="muted" style="margin-bottom:12px">Price 50-500 coins at once. Get per-coin FMV and a lot-level buy recommendation.</p>
+
+      <!-- Input area -->
+      <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-start">
+        <div style="flex:1;min-width:300px">
+          <label for="bulk-text-input" style="font-weight:600;display:block;margin-bottom:4px">Paste coin list <span class="muted" style="font-weight:400">(one per line)</span></label>
+          <textarea id="bulk-text-input" rows="10" style="width:100%;font-family:monospace;font-size:0.85rem;background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px;resize:vertical" placeholder="1921 Morgan Silver Dollar | qty=5 | grade=MS-63
+2024 American Silver Eagle 1 oz
+Gold Krugerrand 1 oz | qty=2
+1963 Franklin Half Dollar
+Silver Libertad 1 oz Proof"></textarea>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;padding-top:24px">
+          <label class="btn-file" style="cursor:pointer;background:var(--card);border:1px solid var(--border);padding:8px 16px;border-radius:6px;text-align:center">
+            Upload Excel
+            <input type="file" id="bulk-excel-input" accept=".xlsx" style="display:none">
+          </label>
+          <button id="bulk-json-btn" class="btn-secondary" style="padding:8px 16px;border-radius:6px">Paste JSON</button>
+        </div>
+      </div>
+
+      <div style="margin-top:12px;display:flex;align-items:center;gap:12px">
+        <button id="bulk-evaluate-btn" class="btn-accent" style="padding:10px 28px;font-size:1rem">Evaluate Lot</button>
+        <span id="bulk-status" class="muted"></span>
+      </div>
+
+      <!-- Progress bar -->
+      <div id="bulk-progress-wrap" style="display:none;margin-top:12px">
+        <div style="background:var(--border);border-radius:4px;height:8px;overflow:hidden">
+          <div id="bulk-progress-bar" style="height:100%;background:var(--accent);width:0%;transition:width 0.3s"></div>
+        </div>
+        <div id="bulk-progress-text" class="muted" style="font-size:0.8rem;margin-top:4px">0 / 0</div>
+      </div>
+    </div>
+
+    <!-- Lot Summary Card -->
+    <div id="bulk-summary-card" class="card" style="display:none;margin-top:12px">
+      <h3>Lot Summary</h3>
+      <div id="bulk-summary-content"></div>
+    </div>
+
+    <!-- Results Table -->
+    <div id="bulk-results-wrap" class="card" style="display:none;margin-top:12px;overflow-x:auto">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <h3 style="margin:0">Per-Coin Results</h3>
+        <div style="display:flex;gap:8px">
+          <button id="bulk-export-csv" class="btn-secondary" style="padding:4px 12px;font-size:0.8rem">Export CSV</button>
+          <button id="bulk-export-json" class="btn-secondary" style="padding:4px 12px;font-size:0.8rem">Export JSON</button>
+        </div>
+      </div>
+      <table id="bulk-results-table" class="data-table" style="width:100%">
+        <thead>
+          <tr>
+            <th>#</th><th>Coin</th><th>Qty</th><th>Grade</th>
+            <th>FMV (ea)</th><th>Total FMV</th><th>Melt</th>
+            <th>Comps</th><th>Conf.</th><th>Method</th>
+          </tr>
+        </thead>
+        <tbody id="bulk-results-tbody"></tbody>
+      </table>
     </div>
   </section>
 
@@ -5598,6 +5668,232 @@
    * ═══════════════════════════════════════════════════════════ */
   // Test account seeding is now handled server-side on startup.
   // See server.js — auto-seed testcollector block.
+  </script>
+
+  <script>
+  /* ═══════════════════════════════════════════════════════════
+   *  LOT EVALUATOR (Bulk Collection Evaluator #108)
+   *  SSE streaming, text/JSON/Excel input, lot pricing formula.
+   * ═══════════════════════════════════════════════════════════ */
+  (function initLotEvaluator() {
+    const textInput   = document.getElementById('bulk-text-input');
+    const excelInput  = document.getElementById('bulk-excel-input');
+    const jsonBtn     = document.getElementById('bulk-json-btn');
+    const evalBtn     = document.getElementById('bulk-evaluate-btn');
+    const statusEl    = document.getElementById('bulk-status');
+    const progressWrap = document.getElementById('bulk-progress-wrap');
+    const progressBar  = document.getElementById('bulk-progress-bar');
+    const progressText = document.getElementById('bulk-progress-text');
+    const summaryCard  = document.getElementById('bulk-summary-card');
+    const summaryContent = document.getElementById('bulk-summary-content');
+    const resultsWrap  = document.getElementById('bulk-results-wrap');
+    const resultsTbody = document.getElementById('bulk-results-tbody');
+    const exportCsvBtn = document.getElementById('bulk-export-csv');
+    const exportJsonBtn = document.getElementById('bulk-export-json');
+
+    let _results = [];
+    let _lotSummary = null;
+    let _running = false;
+
+    function _fmt(n) { return n != null ? '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '--'; }
+    function _confColor(c) { return c >= 70 ? 'var(--green, #4caf50)' : c >= 50 ? 'var(--amber, #ff9800)' : 'var(--red, #f44336)'; }
+
+    function _reset() {
+      _results = [];
+      _lotSummary = null;
+      resultsTbody.innerHTML = '';
+      summaryCard.style.display = 'none';
+      resultsWrap.style.display = 'none';
+      progressWrap.style.display = 'none';
+      progressBar.style.width = '0%';
+      statusEl.textContent = '';
+    }
+
+    async function _evaluate(body, isFormData) {
+      if (_running) return;
+      _running = true;
+      _reset();
+      evalBtn.disabled = true;
+      statusEl.textContent = 'Submitting...';
+
+      try {
+        const fetchOpts = isFormData
+          ? { method: 'POST', body }
+          : { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
+        const resp = await fetch('/api/bulk-evaluate', fetchOpts);
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || 'Server error');
+
+        const { jobId, coinCount } = data;
+        statusEl.textContent = 'Evaluating ' + coinCount + ' coins...';
+        progressWrap.style.display = 'block';
+        resultsWrap.style.display = 'block';
+
+        // Connect SSE
+        const es = new EventSource('/api/bulk-evaluate/' + jobId + '/stream');
+        let completed = 0;
+
+        es.addEventListener('coin', function(e) {
+          const coin = JSON.parse(e.data);
+          completed++;
+          _results[coin.index] = coin;
+          _renderRow(coin, coin.index);
+          const pct = Math.round((completed / coinCount) * 100);
+          progressBar.style.width = pct + '%';
+          progressText.textContent = completed + ' / ' + coinCount;
+          statusEl.textContent = 'Evaluating... ' + completed + '/' + coinCount;
+        });
+
+        es.addEventListener('summary', function(e) {
+          _lotSummary = JSON.parse(e.data);
+          _renderSummary(_lotSummary);
+        });
+
+        es.addEventListener('done', function() {
+          es.close();
+          _running = false;
+          evalBtn.disabled = false;
+          statusEl.textContent = 'Complete -- ' + _results.length + ' coins evaluated.';
+        });
+
+        es.addEventListener('error', function(e) {
+          es.close();
+          _running = false;
+          evalBtn.disabled = false;
+          try {
+            const d = JSON.parse(e.data);
+            statusEl.textContent = 'Error: ' + (d.message || 'Unknown error');
+          } catch {
+            statusEl.textContent = 'Connection lost. Check results above.';
+          }
+        });
+
+        es.onerror = function() {
+          es.close();
+          _running = false;
+          evalBtn.disabled = false;
+          if (!_lotSummary) statusEl.textContent = 'Connection lost. Partial results shown.';
+        };
+      } catch (err) {
+        _running = false;
+        evalBtn.disabled = false;
+        statusEl.textContent = 'Error: ' + err.message;
+      }
+    }
+
+    function _renderRow(coin, idx) {
+      const tr = document.createElement('tr');
+      if (coin.error) {
+        tr.innerHTML = '<td>' + (idx + 1) + '</td><td colspan="9" style="color:var(--red, #f44336)">' + _esc(coin.query) + ' -- ' + _esc(coin.error) + '</td>';
+      } else {
+        tr.innerHTML =
+          '<td>' + (idx + 1) + '</td>' +
+          '<td>' + _esc(coin.query || '') + '</td>' +
+          '<td>' + (coin.qty || 1) + '</td>' +
+          '<td>' + _esc(coin.grade || '--') + '</td>' +
+          '<td>' + _fmt(coin.fmv) + '</td>' +
+          '<td>' + _fmt(coin.totalFmv) + '</td>' +
+          '<td>' + _fmt(coin.meltValue) + '</td>' +
+          '<td>' + (coin.compCount || 0) + '</td>' +
+          '<td style="color:' + _confColor(coin.confidence) + '">' + (coin.confidence || '--') + '</td>' +
+          '<td class="muted">' + _esc(coin.method || '--') + '</td>';
+      }
+      resultsTbody.appendChild(tr);
+    }
+
+    function _renderSummary(s) {
+      summaryCard.style.display = 'block';
+      summaryContent.innerHTML =
+        '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:12px">' +
+          '<div><div class="muted">Coins Priced</div><strong>' + s.pricedCount + ' / ' + s.coinCount + '</strong></div>' +
+          '<div><div class="muted">Total FMV</div><strong style="font-size:1.2rem">' + _fmt(s.totalFmv) + '</strong></div>' +
+          '<div><div class="muted">Total Melt</div><strong>' + _fmt(s.totalMelt) + '</strong></div>' +
+          '<div><div class="muted">Avg Confidence</div><strong style="color:' + _confColor(s.avgConfidence) + '">' + s.avgConfidence + '</strong></div>' +
+          '<div><div class="muted">Bullion %</div><strong>' + s.bullionPct + '%</strong></div>' +
+        '</div>' +
+        '<h4 style="margin:8px 0 4px">Lot Buy Tiers</h4>' +
+        '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;text-align:center">' +
+          '<div style="background:var(--bg);padding:10px;border-radius:6px;border:1px solid var(--border)">' +
+            '<div class="muted" style="font-size:0.75rem">Cherry-Pick</div>' +
+            '<strong style="color:var(--red, #f44336)">' + _fmt(s.buyTiers.cherryPick) + '</strong></div>' +
+          '<div style="background:var(--bg);padding:10px;border-radius:6px;border:1px solid var(--border)">' +
+            '<div class="muted" style="font-size:0.75rem">Fair Lot</div>' +
+            '<strong style="color:var(--amber, #ff9800)">' + _fmt(s.buyTiers.fairLot) + '</strong></div>' +
+          '<div style="background:var(--bg);padding:10px;border-radius:6px;border:1px solid var(--border)">' +
+            '<div class="muted" style="font-size:0.75rem">Full Retail - Fees</div>' +
+            '<strong style="color:var(--green, #4caf50)">' + _fmt(s.buyTiers.fullRetail) + '</strong></div>' +
+        '</div>' +
+        (s.discounts.total > 0
+          ? '<div class="muted" style="margin-top:8px;font-size:0.8rem">Discounts applied: ' +
+            (s.discounts.size > 0 ? 'size ' + s.discounts.size + '% ' : '') +
+            (s.discounts.confidence > 0 ? '+ low-confidence ' + s.discounts.confidence + '% ' : '') +
+            (s.discounts.concentration > 0 ? '+ concentration risk ' + s.discounts.concentration + '%' : '') +
+            '</div>'
+          : '') +
+        (s.concentrationFlags.length
+          ? '<div style="margin-top:6px;font-size:0.8rem;color:var(--amber, #ff9800)">Concentration: ' +
+            s.concentrationFlags.map(function(f) { return _esc(f.query) + ' = ' + f.pctOfLot + '% (' + f.risk + ')'; }).join(', ') + '</div>'
+          : '');
+    }
+
+    // ── Event handlers ───────────────────────────────────────
+
+    evalBtn.addEventListener('click', function() {
+      const text = textInput.value.trim();
+      if (!text) { statusEl.textContent = 'Enter at least one coin.'; return; }
+      _evaluate({ text: text });
+    });
+
+    excelInput.addEventListener('change', function() {
+      const file = excelInput.files[0];
+      if (!file) return;
+      const fd = new FormData();
+      fd.append('file', file);
+      _evaluate(fd, true);
+      excelInput.value = '';
+    });
+
+    jsonBtn.addEventListener('click', function() {
+      const raw = prompt('Paste JSON array of coins:\n[{"query":"1921 Morgan Dollar","qty":5},...]');
+      if (!raw) return;
+      try {
+        const items = JSON.parse(raw);
+        if (!Array.isArray(items)) throw new Error('Expected array');
+        _evaluate({ items: items });
+      } catch (err) {
+        statusEl.textContent = 'Invalid JSON: ' + err.message;
+      }
+    });
+
+    // ── Export ────────────────────────────────────────────────
+
+    exportCsvBtn.addEventListener('click', function() {
+      if (!_results.length) return;
+      const headers = ['#','Coin','Qty','Grade','FMV','Total FMV','Melt','Comps','Confidence','Method'];
+      const rows = _results.map(function(r, i) {
+        return [i+1, '"' + (r.query||'').replace(/"/g,'""') + '"', r.qty||1, r.grade||'',
+                r.fmv||'', r.totalFmv||'', r.meltValue||'', r.compCount||0, r.confidence||'', r.method||''].join(',');
+      });
+      const csv = headers.join(',') + '\n' + rows.join('\n');
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'lot-evaluation-' + new Date().toISOString().slice(0,10) + '.csv';
+      a.click();
+      URL.revokeObjectURL(a.href);
+    });
+
+    exportJsonBtn.addEventListener('click', function() {
+      if (!_results.length) return;
+      const data = { results: _results, lotSummary: _lotSummary, exportedAt: new Date().toISOString() };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'lot-evaluation-' + new Date().toISOString().slice(0,10) + '.json';
+      a.click();
+      URL.revokeObjectURL(a.href);
+    });
+  })();
   </script>
 
   <script>

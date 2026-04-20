@@ -97,6 +97,7 @@ const pricingBatchRoute = require('./src/routes/pricingBatchRoute');
 const imageProxyRoute   = require('./src/routes/imageProxyRoute');
 const coinHistoryRoute  = require('./src/routes/coinHistoryRoute');
 const excelImportRoute  = require('./src/routes/excelImportRoute');
+const bulkEvaluateRoute = require('./src/routes/bulkEvaluateRoute');
 app.use('/api/auth', authRoute);
 app.use('/api/coins', coinRoute);
 app.use('/api/price', apiLimiter, priceRoute);
@@ -109,6 +110,7 @@ app.use('/api/pricing-batch', apiLimiter, pricingBatchRoute);
 app.use('/api/image-proxy', apiLimiter, imageProxyRoute);
 app.use('/api/coin-history', coinHistoryRoute);
 app.use('/api/import/excel', uploadLimiter, excelImportRoute);
+app.use('/api/bulk-evaluate', apiLimiter, bulkEvaluateRoute);
 
 // Clear all caches (admin-only)
 app.post('/api/clear-cache', requireAdmin, (_req, res) => {

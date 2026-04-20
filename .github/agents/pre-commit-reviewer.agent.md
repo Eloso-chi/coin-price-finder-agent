@@ -61,7 +61,7 @@ git diff --cached | grep -iE '(api.?key|secret|token|password|bearer |basic |AKI
 npm test
 ```
 
-All 26 suites must pass. If any fail, BLOCK with the failure details.
+All 40 suites must pass. If any fail, BLOCK with the failure details.
 
 #### C. Data Model Sync (WARN if out of sync)
 
@@ -71,11 +71,14 @@ also updated:
 | Changed File | Must Also Check |
 |---|---|
 | `public/js/storage.js` (addCoin, exportJSON, importJSON schema) | `public/js/test-my-coins.js` covers new fields |
-| `public/js/crypto.js` (coinHash) | `public/js/storage.js` (addCoin uses same fields) |
 | `public/js/auth.js` (signup/login flow) | `public/index.html` (dialog markup matches) |
+| `src/services/authService.js` (signup/login) | `public/js/auth.js` calls match |
+| `src/services/coinStorageService.js` (coinHash) | `public/js/storage.js` (client coinHash uses same fields) |
 | `src/services/ebayService.js` (scoreMatch) | `__tests__/coinSearch.*.test.js` updated |
 | `src/services/valuationService.js` (FMV formula) | `__tests__/computeValuation.test.js` updated |
+| `src/services/bulkEvaluateService.js` (lot formula) | `__tests__/bulkEvaluateService.test.js` updated |
 | `src/data/keyDates.js` | `__tests__/keyDates.test.js` + `__tests__/keyDateCoverage.test.js` |
+| `src/data/greysheetTypeMap.js` | `__tests__/greysheetTypeMap.test.js` updated |
 
 #### D. Lint / Errors (WARN if present)
 
@@ -97,7 +100,7 @@ Print a concise report:
 | Check | Status |
 |-------|--------|
 | Secrets scan | PASS / BLOCK |
-| Tests (26 suites) | PASS / BLOCK |
+| Tests (40 suites) | PASS / BLOCK |
 | Data model sync | PASS / WARN |
 | Lint errors | PASS / WARN |
 
