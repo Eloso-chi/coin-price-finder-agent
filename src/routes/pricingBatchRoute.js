@@ -10,6 +10,8 @@ const pcgsService  = require('../services/pcgsService');
 const ebayService  = require('../services/ebayService');
 const greysheetService = require('../services/greysheetService');
 const { computeValuation } = require('../services/valuationService');
+const { getMetalsSpotPrice } = require('../services/metalsSpotPrice');
+const { getCoinMetalProfile } = require('../utils/coinMetalProfile');
 const { lookupKeyDate } = require('../data/keyDates');
 const { zodiacForYear, perthLunarSeries } = require('../data/constants');
 const { detectDenomination } = require('../utils/filters');
@@ -105,6 +107,21 @@ async function _priceOne(item) {
     // Valuation
     const isBullion = BULLION_1OZ_DEFAULT.some(b => (series || '').toLowerCase().includes(b));
 
+    // Spot price for bullion — needed for bullion-spot-premium FMV mode
+    const { metal: detectedMetal } = getCoinMetalProfile(query);
+    const METAL_SYM = { silver: 'XAG', gold: 'XAU', platinum: 'XPT', palladium: 'XPD' };
+    const metalKey = detectedMetal || parsed.metal || null;
+    let meltPerOz = null;
+    if (isBullion && metalKey && weight) {
+      const sym = METAL_SYM[metalKey];
+      if (sym) {
+        try {
+          const spot = await getMetalsSpotPrice(sym, 'USD');
+          meltPerOz = spot.price;
+        } catch { /* non-fatal */ }
+      }
+    }
+
     // Greysheet wholesale lookup (non-fatal)
     // When no PCGS number (generic / yearless coin), fall back to Type GSID lookup.
     const pcgsNo = pcgs?.pcgsCoinNumber || pcgs?.pcgsNo || null;
@@ -124,6 +141,9 @@ async function _priceOne(item) {
       isSet,
       isRoll,
       greysheet,
+      spotPrice: (isBullion && meltPerOz && weight)
+        ? meltPerOz * weight
+        : null,
     });
     const val = result.valuation || {};
 

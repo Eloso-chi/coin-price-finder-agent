@@ -413,7 +413,10 @@ const MyCoins = (() => {
       let va, vb;
       switch (_sortCol) {
         case 'coin':
-          va = _coinLabel(a.coin).toLowerCase(); vb = _coinLabel(b.coin).toLowerCase();
+          // Sort by series first, then year — matches typical spreadsheet order
+          va = (a.coin.series || '').toLowerCase(); vb = (b.coin.series || '').toLowerCase();
+          if (va !== vb) return va < vb ? -1 : 1;
+          va = a.coin.year || ''; vb = b.coin.year || '';
           return va < vb ? -1 : va > vb ? 1 : 0;
         case 'grade':
           va = (a.coin.grade || '').toLowerCase(); vb = (b.coin.grade || '').toLowerCase();

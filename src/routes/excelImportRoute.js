@@ -24,9 +24,11 @@ router.post('/', upload.single('file'), (req, res) => {
     return res.status(400).json({ error: 'No file uploaded. Attach a .xlsx file as field "file".' });
   }
 
-  // Magic-byte check: .xlsx files are ZIP archives (PK header: 0x50 0x4B 0x03 0x04)
+  // Magic-byte check: .xlsx = ZIP (PK 0x50 0x4B), .xls/encrypted = OLE/CFB (0xD0 0xCF 0x11 0xE0)
   const buf = req.file.buffer;
-  if (buf.length < 4 || buf[0] !== 0x50 || buf[1] !== 0x4B || buf[2] !== 0x03 || buf[3] !== 0x04) {
+  const isPK  = buf.length >= 4 && buf[0] === 0x50 && buf[1] === 0x4B && buf[2] === 0x03 && buf[3] === 0x04;
+  const isCFB = buf.length >= 4 && buf[0] === 0xD0 && buf[1] === 0xCF && buf[2] === 0x11 && buf[3] === 0xE0;
+  if (!isPK && !isCFB) {
     return res.status(400).json({ error: 'File does not appear to be a valid .xlsx file.' });
   }
 

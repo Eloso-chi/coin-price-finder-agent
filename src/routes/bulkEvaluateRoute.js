@@ -82,8 +82,10 @@ function parseJsonInput(items) {
 
 /** Parse Excel buffer into coin array using excelMapper. */
 function parseExcelInput(buffer) {
-  // Magic-byte check
-  if (buffer.length < 4 || buffer[0] !== 0x50 || buffer[1] !== 0x4B || buffer[2] !== 0x03 || buffer[3] !== 0x04) {
+  // Magic-byte check: .xlsx = ZIP (PK 0x50 0x4B), .xls/encrypted = OLE/CFB (0xD0 0xCF 0x11 0xE0)
+  const isPK  = buffer.length >= 4 && buffer[0] === 0x50 && buffer[1] === 0x4B && buffer[2] === 0x03 && buffer[3] === 0x04;
+  const isCFB = buffer.length >= 4 && buffer[0] === 0xD0 && buffer[1] === 0xCF && buffer[2] === 0x11 && buffer[3] === 0xE0;
+  if (!isPK && !isCFB) {
     throw new Error('File does not appear to be a valid .xlsx file.');
   }
   const { payload } = mapExcelToBackup(buffer);
