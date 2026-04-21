@@ -250,6 +250,21 @@ function _signToken(userId, username) {
   return jwt.sign({ userId, username }, JWT_SECRET, { expiresIn: JWT_EXPIRY });
 }
 
+// ── Admin helpers ───────────────────────────────────────────
+
+/**
+ * List all users (admin-only). Returns sanitized records -- no hashes.
+ * @returns {{ username: string, userId: string, createdAt: string }[]}
+ */
+function listUsers() {
+  const store = loadStore();
+  return Object.entries(store).map(([username, data]) => ({
+    username,
+    userId: data.userId,
+    createdAt: data.createdAt || null,
+  }));
+}
+
 // ── Test helpers ────────────────────────────────────────────
 
 function _resetStore() {
@@ -265,5 +280,6 @@ module.exports = {
   userExists,
   userExistsAsync,
   deleteUser,
+  listUsers,
   _resetStore,
 };

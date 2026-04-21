@@ -236,7 +236,8 @@ function lookupTypeGsid(queryText, hints = {}) {
 
   const metal  = hints.metal || _detectMetal(text) || matched.metal;
   const weight = hints.weight || _detectWeight(text) || matched.defaultWeight || null;
-  const finish = hints.finish || _detectFinish(text);
+  const rawFinish = hints.finish || _detectFinish(text);
+  const finish = rawFinish ? rawFinish.toLowerCase() : null;
 
   // Build base lookup key(s) -- most specific to least specific
   const baseKeys = [];

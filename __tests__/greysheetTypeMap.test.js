@@ -503,6 +503,55 @@ describe('greysheetTypeMap', () => {
       expect(r.gsid).toBe(72470);
     });
 
+    it('uses finish hint for Gold Libertad Proof', () => {
+      const r = lookupTypeGsid('Gold Libertad 1 oz', { finish: 'proof' });
+      expect(r).not.toBeNull();
+      expect(r.gsid).toBe(393960);
+      expect(r.lookupKey).toBe('libertad|1|gold|proof');
+    });
+
+    it('uses finish hint for Silver Panda Proof', () => {
+      const r = lookupTypeGsid('Silver Panda 1 oz', { finish: 'proof' });
+      expect(r).not.toBeNull();
+      expect(r.gsid).toBe(395448);
+    });
+
+    it('uses finish hint for Gold Eagle 1/4 oz Proof', () => {
+      const r = lookupTypeGsid('Gold Eagle 1/4 oz', { finish: 'proof' });
+      expect(r).not.toBeNull();
+      expect(r.gsid).toBe(74291);
+    });
+
+    it('uses finish hint for Platinum Eagle 1/2 oz Proof', () => {
+      const r = lookupTypeGsid('Platinum Eagle 1/2 oz', { finish: 'proof' });
+      expect(r).not.toBeNull();
+      expect(r.gsid).toBe(74283);
+    });
+
+    it('uses finish hint for Lunar 1/2 oz Proof', () => {
+      const r = lookupTypeGsid('Australian Lunar Silver 1/2 oz', { finish: 'proof' });
+      expect(r).not.toBeNull();
+      expect(r.gsid).toBe(395571);
+    });
+
+    it('finish hint is case-insensitive (Proof vs proof)', () => {
+      const r = lookupTypeGsid('Silver Eagle 1 oz', { finish: 'Proof' });
+      expect(r).not.toBeNull();
+      expect(r.gsid).toBe(72470);
+    });
+
+    it('burnished finish falls back to MS (no burnished entries)', () => {
+      const r = lookupTypeGsid('Silver Eagle 1 oz', { finish: 'burnished' });
+      expect(r).not.toBeNull();
+      expect(r.gsid).toBe(72469); // MS fallback
+    });
+
+    it('reverse proof falls back to MS (no RP entries)', () => {
+      const r = lookupTypeGsid('Silver Eagle 1 oz', { finish: 'reverse proof' });
+      expect(r).not.toBeNull();
+      expect(r.gsid).toBe(72469); // MS fallback
+    });
+
     it('falls back to MS when proof key does not exist', () => {
       // Gold Buffalo has no proof entry -- should fall back to MS
       const r = lookupTypeGsid('Gold Buffalo 1 oz Proof');

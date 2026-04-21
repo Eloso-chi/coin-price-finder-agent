@@ -1054,12 +1054,13 @@
     <button class="tab-btn" role="tab" id="tab-history" aria-controls="panel-history" aria-selected="false" tabindex="-1">Price History</button>
     <button class="tab-btn" role="tab" id="tab-bulk" aria-controls="panel-bulk" aria-selected="false" tabindex="-1">Lot Evaluator</button>
     <button class="tab-btn" role="tab" id="tab-about" aria-controls="panel-about" aria-selected="false" tabindex="-1">About (read me)</button>
+    <button class="tab-btn" role="tab" id="tab-admin" aria-controls="panel-admin" aria-selected="false" tabindex="-1" style="display:none">Admin</button>
   </nav>
 
   <!-- ── Auth Teaser Banner (shown when logged out) ── -->
   <div class="auth-teaser-banner" id="auth-teaser-banner">
     <div class="auth-teaser-title">&#x1F512; Unlock My Coins &amp; Price History</div>
-    <div class="auth-teaser-desc">Create a free account to track your coin collection, monitor portfolio value in real time, and chart price history&mdash;all encrypted locally in your browser.</div>
+    <div class="auth-teaser-desc">Create a free account to track your coin collection, monitor portfolio value in real time, and chart price history.</div>
     <button class="auth-teaser-cta" id="auth-teaser-login">Log In / Sign Up</button>
   </div>
 
@@ -1737,13 +1738,13 @@
   </section>
 
   <!-- ══════════════════════════════════════════════════════ -->
-  <!-- TAB 5 — My Coins (encrypted client-side inventory)    -->
+  <!-- TAB 5 — My Coins (server-backed inventory)            -->
   <!-- ══════════════════════════════════════════════════════ -->
   <section id="panel-mycoins" class="tab-panel" role="tabpanel" aria-labelledby="tab-mycoins" aria-hidden="true">
     <div class="card">
       <h2>&#x1FA99; My Coin Collection</h2>
       <p style="color:var(--text-muted);font-size:0.82rem;margin:0 0 12px">
-        Your collection is encrypted and stored locally in your browser. The server never sees your inventory.
+        Your collection is stored securely on the server, protected by your account credentials.
       </p>
       <div id="mycoins-account-bar" style="display:none;margin-bottom:14px;padding:10px 12px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);font-size:0.82rem">
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
@@ -1751,9 +1752,47 @@
           <button id="mycoins-export" class="btn-sm" title="Download your collection as a backup file">&#x1F4E5; Export Backup</button>
           <button id="mycoins-import" class="btn-sm" title="Restore coins from a backup file">&#x1F4E4; Import Backup</button>
           <button id="mycoins-import-excel" class="btn-sm" title="Import coins from an Excel spreadsheet">&#x1F4CA; Import Excel</button>
+          <button id="mycoins-excel-help-toggle" class="btn-sm" title="Show Excel import instructions" style="padding:2px 8px;font-size:0.78rem;opacity:0.7">&#x2753; Format Help</button>
           <button id="mycoins-changepw" class="btn-sm" title="Change your password">&#x1F512; Change Password</button>
           <input type="file" id="mycoins-import-file" accept=".json" style="display:none">
           <input type="file" id="mycoins-import-excel-file" accept=".xlsx" style="display:none">
+        </div>
+        <!-- Excel Import Instructions (collapsible) -->
+        <div id="mycoins-excel-help" style="display:none;margin-top:10px;padding:12px 14px;background:var(--surface,var(--bg));border:1px solid var(--border);border-radius:var(--radius);font-size:0.8rem;line-height:1.55;color:var(--text-secondary,var(--text-muted))">
+          <strong style="color:var(--text);font-size:0.85rem">Excel Import Instructions</strong>
+          <p style="margin:6px 0 4px">Upload an <code>.xlsx</code> file (max 10 MB, up to 5,000 rows) with a sheet named <strong>Collectors</strong>.</p>
+          <p style="margin:4px 0"><strong>Required column:</strong></p>
+          <ul style="margin:2px 0 8px 18px;padding:0">
+            <li><strong>Coin</strong> -- the coin name (e.g. "1921 Morgan Dollar S"). Year and mint mark can be embedded here or in their own columns.</li>
+          </ul>
+          <p style="margin:4px 0"><strong>Optional columns:</strong></p>
+          <table style="width:100%;border-collapse:collapse;margin:4px 0 8px;font-size:0.78rem">
+            <thead><tr style="border-bottom:1px solid var(--border);text-align:left">
+              <th style="padding:3px 6px">Column</th><th style="padding:3px 6px">Description</th><th style="padding:3px 6px">Example</th>
+            </tr></thead>
+            <tbody>
+              <tr style="border-bottom:1px solid var(--border)"><td style="padding:3px 6px">Year</td><td style="padding:3px 6px">4-digit year (overrides year in Coin name)</td><td style="padding:3px 6px">1921</td></tr>
+              <tr style="border-bottom:1px solid var(--border)"><td style="padding:3px 6px">Mint Mark</td><td style="padding:3px 6px">Mint letter</td><td style="padding:3px 6px">S, D, CC, W</td></tr>
+              <tr style="border-bottom:1px solid var(--border)"><td style="padding:3px 6px">Grade</td><td style="padding:3px 6px">Grade string or number 1-70</td><td style="padding:3px 6px">MS-65, VF-30, 70</td></tr>
+              <tr style="border-bottom:1px solid var(--border)"><td style="padding:3px 6px">Count</td><td style="padding:3px 6px">Quantity (defaults to 1)</td><td style="padding:3px 6px">3</td></tr>
+              <tr style="border-bottom:1px solid var(--border)"><td style="padding:3px 6px">Cost</td><td style="padding:3px 6px">Total cost for the row (divided by count)</td><td style="padding:3px 6px">$2,150.00</td></tr>
+              <tr style="border-bottom:1px solid var(--border)"><td style="padding:3px 6px">Troy Oz</td><td style="padding:3px 6px">Weight per coin in troy ounces</td><td style="padding:3px 6px">1.0000</td></tr>
+              <tr style="border-bottom:1px solid var(--border)"><td style="padding:3px 6px">Total Toz</td><td style="padding:3px 6px">Total weight for all coins (used if Troy Oz is missing)</td><td style="padding:3px 6px">3.0000</td></tr>
+              <tr style="border-bottom:1px solid var(--border)"><td style="padding:3px 6px">Base Metal</td><td style="padding:3px 6px">Metal type</td><td style="padding:3px 6px">silver, gold</td></tr>
+              <tr style="border-bottom:1px solid var(--border)"><td style="padding:3px 6px">Fineness</td><td style="padding:3px 6px">Metal purity</td><td style="padding:3px 6px">0.999, 0.900</td></tr>
+              <tr style="border-bottom:1px solid var(--border)"><td style="padding:3px 6px">Slab</td><td style="padding:3px 6px">Y if professionally graded/slabbed</td><td style="padding:3px 6px">Y</td></tr>
+              <tr style="border-bottom:1px solid var(--border)"><td style="padding:3px 6px">COA</td><td style="padding:3px 6px">Y if includes Certificate of Authenticity</td><td style="padding:3px 6px">Y</td></tr>
+              <tr><td style="padding:3px 6px">Notes</td><td style="padding:3px 6px">Any additional notes</td><td style="padding:3px 6px">Rainbow toning</td></tr>
+            </tbody>
+          </table>
+          <p style="margin:4px 0"><strong>Tips:</strong></p>
+          <ul style="margin:2px 0 0 18px;padding:0">
+            <li>Column headers are case-insensitive; spaces and underscores are interchangeable.</li>
+            <li>Only the <strong>Coin</strong> column is required -- all others are optional.</li>
+            <li>Rows with an empty Coin cell are skipped.</li>
+            <li>Duplicate coins (same name, year, mint, grade, notes) are merged by adding quantities.</li>
+            <li>Common series names are auto-normalized (e.g. "American Silver Eagles" becomes "American Silver Eagle").</li>
+          </ul>
         </div>
         <div id="mycoins-account-status" style="margin-top:6px;font-size:0.8rem;color:var(--text-muted);display:none"></div>
       </div>
@@ -2088,6 +2127,78 @@ Silver Libertad 1 oz Proof"></textarea>
         <p class="about-disclaimer">
           By using this site, you acknowledge that you have read and understood this disclaimer and agree to use the tool at your own risk.
         </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════ -->
+  <!-- TAB 9 -- Admin Panel (admin-key gated)                -->
+  <!-- ══════════════════════════════════════════════════════ -->
+  <section id="panel-admin" class="tab-panel" role="tabpanel" aria-labelledby="tab-admin" aria-hidden="true">
+    <div class="card">
+      <h2>&#x1F6E0; Admin Panel</h2>
+
+      <!-- Login (shown when not authenticated) -->
+      <div id="admin-key-gate">
+        <p style="color:var(--text-muted);font-size:0.82rem;margin:0 0 10px">
+          Sign in with your admin credentials to unlock this panel.
+        </p>
+        <div style="display:flex;flex-direction:column;gap:8px;max-width:320px">
+          <input type="text" id="admin-user-input" placeholder="Username" autocomplete="username"
+            style="padding:6px 10px;border-radius:var(--radius);border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:0.88rem">
+          <input type="password" id="admin-key-input" placeholder="Password" autocomplete="current-password"
+            style="padding:6px 10px;border-radius:var(--radius);border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:0.88rem">
+          <button class="btn-primary" id="admin-key-submit" style="align-self:flex-start">Sign In</button>
+        </div>
+        <p id="admin-key-error" style="color:var(--red);font-size:0.82rem;margin:6px 0 0;display:none"></p>
+      </div>
+
+      <!-- Admin content (shown when authenticated) -->
+      <div id="admin-content" style="display:none">
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px;flex-wrap:wrap">
+          <span style="font-size:0.82rem;color:var(--text-muted)">Admin session active</span>
+          <button class="btn-sm-accent" id="admin-refresh-btn" title="Refresh all data">&#x1F504; Refresh</button>
+          <button class="btn-sm-accent" id="admin-lock-btn" title="Clear admin key and lock panel" style="background:var(--red)">&#x1F512; Lock</button>
+        </div>
+
+        <!-- Dashboard Stats -->
+        <details open style="margin-bottom:14px">
+          <summary style="cursor:pointer;font-weight:600;font-size:0.92rem;margin-bottom:8px">Dashboard</summary>
+          <div id="admin-dashboard" style="font-size:0.85rem">
+            <p style="color:var(--text-muted)">Loading...</p>
+          </div>
+        </details>
+
+        <!-- Data Health -->
+        <details open style="margin-bottom:14px">
+          <summary style="cursor:pointer;font-weight:600;font-size:0.92rem;margin-bottom:8px">Data Health</summary>
+          <div id="admin-health" style="font-size:0.85rem">
+            <p style="color:var(--text-muted)">Loading...</p>
+          </div>
+        </details>
+
+        <!-- Stale Datasets -->
+        <details open style="margin-bottom:14px">
+          <summary style="cursor:pointer;font-weight:600;font-size:0.92rem;margin-bottom:8px">Stale Datasets</summary>
+          <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
+            <label style="font-size:0.82rem;color:var(--text-muted)">Stale threshold (days):</label>
+            <input type="number" id="admin-stale-days" value="30" min="1" max="365"
+              style="width:70px;padding:4px 8px;border-radius:var(--radius);border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:0.85rem">
+          </div>
+          <div id="admin-stale" style="font-size:0.85rem">
+            <p style="color:var(--text-muted)">Loading...</p>
+          </div>
+        </details>
+
+        <!-- Actions -->
+        <details style="margin-bottom:14px">
+          <summary style="cursor:pointer;font-weight:600;font-size:0.92rem;margin-bottom:8px">Actions</summary>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn-primary" id="admin-clear-cache-btn">Clear Cache</button>
+            <button class="btn-primary" id="admin-reimport-btn">Force Terapeak Reimport</button>
+          </div>
+          <p id="admin-action-msg" style="font-size:0.82rem;margin:8px 0 0;display:none"></p>
+        </details>
       </div>
     </div>
   </section>
@@ -5564,6 +5675,15 @@ Silver Libertad 1 oz Proof"></textarea>
     // Excel import
     const importExcelBtn  = document.getElementById('mycoins-import-excel');
     const importExcelFile = document.getElementById('mycoins-import-excel-file');
+    const excelHelpToggle = document.getElementById('mycoins-excel-help-toggle');
+    const excelHelpPanel  = document.getElementById('mycoins-excel-help');
+    if (excelHelpToggle && excelHelpPanel) {
+      excelHelpToggle.addEventListener('click', () => {
+        const open = excelHelpPanel.style.display !== 'none';
+        excelHelpPanel.style.display = open ? 'none' : '';
+        excelHelpToggle.style.opacity = open ? '0.7' : '1';
+      });
+    }
     importExcelBtn.addEventListener('click', () => importExcelFile.click());
     importExcelFile.addEventListener('change', async (e) => {
       const file = e.target.files[0];
@@ -5633,16 +5753,10 @@ Silver Libertad 1 oz Proof"></textarea>
       }
 
       cpSubmit.disabled = true;
-      cpSubmit.textContent = 'Encrypting…';
+      cpSubmit.textContent = 'Saving…';
       const user = CoinAuth.currentUser();
       try {
-        const oldKey = user.key;
-        const { newKey } = await CoinAuth.changePassword(cur, np);
-        // For legacy accounts (no wrappedDataKey), re-encrypt data with the new key.
-        // For new accounts the data key is unchanged, so no re-encryption needed.
-        if (oldKey !== user.key) {
-          await CoinStorage.reEncryptAll(user.userId, oldKey, user.key);
-        }
+        await CoinAuth.changePassword(cur, np);
         cpSuccess.textContent = 'Password changed successfully.';
         cpSuccess.style.display = 'block';
         setTimeout(() => cpDialog.close(), 2000);
@@ -6297,6 +6411,259 @@ Silver Libertad 1 oz Proof"></textarea>
         });
       }
     }
+  })();
+  </script>
+
+  <script>
+  /* ═══════════════════════════════════════════════════════════
+   *  ADMIN PANEL
+   *  Gated by an admin API key stored in sessionStorage only.
+   * ═══════════════════════════════════════════════════════════ */
+  (function initAdminPanel() {
+    var KEY_STORAGE = 'adminApiKey';
+    var tabBtn     = document.getElementById('tab-admin');
+    var gate       = document.getElementById('admin-key-gate');
+    var content    = document.getElementById('admin-content');
+    var userInput  = document.getElementById('admin-user-input');
+    var keyInput   = document.getElementById('admin-key-input');
+    var keySubmit  = document.getElementById('admin-key-submit');
+    var keyError   = document.getElementById('admin-key-error');
+    var refreshBtn = document.getElementById('admin-refresh-btn');
+    var lockBtn    = document.getElementById('admin-lock-btn');
+    var dashEl     = document.getElementById('admin-dashboard');
+    var healthEl   = document.getElementById('admin-health');
+    var staleEl    = document.getElementById('admin-stale');
+    var staleDays  = document.getElementById('admin-stale-days');
+    var clearCacheBtn = document.getElementById('admin-clear-cache-btn');
+    var reimportBtn   = document.getElementById('admin-reimport-btn');
+    var actionMsg     = document.getElementById('admin-action-msg');
+
+    if (!tabBtn || !gate) return;
+
+    function _apiKey() { return sessionStorage.getItem(KEY_STORAGE) || ''; }
+    function _headers() { return { 'Content-Type': 'application/json', 'x-api-key': _apiKey() }; }
+
+    function _esc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+    // Show / hide the admin tab button based on whether a key is stored
+    function _syncTabVisibility() {
+      if (_apiKey()) {
+        tabBtn.style.display = '';
+        gate.style.display = 'none';
+        content.style.display = '';
+      } else {
+        gate.style.display = '';
+        content.style.display = 'none';
+      }
+    }
+
+    // If a key was stored from a previous page load in this session, show tab
+    if (_apiKey()) {
+      tabBtn.style.display = '';
+    }
+
+    // Allow navigating to #admin to reveal the tab (for initial access)
+    function _checkHash() {
+      if (window.location.hash === '#admin') {
+        tabBtn.style.display = '';
+        tabBtn.click();
+        window.location.hash = '';
+      }
+    }
+    _checkHash();
+    window.addEventListener('hashchange', _checkHash);
+
+    // Unlock with username + password
+    keySubmit.addEventListener('click', async function() {
+      var user = (userInput.value || '').trim().toLowerCase();
+      var key = keyInput.value.trim();
+      if (!user || !key) { keyError.textContent = 'Enter both username and password.'; keyError.style.display = 'block'; return; }
+      if (user !== 'admin') { keyError.textContent = 'Invalid credentials.'; keyError.style.display = 'block'; return; }
+      keyError.style.display = 'none';
+      keySubmit.disabled = true;
+      keySubmit.textContent = 'Signing in...';
+      try {
+        var res = await fetch('/api/admin/dashboard', { headers: { 'x-api-key': key } });
+        if (!res.ok) throw new Error('Invalid credentials');
+        sessionStorage.setItem(KEY_STORAGE, key);
+        userInput.value = '';
+        keyInput.value = '';
+        _syncTabVisibility();
+        _loadAll();
+      } catch (err) {
+        keyError.textContent = 'Invalid credentials.';
+        keyError.style.display = 'block';
+      } finally {
+        keySubmit.disabled = false;
+        keySubmit.textContent = 'Sign In';
+      }
+    });
+    userInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') keyInput.focus(); });
+    keyInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') keySubmit.click(); });
+
+    // Lock (clear key)
+    lockBtn.addEventListener('click', function() {
+      sessionStorage.removeItem(KEY_STORAGE);
+      tabBtn.style.display = 'none';
+      gate.style.display = '';
+      content.style.display = 'none';
+      // Switch away from admin tab
+      var priceTab = document.getElementById('tab-price');
+      if (priceTab) priceTab.click();
+    });
+
+    // ── Data loaders ────────────────────────────────────────
+
+    async function _loadDashboard() {
+      dashEl.innerHTML = '<p style="color:var(--text-muted)">Loading...</p>';
+      try {
+        var res = await fetch('/api/admin/dashboard', { headers: _headers() });
+        if (!res.ok) throw new Error('Failed');
+        var d = await res.json();
+        var html = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:10px">';
+        html += '<div style="padding:10px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius)">'
+          + '<div style="font-size:0.78rem;color:var(--text-muted)">Uptime</div>'
+          + '<div style="font-size:1.1rem;font-weight:600">' + _esc(d.uptime || 'N/A') + '</div></div>';
+        html += '<div style="padding:10px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius)">'
+          + '<div style="font-size:0.78rem;color:var(--text-muted)">Total Users</div>'
+          + '<div style="font-size:1.1rem;font-weight:600">' + (d.users ? d.users.length : 0) + '</div></div>';
+        if (d.dataStats) {
+          html += '<div style="padding:10px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius)">'
+            + '<div style="font-size:0.78rem;color:var(--text-muted)">CSV Datasets</div>'
+            + '<div style="font-size:1.1rem;font-weight:600">' + (d.dataStats.totalCsvFiles || 0) + '</div></div>';
+        }
+        if (d.terapeakQuota) {
+          html += '<div style="padding:10px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius)">'
+            + '<div style="font-size:0.78rem;color:var(--text-muted)">Terapeak Quota</div>'
+            + '<div style="font-size:1.1rem;font-weight:600">' + (d.terapeakQuota.used || 0) + ' / ' + (d.terapeakQuota.limit || '?') + '</div></div>';
+        }
+        html += '</div>';
+
+        // Users table
+        if (d.users && d.users.length) {
+          html += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:0.82rem">'
+            + '<thead><tr style="border-bottom:1px solid var(--border)">'
+            + '<th style="text-align:left;padding:6px 8px">User</th>'
+            + '<th style="text-align:right;padding:6px 8px">Coins</th></tr></thead><tbody>';
+          d.users.forEach(function(u) {
+            html += '<tr style="border-bottom:1px solid var(--border)">'
+              + '<td style="padding:4px 8px">' + _esc(u.userId || u.username || 'unknown') + '</td>'
+              + '<td style="text-align:right;padding:4px 8px">' + (u.coinCount != null ? u.coinCount : '-') + '</td></tr>';
+          });
+          html += '</tbody></table></div>';
+        }
+        dashEl.innerHTML = html;
+      } catch (err) {
+        dashEl.innerHTML = '<p style="color:var(--red)">Failed to load dashboard.</p>';
+      }
+    }
+
+    async function _loadHealth() {
+      healthEl.innerHTML = '<p style="color:var(--text-muted)">Loading...</p>';
+      try {
+        var res = await fetch('/api/admin/data-health', { headers: _headers() });
+        if (!res.ok) throw new Error('Failed');
+        var h = await res.json();
+        var html = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:10px">';
+        html += '<div style="padding:10px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius)">'
+          + '<div style="font-size:0.78rem;color:var(--text-muted)">Total Files</div>'
+          + '<div style="font-size:1.1rem;font-weight:600">' + (h.totalFiles || 0) + '</div></div>';
+        html += '<div style="padding:10px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius)">'
+          + '<div style="font-size:0.78rem;color:var(--text-muted)">Empty Files</div>'
+          + '<div style="font-size:1.1rem;font-weight:600;color:' + ((h.emptyFiles || 0) > 0 ? 'var(--red)' : 'inherit') + '">' + (h.emptyFiles || 0) + '</div></div>';
+        if (h.dateRange) {
+          html += '<div style="padding:10px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius)">'
+            + '<div style="font-size:0.78rem;color:var(--text-muted)">Oldest</div>'
+            + '<div style="font-size:0.88rem">' + _esc(h.dateRange.oldest || 'N/A') + '</div></div>';
+          html += '<div style="padding:10px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius)">'
+            + '<div style="font-size:0.78rem;color:var(--text-muted)">Newest</div>'
+            + '<div style="font-size:0.88rem">' + _esc(h.dateRange.newest || 'N/A') + '</div></div>';
+        }
+        html += '</div>';
+        healthEl.innerHTML = html;
+      } catch (err) {
+        healthEl.innerHTML = '<p style="color:var(--red)">Failed to load data health.</p>';
+      }
+    }
+
+    async function _loadStale() {
+      staleEl.innerHTML = '<p style="color:var(--text-muted)">Loading...</p>';
+      try {
+        var days = parseInt(staleDays.value, 10) || 30;
+        var res = await fetch('/api/admin/stale-datasets?days=' + days + '&limit=50', { headers: _headers() });
+        if (!res.ok) throw new Error('Failed');
+        var data = await res.json();
+        var items = data.stale || data;
+        if (!Array.isArray(items)) items = [];
+        if (items.length === 0) {
+          staleEl.innerHTML = '<p style="color:var(--green,#3fb950)">No stale datasets found.</p>';
+          return;
+        }
+        var html = '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:0.82rem">'
+          + '<thead><tr style="border-bottom:1px solid var(--border)">'
+          + '<th style="text-align:left;padding:6px 8px">File</th>'
+          + '<th style="text-align:right;padding:6px 8px">Age (days)</th>'
+          + '<th style="text-align:right;padding:6px 8px">Last Modified</th></tr></thead><tbody>';
+        items.forEach(function(s) {
+          html += '<tr style="border-bottom:1px solid var(--border)">'
+            + '<td style="padding:4px 8px;word-break:break-all">' + _esc(s.file || s.name || '') + '</td>'
+            + '<td style="text-align:right;padding:4px 8px;color:' + ((s.ageDays || 0) > 60 ? 'var(--red)' : 'inherit') + '">' + (s.ageDays != null ? s.ageDays : '-') + '</td>'
+            + '<td style="text-align:right;padding:4px 8px;color:var(--text-muted)">' + _esc(s.lastModified || '') + '</td></tr>';
+        });
+        html += '</tbody></table></div>';
+        staleEl.innerHTML = html;
+      } catch (err) {
+        staleEl.innerHTML = '<p style="color:var(--red)">Failed to load stale datasets.</p>';
+      }
+    }
+
+    function _loadAll() { _loadDashboard(); _loadHealth(); _loadStale(); }
+
+    // Stale days change triggers re-fetch
+    staleDays.addEventListener('change', _loadStale);
+
+    // Refresh button
+    refreshBtn.addEventListener('click', _loadAll);
+
+    // ── Actions ──────────────────────────────────────────────
+
+    function _showActionMsg(msg, isError) {
+      actionMsg.textContent = msg;
+      actionMsg.style.color = isError ? 'var(--red)' : 'var(--green,#3fb950)';
+      actionMsg.style.display = 'block';
+      setTimeout(function() { actionMsg.style.display = 'none'; }, 5000);
+    }
+
+    clearCacheBtn.addEventListener('click', async function() {
+      clearCacheBtn.disabled = true;
+      try {
+        var res = await fetch('/api/clear-cache', { method: 'POST', headers: _headers() });
+        if (!res.ok) throw new Error('Failed');
+        _showActionMsg('Cache cleared successfully.', false);
+      } catch (err) {
+        _showActionMsg('Failed to clear cache.', true);
+      } finally {
+        clearCacheBtn.disabled = false;
+      }
+    });
+
+    reimportBtn.addEventListener('click', async function() {
+      reimportBtn.disabled = true;
+      try {
+        var res = await fetch('/api/terapeak/reimport?force=true', { method: 'POST', headers: _headers() });
+        if (!res.ok) throw new Error('Failed');
+        var data = await res.json();
+        _showActionMsg('Reimport complete: ' + (data.imported || 0) + ' files processed.', false);
+      } catch (err) {
+        _showActionMsg('Failed to start reimport.', true);
+      } finally {
+        reimportBtn.disabled = false;
+      }
+    });
+
+    // Auto-load when admin tab first becomes visible
+    _syncTabVisibility();
+    if (_apiKey()) _loadAll();
   })();
   </script>
 

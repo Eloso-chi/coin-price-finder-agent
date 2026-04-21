@@ -204,6 +204,7 @@ async function evaluateOneCoin(coin) {
     if (!greysheet) {
       greysheet = await greysheetService.fetchTypePrice(query, gradeNum, {
         series, metal: metalKey, weight,
+        finish: isProof ? 'Proof' : (parsed.finish || null),
       });
     }
 

@@ -1,0 +1,225 @@
+// src/services/adminService.js — Admin dashboard data aggregation
+// CommonJS
+
+'use strict';
+
+const fs = require('fs');
+const path = require('path');
+const { parse } = require('csv-parse/sync');
+
+const TERAPEAK_DIR = process.env.TERAPEAK_DATA_DIR || 'data/terapeak';
+
+// ── Staleness Tracker ───────────────────────────────────────
+
+/**
+ * Analyze staleness of all Terapeak CSV datasets.
+ * Derives "newest sold date" from each CSV to determine data freshness.
+ *
+ * @param {object} opts
+ * @param {number} [opts.days=30]  — flag CSVs with no sale newer than this many days
+ * @param {number} [opts.limit=50] — max results to return (sorted stalest-first)
+ * @returns {{ stale: object[], summary: object }}
+ */
+function getStaleDatasets(opts = {}) {
+  const days = opts.days || 30;
+  const limit = opts.limit || 50;
+  const cutoff = new Date(Date.now() - days * 86_400_000);
+
+  const csvFiles = _listCSVFiles();
+  const results = [];
+
+  for (const csvPath of csvFiles) {
+    const baseName = path.basename(csvPath, '.csv');
+    const metaPath = csvPath.replace(/\.csv$/i, '.meta');
+    const searchTerm = fs.existsSync(metaPath)
+      ? fs.readFileSync(metaPath, 'utf8').trim()
+      : baseName.replace(/_/g, ' ');
+
+    const stats = _analyzeCSV(csvPath);
+    if (!stats) continue;
+
+    const isStale = !stats.newestSoldDate || stats.newestSoldDate < cutoff;
+
+    results.push({
+      file: baseName,
+      searchTerm,
+      compCount: stats.compCount,
+      newestSoldDate: stats.newestSoldDate ? stats.newestSoldDate.toISOString() : null,
+      oldestSoldDate: stats.oldestSoldDate ? stats.oldestSoldDate.toISOString() : null,
+      ageDays: stats.newestSoldDate
+        ? Math.round((Date.now() - stats.newestSoldDate.getTime()) / 86_400_000)
+        : null,
+      isStale,
+    });
+  }
+
+  // Sort: stalest first (null dates = infinitely stale, then by age descending)
+  results.sort((a, b) => {
+    if (a.ageDays === null && b.ageDays === null) return 0;
+    if (a.ageDays === null) return -1;
+    if (b.ageDays === null) return 1;
+    return b.ageDays - a.ageDays;
+  });
+
+  const stale = results.filter(r => r.isStale).slice(0, limit);
+  const totalCSVs = results.length;
+  const staleCount = results.filter(r => r.isStale).length;
+
+  // Generate filter regex for the top stale items
+  const filterTerms = stale.slice(0, limit).map(s => _escapeRegex(s.searchTerm));
+  const filterRegex = filterTerms.length > 0
+    ? filterTerms.map(t => `^${t}$`).join('|')
+    : '';
+
+  return {
+    stale,
+    summary: {
+      totalCSVs,
+      staleCount,
+      freshCount: totalCSVs - staleCount,
+      staleDays: days,
+      filterRegex,
+    },
+  };
+}
+
+/**
+ * Get aggregate dataset health stats.
+ * @returns {{ totalCSVs, totalComps, emptyCSVs, avgCompsPerCSV, oldestData, newestData }}
+ */
+function getDatasetHealth() {
+  const csvFiles = _listCSVFiles();
+  let totalComps = 0;
+  let emptyCSVs = 0;
+  let oldest = null;
+  let newest = null;
+
+  for (const csvPath of csvFiles) {
+    const stats = _analyzeCSV(csvPath);
+    if (!stats || stats.compCount === 0) {
+      emptyCSVs++;
+      continue;
+    }
+    totalComps += stats.compCount;
+    if (stats.oldestSoldDate && (!oldest || stats.oldestSoldDate < oldest)) {
+      oldest = stats.oldestSoldDate;
+    }
+    if (stats.newestSoldDate && (!newest || stats.newestSoldDate > newest)) {
+      newest = stats.newestSoldDate;
+    }
+  }
+
+  return {
+    totalCSVs: csvFiles.length,
+    totalComps,
+    emptyCSVs,
+    avgCompsPerCSV: csvFiles.length > 0 ? Math.round(totalComps / csvFiles.length) : 0,
+    oldestData: oldest ? oldest.toISOString() : null,
+    newestData: newest ? newest.toISOString() : null,
+  };
+}
+
+// ── User & System Stats ─────────────────────────────────────
+
+/**
+ * Gather admin dashboard overview stats.
+ * Lazy-requires services to avoid circular deps and keep this lightweight.
+ */
+function getDashboardStats() {
+  const authService = require('./authService');
+  const coinStorage = require('./coinStorageService');
+  const terapeakService = require('./terapeakService');
+  const quotaService = require('./terapeakQuotaService');
+
+  // Users
+  const users = authService.listUsers();
+  const userStats = {
+    totalUsers: users.length,
+    users: users.map(u => ({
+      username: u.username,
+      userId: u.userId,
+      createdAt: u.createdAt,
+      coinCount: coinStorage.count(u.userId),
+    })),
+  };
+
+  // Terapeak datasets (from in-memory store, fast)
+  const datasets = terapeakService.listDatasets();
+  const totalComps = datasets.reduce((s, d) => s + d.compCount, 0);
+  const dataStats = {
+    totalDatasets: datasets.length,
+    totalComps,
+  };
+
+  // Quota
+  const quota = quotaService.getStatus();
+
+  return {
+    users: userStats,
+    data: dataStats,
+    quota: {
+      date: quota.date,
+      used: quota.used,
+      remaining: quota.remaining,
+      limit: quota.limit,
+    },
+    uptime: Math.round(process.uptime()),
+  };
+}
+
+// ── Internal helpers ────────────────────────────────────────
+
+function _listCSVFiles() {
+  const dir = path.resolve(TERAPEAK_DIR);
+  if (!fs.existsSync(dir)) return [];
+  return fs.readdirSync(dir)
+    .filter(f => f.endsWith('.csv'))
+    .map(f => path.join(dir, f));
+}
+
+/**
+ * Parse a CSV to extract comp count and date range.
+ * Uses lightweight parsing — only reads Sold Date column.
+ */
+function _analyzeCSV(csvPath) {
+  try {
+    const raw = fs.readFileSync(csvPath, 'utf8').trim();
+    if (!raw || raw === '') return null;
+
+    const records = parse(raw, {
+      columns: true,
+      skip_empty_lines: true,
+      relax_column_count: true,
+    });
+
+    if (records.length === 0) return { compCount: 0, newestSoldDate: null, oldestSoldDate: null };
+
+    let newest = null;
+    let oldest = null;
+
+    for (const row of records) {
+      const dateStr = row['Sold Date'] || row['soldDate'] || row['sold_date'] || '';
+      if (!dateStr) continue;
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) continue;
+      if (!newest || d > newest) newest = d;
+      if (!oldest || d < oldest) oldest = d;
+    }
+
+    return { compCount: records.length, newestSoldDate: newest, oldestSoldDate: oldest };
+  } catch {
+    return null;
+  }
+}
+
+function _escapeRegex(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+module.exports = {
+  getStaleDatasets,
+  getDatasetHealth,
+  getDashboardStats,
+  _analyzeCSV,       // exposed for testing
+  _listCSVFiles,
+};

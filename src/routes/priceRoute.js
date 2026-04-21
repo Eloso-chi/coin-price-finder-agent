@@ -340,10 +340,12 @@ router.post('/', async (req, res) => {
     let greysheet = pcgsNo ? await greysheetService.fetchPriceByPcgsNumber(pcgsNo, gradeNum) : null;
     if (!greysheet) {
       const parsedMetal = identification.parsed?.metal || null;
+      const parsedFinishForGs = coinData?.finish || identification.parsed?.finish || (expected.isProof ? 'Proof' : null);
       greysheet = await greysheetService.fetchTypePrice(String(query), gradeNum, {
         series: identification.parsed?.series || pcgs.series || '',
         metal: parsedMetal,
         weight: resolvedWeight,
+        finish: parsedFinishForGs,
       });
     }
 

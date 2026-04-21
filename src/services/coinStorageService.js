@@ -46,7 +46,7 @@ function saveStoreSync() {
 }
 
 // ── coinHash — deterministic hash from identifying fields ───
-// Must match CoinCrypto.coinHash() on the client (public/js/crypto.js)
+// Must match CoinStorage.coinHash() on the client (public/js/storage.js)
 function coinHash(coin) {
   const input = [
     (coin.series || '').trim().toLowerCase(),
@@ -153,7 +153,7 @@ function removeCoin(userId, hash) {
 }
 
 /**
- * Get all coins for a user (decrypted/plaintext).
+ * Get all coins for a user.
  * @param {string} userId
  * @returns {object[]}
  */

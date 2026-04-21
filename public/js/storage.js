@@ -1,7 +1,5 @@
-// storage.js — Server-backed coin inventory store
+// storage.js -- Server-backed coin inventory store
 // Calls /api/coins/* endpoints. Auth token comes from CoinAuth.currentUser().
-// Signature-compatible with the old client-side IndexedDB version:
-//   methods accept (userId, key, ...) but ignore those params.
 
 'use strict';
 
@@ -133,10 +131,8 @@ const CoinStorage = (() => {
     return data.coins || [];
   }
 
-  /** Alias for getAllDecrypted (no encryption in server mode). */
-  async function getAllEncrypted(_userId) {
-    return getAllDecrypted(_userId);
-  }
+  /** Alias kept for backwards compatibility. */
+  const getAllEncrypted = getAllDecrypted;
 
   /**
    * Count of coins.
@@ -202,7 +198,7 @@ const CoinStorage = (() => {
   /** No-op -- no client-side DB to open. */
   function openDB() { return Promise.resolve(null); }
 
-  /** No-op -- no client-side encryption to redo. */
+  /** No-op -- retained for interface compatibility. */
   async function reEncryptAll() { return 0; }
 
   /**

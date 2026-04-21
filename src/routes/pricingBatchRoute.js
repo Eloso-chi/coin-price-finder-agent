@@ -115,6 +115,7 @@ async function _priceOne(item) {
         series,
         metal: parsedMetal,
         weight,
+        finish: isProof ? 'Proof' : (parsed.finish || null),
       });
     }
 
