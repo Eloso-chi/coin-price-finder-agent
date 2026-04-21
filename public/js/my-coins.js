@@ -92,21 +92,15 @@ const MyCoins = (() => {
       // Qty +/- buttons
       const qtyBtn = target.closest('.mycoins-qty-btn');
       if (qtyBtn) {
-        const hash = qtyBtn.getAttribute('data-hash');
+        const cell = qtyBtn.closest('.mycoins-qty-cell');
+        const input = cell ? cell.querySelector('.mycoins-qty-input') : null;
+        if (!input) return;
         const delta = parseInt(qtyBtn.getAttribute('data-delta'), 10);
-        const user = CoinAuth.currentUser();
-        if (!user || !hash || !_lastPriced) return;
-        const item = _lastPriced.find(it => it.coin.coinHash === hash);
-        if (!item) return;
-        const oldQty = item.coin.count || 1;
-        const newQty = oldQty + delta;
-        if (newQty < 1) return;
-        qtyBtn.disabled = true;
-        try {
-          await CoinStorage.updateCount(user.userId, user.key, hash, newQty);
-          item.coin.count = newQty;
-          _renderTable(_lastPriced);
-        } catch { qtyBtn.disabled = false; }
+        const cur = parseInt(input.value, 10) || 1;
+        const next = cur + delta;
+        if (next < 1) return;
+        input.value = next;
+        _saveQty(input);
         return;
       }
 
@@ -176,16 +170,19 @@ const MyCoins = (() => {
       }
     });
 
-    // Blur delegation: inline cost editing
+    // Blur delegation: inline cost & qty editing
     _container.addEventListener('blur', (e) => {
       if (e.target.classList.contains('mycoins-cost-input')) {
         _saveCost(e.target);
       }
+      if (e.target.classList.contains('mycoins-qty-input')) {
+        _saveQty(e.target);
+      }
     }, true); // useCapture for blur (doesn't bubble)
 
-    // Keydown delegation: inline cost editing (Enter/Escape)
+    // Keydown delegation: inline cost & qty editing (Enter/Escape)
     _container.addEventListener('keydown', (e) => {
-      if (e.target.classList.contains('mycoins-cost-input')) {
+      if (e.target.classList.contains('mycoins-cost-input') || e.target.classList.contains('mycoins-qty-input')) {
         if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); }
         if (e.key === 'Escape') { e.target.blur(); }
       }
@@ -204,6 +201,30 @@ const MyCoins = (() => {
     if (selCount) selCount.textContent = String(n);
     if (delBtn) delBtn.disabled = n === 0;
     if (selectAll) selectAll.checked = n > 0 && n === rowChecks.length;
+  }
+
+  async function _saveQty(input) {
+    const cell = input.closest('.mycoins-qty-cell');
+    const hash = cell ? cell.getAttribute('data-hash') : null;
+    const user = CoinAuth.currentUser();
+    if (!user || !hash || !_lastPriced) return;
+    const val = parseInt(input.value, 10);
+    if (isNaN(val) || val < 1 || val > 9999) {
+      input.style.borderColor = 'var(--red, #e74c3c)';
+      return;
+    }
+    input.style.borderColor = '';
+    const item = _lastPriced.find(it => it.coin.coinHash === hash);
+    if (!item) return;
+    const oldQty = item.coin.count || 1;
+    if (val === oldQty) return;
+    try {
+      await CoinStorage.updateCount(user.userId, user.key, hash, val);
+      item.coin.count = val;
+      const scrollY = window.scrollY;
+      _renderTable(_lastPriced);
+      window.scrollTo(0, scrollY);
+    } catch { /* silent */ }
   }
 
   async function _saveCost(input) {
@@ -225,7 +246,9 @@ const MyCoins = (() => {
     try {
       await CoinStorage.updateCostPer(user.userId, user.key, hash, val);
       item.coin.costPer = val;
+      const scrollY = window.scrollY;
       _renderTable(_lastPriced);
+      window.scrollTo(0, scrollY);
     } catch { /* silent */ }
   }
 
@@ -570,10 +593,10 @@ const MyCoins = (() => {
       html += '<td>' + _esc(c.grade || '\u2014') + '</td>';
       html += '<td>' + _esc(c.label || '') + '</td>';
 
-      // Qty cell with inline +/- controls
-      html += '<td class="mycoins-qty-cell">';
+      // Qty cell with inline +/- controls and editable input
+      html += '<td class="mycoins-qty-cell" data-hash="' + _escAttr(c.coinHash) + '">';
       html += '<button class="mycoins-qty-btn" data-hash="' + _escAttr(c.coinHash) + '" data-delta="-1" title="Decrease quantity">&minus;</button>';
-      html += '<span class="mycoins-qty-val">' + qty + '</span>';
+      html += '<input type="number" class="mycoins-qty-input" value="' + qty + '" min="1" max="9999" inputmode="numeric" aria-label="Quantity for ' + _escAttr(label) + '">';
       html += '<button class="mycoins-qty-btn" data-hash="' + _escAttr(c.coinHash) + '" data-delta="1" title="Increase quantity">+</button>';
       html += '</td>';
 

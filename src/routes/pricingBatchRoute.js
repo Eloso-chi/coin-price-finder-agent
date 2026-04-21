@@ -71,6 +71,24 @@ async function _priceOne(item) {
       /^(PF|PR)[-\s]?\d/i.test(grade)
     );
 
+    // Detect metal and bullion status early — needed for melt cross-check on eBay comps
+    const isBullion = BULLION_1OZ_DEFAULT.some(b => (series || '').toLowerCase().includes(b));
+    const { metal: detectedMetal } = getCoinMetalProfile(query);
+    const METAL_SYM = { silver: 'XAG', gold: 'XAU', platinum: 'XPT', palladium: 'XPD' };
+    const metalKey = detectedMetal || parsed.metal || null;
+
+    // Spot price for bullion — fetch before eBay so meltPerOz is available for comp filtering
+    let meltPerOz = null;
+    if (isBullion && metalKey && weight) {
+      const sym = METAL_SYM[metalKey];
+      if (sym) {
+        try {
+          const spot = await getMetalsSpotPrice(sym, 'USD');
+          meltPerOz = spot.price;
+        } catch { /* non-fatal */ }
+      }
+    }
+
     // Lunar enrichment
     let expected = {
       year, mint, series, grade, weight,
@@ -79,8 +97,10 @@ async function _priceOne(item) {
       isRoll,
       isSet,
       setType: parsed.setType || null,
+      metal: metalKey,
       _rawQuery: String(query),
     };
+    if (meltPerOz) expected.meltPerOz = meltPerOz;
     if (year && /lunar/i.test(series)) {
       expected.zodiacAnimal = zodiacForYear(Number(year));
       expected.isLunarCoin = true;
@@ -103,24 +123,6 @@ async function _priceOne(item) {
     try {
       pcgs = await pcgsService.resolveFromDescription(query);
     } catch { /* non-critical */ }
-
-    // Valuation
-    const isBullion = BULLION_1OZ_DEFAULT.some(b => (series || '').toLowerCase().includes(b));
-
-    // Spot price for bullion — needed for bullion-spot-premium FMV mode
-    const { metal: detectedMetal } = getCoinMetalProfile(query);
-    const METAL_SYM = { silver: 'XAG', gold: 'XAU', platinum: 'XPT', palladium: 'XPD' };
-    const metalKey = detectedMetal || parsed.metal || null;
-    let meltPerOz = null;
-    if (isBullion && metalKey && weight) {
-      const sym = METAL_SYM[metalKey];
-      if (sym) {
-        try {
-          const spot = await getMetalsSpotPrice(sym, 'USD');
-          meltPerOz = spot.price;
-        } catch { /* non-fatal */ }
-      }
-    }
 
     // Greysheet wholesale lookup (non-fatal)
     // When no PCGS number (generic / yearless coin), fall back to Type GSID lookup.
