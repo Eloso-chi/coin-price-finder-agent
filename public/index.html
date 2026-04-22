@@ -28,6 +28,16 @@
       --radius-lg: 12px;
       --shadow:  0 1px 3px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.15);
       --transition: 0.2s ease;
+      /* Grade-type tag colors */
+      --tag-graded-bg: #e8d5f5; --tag-graded-fg: #6b21a8;
+      --tag-proof-bg: #fde68a; --tag-proof-fg: #92400e;
+      --tag-bu-bg: #bfdbfe; --tag-bu-fg: #1e40af;
+      --tag-coa-bg: #c7d2fe; --tag-coa-fg: #3730a3;
+      --tag-sealed-bg: #d1fae5; --tag-sealed-fg: #065f46;
+      --tag-raw-bg: #d5f5e3; --tag-raw-fg: #166534;
+      /* Semantic warning colors */
+      --warning: #f66a0a; --caution: #b8860b; --chip-hint: #b48811;
+      --chip-purple: #6446c8; --chip-bronze: #b47828;
     }
 
     /* ── Reset & Base ───────────────────────────────────── */
@@ -881,11 +891,12 @@
     .mycoins-filter-count { font-size: 0.78rem; color: var(--text-muted); }
     .mycoins-sortable { cursor: pointer; user-select: none; }
     .mycoins-sortable:hover { color: var(--accent); }
+    .mycoins-sortable:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 2px; }
     .mycoins-qty-col { min-width: 80px; }
     .mycoins-qty-cell { white-space: nowrap; }
     .mycoins-qty-btn {
       background: var(--surface); border: 1px solid var(--border); color: var(--text);
-      width: 22px; height: 22px; border-radius: 4px; cursor: pointer; font-size: 0.85rem;
+      width: 24px; height: 24px; border-radius: 4px; cursor: pointer; font-size: 0.85rem;
       display: inline-flex; align-items: center; justify-content: center; padding: 0;
       vertical-align: middle;
     }
@@ -921,7 +932,7 @@
     .mycoins-fmv { font-weight: 600; color: var(--green); }
     .mycoins-range { font-size: 0.78rem; color: var(--text-muted); }
     .mycoins-date { font-size: 0.78rem; color: var(--text-muted); }
-    .mycoins-remove { background: transparent; border: none; color: var(--red); font-size: 1.1rem; cursor: pointer; padding: 2px 6px; border-radius: 4px; }
+    .mycoins-remove { background: transparent; border: none; color: var(--red); font-size: 1.1rem; cursor: pointer; padding: 2px 6px; border-radius: 4px; min-width: 24px; min-height: 24px; display: inline-flex; align-items: center; justify-content: center; }
     .mycoins-remove:hover { background: var(--red-subtle); }
     .mycoins-cost-cell { padding: 4px 6px !important; }
     .mycoins-cost-input { width: 72px; padding: 4px 6px; font-size: 0.82rem; border: 1px solid var(--border-subtle); border-radius: 4px; background: var(--surface); color: var(--text); text-align: right; }
@@ -954,6 +965,8 @@
     .mycoins-loading { text-align: center; padding: 30px; color: var(--text-muted); }
     .mycoins-error { text-align: center; padding: 20px; color: var(--red); }
     .mycoins-spot-warn { padding: 10px 16px; margin-bottom: 12px; background: var(--yellow-subtle, #332b00); border: 1px solid var(--yellow, #665500); border-radius: var(--radius); font-size: 0.84rem; color: var(--text); }
+    .mycoins-undo-toast { padding: 10px 16px; margin-bottom: 12px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); font-size: 0.85rem; color: var(--text); display: flex; align-items: center; gap: 12px; }
+    .mycoins-undo-btn { background: var(--accent); color: #fff; border: none; padding: 4px 14px; border-radius: var(--radius); cursor: pointer; font-weight: 600; font-size: 0.82rem; }
     .backup-prompt { padding: 12px 16px; margin-bottom: 14px; background: var(--yellow-subtle, #332b00); border: 1px solid var(--yellow, #665500); border-radius: var(--radius); font-size: 0.84rem; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
     .backup-prompt-icon { font-size: 1.2rem; flex-shrink: 0; }
     .backup-prompt-text { flex: 1; color: var(--text); line-height: 1.4; }
@@ -1236,7 +1249,7 @@
               <label for="coinYear">Year <span class="required" aria-hidden="true">*</span></label>
               <input id="coinYear" type="number" min="1792" max="2040" placeholder="e.g. 1921" required>
               <span class="hint" id="coinZodiacHint" style="display:none"></span>
-              <span class="hint" id="coinDesignHint" style="display:none;color:#b48811;font-weight:600"></span>
+              <span class="hint" id="coinDesignHint" style="display:none;color:var(--chip-hint);font-weight:600"></span>
               <div class="field-error-msg">Enter a valid 4-digit year</div>
             </div>
             <div class="field">
@@ -1951,7 +1964,7 @@
 
       <!-- Chart -->
       <div id="history-chart-wrap" style="position:relative;width:100%;height:360px;display:none">
-        <canvas id="history-canvas" style="width:100%;height:100%"></canvas>
+        <canvas id="history-canvas" style="width:100%;height:100%" role="img" aria-label="Price history chart showing FMV, eBay median, and melt value trends over time"></canvas>
       </div>
     </div>
   </section>
@@ -2255,7 +2268,7 @@ Silver Libertad 1 oz Proof"></textarea>
   </section>
 
   <!-- ── Auth Dialogs ── -->
-  <dialog class="auth-dialog" id="confirm-dialog" aria-labelledby="confirm-dialog-title" style="max-width:380px">
+  <dialog class="auth-dialog" id="confirm-dialog" aria-modal="true" aria-labelledby="confirm-dialog-title" style="max-width:380px">
     <h2 id="confirm-dialog-title">Confirm</h2>
     <p id="confirm-dialog-msg" style="font-size:0.88rem;color:var(--text-secondary);line-height:1.5;margin:8px 0 16px"></p>
     <div class="auth-actions">
@@ -2264,7 +2277,7 @@ Silver Libertad 1 oz Proof"></textarea>
     </div>
   </dialog>
 
-  <dialog class="auth-dialog" id="prompt-dialog" aria-labelledby="prompt-dialog-title" style="max-width:420px">
+  <dialog class="auth-dialog" id="prompt-dialog" aria-modal="true" aria-labelledby="prompt-dialog-title" style="max-width:420px">
     <h2 id="prompt-dialog-title">Input</h2>
     <p id="prompt-dialog-msg" style="font-size:0.88rem;color:var(--text-secondary);line-height:1.5;margin:8px 0 12px"></p>
     <input type="text" id="prompt-dialog-input" style="width:100%;padding:8px 10px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:0.9rem;margin-bottom:12px">
@@ -2274,7 +2287,7 @@ Silver Libertad 1 oz Proof"></textarea>
     </div>
   </dialog>
 
-  <dialog class="auth-dialog" id="alert-dialog" aria-labelledby="alert-dialog-title" style="max-width:380px">
+  <dialog class="auth-dialog" id="alert-dialog" aria-modal="true" aria-labelledby="alert-dialog-title" style="max-width:380px">
     <h2 id="alert-dialog-title">Notice</h2>
     <p id="alert-dialog-msg" style="font-size:0.88rem;color:var(--text-secondary);line-height:1.5;margin:8px 0 16px"></p>
     <div class="auth-actions">
@@ -2282,8 +2295,8 @@ Silver Libertad 1 oz Proof"></textarea>
     </div>
   </dialog>
 
-  <dialog class="auth-dialog" id="changepw-dialog">
-    <h2>Change Password</h2>
+  <dialog class="auth-dialog" id="changepw-dialog" aria-modal="true" aria-labelledby="changepw-dialog-title">
+    <h2 id="changepw-dialog-title">Change Password</h2>
     <div class="field">
       <label for="changepw-current">Current Password</label>
       <input type="password" id="changepw-current" autocomplete="current-password" placeholder="Enter current password">
@@ -2307,7 +2320,7 @@ Silver Libertad 1 oz Proof"></textarea>
     </p>
   </dialog>
 
-  <dialog class="auth-dialog" id="auth-dialog">
+  <dialog class="auth-dialog" id="auth-dialog" aria-modal="true" aria-labelledby="auth-dialog-title">
     <h2 id="auth-dialog-title">Log In</h2>
     <div class="field">
       <label for="auth-username">Username</label>
@@ -2331,8 +2344,8 @@ Silver Libertad 1 oz Proof"></textarea>
   </dialog>
 
   <!-- ── Recovery Key Display (shown once after signup) ── -->
-  <dialog class="auth-dialog" id="recovery-show-dialog" style="max-width:420px">
-    <h2>&#x1F511; Your Recovery Key</h2>
+  <dialog class="auth-dialog" id="recovery-show-dialog" aria-modal="true" aria-labelledby="recovery-show-dialog-title" style="max-width:420px">
+    <h2 id="recovery-show-dialog-title">&#x1F511; Your Recovery Key</h2>
     <p class="recovery-warning">
       <strong>Write these 8 words down and store them somewhere safe.</strong><br>
       This is the <strong>only</strong> way to recover your account if you forget your password.
@@ -2349,8 +2362,8 @@ Silver Libertad 1 oz Proof"></textarea>
   </dialog>
 
   <!-- ── Recovery Login Dialog ── -->
-  <dialog class="auth-dialog" id="recovery-login-dialog">
-    <h2>&#x1F511; Recover Account</h2>
+  <dialog class="auth-dialog" id="recovery-login-dialog" aria-modal="true" aria-labelledby="recovery-login-dialog-title">
+    <h2 id="recovery-login-dialog-title">&#x1F511; Recover Account</h2>
     <div class="field">
       <label for="recovery-username">Username</label>
       <input type="text" id="recovery-username" autocomplete="username" placeholder="Your username">
@@ -2370,8 +2383,8 @@ Silver Libertad 1 oz Proof"></textarea>
   </dialog>
 
   <!-- ── Set New Password After Recovery ── -->
-  <dialog class="auth-dialog" id="recovery-newpw-dialog">
-    <h2>&#x1F512; Set New Password</h2>
+  <dialog class="auth-dialog" id="recovery-newpw-dialog" aria-modal="true" aria-labelledby="recovery-newpw-dialog-title">
+    <h2 id="recovery-newpw-dialog-title">&#x1F512; Set New Password</h2>
     <p style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:12px">
       Recovery successful! Set a new password for your account.
     </p>
@@ -3224,11 +3237,11 @@ Silver Libertad 1 oz Proof"></textarea>
       // Data source warning
       var ds = v.dataSource;
       if (ds && ds.browseOnly) {
-        html += '<div style="margin-top:6px;padding:6px 10px;background:rgba(246,106,10,0.08);border:1px solid rgba(246,106,10,0.3);border-radius:6px;font-size:0.78rem;color:#f66a0a">';
+        html += '<div style="margin-top:6px;padding:6px 10px;background:rgba(246,106,10,0.08);border:1px solid rgba(246,106,10,0.3);border-radius:6px;font-size:0.78rem;color:var(--warning)">';
         html += '\u26a0\ufe0f <strong>No sold data available</strong> \u2014 FMV is based entirely on asking prices (active listings). Actual market value may be lower.';
         html += '</div>';
       } else if (ds && ds.label === 'mostly-asking') {
-        html += '<div style="margin-top:6px;padding:6px 10px;background:rgba(218,165,32,0.08);border:1px solid rgba(218,165,32,0.3);border-radius:6px;font-size:0.78rem;color:#b8860b">';
+        html += '<div style="margin-top:6px;padding:6px 10px;background:rgba(218,165,32,0.08);border:1px solid rgba(218,165,32,0.3);border-radius:6px;font-size:0.78rem;color:var(--caution)">';
         html += '\u26a0\ufe0f <strong>Limited sold data</strong> \u2014 Only ' + ds.soldCount + ' of ' + ds.totalComps + ' comps are verified sales. FMV may be less accurate.';
         html += '</div>';
       }
@@ -3243,17 +3256,17 @@ Silver Libertad 1 oz Proof"></textarea>
       if (d.coinData?.label) html += '<span class="fmv-chip" title="Graded slab label">&#x1F3F7;&#xFE0F; ' + _esc(d.coinData.label) + '</span>';
       // Low-data warning badge (#40)
       if (v.lowData) {
-        html += '<div style="margin-top:6px;padding:6px 10px;background:rgba(220,38,38,0.08);border:1px solid rgba(220,38,38,0.35);border-radius:6px;font-size:0.78rem;color:#dc2626">';
+        html += '<div style="margin-top:6px;padding:6px 10px;background:rgba(220,38,38,0.08);border:1px solid rgba(220,38,38,0.35);border-radius:6px;font-size:0.78rem;color:var(--accent-red)">';
         html += '&#9888;&#65039; <strong>Low confidence</strong> -- only ' + (v.compCount || 0) + ' sold comp' + (v.compCount === 1 ? '' : 's') + '. Cross-reference with dealer prices before buying or selling.';
         html += '</div>';
       }
       // Sale context chip (#55)
       if (v.saleContext && v.saleContext !== 'eBay Retail') {
-        html += '<span class="fmv-chip" style="background:rgba(100,70,200,0.08);border-color:rgba(100,70,200,0.25);color:#6446c8;font-weight:600" title="Buy/sell thresholds adjusted for sale venue">&#x1F3F7;&#xFE0F; ' + _esc(v.saleContext) + '</span>';
+        html += '<span class="fmv-chip" style="background:rgba(100,70,200,0.08);border-color:rgba(100,70,200,0.25);color:var(--chip-purple);font-weight:600" title="Buy/sell thresholds adjusted for sale venue">&#x1F3F7;&#xFE0F; ' + _esc(v.saleContext) + '</span>';
       }
       // Appeal multiplier chip (#56)
       if (v.appealMultiplier && v.appealMultiplier > 1.0) {
-        html += '<span class="fmv-chip" style="background:rgba(180,120,40,0.08);border-color:rgba(180,120,40,0.25);color:#b47828;font-weight:600" title="FMV adjusted for toning/visual appeal premium">&#x1F3A8; Appeal ' + v.appealMultiplier.toFixed(2) + '&times;</span>';
+        html += '<span class="fmv-chip" style="background:rgba(180,120,40,0.08);border-color:rgba(180,120,40,0.25);color:var(--chip-bronze);font-weight:600" title="FMV adjusted for toning/visual appeal premium">&#x1F3A8; Appeal ' + v.appealMultiplier.toFixed(2) + '&times;</span>';
       }
       // Greysheet liquidity spread chip (#54) — bar section
       if (v.greysheetSpread) {
@@ -3317,7 +3330,7 @@ Silver Libertad 1 oz Proof"></textarea>
       var allComps = d.ebay?.us?.comps || [];
       var hasSoldComps = allComps.some(function(c) { return c._source !== 'browse'; });
       if (allComps.length > 0 && !hasSoldComps) {
-        html += '<div style="margin:8px 0 12px;padding:10px 14px;background:rgba(220,38,38,0.08);border:1px solid rgba(220,38,38,0.35);border-radius:8px;font-size:0.85rem;color:#dc2626;display:flex;align-items:center;gap:8px">';
+        html += '<div style="margin:8px 0 12px;padding:10px 14px;background:rgba(220,38,38,0.08);border:1px solid rgba(220,38,38,0.35);border-radius:8px;font-size:0.85rem;color:var(--accent-red);display:flex;align-items:center;gap:8px">';
         html += '<span style="font-size:1.3rem">⚠️</span>';
         html += '<div><strong>No Sold Comps Available</strong><br>';
         html += '<span style="font-size:0.78rem;opacity:0.85">All ' + allComps.length + ' comps below are active <em>for-sale</em> listings (not sold). ';
@@ -3363,24 +3376,24 @@ Silver Libertad 1 oz Proof"></textarea>
         html += '<details class="card pcgs-details" open>';
         html += '<summary>US Comps (' + sortedComps.length + ')</summary>';
         html += '<table><thead><tr><th>#</th><th>Title</th><th>Total</th><th>Source</th><th>Type</th><th>Match</th><th>Date</th></tr></thead><tbody>';
-        sortedComps.slice(0, 30).forEach(function(c, i) {
+        sortedComps.forEach(function(c, i) {
           const mq = c.matchQuality || 'loose';
           const mqTag = '<span class="match-tag match-' + mq + '">' + mq + '</span>';
           // Detailed type label: graded > proof > BU > COA > sealed > raw
           const _t = (c.title || '').toLowerCase();
           let gtLabel;
           if (c.gradeType === 'graded') {
-            gtLabel = '<span class="match-tag" style="background:#e8d5f5;color:#6b21a8">graded</span>';
+            gtLabel = '<span class="match-tag" style="background:var(--tag-graded-bg);color:var(--tag-graded-fg)">graded</span>';
           } else if (/\bproof\b/i.test(_t)) {
-            gtLabel = '<span class="match-tag" style="background:#fde68a;color:#92400e">proof</span>';
+            gtLabel = '<span class="match-tag" style="background:var(--tag-proof-bg);color:var(--tag-proof-fg)">proof</span>';
           } else if (/\bbu\b|\bbrillia?nt\s*unc/i.test(_t)) {
-            gtLabel = '<span class="match-tag" style="background:#bfdbfe;color:#1e40af">BU</span>';
+            gtLabel = '<span class="match-tag" style="background:var(--tag-bu-bg);color:var(--tag-bu-fg)">BU</span>';
           } else if (/\bcoa\b|certificate/i.test(_t)) {
-            gtLabel = '<span class="match-tag" style="background:#c7d2fe;color:#3730a3">COA</span>';
+            gtLabel = '<span class="match-tag" style="background:var(--tag-coa-bg);color:var(--tag-coa-fg)">COA</span>';
           } else if (/\bsealed\b|\bmint\s*sealed\b|\bcapsule\b/i.test(_t)) {
-            gtLabel = '<span class="match-tag" style="background:#d1fae5;color:#065f46">sealed</span>';
+            gtLabel = '<span class="match-tag" style="background:var(--tag-sealed-bg);color:var(--tag-sealed-fg)">sealed</span>';
           } else {
-            gtLabel = '<span class="match-tag" style="background:#d5f5e3;color:#166534">raw</span>';
+            gtLabel = '<span class="match-tag" style="background:var(--tag-raw-bg);color:var(--tag-raw-fg)">raw</span>';
           }
           const isActive = c._source === 'browse';
           const isTerapeak = c._source === 'terapeak';
@@ -3390,7 +3403,10 @@ Silver Libertad 1 oz Proof"></textarea>
             ? '<span class="match-tag source-tag-sold" style="background:rgba(46,204,113,0.15);font-weight:700">TERAPEAK</span>'
             : '<span class="match-tag source-tag-sold">SOLD</span>';
           const rowClass = isActive ? ' class="active-listing-row"' : '';
-          html += '<tr' + rowClass + '><td>' + (i + 1) + '</td>';
+          const hiddenAttr = i >= 30 ? ' class="comps-hidden-row" style="display:none"' : '';
+          const trCls = (isActive ? 'active-listing-row' : '') + (i >= 30 ? (isActive ? ' ' : '') + 'comps-hidden-row' : '');
+          const trStyle = i >= 30 ? ' style="display:none"' : '';
+          html += '<tr' + (trCls ? ' class="' + trCls + '"' : '') + trStyle + '><td>' + (i + 1) + '</td>';
           html += '<td><a href="' + _escUrl(c.url) + '" target="_blank" rel="noopener">' + _esc((c.title || '').substring(0, 70)) + '</a></td>';
           html += '<td>' + $(c.totalUsd) + '</td>';
           html += '<td>' + sourceTag + '</td>';
@@ -3398,7 +3414,11 @@ Silver Libertad 1 oz Proof"></textarea>
           html += '<td>' + mqTag + '</td>';
           html += '<td>' + (c.soldDate ? c.soldDate.substring(0, 10) : (isActive ? 'Active' : '\u2014')) + '</td></tr>';
         });
-        html += '</tbody></table></details>';
+        html += '</tbody></table>';
+        if (sortedComps.length > 30) {
+          html += '<button class="comps-show-all" style="display:block;margin:8px auto;padding:6px 16px;font-size:0.82rem;cursor:pointer;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);color:var(--accent)">Show all ' + sortedComps.length + ' comps</button>';
+        }
+        html += '</details>';
       }
 
       // \u2500\u2500 Reasoning
@@ -3414,6 +3434,15 @@ Silver Libertad 1 oz Proof"></textarea>
       html += '<pre class="json">' + _esc(JSON.stringify(d, null, 2)) + '</pre></details>';
 
       container.innerHTML = html;
+
+      // Wire "Show all" comps buttons
+      container.querySelectorAll('.comps-show-all').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          var details = btn.closest('.pcgs-details');
+          if (details) details.querySelectorAll('.comps-hidden-row').forEach(function(tr) { tr.style.display = ''; });
+          btn.remove();
+        });
+      });
     }
   };
 
@@ -3898,7 +3927,7 @@ Silver Libertad 1 oz Proof"></textarea>
     if (coinLabel) html += '<div class="coin-id">' + _esc(coinLabel) + '</div>';
     // Show design series label for half dollars (from coinVariant resolver)
     if (d.coinVariant && d.coinVariant.designName && d.coinVariant.designName !== 'Unknown') {
-      html += '<div class="coin-variant-label" style="font-size:0.92em;color:#b48811;margin-top:2px;font-weight:600">';
+      html += '<div class="coin-variant-label" style="font-size:0.92em;color:var(--chip-hint);margin-top:2px;font-weight:600">';
       html += '\uD83E\uDE99 ' + _esc(d.coinVariant.label);
       if (d.coinVariant.composition) html += ' &mdash; ' + _esc(d.coinVariant.composition);
       html += '</div>';
@@ -4052,17 +4081,17 @@ Silver Libertad 1 oz Proof"></textarea>
     // Data source warning (browseOnly / mostly-asking)
     var ds = v.dataSource;
     if (ds && ds.browseOnly) {
-      html += '<div style="margin-top:6px;padding:6px 10px;background:rgba(246,106,10,0.08);border:1px solid rgba(246,106,10,0.3);border-radius:6px;font-size:0.78rem;color:#f66a0a">';
+      html += '<div style="margin-top:6px;padding:6px 10px;background:rgba(246,106,10,0.08);border:1px solid rgba(246,106,10,0.3);border-radius:6px;font-size:0.78rem;color:var(--warning)">';
       html += '\u26a0\ufe0f <strong>No sold data available</strong> \u2014 FMV is based entirely on asking prices (active listings). Actual market value may be lower.';
       html += '</div>';
     } else if (ds && ds.label === 'mostly-asking') {
-      html += '<div style="margin-top:6px;padding:6px 10px;background:rgba(218,165,32,0.08);border:1px solid rgba(218,165,32,0.3);border-radius:6px;font-size:0.78rem;color:#b8860b">';
+      html += '<div style="margin-top:6px;padding:6px 10px;background:rgba(218,165,32,0.08);border:1px solid rgba(218,165,32,0.3);border-radius:6px;font-size:0.78rem;color:var(--caution)">';
       html += '\u26a0\ufe0f <strong>Limited sold data</strong> \u2014 Only ' + ds.soldCount + ' of ' + ds.totalComps + ' comps are verified sales. FMV may be less accurate.';
       html += '</div>';
     }
     // Low-data warning (#40) — mirror of bar section
     if (v.lowData) {
-      html += '<div style="margin-top:6px;padding:6px 10px;background:rgba(220,38,38,0.08);border:1px solid rgba(220,38,38,0.35);border-radius:6px;font-size:0.78rem;color:#dc2626">';
+      html += '<div style="margin-top:6px;padding:6px 10px;background:rgba(220,38,38,0.08);border:1px solid rgba(220,38,38,0.35);border-radius:6px;font-size:0.78rem;color:var(--accent-red)">';
       html += '&#9888;&#65039; <strong>Low confidence</strong> -- only ' + (v.compCount || 0) + ' sold comp' + (v.compCount === 1 ? '' : 's') + '. Cross-reference with dealer prices before buying or selling.';
       html += '</div>';
     }
@@ -4271,18 +4300,23 @@ Silver Libertad 1 oz Proof"></textarea>
       if (excludedCount > 0) html += ' <small style="opacity:.6">(' + excludedCount + ' ' + (poolType === 'graded' ? 'raw' : 'graded') + ' excluded)</small>';
       html += '</summary>';
       html += '<table><thead><tr><th>#</th><th>Title</th><th>Total</th><th>Type</th><th>Match</th><th>Date</th></tr></thead><tbody>';
-      displayComps.slice(0, 30).forEach(function(c, i) {
+      displayComps.forEach(function(c, i) {
         const mq = c.matchQuality || 'loose';
         const mqTag = '<span class="match-tag match-' + mq + '">' + mq + '</span>';
-        const gtLabel = c.gradeType === 'graded' ? '<span class="match-tag" style="background:#e8d5f5;color:#6b21a8">graded</span>' : '<span class="match-tag" style="background:#d5f5e3;color:#166534">raw</span>';
-        html += '<tr><td>' + (i + 1) + '</td>';
+        const gtLabel = c.gradeType === 'graded' ? '<span class="match-tag" style="background:var(--tag-graded-bg);color:var(--tag-graded-fg)">graded</span>' : '<span class="match-tag" style="background:var(--tag-raw-bg);color:var(--tag-raw-fg)">raw</span>';
+        const trHidden = i >= 30 ? ' class="comps-hidden-row" style="display:none"' : '';
+        html += '<tr' + trHidden + '><td>' + (i + 1) + '</td>';
         html += '<td><a href="' + _escUrl(c.url) + '" target="_blank" rel="noopener">' + _esc((c.title || '').substring(0, 70)) + '</a></td>';
         html += '<td>' + $(c.totalUsd) + '</td>';
         html += '<td>' + gtLabel + '</td>';
         html += '<td>' + mqTag + '</td>';
-        html += '<td>' + (c.soldDate ? c.soldDate.substring(0, 10) : '—') + '</td></tr>';
+        html += '<td>' + (c.soldDate ? c.soldDate.substring(0, 10) : '\u2014') + '</td></tr>';
       });
-      html += '</tbody></table></details>';
+      html += '</tbody></table>';
+      if (displayComps.length > 30) {
+        html += '<button class="comps-show-all" style="display:block;margin:8px auto;padding:6px 16px;font-size:0.82rem;cursor:pointer;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);color:var(--accent)">Show all ' + displayComps.length + ' comps</button>';
+      }
+      html += '</details>';
     }
 
     // ── Valuation Reasoning ───────────────────────────────
@@ -4313,6 +4347,15 @@ Silver Libertad 1 oz Proof"></textarea>
         e.preventDefault();
         var tabBtn = document.getElementById(a.dataset.tab);
         if (tabBtn) tabBtn.click();
+      });
+    });
+
+    // Wire "Show all" comps buttons
+    r.querySelectorAll('.comps-show-all').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var details = btn.closest('.pcgs-details');
+        if (details) details.querySelectorAll('.comps-hidden-row').forEach(function(tr) { tr.style.display = ''; });
+        btn.remove();
       });
     });
   }
@@ -6927,7 +6970,7 @@ Silver Libertad 1 oz Proof"></textarea>
 
   <footer class="site-footer">
     Coin Price Agent is a free, non-commercial side project. Not financial advice. Provided &ldquo;as is&rdquo; without warranty. Use at your own risk.
-    <a onclick="document.getElementById('tab-about').click()">Read full disclaimer</a>.
+    <a href="#panel-about" onclick="document.getElementById('tab-about').click();return false">Read full disclaimer</a>.
   </footer>
 
 </body>

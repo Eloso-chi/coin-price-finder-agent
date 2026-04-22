@@ -130,14 +130,38 @@ const MyCoins = (() => {
         const checked = _container.querySelectorAll('.mycoins-row-check:checked');
         const hashes = Array.from(checked).map(cb => cb.getAttribute('data-hash'));
         if (!hashes.length) return;
-        if (!(await _confirm('Delete ' + hashes.length + ' selected coin(s)? This cannot be undone.'))) return;
+        if (!(await _confirm('Delete ' + hashes.length + ' selected coin(s)?'))) return;
         const user = CoinAuth.currentUser();
         if (!user) return;
+
+        // Hide rows immediately, show undo toast for 5s
+        hashes.forEach(h => {
+          var row = _container.querySelector('tr:has(.mycoins-row-check[data-hash="' + h + '"])');
+          if (row) row.style.display = 'none';
+        });
         delBtn.disabled = true;
-        delBtn.textContent = 'Deleting: 0 / ' + hashes.length + '\u2026';
+        var undone = false;
+        var toast = document.createElement('div');
+        toast.className = 'mycoins-undo-toast';
+        toast.setAttribute('role', 'status');
+        toast.innerHTML = hashes.length + ' coin(s) removed. <button class="mycoins-undo-btn">Undo</button>';
+        _container.prepend(toast);
+        var undoBtn = toast.querySelector('.mycoins-undo-btn');
+        undoBtn.addEventListener('click', function() {
+          undone = true;
+          toast.remove();
+          hashes.forEach(h => {
+            var row = _container.querySelector('tr:has(.mycoins-row-check[data-hash="' + h + '"])');
+            if (row) row.style.display = '';
+          });
+          delBtn.disabled = false;
+          _updateBulkBar();
+        });
+        await new Promise(r => setTimeout(r, 5000));
+        toast.remove();
+        if (undone) return;
         for (let di = 0; di < hashes.length; di++) {
           await CoinStorage.removeCoin(user.userId, hashes[di]);
-          delBtn.textContent = 'Deleting: ' + (di + 1) + ' / ' + hashes.length + '\u2026';
         }
         render(true);
         return;
@@ -183,11 +207,16 @@ const MyCoins = (() => {
       }
     }, true); // useCapture for blur (doesn't bubble)
 
-    // Keydown delegation: inline cost & qty editing (Enter/Escape)
+    // Keydown delegation: inline cost & qty editing (Enter/Escape) + sortable headers
     _container.addEventListener('keydown', (e) => {
       if (e.target.classList.contains('mycoins-cost-input') || e.target.classList.contains('mycoins-qty-input')) {
         if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); }
         if (e.key === 'Escape') { e.target.blur(); }
+      }
+      // Sortable column headers: Enter/Space triggers sort
+      if ((e.key === 'Enter' || e.key === ' ') && e.target.closest('.mycoins-sortable')) {
+        e.preventDefault();
+        e.target.closest('.mycoins-sortable').click();
       }
     });
   }
@@ -514,8 +543,9 @@ const MyCoins = (() => {
   }
 
   function _ariaSortAttr(col) {
-    if (_sortCol !== col) return ' aria-sort="none"';
-    return _sortAsc ? ' aria-sort="ascending"' : ' aria-sort="descending"';
+    const base = ' tabindex="0" role="columnheader button"';
+    if (_sortCol !== col) return base + ' aria-sort="none"';
+    return base + (_sortAsc ? ' aria-sort="ascending"' : ' aria-sort="descending"');
   }
 
   function _renderTable(items) {
@@ -558,7 +588,7 @@ const MyCoins = (() => {
       html += '</div>';
       html += '<div class="mycoins-total">';
       html += '<span class="mycoins-total-label">Unrealized P/L</span>';
-      html += '<span class="mycoins-total-value" style="color:' + (totalPL >= 0 ? 'var(--green)' : 'var(--red, #e74c3c)') + '">' + (totalPL >= 0 ? '\u25B2 +' : '\u25BC ') + _$(totalPL) + '</span>';
+      html += '<span class="mycoins-total-value" style="color:' + (totalPL >= 0 ? 'var(--green)' : 'var(--red, #e74c3c)') + '">' + (totalPL >= 0 ? '\u25B2 +' : '\u25BC \u2212') + _$(Math.abs(totalPL)) + '</span>';
       html += '</div>';
     }
     html += '<div class="mycoins-count">';
@@ -665,9 +695,9 @@ const MyCoins = (() => {
       const pl = (it.fmv != null && c.costPer != null) ? (it.fmv - c.costPer) * qty : null;
       if (pl != null) {
         const plColor = pl >= 0 ? 'var(--green)' : 'var(--red, #e74c3c)';
-        const plArrow = pl >= 0 ? '\u25B2 +' : '\u25BC ';
+        const plArrow = pl >= 0 ? '\u25B2 +' : '\u25BC \u2212';
         const plLabel = (pl >= 0 ? 'Profit of ' : 'Loss of ') + _$(Math.abs(pl));
-        html += '<td style="color:' + plColor + ';font-weight:600" aria-label="' + _escAttr(plLabel) + '">' + plArrow + _$(pl) + '</td>';
+        html += '<td style="color:' + plColor + ';font-weight:600" aria-label="' + _escAttr(plLabel) + '">' + plArrow + _$(Math.abs(pl)) + '</td>';
       } else {
         html += '<td>\u2014</td>';
       }
@@ -686,6 +716,10 @@ const MyCoins = (() => {
       html += '</tr>';
     });
 
+    if (!pageSlice.length && _filterText) {
+      html += '<tr><td colspan="16" style="text-align:center;padding:24px;color:var(--text-muted)">No coins match \u201c' + _esc(_filterText) + '\u201d. Try a broader search.</td></tr>';
+    }
+
     html += '</tbody></table></div>';
 
     // Pagination controls
@@ -697,15 +731,34 @@ const MyCoins = (() => {
       html += '</div>';
     }
 
+    // Save focus state before re-render
+    var _focusHash = null, _focusClass = null, _focusSelStart = null, _focusSelEnd = null;
+    var ae = document.activeElement;
+    if (ae && _container.contains(ae)) {
+      _focusClass = ae.classList.contains('mycoins-cost-input') ? 'mycoins-cost-input'
+        : ae.classList.contains('mycoins-qty-input') ? 'mycoins-qty-input'
+        : ae.classList.contains('mycoins-filter-input') ? 'mycoins-filter-input' : null;
+      if (_focusClass && _focusClass !== 'mycoins-filter-input') {
+        var fc = ae.closest('[data-hash]');
+        _focusHash = fc ? fc.getAttribute('data-hash') : null;
+      }
+      _focusSelStart = ae.selectionStart;
+      _focusSelEnd = ae.selectionEnd;
+    }
+
     _container.innerHTML = html;
 
-    // Restore focus to search input after re-render
-    if (_filterText) {
-      const filterInput = _container.querySelector('.mycoins-filter-input');
-      if (filterInput) {
-        filterInput.focus();
-        filterInput.setSelectionRange(filterInput.value.length, filterInput.value.length);
-      }
+    // Restore focus after re-render
+    var toFocus = null;
+    if (_focusClass === 'mycoins-filter-input') {
+      toFocus = _container.querySelector('.mycoins-filter-input');
+    } else if (_focusClass && _focusHash) {
+      var cell = _container.querySelector('[data-hash="' + _focusHash + '"]');
+      if (cell) toFocus = cell.querySelector('.' + _focusClass);
+    }
+    if (toFocus) {
+      toFocus.focus();
+      if (_focusSelStart != null) toFocus.setSelectionRange(_focusSelStart, _focusSelEnd);
     }
   }
 
