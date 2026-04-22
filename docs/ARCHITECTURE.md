@@ -64,7 +64,7 @@ server.js                              Express entry point (port 3000)
 │   └─ greysheetTypeMap.js             Series-to-GSID mapping (55 MS + 18 Proof) + finish detection
 │
 ├─ public/
-│   ├─ index.html                      SPA frontend (dark theme, 8 tabs)
+│   ├─ index.html                      SPA frontend (dark theme, 9 tabs)
 │   └─ js/
 │       ├─ auth.js                     CoinAuth -- server-backed login/signup (JWT in memory)
 │       ├─ storage.js                  CoinStorage -- server-backed coin CRUD via /api/coins/*
@@ -94,7 +94,7 @@ server.js                              Express entry point (port 3000)
 │   ├─ vnc-login.py                    VNC + eBay login helper for Playwright sessions
 │   └─ test-metrics/                   Jest metrics capture + summary reporter
 │
-└─ __tests__/                          40 Jest test suites
+└─ __tests__/                          48 Jest test suites
     └─ helpers/
         └─ coinTestConstants.js        Shared token lists & test utilities
 ```
@@ -729,7 +729,7 @@ The valuation engine separates eBay comps by `gradeType`:
 
 ## Client-Side Architecture
 
-The frontend is a single-page app in `public/index.html` (~5,250 lines) with three external JavaScript modules. Authentication and coin storage are handled server-side via bcrypt + JWT; the client modules are thin API wrappers.
+The frontend is a single-page app in `public/index.html` (~7,000 lines) with three external JavaScript modules. Authentication and coin storage are handled server-side via bcrypt + JWT; the client modules are thin API wrappers.
 
 ### Module Dependency Graph
 
@@ -838,10 +838,13 @@ Portfolio renderer with batch pricing. Depends on `CoinAuth`, `CoinStorage`, and
 
 | Function | Purpose |
 |----------|---------|
-| `render()` | Main entry: check auth -> fetch coins from server -> `_fetchPricing` -> `_renderTable` |
+| `render()` | Main entry: check auth -> fetch coins from server -> `_fetchPricing` -> `_renderTable`. 2-minute render cache (`RENDER_CACHE_TTL`); tab-switch uses cached render, mutations pass `force=true`. |
 | `_fetchPricing(coins)` | POST `/api/pricing-batch` in chunks of 25. Extracts `fmv`, `rangeLow`, `rangeHigh`, `avgEbay`, `confidence`. |
-| `_renderTable(items)` | Portfolio summary card + sortable/filterable/paginated HTML table with inline qty +/-, cost editing, bulk delete, melt values. |
-| `_setupDelegation()` | Single set of delegated event handlers wired on `init()` (click, change, input, blur, keydown). |
+| `_fetchSpotPrices()` | Fetches spot prices from `/api/metals` for melt-value column. Sets `_spotFetchFailed` flag on error, showing a `role="alert"` warning banner. |
+| `_renderTable(items)` | Portfolio summary card + sortable/filterable/paginated HTML table with inline qty +/-, cost editing, bulk delete with 5s undo toast, melt values, color-coded grade tags. Focus/selection state saved and restored across innerHTML re-renders. Empty filter state shows helpful message. Notes column has `title` attribute for hover disclosure. |
+| `_setupDelegation()` | Single set of delegated event handlers wired on `init()` (click, change, input, blur, keydown). Includes Enter/Space handler for keyboard-operable sortable column headers. |
+| `_ariaSortAttr(col)` | Emits `tabindex="0" role="columnheader button"` and `aria-sort` attribute for sortable headers. |
+| `invalidate()` | Exposed for external callers (e.g. "I have this coin" button) to force re-render on next tab switch. |
 
 ### Index.html Inline JavaScript
 
@@ -878,3 +881,67 @@ Price Discovery --CoinHistoryLink.setCoin()--> Price History
 | `cache/users.json` + Cosmos `users` | authService | `{ [username]: { userId, hash, createdAt } }` |
 | `cache/user_coins.json` + Cosmos `user-coins` | coinStorageService | `{ [userId]: coin[] }` |
 | In-memory `_session` | CoinAuth (client) | `{ username, userId, token }` -- lost on reload |
+
+---
+
+## CSS Design System
+
+The SPA uses CSS custom properties for theming. The dark theme defines 36+ tokens on `:root`:
+
+### Core Palette
+
+| Variable | Value | Purpose |
+|----------|-------|---------|
+| `--bg` | `#181a20` | Page background |
+| `--surface` | `#23262f` | Card/panel background |
+| `--surface-alt` | `#2a2d37` | Alternate surface (table stripes, hover) |
+| `--border` | `#333` | Default border |
+| `--text` | `#e0e0e0` | Primary text |
+| `--muted` | `#aaa` | Secondary/muted text |
+| `--accent` | `#4fc3f7` | Primary accent (links, active tab) |
+| `--accent-dim` | `#2a7a9b` | Dimmed accent (hover state) |
+| `--green` | `#43a047` | Positive values (gains) |
+| `--red` | `#e53935` | Negative values (losses), remove buttons |
+| `--gold` | `#ffd54f` | Gold accent, premium highlights |
+
+### Grade Tag Tokens (added S3)
+
+| Variable | Purpose |
+|----------|---------|
+| `--tag-graded-bg` / `--tag-graded-fg` | Graded coin tag (blue) |
+| `--tag-proof-bg` / `--tag-proof-fg` | Proof coin tag (purple) |
+| `--tag-bu-bg` / `--tag-bu-fg` | BU/Uncirculated tag (green) |
+| `--tag-coa-bg` / `--tag-coa-fg` | COA (Certificate of Authenticity) tag |
+| `--tag-sealed-bg` / `--tag-sealed-fg` | Sealed/original packaging tag |
+| `--tag-raw-bg` / `--tag-raw-fg` | Raw (ungraded) coin tag |
+
+### Feedback Tokens (added S3)
+
+| Variable | Purpose |
+|----------|---------|
+| `--warning` | Warning state (spot-price failure banner) |
+| `--caution` | Caution state (low confidence) |
+| `--chip-hint` | Informational chip background |
+| `--chip-purple` | Purple chip accent |
+| `--chip-bronze` | Bronze chip accent |
+
+### Responsive Breakpoints
+
+| Width | Behavior |
+|-------|----------|
+| 1200px | My Coins hides Range, eBay Avg columns |
+| 900px | Hides Troy Oz, Melt columns |
+| 700px | Tab labels shrink to 0.85rem |
+| 600px | Hides Notes, Date Added columns; full compact mode |
+| 500px | Tab labels shrink to 0.78rem |
+| 400px | Tab labels shrink to 0.72rem |
+
+### Accessibility
+
+- `prefers-reduced-motion: reduce` -- disables spinner animation
+- Skip-navigation link: `.skip-nav` (visually hidden, positioned on `:focus`)
+- All interactive targets >= 24x24px (WCAG 2.5.8)
+- `aria-modal="true"` + `aria-labelledby` on all `<dialog>` elements
+- Sortable headers: `tabindex="0"`, `role="columnheader button"`, `aria-sort`
+- `<canvas>` has `aria-label` for screen readers
+- Tab bar uses `mask-image` gradient to indicate scroll overflow on mobile

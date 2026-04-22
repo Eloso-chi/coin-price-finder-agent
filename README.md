@@ -31,13 +31,13 @@ The browser UI is a single-page app served from `public/index.html` with a dark 
 | Tab | Description |
 |-----|-------------|
 | **Price Discovery** | Main search — two sub-modes: Coin (structured or quick-search entry) and Bar/Bullion. Submits to `/api/price` or `/api/bar-price`. Renders FMV hero card with image gallery, confidence score, buy/sell decisions, metadata chips, eBay stats, comp list, and raw JSON. |
-| **Melt Calculator** | Offline calculator for 80+ US coin types and 20 bar sizes. Auto-fetches spot prices from `/api/metals` and polls every 5 minutes. Shows per-coin, per-roll, and total melt values at spot and spot+premium. |
+| **Melt Calculator** | Offline calculator for 80+ US coin types and 20 bar sizes. Auto-fetches spot prices from `/api/metals` and polls every 5 minutes. Shows per-coin, per-roll, and total melt values at spot and spot+premium. Quantity minimum enforced at 1. |
 | **Live eBay Tracker** | Market matrix from `/api/market/ebay`. Three display modes: Year × Mint (numismatic coins), Year × Grade (bullion), and Brand table (bars). Cells show median sold price, cheapest BIN link, key date badge, and Numista rarity. Color-coded legend. |
 | **Lot Evaluator** | Bulk collection pricing tool. Accepts a text list (one coin per line, pipe-delimited fields), JSON array, or Excel upload. Submits to `POST /api/bulk-evaluate`, then streams results via SSE. Shows per-coin FMV table with progress bar, lot summary card (total FMV, melt, avg confidence, bullion %), and three buy tiers (cherry-pick, fair lot, full retail). Applies lot-level discounts for size, low confidence, and concentration risk. Export results as CSV or JSON. |
 | **Sold Data** | Terapeak CSV import UI (drag-and-drop or file picker) with search term input. Datasets list with delete. Visual daily quota meter (250/day default) with manual logging and reset. Admin endpoints require `x-api-key`. |
-| **My Coins** 🔒 | Auth-gated. Server-side coin collection (persisted in `cache/user_coins.json` + Azure Cosmos DB write-through). Shows portfolio summary (total FMV, total cost, unrealized P/L, coin count) and full table with per-coin FMV, confidence, Troy Oz, cost basis, P/L, melt value, eBay average, range, notes, date added, and remove button. Checkbox column with select-all for multi-select bulk delete. Collapsible column guide explains all 14 columns. Export/Import backup buttons (JSON and Excel .xlsx), Change Password. |
+| **My Coins** 🔒 | Auth-gated. Server-side coin collection (persisted in `cache/user_coins.json` + Azure Cosmos DB write-through). Shows portfolio summary (total FMV, total cost, unrealized P/L, coin count) and full table with per-coin FMV, confidence, Troy Oz, cost basis, P/L, melt value, eBay average, range, notes, date added, and remove button. Checkbox column with select-all for multi-select bulk delete with 5-second undo toast. Keyboard-operable sortable column headers (Enter/Space). Focus and selection state preserved across re-renders. Empty filter state shows a helpful message. Notes column shows full text on hover via title attribute. Spot-price fetch failure shows a warning banner. Color-coded grade tags (Graded, Proof, BU, COA, Sealed, Raw). Responsive column hiding at narrow viewports. Collapsible column guide explains all 16 columns. Export/Import backup buttons (JSON and Excel .xlsx), Change Password. |
 | **Price History** 🔒 | Auth-gated. Canvas-drawn chart from `/api/coin-history`. Shows daily median prices with IQR band, outlier dots, and optional precious-metal spot overlay (dashed line). Supports 90/180/365-day ranges. |
-| **About** | Confidence score key, privacy/security explanation, how login works, feature previews for logged-out users, and legal disclaimer. |
+| **About** | Confidence score key, privacy/security explanation, how login works, feature previews for logged-out users, and legal disclaimer. Renamed from "About (read me)" for brevity. |
 | **Admin** 🔒 | Hidden by default. Unlocked by entering the admin API key. Dashboard (uptime, total users, CSV datasets, Terapeak quota), users table, data health (total files, empty files, oldest/newest dates), stale datasets table, clear cache button, force Terapeak reimport button. Locked/unlocked state stored in sessionStorage. |
 
 ### Server-Side Auth (bcrypt + JWT)
@@ -715,6 +715,40 @@ The project includes ~1,200 Terapeak CSV files in `data/terapeak/` containing re
 - **Greysheet liquidity spread** (#54) -- `computeConfidence()` now factors in the wholesale-to-retail spread: tight spread (<=15%) adds +5 confidence, wide spread (>=40%) subtracts -5. Response includes `greysheetSpread: { spreadPct, liquidity, wholesale, retail }`. UI shows a color-coded chip (green/yellow/red).
 - **Adjacent-year context** (#41) -- `buildAdjacentYearContext()` in priceRoute queries Terapeak for the same series +/- 2 years when `soldCount < 5`. Returns `adjacentYears: [{ year, median, compCount }]`. Displayed in both bar and coin UI paths as informational chips (not blended into FMV).
 - **Image proxy SSRF fix** (#35) -- Fixed a bug where the 2 MB size limit handler called `upstream.destroy()` but never called `res.end()`, causing connection hang. Exposed `_allowedHosts` for testing.
+
+### UX & Accessibility (S1--S4 Review)
+
+A comprehensive UX and accessibility review produced 36 findings across four severity tiers, all resolved.
+
+**Responsive & Layout (S1--S2):**
+- Responsive column hiding at narrow viewports (My Coins table hides low-priority columns at 1200px / 900px / 600px breakpoints)
+- Tab bar scroll fade with `mask-image` gradient for overflow indication on mobile
+- Compact tab labels at narrow widths (`font-size` steps down at 700px / 500px / 400px)
+- `prefers-reduced-motion` media query disables spinner animation
+- Gallery navigation buttons enlarged to 28x28px with baseline opacity and focus outline
+- Skip-navigation link before tab bar (WCAG 2.4.1 Bypass Blocks) -- visually hidden, shown on `:focus`
+
+**ARIA & Semantics (S2--S3):**
+- `aria-modal="true"` on all 8 `<dialog>` elements
+- `aria-labelledby` with heading IDs on all dialogs
+- `aria-label` on the price history `<canvas>` element
+- Sortable column headers have `role="columnheader button"` and `tabindex="0"` for keyboard operation (Enter/Space triggers sort)
+- Confidence tooltip icons changed from `<span>` to `<button>` with `aria-label`, `:focus-visible` outline, and `:focus-within` tooltip display
+
+**Interaction & Feedback (S2--S3):**
+- Bulk delete with 5-second undo toast (rows hidden immediately, committed after timeout or cancelled on undo click)
+- Focus and selection state preserved across `innerHTML` re-renders (filter input, cost input, qty input)
+- Empty filter state shows a colspan message: "No coins match 'X'. Try a broader search."
+- Inline edit error feedback: cost/qty save failures revert to old value and flash red border for 2s
+- Spot-price fetch failure shows a `role="alert"` warning banner above the table
+
+**Visual Design (S3--S4):**
+- 36+ CSS custom properties including 14 new semantic tokens for grade tags (`--tag-graded-bg/fg`, `--tag-proof-bg/fg`, `--tag-bu-bg/fg`, `--tag-coa-bg/fg`, `--tag-sealed-bg/fg`, `--tag-raw-bg/fg`), warnings (`--warning`, `--caution`), and chip accents (`--chip-hint`, `--chip-purple`, `--chip-bronze`)
+- All interactive targets meet WCAG 2.5.8 minimum 24x24px (remove buttons, qty +/- buttons)
+- Comps tables have "Show all / Show fewer" toggle buttons
+- Notes column shows full text on hover via `title` attribute
+- Melt calculator quantity minimum changed from 0 to 1
+- "About (read me)" tab renamed to "About" for brevity
 
 ---
 
