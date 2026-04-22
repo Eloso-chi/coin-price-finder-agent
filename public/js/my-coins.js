@@ -552,6 +552,27 @@ const MyCoins = (() => {
     html += '<button class="mycoins-delete-selected btn-sm-danger" disabled>Delete Selected (<span class="mycoins-sel-count">0</span>)</button>';
     html += '</div>';
 
+    // Column legend (collapsible)
+    html += '<details class="mycoins-legend">';
+    html += '<summary class="mycoins-legend-toggle">\u2139\uFE0F Column Guide</summary>';
+    html += '<dl class="mycoins-legend-list">';
+    html += '<div><dt>Coin</dt><dd>Series, year, and mint mark</dd></div>';
+    html += '<div><dt>Grade</dt><dd>PCGS / NGC numeric or descriptive grade</dd></div>';
+    html += '<div><dt>Label</dt><dd>Slab variant (e.g. First Strike, Proof)</dd></div>';
+    html += '<div><dt>Qty</dt><dd>Number of coins you own</dd></div>';
+    html += '<div><dt>Troy Oz</dt><dd>Total precious-metal weight (Qty x pure ozt per coin)</dd></div>';
+    html += '<div><dt>FMV (ea)</dt><dd>Fair market value per coin with confidence indicator</dd></div>';
+    html += '<div><dt>Total</dt><dd>FMV x Qty</dd></div>';
+    html += '<div><dt>Cost (ea)</dt><dd>Your acquisition cost per coin (editable)</dd></div>';
+    html += '<div><dt>P/L</dt><dd>Unrealized profit or loss (FMV - Cost)</dd></div>';
+    html += '<div><dt>Melt</dt><dd>Intrinsic metal value at current spot price</dd></div>';
+    html += '<div><dt>Avg eBay</dt><dd>Median recent sold price on eBay</dd></div>';
+    html += '<div><dt>Range</dt><dd>Low -- high of recent eBay sold comps</dd></div>';
+    html += '<div><dt>Notes</dt><dd>Your personal notes for this coin</dd></div>';
+    html += '<div><dt>Added</dt><dd>Date the coin was added to your collection</dd></div>';
+    html += '</dl>';
+    html += '</details>';
+
     // Table
     html += '<div class="mycoins-table-wrap"><table class="mycoins-table" aria-label="My coin collection">';
     html += '<thead><tr>';

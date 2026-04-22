@@ -356,8 +356,8 @@ function parseDescription(text) {
     }
   }
 
-  // Roll detection — "lincoln cent roll", "nickel roll", "roll of quarters", etc.
-  if (/\brolls?\b/i.test(t)) {
+  // Roll/tube detection — "lincoln cent roll", "tube of quarters", "20 coin roll", etc.
+  if (/\brolls?\b|\btubes?\b|\b\d+\s*coin\s*roll\b/i.test(t)) {
     result.isRoll = true;
   }
 

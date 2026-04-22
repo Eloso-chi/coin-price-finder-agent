@@ -926,6 +926,15 @@
     .mycoins-bulk-bar { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
     .mycoins-delete-selected { background: var(--red, #e74c3c); color: #fff; border: none; border-radius: var(--radius); padding: 5px 14px; font-size: 0.82rem; cursor: pointer; }
     .mycoins-delete-selected:disabled { opacity: 0.5; cursor: default; }
+    .mycoins-legend { margin-bottom: 10px; }
+    .mycoins-legend-toggle { cursor: pointer; font-size: 0.82rem; color: var(--text-muted); user-select: none; list-style: none; }
+    .mycoins-legend-toggle::-webkit-details-marker { display: none; }
+    .mycoins-legend-toggle::before { content: '\25B6'; display: inline-block; margin-right: 5px; font-size: 0.7rem; transition: transform 0.15s; }
+    .mycoins-legend[open] > .mycoins-legend-toggle::before { transform: rotate(90deg); }
+    .mycoins-legend-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 2px 20px; margin: 8px 0 0; padding: 10px 14px; background: var(--surface); border: 1px solid var(--border-subtle); border-radius: var(--radius); }
+    .mycoins-legend-list > div { display: flex; gap: 6px; padding: 2px 0; }
+    .mycoins-legend-list dt { font-weight: 600; font-size: 0.78rem; color: var(--text); white-space: nowrap; min-width: 70px; }
+    .mycoins-legend-list dd { font-size: 0.78rem; color: var(--text-muted); margin: 0; }
     .mycoins-toz { text-align: right; font-variant-numeric: tabular-nums; font-size: 0.82rem; color: var(--text-muted); }
     .mycoins-melt { text-align: right; font-variant-numeric: tabular-nums; }
     .mycoins-notes { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.78rem; color: var(--text-muted); }
@@ -2433,6 +2442,11 @@ Silver Libertad 1 oz Proof"></textarea>
         if (tab.id === 'tab-mycoins' && typeof MyCoins !== 'undefined') {
           MyCoins.render();
         }
+        // Auto-recalc Melt Calculator when switching to that tab with a linked coin
+        if (tab.id === 'tab-melt' && typeof MeltCalc !== 'undefined' && MeltCalc._pendingLoad) {
+          MeltCalc._pendingLoad = false;
+          MeltCalc._calc();
+        }
         // Auto-load Price History when switching to that tab with a linked coin
         if (tab.id === 'tab-history' && typeof CoinHistoryLink !== 'undefined'
             && CoinHistoryLink._pending && CoinHistoryLink.query) {
@@ -3602,6 +3616,13 @@ Silver Libertad 1 oz Proof"></textarea>
       if (trackerSeries && typeof EbayTracker !== 'undefined') {
         EbayTracker.setSeries(trackerSeries, trackerWeight, trackerGrade);
       }
+      // ── Pass coin to Melt Calculator for cross-tab linkage ──
+      if (typeof MeltCalc !== 'undefined') {
+        const mi = getMeltInfo(d);
+        if (mi && mi.metal && mi.pureOzt) {
+          MeltCalc.setCoin(mi.metal, mi.pureOzt, trackerSeries);
+        }
+      }
       // ── Also pass query to Price History tab for cross-tab linkage ──
       // Prefer eBay keywords (resolved with weight, zodiac animal, series label)
       // over raw user input which may contain noise tokens ("series III")
@@ -4331,6 +4352,7 @@ Silver Libertad 1 oz Proof"></textarea>
   const MeltCalc = {
     els: {},
     mode: 'coin', // 'coin' | 'bar'
+    _pendingLoad: false,
 
     init() {
       this.els = {
@@ -4497,6 +4519,39 @@ Silver Libertad 1 oz Proof"></textarea>
       html += '</tbody></table>';
 
       out.innerHTML = html;
+    },
+
+    /**
+     * Cross-tab propagation: select a coin in the melt calculator from
+     * Price Discovery results so the user can jump to the Melt tab and
+     * see the calculation pre-populated.
+     * @param {string} metal  'gold' or 'silver'
+     * @param {number} pureOzt  pure troy ounces of the coin
+     * @param {string} [coinName] optional series name for fuzzy matching
+     */
+    setCoin(metal, pureOzt, coinName) {
+      if (!metal || !pureOzt) return;
+      // Ensure we're in coin mode
+      if (this.mode !== 'coin') this._setMode('coin');
+      const pool = window.COIN_TYPES || [];
+      // Try exact name substring match first, then closest weight by metal
+      let best = null;
+      let bestDist = Infinity;
+      const lowerName = (coinName || '').toLowerCase();
+      for (const c of pool) {
+        if (c.metal !== metal) continue;
+        const dist = Math.abs((c.pure_ozt || 0) - pureOzt);
+        // Strong name match gets priority
+        if (lowerName && c.name.toLowerCase().includes(lowerName) && dist < bestDist) {
+          best = c; bestDist = dist;
+        } else if (dist < bestDist) {
+          best = c; bestDist = dist;
+        }
+      }
+      if (!best) return;
+      this.els.coin.value = best.id;
+      this._pendingLoad = true;
+      this._onCoinChange();
     }
   };
 

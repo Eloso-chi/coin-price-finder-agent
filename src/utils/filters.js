@@ -5,7 +5,7 @@
 // ebayService and terapeakService.  Consolidating here prevents the
 // two lists from drifting out of sync.
 
-const ROLL_PATTERN = /\broll\b/i;
+const ROLL_PATTERN = /\brolls?\b|\btubes?\b/i;
 
 const DENY_PATTERNS = [
   /\blots?\b/i, /\bcollection\b/i, ROLL_PATTERN, /\bestate\b/i,

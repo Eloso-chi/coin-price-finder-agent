@@ -46,6 +46,12 @@ describe('parseDescription — roll detection', () => {
     ['1958-D Lincoln Cent OBW roll', { year: 1958, mint: 'D', isRoll: true }],
     ['Roosevelt Dime Roll BU 1955', { year: 1955, isRoll: true }],
     ['mercury dime roll 1940-S', { year: 1940, mint: 'S', isRoll: true }],
+    // Tube queries
+    ['tube of 1964 Kennedy Half Dollars', { year: 1964, isRoll: true }],
+    ['2024 American Silver Eagle tube', { year: 2024, isRoll: true }],
+    // Multi-word roll quantities
+    ['Morgan Silver Dollar 20 coin roll', { isRoll: true }],
+    ['1963 Washington Quarter 40 coin roll', { year: 1963, isRoll: true }],
   ];
 
   test.each(ROLL_QUERIES)('detects roll: "%s"', (query, expectedFields) => {
