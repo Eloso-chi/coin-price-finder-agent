@@ -58,11 +58,14 @@
       margin-bottom: 24px; position: relative;
       overflow-x: auto; -webkit-overflow-scrolling: touch;
       scrollbar-width: thin;
+      /* #127: fade hints for scrollable overflow */
+      mask-image: linear-gradient(to right, transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%);
+      -webkit-mask-image: linear-gradient(to right, transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%);
     }
     .tab-btn {
       background: none; border: none; color: var(--text-secondary);
       padding: 12px 20px; font-size: 0.9rem; font-weight: 600;
-      cursor: pointer; position: relative;
+      cursor: pointer; position: relative; white-space: nowrap;
       transition: color var(--transition);
     }
     .tab-btn:hover { color: var(--text); }
@@ -189,8 +192,9 @@
     .fmv-gallery { flex-shrink:0; display:flex; flex-direction:column; align-items:center; gap:6px; }
     .fmv-gallery-main { width:120px; height:120px; border-radius:12px; overflow:hidden; background:var(--card); border:1px solid var(--border); cursor:pointer; position:relative; }
     .fmv-gallery-main img { width:100%; height:100%; object-fit:contain; transition: opacity 0.25s; }
-    .fmv-gallery-main .gallery-nav { position:absolute; top:50%; transform:translateY(-50%); background:rgba(0,0,0,0.45); color:#fff; border:none; border-radius:50%; width:22px; height:22px; font-size:13px; cursor:pointer; display:flex; align-items:center; justify-content:center; opacity:0; transition:opacity 0.2s; line-height:1; padding:0; }
+    .fmv-gallery-main .gallery-nav { position:absolute; top:50%; transform:translateY(-50%); background:rgba(0,0,0,0.45); color:#fff; border:none; border-radius:50%; width:28px; height:28px; font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center; opacity:0.35; transition:opacity 0.2s; line-height:1; padding:0; }
     .fmv-gallery-main:hover .gallery-nav { opacity:1; }
+    .gallery-nav:focus-visible { opacity:1; outline:2px solid var(--accent); outline-offset:2px; }
     .gallery-nav-left { left:3px; }
     .gallery-nav-right { right:3px; }
     .fmv-gallery-thumbs { display:flex; gap:4px; justify-content:center; max-width:120px; overflow-x:auto; }
@@ -896,6 +900,10 @@
       .mycoins-select-all, .mycoins-row-check { width: 22px; height: 22px; }
       .mycoins-remove { padding: 10px 12px; font-size: 1.3rem; }
       .gallery-nav { width: 44px !important; height: 44px !important; font-size: 1.2rem !important; }
+      /* #126: Hide low-priority columns on narrow screens */
+      .mycoins-col-hide { display: none; }
+      /* #127: Compact tab padding on small screens */
+      .tab-btn { padding: 10px 12px; font-size: 0.82rem; }
     }
     .mycoins-summary {
       display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;
@@ -945,6 +953,7 @@
     .mycoins-empty { text-align: center; padding: 40px 20px; color: var(--text-secondary); }
     .mycoins-loading { text-align: center; padding: 30px; color: var(--text-muted); }
     .mycoins-error { text-align: center; padding: 20px; color: var(--red); }
+    .mycoins-spot-warn { padding: 10px 16px; margin-bottom: 12px; background: var(--yellow-subtle, #332b00); border: 1px solid var(--yellow, #665500); border-radius: var(--radius); font-size: 0.84rem; color: var(--text); }
     .backup-prompt { padding: 12px 16px; margin-bottom: 14px; background: var(--yellow-subtle, #332b00); border: 1px solid var(--yellow, #665500); border-radius: var(--radius); font-size: 0.84rem; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
     .backup-prompt-icon { font-size: 1.2rem; flex-shrink: 0; }
     .backup-prompt-text { flex: 1; color: var(--text); line-height: 1.4; }
@@ -1010,15 +1019,15 @@
 
     /* ── Confidence Key ──────────────────────────────────── */
     .confidence-key { display: inline-flex; align-items: center; gap: 6px; margin-left: 6px; cursor: help; position: relative; }
-    .confidence-key-icon { font-size: 0.75rem; color: var(--text-muted); border: 1px solid var(--border); border-radius: 50%; width: 16px; height: 16px; display: inline-flex; align-items: center; justify-content: center; }
-    .confidence-key-icon:hover { color: var(--accent); border-color: var(--accent); }
+    .confidence-key-icon { font-size: 0.75rem; color: var(--text-muted); border: 1px solid var(--border); border-radius: 50%; width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; cursor: help; background: none; padding: 0; }
+    .confidence-key-icon:hover, .confidence-key-icon:focus-visible { color: var(--accent); border-color: var(--accent); outline: none; }
     .confidence-tooltip {
       display: none; position: absolute; bottom: 130%; left: 50%; transform: translateX(-50%);
       background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
       padding: 12px 14px; width: 260px; font-size: 0.78rem; line-height: 1.6;
       color: var(--text-secondary); z-index: 100; box-shadow: 0 4px 16px rgba(0,0,0,0.3);
     }
-    .confidence-key:hover .confidence-tooltip { display: block; }
+    .confidence-key:hover .confidence-tooltip, .confidence-key:focus-within .confidence-tooltip { display: block; }
     .confidence-tooltip strong { color: var(--text); display: block; margin-bottom: 4px; font-size: 0.82rem; }
     .confidence-tooltip .ct-row { display: flex; align-items: center; gap: 6px; margin: 2px 0; }
 
@@ -1062,6 +1071,11 @@
         transition-duration: 0s !important;
         transition-delay: 0s !important;
       }
+      .spinner {
+        border: none; animation: none;
+        font-size: 0.78rem; color: var(--text-muted); width: auto; height: auto;
+      }
+      .spinner::after { content: 'Loading\2026'; }
     }
   </style>
 </head>
@@ -3196,7 +3210,7 @@ Silver Libertad 1 oz Proof"></textarea>
       html += '<div class="label">Fair Market Value</div>';
       html += '<div class="value">' + $(v.fmvCore) + '</div>';
       html += '<div class="range">Range: ' + $(v.rangeLow) + ' \u2013 ' + $(v.rangeHigh) + '</div>';
-      html += '<div class="confidence">Confidence: ' + confTag(v.confidence) + '<span class="confidence-key"><span class="confidence-key-icon">?</span><div class="confidence-tooltip"><strong>Confidence Score Key</strong><div class="ct-row"><span class="tag tag-green">70\u201399%</span> High \u2014 reliable estimate</div><div class="ct-row"><span class="tag tag-yellow">40\u201369%</span> Moderate \u2014 use as a guide</div><div class="ct-row"><span class="tag tag-red">0\u201339%</span> Low \u2014 rough estimate</div></div></span></div>';
+      html += '<div class="confidence">Confidence: ' + confTag(v.confidence) + '<span class="confidence-key"><button type="button" class="confidence-key-icon" aria-label="Confidence score explanation">?</button><div class="confidence-tooltip"><strong>Confidence Score Key</strong><div class="ct-row"><span class="tag tag-green">70\u201399%</span> High \u2014 reliable estimate</div><div class="ct-row"><span class="tag tag-yellow">40\u201369%</span> Moderate \u2014 use as a guide</div><div class="ct-row"><span class="tag tag-red">0\u201339%</span> Low \u2014 rough estimate</div></div></span></div>';
       const usCompsAll = d.ebay?.us?.comps || [];
       const soldComps = usCompsAll.filter(c => c._source !== 'browse');
       const activeComps = usCompsAll.filter(c => c._source === 'browse');
@@ -3889,7 +3903,7 @@ Silver Libertad 1 oz Proof"></textarea>
       if (d.coinVariant.composition) html += ' &mdash; ' + _esc(d.coinVariant.composition);
       html += '</div>';
     }
-    html += '<div class="confidence">Confidence: ' + confTag(v.confidence) + '<span class="confidence-key"><span class="confidence-key-icon">?</span><div class="confidence-tooltip"><strong>Confidence Score Key</strong><div class="ct-row"><span class="tag tag-green">70\u201399%</span> High \u2014 reliable estimate</div><div class="ct-row"><span class="tag tag-yellow">40\u201369%</span> Moderate \u2014 use as a guide</div><div class="ct-row"><span class="tag tag-red">0\u201339%</span> Low \u2014 rough estimate</div></div></span></div>';
+    html += '<div class="confidence">Confidence: ' + confTag(v.confidence) + '<span class="confidence-key"><button type="button" class="confidence-key-icon" aria-label="Confidence score explanation">?</button><div class="confidence-tooltip"><strong>Confidence Score Key</strong><div class="ct-row"><span class="tag tag-green">70\u201399%</span> High \u2014 reliable estimate</div><div class="ct-row"><span class="tag tag-yellow">40\u201369%</span> Moderate \u2014 use as a guide</div><div class="ct-row"><span class="tag tag-red">0\u201339%</span> Low \u2014 rough estimate</div></div></span></div>';
     // ── "I Have This Coin" button (inline in hero card) ──
     if (typeof CoinAuth !== 'undefined') {
       const _cd = d.coinData || d.identification?.parsed || {};

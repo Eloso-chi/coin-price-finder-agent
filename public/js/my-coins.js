@@ -24,6 +24,7 @@ const MyCoins = (() => {
   // Spot price cache (reused across renders for 5 minutes)
   let _spotPrices = null;  // { silver: number, gold: number } | null
   let _spotPricesFetchedAt = 0;
+  let _spotFetchFailed = false;
   const SPOT_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
   /**
@@ -226,7 +227,11 @@ const MyCoins = (() => {
       const scrollY = window.scrollY;
       _renderTable(_lastPriced);
       window.scrollTo(0, scrollY);
-    } catch { /* silent */ }
+    } catch {
+      input.value = oldQty;
+      input.style.borderColor = 'var(--red, #e74c3c)';
+      setTimeout(() => { input.style.borderColor = ''; }, 2000);
+    }
   }
 
   async function _saveCost(input) {
@@ -251,7 +256,11 @@ const MyCoins = (() => {
       const scrollY = window.scrollY;
       _renderTable(_lastPriced);
       window.scrollTo(0, scrollY);
-    } catch { /* silent */ }
+    } catch {
+      input.value = oldVal != null ? oldVal.toFixed(2) : '';
+      input.style.borderColor = 'var(--red, #e74c3c)';
+      setTimeout(() => { input.style.borderColor = ''; }, 2000);
+    }
   }
 
   /**
@@ -301,6 +310,13 @@ const MyCoins = (() => {
       _lastPriced = priced;
       _lastRenderedAt = Date.now();
       _renderTable(priced);
+      if (_spotFetchFailed) {
+        var warn = document.createElement('div');
+        warn.className = 'mycoins-spot-warn';
+        warn.setAttribute('role', 'alert');
+        warn.textContent = 'Spot prices unavailable \u2014 melt values may be stale or missing.';
+        _container.prepend(warn);
+      }
     } catch (err) {
       _container.innerHTML = '<div class="mycoins-error">Error: ' + _esc(err.message) + '</div>';
     } finally {
@@ -387,8 +403,9 @@ const MyCoins = (() => {
         gold: g && Number.isFinite(g.price) ? g.price : null,
       };
       _spotPricesFetchedAt = Date.now();
+      _spotFetchFailed = false;
       return _spotPrices;
-    } catch { return _spotPrices || { silver: null, gold: null }; }
+    } catch { _spotFetchFailed = true; return _spotPrices || { silver: null, gold: null }; }
   }
 
   function _melt(coin) {
@@ -590,16 +607,16 @@ const MyCoins = (() => {
     html += '<th class="mycoins-sortable" data-col="grade"' + _ariaSortAttr('grade') + '>Grade' + _sortArrow('grade') + '</th>';
     html += '<th class="mycoins-sortable" data-col="label"' + _ariaSortAttr('label') + '>Label' + _sortArrow('label') + '</th>';
     html += '<th class="mycoins-sortable mycoins-qty-col" data-col="qty"' + _ariaSortAttr('qty') + '>Qty' + _sortArrow('qty') + '</th>';
-    html += '<th class="mycoins-sortable" data-col="toz"' + _ariaSortAttr('toz') + '>Troy Oz' + _sortArrow('toz') + '</th>';
+    html += '<th class="mycoins-sortable mycoins-col-hide" data-col="toz"' + _ariaSortAttr('toz') + '>Troy Oz' + _sortArrow('toz') + '</th>';
     html += '<th class="mycoins-sortable" data-col="fmv"' + _ariaSortAttr('fmv') + '>FMV (ea)' + _sortArrow('fmv') + '</th>';
     html += '<th class="mycoins-sortable" data-col="total"' + _ariaSortAttr('total') + '>Total' + _sortArrow('total') + '</th>';
     html += '<th class="mycoins-sortable" data-col="cost"' + _ariaSortAttr('cost') + '>Cost (ea)' + _sortArrow('cost') + '</th>';
     html += '<th class="mycoins-sortable" data-col="pl"' + _ariaSortAttr('pl') + '>P/L' + _sortArrow('pl') + '</th>';
-    html += '<th class="mycoins-sortable" data-col="melt"' + _ariaSortAttr('melt') + '>Melt' + _sortArrow('melt') + '</th>';
-    html += '<th class="mycoins-sortable" data-col="ebay"' + _ariaSortAttr('ebay') + '>Avg eBay' + _sortArrow('ebay') + '</th>';
-    html += '<th>Range</th>';
-    html += '<th class="mycoins-sortable" data-col="notes"' + _ariaSortAttr('notes') + '>Notes' + _sortArrow('notes') + '</th>';
-    html += '<th class="mycoins-sortable" data-col="added"' + _ariaSortAttr('added') + '>Added' + _sortArrow('added') + '</th>';
+    html += '<th class="mycoins-sortable mycoins-col-hide" data-col="melt"' + _ariaSortAttr('melt') + '>Melt' + _sortArrow('melt') + '</th>';
+    html += '<th class="mycoins-sortable mycoins-col-hide" data-col="ebay"' + _ariaSortAttr('ebay') + '>Avg eBay' + _sortArrow('ebay') + '</th>';
+    html += '<th class="mycoins-col-hide">Range</th>';
+    html += '<th class="mycoins-sortable mycoins-col-hide" data-col="notes"' + _ariaSortAttr('notes') + '>Notes' + _sortArrow('notes') + '</th>';
+    html += '<th class="mycoins-sortable mycoins-col-hide" data-col="added"' + _ariaSortAttr('added') + '>Added' + _sortArrow('added') + '</th>';
     html += '<th></th>';
     html += '</tr></thead><tbody>';
 
@@ -631,7 +648,7 @@ const MyCoins = (() => {
       html += '</td>';
 
       // Troy Oz
-      html += '<td class="mycoins-toz">' + (c.weight ? Number(c.weight).toFixed(4) : '\u2014') + '</td>';
+      html += '<td class="mycoins-toz mycoins-col-hide">' + (c.weight ? Number(c.weight).toFixed(4) : '\u2014') + '</td>';
 
       const fmvCell = it.fmv != null ? _$(it.fmv) + (it.confidence ? ' <span style="opacity:0.6;font-size:0.85em">(' + _esc(it.confidence) + ')</span>' : '')
         : (it.pricingError ? '<span style="color:var(--text-muted);font-size:0.8em" title="' + _escAttr(it.pricingError) + '">No data</span>' : '\u2014');
@@ -656,15 +673,15 @@ const MyCoins = (() => {
       }
 
       // Melt value
-      html += '<td class="mycoins-melt">' + _$(meltVal) + '</td>';
+      html += '<td class="mycoins-melt mycoins-col-hide">' + _$(meltVal) + '</td>';
 
-      html += '<td>' + _$(it.avgEbay) + '</td>';
-      html += '<td class="mycoins-range">' + range + '</td>';
+      html += '<td class="mycoins-col-hide">' + _$(it.avgEbay) + '</td>';
+      html += '<td class="mycoins-range mycoins-col-hide">' + range + '</td>';
 
       // Notes
-      html += '<td class="mycoins-notes">' + _esc(c.notes || '') + '</td>';
+      html += '<td class="mycoins-notes mycoins-col-hide">' + _esc(c.notes || '') + '</td>';
 
-      html += '<td class="mycoins-date">' + _esc(added) + '</td>';
+      html += '<td class="mycoins-date mycoins-col-hide">' + _esc(added) + '</td>';
       html += '<td><button class="mycoins-remove" data-hash="' + _escAttr(c.coinHash) + '" title="Remove from collection">&times;</button></td>';
       html += '</tr>';
     });
