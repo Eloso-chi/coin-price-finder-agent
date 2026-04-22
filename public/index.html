@@ -42,6 +42,8 @@
 
     /* ── Reset & Base ───────────────────────────────────── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    .skip-nav { position: absolute; left: -9999px; top: auto; width: 1px; height: 1px; overflow: hidden; z-index: 100; background: var(--accent); color: #fff; padding: 8px 16px; border-radius: var(--radius); font-weight: 600; text-decoration: none; }
+    .skip-nav:focus { position: fixed; left: 16px; top: 16px; width: auto; height: auto; overflow: visible; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
       background: var(--bg); color: var(--text);
@@ -1107,6 +1109,9 @@
     </div>
   </header>
 
+  <!-- #151: Skip navigation link -->
+  <a href="#panel-price" class="skip-nav" onclick="document.getElementById('tab-price').focus();return false">Skip to content</a>
+
   <!-- ── Tab Navigation ─────────────────────────────────── -->
   <nav class="tab-bar" role="tablist" aria-label="Main tools">
     <button class="tab-btn" role="tab" id="tab-price" aria-controls="panel-price" aria-selected="true" tabindex="0">Price Discovery</button>
@@ -1116,7 +1121,7 @@
     <button class="tab-btn" role="tab" id="tab-mycoins" aria-controls="panel-mycoins" aria-selected="false" tabindex="-1">My Coins</button>
     <button class="tab-btn" role="tab" id="tab-history" aria-controls="panel-history" aria-selected="false" tabindex="-1">Price History</button>
     <button class="tab-btn" role="tab" id="tab-bulk" aria-controls="panel-bulk" aria-selected="false" tabindex="-1">Lot Evaluator</button>
-    <button class="tab-btn" role="tab" id="tab-about" aria-controls="panel-about" aria-selected="false" tabindex="-1">About (read me)</button>
+    <button class="tab-btn" role="tab" id="tab-about" aria-controls="panel-about" aria-selected="false" tabindex="-1">About</button>
     <button class="tab-btn" role="tab" id="tab-admin" aria-controls="panel-admin" aria-selected="false" tabindex="-1" style="display:none">Admin</button>
   </nav>
 
@@ -1560,7 +1565,7 @@
         <div class="melt-input-grid">
           <div><label for="melt-spot">Spot ($/ozt)</label><input id="melt-spot" type="number" step="0.01" min="0" placeholder="loading..."></div>
           <div><label for="melt-adj">Premium ($)</label><input id="melt-adj" type="number" step="0.01" value="0"></div>
-          <div><label for="melt-qty">Quantity</label><input id="melt-qty" type="number" step="1" min="0" value="1"></div>
+          <div><label for="melt-qty">Quantity</label><input id="melt-qty" type="number" step="1" min="1" value="1"></div>
           <div id="melt-roll-wrap"><label for="melt-roll">Coins / Roll</label><input id="melt-roll" type="number" step="1" min="1" value="20"></div>
         </div>
         <div id="melt-spot-status" class="melt-spot-status" role="status" aria-live="polite"></div>

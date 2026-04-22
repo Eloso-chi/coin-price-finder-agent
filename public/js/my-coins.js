@@ -709,7 +709,7 @@ const MyCoins = (() => {
       html += '<td class="mycoins-range mycoins-col-hide">' + range + '</td>';
 
       // Notes
-      html += '<td class="mycoins-notes mycoins-col-hide">' + _esc(c.notes || '') + '</td>';
+      html += '<td class="mycoins-notes mycoins-col-hide" title="' + _escAttr(c.notes || '') + '">' + _esc(c.notes || '') + '</td>';
 
       html += '<td class="mycoins-date mycoins-col-hide">' + _esc(added) + '</td>';
       html += '<td><button class="mycoins-remove" data-hash="' + _escAttr(c.coinHash) + '" title="Remove from collection">&times;</button></td>';
