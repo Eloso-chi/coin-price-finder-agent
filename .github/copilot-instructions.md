@@ -32,7 +32,9 @@
 - Use `/pre-commit` for a quick safety check before committing.
 - Use `/test-coverage` to analyze test gaps and generate missing tests.
 - Review agents are read-only. The Implementer only acts on explicit `APPLY` commands.
-- Use the UX Reviewer agent for accessibility, responsive design, and interaction pattern checks on UI changes.
+- Use the UX Reviewer agent for accessibility (WCAG 2.2 AA), responsive design, interaction patterns, IA, Nielsen heuristics, and performance UX checks on UI changes.
+- The pre-commit reviewer auto-detects UI changes and recommends running `@ux-reviewer` before merge.
+- Include the UX Decision Log from `@ux-reviewer` in PR descriptions when UI changes are involved.
 - Shared review logic lives in `.github/skills/code-review/SKILL.md`.
 
 ## Copilot Agents & Prompts
@@ -46,7 +48,7 @@
 | `@pre-commit-reviewer` | Quick pre-commit safety check |
 | `@test-coverage` | Test gap analysis + test generation |
 | `@test-monitor` | Test health monitoring and diagnostics |
-| `@ux-reviewer` | Accessibility, responsive, interaction review |
+| `@ux-reviewer` | UX/IA/a11y review (WCAG 2.2, Nielsen heuristics, component states, performance UX); focused + comprehensive modes |
 | `@onboard` | Project onboarding assistant |
 | `/review-deep` | Invoke full code review |
 | `/apply-approved` | Implement approved findings |

@@ -84,7 +84,35 @@ also updated:
 
 Run `get_errors` on all changed files.
 
-#### E. Commit Message Quality (WARN if poor)
+#### E. UX / IA Review Trigger (WARN if UI changed)
+
+If the staged diff touches ANY of these frontend files or patterns, flag
+for UX review:
+
+| Trigger | Files / Patterns |
+|---------|-----------------|
+| Navigation | Tab buttons, `role="tablist"`, tab ordering in `public/index.html` |
+| Layout | `.tab-btn`, `.panel-*`, grid/flex layout changes |
+| Interaction | `onclick`, event listeners, `<dialog>`, confirm/prompt calls |
+| Labeling | Button text, tab labels, heading text, `aria-label` values |
+| Filters/Search | Datalists, filter inputs, search handlers |
+| Cross-tab | `MeltCalc.setCoin`, `EbayTracker.setSeries`, `CoinHistoryLink.setCoin`, `_pendingLoad` |
+| Accessibility | `aria-*`, `role=`, focus management, `tabindex`, `.sr-only` |
+| Responsive | Media queries, breakpoints, `overflow-x` |
+| Design tokens | CSS custom properties, hardcoded colors in JS |
+| Forms | `<input>`, `<select>`, `<textarea>`, validation logic |
+| Proof/Grade | Grade detection, proof checkbox, finish indicators |
+
+If triggered, add this to the report:
+
+```
+UX / IA Review Recommended
+Recent UI or interaction changes were detected in: [list files]
+Run @ux-reviewer to validate before merge.
+Include the UX Decision Log in your PR description.
+```
+
+#### F. Commit Message Quality (WARN if poor)
 
 If the user provides a commit message, check:
 - Is it descriptive (not just "fix" or "update")?
@@ -100,9 +128,10 @@ Print a concise report:
 | Check | Status |
 |-------|--------|
 | Secrets scan | PASS / BLOCK |
-| Tests (40 suites) | PASS / BLOCK |
+| Tests (48 suites) | PASS / BLOCK |
 | Data model sync | PASS / WARN |
 | Lint errors | PASS / WARN |
+| UX / IA review | PASS / WARN |
 
 [Details for any BLOCK or WARN items]
 

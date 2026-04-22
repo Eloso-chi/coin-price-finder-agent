@@ -12,6 +12,8 @@ const MyCoins = (() => {
   let _delegated = false;  // true once event delegation is wired up
   let _loading = false;
   let _lastPriced = null;   // cached priced items for re-sort/re-filter without re-fetch
+  let _lastRenderedAt = 0;  // timestamp of last successful render
+  const RENDER_CACHE_TTL = 2 * 60 * 1000; // 2 minutes -- skip re-fetch on tab switch if fresh
   let _sortCol = 'coin';
   let _sortAsc = true;
   let _filterText = '';
@@ -117,7 +119,7 @@ const MyCoins = (() => {
           : 'Remove this coin from your collection?';
         if (!(await _confirm(msg))) return;
         await CoinStorage.removeCoin(user.userId, hash);
-        render();
+        render(true);
         return;
       }
 
@@ -136,7 +138,7 @@ const MyCoins = (() => {
           await CoinStorage.removeCoin(user.userId, hashes[di]);
           delBtn.textContent = 'Deleting: ' + (di + 1) + ' / ' + hashes.length + '\u2026';
         }
-        render();
+        render(true);
         return;
       }
     });
@@ -255,7 +257,7 @@ const MyCoins = (() => {
   /**
    * Load, decrypt, price, and render the My Coins table.
    */
-  async function render() {
+  async function render(force) {
     if (!_container) init();
     if (!_container) return;
 
@@ -265,6 +267,12 @@ const MyCoins = (() => {
         '<div class="mycoins-empty">' +
         '<p>Log in to view your coin collection.</p>' +
         '</div>';
+      return;
+    }
+
+    // If data is fresh and not forced, re-render from cache (no API calls)
+    if (!force && _lastPriced && (Date.now() - _lastRenderedAt < RENDER_CACHE_TTL)) {
+      _renderTable(_lastPriced);
       return;
     }
 
@@ -291,6 +299,7 @@ const MyCoins = (() => {
       _spotPrices = await _fetchSpotPrices();
       const priced = await _fetchPricing(coins);
       _lastPriced = priced;
+      _lastRenderedAt = Date.now();
       _renderTable(priced);
     } catch (err) {
       _container.innerHTML = '<div class="mycoins-error">Error: ' + _esc(err.message) + '</div>';
@@ -683,5 +692,8 @@ const MyCoins = (() => {
     }
   }
 
-  return { init, render };
+  /** Invalidate the render cache so the next tab-switch re-fetches. */
+  function invalidate() { _lastRenderedAt = 0; }
+
+  return { init, render, invalidate };
 })();

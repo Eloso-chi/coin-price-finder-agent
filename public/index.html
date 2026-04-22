@@ -2359,6 +2359,24 @@ Silver Libertad 1 oz Proof"></textarea>
     return String(str).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
 
+  /**
+   * Reusable button loading state helpers.
+   * _btnLoading(btn, text) -- disable + show loading text.
+   * _btnReset(btn, text)   -- re-enable + restore original text.
+   */
+  function _btnLoading(btn, text) {
+    if (!btn) return;
+    if (!btn.dataset.origText) btn.dataset.origText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = text || 'Loading\u2026';
+  }
+  function _btnReset(btn, text) {
+    if (!btn) return;
+    btn.disabled = false;
+    btn.textContent = text || btn.dataset.origText || '';
+    delete btn.dataset.origText;
+  }
+
   /* ═══════════════════════════════════════════════════════════
    *  TAB CONTROLLER
    * ═══════════════════════════════════════════════════════════ */
@@ -3293,7 +3311,8 @@ Silver Libertad 1 oz Proof"></textarea>
     const empty   = document.getElementById('empty-price');
 
     btn.disabled = true;
-    qBtn.disabled = true;
+    _btnLoading(btn, 'Pricing\u2026');
+    _btnLoading(qBtn, 'Pricing\u2026');
     status.className = 'status-bar loading';
     status.innerHTML = '<div class="spinner"></div> Querying PCGS + eBay\u2026';
     results.innerHTML = '';
@@ -3338,8 +3357,8 @@ Silver Libertad 1 oz Proof"></textarea>
         status.textContent = err.message;
       }
     } finally {
-      btn.disabled = false;
-      qBtn.disabled = false;
+      _btnReset(btn);
+      _btnReset(qBtn);
     }
   }
 
@@ -4698,7 +4717,7 @@ Silver Libertad 1 oz Proof"></textarea>
       this._lastSeries = series;
 
       const submitBtn = this._mode === 'bar' ? this.els.barSubmit : this.els.submit;
-      submitBtn.disabled = true;
+      _btnLoading(submitBtn, 'Loading\u2026');
       this.els.status.className = 'status-bar loading';
       this.els.status.innerHTML = '<div class="spinner"></div> Fetching eBay market data for \u201C' + _esc(this._displayName()) + '\u201D\u2026';
       this.els.summary.style.display = 'none';
@@ -4738,7 +4757,7 @@ Silver Libertad 1 oz Proof"></textarea>
           this.els.status.textContent = err.message;
         }
       } finally {
-        submitBtn.disabled = false;
+        _btnReset(submitBtn);
       }
     },
 
@@ -4934,7 +4953,7 @@ Silver Libertad 1 oz Proof"></textarea>
         if (cell.cheapestBin) {
           html += '<div class="tracker-bin">';
           if (cell.cheapestBin.url) {
-            html += '<a href="' + cell.cheapestBin.url + '" target="_blank" rel="noopener" title="Cheapest Buy It Now listing">';
+            html += '<a href="' + _escUrl(cell.cheapestBin.url) + '" target="_blank" rel="noopener" title="Cheapest Buy It Now listing">';
             html += '$' + cell.cheapestBin.value.toFixed(0);
             html += '</a>';
           } else {
@@ -5063,9 +5082,9 @@ Silver Libertad 1 oz Proof"></textarea>
       if (!file || !searchTerm) return;
 
       this.els.uploadBtn.disabled = true;
-      this.els.uploadBtn.textContent = 'Importing…';
+      _btnLoading(this.els.uploadBtn, 'Importing\u2026');
       this.els.status.style.display = 'block';
-      this.els.status.textContent = 'Uploading and parsing CSV…';
+      this.els.status.textContent = 'Uploading and parsing CSV\u2026';
       this.els.status.className = 'status-bar status-loading';
       this.els.result.style.display = 'none';
 
@@ -5127,8 +5146,7 @@ Silver Libertad 1 oz Proof"></textarea>
         this.els.status.textContent = '\u274C ' + err.message;
         this.els.status.className = 'status-bar status-error';
       } finally {
-        this.els.uploadBtn.disabled = false;
-        this.els.uploadBtn.textContent = 'Upload & Import';
+        _btnReset(this.els.uploadBtn);
         this._updateBtn();
       }
     },
@@ -5575,8 +5593,7 @@ Silver Libertad 1 oz Proof"></textarea>
       if (costRaw && (isNaN(costPer) || costPer < 0)) return _bulkAddMsg('Invalid cost value.', true);
       if (!series && !year) return _bulkAddMsg('Enter at least a coin name or year.', true);
       const coin = { series, year, mint, grade, label, weight, query: series + (year ? ' ' + year : ''), count: qty, costPer };
-      bulkAddSubmit.disabled = true;
-      bulkAddSubmit.textContent = 'Adding\u2026';
+      _btnLoading(bulkAddSubmit, 'Adding\u2026');
       try {
         const exists = await CoinStorage.hasCoin(user.userId, coin);
         if (exists) {
@@ -5599,12 +5616,11 @@ Silver Libertad 1 oz Proof"></textarea>
         bulkAddQty.value = '1';
         bulkAddCost.value = '';
         bulkAddYear.focus();
-        if (typeof MyCoins !== 'undefined') MyCoins.render();
+        if (typeof MyCoins !== 'undefined') MyCoins.render(true);
       } catch (err) {
         _bulkAddMsg('Failed: ' + err.message, true);
       } finally {
-        bulkAddSubmit.disabled = false;
-        bulkAddSubmit.textContent = 'Add to Collection';
+        _btnReset(bulkAddSubmit);
       }
     });
 
@@ -5725,7 +5741,7 @@ Silver Libertad 1 oz Proof"></textarea>
           accountStatus.innerHTML = _esc(msg) + '<br><span style="font-size:0.75rem;color:var(--text-muted)">' + warnHtml + '</span>';
           accountStatus.style.display = 'block';
         }
-        if (typeof MyCoins !== 'undefined') MyCoins.render();
+        if (typeof MyCoins !== 'undefined') MyCoins.render(true);
       } catch (err) {
         accountMsg('Import failed: ' + err.message, true);
       }
@@ -5768,7 +5784,7 @@ Silver Libertad 1 oz Proof"></textarea>
         if (summary.failedRows) msg += ', ' + summary.failedRows + ' row(s) could not be mapped';
         msg += '.';
         accountMsg(msg, summary.failedRows > 0);
-        if (typeof MyCoins !== 'undefined') MyCoins.render();
+        if (typeof MyCoins !== 'undefined') MyCoins.render(true);
       } catch (err) {
         accountMsg('Excel import failed: ' + err.message, true);
       }
@@ -5811,8 +5827,7 @@ Silver Libertad 1 oz Proof"></textarea>
         return;
       }
 
-      cpSubmit.disabled = true;
-      cpSubmit.textContent = 'Saving…';
+      _btnLoading(cpSubmit, 'Saving…');
       const user = CoinAuth.currentUser();
       try {
         await CoinAuth.changePassword(cur, np);
@@ -5823,8 +5838,7 @@ Silver Libertad 1 oz Proof"></textarea>
         cpError.textContent = err.message;
         cpError.style.display = 'block';
       } finally {
-        cpSubmit.disabled = false;
-        cpSubmit.textContent = 'Change Password';
+        _btnReset(cpSubmit);
       }
     });
 
@@ -5886,7 +5900,7 @@ Silver Libertad 1 oz Proof"></textarea>
       if (_running) return;
       _running = true;
       _reset();
-      evalBtn.disabled = true;
+      _btnLoading(evalBtn, 'Evaluating\u2026');
       statusEl.textContent = 'Submitting...';
 
       try {
@@ -5925,14 +5939,14 @@ Silver Libertad 1 oz Proof"></textarea>
         es.addEventListener('done', function() {
           es.close();
           _running = false;
-          evalBtn.disabled = false;
+          _btnReset(evalBtn);
           statusEl.textContent = 'Complete -- ' + _results.length + ' coins evaluated.';
         });
 
         es.addEventListener('error', function(e) {
           es.close();
           _running = false;
-          evalBtn.disabled = false;
+          _btnReset(evalBtn);
           try {
             const d = JSON.parse(e.data);
             statusEl.textContent = 'Error: ' + (d.message || 'Unknown error');
@@ -5944,12 +5958,12 @@ Silver Libertad 1 oz Proof"></textarea>
         es.onerror = function() {
           es.close();
           _running = false;
-          evalBtn.disabled = false;
+          _btnReset(evalBtn);
           if (!_lotSummary) statusEl.textContent = 'Connection lost. Partial results shown.';
         };
       } catch (err) {
         _running = false;
-        evalBtn.disabled = false;
+        _btnReset(evalBtn);
         statusEl.textContent = 'Error: ' + err.message;
       }
     }
@@ -6107,7 +6121,7 @@ Silver Libertad 1 oz Proof"></textarea>
       metalNote.style.display = 'none';
       wrap.style.display = 'none';
       status.innerHTML = '<div class="spinner" style="display:inline-block;width:14px;height:14px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle;margin-right:8px"></div> Loading price history\u2026';
-      btn.disabled = true;
+      _btnLoading(btn, 'Loading\u2026');
       try {
         const url = '/api/coin-history?query=' + encodeURIComponent(query) + '&rangeDays=' + rangeEl.value;
         const res = await fetch(url);
@@ -6163,7 +6177,7 @@ Silver Libertad 1 oz Proof"></textarea>
       } catch (err) {
         status.textContent = 'We couldn\u2019t load history for this coin.';
       } finally {
-        btn.disabled = false;
+        _btnReset(btn);
       }
     }
 
@@ -6539,8 +6553,7 @@ Silver Libertad 1 oz Proof"></textarea>
       if (!user || !key) { keyError.textContent = 'Enter both username and password.'; keyError.style.display = 'block'; return; }
       if (user !== 'admin') { keyError.textContent = 'Invalid credentials.'; keyError.style.display = 'block'; return; }
       keyError.style.display = 'none';
-      keySubmit.disabled = true;
-      keySubmit.textContent = 'Signing in...';
+      _btnLoading(keySubmit, 'Signing in...');
       try {
         var res = await fetch('/api/admin/dashboard', { headers: { 'x-api-key': key } });
         if (!res.ok) throw new Error('Invalid credentials');
@@ -6553,8 +6566,7 @@ Silver Libertad 1 oz Proof"></textarea>
         keyError.textContent = 'Invalid credentials.';
         keyError.style.display = 'block';
       } finally {
-        keySubmit.disabled = false;
-        keySubmit.textContent = 'Sign In';
+        _btnReset(keySubmit);
       }
     });
     userInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') keyInput.focus(); });
