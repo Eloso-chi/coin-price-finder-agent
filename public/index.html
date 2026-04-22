@@ -956,6 +956,15 @@
     .tab-btn.tab-locked { color: var(--text-muted); cursor: default; }
     .tab-btn.tab-locked:hover { color: var(--text-muted); }
     .tab-btn.tab-locked .lock-icon { font-size: 0.7rem; margin-left: 4px; }
+    .session-chip { display:inline-block; font-size:0.7rem; color:var(--text-muted); background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:1px 8px; margin-left:6px; vertical-align:middle; }
+    .cross-tab-links { display:flex; gap:10px; flex-wrap:wrap; margin:10px 0 4px; font-size:0.82rem; }
+    .cross-tab-links a { color:var(--accent); text-decoration:none; cursor:pointer; padding:4px 10px; border:1px solid var(--border); border-radius:var(--radius); background:var(--surface); }
+    .cross-tab-links a:hover { background:var(--card); }
+    .bulk-page-nav { display:flex; gap:6px; align-items:center; justify-content:center; margin:10px 0; font-size:0.82rem; }
+    .bulk-page-nav button { background:var(--surface); color:var(--text); border:1px solid var(--border); border-radius:var(--radius); padding:4px 10px; cursor:pointer; font-size:0.8rem; }
+    .bulk-page-nav button:hover { background:var(--card); }
+    .bulk-page-nav button.active { background:var(--accent); color:#000; border-color:var(--accent); font-weight:600; }
+    .bulk-page-nav button:disabled { opacity:0.4; cursor:default; }
     .tab-btn.tab-locked[aria-selected="true"] { color: var(--text-muted); }
     .tab-btn.tab-locked[aria-selected="true"]::after { display: none; }
 
@@ -1030,6 +1039,20 @@
     .about-section li { margin-bottom: 4px; }
     .about-divider { border: none; border-top: 1px solid var(--border-subtle); margin: 20px 0; }
     .about-disclaimer { font-size: 0.78rem; color: var(--text-muted); line-height: 1.7; margin-top: 12px; }
+
+    /* ── Lot Evaluator shared classes ─────────────────────── */
+    .muted { color: var(--text-muted); font-size: 0.85rem; }
+    .btn-accent { background: var(--accent); color: #000; border: 1px solid var(--accent); font-weight: 600; padding: 10px 28px; border-radius: var(--radius); cursor: pointer; font-size: 1rem; }
+    .btn-accent:hover { filter: brightness(1.1); }
+    .btn-accent:disabled { opacity: 0.5; cursor: not-allowed; filter: none; }
+    .btn-secondary { background: transparent; color: var(--text-secondary); border: 1px solid var(--border); padding: 8px 16px; border-radius: var(--radius); cursor: pointer; font-size: 0.85rem; }
+    .btn-secondary:hover { background: var(--surface); }
+    .btn-file { display: inline-block; cursor: pointer; background: var(--card); border: 1px solid var(--border); padding: 8px 16px; border-radius: var(--radius); color: var(--text); font-size: 0.85rem; text-align: center; }
+    .btn-file:hover { background: var(--surface); }
+    .data-table { border-collapse: collapse; font-size: 0.82rem; }
+    .data-table th, .data-table td { padding: 6px 10px; border-bottom: 1px solid var(--border); text-align: left; color: var(--text); }
+    .data-table th { background: var(--surface); color: var(--text-secondary); font-weight: 600; position: sticky; top: 0; z-index: 1; }
+    .data-table tr:hover td { background: var(--surface); }
 
     /* ── Reduced Motion ───────────────────────────────────── */
     @media (prefers-reduced-motion: reduce) {
@@ -1985,6 +2008,7 @@ Silver Libertad 1 oz Proof"></textarea>
         </thead>
         <tbody id="bulk-results-tbody"></tbody>
       </table>
+      <div id="bulk-page-nav" class="bulk-page-nav" style="display:none"></div>
     </div>
   </section>
 
@@ -2194,7 +2218,7 @@ Silver Libertad 1 oz Proof"></textarea>
         <details open style="margin-bottom:14px">
           <summary style="cursor:pointer;font-weight:600;font-size:0.92rem;margin-bottom:8px">Stale Datasets</summary>
           <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
-            <label style="font-size:0.82rem;color:var(--text-muted)">Stale threshold (days):</label>
+            <label for="admin-stale-days" style="font-size:0.82rem;color:var(--text-muted)">Stale threshold (days):</label>
             <input type="number" id="admin-stale-days" value="30" min="1" max="365"
               style="width:70px;padding:4px 8px;border-radius:var(--radius);border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:0.85rem">
           </div>
@@ -2223,6 +2247,24 @@ Silver Libertad 1 oz Proof"></textarea>
     <div class="auth-actions">
       <button class="btn-primary" id="confirm-dialog-yes">Yes</button>
       <button class="btn-secondary" id="confirm-dialog-no">Cancel</button>
+    </div>
+  </dialog>
+
+  <dialog class="auth-dialog" id="prompt-dialog" aria-labelledby="prompt-dialog-title" style="max-width:420px">
+    <h2 id="prompt-dialog-title">Input</h2>
+    <p id="prompt-dialog-msg" style="font-size:0.88rem;color:var(--text-secondary);line-height:1.5;margin:8px 0 12px"></p>
+    <input type="text" id="prompt-dialog-input" style="width:100%;padding:8px 10px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:0.9rem;margin-bottom:12px">
+    <div class="auth-actions">
+      <button class="btn-primary" id="prompt-dialog-ok">OK</button>
+      <button class="btn-secondary" id="prompt-dialog-cancel">Cancel</button>
+    </div>
+  </dialog>
+
+  <dialog class="auth-dialog" id="alert-dialog" aria-labelledby="alert-dialog-title" style="max-width:380px">
+    <h2 id="alert-dialog-title">Notice</h2>
+    <p id="alert-dialog-msg" style="font-size:0.88rem;color:var(--text-secondary);line-height:1.5;margin:8px 0 16px"></p>
+    <div class="auth-actions">
+      <button class="btn-primary" id="alert-dialog-ok">OK</button>
     </div>
   </dialog>
 
@@ -2377,6 +2419,69 @@ Silver Libertad 1 oz Proof"></textarea>
     delete btn.dataset.origText;
   }
 
+  /**
+   * Dark-themed confirm/prompt/alert replacements.
+   * Reuse existing confirm-dialog; new prompt-dialog and alert-dialog.
+   */
+  function _darkConfirm(msg) {
+    return new Promise(function(resolve) {
+      var dlg = document.getElementById('confirm-dialog');
+      if (!dlg) { resolve(confirm(msg)); return; }
+      document.getElementById('confirm-dialog-msg').textContent = msg;
+      var yesBtn = document.getElementById('confirm-dialog-yes');
+      var noBtn  = document.getElementById('confirm-dialog-no');
+      function cleanup(r) { yesBtn.removeEventListener('click',onY); noBtn.removeEventListener('click',onN); dlg.removeEventListener('close',onC); if(dlg.open)dlg.close(); resolve(r); }
+      function onY() { cleanup(true); }
+      function onN() { cleanup(false); }
+      function onC() { cleanup(false); }
+      yesBtn.addEventListener('click', onY);
+      noBtn.addEventListener('click', onN);
+      dlg.addEventListener('close', onC);
+      dlg.showModal();
+      noBtn.focus();
+    });
+  }
+
+  function _darkPrompt(msg, defaultVal) {
+    return new Promise(function(resolve) {
+      var dlg = document.getElementById('prompt-dialog');
+      if (!dlg) { resolve(prompt(msg, defaultVal)); return; }
+      document.getElementById('prompt-dialog-msg').textContent = msg;
+      var inp    = document.getElementById('prompt-dialog-input');
+      var okBtn  = document.getElementById('prompt-dialog-ok');
+      var canBtn = document.getElementById('prompt-dialog-cancel');
+      inp.value = defaultVal != null ? defaultVal : '';
+      function cleanup(r) { okBtn.removeEventListener('click',onOk); canBtn.removeEventListener('click',onCan); dlg.removeEventListener('close',onCl); inp.removeEventListener('keydown',onKey); if(dlg.open)dlg.close(); resolve(r); }
+      function onOk()  { cleanup(inp.value); }
+      function onCan() { cleanup(null); }
+      function onCl()  { cleanup(null); }
+      function onKey(e) { if(e.key==='Enter'){e.preventDefault();onOk();} }
+      okBtn.addEventListener('click', onOk);
+      canBtn.addEventListener('click', onCan);
+      dlg.addEventListener('close', onCl);
+      inp.addEventListener('keydown', onKey);
+      dlg.showModal();
+      inp.focus();
+      inp.select();
+    });
+  }
+
+  function _darkAlert(msg) {
+    return new Promise(function(resolve) {
+      var dlg = document.getElementById('alert-dialog');
+      if (!dlg) { alert(msg); resolve(); return; }
+      document.getElementById('alert-dialog-msg').textContent = msg;
+      var okBtn = document.getElementById('alert-dialog-ok');
+      function cleanup() { okBtn.removeEventListener('click',onOk); dlg.removeEventListener('close',onCl); if(dlg.open)dlg.close(); resolve(); }
+      function onOk() { cleanup(); }
+      function onCl() { cleanup(); }
+      okBtn.addEventListener('click', onOk);
+      dlg.addEventListener('close', onCl);
+      dlg.showModal();
+      okBtn.focus();
+    });
+  }
+
   /* ═══════════════════════════════════════════════════════════
    *  TAB CONTROLLER
    * ═══════════════════════════════════════════════════════════ */
@@ -2390,12 +2495,14 @@ Silver Libertad 1 oz Proof"></textarea>
       if (!btn) return;
       if (loggedIn) {
         btn.classList.remove('tab-locked');
+        btn.removeAttribute('aria-description');
         const lock = btn.querySelector('.lock-icon');
         if (lock) lock.remove();
       } else {
         btn.classList.add('tab-locked');
+        btn.setAttribute('aria-description', 'Sign in required');
         if (!btn.querySelector('.lock-icon')) {
-          btn.insertAdjacentHTML('beforeend', ' <span class="lock-icon">&#x1F512;</span>');
+          btn.insertAdjacentHTML('beforeend', ' <span class="lock-icon" aria-hidden="true">&#x1F512;</span>');
         }
       }
     });
@@ -2477,8 +2584,9 @@ Silver Libertad 1 oz Proof"></textarea>
       });
       // Keyboard: arrow keys to navigate tabs
       tab.addEventListener('keydown', (e) => {
-        const tArr = Array.from(tabs);
+        const tArr = Array.from(tabs).filter(function(t) { return t.offsetParent !== null; });
         const idx  = tArr.indexOf(tab);
+        if (idx === -1) return;
         let next;
         if (e.key === 'ArrowRight') next = tArr[(idx + 1) % tArr.length];
         if (e.key === 'ArrowLeft')  next = tArr[(idx - 1 + tArr.length) % tArr.length];
@@ -4171,11 +4279,28 @@ Silver Libertad 1 oz Proof"></textarea>
       html += '</ul></div>';
     }
 
+    // ── Cross-tab Quick Links ─────────────────────────────
+    html += '<div class="cross-tab-links">';
+    html += '<span style="color:var(--text-muted);align-self:center">View on:</span>';
+    html += '<a data-tab="tab-melt" title="Open in Melt Calculator">Melt Calculator</a>';
+    html += '<a data-tab="tab-tracker" title="Open in Live eBay Tracker">eBay Tracker</a>';
+    html += '<a data-tab="tab-history" title="Open in Price History">Price History</a>';
+    html += '</div>';
+
     // ── Raw JSON ──────────────────────────────────────────
     html += '<details><summary>View raw JSON response</summary>';
     html += '<pre class="json">' + _esc(JSON.stringify(d, null, 2)) + '</pre></details>';
 
     r.innerHTML = html;
+
+    // Wire cross-tab quick links
+    r.querySelectorAll('.cross-tab-links a[data-tab]').forEach(function(a) {
+      a.addEventListener('click', function(e) {
+        e.preventDefault();
+        var tabBtn = document.getElementById(a.dataset.tab);
+        if (tabBtn) tabBtn.click();
+      });
+    });
   }
 
   // Submit handlers are now managed by CoinForm._bindSubmit()
@@ -5182,12 +5307,12 @@ Silver Libertad 1 oz Proof"></textarea>
     },
 
     async _deleteDataset(key) {
-      if (!confirm('Delete "' + key + '" terapeak data?')) return;
+      if (!(await _darkConfirm('Delete "' + key + '" terapeak data?'))) return;
       try {
         await fetch('/api/terapeak/datasets/' + encodeURIComponent(key), { method: 'DELETE' });
         this._loadDatasets();
       } catch (err) {
-        alert('Delete failed: ' + err.message);
+        _darkAlert('Delete failed: ' + err.message);
       }
     },
 
@@ -5269,17 +5394,15 @@ Silver Libertad 1 oz Proof"></textarea>
     },
 
     async _promptRecord() {
-      const input = prompt(
-        'How many Terapeak queries did you just do in eBay?\n' +
-        '(Each search, filter change, or date-range change = 1 query)\n\n' +
-        'Enter a number:',
+      const input = await _darkPrompt(
+        'How many Terapeak queries did you just do in eBay?\n(Each search, filter change, or date-range change = 1 query)\n\nEnter a number:',
         '1'
       );
       if (input === null) return;
       const count = parseInt(input);
-      if (isNaN(count) || count < 1) { alert('Enter a valid number >= 1'); return; }
+      if (isNaN(count) || count < 1) { _darkAlert('Enter a valid number >= 1'); return; }
 
-      const note = prompt('Optional note (e.g. coin searched):', '') || '';
+      const note = (await _darkPrompt('Optional note (e.g. coin searched):', '')) || '';
 
       try {
         const resp = await fetch('/api/terapeak/quota/record', {
@@ -5289,23 +5412,23 @@ Silver Libertad 1 oz Proof"></textarea>
         });
         const data = await resp.json();
         if (!data.ok) {
-          alert(data.warning || 'Cannot record: daily limit would be exceeded.');
+          _darkAlert(data.warning || 'Cannot record: daily limit would be exceeded.');
         } else if (data.warning) {
-          alert(data.warning);
+          _darkAlert(data.warning);
         }
         this.refresh();
       } catch (err) {
-        alert('Error recording queries: ' + err.message);
+        _darkAlert('Error recording queries: ' + err.message);
       }
     },
 
     async _resetCounter() {
-      if (!confirm('Reset today\'s Terapeak query counter to 0?')) return;
+      if (!(await _darkConfirm('Reset today\'s Terapeak query counter to 0?'))) return;
       try {
         await fetch('/api/terapeak/quota/reset', { method: 'POST' });
         this.refresh();
       } catch (err) {
-        alert('Reset failed: ' + err.message);
+        _darkAlert('Reset failed: ' + err.message);
       }
     }
   };
@@ -5336,6 +5459,7 @@ Silver Libertad 1 oz Proof"></textarea>
       const user = CoinAuth.currentUser();
       if (user) {
         badge.innerHTML = '<span class="user-badge-name">' + _esc(user.username) + '</span>' +
+          '<span class="session-chip" title="Session is in-memory only. You will need to log in again after refreshing the page.">session only</span>' +
           '<button id="auth-logout">Log Out</button>';
         document.getElementById('auth-logout').addEventListener('click', () => {
           CoinAuth.logout();
@@ -5875,12 +5999,15 @@ Silver Libertad 1 oz Proof"></textarea>
     const summaryContent = document.getElementById('bulk-summary-content');
     const resultsWrap  = document.getElementById('bulk-results-wrap');
     const resultsTbody = document.getElementById('bulk-results-tbody');
+    const pageNav      = document.getElementById('bulk-page-nav');
     const exportCsvBtn = document.getElementById('bulk-export-csv');
     const exportJsonBtn = document.getElementById('bulk-export-json');
 
+    const BULK_PAGE_SIZE = 50;
     let _results = [];
     let _lotSummary = null;
     let _running = false;
+    let _bulkPage = 0;
 
     function _fmt(n) { return n != null ? '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '--'; }
     function _confColor(c) { return c >= 70 ? 'var(--green, #4caf50)' : c >= 50 ? 'var(--amber, #ff9800)' : 'var(--red, #f44336)'; }
@@ -5888,11 +6015,14 @@ Silver Libertad 1 oz Proof"></textarea>
     function _reset() {
       _results = [];
       _lotSummary = null;
+      _bulkPage = 0;
       resultsTbody.innerHTML = '';
       summaryCard.style.display = 'none';
       resultsWrap.style.display = 'none';
       progressWrap.style.display = 'none';
       progressBar.style.width = '0%';
+      pageNav.style.display = 'none';
+      pageNav.innerHTML = '';
       statusEl.textContent = '';
     }
 
@@ -5941,6 +6071,14 @@ Silver Libertad 1 oz Proof"></textarea>
           _running = false;
           _btnReset(evalBtn);
           statusEl.textContent = 'Complete -- ' + _results.length + ' coins evaluated.';
+          if (_results.length > BULK_PAGE_SIZE) {
+            _bulkPage = 0;
+            _renderBulkPage();
+          }
+          // "Jump to Summary" convenience link
+          if (_lotSummary) {
+            statusEl.innerHTML += ' <a href="#bulk-summary-card" style="color:var(--accent);margin-left:8px;font-size:0.82rem">Jump to Summary \u2193</a>';
+          }
         });
 
         es.addEventListener('error', function(e) {
@@ -5970,23 +6108,58 @@ Silver Libertad 1 oz Proof"></textarea>
 
     function _renderRow(coin, idx) {
       const tr = document.createElement('tr');
-      if (coin.error) {
-        tr.innerHTML = '<td>' + (idx + 1) + '</td><td colspan="9" style="color:var(--red, #f44336)">' + _esc(coin.query) + ' -- ' + _esc(coin.error) + '</td>';
-      } else {
-        tr.innerHTML =
-          '<td>' + (idx + 1) + '</td>' +
-          '<td>' + _esc(coin.query || '') + '</td>' +
-          '<td>' + (coin.qty || 1) + '</td>' +
-          '<td>' + _esc(coin.grade || '--') + '</td>' +
-          '<td>' + _fmt(coin.fmv) + '</td>' +
-          '<td>' + _fmt(coin.totalFmv) + '</td>' +
-          '<td>' + _fmt(coin.meltValue) + '</td>' +
-          '<td>' + (coin.compCount || 0) + '</td>' +
-          '<td style="color:' + _confColor(coin.confidence) + '">' + (coin.confidence || '--') + '</td>' +
-          '<td class="muted">' + _esc(coin.method || '--') + '</td>';
-      }
+      tr.innerHTML = _buildRowHtml(coin, idx);
       resultsTbody.appendChild(tr);
     }
+
+    function _buildRowHtml(coin, idx) {
+      if (coin.error) {
+        return '<td>' + (idx + 1) + '</td><td colspan="9" style="color:var(--red, #f44336)">' + _esc(coin.query) + ' -- ' + _esc(coin.error) + '</td>';
+      }
+      return '<td>' + (idx + 1) + '</td>' +
+        '<td>' + _esc(coin.query || '') + '</td>' +
+        '<td>' + (coin.qty || 1) + '</td>' +
+        '<td>' + _esc(coin.grade || '--') + '</td>' +
+        '<td>' + _fmt(coin.fmv) + '</td>' +
+        '<td>' + _fmt(coin.totalFmv) + '</td>' +
+        '<td>' + _fmt(coin.meltValue) + '</td>' +
+        '<td>' + (coin.compCount || 0) + '</td>' +
+        '<td style="color:' + _confColor(coin.confidence) + '">' + (coin.confidence || '--') + '</td>' +
+        '<td class="muted">' + _esc(coin.method || '--') + '</td>';
+    }
+
+    function _renderBulkPage() {
+      var total = _results.length;
+      var pages = Math.ceil(total / BULK_PAGE_SIZE);
+      if (pages <= 1) { pageNav.style.display = 'none'; return; }
+      var start = _bulkPage * BULK_PAGE_SIZE;
+      var end = Math.min(start + BULK_PAGE_SIZE, total);
+      // Re-render visible rows
+      resultsTbody.innerHTML = '';
+      for (var i = start; i < end; i++) {
+        if (!_results[i]) continue;
+        var tr = document.createElement('tr');
+        tr.innerHTML = _buildRowHtml(_results[i], i);
+        resultsTbody.appendChild(tr);
+      }
+      // Render page nav
+      var navHtml = '<button ' + (_bulkPage === 0 ? 'disabled' : '') + ' data-bp="' + (_bulkPage - 1) + '">\u2190 Prev</button>';
+      for (var p = 0; p < pages; p++) {
+        navHtml += '<button data-bp="' + p + '"' + (p === _bulkPage ? ' class="active"' : '') + '>' + (p + 1) + '</button>';
+      }
+      navHtml += '<button ' + (_bulkPage >= pages - 1 ? 'disabled' : '') + ' data-bp="' + (_bulkPage + 1) + '">Next \u2192</button>';
+      navHtml += '<span class="muted" style="margin-left:8px">Showing ' + (start + 1) + '-' + end + ' of ' + total + '</span>';
+      pageNav.innerHTML = navHtml;
+      pageNav.style.display = 'flex';
+    }
+
+    pageNav.addEventListener('click', function(e) {
+      var btn = e.target.closest('button[data-bp]');
+      if (!btn || btn.disabled) return;
+      _bulkPage = parseInt(btn.dataset.bp, 10);
+      _renderBulkPage();
+      resultsWrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
 
     function _renderSummary(s) {
       summaryCard.style.display = 'block';
@@ -6040,8 +6213,8 @@ Silver Libertad 1 oz Proof"></textarea>
       excelInput.value = '';
     });
 
-    jsonBtn.addEventListener('click', function() {
-      const raw = prompt('Paste JSON array of coins:\n[{"query":"1921 Morgan Dollar","qty":5},...]');
+    jsonBtn.addEventListener('click', async function() {
+      const raw = await _darkPrompt('Paste JSON array of coins:\n[{"query":"1921 Morgan Dollar","qty":5},...]');
       if (!raw) return;
       try {
         const items = JSON.parse(raw);
