@@ -30,9 +30,29 @@
 - Use `/review-deep` for a full approval-gated code review.
 - Use `/apply-approved` to implement approved findings.
 - Use `/pre-commit` for a quick safety check before committing.
+- Use `/test-coverage` to analyze test gaps and generate missing tests.
 - Review agents are read-only. The Implementer only acts on explicit `APPLY` commands.
 - Use the UX Reviewer agent for accessibility, responsive design, and interaction pattern checks on UI changes.
 - Shared review logic lives in `.github/skills/code-review/SKILL.md`.
+
+## Copilot Agents & Prompts
+
+| Agent / Prompt | Purpose |
+|----------------|---------|
+| `@code-reviewer` | Full approval-gated code review (conductor) |
+| `@security-review` | OWASP-focused security sub-reviewer |
+| `@performance-review` | Performance bottleneck sub-reviewer |
+| `@implementer` | Applies only user-approved review items |
+| `@pre-commit-reviewer` | Quick pre-commit safety check |
+| `@test-coverage` | Test gap analysis + test generation |
+| `@test-monitor` | Test health monitoring and diagnostics |
+| `@ux-reviewer` | Accessibility, responsive, interaction review |
+| `@onboard` | Project onboarding assistant |
+| `/review-deep` | Invoke full code review |
+| `/apply-approved` | Implement approved findings |
+| `/pre-commit` | Quick pre-commit check |
+| `/test-coverage` | Analyze and fill test gaps |
+| `/onboard` | Bootstrap project understanding |
 
 ## Onboarding
 

@@ -24,7 +24,7 @@ Also supports **bullion bars** (any metal, any size), **proof/mint sets**, **rol
 
 ## Frontend — Web UI
 
-The browser UI is a single-page app served from `public/index.html` with a dark theme and eight tabbed panels. Client-side JavaScript is split across three modules loaded in order: `auth.js` → `storage.js` → `my-coins.js`. Authentication and coin storage are handled server-side via JWT + bcrypt.
+The browser UI is a single-page app served from `public/index.html` with a dark theme and nine tabbed panels. Client-side JavaScript is split across three modules loaded in order: `auth.js` → `storage.js` → `my-coins.js`. Authentication and coin storage are handled server-side via JWT + bcrypt.
 
 ### Tabs
 
@@ -35,9 +35,10 @@ The browser UI is a single-page app served from `public/index.html` with a dark 
 | **Live eBay Tracker** | Market matrix from `/api/market/ebay`. Three display modes: Year × Mint (numismatic coins), Year × Grade (bullion), and Brand table (bars). Cells show median sold price, cheapest BIN link, key date badge, and Numista rarity. Color-coded legend. |
 | **Lot Evaluator** | Bulk collection pricing tool. Accepts a text list (one coin per line, pipe-delimited fields), JSON array, or Excel upload. Submits to `POST /api/bulk-evaluate`, then streams results via SSE. Shows per-coin FMV table with progress bar, lot summary card (total FMV, melt, avg confidence, bullion %), and three buy tiers (cherry-pick, fair lot, full retail). Applies lot-level discounts for size, low confidence, and concentration risk. Export results as CSV or JSON. |
 | **Sold Data** | Terapeak CSV import UI (drag-and-drop or file picker) with search term input. Datasets list with delete. Visual daily quota meter (250/day default) with manual logging and reset. Admin endpoints require `x-api-key`. |
-| **My Coins** 🔒 | Auth-gated. Server-side coin collection (persisted in `cache/user_coins.json` + Azure Cosmos DB write-through). Shows portfolio summary (total FMV, total cost, unrealized P/L, coin count) and full table with per-coin FMV, confidence, Troy Oz, cost basis, P/L, melt value, eBay average, range, notes, date added, and remove button. Checkbox column with select-all for multi-select bulk delete. Export/Import backup buttons (JSON and Excel .xlsx), Change Password. |
+| **My Coins** 🔒 | Auth-gated. Server-side coin collection (persisted in `cache/user_coins.json` + Azure Cosmos DB write-through). Shows portfolio summary (total FMV, total cost, unrealized P/L, coin count) and full table with per-coin FMV, confidence, Troy Oz, cost basis, P/L, melt value, eBay average, range, notes, date added, and remove button. Checkbox column with select-all for multi-select bulk delete. Collapsible column guide explains all 14 columns. Export/Import backup buttons (JSON and Excel .xlsx), Change Password. |
 | **Price History** 🔒 | Auth-gated. Canvas-drawn chart from `/api/coin-history`. Shows daily median prices with IQR band, outlier dots, and optional precious-metal spot overlay (dashed line). Supports 90/180/365-day ranges. |
 | **About** | Confidence score key, privacy/security explanation, how login works, feature previews for logged-out users, and legal disclaimer. |
+| **Admin** 🔒 | Hidden by default. Unlocked by entering the admin API key. Dashboard (uptime, total users, CSV datasets, Terapeak quota), users table, data health (total files, empty files, oldest/newest dates), stale datasets table, clear cache button, force Terapeak reimport button. Locked/unlocked state stored in sessionStorage. |
 
 ### Server-Side Auth (bcrypt + JWT)
 
@@ -97,6 +98,7 @@ The My Coins and Price History tabs are locked for logged-out users:
 
 - **Price Discovery → Live eBay Tracker:** After pricing a coin, the tracker's series input is pre-populated. Switching to the tracker tab auto-loads the matrix.
 - **Price Discovery → Price History:** A `CoinHistoryLink` object stores the query. Switching to the History tab auto-runs the chart.
+- **Price Discovery → Melt Calculator:** `MeltCalc.setCoin()` receives metal type and pure troy ounces from the pricing result. Switching to the Melt tab shows the calculation pre-populated for the identified coin.
 
 ---
 
@@ -391,6 +393,9 @@ All `/api/coins/*` endpoints require `Authorization: Bearer <jwt>` header.
 |--------|------|-------------|
 | `POST` | `/api/clear-cache` | Flush all caches (eBay + PCGS + market + Numista + metals) 🔒 |
 | `GET` | `/api/health` | Health check + uptime |
+| `GET` | `/api/admin/dashboard` | System overview: uptime, user count, dataset count, Terapeak quota 🔒 |
+| `GET` | `/api/admin/stale-datasets` | List datasets older than N days (default 30) 🔒 |
+| `GET` | `/api/admin/data-health` | Total files, empty files, oldest/newest file dates 🔒 |
 
 🔒 = requires `ADMIN_API_KEY` via `x-api-key` header.
 
@@ -442,7 +447,7 @@ The **Test Monitor** system records per-run metrics (timestamp, branch, commit, 
 
 A Copilot agent persona (`.github/agents/test-monitor.agent.md`) can be invoked to diagnose failures, quarantine flaky tests, and suggest fixes. See [docs/testing/test-monitor.md](docs/testing/test-monitor.md) for full usage.
 
-Runs **Jest** across 40 test suites:
+Runs **Jest** across 48 test suites:
 
 | Suite | What it covers |
 |---|---|
@@ -485,8 +490,15 @@ Runs **Jest** across 40 test suites:
 | `terapeakService.test.js` | Terapeak CSV import: parseCSV, importComps, evictStaleComps, autoImportFolder, normalizeSearchKey, mapColumn, rowToComp |
 | `bulkEvaluateService.test.js` | Lot evaluator engine: sizeDiscount tiers, confidencePenalty, concentrationPenalty, computeLotSummary, constants |
 | `bulkEvaluateRoute.test.js` | Bulk-evaluate route: parseTextInput, parseJsonInput, POST validation, poll 404 handling |
+| `adminRoute.test.js` | Admin route: dashboard, stale datasets, data health, auth gating |
+| `adminService.test.js` | Admin service: uptime, user counts, dataset stats |
+| `bulkEvaluate.test.js` | Bulk evaluator integration: input parsers, SSE streaming, lot pricing |
+| `authRoute.test.js` | Auth route: signup, login, change-password validation |
+| `terapeakImportEviction.test.js` | Terapeak import/eviction lifecycle |
+| `pricingPipeline.test.js` | Pricing pipeline integration: proof isolation, grade pool split, randomized coin parsing, FMV oracle, cross-tab propagation fields, ungraded isolation, cross-tab value verification |
+| `crossRouteConsistency.test.js` | Cross-route consistency: same coin through /api/price and /api/pricing-batch produces matching FMV, confidence, and avgEbay |
 
-Test helpers live in `__tests__/helpers/coinTestConstants.js` (shared token lists, normalization, compound-word-aware `containsNone`).
+Test helpers live in `__tests__/helpers/coinTestConstants.js` (shared token lists, normalization, compound-word-aware `containsNone`, seeded PRNG, synthetic comp builder, coin catalog with US coins, US bullion, and world bullion).
 
 ---
 
@@ -542,7 +554,7 @@ src/
     cachePath.js                   Centralized CACHE_DIR from env var
     cosmosClient.js                Azure Cosmos DB client singleton (env-var gated)
     blobClient.js                  Azure Blob Storage client (env-var gated, managed identity)
-  greysheet/
+  data/
     greysheetTypeMap.js            Series-to-GSID mapping for Greysheet API lookups
 cache/
   ebay_cache.json                  Persisted eBay comp cache (1-hour TTL)
@@ -557,7 +569,7 @@ cache/
 data/
   terapeak/                        Drop Terapeak CSV exports here for auto-import
 public/
-  index.html                       SPA frontend (dark theme, 8 tabs)
+  index.html                       SPA frontend (dark theme, 9 tabs)
   js/
     auth.js                        CoinAuth -- server-backed signup/login/logout (JWT in memory)
     storage.js                     CoinStorage -- server-backed coin CRUD via /api/coins/*
@@ -567,7 +579,7 @@ public/
 samples/
   test-collection.xlsx             Sample Excel import fixture
   no-collectors-sheet.xlsx         Error-case fixture (missing sheet)
-__tests__/                         38 Jest test suites (see Tests section)
+__tests__/                         48 Jest test suites (see Tests section)
   helpers/
     coinTestConstants.js           Shared token lists & test utilities
 docs/
@@ -576,7 +588,21 @@ docs/
     test-monitor.md                Test Monitor usage guide & command reference
 .github/
   agents/
-    test-monitor.agent.md          Copilot agent persona for test health monitoring
+    code-reviewer.approval-gated.agent.md  Conductor for multi-agent code review
+    implementer.approval-only.agent.md     Applies approved review findings
+    onboard.agent.md                       Project onboarding assistant
+    performance-review.sub.agent.md        Performance-focused sub-reviewer
+    pre-commit-reviewer.agent.md           Quick pre-commit safety check
+    security-review.sub.agent.md           OWASP-focused security sub-reviewer
+    test-coverage.agent.md                 Test coverage engineer (gap analysis + generation)
+    test-monitor.agent.md                  Test health monitoring and diagnostics
+    ux-reviewer.agent.md                   Accessibility and UX review
+  prompts/
+    apply-approved.prompt.md               /apply-approved slash command
+    onboard.prompt.md                      /onboard slash command
+    pre-commit.prompt.md                   /pre-commit slash command
+    review-deep.prompt.md                  /review-deep slash command
+    test-coverage.prompt.md                /test-coverage slash command
   copilot-instructions.md          Workspace-wide Copilot rules (testing, safety, conventions)
   workflows/
     main_coinpricefinder-*.yml     CI/CD: GitHub Actions OIDC → Azure App Service
@@ -608,6 +634,7 @@ scripts/
 ### Batch Pricing Parity
 
 - **Enriched `pricingBatchRoute` expected object** -- now detects and passes `isProof`, `finish`, `isRoll`, `isSet`, `setType`, and `_rawQuery` to `fetchSoldComps()`, matching the main `/api/price` route. Proof/roll/set filtering now works correctly for My Coins batch pricing.
+- **Roll/tube parsing** -- `parseDescription()` and `ROLL_PATTERN` now detect "tube" and "coin roll" patterns in addition to "roll/rolls", so tube listings are correctly identified and priced as rolls.
 
 ### Security & Hardening
 
