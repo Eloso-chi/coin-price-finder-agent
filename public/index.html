@@ -3282,6 +3282,45 @@ Silver Libertad 1 oz Proof"></textarea>
         html += '\uD83D\uDCCA Spread: ' + liq.spreadPct.toFixed(0) + '% (' + liq.liquidity + ' liquidity)';
         html += '</span>';
       }
+      // #161: Filter attrition warning -- surfaces when >50% of gathered comps were removed
+      var usAttrition = d.ebay?.us?.attritionPct;
+      var usGathered = d.ebay?.us?.gathered;
+      var usRemoved = d.ebay?.us?.removed;
+      if (usAttrition != null && usAttrition > 50 && usGathered > 0) {
+        var atrColor = usAttrition > 90 ? 'var(--accent-red)' : usAttrition > 70 ? 'var(--warning)' : 'var(--caution)';
+        var atrBg = usAttrition > 90 ? 'rgba(220,38,38,0.08)' : usAttrition > 70 ? 'rgba(246,106,10,0.08)' : 'rgba(218,165,32,0.08)';
+        var atrBorder = usAttrition > 90 ? 'rgba(220,38,38,0.35)' : usAttrition > 70 ? 'rgba(246,106,10,0.3)' : 'rgba(218,165,32,0.3)';
+        // Build per-reason breakdown for tooltip
+        var atrReasons = [];
+        if (usRemoved) {
+          if (usRemoved.weightMismatch) atrReasons.push(usRemoved.weightMismatch + ' weight');
+          if (usRemoved.variantMismatch) atrReasons.push(usRemoved.variantMismatch + ' variant');
+          if (usRemoved.metalMismatch) atrReasons.push(usRemoved.metalMismatch + ' metal');
+          if (usRemoved.yearMismatch) atrReasons.push(usRemoved.yearMismatch + ' year');
+          if (usRemoved.mintMismatch) atrReasons.push(usRemoved.mintMismatch + ' mint');
+          if (usRemoved.denomMismatch) atrReasons.push(usRemoved.denomMismatch + ' denom');
+          if (usRemoved.lowRelevance) atrReasons.push(usRemoved.lowRelevance + ' low-relevance');
+          if (usRemoved.denied) atrReasons.push(usRemoved.denied + ' denied');
+          if (usRemoved.meltSanity) atrReasons.push(usRemoved.meltSanity + ' melt-check');
+          if (usRemoved.outlier) atrReasons.push(usRemoved.outlier + ' outlier');
+          if (usRemoved.compositionMismatch) atrReasons.push(usRemoved.compositionMismatch + ' composition');
+          if (usRemoved.nonBullionDenom) atrReasons.push(usRemoved.nonBullionDenom + ' non-bullion');
+        }
+        var atrTooltip = usAttrition.toFixed(0) + '% of ' + usGathered + ' gathered comps were filtered out';
+        if (atrReasons.length) atrTooltip += ': ' + atrReasons.join(', ');
+        html += '<div style="margin-top:6px;padding:6px 10px;background:' + atrBg + ';border:1px solid ' + atrBorder + ';border-radius:6px;font-size:0.78rem;color:' + atrColor + '" title="' + _esc(atrTooltip) + '">';
+        html += '&#9888;&#65039; <strong>High filter attrition</strong> -- ' + usAttrition.toFixed(0) + '% of ' + usGathered + ' comps removed';
+        if (atrReasons.length) html += ' (' + _esc(atrReasons.slice(0, 3).join(', ')) + (atrReasons.length > 3 ? ', +' + (atrReasons.length - 3) + ' more' : '') + ')';
+        html += '. Query may be too broad.';
+        html += '</div>';
+      }
+      // #157: Stale spot price warning
+      if (d.spotPrice && d.spotPrice.stale) {
+        var spotDate = d.spotPrice.asOf ? new Date(d.spotPrice.asOf).toLocaleDateString() : 'unknown date';
+        html += '<div style="margin-top:6px;padding:6px 10px;background:rgba(218,165,32,0.08);border:1px solid rgba(218,165,32,0.3);border-radius:6px;font-size:0.78rem;color:var(--caution)">';
+        html += '&#9888;&#65039; <strong>Spot price may be outdated</strong> -- using cached/fallback price from ' + _esc(spotDate) + '. Live metals API unavailable.';
+        html += '</div>';
+      }
       html += '</div>';
       html += '</div>';
 

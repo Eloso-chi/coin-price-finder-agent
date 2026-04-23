@@ -1028,7 +1028,7 @@ function applyFilters(comps, options, expected) {
     return false;
   });
 
-  return { kept, removed };
+  return { kept, removed, gathered: comps.length };
 }
 
 // ── Fetch tier (Finding API) ────────────────────────────────
@@ -1400,6 +1400,18 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
   if (usResult.comps.length < opts.usMinComps && globalResult.comps.length >= opts.usMinComps) {
     usedFallback = true;
   }
+
+  // #159: Compute filter attrition stats for each tier
+  function _addAttrition(tier) {
+    if (!tier || !tier.removed) return;
+    const removedTotal = Object.values(tier.removed).reduce((s, n) => s + (n || 0), 0);
+    tier.gathered = tier.comps.length + removedTotal;
+    tier.attritionPct = tier.gathered > 0
+      ? +((removedTotal / tier.gathered) * 100).toFixed(1)
+      : 0;
+  }
+  _addAttrition(usResult);
+  _addAttrition(globalResult);
 
   const lookback = {
     requested: requestedDays,

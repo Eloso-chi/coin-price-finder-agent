@@ -202,6 +202,8 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
   // ── Confidence ──
   const isBar = !!(pcgs?._isBar);
   const pcgsFound = !!(pcgs?.pcgsNo || pcgs?.verified || pcgsGuide != null);
+  // #159: Extract filter attrition from eBay tier results
+  const usAttritionPct = ebay?.us?.attritionPct ?? null;
   const confidence = computeConfidence({
     verified: isCertified,
     usCompCount: usPrices.length,
@@ -217,9 +219,15 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
     browseOnly,
     soldRatio,
     population: pcgs?.population?.thisGrade ?? null,
-    greysheetSpreadPct: gsSpreadPct
+    greysheetSpreadPct: gsSpreadPct,
+    filterAttritionPct: usAttritionPct,
   });
   explanation.push(`Confidence ${confidence}/100.`);
+
+  // #159: High attrition explanation
+  if (usAttritionPct != null && usAttritionPct > 50) {
+    explanation.push(`\u26a0 High filter attrition (${usAttritionPct}% of gathered comps removed) -- query may be too broad.`);
+  }
 
   // #50: Low-pop explanation
   const popGrade = pcgs?.population?.thisGrade;
@@ -436,7 +444,7 @@ function fallbackPenalty(usCompCount) {
  * sample size, dispersion, and match quality — things that matter for
  * commodity bullion.
  */
-function computeConfidence({ verified, usCompCount, glCompCount, dispersion, avgMatchScore, usedFallback, hasPcgsGuide, hasAuction, hasGreysheet, isBar, pcgsFound, browseOnly, soldRatio, population, greysheetSpreadPct }) {
+function computeConfidence({ verified, usCompCount, glCompCount, dispersion, avgMatchScore, usedFallback, hasPcgsGuide, hasAuction, hasGreysheet, isBar, pcgsFound, browseOnly, soldRatio, population, greysheetSpreadPct, filterAttritionPct }) {
   let c = 0;
 
   if (isBar) {
@@ -497,8 +505,17 @@ function computeConfidence({ verified, usCompCount, glCompCount, dispersion, avg
   // Narrow wholesale-to-retail spread = liquid market = more reliable FMV.
   // Wide spread = illiquid, harder to sell, less reliable.
   if (greysheetSpreadPct != null) {
-    if (greysheetSpreadPct <= 15) c += 5;        // Tight spread — liquid
-    else if (greysheetSpreadPct >= 40) c -= 5;   // Wide spread — illiquid
+    if (greysheetSpreadPct <= 15) c += 5;        // Tight spread -- liquid
+    else if (greysheetSpreadPct >= 40) c -= 5;   // Wide spread -- illiquid
+  }
+
+  // ── #160: Filter attrition penalty ──
+  // High attrition means the query was too broad and surviving comps may be
+  // less representative. Penalize confidence proportionally.
+  if (filterAttritionPct != null && filterAttritionPct > 50) {
+    if (filterAttritionPct > 90) c -= 20;
+    else if (filterAttritionPct > 70) c -= 10;
+    else c -= 5;  // 50-70%
   }
 
   return Math.max(0, Math.min(100, Math.round(c)));

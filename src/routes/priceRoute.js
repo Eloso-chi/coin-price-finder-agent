@@ -286,7 +286,9 @@ router.post('/', async (req, res) => {
 
     // ── Precious metal content cross-check ──
     // Fetch spot price so the eBay filter can sanity-check bullion comps
-    // against melt value (both fractional AND full-oz).  Non-fatal — skip if unavailable.
+    // against melt value (both fractional AND full-oz).  Non-fatal -- skip if unavailable.
+    let spotStale = false;
+    let spotAsOf = null;
     if (expectedMetal && resolvedWeight) {
       const METAL_SYM = { silver: 'XAG', gold: 'XAU', platinum: 'XPT', palladium: 'XPD' };
       const sym = METAL_SYM[expectedMetal];
@@ -294,6 +296,10 @@ router.post('/', async (req, res) => {
         try {
           const spot = await getMetalsSpotPrice(sym, 'USD');
           expected.meltPerOz = spot.price;
+          if (spot.stale || /hardcoded|stale/i.test(spot.source || '')) {
+            spotStale = true;
+            spotAsOf = spot.timestamp || null;
+          }
         } catch { /* non-fatal */ }
       }
     }
@@ -358,11 +364,20 @@ router.post('/', async (req, res) => {
       greysheetHistory.recordSnapshot(gsHistKey, greysheet.greyVal, greysheet.cpgVal);
     }
 
+    // #156: Auto-derive COA/Box appeal multiplier when not explicitly set by user
+    let resolvedAppeal = appealMultiplier;
+    if (resolvedAppeal <= 1.0) {
+      const hasCoa = coinData?.coa === 'Y' || coinData?.coa === true || /\bCOA=Y\b/i.test(String(query));
+      const hasBox = coinData?.originalBox === 'Y' || coinData?.originalBox === true;
+      if (hasCoa && hasBox) resolvedAppeal = 1.10;
+      else if (hasCoa || hasBox) resolvedAppeal = 1.05;
+    }
+
     const { valuation, decisions } = computeValuation(pcgs, ebay, askingPrice || null, userGrade, {
       isBullion,
       greysheet,
       saleContext,
-      appealMultiplier,
+      appealMultiplier: resolvedAppeal,
       spotPrice: (isBullion && expected.meltPerOz && resolvedWeight)
         ? expected.meltPerOz * resolvedWeight
         : null,
@@ -504,6 +519,7 @@ router.post('/', async (req, res) => {
         usedFallback: ebay.usedFallback,
         lookback: ebay.lookback || { requested: opts.timeWindowDays, used: opts.timeWindowDays, extended: false }
       },
+      spotPrice: spotStale ? { stale: true, asOf: spotAsOf } : undefined,
       greysheet: greysheet ? {
         gsid: greysheet.gsid,
         name: greysheet.name,

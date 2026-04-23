@@ -77,19 +77,35 @@ async function _priceOne(item) {
     const METAL_SYM = { silver: 'XAG', gold: 'XAU', platinum: 'XPT', palladium: 'XPD' };
     const metalKey = detectedMetal || parsed.metal || null;
 
-    // Spot price for bullion — fetch before eBay so meltPerOz is available for comp filtering
+    // Spot price for bullion -- fetch before eBay so meltPerOz is available for comp filtering
     let meltPerOz = null;
+    let spotStale = false;
+    let spotAsOf = null;
     if (isBullion && metalKey && weight) {
       const sym = METAL_SYM[metalKey];
       if (sym) {
         try {
           const spot = await getMetalsSpotPrice(sym, 'USD');
           meltPerOz = spot.price;
+          if (spot.stale || /hardcoded|stale/i.test(spot.source || '')) {
+            spotStale = true;
+            spotAsOf = spot.timestamp || null;
+          }
         } catch { /* non-fatal */ }
       }
     }
 
-    // Lunar enrichment
+    // Lunar enrichment -- detect Lunar context from series, raw query, and zodiac patterns
+    const rawQueryLower = String(query).toLowerCase();
+    const hasLunarKeyword = /\blunar\b/i.test(series.toLowerCase()) || /\blunar\b/i.test(rawQueryLower);
+    const hasZodiacPattern = /\byear\s+of\s+the\s+(rat|ox|tiger|rabbit|dragon|snake|horse|goat|monkey|rooster|dog|pig)\b/i.test(rawQueryLower);
+    const isLunarCoin = hasLunarKeyword || hasZodiacPattern;
+    const hasPerthContext = /\bperth\b/i.test(rawQueryLower);
+    const hasAustralianContext = /\baustralian?\b/i.test(rawQueryLower);
+
+    let zodiacAnimal = null;
+    let perthSeriesLabel = null;
+
     let expected = {
       year, mint, series, grade, weight,
       finish:  parsed.finish || null,
@@ -101,20 +117,62 @@ async function _priceOne(item) {
       _rawQuery: String(query),
     };
     if (meltPerOz) expected.meltPerOz = meltPerOz;
-    if (year && /lunar/i.test(series)) {
-      expected.zodiacAnimal = zodiacForYear(Number(year));
+    if (isLunarCoin && year) {
+      zodiacAnimal = zodiacForYear(Number(year));
+      expected.zodiacAnimal = zodiacAnimal;
       expected.isLunarCoin = true;
+      if (hasPerthContext || hasAustralianContext) {
+        const lunarInfo = perthLunarSeries(Number(year));
+        if (lunarInfo) perthSeriesLabel = lunarInfo.label || null;
+        expected.perthSeriesLabel = perthSeriesLabel;
+      }
     }
 
-    // Build eBay keywords
-    const keywords = ebayService.buildKeywords
-      ? ebayService.buildKeywords({ series }, query, weight)
+    // Auto-detect Brand for eBay aspect filtering (#155)
+    if (hasPerthContext || hasAustralianContext)                   expected._brandFilter = 'Perth Mint';
+    else if (/\broyal\s*mint\b/i.test(rawQueryLower))             expected._brandFilter = 'The Royal Mint';
+    else if (/\broyal\s*canadian\b|\brcm\b/i.test(rawQueryLower)) expected._brandFilter = 'Royal Canadian Mint';
+
+    // Build eBay keywords using PCGS-parsed series (not raw coinData.name) (#155)
+    const pcgsParsedForKeywords = { series: parsed.series || series };
+    const parsedFinish = coinData.finish || parsed.finish || null;
+    if (parsedFinish && !pcgsParsedForKeywords.finish) pcgsParsedForKeywords.finish = parsedFinish;
+    let keywords = ebayService.buildKeywords
+      ? ebayService.buildKeywords(pcgsParsedForKeywords, query, weight)
       : query;
 
-    // Fetch eBay comps (lightweight: 1 page only)
+    // Semiquincentennial enrichment (#155)
+    const SEMI250_DENOM_MAP = {
+      'semiquincentennial half dollar': 'Kennedy Half Dollar',
+      'semiquincentennial clad half':   'Kennedy Half Dollar',
+      'semiquincentennial quarter':     'Washington Quarter',
+      'semiquincentennial dime':        'Roosevelt Dime',
+      'semiquincentennial nickel':      'Jefferson Nickel',
+      'semiquincentennial cent':        'Lincoln Cent',
+    };
+    const semi250Canonical = SEMI250_DENOM_MAP[(parsed.series || '').toLowerCase().trim()] || null;
+    const isSemi250 = !!(semi250Canonical || /semiquincentennial|250th\s*anniversary/i.test(String(query)));
+    if (semi250Canonical) {
+      const yr = year || 2026;
+      keywords = `${yr}${mint ? '-' + mint : ''} ${semi250Canonical} Semiquincentennial`.trim();
+    } else if (isSemi250 && !keywords.toLowerCase().includes('semiquincentennial')) {
+      keywords += ' Semiquincentennial';
+    }
+
+    // Lunar keyword enrichment: append zodiac animal + Perth series label (#155)
+    if (isLunarCoin && year) {
+      if (zodiacAnimal && !keywords.toLowerCase().includes(zodiacAnimal.toLowerCase())) {
+        keywords += ' ' + zodiacAnimal;
+      }
+      if (perthSeriesLabel && !keywords.toLowerCase().includes('series')) {
+        keywords += ' ' + perthSeriesLabel;
+      }
+    }
+
+    // Fetch eBay comps -- parity with priceRoute (#155): 180d, 3 pages
     const ebay = await ebayService.fetchSoldComps(keywords, {
-      timeWindowDays: 90,
-      maxPages: 1,
+      timeWindowDays: 180,
+      maxPages: 3,
       usMinComps: 3,
     }, expected);
 
@@ -138,11 +196,19 @@ async function _priceOne(item) {
       });
     }
 
+    // #156: Auto-derive COA/Box appeal multiplier
+    const hasCoa = coinData.coa === 'Y' || coinData.coa === true || /\bCOA=Y\b/i.test(query);
+    const hasBox = coinData.originalBox === 'Y' || coinData.originalBox === true;
+    let coaAppealMultiplier = 1.0;
+    if (hasCoa && hasBox) coaAppealMultiplier = 1.10;
+    else if (hasCoa || hasBox) coaAppealMultiplier = 1.05;
+
     const result = computeValuation(pcgs, ebay, null, gradeNum, {
       isBullion,
       isSet,
       isRoll,
       greysheet,
+      appealMultiplier: coaAppealMultiplier > 1.0 ? coaAppealMultiplier : undefined,
       spotPrice: (isBullion && meltPerOz && weight)
         ? meltPerOz * weight
         : null,
@@ -156,6 +222,8 @@ async function _priceOne(item) {
       rangeHigh: val.rangeHigh || null,
       avgEbay: ebay?.us?.stats?.median || ebay?.us?.stats?.mean || null,
       confidence: val.confidence || null,
+      spotStale: spotStale || undefined,
+      spotAsOf: spotAsOf || undefined,
     };
   } catch (err) {
     return { query: item.query || '', error: err.message };
