@@ -10,6 +10,7 @@ jest.mock('../src/services/valuationService', () => ({
 jest.mock('../src/data/constants', () => ({
   zodiacForYear: jest.fn(() => 'Dragon'),
   perthLunarSeries: jest.fn(() => ({ num: 'III' })),
+  getRollQuantity: jest.fn(() => 20),
 }));
 
 const http = require('http');

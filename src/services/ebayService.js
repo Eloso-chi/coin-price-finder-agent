@@ -7,7 +7,7 @@
 const axios = require('axios');
 const { TTLCache } = require('../utils/cache');
 const stats = require('../utils/stats');
-const { isDenied, detectDenomination, hasSeriesConflict, isCompositionMismatch, BULLION_DENY_DENOM_RE, BULLION_OK_RE } = require('../utils/filters');
+const { isDenied, detectDenomination, hasSeriesConflict, isCompositionMismatch, BULLION_DENY_DENOM_RE, BULLION_OK_RE, ROLL_PATTERN } = require('../utils/filters');
 const terapeakService = require('./terapeakService');
 
 // ── Config ──────────────────────────────────────────────────
@@ -378,9 +378,9 @@ function scoreMatch(comp, expected) {
   const notes = [];
   const tLow = (comp.title || '').toLowerCase();
 
-  // Roll match / mismatch
+  // Roll / tube match / mismatch
   if (expected.isRoll) {
-    if (/\brolls?\b/.test(tLow)) { score += 15; notes.push('roll-match'); }
+    if (ROLL_PATTERN.test(tLow)) { score += 15; notes.push('roll-match'); }
     else { score -= 30; notes.push('roll-mismatch'); }
   }
 
@@ -758,12 +758,12 @@ function applyFilters(comps, options, expected) {
     });
   }
 
-  // Roll-match filter: when searching for rolls, keep ONLY roll listings;
+  // Roll/tube-match filter: when searching for rolls, keep ONLY roll/tube listings;
   // when NOT searching for rolls the deny-list already blocks them.
   if (isRollSearch) {
     removed.notRoll = 0;
     kept = kept.filter(c => {
-      if (!/\brolls?\b/i.test(c.title)) { removed.notRoll++; return false; }
+      if (!ROLL_PATTERN.test(c.title)) { removed.notRoll++; return false; }
       return true;
     });
   }

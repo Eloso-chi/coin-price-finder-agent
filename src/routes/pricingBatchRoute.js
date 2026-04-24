@@ -13,7 +13,7 @@ const { computeValuation } = require('../services/valuationService');
 const { getMetalsSpotPrice } = require('../services/metalsSpotPrice');
 const { getCoinMetalProfile } = require('../utils/coinMetalProfile');
 const { lookupKeyDate } = require('../data/keyDates');
-const { zodiacForYear, perthLunarSeries } = require('../data/constants');
+const { zodiacForYear, perthLunarSeries, getRollQuantity } = require('../data/constants');
 const { detectDenomination } = require('../utils/filters');
 
 const MAX_ITEMS = 25;
@@ -141,6 +141,13 @@ async function _priceOne(item) {
       ? ebayService.buildKeywords(pcgsParsedForKeywords, query, weight)
       : query;
 
+    // Roll/tube keyword override -- match priceRoute parity
+    if (isRoll) {
+      const yr = year || '';
+      const ser = parsed.series || series || '';
+      keywords = `${yr}${mint ? '-' + mint : ''} ${ser} (roll,tube)`.trim();
+    }
+
     // Semiquincentennial enrichment (#155)
     const SEMI250_DENOM_MAP = {
       'semiquincentennial half dollar': 'Kennedy Half Dollar',
@@ -215,6 +222,15 @@ async function _priceOne(item) {
     });
     const val = result.valuation || {};
 
+    // Roll/tube enrichment
+    let rollQty = null;
+    let perCoinFmv = null;
+    if (isRoll) {
+      rollQty = getRollQuantity(parsed.series || series || String(query));
+      const fmvCore = val.fmvCore || null;
+      perCoinFmv = (rollQty && fmvCore) ? +(fmvCore / rollQty).toFixed(2) : null;
+    }
+
     return {
       query,
       fmv: val.fmvCore || null,
@@ -224,6 +240,8 @@ async function _priceOne(item) {
       confidence: val.confidence || null,
       spotStale: spotStale || undefined,
       spotAsOf: spotAsOf || undefined,
+      rollQty: rollQty || undefined,
+      perCoinFmv: perCoinFmv || undefined,
     };
   } catch (err) {
     return { query: item.query || '', error: err.message };

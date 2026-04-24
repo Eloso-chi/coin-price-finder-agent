@@ -10,7 +10,7 @@ const greysheetService = require('./greysheetService');
 const { computeValuation } = require('./valuationService');
 const { getMetalsSpotPrice } = require('./metalsSpotPrice');
 const { getCoinMetalProfile } = require('../utils/coinMetalProfile');
-const { zodiacForYear, perthLunarSeries } = require('../data/constants');
+const { zodiacForYear, perthLunarSeries, getRollQuantity } = require('../data/constants');
 
 const BULLION_SERIES = [
   'libertad', 'silver eagle', 'gold eagle', 'maple leaf', 'britannia',
@@ -151,7 +151,7 @@ async function evaluateOneCoin(coin) {
 
     // Detect proof / roll
     const isProof = parsed.finish === 'Proof' || /^(PF|PR)[-\s]?\d/i.test(grade) || /\bproof\b/i.test(query);
-    const isRoll  = !!(parsed.isRoll || /\broll\b/i.test(query));
+    const isRoll  = !!(parsed.isRoll || /\brolls?\b|\btubes?\b/i.test(query));
 
     // Metal / bullion
     const { isMetalBased, metal: detectedMetal } = getCoinMetalProfile(query);
@@ -185,9 +185,16 @@ async function evaluateOneCoin(coin) {
     }
 
     // eBay comps (1 page, 90-day window -- medium weight)
-    const keywords = ebayService.buildKeywords
+    let keywords = ebayService.buildKeywords
       ? ebayService.buildKeywords({ series }, query, weight)
       : query;
+
+    // Roll/tube keyword override
+    if (isRoll) {
+      const yr = year || '';
+      keywords = `${yr}${mint ? '-' + mint : ''} ${series} (roll,tube)`.trim();
+    }
+
     const ebay = await ebayService.fetchSoldComps(keywords, {
       timeWindowDays: 90,
       maxPages: 1,
@@ -227,8 +234,11 @@ async function evaluateOneCoin(coin) {
       grade:  grade || null,
       weight: weight || null,
       isBullion,
+      isRoll,
       fmv,
       totalFmv:   fmv ? +(fmv * qty).toFixed(2) : null,
+      rollQty:    isRoll ? (getRollQuantity(series || query) || null) : undefined,
+      perCoinFmv: isRoll && fmv ? (() => { const rq = getRollQuantity(series || query); return rq ? +(fmv / rq).toFixed(2) : null; })() : undefined,
       rangeLow:   val.rangeLow || null,
       rangeHigh:  val.rangeHigh || null,
       confidence: val.confidence || null,

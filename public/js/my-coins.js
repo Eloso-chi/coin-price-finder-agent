@@ -394,6 +394,8 @@ const MyCoins = (() => {
               rangeHigh: r.rangeHigh || null,
               avgEbay: r.avgEbay || null,
               confidence: r.confidence || null,
+              rollQty: r.rollQty || null,
+              perCoinFmv: r.perCoinFmv || null,
               pricingError: r.error || null,
             });
           }
@@ -680,7 +682,7 @@ const MyCoins = (() => {
       // Troy Oz
       html += '<td class="mycoins-toz mycoins-col-hide">' + (c.weight ? Number(c.weight).toFixed(4) : '\u2014') + '</td>';
 
-      const fmvCell = it.fmv != null ? _$(it.fmv) + (it.confidence ? ' <span style="opacity:0.6;font-size:0.85em">(' + _esc(it.confidence) + ')</span>' : '')
+      const fmvCell = it.fmv != null ? _$(it.fmv) + (it.rollQty ? ' <span style="opacity:0.6;font-size:0.8em" title="Roll of ' + it.rollQty + ' -- per coin: ' + _$(it.perCoinFmv) + '">\uD83D\uDCE6' + it.rollQty + 'pc</span>' : '') + (it.confidence ? ' <span style="opacity:0.6;font-size:0.85em">(' + _esc(it.confidence) + ')</span>' : '')
         : (it.pricingError ? '<span style="color:var(--text-muted);font-size:0.8em" title="' + _escAttr(it.pricingError) + '">No data</span>' : '\u2014');
       html += '<td class="mycoins-fmv">' + fmvCell + '</td>';
       html += '<td class="mycoins-fmv">' + _$(lineTotal) + '</td>';

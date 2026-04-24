@@ -4081,6 +4081,13 @@ Silver Libertad 1 oz Proof"></textarea>
     html += '<div class="label">Fair Market Value</div>';
     html += '<div class="value">' + $(v.fmvCore) + '</div>';
     html += '<div class="range">Range: ' + $(v.rangeLow) + ' – ' + $(v.rangeHigh) + '</div>';
+    // Roll/tube per-coin breakdown
+    if (d.rollInfo && d.rollInfo.rollQty) {
+      html += '<div style="margin-top:6px;padding:6px 10px;background:rgba(52,152,219,0.08);border:1px solid rgba(52,152,219,0.3);border-radius:6px;font-size:0.82rem;color:var(--text)">';
+      html += '\uD83D\uDCE6 <strong>Roll/Tube of ' + d.rollInfo.rollQty + '</strong>';
+      if (d.rollInfo.perCoinFmv) html += ' -- per coin: <strong>' + $(d.rollInfo.perCoinFmv) + '</strong>';
+      html += '</div>';
+    }
     html += '</div>';
     html += '</div>';
     // ── Metadata chips: melt, mintage, comps exact/close, pop, key date ──

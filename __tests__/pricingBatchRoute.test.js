@@ -46,6 +46,7 @@ jest.mock('../src/data/keyDates', () => ({
 jest.mock('../src/data/constants', () => ({
   zodiacForYear: jest.fn(() => null),
   perthLunarSeries: jest.fn(() => null),
+  getRollQuantity: jest.fn(() => 20),
 }));
 
 jest.mock('../src/utils/filters', () => ({

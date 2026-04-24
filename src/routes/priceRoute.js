@@ -15,7 +15,7 @@ const { lookupKeyDate } = require('../data/keyDates');
 const { lookupMintage } = require('../data/mintages');
 const { buildLunarComparison } = require('../data/lunarReference');
 const { resolveCoinVariant } = require('../data/halfDollarSeries');
-const { zodiacForYear, perthLunarSeries } = require('../data/constants');
+const { zodiacForYear, perthLunarSeries, getRollQuantity } = require('../data/constants');
 const { validateSeriesIntegrity, validateNumericSanity } = require('../utils/responseValidator');
 const { hasSeriesConflict, detectDenomination } = require('../utils/filters');
 const terapeakService = require('../services/terapeakService');
@@ -161,11 +161,13 @@ router.post('/', async (req, res) => {
 
     let ebayKeywords;
     if (isRoll) {
-      // For rolls, build targeted keywords (PCGS won't price these)
+      // For rolls/tubes, build targeted keywords (PCGS won't price these)
+      // Include both "roll" and "tube" via eBay OR syntax so we capture
+      // listings that say "tube" instead of "roll" (common for bullion).
       const yr = coinData?.year || pcgs.year || identification.parsed?.year || '';
       const mint = identification.parsed?.mint || pcgs.mint || '';
       const series = identification.parsed?.series || pcgs.series || '';
-      ebayKeywords = `${yr}${mint ? '-' + mint : ''} ${series} roll`.trim();
+      ebayKeywords = `${yr}${mint ? '-' + mint : ''} ${series} (roll,tube)`.trim();
     } else if (isSet) {
       // For sets, build targeted keywords (PCGS won't resolve these)
       const yr = coinData?.year || pcgs.year || identification.parsed?.year || '';
@@ -484,6 +486,18 @@ router.post('/', async (req, res) => {
       }
     };
 
+    // ── Roll / tube enrichment ──
+    let rollInfo = null;
+    if (isRoll) {
+      const seriesHint = identification.parsed?.series || pcgs.series || String(query);
+      const rollQty = getRollQuantity(seriesHint);
+      const fmvCore = valuation?.fmvCore || null;
+      rollInfo = {
+        rollQty: rollQty,
+        perCoinFmv: (rollQty && fmvCore) ? +(fmvCore / rollQty).toFixed(2) : null,
+      };
+    }
+
     // ── Response ──
     return res.json({
       query: { input: query, askingPrice: askingPrice || null, weight: resolvedWeight, setType: resolvedSetType, options: opts },
@@ -532,6 +546,7 @@ router.post('/', async (req, res) => {
       } : null,
       valuation,
       decisions,
+      rollInfo: rollInfo || undefined,
       adjacentYears: buildAdjacentYearContext(
         pcgs.series || identification.parsed?.series,
         pcgs.year || identification.parsed?.year,

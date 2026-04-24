@@ -10,7 +10,7 @@
 const fs = require('fs');
 const path = require('path');
 const { parse } = require('csv-parse/sync');
-const { isDenied } = require('../utils/filters');
+const { isDenied, ROLL_PATTERN } = require('../utils/filters');
 
 const CACHE_DIR = require('../utils/cachePath').CACHE_DIR;
 const cosmos = require('../utils/cosmosClient');
@@ -195,8 +195,10 @@ function rowToComp(mappedRow, searchTerm) {
   const title = mappedRow.title || '';
   if (!title) return null;
 
-  // Skip denied listings
-  if (isDenied(title)) return null;
+  // Skip denied listings -- but keep roll/tube listings (they are valid
+  // for roll-specific pricing and would be filtered by applyFilters when
+  // the search is not roll-specific)
+  if (isDenied(title, { allowRoll: true })) return null;
 
   const rawPrice = parseFloat(String(mappedRow.price || '0').replace(/[$,£€]/g, ''));
   const rawShipping = parseFloat(String(mappedRow.shipping || '0').replace(/[$,£€]/g, ''));

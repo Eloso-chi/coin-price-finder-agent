@@ -27,4 +27,44 @@ function perthLunarSeries(year) {
   return { label: null, num: null };
 }
 
-module.exports = { ZODIAC, zodiacForYear, perthLunarSeries };
+// ── Roll / tube quantity lookup ──────────────────────────────
+// Standard roll/tube sizes by series keyword.  Bullion tubes vary by mint;
+// circulating rolls follow US banking standards.
+const ROLL_QTY_BY_SERIES = [
+  // Bullion tubes
+  { re: /silver\s*eagle/i,           qty: 20 },
+  { re: /gold\s*eagle/i,             qty: 20 },
+  { re: /gold\s*buffalo/i,           qty: 20 },
+  { re: /maple\s*leaf/i,             qty: 25 },
+  { re: /britannia/i,                qty: 25 },
+  { re: /libertad/i,                 qty: 25 },
+  { re: /philharmonic/i,             qty: 20 },
+  { re: /krugerrand/i,               qty: 25 },
+  { re: /kangaroo/i,                 qty: 25 },
+  { re: /kookaburra/i,               qty: 20 },
+  { re: /panda/i,                    qty: 30 },
+  { re: /lunar/i,                    qty: 20 },
+  { re: /polar\s*bear/i,             qty: 25 },
+  // US circulating rolls (denomination-based)
+  { re: /half\s*dollar|kennedy|franklin|walking\s*liberty|barber\s*half|seated.*half/i, qty: 20 },
+  { re: /quarter|standing\s*liberty/i, qty: 40 },
+  { re: /dime|mercury|roosevelt|barber\s*dime|seated.*dime/i, qty: 50 },
+  { re: /nickel|jefferson|buffalo\s*nickel|liberty.*nickel/i, qty: 40 },
+  { re: /cent|penny|lincoln|indian\s*head|wheat/i, qty: 50 },
+  { re: /dollar|morgan|peace|eisenhower|susan.*anthony|sacagawea/i, qty: 20 },
+];
+
+/**
+ * Determine standard roll/tube quantity from a series or query string.
+ * @param {string} text - series name, query, or coin description
+ * @returns {number|null} - coins per roll/tube, or null if unknown
+ */
+function getRollQuantity(text) {
+  if (!text) return null;
+  for (const { re, qty } of ROLL_QTY_BY_SERIES) {
+    if (re.test(text)) return qty;
+  }
+  return null;
+}
+
+module.exports = { ZODIAC, zodiacForYear, perthLunarSeries, getRollQuantity };

@@ -111,6 +111,7 @@ jest.mock('../src/data/halfDollarSeries', () => ({
 jest.mock('../src/data/constants', () => ({
   zodiacForYear: jest.fn(() => null),
   perthLunarSeries: jest.fn(() => ({ label: null, series: null })),
+  getRollQuantity: jest.fn(() => 20),
 }));
 
 jest.mock('../src/utils/responseValidator', () => ({
