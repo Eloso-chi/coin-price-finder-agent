@@ -88,6 +88,8 @@ server.js                              Express entry point (port 3000)
 ├─ scripts/
 │   ├─ terapeak-export.py              Semi-automated Terapeak CSV exporter (Playwright + blob upload)
 │   ├─ terapeak-page2.py               Page 2 enrichment scraper (extends CSVs beyond 50 rows)
+│   ├─ chain-scrape.sh                 Chain multiple scrape batches with anti-bot monitoring
+│   ├─ refresh-stale.sh                One-command biweekly stale data refresh
 │   ├─ clean-csvs.js                   CSV junk cleaner (deny-pattern purge)
 │   ├─ migrate-to-cosmos.js            One-time migration of history data to Cosmos DB
 │   ├─ upload-csvs-to-blob.js          Upload Terapeak CSVs to Azure Blob Storage
@@ -95,8 +97,10 @@ server.js                              Express entry point (port 3000)
 │   └─ test-metrics/                   Jest metrics capture + summary reporter
 │
 └─ __tests__/                          48 Jest test suites
+    ├─ fixtures/
+    │   └─ golden_coins.json           Curated golden set (14 deterministic test coins)
     └─ helpers/
-        └─ coinTestConstants.js        Shared token lists & test utilities
+        └─ coinTestConstants.js        Shared token lists, PRNG, coin catalog, golden set loader, selectCoins()
 ```
 
 ---
@@ -618,6 +622,84 @@ The scrapers require a graphical environment for Playwright's Chromium:
 | Login helper | `scripts/vnc-login.py` |
 
 VNC sessions may die between codespace restarts -- always verify with `ps aux | grep Xtigervnc` before running scrapers.
+
+### Chain Scrape -- `scripts/chain-scrape.sh`
+
+Chains multiple Terapeak scrape batches sequentially with anti-bot monitoring:
+
+```
+┌─ Configuration ───────────────────────────────────────────┐
+│  source chain-scrape.sh → exports run_batch() function    │
+│  Each batch: name + FILTER_REGEX + optional PID to wait   │
+├─ Per Batch ───────────────────────────────────────────────┤
+│  1. Wait for previous batch PID (if provided)             │
+│  2. run_batch "name" "Filter.*Regex"                      │
+│     └─ terapeak-export.py --run --resume --filter REGEX   │
+│     └─ Logs to cache/terapeak_<name>.log                  │
+│  3. check_antibot (tail log for 3+ consecutive bot blocks)│
+│     └─ If detected → abort chain, log warning             │
+│  4. Continue to next batch                                │
+└───────────────────────────────────────────────────────────┘
+```
+
+### Stale Data Refresh -- `scripts/refresh-stale.sh`
+
+One-command biweekly refresh of stale Terapeak datasets:
+
+```
+┌─ Query ───────────────────────────────────────────────────┐
+│  GET /api/admin/stale-datasets?days=N                     │
+│  → list of datasets older than threshold (default 14 days)│
+├─ Build Filter ────────────────────────────────────────────┤
+│  Extract search terms → build regex: "term1|term2|..."    │
+│  Write to /tmp/terapeak_refresh_regex.txt (avoids eval)   │
+├─ Execute ─────────────────────────────────────────────────┤
+│  terapeak-export.py --run --resume --filter "$(cat file)" │
+└───────────────────────────────────────────────────────────┘
+
+Options: --full, --days N, --dry-run, --include-empty, --limit N
+```
+
+---
+
+## Test Architecture
+
+### Golden Set + Seeded Runs
+
+Test coin selection uses a two-layer strategy to balance deterministic coverage with randomized breadth:
+
+```
+┌─ Layer 1: Golden Set (fixed) ─────────────────────────────┐
+│  __tests__/fixtures/golden_coins.json                     │
+│  14 curated coins: Morgan (raw + graded + edge),          │
+│  ASE (BU + Type variants + Generic), Peace, world bullion │
+│  ALWAYS run regardless of sample size                     │
+├─ Layer 2: Random Sample (rotating) ───────────────────────┤
+│  pickRandom(remaining_pool, N, seeded_rng)                │
+│  Fills slots up to target size from 29-coin catalog       │
+│  Different coins selected each run (seed = Date.now())    │
+├─ Composition ─────────────────────────────────────────────┤
+│  selectCoins(label, opts)                                 │
+│  → golden_set ∪ random_sample                             │
+│  → dedup by query string                                  │
+│  → stable sort for reproducible test order                │
+│  → log seed + selected IDs for reproducibility            │
+└───────────────────────────────────────────────────────────┘
+```
+
+**Suite presets** (`SUITE_TYPE` env var):
+
+| Suite | Total | Golden | Random | Use Case |
+|-------|-------|--------|--------|----------|
+| `pr` | 24 | 14 | 10 | Fast PR checks |
+| `nightly` | 29 | 14 | 15 (full catalog) | Broad nightly coverage |
+| `soak` | 100 | 14 | 15 (catalog exhausted) | Extended soak testing |
+
+**Env vars:** `COIN_TEST_SEED` (fixed seed), `COIN_SAMPLE_SIZE` (override total), `SUITE_TYPE` (preset).
+
+**Golden fixture format:** Groups (morgan, ase, supplemental), each coin has `q`, `series`, `year`, `metal`, `grade`, `tags` (raw/graded/high-volume/edge/key-date/low-comps), and `_comps` (real Terapeak comp count at curation time).
+
+**Safeguards:** Missing golden coins produce `console.warn` (test still runs). Zero golden coverage throws an error (corrupt fixture guard). `year: null` coins (e.g. "American Silver Eagle Generic") skip year assertion.
 
 ---
 

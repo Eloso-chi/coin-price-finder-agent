@@ -299,6 +299,141 @@ const WORLD_BULLION = [
 
 const ALL_COINS = [...US_COINS, ...US_BULLION, ...WORLD_BULLION];
 
+/* ══════════════════════════════════════════════════════════════
+ *  Golden Set — deterministic high-value coins that always run
+ *
+ *  Loaded from __tests__/fixtures/golden_coins.json.
+ *  Curated for: high-volume, edge-case, raw vs graded,
+ *  type variants, and cross-series coverage.
+ * ══════════════════════════════════════════════════════════════ */
+
+const path = require('path');
+
+/**
+ * Load golden coins from the fixture file.
+ * Converts series strings to case-insensitive RegExp for toMatch compatibility.
+ * Returns a flat array of coin objects.
+ */
+function loadGoldenSet() {
+  const fixturePath = path.join(__dirname, '..', 'fixtures', 'golden_coins.json');
+  let fixture;
+  try {
+    fixture = require(fixturePath);
+  } catch (err) {
+    console.error(`[golden] Failed to load fixture: ${err.message}`);
+    return [];
+  }
+
+  const coins = [];
+  for (const [groupName, group] of Object.entries(fixture)) {
+    if (groupName.startsWith('_') || !group.coins) continue;
+    for (const coin of group.coins) {
+      coins.push({
+        ...coin,
+        series: new RegExp(coin.series, 'i'),
+        _golden: true,
+        _group: groupName,
+      });
+    }
+  }
+  return coins;
+}
+
+/* ══════════════════════════════════════════════════════════════
+ *  Suite type defaults
+ *
+ *  SUITE_TYPE env var controls total sample size:
+ *    pr      → 12  (fast PR checks)
+ *    nightly → 25  (broader coverage, fixed seed)
+ *    soak    → 100 (wide coverage, rotating seed)
+ * ══════════════════════════════════════════════════════════════ */
+
+const SUITE_DEFAULTS = { pr: 24, nightly: 29, soak: 100 };
+
+/**
+ * Resolve the target sample size from env vars or explicit override.
+ */
+function resolveSampleSize(override) {
+  if (override != null) return override;
+  if (process.env.COIN_SAMPLE_SIZE) return parseInt(process.env.COIN_SAMPLE_SIZE, 10);
+  const suiteType = process.env.SUITE_TYPE || 'pr';
+  return SUITE_DEFAULTS[suiteType] || SUITE_DEFAULTS.pr;
+}
+
+/**
+ * Select coins for a test suite: golden_set ∪ random_sample.
+ *
+ *   - Golden coins ALWAYS run (guaranteed deterministic coverage).
+ *   - Random sample fills remaining slots up to totalSize.
+ *   - If goldenSet.length >= totalSize, all golden coins still run
+ *     (selection may exceed totalSize to preserve golden coverage).
+ *   - Duplicates removed by `q` string.
+ *   - Stable sort by `q` for reproducibility.
+ *
+ * @param {string} label       - Suite name for logging
+ * @param {object} [opts]
+ * @param {Array}  [opts.pool=ALL_COINS] - Candidate pool for random sample
+ * @param {number} [opts.sampleSize]     - Override total size
+ * @returns {Array} selected coin objects
+ */
+function selectCoins(label, opts = {}) {
+  const { pool = ALL_COINS, sampleSize } = opts;
+  const totalSize = resolveSampleSize(sampleSize);
+  const suiteType = process.env.SUITE_TYPE || 'pr';
+
+  // Load golden set
+  const goldenCoins = loadGoldenSet();
+
+  // Match golden coins to pool entries by q string (prefer pool version for regex compat)
+  const poolByQ = new Map(pool.map(c => [c.q, c]));
+  const goldenSelected = [];
+  const missing = [];
+  for (const gc of goldenCoins) {
+    const poolMatch = poolByQ.get(gc.q);
+    if (poolMatch) {
+      // Use pool version (has native RegExp series) but mark as golden
+      goldenSelected.push({ ...poolMatch, _golden: true, _group: gc._group });
+    } else {
+      // Use fixture version directly (series already converted to RegExp)
+      goldenSelected.push(gc);
+      missing.push(gc.q);
+    }
+  }
+
+  // Warn about golden coins not in catalog pool
+  if (missing.length > 0) {
+    console.warn(
+      `[${label}] ${missing.length} golden coin(s) not in catalog pool: ${missing.join(' | ')}`
+    );
+  }
+
+  // Coverage threshold: fail if zero golden coins loaded
+  if (goldenCoins.length > 0 && goldenSelected.length === 0) {
+    throw new Error(`[${label}] Golden set coverage is zero — fixture may be corrupt`);
+  }
+
+  // Random sample from pool, excluding golden coins already selected
+  const goldenQs = new Set(goldenSelected.map(c => c.q));
+  const remaining = pool.filter(c => !goldenQs.has(c.q));
+  const rng = seedRandom(label);
+  const randomCount = Math.max(0, totalSize - goldenSelected.length);
+  const randomPicks = pickRandom(remaining, randomCount, rng);
+
+  // Compose: golden ∪ random, dedup (already handled), stable sort
+  const selected = [...goldenSelected, ...randomPicks];
+  selected.sort((a, b) => a.q.localeCompare(b.q));
+
+  // Log selection for reproducibility
+  const seed = process.env.COIN_TEST_SEED || 'auto';
+  console.log(
+    `[${label}] ${selected.length} coins: ${goldenSelected.length} golden + ` +
+    `${randomPicks.length} random (suite=${suiteType}, size=${totalSize}, seed=${seed})`
+  );
+  console.log(`[${label}] IDs: ${selected.map(c => c.q).join(' | ')}`);
+
+  return selected;
+}
+
 module.exports = {
   DENOMINATION_TOKENS,
   DENOMINATION_TEST_MATRIX,
@@ -313,6 +448,9 @@ module.exports = {
   makeComps,
   seedRandom,
   pickRandom,
+  loadGoldenSet,
+  selectCoins,
+  SUITE_DEFAULTS,
   US_COINS,
   US_BULLION,
   WORLD_BULLION,

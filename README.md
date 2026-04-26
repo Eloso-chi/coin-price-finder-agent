@@ -430,6 +430,41 @@ npx jest __tests__/marketAggregator.test.js        # market matrix aggregator
 npx jest __tests__/marketRoute.test.js             # market route integration
 ```
 
+### Golden Set + Seeded Runs
+
+Randomized test suites (`pricingPipeline`, `crossRouteConsistency`) use a two-layer coin selection strategy via `selectCoins(label)` from `coinTestConstants.js`:
+
+1. **Golden set (fixed)** -- 14 curated coins from `__tests__/fixtures/golden_coins.json` always run. Covers high-volume raw (1921 Morgan, 2024 ASE), key dates (1893-S Morgan), graded vs raw, Carson City mints, Type 1/2 variants, generic queries, and world bullion.
+2. **Random sample (rotating)** -- fills remaining slots from the 29-coin catalog using the seeded PRNG. Without `COIN_TEST_SEED`, seed is `Date.now()` so each run picks a different subset.
+
+Over time, random rotation sweeps through coin combinations that might expose parser or valuation bugs for specific coins.
+
+**Suite type presets** (`SUITE_TYPE` env var):
+
+| Suite | Total | Golden (fixed) | Random (rotating) | Use Case |
+|-------|-------|----------------|-------------------|----------|
+| `pr` (default) | 24 | 14 | 10 | Fast PR checks |
+| `nightly` | 29 | 14 | 15 (full catalog) | Broad nightly coverage |
+| `soak` | 100 | 14 | 15 (catalog exhausted) | Extended soak testing |
+
+**Environment variables:**
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `COIN_TEST_SEED` | `Date.now()` | Fixed seed for deterministic runs. Logged on every run for reproducibility. |
+| `COIN_SAMPLE_SIZE` | *(from SUITE_TYPE)* | Override total sample size directly |
+| `SUITE_TYPE` | `pr` | Preset: `pr` (24), `nightly` (29), `soak` (100) |
+
+**Reproducing a failure:**
+
+```bash
+# The seed is logged on every run:
+# [pricingPipeline] COIN_TEST_SEED not set -- using 1777216439768
+COIN_TEST_SEED=1777216439768 npm test
+```
+
+**Fixture format** (`__tests__/fixtures/golden_coins.json`): groups of coins (morgan, ase, supplemental) with `q` (query string), `series`, `year`, `metal`, `grade`, `tags` (raw/graded/high-volume/edge/key-date), and `_comps` (real Terapeak comp count at time of curation).
+
 ### Test Metrics & Monitoring
 
 ```bash
@@ -498,7 +533,7 @@ Runs **Jest** across 48 test suites:
 | `pricingPipeline.test.js` | Pricing pipeline integration: proof isolation, grade pool split, randomized coin parsing, FMV oracle, cross-tab propagation fields, ungraded isolation, cross-tab value verification |
 | `crossRouteConsistency.test.js` | Cross-route consistency: same coin through /api/price and /api/pricing-batch produces matching FMV, confidence, and avgEbay |
 
-Test helpers live in `__tests__/helpers/coinTestConstants.js` (shared token lists, normalization, compound-word-aware `containsNone`, seeded PRNG, synthetic comp builder, coin catalog with US coins, US bullion, and world bullion).
+Test helpers live in `__tests__/helpers/coinTestConstants.js` (shared token lists, normalization, compound-word-aware `containsNone`, seeded PRNG, synthetic comp builder, coin catalog with US coins/US bullion/world bullion, golden set loader, and `selectCoins()` composable selector). Golden coin fixtures live in `__tests__/fixtures/golden_coins.json`.
 
 ---
 
@@ -580,8 +615,10 @@ samples/
   test-collection.xlsx             Sample Excel import fixture
   no-collectors-sheet.xlsx         Error-case fixture (missing sheet)
 __tests__/                         48 Jest test suites (see Tests section)
+  fixtures/
+    golden_coins.json              Curated golden set coins (14 deterministic test coins)
   helpers/
-    coinTestConstants.js           Shared token lists & test utilities
+    coinTestConstants.js           Shared token lists, PRNG, coin catalog, golden set loader, selectCoins()
 docs/
   ARCHITECTURE.md                  Technical architecture reference
   testing/
@@ -608,8 +645,8 @@ docs/
     main_coinpricefinder-*.yml     CI/CD: GitHub Actions OIDC → Azure App Service
 scripts/
   terapeak-export.py               Semi-automated Terapeak CSV exporter (Playwright)
-  terapeak-page2.py                Page 2 enrichment scraper (extends CSVs beyond 50 rows)
-  clean-csvs.js                    CSV junk cleaner (deny-pattern purge across all CSVs)
+  terapeak-page2.py                Page 2 enrichment scraper (extends CSVs beyond 50 rows)  chain-scrape.sh                  Chain multiple terapeak scrape batches sequentially with anti-bot monitoring
+  refresh-stale.sh                 One-command stale data refresh (queries staleness API, builds filter, runs scraper)  clean-csvs.js                    CSV junk cleaner (deny-pattern purge across all CSVs)
   migrate-to-cosmos.js             One-time migration of history data to Azure Cosmos DB
   upload-csvs-to-blob.js           Upload Terapeak CSVs to Azure Blob Storage
   vnc-login.py                     VNC + eBay login helper for Playwright sessions
@@ -749,6 +786,20 @@ A comprehensive UX and accessibility review produced 36 findings across four sev
 - Notes column shows full text on hover via `title` attribute
 - Melt calculator quantity minimum changed from 0 to 1
 - "About (read me)" tab renamed to "About" for brevity
+
+### Chain Scrape Automation (#113)
+
+- **`scripts/chain-scrape.sh`** -- chains multiple Terapeak scrape batches sequentially with anti-bot monitoring. Exports a reusable `run_batch()` function that runs `terapeak-export.py` with the given filter and logs to `cache/terapeak_<name>.log`. Includes `check_antibot()` which tails the batch log for 3+ consecutive bot-detection failures and aborts the chain if detected. Supports passing a PID to wait on before starting (for session handoffs).
+- **`scripts/refresh-stale.sh`** -- one-command biweekly stale data refresh. Queries `GET /api/admin/stale-datasets?days=N` to identify datasets older than the threshold (default 14 days), builds a filter regex from stale search terms, and passes it to `terapeak-export.py --run --filter`. Options: `--full` (cold start refresh), `--days N` (staleness threshold), `--dry-run` (preview without scraping), `--include-empty` (include datasets with zero comps), `--limit N` (cap the number of terms).
+
+### Golden Set + Seeded Runs (Test Infrastructure)
+
+- **`__tests__/fixtures/golden_coins.json`** -- curated fixture of 14 deterministic test coins across three groups (Morgan, ASE, supplemental). Includes high-volume raw (1921 Morgan, 329-comp 1882-S), key dates (1893-S), graded edge cases (1879-CC MS64 with 1 comp), ASE type variants (Type 1, Type 2, Generic), and world bullion (Krugerrand, Libertad). Comp counts sourced from real Terapeak data.
+- **`selectCoins(label, opts)`** -- new composable selection function in `coinTestConstants.js`. Composes `golden_set ∪ random_sample`, deduplicates by query string, and stable-sorts for reproducibility. Golden coins always run regardless of sample size.
+- **`SUITE_TYPE` env var** -- presets for test breadth: `pr` (24 total), `nightly` (29 = full catalog), `soak` (100). `COIN_SAMPLE_SIZE` env var overrides any preset.
+- **Seed logging** -- every run logs the active seed and selected coin IDs. Set `COIN_TEST_SEED=<value>` to reproduce any failure deterministically.
+- **Coverage safeguards** -- missing golden coins produce warnings (not failures), but zero golden coverage throws an error (corrupt fixture guard).
+- **Updated test suites** -- `pricingPipeline.test.js` and `crossRouteConsistency.test.js` now use `selectCoins()` instead of hardcoded `pickRandom()` calls, gaining guaranteed golden coin coverage plus random rotation on every run.
 
 ---
 

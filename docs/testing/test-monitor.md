@@ -72,6 +72,31 @@ Example prompts:
 
 The agent follows a five-step loop: **Discover -> Monitor -> Diagnose/Fix -> Improve -> Validate**.
 
+## Golden Set + Seeded Runs
+
+Randomized test suites (`pricingPipeline`, `crossRouteConsistency`) use `selectCoins()` from `coinTestConstants.js` which composes a fixed golden set (14 curated coins from `__tests__/fixtures/golden_coins.json`) with a rotating random sample from the 29-coin catalog.
+
+**Key env vars for test runs:**
+
+| Variable | Default | Effect |
+|----------|---------|--------|
+| `SUITE_TYPE` | `pr` | Preset sample size: `pr`=24, `nightly`=29, `soak`=100 |
+| `COIN_SAMPLE_SIZE` | *(from SUITE_TYPE)* | Override total coin count directly |
+| `COIN_TEST_SEED` | `Date.now()` | Fix the PRNG seed for reproducible selection |
+
+Every run logs the seed and selected coins:
+
+```
+[pricingPipeline] 24 coins: 14 golden + 10 random (suite=pr, size=24, seed=auto)
+[pricingPipeline] IDs: 1879-CC Morgan Silver Dollar MS64 | 1880-CC Morgan Silver Dollar | ...
+```
+
+To reproduce a specific failure, set `COIN_TEST_SEED` to the logged value:
+
+```bash
+COIN_TEST_SEED=1777216439768 npm run test:metrics
+```
+
 ## Interpreting Flaky + Slow Trends
 
 ### Flaky tests

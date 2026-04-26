@@ -1,0 +1,150 @@
+{
+  "_comment": "Golden Set — deterministic test coins that always run. Curated for coverage of high-volume, edge-case, raw, and graded variants.",
+
+  "morgan": {
+    "_rationale": "Most-queried US classic series. Includes high-volume raw, key date, and grade-specific.",
+    "coins": [
+      {
+        "q": "1921 Morgan Silver Dollar",
+        "series": "morgan",
+        "year": 1921,
+        "metal": "silver",
+        "grade": null,
+        "tags": ["raw", "high-volume"],
+        "_comps": 296
+      },
+      {
+        "q": "1882-S Morgan Silver Dollar",
+        "series": "morgan",
+        "year": 1882,
+        "mint": "S",
+        "metal": "silver",
+        "grade": null,
+        "tags": ["raw", "high-volume"],
+        "_comps": 329
+      },
+      {
+        "q": "1893 S Morgan Silver Dollar",
+        "series": "morgan",
+        "year": 1893,
+        "mint": "S",
+        "metal": "silver",
+        "grade": null,
+        "tags": ["raw", "key-date", "edge"],
+        "_comps": 257
+      },
+      {
+        "q": "1880-CC Morgan Silver Dollar",
+        "series": "morgan",
+        "year": 1880,
+        "mint": "CC",
+        "metal": "silver",
+        "grade": null,
+        "tags": ["raw", "high-volume", "carson-city"],
+        "_comps": 285
+      },
+      {
+        "q": "1921 Morgan Silver Dollar MS63",
+        "series": "morgan",
+        "year": 1921,
+        "metal": "silver",
+        "grade": "MS63",
+        "tags": ["graded", "high-volume"],
+        "_comps": 50
+      },
+      {
+        "q": "1879-CC Morgan Silver Dollar MS64",
+        "series": "morgan",
+        "year": 1879,
+        "mint": "CC",
+        "metal": "silver",
+        "grade": "MS64",
+        "tags": ["graded", "edge", "low-comps"],
+        "_comps": 1
+      }
+    ]
+  },
+
+  "ase": {
+    "_rationale": "Highest-volume modern US bullion. Includes BU, Type variants, special issues, and generic.",
+    "coins": [
+      {
+        "q": "2024 American Silver Eagle",
+        "series": "silver eagle",
+        "year": 2024,
+        "metal": "silver",
+        "grade": null,
+        "tags": ["raw", "high-volume"],
+        "_comps": 253
+      },
+      {
+        "q": "1986 American Silver Eagle",
+        "series": "silver eagle",
+        "year": 1986,
+        "metal": "silver",
+        "grade": null,
+        "tags": ["raw", "first-year"],
+        "_comps": 133
+      },
+      {
+        "q": "2021 American Silver Eagle Type 1",
+        "series": "silver eagle",
+        "year": 2021,
+        "metal": "silver",
+        "grade": null,
+        "tags": ["raw", "type-variant"],
+        "_comps": 207
+      },
+      {
+        "q": "2024 American Silver Eagle Type 2",
+        "series": "silver eagle",
+        "year": 2024,
+        "metal": "silver",
+        "grade": null,
+        "tags": ["raw", "type-variant", "edge", "low-comps"],
+        "_comps": 39
+      },
+      {
+        "q": "American Silver Eagle Generic",
+        "series": "silver eagle",
+        "year": null,
+        "metal": "silver",
+        "grade": null,
+        "tags": ["raw", "generic"],
+        "_comps": 146
+      }
+    ]
+  },
+
+  "supplemental": {
+    "_rationale": "Additional high-value coins ensuring cross-series coverage: Peace, key dates, world bullion.",
+    "coins": [
+      {
+        "q": "1923 Peace Dollar",
+        "series": "peace",
+        "year": 1923,
+        "metal": "silver",
+        "grade": null,
+        "tags": ["raw", "high-volume"]
+      },
+      {
+        "q": "2024 South African Krugerrand 1 oz",
+        "series": "krugerrand",
+        "year": 2024,
+        "metal": "gold",
+        "weight": 1,
+        "grade": null,
+        "tags": ["raw", "world-bullion"]
+      },
+      {
+        "q": "2023 Mexican Gold Libertad 1 oz",
+        "series": "libertad",
+        "year": 2023,
+        "metal": "gold",
+        "weight": 1,
+        "grade": null,
+        "tags": ["raw", "world-bullion"]
+      }
+    ]
+  }
+}

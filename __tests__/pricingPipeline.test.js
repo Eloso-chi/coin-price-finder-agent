@@ -22,6 +22,7 @@ const {
   makeComps,
   seedRandom,
   pickRandom,
+  selectCoins,
   US_COINS,
   US_BULLION,
   WORLD_BULLION,
@@ -170,14 +171,12 @@ describe('computeValuation — grade pool selection', () => {
 //  3. Randomized coin selection — parse correctness
 // ═══════════════════════════════════════════════════════════════
 describe('randomized coin parsing — seeded selection', () => {
-  const rng = seedRandom('pricingPipeline');
-  const SAMPLE_SIZE = 10;
-  const sample = pickRandom(ALL_COINS, SAMPLE_SIZE, rng);
+  const sample = selectCoins('pricingPipeline');
 
   test.each(sample.map(c => [c.q, c]))('"%s" parses correctly', (q, coin) => {
     const parsed = parseDescription(q);
     expect(parsed.series).toMatch(coin.series);
-    expect(parsed.year).toBe(coin.year);
+    if (coin.year != null) expect(parsed.year).toBe(coin.year);
     if (coin.metal) expect(parsed.metal).toBe(coin.metal);
     if (coin.weight != null) expect(parsed.weight).toBe(coin.weight);
   });

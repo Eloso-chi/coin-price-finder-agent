@@ -139,7 +139,7 @@ const request = require('supertest');
 const express = require('express');
 const priceRoute = require('../src/routes/priceRoute');
 const pricingBatchRoute = require('../src/routes/pricingBatchRoute');
-const { seedRandom, pickRandom, ALL_COINS } = require('./helpers/coinTestConstants');
+const { seedRandom, pickRandom, selectCoins, ALL_COINS } = require('./helpers/coinTestConstants');
 
 const app = express();
 app.use(express.json());
@@ -253,8 +253,7 @@ describe('cross-route consistency — /api/price vs /api/pricing-batch', () => {
   });
 
   // Seeded random selection from the full coin catalog
-  const rng = seedRandom('crossRoute');
-  const randomCoins = pickRandom(ALL_COINS, 5, rng);
+  const randomCoins = selectCoins('crossRoute');
 
   test.each(randomCoins.map(c => [c.q, c]))(
     'random coin "%s" produces consistent results across routes',

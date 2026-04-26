@@ -1,6 +1,11 @@
 {
-  "forwardPorts": [3000, 6080],
+  "forwardPorts": [3000, 5901, 6080],
   "portsAttributes": {
+    "5901": {
+      "label": "VNC",
+      "visibility": "public",
+      "onAutoForward": "silent"
+    },
     "6080": {
       "label": "noVNC",
       "visibility": "public",
