@@ -156,6 +156,54 @@ CSVs are saved locally to `data/terapeak/` even if the upload fails -- nothing i
 - Headed browser mode (visible) so you can monitor progress
 - All temp files stored in `cache/` (git-ignored)
 
+## Chain Scraping
+
+For multi-series batch runs, use `scripts/chain-scrape.sh`:
+
+```bash
+# Source the helper functions
+source scripts/chain-scrape.sh
+
+# Run batches sequentially with anti-bot monitoring
+run_batch "morgan_grades" "Morgan.*Dollar.*MS"
+run_batch "barber_dimes" "Barber.*Dime"
+run_batch "walking_liberty" "Walking Liberty.*Half"
+```
+
+The `run_batch()` function:
+1. Runs `terapeak-export.py --run --resume --filter REGEX`
+2. Logs to `cache/terapeak_<name>.log`
+3. After each batch, `check_antibot` tails the log for 3+ consecutive bot-detection failures
+4. If detected, aborts the chain to avoid account flags
+
+Write session-specific chain scripts (e.g. `chain-scrape-session2.sh`) for large multi-batch runs.
+
+## Biweekly Stale Refresh
+
+Use `scripts/refresh-stale.sh` to automatically refresh datasets older than a threshold:
+
+```bash
+# Preview what would be refreshed (default: 14 days)
+bash scripts/refresh-stale.sh --dry-run
+
+# Run the refresh
+bash scripts/refresh-stale.sh
+
+# Full cold-start refresh (all datasets)
+bash scripts/refresh-stale.sh --full
+
+# Custom staleness threshold
+bash scripts/refresh-stale.sh --days 30
+
+# Include empty datasets (zero comps)
+bash scripts/refresh-stale.sh --include-empty
+
+# Limit number of terms
+bash scripts/refresh-stale.sh --limit 50
+```
+
+The script queries `GET /api/admin/stale-datasets?days=N`, builds a filter regex from the stale search terms, writes it to a temp file (avoids shell escaping issues with `eval`), and passes it to the scraper.
+
 ## Why not use the Finding API?
 
 The eBay Finding API (`findCompletedItems`) was **decommissioned on February 4, 2025**.
