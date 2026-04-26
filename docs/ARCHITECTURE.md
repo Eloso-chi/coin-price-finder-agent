@@ -787,6 +787,7 @@ The valuation engine separates eBay comps by `gradeType`:
 | `METALS_POLL_MS` | No | `300000` | Metals spot-price polling interval (ms) |
 | `EBAY_DEFAULT_LOOKBACK_DAYS` | No | `180` | Default sold-comp lookback window (auto-extends to 365 if thin) |
 | `BLOB_REIMPORT_MS` | No | `1800000` | Periodic blob re-import interval (ms; 30 min default) |
+| `GS_REFRESH_DAY` | No | `0` (Sunday) | Day of week for Greysheet bulk refresh (0=Sun, 1=Mon, ..., 6=Sat) |
 
 ---
 
