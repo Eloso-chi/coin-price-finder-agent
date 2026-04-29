@@ -13,7 +13,7 @@ const { getHistory, METAL_SYMBOLS } = require('../services/metalsHistoryService'
 const { classifyGradeType } = require('../services/ebayService');
 const { isDenied } = require('../utils/filters');
 
-const VALID_RANGES = new Set([90, 180]);
+const VALID_RANGES = new Set([90, 180, 365]);
 
 /**
  * GET /api/coin-history?query=...&rangeDays=90
@@ -111,7 +111,7 @@ router.get('/', async (req, res) => {
     });
   }
 
-  // Group by date (YYYY-MM-DD) and compute daily median
+  // Group by date (YYYY-MM-DD) and compute daily stats
   const byDate = new Map();
   for (const comp of compsInRange) {
     const dateKey = comp.soldDate.substring(0, 10); // "2025-01-15"
@@ -119,12 +119,22 @@ router.get('/', async (req, res) => {
     byDate.get(dateKey).push(comp.totalUsd);
   }
 
-  // Build sorted [date, medianPrice] pairs
+  // Build sorted daily stats: [date, median, avg, min, max, count]
   const prices = [];
   for (const [date, values] of byDate) {
     const med = stats.median(values);
     if (med != null) {
-      prices.push([date, Math.round(med * 100) / 100]);
+      const avg = stats.mean(values);
+      const mn  = Math.min(...values);
+      const mx  = Math.max(...values);
+      prices.push([
+        date,
+        Math.round(med * 100) / 100,
+        Math.round(avg * 100) / 100,
+        Math.round(mn * 100) / 100,
+        Math.round(mx * 100) / 100,
+        values.length
+      ]);
     }
   }
   prices.sort((a, b) => a[0].localeCompare(b[0]));

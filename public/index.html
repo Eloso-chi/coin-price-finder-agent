@@ -1949,6 +1949,7 @@
           <select id="history-range">
             <option value="90">90 days</option>
             <option value="180">180 days</option>
+            <option value="365">365 days</option>
           </select>
         </div>
         <button class="btn-primary" id="history-btn" style="height:38px">Show Chart</button>
@@ -6392,7 +6393,7 @@ Silver Libertad 1 oz Proof"></textarea>
       if (queryEl.value.trim()) emptyEl.style.display = 'none';
     });
 
-    const RANGE_LABELS = { '90': 'Last 90 days', '180': 'Last 180 days' };
+    const RANGE_LABELS = { '90': 'Last 90 days', '180': 'Last 180 days', '365': 'Last 365 days' };
 
     async function fetchAndRender() {
       const query = queryEl.value.trim();
@@ -6426,6 +6427,11 @@ Silver Libertad 1 oz Proof"></textarea>
           + ', ' + data.totalComps + ' comp' + (data.totalComps !== 1 ? 's' : '');
         if (data.gradeFiltered) {
           statusText += ' (grade-filtered)';
+        }
+        // Daily sale count summary
+        if (data.prices.length > 0 && data.prices[0].length >= 6) {
+          var totalSales = data.prices.reduce(function(s, p) { return s + (p[5] || 0); }, 0);
+          statusText += ' \u00B7 ' + totalSales + ' total sale' + (totalSales !== 1 ? 's' : '');
         }
         status.textContent = statusText;
 
@@ -6477,14 +6483,18 @@ Silver Libertad 1 oz Proof"></textarea>
       const cw = W - PAD_L - PAD_R, ch = H - PAD_T - PAD_B;
 
       // ── Coin series (left Y axis, blue) ──
+      // prices: [date, median, avg, min, max, count] or legacy [date, median]
+      const hasStats = prices.length > 0 && prices[0].length >= 6;
       const vals = prices.map(p => p[1]);
+      const mins = hasStats ? prices.map(p => p[3]) : vals;
+      const maxs = hasStats ? prices.map(p => p[4]) : vals;
       // Include Greysheet values in Y range so reference lines aren't clipped
       var gsValsForRange = [];
       if (gsOverlay && gsOverlay.current) {
         if (gsOverlay.current.wholesale) gsValsForRange.push(gsOverlay.current.wholesale);
         if (gsOverlay.current.retail)    gsValsForRange.push(gsOverlay.current.retail);
       }
-      let minV = Math.min(...vals, ...gsValsForRange), maxV = Math.max(...vals, ...gsValsForRange);
+      let minV = Math.min(...vals, ...mins, ...gsValsForRange), maxV = Math.max(...vals, ...maxs, ...gsValsForRange);
       if (minV === maxV) { minV -= 10; maxV += 10; }
       const padV = (maxV - minV) * 0.08;
       minV -= padV; maxV += padV;
@@ -6598,7 +6608,18 @@ Silver Libertad 1 oz Proof"></textarea>
       const outlierLo = q1 - 1.5 * iqr;
       const outlierHi = q3 + 1.5 * iqr;
 
-      // ── IQR band (Q1–Q3 shaded region) ──
+      // ── Daily min/max band (when enriched stats available) ──
+      if (hasStats && prices.length >= 2) {
+        ctx.beginPath();
+        ctx.moveTo(xPos(dates[0]), yPos(maxs[0]));
+        for (let i = 1; i < prices.length; i++) ctx.lineTo(xPos(dates[i]), yPos(maxs[i]));
+        for (let i = prices.length - 1; i >= 0; i--) ctx.lineTo(xPos(dates[i]), yPos(mins[i]));
+        ctx.closePath();
+        ctx.fillStyle = 'rgba(88,166,255,0.08)';
+        ctx.fill();
+      }
+
+      // ── IQR band (Q1--Q3 shaded region) ──
       const bandY1 = yPos(q3), bandY2 = yPos(q1);
       ctx.fillStyle = 'rgba(88,166,255,0.10)';
       ctx.fillRect(PAD_L, bandY1, cw, bandY2 - bandY1);
@@ -6646,6 +6667,7 @@ Silver Libertad 1 oz Proof"></textarea>
       ctx.stroke();
 
       // Dots -- outliers (outside 1.5xIQR) drawn in red, normal in blue
+      // When enriched stats available, show count labels for multi-sale days
       for (let i = 0; i < prices.length; i++) {
         const v = vals[i];
         const isOutlier = v < outlierLo || v > outlierHi;
@@ -6656,6 +6678,13 @@ Silver Libertad 1 oz Proof"></textarea>
           ctx.strokeStyle = 'rgba(248,81,73,0.5)';
           ctx.lineWidth = 1;
           ctx.beginPath(); ctx.arc(xPos(dates[i]), yPos(v), r + 3, 0, Math.PI * 2); ctx.stroke();
+        }
+        // Daily count badge for days with 2+ sales
+        if (hasStats && prices[i][5] >= 2 && prices.length <= 120) {
+          ctx.font = '9px -apple-system, sans-serif';
+          ctx.fillStyle = 'rgba(139,148,158,0.8)';
+          ctx.textAlign = 'center';
+          ctx.fillText(prices[i][5] + '\u00D7', xPos(dates[i]), yPos(v) - (r + 5));
         }
       }
 
@@ -6732,6 +6761,17 @@ Silver Libertad 1 oz Proof"></textarea>
       ctx.fillStyle = '#8b949e';
       ctx.fillText('Q1\u2013Q3', legendX + 20, ly + 5);
       legendX += 20 + ctx.measureText('Q1\u2013Q3').width + 8;
+      // Min/Max swatch (when enriched stats)
+      if (hasStats) {
+        ctx.fillStyle = 'rgba(88,166,255,0.12)';
+        ctx.fillRect(legendX, ly - 4, 14, 10);
+        ctx.strokeStyle = 'rgba(88,166,255,0.25)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(legendX, ly - 4, 14, 10);
+        ctx.fillStyle = '#8b949e';
+        ctx.fillText('Min\u2013Max', legendX + 20, ly + 5);
+        legendX += 20 + ctx.measureText('Min\u2013Max').width + 8;
+      }
       // Outlier swatch
       ctx.fillStyle = '#f85149';
       ctx.beginPath(); ctx.arc(legendX + 4, ly + 1.5, 3, 0, Math.PI * 2); ctx.fill();

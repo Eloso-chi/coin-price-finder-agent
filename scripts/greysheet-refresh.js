@@ -8,7 +8,7 @@
 //
 // Designed to run:
 //   1. Manually from the CLI for initial seeding
-//   2. Automatically from server.js on startup (if >7 days since last refresh)
+//   2. Automatically from server.js on startup (every GS_REFRESH_INTERVAL_DAYS, default 3)
 //
 // CommonJS
 

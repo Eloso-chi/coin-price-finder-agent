@@ -91,16 +91,16 @@ EBAY_RESEARCH_URL = "https://www.ebay.com/sh/research"
 EBAY_LOGIN_URL = "https://signin.ebay.com/ws/eBayISAPI.dll?SignIn"
 
 # Human-like delays (seconds) -- staggered to avoid pattern detection
-DELAY_BETWEEN_SEARCHES = (8, 18)   # base delay between coins
-DELAY_AFTER_EXPORT = (3, 7)        # after clicking Export
-DELAY_PAGE_LOAD = (3, 6)           # after navigation
-DELAY_TYPING = (0.03, 0.12)        # per-character typing speed
-DELAY_BEFORE_CLICK = (0.4, 1.2)    # pause before clicking a button
-DELAY_MICRO = (0.2, 0.8)           # tiny pauses between actions
+DELAY_BETWEEN_SEARCHES = (5, 12)   # base delay between coins
+DELAY_AFTER_EXPORT = (2, 5)        # after clicking Export
+DELAY_PAGE_LOAD = (2, 4)           # after navigation
+DELAY_TYPING = (0.03, 0.10)        # per-character typing speed
+DELAY_BEFORE_CLICK = (0.3, 0.9)    # pause before clicking a button
+DELAY_MICRO = (0.15, 0.6)          # tiny pauses between actions
 
 # Every N coins, take a longer "coffee break" to look natural
-COFFEE_BREAK_EVERY = (12, 25)      # random interval
-COFFEE_BREAK_DURATION = (30, 90)   # 30-90 second pause
+COFFEE_BREAK_EVERY = (20, 40)      # random interval
+COFFEE_BREAK_DURATION = (15, 45)   # 15-45 second pause
 
 import random
 import math

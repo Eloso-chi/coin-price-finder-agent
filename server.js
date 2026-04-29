@@ -263,32 +263,27 @@ app.listen(PORT, '0.0.0.0', async () => {
   setInterval(refreshMetalsPrices, METALS_POLL_MS);
   console.log(`  Metals spot price: polling every ${METALS_POLL_MS / 60000} min (round-robin across ${metals._providers.length} providers)`);
 
-  // ── Background Greysheet history refresh (calendar-based, default Sunday) ──
+  // ── Background Greysheet history refresh (interval-based, default every 3 days) ──
   const greysheetHistory = require('./src/services/greysheetHistoryService');
   const { runRefresh: runGreysheetRefresh } = require('./scripts/greysheet-refresh');
-  // GS_REFRESH_DAY: 0=Sun, 1=Mon, ..., 6=Sat (default Sunday)
-  const GS_REFRESH_DAY = parseInt(process.env.GS_REFRESH_DAY, 10) || 0;
-  const GS_DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  // GS_REFRESH_INTERVAL_DAYS: how many days between full refreshes (default 3)
+  const GS_REFRESH_INTERVAL_DAYS = parseInt(process.env.GS_REFRESH_INTERVAL_DAYS, 10) || 3;
 
-  // Evict Greysheet history entries older than 200 days on startup
-  greysheetHistory.evictOld(200);
-
-  function todayStr() {
-    return new Date().toISOString().substring(0, 10);
-  }
+  // Evict Greysheet history entries older than 400 days on startup
+  greysheetHistory.evictOld(400);
 
   function needsGreysheetRefresh() {
-    const now = new Date();
-    const isRefreshDay = now.getUTCDay() === GS_REFRESH_DAY;
-    if (!isRefreshDay) return false;
-    // Already ran today?
     const lastRun = greysheetHistory.getLastRefreshDate();
-    return lastRun !== todayStr();
+    if (!lastRun) return true; // never ran
+    const lastDate = new Date(lastRun + 'T00:00:00Z');
+    const now = new Date();
+    const elapsed = (now - lastDate) / (1000 * 60 * 60 * 24);
+    return elapsed >= GS_REFRESH_INTERVAL_DAYS;
   }
 
   async function doGreysheetRefresh() {
     try {
-      console.log(`  [greysheet] Starting ${GS_DAY_NAMES[GS_REFRESH_DAY]} price refresh...`);
+      console.log(`  [greysheet] Starting price refresh (every ${GS_REFRESH_INTERVAL_DAYS} days)...`);
       const result = await runGreysheetRefresh({ delayMs: 500 });
       console.log(`  [greysheet] Refresh complete: ${result.totalSnapshots} snapshots, ${result.coinsTracked} coins tracked`);
     } catch (err) {
@@ -299,15 +294,16 @@ app.listen(PORT, '0.0.0.0', async () => {
   // Check on startup (delayed 10s to not block startup)
   setTimeout(() => {
     if (needsGreysheetRefresh()) {
-      console.log(`  [greysheet] It's ${GS_DAY_NAMES[GS_REFRESH_DAY]} and no refresh today yet — starting...`);
+      const lastRun = greysheetHistory.getLastRefreshDate() || 'never';
+      console.log(`  [greysheet] Last refresh: ${lastRun} — interval ${GS_REFRESH_INTERVAL_DAYS}d elapsed, starting...`);
       doGreysheetRefresh();
     } else {
       const lastRun = greysheetHistory.getLastRefreshDate() || 'never';
-      console.log(`  [greysheet] Last refresh: ${lastRun} — runs every ${GS_DAY_NAMES[GS_REFRESH_DAY]} (${greysheetHistory.coinCount()} coins tracked)`);
+      console.log(`  [greysheet] Last refresh: ${lastRun} — next in <${GS_REFRESH_INTERVAL_DAYS}d (${greysheetHistory.coinCount()} coins tracked)`);
     }
   }, 10_000);
 
-  // Re-check every hour so long-running servers catch the refresh day
+  // Re-check every hour so long-running servers catch the refresh window
   setInterval(() => {
     if (needsGreysheetRefresh()) doGreysheetRefresh();
   }, 60 * 60 * 1000);
