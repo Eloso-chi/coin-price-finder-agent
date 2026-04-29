@@ -4,9 +4,19 @@ You are a codebase onboarding agent for the Coin Price Discovery Agent project. 
 
 ## Purpose
 
-Bootstrap full project understanding at the start of a new conversation. After running, the agent should be able to answer any question about the codebase architecture, data flow, services, APIs, testing, Azure infrastructure, and backlog without needing additional context.
+Bootstrap full project understanding at the start of a new conversation. After running, the agent should be able to answer any question about the codebase architecture, data flow, services, APIs, testing, Azure infrastructure, scraping operations, and backlog without needing additional context.
 
 ## Operating Procedure
+
+### Phase 0: Discovery (detect repo growth)
+
+Before reading anything, scan for files that may have been added since this agent was last updated:
+
+1. List `/memories/repo/` -- read any files not explicitly listed in Phase 1.
+2. Run: `find . -name "*.md" -not -path "./node_modules/*" -not -path "./cache/*" -not -path "./.git/*" | sort` -- note any docs not covered by Phases 1-2.
+3. Run: `ls .github/agents/ .github/prompts/ .github/skills/` -- note the full agent/prompt/skill inventory.
+
+If new files are discovered, read them and include their contents in the Readiness Report under a "New/Undocumented Files" section.
 
 ### Phase 1: Repo Memory (highest density context)
 
@@ -14,44 +24,79 @@ Read ALL files in `/memories/repo/` in this order:
 
 1. `codebase-overview.md` -- stack, structure, services, auth, env vars, dependencies
 2. `future-edits.md` -- full backlog with status (DONE/OPEN), commit hashes, implementation details
-3. `terapeak-runbook.md` -- scraper operations, VNC setup, troubleshooting
-4. `terapeak-data-structure-analysis.md` -- CSV format, column mapping, data quality
-5. `terapeak-export-automation.md` -- Playwright scraper architecture
-6. `ebay-search-filtering-analysis.md` -- keyword building, deny lists, scoring
-7. `cache-invalidation-fix.md` -- cache TTL and eviction details
-8. `finding-api-dead.md` -- eBay Finding API decommission context
-9. `label-feature-context.md` -- label/variant feature design
-10. `synthetic-data-audit.md` -- which data is real vs synthetic
-11. `azure-infrastructure.md` -- Key Vault, Cosmos DB, Blob Storage, Azure Files
+3. `decision-engine-spec.md` -- valuation engine FMV modes, confidence scoring, buy/sell spreads
+4. `terapeak-runbook.md` -- scraper operations, VNC setup, troubleshooting
+5. `terapeak-data-structure-analysis.md` -- CSV format, column mapping, data quality
+6. `terapeak-export-automation.md` -- Playwright scraper architecture
+7. `ebay-search-filtering-analysis.md` -- keyword building, deny lists, scoring
+8. `cache-invalidation-fix.md` -- cache TTL and eviction details
+9. `finding-api-dead.md` -- eBay Finding API decommission context
+10. `label-feature-context.md` -- label/variant feature design
+11. `synthetic-data-audit.md` -- which data is real vs synthetic
+12. `azure-infrastructure.md` -- Key Vault, Cosmos DB, Blob Storage, Azure Files
 
 Skip any files that don't exist (the list may change over time).
+Read any additional files found in Phase 0 that are not listed above.
 
-### Phase 2: Architecture Docs
+### Phase 2: Project Docs
 
 Read these project docs:
 
-1. `docs/ARCHITECTURE.md` -- module map, data flow, schemas, caching, env vars, valuation engine
-2. `.github/copilot-instructions.md` -- testing rules, safety, conventions
-3. `docs/testing/test-monitor.md` -- test budget and metrics (if exists)
+1. `README.md` -- project overview, feature list, setup instructions, env var table
+2. `docs/ARCHITECTURE.md` -- module map, data flow, schemas, caching, env vars, valuation engine
+3. `.github/copilot-instructions.md` -- testing rules, safety, conventions
+4. `docs/testing/test-monitor.md` -- test budget, metrics, golden set, flaky test diagnosis
+5. `data/terapeak/README.md` -- data authenticity, CSV format docs, import instructions
+6. `.github/skills/code-review/SKILL.md` -- shared review framework (severity, finding schema)
 
 ### Phase 3: Key Source Files (scan exports/structure only)
 
-Read the first 50 lines of each to understand the module interface:
+Read the first 50 lines of each to understand the module interface (80 lines for priceRoute):
 
-1. `server.js` -- entry point, middleware, route mounting, startup sequence
-2. `src/services/ebayService.js` -- exported functions
-3. `src/services/valuationService.js` -- exported functions
-4. `src/services/terapeakService.js` -- exported functions
-5. `src/services/greysheetService.js` -- exported functions
-6. `src/services/bulkEvaluateService.js` -- lot evaluator engine
-7. `src/services/authService.js` -- exported functions
-8. `src/services/coinStorageService.js` -- exported functions
-9. `src/routes/bulkEvaluateRoute.js` -- bulk evaluate + SSE streaming
-10. `src/data/greysheetTypeMap.js` -- series-to-GSID mapping + finish detection
-11. `src/utils/cosmosClient.js` -- Cosmos DB client
-12. `src/utils/blobClient.js` -- Blob Storage client
-13. `src/utils/cachePath.js` -- cache directory config
-14. `src/routes/priceRoute.js` -- main pricing endpoint (first 80 lines for buildAdjacentYearContext)
+**Services (all 16):**
+1. `src/services/ebayService.js` -- 3-tier comp cascade, scoring, filtering
+2. `src/services/valuationService.js` -- FMV blend, confidence, buy/sell decisions
+3. `src/services/terapeakService.js` -- CSV import, fuzzy lookup, eviction
+4. `src/services/greysheetService.js` -- Greysheet CDN API V2
+5. `src/services/bulkEvaluateService.js` -- lot evaluator engine
+6. `src/services/pcgsService.js` -- PCGS CoinFacts API, parseDescription
+7. `src/services/metalsSpotPrice.js` -- multi-provider spot price round-robin
+8. `src/services/numistaService.js` -- Numista API, rarity classification
+9. `src/services/marketAggregator.js` -- year x mint/grade matrix builder
+10. `src/services/authService.js` -- bcrypt + JWT auth
+11. `src/services/coinStorageService.js` -- coin CRUD, dual-mode Cosmos
+12. `src/services/metalsHistoryService.js` -- daily spot snapshots
+13. `src/services/greysheetHistoryService.js` -- daily Greysheet snapshots
+14. `src/services/terapeakQuotaService.js` -- daily query quota tracker
+
+**Routes (key subset):**
+15. `src/routes/priceRoute.js` -- main pricing endpoint (first 80 lines)
+16. `src/routes/pricingBatchRoute.js` -- batch pricing (up to 25 coins)
+17. `src/routes/bulkEvaluateRoute.js` -- lot evaluator + SSE streaming
+18. `src/routes/marketRoute.js` -- market matrix endpoint
+19. `src/routes/terapeakRoute.js` -- Terapeak data management
+20. `src/routes/authRoute.js` -- signup, login, change-password
+21. `src/routes/coinRoute.js` -- collection CRUD (JWT-protected)
+
+**Data + Utils:**
+22. `src/data/greysheetTypeMap.js` -- series-to-GSID mapping + finish detection
+23. `src/data/constants.js` -- zodiac cycle, Perth Lunar helpers, roll quantities
+24. `src/utils/filters.js` -- deny lists, denomination detection, series conflicts
+25. `src/utils/cosmosClient.js` -- Cosmos DB client singleton
+26. `src/utils/blobClient.js` -- Blob Storage client
+27. `src/utils/cachePath.js` -- cache directory config
+
+**Entry point + scripts:**
+28. `server.js` -- Express entry, middleware, route mounting, background timers
+29. `scripts/chain-scrape.sh` -- chained scrape batches with anti-bot monitoring (first 30 lines)
+30. `scripts/refresh-stale.sh` -- one-command stale data refresh (first 30 lines)
+31. `scripts/greysheet-refresh.js` -- bulk Greysheet snapshot collector (first 30 lines)
+32. `scripts/clean-csvs.js` -- CSV junk cleaner (first 20 lines)
+33. `scripts/create-grade-datasets.js` -- grade-suffixed CSV stub generator (first 20 lines)
+
+**Test infrastructure:**
+34. `__tests__/helpers/coinTestConstants.js` -- shared test helpers, golden set loader, selectCoins()
+35. `__tests__/fixtures/golden_coins.json` -- 14 curated deterministic test coins
 
 ### Phase 4: Verification
 
@@ -64,7 +109,7 @@ After reading, produce a **Readiness Report** with:
 - [1-2 sentence overview]
 
 ### Key Numbers
-- Test suites: N | Tests: N
+- Test suites: N | Tests: N (run `npm test -- --silent 2>&1 | tail -5` for exact counts)
 - Services: N | Routes: N
 - Terapeak datasets: ~N | Comps: ~N
 - Backlog items: N open / N done
@@ -72,11 +117,20 @@ After reading, produce a **Readiness Report** with:
 ### Azure Infrastructure
 - [List services and their status]
 
+### Agent/Prompt/Skill Inventory
+- Agents: [list all .agent.md files]
+- Prompts: [list all .prompt.md files]
+- Skills: [list all SKILL.md files]
+
 ### Recent Changes
-- [Last 3-5 completed backlog items with commit hashes]
+- [Last 3-5 commits from `git log --oneline -5`]
 
 ### Open Backlog (Top 5)
 - [Top 5 open items by priority]
+
+### Gaps Detected
+- [Any new files found in Phase 0 not covered by the procedure]
+- [Any missing files that the procedure expected]
 
 ### Ready For
 - [List what you can now confidently help with]
@@ -87,5 +141,6 @@ After reading, produce a **Readiness Report** with:
 - **Read-only.** Do not edit any files.
 - **No shortcuts.** Read every file listed. Do not summarize from memory or prior conversations.
 - **Be honest.** If a file is missing or unreadable, say so in the report.
-- **Track progress.** Use the todo list to show Phase 1/2/3/4 progress.
+- **Track progress.** Use the todo list to show Phase 0/1/2/3/4 progress.
+- Run `npm test -- --silent 2>&1 | tail -5` and `git log --oneline -5` for accurate numbers.
 - If the codebase has grown beyond what's documented, note the gaps in the report.

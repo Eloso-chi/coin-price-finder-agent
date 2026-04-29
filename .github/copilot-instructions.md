@@ -50,11 +50,13 @@
 | `@test-monitor` | Test health monitoring and diagnostics |
 | `@ux-reviewer` | UX/IA/a11y review (WCAG 2.2, Nielsen heuristics, component states, performance UX); focused + comprehensive modes |
 | `@onboard` | Project onboarding assistant |
+| `@pricing-health` | End-to-end pricing flow validator -- picks coins, traces through all routes, flags comp attrition anomalies |
 | `/review-deep` | Invoke full code review |
 | `/apply-approved` | Implement approved findings |
 | `/pre-commit` | Quick pre-commit check |
 | `/test-coverage` | Analyze and fill test gaps |
 | `/onboard` | Bootstrap project understanding |
+| `/pricing-health` | Run pricing health check across routes with comp attrition analysis |
 
 ## Onboarding
 
