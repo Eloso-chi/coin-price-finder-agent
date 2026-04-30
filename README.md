@@ -555,6 +555,7 @@ src/
     pricingBatchRoute.js           POST /api/pricing-batch -- batch coin pricing
     bulkEvaluateRoute.js            POST /api/bulk-evaluate + SSE streaming (lot evaluator)
     terapeakRoute.js               /api/terapeak/* -- Terapeak data & quota management
+    adminRoute.js                  /api/admin/* -- dashboard, stale datasets, data health (admin-gated)
     authRoute.js                   /api/auth/* -- signup, login, change-password (bcrypt + JWT)
     coinRoute.js                   /api/coins/* -- collection CRUD (requires Bearer JWT)
   services/
@@ -570,6 +571,7 @@ src/
     numistaService.js              Numista API — search, mintages, rarity
     terapeakService.js             Terapeak CSV import, lookup, eviction
     terapeakQuotaService.js        Daily Terapeak query quota tracker
+    adminService.js                Admin dashboard stats, stale dataset detection, data health
     authService.js                 Server-side auth (bcrypt + JWT, dual-mode Cosmos + local JSON)
     coinStorageService.js          Server-side coin CRUD (dual-mode Cosmos + local JSON)
   data/
@@ -699,7 +701,7 @@ scripts/
 
 The project includes ~1,200 Terapeak CSV files in `data/terapeak/` containing real sold-comp data scraped from eBay Seller Hub Research. The data pipeline has three stages:
 
-**Stage 1: Page 1 Scraping** -- `scripts/terapeak-export.py` uses Playwright to automate Terapeak searches and CSV downloads. It loops through all coin search terms, exports 50 rows per coin, and uploads CSVs directly to Azure Blob Storage via the Azure SDK (`upload_to_blob()`), falling back to HTTP POST to the local server if blob credentials are unavailable. Features: `--login` for manual eBay cookie capture, `--run` for headless batch execution, `--batch N` for safe incremental scraping, `--priority` for thin-data-first ordering, `--resume` to continue after interruption, browser recycling every 40 coins, and auto-recovery from crashes (up to 5). Requires VNC (Xtigervnc :1), Python 3.12+, and Playwright.
+**Stage 1: Page 1 Scraping** -- `scripts/terapeak-export.py` uses Playwright to automate Terapeak searches and CSV downloads. It loops through all coin search terms, exports 50 rows per coin, and uploads CSVs directly to Azure Blob Storage via the Azure SDK (`upload_to_blob()`), falling back to HTTP POST to the local server if blob credentials are unavailable. Features: `--login` for manual eBay cookie capture, `--run` for headless batch execution, `--batch N` for safe incremental scraping, `--priority` for thin-data-first ordering, `--resume` to continue after interruption, `--refresh` to re-scrape stale CSVs (age-aware, skips fresh files), `--max-age DAYS` to set the staleness threshold (default 14), browser recycling every 40 coins, and auto-recovery from crashes (up to 5). Requires VNC (Xtigervnc :1), Python 3.12+, and Playwright.
 
 **Stage 2: Page 2 Enrichment** -- `scripts/terapeak-page2.py` extends existing CSVs beyond 50 rows by navigating to page 2 of Terapeak results. It identifies candidate coins (exactly 50 rows = likely truncated), clicks the Next pagination button, scrapes additional rows, and appends them with composite-key deduplication (itemId|soldDate|soldPrice). Enrichment brought many coins from 50 to 95--100 rows.
 
@@ -787,10 +789,18 @@ A comprehensive UX and accessibility review produced 36 findings across four sev
 - Melt calculator quantity minimum changed from 0 to 1
 - "About (read me)" tab renamed to "About" for brevity
 
+### Scraper Refresh Mode
+
+- **`--refresh` flag** -- new mode for `terapeak-export.py` that re-scrapes stale CSVs based on file age. Unlike `--resume` (which only checks whether a CSV exists), `--refresh` checks file modification time against a configurable staleness threshold. Stale files are re-scraped; fresh files are skipped.
+- **`--max-age DAYS` flag** -- sets the staleness threshold for `--refresh` mode (default: 14 days). A file older than `--max-age` days is considered stale and will be re-scraped.
+- **Conceptual split**: `--resume` answers "does the file exist?" (binary) for crash recovery. `--refresh` answers "is the file fresh enough?" (age-aware) for periodic data refresh. Both can be combined: `--resume` runs first (skipping completed coins), then `--refresh` filters the remainder by age.
+- **`refresh-stale.sh` updated** -- now passes `--refresh --max-age "$STALE_DAYS"` instead of `--resume`, correctly re-scraping coins that have old data.
+- **Admin portal command** -- the stale-data panel in `public/admin.html` generates the correct `--refresh --max-age` command for copy-paste execution.
+
 ### Chain Scrape Automation (#113)
 
 - **`scripts/chain-scrape.sh`** -- chains multiple Terapeak scrape batches sequentially with anti-bot monitoring. Exports a reusable `run_batch()` function that runs `terapeak-export.py` with the given filter and logs to `cache/terapeak_<name>.log`. Includes `check_antibot()` which tails the batch log for 3+ consecutive bot-detection failures and aborts the chain if detected. Supports passing a PID to wait on before starting (for session handoffs).
-- **`scripts/refresh-stale.sh`** -- one-command biweekly stale data refresh. Queries `GET /api/admin/stale-datasets?days=N` to identify datasets older than the threshold (default 14 days), builds a filter regex from stale search terms, and passes it to `terapeak-export.py --run --filter`. Options: `--full` (cold start refresh), `--days N` (staleness threshold), `--dry-run` (preview without scraping), `--include-empty` (include datasets with zero comps), `--limit N` (cap the number of terms).
+- **`scripts/refresh-stale.sh`** -- one-command biweekly stale data refresh. Queries `GET /api/admin/stale-datasets?days=N` to identify datasets older than the threshold (default 14 days), builds a filter regex from stale search terms, and passes it to `terapeak-export.py --run --refresh --max-age N --filter`. Uses `--refresh` mode (age-aware) instead of `--resume` (binary existence check) so that stale CSVs are re-scraped even though they already exist on disk. Options: `--full` (cold start refresh), `--days N` (staleness threshold), `--dry-run` (preview without scraping), `--include-empty` (include datasets with zero comps), `--limit N` (cap the number of terms).
 
 ### Golden Set + Seeded Runs (Test Infrastructure)
 

@@ -68,35 +68,37 @@ Read the first 50 lines of each to understand the module interface (80 lines for
 12. `src/services/metalsHistoryService.js` -- daily spot snapshots
 13. `src/services/greysheetHistoryService.js` -- daily Greysheet snapshots
 14. `src/services/terapeakQuotaService.js` -- daily query quota tracker
+15. `src/services/adminService.js` -- admin dashboard stats, stale detection, data health
 
 **Routes (key subset):**
-15. `src/routes/priceRoute.js` -- main pricing endpoint (first 80 lines)
-16. `src/routes/pricingBatchRoute.js` -- batch pricing (up to 25 coins)
-17. `src/routes/bulkEvaluateRoute.js` -- lot evaluator + SSE streaming
-18. `src/routes/marketRoute.js` -- market matrix endpoint
-19. `src/routes/terapeakRoute.js` -- Terapeak data management
-20. `src/routes/authRoute.js` -- signup, login, change-password
-21. `src/routes/coinRoute.js` -- collection CRUD (JWT-protected)
+16. `src/routes/priceRoute.js` -- main pricing endpoint (first 80 lines)
+17. `src/routes/pricingBatchRoute.js` -- batch pricing (up to 25 coins)
+18. `src/routes/bulkEvaluateRoute.js` -- lot evaluator + SSE streaming
+19. `src/routes/marketRoute.js` -- market matrix endpoint
+20. `src/routes/terapeakRoute.js` -- Terapeak data management
+21. `src/routes/adminRoute.js` -- admin dashboard, stale datasets, data health
+22. `src/routes/authRoute.js` -- signup, login, change-password
+23. `src/routes/coinRoute.js` -- collection CRUD (JWT-protected)
 
 **Data + Utils:**
-22. `src/data/greysheetTypeMap.js` -- series-to-GSID mapping + finish detection
-23. `src/data/constants.js` -- zodiac cycle, Perth Lunar helpers, roll quantities
-24. `src/utils/filters.js` -- deny lists, denomination detection, series conflicts
-25. `src/utils/cosmosClient.js` -- Cosmos DB client singleton
-26. `src/utils/blobClient.js` -- Blob Storage client
-27. `src/utils/cachePath.js` -- cache directory config
+24. `src/data/greysheetTypeMap.js` -- series-to-GSID mapping + finish detection
+25. `src/data/constants.js` -- zodiac cycle, Perth Lunar helpers, roll quantities
+26. `src/utils/filters.js` -- deny lists, denomination detection, series conflicts
+27. `src/utils/cosmosClient.js` -- Cosmos DB client singleton
+28. `src/utils/blobClient.js` -- Blob Storage client
+29. `src/utils/cachePath.js` -- cache directory config
 
 **Entry point + scripts:**
-28. `server.js` -- Express entry, middleware, route mounting, background timers
-29. `scripts/chain-scrape.sh` -- chained scrape batches with anti-bot monitoring (first 30 lines)
-30. `scripts/refresh-stale.sh` -- one-command stale data refresh (first 30 lines)
-31. `scripts/greysheet-refresh.js` -- bulk Greysheet snapshot collector (first 30 lines)
-32. `scripts/clean-csvs.js` -- CSV junk cleaner (first 20 lines)
-33. `scripts/create-grade-datasets.js` -- grade-suffixed CSV stub generator (first 20 lines)
+30. `server.js` -- Express entry, middleware, route mounting, background timers
+31. `scripts/chain-scrape.sh` -- chained scrape batches with anti-bot monitoring (first 30 lines)
+32. `scripts/refresh-stale.sh` -- one-command stale data refresh with --refresh --max-age (first 30 lines)
+33. `scripts/greysheet-refresh.js` -- bulk Greysheet snapshot collector (first 30 lines)
+34. `scripts/clean-csvs.js` -- CSV junk cleaner (first 20 lines)
+35. `scripts/create-grade-datasets.js` -- grade-suffixed CSV stub generator (first 20 lines)
 
 **Test infrastructure:**
-34. `__tests__/helpers/coinTestConstants.js` -- shared test helpers, golden set loader, selectCoins()
-35. `__tests__/fixtures/golden_coins.json` -- 14 curated deterministic test coins
+36. `__tests__/helpers/coinTestConstants.js` -- shared test helpers, golden set loader, selectCoins()
+37. `__tests__/fixtures/golden_coins.json` -- 14 curated deterministic test coins
 
 ### Phase 4: Verification
 

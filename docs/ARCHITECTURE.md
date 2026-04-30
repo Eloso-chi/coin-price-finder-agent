@@ -21,6 +21,7 @@ server.js                              Express entry point (port 3000)
 │   ├─ excelImportRoute.js             POST /api/import/excel -- Excel spreadsheet import
 │   ├─ imageProxyRoute.js              GET /api/image-proxy -- proxied coin images
 │   ├─ terapeakRoute.js                /api/terapeak/* -- Terapeak data & quota management
+│   ├─ adminRoute.js                   /api/admin/* -- dashboard, stale datasets, data health
 │   ├─ authRoute.js                    /api/auth/* -- signup, login, me, change-password
 │   └─ coinRoute.js                    /api/coins/* -- collection CRUD (JWT-protected)
 │
@@ -37,6 +38,7 @@ server.js                              Express entry point (port 3000)
 │   ├─ numistaService.js               Numista API -- search, mintages, rarity
 │   ├─ terapeakService.js              Terapeak CSV import, fuzzy lookup, eviction, auto-import (local + blob)
 │   ├─ terapeakQuotaService.js         Daily Terapeak query quota tracker
+│   ├─ adminService.js                 Admin dashboard aggregation (stats, stale detection, data health)
 │   ├─ greysheetHistoryService.js      Daily Greysheet price history snapshots
 │   ├─ authService.js                  Server-side auth (bcrypt + JWT, dual-mode Cosmos + local JSON)
 │   └─ coinStorageService.js           Server-side coin CRUD (dual-mode Cosmos + local JSON)
@@ -565,7 +567,7 @@ Automates Terapeak CSV downloads from eBay Seller Hub Research:
 └───────────────────────────────────────────────────────────┘
 ```
 
-Key flags: `--batch N` (coin count), `--priority` (thin-data-first), `--resume` (continue after crash).
+Key flags: `--batch N` (coin count), `--priority` (thin-data-first), `--resume` (continue after crash), `--refresh` (re-scrape stale CSVs by file age), `--max-age DAYS` (staleness threshold, default 14).
 
 ### Page 2 Enrichment Scraper -- `scripts/terapeak-page2.py`
 
@@ -654,7 +656,8 @@ One-command biweekly refresh of stale Terapeak datasets:
 │  Extract search terms → build regex: "term1|term2|..."    │
 │  Write to /tmp/terapeak_refresh_regex.txt (avoids eval)   │
 ├─ Execute ─────────────────────────────────────────────────┤
-│  terapeak-export.py --run --resume --filter "$(cat file)" │
+│  terapeak-export.py --run --refresh --max-age N --filter  │
+│  Uses --refresh (age-aware) not --resume (existence-only) │
 └───────────────────────────────────────────────────────────┘
 
 Options: --full, --days N, --dry-run, --include-empty, --limit N
