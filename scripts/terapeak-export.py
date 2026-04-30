@@ -23,6 +23,10 @@ Usage:
   # Resume from where you left off after interruption:
   python3 scripts/terapeak-export.py --run --resume
 
+  # Refresh stale data (re-scrape CSVs older than N days):
+  python3 scripts/terapeak-export.py --run --refresh --max-age 14
+  python3 scripts/terapeak-export.py --run --refresh --max-age 30 --filter "Morgan"
+
   # Dry run -- show what would be exported:
   python3 scripts/terapeak-export.py --dry-run
 
@@ -899,6 +903,22 @@ def do_export_run(args):
         terms = [t for t in terms if t["term"] not in completed]
         print(f"Resuming: skipping {before - len(terms)} already completed")
 
+    # Apply refresh mode: only keep coins whose CSV is older than --max-age days
+    if args.refresh:
+        from datetime import datetime, timedelta
+        cutoff = time.time() - (args.max_age * 86400)
+        before = len(terms)
+        stale_terms = []
+        for t in terms:
+            csv_path = CSV_DIR / t['filename']
+            if not csv_path.exists():
+                stale_terms.append(t)  # missing = needs scraping
+            elif csv_path.stat().st_mtime < cutoff:
+                stale_terms.append(t)  # older than max-age = stale
+            # else: fresh enough, skip
+        terms = stale_terms
+        print(f"Refresh mode (max-age {args.max_age}d): {len(terms)} stale, skipping {before - len(terms)} fresh")
+
     # Priority sort: thin-data CSVs first (fewest existing rows)
     if args.priority:
         def _csv_rows(t):
@@ -1171,6 +1191,8 @@ Examples:
   python3 scripts/terapeak-export.py --run --limit 10   # Export first 10
   python3 scripts/terapeak-export.py --run --filter "Morgan"  # Morgans only
   python3 scripts/terapeak-export.py --run --resume     # Continue after interruption
+  python3 scripts/terapeak-export.py --run --refresh --max-age 30  # Re-scrape CSVs older than 30 days
+  python3 scripts/terapeak-export.py --run --refresh --max-age 14 --filter "Morgan"  # Refresh stale Morgans
   python3 scripts/terapeak-export.py --batch 10              # Smart batch: 10 coins, priority order
   python3 scripts/terapeak-export.py --batch 8 --filter "Perth"  # 8 Perth coins, thinnest first
   python3 scripts/terapeak-export.py --dry-run --priority    # Show order with priority sort
@@ -1184,6 +1206,8 @@ Examples:
     parser.add_argument("--dry-run", action="store_true", help="Show what would be exported")
     parser.add_argument("--check", action="store_true", help="Check if cookies are still valid")
     parser.add_argument("--resume", action="store_true", help="Skip already-completed coins")
+    parser.add_argument("--refresh", action="store_true", help="Re-scrape mode: only process coins whose CSV is older than --max-age days")
+    parser.add_argument("--max-age", type=int, default=14, metavar="DAYS", help="Max CSV age in days for --refresh mode (default: 14)")
     parser.add_argument("--filter", type=str, help="Only export terms matching this regex")
     parser.add_argument("--limit", type=int, help="Max number of coins to export")
     parser.add_argument("--priority", action="store_true", help="Sort by data quality: thin-data coins first")

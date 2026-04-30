@@ -19,7 +19,7 @@
 #   1. (--full only) Starts VNC, server, opens login page for CAPTCHA
 #   2. Queries GET /api/admin/stale-datasets to find outdated coins
 #   3. Builds a filter regex from the stalest datasets
-#   4. Runs terapeak-export.py --run --resume --filter <regex>
+#   4. Runs terapeak-export.py --run --refresh --max-age <days> --filter <regex>
 #   5. Monitors for anti-bot signals and stops if detected
 
 set -euo pipefail
@@ -248,7 +248,7 @@ if [[ "$DRY_RUN" == true ]]; then
   echo "   ${FILTER_REGEX:0:200}..."
   echo ""
   echo -e "   ${CYAN}Command that would run:${NC}"
-  echo "   DISPLAY=:1 python3 scripts/terapeak-export.py --run --resume --filter \"<regex>\" 2>&1 | tee $LOGFILE"
+  echo "   DISPLAY=:1 python3 scripts/terapeak-export.py --run --refresh --max-age $STALE_DAYS --filter \"<regex>\" 2>&1 | tee $LOGFILE"
   exit 0
 fi
 
@@ -262,7 +262,7 @@ ok "Quota reset"
 
 # Run the scraper
 DISPLAY=:1 python3 scripts/terapeak-export.py \
-  --run --resume \
+  --run --refresh --max-age "$STALE_DAYS" \
   --filter "$FILTER_REGEX" \
   2>&1 | tee "$LOGFILE"
 
