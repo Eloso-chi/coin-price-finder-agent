@@ -349,7 +349,7 @@
 
         // Show refresh command
         if (data.summary.filterRegex) {
-          const cmd = `DISPLAY=:1 python3 scripts/terapeak-export.py --run --resume --filter "${data.summary.filterRegex.substring(0, 500)}"`;
+          const cmd = `DISPLAY=:1 python3 scripts/terapeak-export.py --run --refresh --max-age ${days} --filter "${data.summary.filterRegex.substring(0, 500)}"`;
           const copyBox = document.getElementById('copy-command');
           copyBox.textContent = cmd;
           document.getElementById('refresh-command').style.display = 'block';
