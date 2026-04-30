@@ -92,6 +92,7 @@ server.js                              Express entry point (port 3000)
 │   ├─ terapeak-page2.py               Page 2 enrichment scraper (extends CSVs beyond 50 rows)
 │   ├─ chain-scrape.sh                 Chain multiple scrape batches with anti-bot monitoring
 │   ├─ refresh-stale.sh                One-command biweekly stale data refresh
+│   ├─ greysheet-refresh.js            Bulk Greysheet price snapshot collector (all PCGS + type GSIDs)
 │   ├─ clean-csvs.js                   CSV junk cleaner (deny-pattern purge)
 │   ├─ migrate-to-cosmos.js            One-time migration of history data to Cosmos DB
 │   ├─ upload-csvs-to-blob.js          Upload Terapeak CSVs to Azure Blob Storage
@@ -791,6 +792,23 @@ The valuation engine separates eBay comps by `gradeType`:
 | `EBAY_DEFAULT_LOOKBACK_DAYS` | No | `180` | Default sold-comp lookback window (auto-extends to 365 if thin) |
 | `BLOB_REIMPORT_MS` | No | `1800000` | Periodic blob re-import interval (ms; 30 min default) |
 | `GS_REFRESH_DAY` | No | `0` (Sunday) | Day of week for Greysheet bulk refresh (0=Sun, 1=Mon, ..., 6=Sat) |
+| `GS_REFRESH_INTERVAL_DAYS` | No | `3` | Days between automatic Greysheet background refreshes |
+| `NUMISTA_API_KEY` | No | -- | Numista API key for rarity/mintage lookups |
+
+---
+
+## Background Timers (server.js)
+
+The server starts several background tasks on boot:
+
+| Timer | Interval | Purpose |
+|-------|----------|---------|
+| Metals spot price | 30 min (`METALS_POLL_MS`) | Round-robin fetch from goldapi.io / metals-api.com; persists to `metals_spot.json` |
+| Greysheet history refresh | `GS_REFRESH_INTERVAL_DAYS` days (default 3) | Runs `scripts/greysheet-refresh.js` to snapshot wholesale prices for all tracked coins. Checks `greysheetHistoryService.getLastRefreshDate()` on startup and every 12 hours; skips if interval not elapsed. |
+| Blob re-import | 30 min (`BLOB_REIMPORT_MS`) | Polls Azure Blob Storage for new Terapeak CSV uploads; clears eBay cache on new data |
+| Greysheet history eviction | Startup only | Evicts history entries older than 400 days |
+| Terapeak auto-import | Startup only | Imports CSVs from `data/terapeak/` (files < 7 days old) |
+| Test account seed | Startup only | Seeds `testcollector` account with sample coins if empty |
 
 ---
 

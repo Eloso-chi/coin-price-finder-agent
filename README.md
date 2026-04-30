@@ -161,6 +161,7 @@ Optional variables:
 | `EBAY_TIMEOUT_MS` | eBay API timeout | `10000` |
 | `METALS_CACHE_TTL_MS` | Metals spot price cache lifetime | `2700000` (45 min) |
 | `METALS_POLL_MS` | Background metals polling interval | `1800000` (30 min) |
+| `GS_REFRESH_INTERVAL_DAYS` | Days between automatic Greysheet price refreshes | `3` |
 
 ### Run
 
@@ -649,6 +650,7 @@ scripts/
   terapeak-export.py               Semi-automated Terapeak CSV exporter (Playwright)
   terapeak-page2.py                Page 2 enrichment scraper (extends CSVs beyond 50 rows)  chain-scrape.sh                  Chain multiple terapeak scrape batches sequentially with anti-bot monitoring
   refresh-stale.sh                 One-command stale data refresh (queries staleness API, builds filter, runs scraper)  clean-csvs.js                    CSV junk cleaner (deny-pattern purge across all CSVs)
+  greysheet-refresh.js             Bulk Greysheet price snapshot collector (runs automatically every 3 days)
   migrate-to-cosmos.js             One-time migration of history data to Azure Cosmos DB
   upload-csvs-to-blob.js           Upload Terapeak CSVs to Azure Blob Storage
   vnc-login.py                     VNC + eBay login helper for Playwright sessions
