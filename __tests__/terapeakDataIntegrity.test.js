@@ -228,9 +228,15 @@ beforeAll(() => {
 });
 
 afterAll(() => {
-  // Clear any pending debounced writes to prevent Jest open handle warning
-  jest.useRealTimers();
+  // Clear the real data we imported and flush to disk synchronously
+  // to prevent pollution of other test files running in the same worker
+  terapeakService.clearAll();
   terapeakService._resetStoreCache();
+  // Force synchronous flush of the empty store to disk
+  const fs = require('fs');
+  const cachePath = require('../src/utils/cachePath');
+  const storePath = require('path').join(cachePath.CACHE_DIR, 'terapeak_sold.json');
+  try { fs.writeFileSync(storePath, '{}'); } catch {}
 });
 
 // ═══════════════════════════════════════════════════════════════

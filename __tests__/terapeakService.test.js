@@ -26,6 +26,7 @@ beforeAll(() => { jest.spyOn(console, 'log').mockImplementation(); jest.spyOn(co
 afterAll(() => { console.log.mockRestore(); console.error.mockRestore(); console.warn.mockRestore(); });
 
 // Reset the in-memory store between tests AND wipe data to isolate from disk
+beforeEach(() => { _resetStoreCache(); clearAll(); });
 afterEach(() => { clearAll(); _resetStoreCache(); });
 
 // ═══════════════════════════════════════════════════════════════
