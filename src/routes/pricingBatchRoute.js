@@ -53,7 +53,7 @@ async function _priceOne(item) {
     const year   = coinData.year || parsed.year;
     const mint   = coinData.mintMark || parsed.mint || '';
     const grade  = coinData.grade || parsed.grade || '';
-    const gradeNum = parsed.gradeNum || parseInt((grade.match(/\d+/) || [])[0]) || null;
+    let gradeNum = parsed.gradeNum || parseInt((grade.match(/\d+/) || [])[0]) || null;
 
     // Weight defaulting for bullion
     let weight = coinData.weight || parsed.weight || null;
@@ -76,6 +76,12 @@ async function _priceOne(item) {
     const { metal: detectedMetal } = getCoinMetalProfile(query);
     const METAL_SYM = { silver: 'XAG', gold: 'XAU', platinum: 'XPT', palladium: 'XPD' };
     const metalKey = detectedMetal || parsed.metal || null;
+
+    // #162: World bullion BU fix — null out BU-expanded grade for bullion coins.
+    // "BU" expands to gradeNum 60 (MS60) but for bullion it means raw mint-sealed.
+    if (isBullion && gradeNum && parsed._gradeSource === 'bu-term') {
+      gradeNum = null;
+    }
 
     // Spot price for bullion -- fetch before eBay so meltPerOz is available for comp filtering
     let meltPerOz = null;
@@ -117,6 +123,10 @@ async function _priceOne(item) {
       _rawQuery: String(query),
     };
     if (meltPerOz) expected.meltPerOz = meltPerOz;
+    // #162: Null grade in expected for BU bullion to prevent gradeNumMismatch filter
+    if (isBullion && parsed._gradeSource === 'bu-term') {
+      expected.grade = null;
+    }
     if (isLunarCoin && year) {
       zodiacAnimal = zodiacForYear(Number(year));
       expected.zodiacAnimal = zodiacAnimal;

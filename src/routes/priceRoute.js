@@ -269,6 +269,15 @@ router.post('/', async (req, res) => {
       _rawQuery: String(query),
     };
 
+    // #162: Null out BU-expanded grade for bullion coins BEFORE eBay fetch.
+    // "BU" for world bullion means raw mint-sealed, not a specific PCGS grade.
+    // Leaving it set causes gradeNumMismatch to kill 50-90% of valid comps.
+    const earlyBullionSeries = (expected.series || '').toLowerCase();
+    const earlyIsBullion = BULLION_1OZ_DEFAULT.some(b => earlyBullionSeries.includes(b));
+    if (earlyIsBullion && expected.grade && expected._gradeSource === 'bu-term') {
+      expected.grade = null;
+    }
+
     // Auto-detect Brand for eBay aspect filtering (Perth Mint, Royal Mint, etc.)
     if (hasPerthContext || hasAustralianContext)             expected._brandFilter = 'Perth Mint';
     else if (/\broyal\s*mint\b/i.test(rawQueryLower))       expected._brandFilter = 'The Royal Mint';
@@ -334,11 +343,20 @@ router.post('/', async (req, res) => {
     // coinData?.grade comes from structured input; identification.parsed?.grade
     // comes from free-text parsing.  If neither is set, user wants raw.
     // Sets (proof/mint) and rolls are never graded — pass null so all comps are used.
-    const userGrade = (isSet || isRoll) ? null : (coinData?.grade || identification.parsed?.grade || null);
+    let userGrade = (isSet || isRoll) ? null : (coinData?.grade || identification.parsed?.grade || null);
 
     // Detect if this is a bullion coin ( values track metal spot price → steeper recency)
     const seriesForBullion = (identification.parsed?.series || pcgs.series || '').toLowerCase();
     const isBullion = BULLION_1OZ_DEFAULT.some(b => seriesForBullion.includes(b));
+
+    // #162: World bullion BU fix — "BU" expands to MS60/MS63/MS65/MS67 via
+    // pcgsService.parseDescription, but for bullion coins BU means "raw mint-sealed",
+    // not a PCGS-graded slab. Passing the expanded grade triggers graded pool
+    // selection + gradeNumMismatch filter, killing 50-90% of valid raw comps.
+    // Null it out so valuation uses the raw pool.
+    if (isBullion && userGrade && identification.parsed?._gradeSource === 'bu-term') {
+      userGrade = null;
+    }
 
     // ── 5a. Greysheet wholesale price lookup ──
     // Use PCGS number if available; non-fatal if unavailable or API not configured.

@@ -38,7 +38,15 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
   if (wantsGraded) {
     usComps = usGraded.length >= 3 ? usGraded : usCompsAll;
     glComps = glGraded.length >= 3 ? glGraded : glCompsAll;
-    if (usGraded.length >= 3 && usRaw.length > 0) {
+    // #163: Safety net — if graded pool has zero sold comps but raw pool has
+    // sufficient data, prefer raw over Browse-only fallback. Terapeak sold data
+    // is always more reliable than Browse API asking prices.
+    const gradedSold = usComps.filter(c => c._source === 'terapeak' || c._source === 'finding');
+    if (gradedSold.length === 0 && usRaw.length >= 5) {
+      usComps = usRaw;
+      glComps = glRaw.length >= 3 ? glRaw : glCompsAll;
+      explanation.push(`⚠ No sold graded comps — using ${usRaw.length} raw comps instead of asking-price fallback.`);
+    } else if (usGraded.length >= 3 && usRaw.length > 0) {
       explanation.push(`Using ${usGraded.length} graded comps for FMV (${usRaw.length} raw comps excluded).`);
     } else if (usRaw.length > 0 && usGraded.length < 3) {
       explanation.push(`Only ${usGraded.length} graded comps — using all ${usCompsAll.length} comps (may include raw).`);
