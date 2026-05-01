@@ -793,6 +793,7 @@ A comprehensive UX and accessibility review produced 36 findings across four sev
 
 ### Scraper Refresh Mode
 
+- **Active Listings Guard (S0)** -- both `terapeak-export.py` and `terapeak-page2.py` now detect when Terapeak falls back to the Active Listings tab (no sold data). Two-layer check: (1) DOM tab detection after results load, (2) date validation rejects pages where <20% of rows have parseable sold dates. Prevents ingesting unsold asking prices as sold comps.
 - **`--refresh` flag** -- new mode for `terapeak-export.py` that re-scrapes stale CSVs based on file age. Unlike `--resume` (which only checks whether a CSV exists), `--refresh` checks file modification time against a configurable staleness threshold. Stale files are re-scraped; fresh files are skipped.
 - **`--max-age DAYS` flag** -- sets the staleness threshold for `--refresh` mode (default: 14 days). A file older than `--max-age` days is considered stale and will be re-scraped.
 - **Conceptual split**: `--resume` answers "does the file exist?" (binary) for crash recovery. `--refresh` answers "is the file fresh enough?" (age-aware) for periodic data refresh. Both can be combined: `--resume` runs first (skipping completed coins), then `--refresh` filters the remainder by age.

@@ -570,6 +570,8 @@ Automates Terapeak CSV downloads from eBay Seller Hub Research:
 
 Key flags: `--batch N` (coin count), `--priority` (thin-data-first), `--resume` (continue after crash), `--refresh` (re-scrape stale CSVs by file age), `--max-age DAYS` (staleness threshold, default 14).
 
+**Active Listings Guard (S0):** Two-layer protection against ingesting unsold asking prices when Terapeak falls back to the Active Listings tab: (1) DOM tab check detects active-tab selectors after results load, (2) date validation rejects pages where <20% of rows have parseable sold dates.
+
 ### Page 2 Enrichment Scraper -- `scripts/terapeak-page2.py`
 
 Extends CSVs from 50 rows (page 1 limit) to ~100 rows by scraping page 2:
@@ -591,6 +593,8 @@ Extends CSVs from 50 rows (page 1 limit) to ~100 rows by scraping page 2:
 ```
 
 Pagination selector: `button.pagination__next:not([disabled])`. Results per page control: `select[aria-label="Results per page"]` with 10/20/50 options.
+
+**Active Listings Guard (S0):** Same two-layer guard as `terapeak-export.py` -- tab check after page 1 loads, and date-ratio validation on each paginated page's rows. Stops pagination early if active listings detected.
 
 ### CSV Cleanup -- `scripts/clean-csvs.js`
 
