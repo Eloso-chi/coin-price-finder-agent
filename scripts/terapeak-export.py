@@ -691,6 +691,32 @@ def do_search_and_export(page, search_term, download_dir):
     # Extra wait for Terapeak SPA to render results
     time.sleep(3)
 
+    # ── S0: Active Listings Guard (tab check) ──────────────────
+    # When Terapeak has no sold results, eBay may auto-switch to
+    # "Active listings" tab. Detect this and abort early.
+    active_tab_detected = page.evaluate("""() => {
+        // Look for tab/pill indicating "Active listings" is selected
+        const tabs = document.querySelectorAll(
+            '[role="tab"][aria-selected="true"], '
+            + '.tab--active, .tab-item--active, '
+            + 'button[aria-pressed="true"]'
+        );
+        for (const tab of tabs) {
+            const txt = tab.innerText.toLowerCase();
+            if (txt.includes('active') && !txt.includes('sold')) return true;
+        }
+        // Also check for "Active listings" in breadcrumb/heading context
+        const headings = document.querySelectorAll('h1, h2, h3, [class*="tab-label"]');
+        for (const h of headings) {
+            if (h.innerText.toLowerCase().includes('active listings')) return true;
+        }
+        return false;
+    }""")
+    if active_tab_detected:
+        print(f"    WARNING: Active Listings tab detected (no sold data) -- skipping")
+        page.screenshot(path=str(download_dir / f"_debug_active_tab_{search_term[:30]}.png"))
+        return None
+
     # Scroll down progressively with mouse wheel to reveal sold listings table
     for _ in range(random.randint(3, 5)):
         human_scroll(page, "down", random.randint(200, 500))
@@ -820,6 +846,22 @@ def do_search_and_export(page, search_term, download_dir):
     if not rows:
         print(f"    WARNING: No data rows found ({scraped.get('tableCount', 0)} tables on page)")
         page.screenshot(path=str(download_dir / f"_debug_no_data_{search_term[:30]}.png"))
+        return None
+
+    # ── S0: Active Listings Guard (date validation) ────────────
+    # Sold listings have a parseable date ("Mar 30, 2026").
+    # Active listings have no date or show "Active" / blank.
+    # If <20% of rows have a valid date, assume active listings page.
+    DATE_PATTERN = re.compile(
+        r'(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2},?\s+\d{4}',
+        re.IGNORECASE
+    )
+    rows_with_date = sum(1 for r in rows if DATE_PATTERN.search(r.get("date", "")))
+    date_ratio = rows_with_date / len(rows) if rows else 0
+    if len(rows) >= 3 and date_ratio < 0.2:
+        print(f"    WARNING: Only {rows_with_date}/{len(rows)} rows have valid sold dates "
+              f"({date_ratio:.0%}) -- likely Active Listings, skipping")
+        page.screenshot(path=str(download_dir / f"_debug_no_dates_{search_term[:30]}.png"))
         return None
 
     # Convert scraped rows to CSV records
