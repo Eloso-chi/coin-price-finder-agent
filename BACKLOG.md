@@ -48,6 +48,38 @@ Both `terapeak-export.py` and `terapeak-page2.py` now guard against active listi
 
 ---
 
+## Pricing Accuracy
+
+### P0-A. MintMismatch Over-Filtering on Over-Mintmark Varieties [HIGH]
+
+**Problem:** The mintMismatch regex uses `.match()` which only captures the FIRST year-mint pattern. For over-mintmark varieties (e.g. "1882-O/S"), it captures "O" and removes the comp even though "S" is the second mint. Affects 1882-S Morgan dataset: 45 of 329 rows are "O/S" varieties incorrectly removed.
+
+**Root Cause:** `tLow.match(mintRe)` returns only the first match. Titles like "1882-O/S Strong Morgan" get titleMint="O" and are discarded when wantMint="S".
+
+**Fix:** Use `matchAll` + detect over-mintmark slash patterns. If ANY detected mint matches expected, keep the comp.
+
+**Files:** `src/services/ebayService.js` (mintMismatch filter block)
+
+---
+
+### P0-B. Batch Route Missing Year in Keywords -- Gold Libertad $18 FMV [HIGH]
+
+**Problem:** `pcgsParsedForKeywords` only passes `{ series }` to `buildKeywords`, omitting year/mint. This produces keywords like "Gold Libertad 1 oz" (no year), causing `lookupComps` to merge ALL gold libertad datasets (all years). Empty-title garbage comps survive filters and yield FMV=$18.74 for a ~$5,000 gold coin.
+
+**Root Cause:** `pricingBatchRoute.js` line ~137: `const pcgsParsedForKeywords = { series: parsed.series || series }` lacks year/mint.
+
+**Fix:** Pass year and mint into pcgsParsedForKeywords so buildKeywords produces year-specific keywords.
+
+**Files:** `src/routes/pricingBatchRoute.js`
+
+---
+
+### ~~P1. LowRelevance Over-Filtering on Empty-Title Terapeak Comps [WONTFIX]~~
+
+Empty titles are already filtered at CSV import (`rowToComp` returns null). The `lowRelevance` gate (score < 20) only fires for truly irrelevant comps (multiple mismatches: wrong year + wrong series + wrong weight). High attrition on ASE/Krugerrand is caused by eBay's broad search returning off-topic results in the Terapeak dataset, not by the gate threshold. Survival rates (30/100 for ASE, 8/45 for Krugerrand) are adequate for FMV calculation.
+
+---
+
 ## Infrastructure & Automation
 
 ### 114. Cookie Blob Persistence [MEDIUM]

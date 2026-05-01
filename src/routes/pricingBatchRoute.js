@@ -134,7 +134,7 @@ async function _priceOne(item) {
     else if (/\broyal\s*canadian\b|\brcm\b/i.test(rawQueryLower)) expected._brandFilter = 'Royal Canadian Mint';
 
     // Build eBay keywords using PCGS-parsed series (not raw coinData.name) (#155)
-    const pcgsParsedForKeywords = { series: parsed.series || series };
+    const pcgsParsedForKeywords = { series: parsed.series || series, year, mint };
     const parsedFinish = coinData.finish || parsed.finish || null;
     if (parsedFinish && !pcgsParsedForKeywords.finish) pcgsParsedForKeywords.finish = parsedFinish;
     let keywords = ebayService.buildKeywords

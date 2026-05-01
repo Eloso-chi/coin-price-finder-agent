@@ -215,6 +215,26 @@ describe('applyFilters — mint mark mismatch', () => {
     expect(removed.mintMismatch).toBe(1);
     expect(kept.length).toBe(2);
   });
+
+  test('keeps over-mintmark variety "1882-O/S" when searching for S mint', () => {
+    const comps = [
+      makeComp({ title: '1882-O/S Strong Morgan Silver Dollar AU++', matchScore: 70 }),
+      makeComp({ title: '1882 O/S Morgan Silver Dollar', matchScore: 70 }),
+      makeComp({ title: '1882-O/S Morgan Dollar PCGS AU50', matchScore: 70 }),
+      makeComp({ title: '1882-O Morgan Silver Dollar PCGS MS64', matchScore: 70 }), // pure O → removed
+    ];
+    const { kept, removed } = applyFilters(comps, {}, { mint: 'S', series: 'Morgan Dollar' });
+    expect(removed.mintMismatch).toBe(1);
+    expect(kept.length).toBe(3);
+  });
+
+  test('keeps "O over S" text variant when searching for S mint', () => {
+    const comps = [
+      makeComp({ title: '1882 O over S Morgan Silver Dollar', matchScore: 70 }),
+    ];
+    const { kept } = applyFilters(comps, {}, { mint: 'S', series: 'Morgan Dollar' });
+    expect(kept.length).toBe(1);
+  });
 });
 
 // ═══════════════════════════════════════════════════════════════

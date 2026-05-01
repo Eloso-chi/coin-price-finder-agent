@@ -913,27 +913,37 @@ function applyFilters(comps, options, expected) {
 
   // Mint-mark mismatch filter: drop comps whose title explicitly states
   // a different mint mark than expected (e.g. user wants 1892-S but title says 1892-O)
+  // Uses matchAll to detect ALL year-mint patterns (including over-mintmark "O/S" varieties).
   if (expected.mint) {
     const wantMint = expected.mint.toUpperCase();
     const MINT_CITY_MAP = { 'carson city': 'CC', 'denver': 'D', 'philadelphia': 'P', 'san francisco': 'S', 'west point': 'W' };
     removed.mintMismatch = 0;
     kept = kept.filter(c => {
       const tLow = (c.title || '').toLowerCase();
-      const mintRe = /\b\d{4}\s*[-]?\s*(CC|[SDPWO])\b/i;
-      const m = tLow.match(mintRe);
-      let titleMint = m ? m[1].toUpperCase() : null;
+      // Collect ALL mint marks mentioned in the title (not just the first)
+      const mintRe = /\b\d{4}\s*[-]?\s*(CC|[SDPWO])\b/gi;
+      const titleMints = new Set();
+      for (const m of tLow.matchAll(mintRe)) {
+        titleMints.add(m[1].toUpperCase());
+      }
+      // Detect over-mintmark varieties: "O/S", "O over S", "O/S Strong"
+      const overMintRe = /\b\d{4}\s*[-]?\s*([SDPWO])\s*(?:\/|over)\s*([SDPWO])\b/gi;
+      for (const m of tLow.matchAll(overMintRe)) {
+        titleMints.add(m[1].toUpperCase());
+        titleMints.add(m[2].toUpperCase());
+      }
       // Also recognise mint city names as mint marks
-      if (!titleMint) {
+      if (titleMints.size === 0) {
         for (const [city, mark] of Object.entries(MINT_CITY_MAP)) {
-          if (tLow.includes(city)) { titleMint = mark; break; }
+          if (tLow.includes(city)) { titleMints.add(mark); break; }
         }
       }
       // Standalone "CC" anywhere in title (unique two-letter mark)
-      if (!titleMint && /\bCC\b/.test(c.title || '')) {
-        titleMint = 'CC';
+      if (titleMints.size === 0 && /\bCC\b/.test(c.title || '')) {
+        titleMints.add('CC');
       }
-      if (!titleMint) return true; // no mint stated → benefit of the doubt
-      if (titleMint === wantMint) return true;
+      if (titleMints.size === 0) return true; // no mint stated → benefit of the doubt
+      if (titleMints.has(wantMint)) return true;
       removed.mintMismatch++;
       return false;
     });
