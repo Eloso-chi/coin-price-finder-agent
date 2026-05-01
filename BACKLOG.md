@@ -7,16 +7,11 @@ Items marked DONE are kept for historical reference.
 
 ## Scraping & Data Pipeline
 
-### S0. Active Listings Guard in Scraper [MEDIUM]
+### ~~S0. Active Listings Guard in Scraper [DONE]~~
 
-**Problem:** When Terapeak has no sold results, eBay may auto-switch to "Active listings" tab. Scraper currently doesn't detect this -- could ingest asking prices as sold comps, contaminating FMV.
-
-**Fix:** In `scripts/terapeak-export.py` (`do_search_and_export`, after DOM scrape):
-- Validate "Sold" tab is active before accepting rows
-- OR require date column has parseable dates (active listings have no sold date)
-- If neither condition met, log warning and skip
-
-**Files:** `scripts/terapeak-export.py`
+Both `terapeak-export.py` and `terapeak-page2.py` now guard against active listings:
+- Tab check: detects "Active listings" tab via DOM after results load
+- Date validation: if <20% of scraped rows have parseable sold dates, aborts with warning
 
 ---
 
@@ -87,6 +82,7 @@ Items marked DONE are kept for historical reference.
 
 | # | Item | Commit |
 |---|------|--------|
+| S0 | Active Listings Guard | Tab check + date validation in both scraper scripts |
 | S1 | Finish Page 1 remaining | Mostly done; 157 remaining are Royal Mint Lunar (no Terapeak data) |
 | S3 | Refresh Stale >30d | `0d6c814` -- 1/42 succeeded (all Royal Mint Lunar = no data on eBay) |
 | 111 | Admin Portal | `public/admin.html` + `/api/admin/*` endpoints |

@@ -320,6 +320,30 @@ def do_search_and_scrape_page2(page, search_term, download_dir, max_pages=2):
 
     time.sleep(3)
 
+    # ── S0: Active Listings Guard (tab check) ──────────────────
+    # When Terapeak has no sold results, eBay may auto-switch to
+    # "Active listings" tab. Detect this and abort early.
+    active_tab_detected = page.evaluate("""() => {
+        const tabs = document.querySelectorAll(
+            '[role="tab"][aria-selected="true"], '
+            + '.tab--active, .tab-item--active, '
+            + 'button[aria-pressed="true"]'
+        );
+        for (const tab of tabs) {
+            const txt = tab.innerText.toLowerCase();
+            if (txt.includes('active') && !txt.includes('sold')) return true;
+        }
+        const headings = document.querySelectorAll('h1, h2, h3, [class*="tab-label"]');
+        for (const h of headings) {
+            if (h.innerText.toLowerCase().includes('active listings')) return true;
+        }
+        return false;
+    }""")
+    if active_tab_detected:
+        print(f"    WARNING: Active Listings tab detected (no sold data) -- skipping")
+        page.screenshot(path=str(download_dir / f"_debug_p2_active_tab_{search_term[:30]}.png"))
+        return None
+
     # Scroll down to reveal results table and pagination
     for _ in range(random.randint(4, 7)):
         human_scroll(page, "down", random.randint(250, 550))
@@ -441,6 +465,22 @@ def do_search_and_scrape_page2(page, search_term, download_dir, max_pages=2):
 
         if not rows:
             break  # No data on this page -- stop paginating
+
+        # ── S0: Active Listings Guard (date validation) ────────────
+        # Sold listings have a parseable date ("Mar 30, 2026").
+        # Active listings have no date or show blank. If <20% of rows
+        # have a valid date, assume we're on the active listings page.
+        _DATE_RE = re.compile(
+            r'(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2},?\s+\d{4}',
+            re.IGNORECASE
+        )
+        rows_with_date = sum(1 for r in rows if _DATE_RE.search(r.get("date", "")))
+        date_ratio = rows_with_date / len(rows) if rows else 0
+        if len(rows) >= 3 and date_ratio < 0.2:
+            print(f"    WARNING: Page {page_num} has {rows_with_date}/{len(rows)} valid dates "
+                  f"({date_ratio:.0%}) -- likely Active Listings, stopping")
+            page.screenshot(path=str(download_dir / f"_debug_p2_no_dates_p{page_num}_{search_term[:30]}.png"))
+            break
 
         page_csv_rows = []
         for row in rows:
