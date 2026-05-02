@@ -560,7 +560,7 @@ function scoreMatch(comp, expected) {
   // ── Variant mismatch: gilded / coloured / proof / first strike etc. ──
   // When the query doesn't ask for a specialty variant, penalise comps whose
   // title explicitly advertises one — these carry heavy premiums over BU.
-  const VARIANT_TOKENS = ['golden', 'gilded', 'gold plated', 'gold-plated',
+  const VARIANT_TOKENS = ['golden', 'gilded', 'guilded', 'gold plated', 'gold-plated',
     'colorized', 'coloured', 'colorised', 'colour', 'enameled',
     'reverse proof', 'burnished', 'enhanced reverse proof',
     'satin finish', 'first strike', 'first day', 'first release',
@@ -865,17 +865,15 @@ function applyFilters(comps, options, expected) {
     });
   }
 
-  // Melt-floor sanity check for 1 oz (and larger) bullion: if no weight is
-  // detected in the title and the price is well below expected melt for the
-  // searched weight, the listing is almost certainly a smaller/fractional coin.
+  // Melt-floor sanity check for bullion: if the price is well below expected
+  // melt for the searched weight, the listing is almost certainly a different
+  // metal or a smaller/fractional coin that slipped through weight-mismatch.
   if (expected.meltPerOz && expected.weight && expected.weight >= 1) {
     removed.meltFloor = 0;
     // Floor: 40% of expected melt — generous enough for damaged/junk bullion
-    // but catches e.g. 1/2 oz coins ($15) in a 1 oz search (melt ~$30+).
+    // but catches e.g. silver coins in a gold search or fractional pieces.
     const meltFloor = expected.meltPerOz * expected.weight * 0.40;
     kept = kept.filter(c => {
-      const detW = detectWeightFromTitle(c.title);
-      if (detW !== null) return true; // already handled by weight-mismatch filter
       if (c.totalUsd < meltFloor) {
         removed.meltFloor++;
         return false;
@@ -888,7 +886,7 @@ function applyFilters(comps, options, expected) {
   // (golden, coloured, gilded, etc.) when the query didn't ask for them.
   // These carry heavy premiums that distort FMV for regular BU coins.
   {
-    const VARIANT_TOKENS = ['golden', 'gilded', 'gold plated', 'gold-plated',
+    const VARIANT_TOKENS = ['golden', 'gilded', 'guilded', 'gold plated', 'gold-plated',
       'colorized', 'coloured', 'colorised', 'enameled',
       'reverse proof', 'burnished', 'enhanced reverse proof',
       'satin finish', 'antiqued', 'high relief', 'piedfort', 'privy',

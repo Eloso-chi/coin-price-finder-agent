@@ -18,6 +18,7 @@ const { resolveCoinVariant } = require('../data/halfDollarSeries');
 const { zodiacForYear, perthLunarSeries, getRollQuantity } = require('../data/constants');
 const { validateSeriesIntegrity, validateNumericSanity } = require('../utils/responseValidator');
 const { hasSeriesConflict, detectDenomination } = require('../utils/filters');
+const { getCoinMetalProfile } = require('../utils/coinMetalProfile');
 const terapeakService = require('../services/terapeakService');
 const stats = require('../utils/stats');
 
@@ -241,7 +242,9 @@ router.post('/', async (req, res) => {
       : pcgs.metalContent.toLowerCase().includes('silver') ? 'silver'
       : pcgs.metalContent.toLowerCase().includes('platinum') ? 'platinum'
       : pcgs.metalContent.toLowerCase().includes('palladium') ? 'palladium' : null) : null;
-    const expectedMetal = parsedMetal || pcgsMetal || null;
+    // Fallback: infer metal from series name or query keywords (e.g. "Krugerrand" implies gold)
+    const profileMetal = getCoinMetalProfile(query).metal || null;
+    const expectedMetal = parsedMetal || pcgsMetal || profileMetal || null;
 
     const expected = {
       year: pcgs.year || identification.parsed?.year,
