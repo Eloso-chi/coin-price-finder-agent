@@ -848,21 +848,33 @@ function applyFilters(comps, options, expected) {
   // Year-mismatch hard filter: drop comps whose title explicitly states
   // only a different year than the expected year. A listing titled
   // "2005 Perth Lunar Rooster" should NOT appear for a 2017 search.
-  // Allow ±1 year tolerance for non-bullion searches (e.g. 1965 roll in 1964 search).
+  // #165: For generic datasets (no year in dataset name), relax tolerance.
+  // Bullion generic datasets intentionally span all years -- value is driven
+  // by metal content, not mintage year, so year filtering is counter-productive.
   if (expected.year) {
-    removed.yearMismatch = 0;
-    const yearTolerance = expected.weight ? 0 : 1; // bullion: exact year; others: ±1
-    kept = kept.filter(c => {
-      const tLow = (c.title || '').toLowerCase();
-      const yearsInTitle = [...tLow.matchAll(/\b(1[7-9]\d{2}|20[0-4]\d)\b/g)].map(m => parseInt(m[1], 10));
-      if (yearsInTitle.length === 0) return true; // no year in title — keep
-      if (yearsInTitle.includes(expected.year)) return true; // contains expected year — keep
-      // Check if any title year is within tolerance
-      if (yearsInTitle.some(y => Math.abs(y - expected.year) <= yearTolerance)) return true;
-      // Title has year(s) but all are outside tolerance — drop
-      removed.yearMismatch++;
-      return false;
-    });
+    const skipYearFilter = expected._fromGenericDataset && !!expected.weight;
+    if (!skipYearFilter) {
+      removed.yearMismatch = 0;
+      let yearTolerance;
+      if (expected._fromGenericDataset) {
+        // Non-bullion generic dataset: wider tolerance (±3 years)
+        yearTolerance = 3;
+      } else {
+        // Year-specific dataset: strict — bullion exact, numismatic ±1
+        yearTolerance = expected.weight ? 0 : 1;
+      }
+      kept = kept.filter(c => {
+        const tLow = (c.title || '').toLowerCase();
+        const yearsInTitle = [...tLow.matchAll(/\b(1[7-9]\d{2}|20[0-4]\d)\b/g)].map(m => parseInt(m[1], 10));
+        if (yearsInTitle.length === 0) return true; // no year in title — keep
+        if (yearsInTitle.includes(expected.year)) return true; // contains expected year — keep
+        // Check if any title year is within tolerance
+        if (yearsInTitle.some(y => Math.abs(y - expected.year) <= yearTolerance)) return true;
+        // Title has year(s) but all are outside tolerance — drop
+        removed.yearMismatch++;
+        return false;
+      });
+    }
   }
 
   // Melt-floor sanity check for bullion: if the price is well below expected
@@ -1185,10 +1197,20 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
     // Use windowed comps if enough, otherwise use all terapeak comps
     const pool = withinWindow.length >= opts.usMinComps ? withinWindow : tpComps;
 
+    // #165: Detect if comps came from a generic (non-year-specific) dataset.
+    // Generic datasets intentionally span multiple years; applying strict
+    // yearMismatch filtering kills most of their value.
+    const dsName = (terapeakData.searchTerm || '').toLowerCase();
+    const isGenericDataset = expected.year && !dsName.includes(String(expected.year));
+    if (isGenericDataset) expected._fromGenericDataset = true;
+
     // Apply scoring and filters
     const scored = pool.map(c => scoreMatch(c, expected));
     const { kept, removed } = applyFilters(scored, opts, expected);
     const prices = kept.map(c => c.totalUsd);
+
+    // Clean up transient flag
+    delete expected._fromGenericDataset;
 
     if (kept.length >= opts.usMinComps) {
       usResult = { stats: stats.summarize(prices), comps: kept, removed, error: null };
