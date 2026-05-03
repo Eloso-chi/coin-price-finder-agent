@@ -21,9 +21,6 @@ const fs = require('fs');
 const path = require('path');
 
 const BASE = process.env.BASE_URL || 'http://localhost:3000';
-const CONCURRENCY = args.includes('--concurrency')
-  ? parseInt(args[args.indexOf('--concurrency') + 1])
-  : (isFullRun ? 10 : 5);
 
 // -- CLI args --
 const args = process.argv.slice(2);
@@ -33,6 +30,9 @@ const limit = args.includes('--limit') ? parseInt(args[args.indexOf('--limit') +
 const filter = args.includes('--filter') ? args[args.indexOf('--filter') + 1] : null;
 const outFile = args.includes('--out') ? args[args.indexOf('--out') + 1] : null;
 const quiet = args.includes('--quiet') || args.includes('-q');
+const CONCURRENCY = args.includes('--concurrency')
+  ? parseInt(args[args.indexOf('--concurrency') + 1])
+  : (isFullRun ? 10 : 5);
 
 // -- HTTP helper --
 function httpRequest(method, urlPath, body) {
