@@ -15,11 +15,13 @@ Both `terapeak-export.py` and `terapeak-page2.py` now guard against active listi
 
 ---
 
-### S2. Page 2+ Deep Pagination [HIGH]
+### S2. Page 2+ Deep Pagination [HIGH -- IN PROGRESS]
 
-**Problem:** 1,341 coins have exactly 50 rows (page 1 limit) and likely have more data available on page 2+. Enriching these doubles comp coverage for high-volume coins.
+**Problem:** High-volume coins have only 50 rows (page 1 limit). Deep pagination (pages 2-6) expands bullion to 300 rows.
 
-**Status:** 131 already enriched (6,332 rows added). 1,341 remaining. ~8 hours total runtime.
+**Status:** 243 datasets deep-scraped. 165 high-volume datasets remaining (50+ comps, no `deepAt` in scrapeMeta). Batch 3 interrupted at 58%.
+
+**Check remaining:** `GET /api/terapeak/scrape-status?needs=deep&minComps=50`
 
 **Command:** `python3 scripts/terapeak-page2.py --run --limit N`
 

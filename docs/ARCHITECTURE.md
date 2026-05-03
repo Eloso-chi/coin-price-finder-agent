@@ -20,7 +20,7 @@ server.js                              Express entry point (port 3000)
 │   ├─ coinVariantRoute.js             GET /api/coin-variant -- design series resolver
 │   ├─ excelImportRoute.js             POST /api/import/excel -- Excel spreadsheet import
 │   ├─ imageProxyRoute.js              GET /api/image-proxy -- proxied coin images
-│   ├─ terapeakRoute.js                /api/terapeak/* -- Terapeak data & quota management
+│   ├─ terapeakRoute.js                /api/terapeak/* -- Terapeak data, quota, scrape-status
 │   ├─ adminRoute.js                   /api/admin/* -- dashboard, stale datasets, data health
 │   ├─ authRoute.js                    /api/auth/* -- signup, login, me, change-password
 │   └─ coinRoute.js                    /api/coins/* -- collection CRUD (JWT-protected)
@@ -36,7 +36,7 @@ server.js                              Express entry point (port 3000)
 │   ├─ metalsHistoryService.js         Daily spot price history snapshots
 │   ├─ marketAggregator.js             Year x mint market matrix builder + caching
 │   ├─ numistaService.js               Numista API -- search, mintages, rarity
-│   ├─ terapeakService.js              Terapeak CSV import, fuzzy lookup, eviction, auto-import (local + blob)
+│   ├─ terapeakService.js              Terapeak CSV import, fuzzy lookup, eviction, auto-import, scrapeMeta tracking
 │   ├─ terapeakQuotaService.js         Daily Terapeak query quota tracker
 │   ├─ adminService.js                 Admin dashboard aggregation (stats, stale detection, data health)
 │   ├─ greysheetHistoryService.js      Daily Greysheet price history snapshots
@@ -80,12 +80,12 @@ server.js                              Express entry point (port 3000)
 │   ├─ metals_spot.json                Persisted metals spot prices (stale fallback)
 │   ├─ metals_history.json             Daily spot price snapshots
 │   ├─ greysheet_history.json          Daily Greysheet price snapshots
-│   ├─ terapeak_sold.json              Imported Terapeak comp data
+│   ├─ terapeak_sold.json              Imported Terapeak comp data (~2,326 datasets, ~119K comps)
 │   ├─ users.json                      Server-side user accounts (bcrypt hashes + UUIDs)
 │   └─ user_coins.json                 Server-side coin collections (plaintext JSON by userId)
 │
 ├─ data/
-│   └─ terapeak/                       ~1,200 Terapeak CSV exports (real sold data)
+│   └─ terapeak/                       ~2,300+ Terapeak CSV exports (real sold data)
 │
 ├─ scripts/
 │   ├─ terapeak-export.py              Semi-automated Terapeak CSV exporter (Playwright + blob upload)
@@ -506,6 +506,8 @@ The cascade maximizes data quality while handling API limitations. Terapeak loca
 - Grade-number mismatch: -20 to -40 based on distance from expected grade
 - Comps below score threshold are deprioritized; the deny-list (`isDenied`) removes lots, replicas, cleaned coins, etc.
 
+**YearMismatch filter:** `applyFilters()` removes comps with wrong year in title. For bullion coins from generic datasets (dataset name doesn't contain the expected year), the yearMismatch filter is skipped entirely -- these datasets intentionally span all years. Year-specific datasets and non-bullion coins retain strict filtering.
+
 **Outlier removal:** MAD-based outlier removal (via `stats.removeOutliersMAD`) filters extreme prices before statistics are computed.
 
 ---
@@ -572,29 +574,31 @@ Key flags: `--batch N` (coin count), `--priority` (thin-data-first), `--resume` 
 
 **Active Listings Guard (S0):** Two-layer protection against ingesting unsold asking prices when Terapeak falls back to the Active Listings tab: (1) DOM tab check detects active-tab selectors after results load, (2) date validation rejects pages where <20% of rows have parseable sold dates.
 
-### Page 2 Enrichment Scraper -- `scripts/terapeak-page2.py`
+### Page 2+ Deep Pagination -- `scripts/terapeak-page2.py`
 
-Extends CSVs from 50 rows (page 1 limit) to ~100 rows by scraping page 2:
+Extends CSVs from 50 rows (page 1 limit) to up to 300 rows by scraping pages 2-6:
 
 ```
 ┌─ Candidate Selection ─────────────────────────────────────┐
 │  get_candidates(min_rows=50): scan data/terapeak/*.csv    │
-│  Select files with exactly 50 rows (likely truncated)     │
+│  Select files with >= 50 rows (likely truncated)          │
 ├─ Scraping ────────────────────────────────────────────────┤
 │  For each candidate:                                      │
 │    1. Read .meta file for original search_term            │
 │    2. Navigate to Terapeak, enter search, load results    │
-│    3. Click pagination "Next" button                      │
-│    4. Scrape page 2 rows from the results table           │
+│    3. Navigate pages 2..max_pages (6 for bullion, 2 else) │
+│    4. Scrape rows from each page's results table          │
 │    5. append_to_csv() with composite-key dedup            │
 │       Key: itemId | soldDate | soldPrice                  │
-│    6. Update .meta with enrichment timestamp              │
+│    6. Upload with scrapeMeta: deepAt + maxPageReached     │
 └───────────────────────────────────────────────────────────┘
 ```
 
 Pagination selector: `button.pagination__next:not([disabled])`. Results per page control: `select[aria-label="Results per page"]` with 10/20/50 options.
 
 **Active Listings Guard (S0):** Same two-layer guard as `terapeak-export.py` -- tab check after page 1 loads, and date-ratio validation on each paginated page's rows. Stops pagination early if active listings detected.
+
+**Scrape depth tracking:** Each successful upload sends `deepAt` (ISO timestamp) and `maxPageReached` (highest page number scraped) as form fields. The server merges these into the dataset's `scrapeMeta`, preventing redundant re-scraping. Query `GET /api/terapeak/scrape-status?needs=deep&minComps=50` to see which datasets still need deep pagination.
 
 ### CSV Cleanup -- `scripts/clean-csvs.js`
 
@@ -615,6 +619,12 @@ When the pricing engine calls `lookupComps(keywords, expected)`:
 3. Apply hard guards: year must match, weight must match (if specified), metal must match, mint must not conflict
 4. Return comps from the best-matching dataset, scored and sorted
 5. Each comp passes through `isDenied()` and denomination/series filters before use
+
+**Per-dataset metadata:** Each dataset stores `scrapeMeta: { page1At, deepAt, maxPageReached, lastRefreshAt }` to track scraping provenance. `importComps()` merges scrapeMeta intelligently (never overwrites earlier timestamps, maxPageReached only increases).
+
+**Admin endpoints:**
+- `GET /api/terapeak/scrape-status` -- summary + filtered dataset lists (`needs=deep`, `needs=page1`, `needs=refresh&maxAge=N`, `minComps=N`)
+- `POST /api/terapeak/backfill-scrape-meta` -- one-time backfill from page2 log files
 
 ### VNC Environment
 
