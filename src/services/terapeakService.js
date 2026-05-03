@@ -486,6 +486,9 @@ function lookupComps(keywords, opts = {}) {
   // Also accept an explicit metal hint from the caller (e.g. expected.metal).
   const queryMetal = _detectMetalFromText(keywords) || (opts.metal ? opts.metal.toLowerCase() : null);
 
+  // Detect US mint mark from original query for mint-mark bonus (#174).
+  const queryMintMark = _detectUSMintMark(keywords);
+
   // Does the search query contain a specific year?  If not we'll merge
   // comps from ALL matching datasets for better coverage.
   const YEAR_RE = /\b(1[7-9]\d{2}|20[0-4]\d)\b/;
@@ -612,12 +615,34 @@ function lookupComps(keywords, opts = {}) {
       if (!queryMetal && keyMetal === 'platinum')   metalBonus = -0.05;
       if (!queryMetal && keyMetal === 'palladium')  metalBonus = -0.05;
 
+      // Metal + weight compound bonus (#175): when query specifies BOTH a
+      // metal and a weight, boost datasets that match both.  This prevents
+      // gold bullion queries from leaking into generic/silver datasets that
+      // happen to share series tokens.
+      let weightMatchBonus = 0;
+      if (queryMetal && searchWeight !== null && keyMetal === queryMetal && keyWeight !== null && Math.abs(searchWeight - keyWeight) <= 0.01) {
+        weightMatchBonus = 0.15;
+      }
+
+      // US mint-mark bonus (#174): single-letter mint marks (S, D, O, W)
+      // are stripped to 1-char tokens that get filtered out by the len>1
+      // token filter, so fuzzy scoring can't distinguish "1896-S" from
+      // "1896" datasets.  Detect mint marks from the ORIGINAL text and
+      // boost when they match.
+      let mintMarkBonus = 0;
+      if (queryMintMark) {
+        const keyMintMark = _detectUSMintMark(data.searchTerm || key);
+        if (keyMintMark === queryMintMark) mintMarkBonus = 0.20;
+        // Penalize datasets with a DIFFERENT mint mark
+        else if (keyMintMark && keyMintMark !== queryMintMark) mintMarkBonus = -0.15;
+      }
+
       // Grade bonus: when query specifies a grade, boost grade-matching datasets
       // over grade-less (base) datasets.  Grade-specific data is more relevant.
       let gradeBonus = 0;
       if (queryGrade && keyGrade === queryGrade) gradeBonus = 0.15;
 
-      candidates.push({ key, data, score: combined + bonus + metalBonus + gradeBonus, isGeneric, keyMetal, keyGrade });
+      candidates.push({ key, data, score: combined + bonus + metalBonus + weightMatchBonus + mintMarkBonus + gradeBonus, isGeneric, keyMetal, keyGrade });
     }
   }
 
@@ -896,6 +921,18 @@ function _detectMetalFromText(text) {
 }
 
 /**
+ * Detect a US mint mark from text (original, un-normalized).
+ * Looks for patterns like "1896-S", "1878-CC", "2024-W", "1901 S", "1921 D".
+ * Returns the mint mark uppercased ('S', 'D', 'O', 'CC', 'W') or null.
+ */
+function _detectUSMintMark(text) {
+  if (!text) return null;
+  // Match year followed by separator and mint mark
+  const m = text.match(/\b\d{4}[-\s]?(S|D|O|CC|W)\b/i);
+  return m ? m[1].toUpperCase() : null;
+}
+
+/**
  * Auto-import all CSV files from a folder.
  * Each CSV filename (without extension) is used as the search term
  * unless there's a companion .meta file specifying one.
@@ -1095,6 +1132,7 @@ module.exports = {
   normalizeSearchKey,
   detectWeightFromQuery,
   detectMetal: _detectMetalFromText,
+  detectUSMintMark: _detectUSMintMark,
   extractGrade: _extractGrade,
   // Exposed for testing
   mapColumn,

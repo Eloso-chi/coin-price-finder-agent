@@ -474,3 +474,190 @@ describe('extractGrade', () => {
     expect(extractGrade(null)).toBeNull();
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════════
+// detectUSMintMark
+// ═══════════════════════════════════════════════════════════════════════
+describe('detectUSMintMark', () => {
+  const { detectUSMintMark } = terapeakService;
+
+  test('detects S mint mark', () => {
+    expect(detectUSMintMark('1896-S Morgan Silver Dollar')).toBe('S');
+    expect(detectUSMintMark('1896 S Morgan')).toBe('S');
+  });
+
+  test('detects D mint mark', () => {
+    expect(detectUSMintMark('1921-D Morgan Silver Dollar')).toBe('D');
+  });
+
+  test('detects CC mint mark', () => {
+    expect(detectUSMintMark('1878-CC Morgan Silver Dollar')).toBe('CC');
+    expect(detectUSMintMark('1883 CC Morgan')).toBe('CC');
+  });
+
+  test('detects O mint mark', () => {
+    expect(detectUSMintMark('1904-O Morgan Silver Dollar')).toBe('O');
+  });
+
+  test('detects W mint mark', () => {
+    expect(detectUSMintMark('2024-W Silver Eagle')).toBe('W');
+  });
+
+  test('returns null when no mint mark', () => {
+    expect(detectUSMintMark('1921 Morgan Silver Dollar')).toBeNull();
+    expect(detectUSMintMark('American Silver Eagle 1oz')).toBeNull();
+    expect(detectUSMintMark(null)).toBeNull();
+    expect(detectUSMintMark('')).toBeNull();
+  });
+
+  test('is case insensitive (input) but returns uppercase', () => {
+    expect(detectUSMintMark('1896-s morgan')).toBe('S');
+    expect(detectUSMintMark('1878-cc morgan')).toBe('CC');
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// lookupComps — US mint-mark preference (#174)
+// ═══════════════════════════════════════════════════════════════════════
+describe('lookupComps – mint-mark preference', () => {
+  const STORE_PATH = path.join(__dirname, '..', 'cache', 'terapeak_sold.json');
+  let savedStore;
+  beforeAll(() => {
+    try { savedStore = fs.readFileSync(STORE_PATH, 'utf8'); } catch { savedStore = '{}'; }
+  });
+  afterAll(() => {
+    fs.writeFileSync(STORE_PATH, savedStore);
+  });
+
+  function injectStore(datasets) {
+    const CACHE_DIR = path.join(__dirname, '..', 'cache');
+    if (!fs.existsSync(CACHE_DIR)) fs.mkdirSync(CACHE_DIR, { recursive: true });
+    const store = {};
+    for (const [key, searchTerm] of datasets) {
+      const normalized = normalizeSearchKey(key);
+      store[normalized] = {
+        searchTerm: searchTerm || key,
+        comps: [{ title: key, price: 50, soldDate: '2025-01-15', totalUsd: 50, source: 'terapeak' }],
+        lastImport: new Date().toISOString(),
+        importCount: 1
+      };
+    }
+    fs.writeFileSync(STORE_PATH, JSON.stringify(store, null, 2));
+    terapeakService._resetStoreCache && terapeakService._resetStoreCache();
+  }
+
+  test('1896-S Morgan prefers 1896-S dataset over generic Morgan', () => {
+    injectStore([
+      ['Morgan Silver Dollar Generic', 'Morgan Silver Dollar Generic'],
+      ['1896-S Morgan Silver Dollar', '1896-S Morgan Silver Dollar'],
+    ]);
+    const result = lookupComps('1896-S Morgan Silver Dollar');
+    expect(result).not.toBeNull();
+    expect(result.searchTerm).toContain('1896-S');
+  });
+
+  test('1878-CC Morgan prefers CC-mint dataset over base year dataset', () => {
+    injectStore([
+      ['1878 Morgan Silver Dollar', '1878 Morgan Silver Dollar'],
+      ['1878-CC Morgan Silver Dollar', '1878-CC Morgan Silver Dollar'],
+    ]);
+    const result = lookupComps('1878-CC Morgan Silver Dollar');
+    expect(result).not.toBeNull();
+    expect(result.searchTerm).toContain('CC');
+  });
+
+  test('1921-D Morgan prefers D-mint dataset over P-mint (no mark)', () => {
+    injectStore([
+      ['1921 Morgan Silver Dollar', '1921 Morgan Silver Dollar'],
+      ['1921-D Morgan Silver Dollar', '1921-D Morgan Silver Dollar'],
+    ]);
+    const result = lookupComps('1921-D Morgan Silver Dollar');
+    expect(result).not.toBeNull();
+    expect(result.searchTerm).toContain('1921-D');
+  });
+
+  test('query without mint mark does NOT penalize generic datasets', () => {
+    injectStore([
+      ['1921 Morgan Silver Dollar', '1921 Morgan Silver Dollar'],
+      ['1921-D Morgan Silver Dollar', '1921-D Morgan Silver Dollar'],
+    ]);
+    // No mint mark in query — should match the base 1921 dataset
+    const result = lookupComps('1921 Morgan Silver Dollar');
+    expect(result).not.toBeNull();
+    expect(result.searchTerm).toBe('1921 Morgan Silver Dollar');
+  });
+
+  test('S-mint query does NOT match D-mint dataset', () => {
+    injectStore([
+      ['1896-S Morgan Silver Dollar', '1896-S Morgan Silver Dollar'],
+      ['1896-D Morgan Silver Dollar', '1896-D Morgan Silver Dollar'],
+    ]);
+    const result = lookupComps('1896-S Morgan Silver Dollar');
+    expect(result).not.toBeNull();
+    expect(result.searchTerm).toContain('1896-S');
+    expect(result.searchTerm).not.toContain('1896-D');
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// lookupComps — metal + weight compound preference (#175)
+// ═══════════════════════════════════════════════════════════════════════
+describe('lookupComps – metal+weight compound preference', () => {
+  const STORE_PATH = path.join(__dirname, '..', 'cache', 'terapeak_sold.json');
+  let savedStore;
+  beforeAll(() => {
+    try { savedStore = fs.readFileSync(STORE_PATH, 'utf8'); } catch { savedStore = '{}'; }
+  });
+  afterAll(() => {
+    fs.writeFileSync(STORE_PATH, savedStore);
+  });
+
+  function injectStore(datasets) {
+    const CACHE_DIR = path.join(__dirname, '..', 'cache');
+    if (!fs.existsSync(CACHE_DIR)) fs.mkdirSync(CACHE_DIR, { recursive: true });
+    const store = {};
+    for (const [key, searchTerm] of datasets) {
+      const normalized = normalizeSearchKey(key);
+      store[normalized] = {
+        searchTerm: searchTerm || key,
+        comps: [{ title: key, price: 50, soldDate: '2025-01-15', totalUsd: 50, source: 'terapeak' }],
+        lastImport: new Date().toISOString(),
+        importCount: 1
+      };
+    }
+    fs.writeFileSync(STORE_PATH, JSON.stringify(store, null, 2));
+    terapeakService._resetStoreCache && terapeakService._resetStoreCache();
+  }
+
+  test('Gold Libertad 1oz query prefers gold-specific dataset', () => {
+    injectStore([
+      ['Mexican Silver Libertad 1oz Generic', 'Mexican Silver Libertad 1oz Generic'],
+      ['Mexican Gold Libertad 1oz Generic', 'Mexican Gold Libertad 1oz Generic'],
+    ]);
+    const result = lookupComps('2023 Mexican Gold Libertad 1 oz');
+    expect(result).not.toBeNull();
+    expect(result.searchTerm).toContain('Gold');
+    expect(result.searchTerm).not.toContain('Silver');
+  });
+
+  test('Gold Krugerrand 1oz prefers gold+1oz dataset over generic gold', () => {
+    injectStore([
+      ['South African Gold Krugerrand Generic', 'South African Gold Krugerrand Generic'],
+      ['South African Gold Krugerrand 1oz Generic', 'South African Gold Krugerrand 1oz Generic'],
+    ]);
+    const result = lookupComps('2024 South African Gold Krugerrand 1 oz');
+    expect(result).not.toBeNull();
+    expect(result.searchTerm).toContain('1oz');
+  });
+
+  test('Silver Eagle 1oz with metal+weight does not match gold dataset', () => {
+    injectStore([
+      ['American Silver Eagle 1oz Generic', 'American Silver Eagle 1oz Generic'],
+      ['American Gold Eagle 1oz Generic', 'American Gold Eagle 1oz Generic'],
+    ]);
+    const result = lookupComps('2024 American Silver Eagle 1 oz');
+    expect(result).not.toBeNull();
+    expect(result.searchTerm).toContain('Silver');
+    expect(result.searchTerm).not.toContain('Gold');
+  });
+});
