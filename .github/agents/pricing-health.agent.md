@@ -45,92 +45,44 @@ cd /workspaces/coin-price-agent/src && node server.js &
 
 Wait for the health endpoint to respond before proceeding.
 
+## Data Collection (SINGLE COMMAND)
+
+Run the health check script in ONE terminal invocation. This script tests 14 coins
+(10 golden set + 4 Terapeak sample) through all pricing routes and outputs JSON:
+
+```bash
+cd /workspaces/coin-price-agent && bash scripts/pricing-health-check.sh 2>/dev/null
+```
+
+This replaces all individual curl calls. The script handles:
+- Server health verification
+- Terapeak baseline lookup (row counts)
+- Price Discovery route (full response with attrition data)
+- Batch Pricing route (FMV + confidence)
+
+Parse the JSON output and apply the Analysis Rules below.
+
+## Supplemental Checks (optional, 1-2 commands max)
+
+Only run these if the script output reveals specific anomalies worth investigating:
+
+```bash
+# Detailed attrition for a specific RED-flagged coin:
+curl -s -X POST http://localhost:3000/api/price -H 'Content-Type: application/json' \
+  -d '{"query": "FLAGGED_COIN"}' | python3 -c "import json,sys; d=json.load(sys.stdin); e=d.get('ebay',{}).get('us',{}); print(json.dumps({'gathered':e.get('gathered'),'attrition':e.get('attritionPct'),'removed':e.get('removed',{}),'comps':len(e.get('comps',[]))}, indent=2))"
+```
+
 ## Coin Selection
 
-Pick coins from TWO sources to get a diverse sample:
+The script automatically selects coins from two sources:
 
-### Source 1: Golden Set (deterministic, curated)
-Read `__tests__/fixtures/golden_coins.json`. Pick at least 6 coins spanning:
-- Raw + graded
-- US classic (Morgan, Peace) + modern bullion (ASE) + world bullion (Krugerrand, Libertad)
-- High-volume + low-comp edge cases
+### Source 1: Golden Set (10 coins, hardcoded in script)
+Spans raw + graded, US classic (Morgan, Peace) + modern bullion (ASE) + world bullion (Krugerrand, Libertad).
 
-### Source 2: Terapeak Store Sample (data-driven)
-Query the Terapeak store for coins with real data:
+### Source 2: Terapeak Store Sample (4 coins, data-driven)
+Randomly selects 4 high-comp datasets from different series prefixes.
 
-```bash
-curl -s http://localhost:3000/api/terapeak/datasets | jq -r '.datasets[:300] | map(select(.rowCount > 20)) | .[0:10] | .[].searchTerm'
-```
-
-Pick 4-6 from this list, favoring variety (different series, weights, eras).
-
-**Total sample**: 10-12 coins minimum.
-
-## Test Procedure
-
-For each coin in the sample, run these steps:
-
-### Step 1: Terapeak Baseline
-
-Query the Terapeak store directly to get the raw row count:
-
-```bash
-curl -s "http://localhost:3000/api/terapeak/lookup?q=COIN_QUERY" | jq '{rowCount: (.comps | length), oldestDate: (.comps | sort_by(.soldDate) | first | .soldDate), newestDate: (.comps | sort_by(.soldDate) | last | .soldDate)}'
-```
-
-Record: `teakRows` (total rows in Terapeak for this coin).
-
-### Step 2: Price Discovery Route
-
-```bash
-curl -s -X POST http://localhost:3000/api/price \
-  -H 'Content-Type: application/json' \
-  -d '{"query": "COIN_QUERY"}' | jq '{
-    fmv: .valuation.fmvCore,
-    confidence: .valuation.confidence,
-    method: .valuation.method,
-    compCount: .valuation.compCount,
-    lowData: .valuation.lowData,
-    usComps: (.ebay.us.comps | length),
-    usGathered: .ebay.us.gathered,
-    usAttrition: .ebay.us.attritionPct,
-    usRemoved: .ebay.us.removed,
-    browseOnly: .valuation.dataSource.browseOnly,
-    gradePool: .valuation.gradePool
-  }'
-```
-
-Record: `discoveryFmv`, `discoveryConfidence`, `discoveryComps`, `gathered`, `attritionPct`, `removed` breakdown.
-
-### Step 3: Batch Pricing Route
-
-```bash
-curl -s -X POST http://localhost:3000/api/pricing-batch \
-  -H 'Content-Type: application/json' \
-  -d '{"items": [{"query": "COIN_QUERY", "coinData": {"name": "COIN_NAME"}}]}' | jq '.results[0] | {
-    fmv: .valuation.fmvCore,
-    confidence: .valuation.confidence,
-    method: .valuation.method,
-    compCount: .valuation.compCount,
-    avgEbay: .avgEbay
-  }'
-```
-
-Record: `batchFmv`, `batchConfidence`, `batchComps`.
-
-### Step 4: Bulk Evaluate Route (spot check -- 2-3 coins only)
-
-```bash
-curl -s -X POST http://localhost:3000/api/bulk-evaluate \
-  -H 'Content-Type: application/json' \
-  -d '{"coins": [{"query": "COIN_QUERY"}]}' | jq '.results[0] | {fmv: .fmv, confidence: .confidence}'
-```
-
-### Step 5: Market Matrix (for series with year ranges -- 2-3 series only)
-
-```bash
-curl -s "http://localhost:3000/api/market/ebay?series=SERIES_NAME&days=180" | jq '{totalCells: .summary.totalCells, cellsWithData: .summary.cellsWithPriceData}'
-```
+**Total sample**: 14 coins (deterministic via seed).
 
 ## Analysis Rules
 
