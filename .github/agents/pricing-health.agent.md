@@ -47,18 +47,31 @@ Wait for the health endpoint to respond before proceeding.
 
 ## Data Collection (SINGLE COMMAND)
 
-Run the health check script in ONE terminal invocation. This script tests 14 coins
-(10 golden set + 4 Terapeak sample) through all pricing routes and outputs JSON:
+Run the health check script in ONE terminal invocation. Choose the mode based on the user's request:
 
+### Default sample (14 coins, ~15 seconds):
 ```bash
-cd /workspaces/coin-price-agent && bash scripts/pricing-health-check.sh 2>/dev/null
+cd /workspaces/coin-price-agent && node scripts/pricing-health-full.js --quiet 2>/dev/null
 ```
 
-This replaces all individual curl calls. The script handles:
-- Server health verification
-- Terapeak baseline lookup (row counts)
-- Price Discovery route (full response with attrition data)
-- Batch Pricing route (FMV + confidence)
+### Full dataset run (all datasets with 10+ comps, ~20 minutes):
+```bash
+cd /workspaces/coin-price-agent && node scripts/pricing-health-full.js --full --out cache/health-report.json 2>&1
+```
+
+### Filtered run (specific series):
+```bash
+cd /workspaces/coin-price-agent && node scripts/pricing-health-full.js --full --filter "Morgan" --out cache/health-morgan.json 2>&1
+```
+
+### Limited run (first N datasets by comp count):
+```bash
+cd /workspaces/coin-price-agent && node scripts/pricing-health-full.js --full --limit 100 --out cache/health-top100.json 2>&1
+```
+
+The script handles all HTTP calls internally with parallel execution. Output is structured JSON with pre-flagged issues (RED/YELLOW/GREEN).
+
+When `--out` is used, the full report is saved to the file and a summary is printed. Read the file to analyze the flagged items.
 
 Parse the JSON output and apply the Analysis Rules below.
 
