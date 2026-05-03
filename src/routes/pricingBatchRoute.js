@@ -22,6 +22,15 @@ const BULLION_1OZ_DEFAULT = [
   'philharmonic', 'krugerrand', 'kangaroo', 'kookaburra', 'panda',
   'gold buffalo', 'platinum eagle', 'palladium eagle', 'lunar', 'polar bear'
 ];
+const ALLOWED_LABELS = new Set([
+  'First Strike', 'Early Releases', 'First Releases', 'First Day of Issue',
+  'Burnished', 'Reverse Proof', 'Enhanced Reverse Proof',
+  'Satin Finish', 'Antiqued', 'High Relief', 'Prooflike',
+  'Colorized', 'Privy', 'Type 1', 'Type 2',
+  'Gilded', 'Ruthenium', 'Hologram', 'Gold Plated',
+  'Flag Label', 'Brown Label', 'Blue Label', 'Black Label',
+  'Mercanti Signed', 'Moy Signed', 'Reagan Signed',
+]);
 
 router.post('/', async (req, res) => {
   try {
@@ -112,6 +121,9 @@ async function _priceOne(item) {
     let zodiacAnimal = null;
     let perthSeriesLabel = null;
 
+    // Validate label against allowlist (#155 parity with priceRoute)
+    const validLabel = (coinData.label && ALLOWED_LABELS.has(coinData.label)) ? coinData.label : null;
+
     let expected = {
       year, mint, series, grade, weight,
       finish:  parsed.finish || null,
@@ -120,6 +132,7 @@ async function _priceOne(item) {
       isSet,
       setType: parsed.setType || null,
       metal: metalKey,
+      label: validLabel,
       _rawQuery: String(query),
     };
     if (meltPerOz) expected.meltPerOz = meltPerOz;
@@ -147,8 +160,11 @@ async function _priceOne(item) {
     const pcgsParsedForKeywords = { series: parsed.series || series, year, mint };
     const parsedFinish = coinData.finish || parsed.finish || null;
     if (parsedFinish && !pcgsParsedForKeywords.finish) pcgsParsedForKeywords.finish = parsedFinish;
+    // Include grade (for graded coins) and designation (for PCGS variants)
+    if (grade && !isBullion) pcgsParsedForKeywords.grade = grade;
+    if (parsed.designation) pcgsParsedForKeywords.designation = parsed.designation;
     let keywords = ebayService.buildKeywords
-      ? ebayService.buildKeywords(pcgsParsedForKeywords, query, weight)
+      ? ebayService.buildKeywords(pcgsParsedForKeywords, query, weight, validLabel)
       : query;
 
     // Roll/tube keyword override -- match priceRoute parity
@@ -156,6 +172,17 @@ async function _priceOne(item) {
       const yr = year || '';
       const ser = parsed.series || series || '';
       keywords = `${yr}${mint ? '-' + mint : ''} ${ser} (roll,tube)`.trim();
+    } else if (isSet) {
+      // Set-type keyword override -- match priceRoute parity (#155)
+      const setLabels = {
+        'clad': 'US proof set',
+        'silver': 'US silver proof set',
+        'prestige': 'US prestige proof set',
+        'premier-silver': 'US premier silver proof set',
+        'mint-uncirculated': 'US mint set uncirculated'
+      };
+      const resolvedSetType = parsed.setType || '';
+      keywords = `${year || ''} ${setLabels[resolvedSetType] || 'US proof set'}`.trim();
     }
 
     // Semiquincentennial enrichment (#155)

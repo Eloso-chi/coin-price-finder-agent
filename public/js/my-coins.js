@@ -369,6 +369,8 @@ const MyCoins = (() => {
         mintMark: coin.mint || '',
         grade: coin.grade || '',
         weight: coin.weight || null,
+        label: coin.label || undefined,
+        finish: coin.finish || undefined,
       },
     }));
 

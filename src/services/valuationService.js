@@ -35,16 +35,25 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
 
   // Pick the pool matching user intent (need >= 3 comps to be usable)
   let usComps, glComps;
+  let poolFallback = false;
   if (wantsGraded) {
     usComps = usGraded.length >= 3 ? usGraded : usCompsAll;
     glComps = glGraded.length >= 3 ? glGraded : glCompsAll;
-    // #163: Safety net — if graded pool has zero sold comps but raw pool has
-    // sufficient data, prefer raw over Browse-only fallback. Terapeak sold data
-    // is always more reliable than Browse API asking prices.
+    // #176: Pool fallback — if graded pool has fewer than 5 SOLD comps but
+    // raw pool has significantly more sold data, prefer raw over a thin/Browse
+    // graded pool.  Terapeak sold data is always more reliable than Browse API
+    // asking prices or a tiny graded sample.
     const gradedSold = usComps.filter(c => c._source === 'terapeak' || c._source === 'finding');
-    if (gradedSold.length === 0 && usRaw.length >= 5) {
+    const rawSold = usRaw.filter(c => c._source === 'terapeak' || c._source === 'finding');
+    if (gradedSold.length < 5 && rawSold.length >= 10) {
       usComps = usRaw;
       glComps = glRaw.length >= 3 ? glRaw : glCompsAll;
+      poolFallback = true;
+      explanation.push(`⚠ Only ${gradedSold.length} sold graded comps — using ${rawSold.length} raw sold comps for more reliable FMV.`);
+    } else if (gradedSold.length === 0 && usRaw.length >= 5) {
+      usComps = usRaw;
+      glComps = glRaw.length >= 3 ? glRaw : glCompsAll;
+      poolFallback = true;
       explanation.push(`⚠ No sold graded comps — using ${usRaw.length} raw comps instead of asking-price fallback.`);
     } else if (usGraded.length >= 3 && usRaw.length > 0) {
       explanation.push(`Using ${usGraded.length} graded comps for FMV (${usRaw.length} raw comps excluded).`);
@@ -229,6 +238,7 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
     population: pcgs?.population?.thisGrade ?? null,
     greysheetSpreadPct: gsSpreadPct,
     filterAttritionPct: usAttritionPct,
+    poolFallback,
   });
   explanation.push(`Confidence ${confidence}/100.`);
 
@@ -314,11 +324,12 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
       },
       gradePool: {
         wantsGraded,
-        usedPool: wantsGraded ? 'graded' : 'raw',
+        usedPool: poolFallback ? 'raw (fallback)' : wantsGraded ? 'graded' : 'raw',
         gradedCount: usGraded.length,
         rawCount: usRaw.length,
         poolCount: usComps.length,
-        totalCount: usCompsAll.length
+        totalCount: usCompsAll.length,
+        poolFallback,
       },
       method,
       saleContext: ctxAdj.label,
@@ -452,7 +463,7 @@ function fallbackPenalty(usCompCount) {
  * sample size, dispersion, and match quality — things that matter for
  * commodity bullion.
  */
-function computeConfidence({ verified, usCompCount, glCompCount, dispersion, avgMatchScore, usedFallback, hasPcgsGuide, hasAuction, hasGreysheet, isBar, pcgsFound, browseOnly, soldRatio, population, greysheetSpreadPct, filterAttritionPct }) {
+function computeConfidence({ verified, usCompCount, glCompCount, dispersion, avgMatchScore, usedFallback, hasPcgsGuide, hasAuction, hasGreysheet, isBar, pcgsFound, browseOnly, soldRatio, population, greysheetSpreadPct, filterAttritionPct, poolFallback }) {
   let c = 0;
 
   if (isBar) {
@@ -516,6 +527,11 @@ function computeConfidence({ verified, usCompCount, glCompCount, dispersion, avg
     if (greysheetSpreadPct <= 15) c += 5;        // Tight spread -- liquid
     else if (greysheetSpreadPct >= 40) c -= 5;   // Wide spread -- illiquid
   }
+
+  // ── #176: Pool fallback penalty ──
+  // When we fell back from graded to raw pool due to insufficient graded sold
+  // comps, apply a mild penalty — raw comps are less precise for graded coins.
+  if (poolFallback) c -= 10;
 
   // ── #160: Filter attrition penalty ──
   // High attrition means the query was too broad and surviving comps may be
