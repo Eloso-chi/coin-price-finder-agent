@@ -365,8 +365,12 @@ def upload_to_blob(csv_path):
 
 
 # ── Upload to App ───────────────────────────────────────────
-def upload_csv(csv_path, search_term):
-    """Upload a CSV: try Azure Blob first, fall back to app server POST."""
+def upload_csv(csv_path, search_term, scrape_meta=None):
+    """Upload a CSV: try Azure Blob first, fall back to app server POST.
+    
+    scrape_meta (optional dict): keys like page1At, deepAt, maxPageReached, lastRefreshAt
+    to track scrape depth per dataset.
+    """
     # Try blob upload first (decoupled from local server)
     if BLOB_ACCOUNT and BLOB_CONTAINER:
         ok, msg = upload_to_blob(csv_path)
@@ -385,6 +389,11 @@ def upload_csv(csv_path, search_term):
         with open(csv_path, "rb") as f:
             files = {"file": (os.path.basename(csv_path), f, "text/csv")}
             data = {"searchTerm": search_term}
+            # Include scrapeMeta fields if provided
+            if scrape_meta:
+                for k, v in scrape_meta.items():
+                    if v is not None:
+                        data[k] = str(v)
             resp = requests.post(url, files=files, data=data, headers=headers, timeout=30)
 
         if resp.status_code == 200:
@@ -1138,8 +1147,12 @@ def do_export_run(args):
                 dest = CSV_DIR / entry["filename"]
                 csv_path.rename(dest) if csv_path != dest else None
 
-                # Upload to app
-                ok, msg = upload_csv(dest, term)
+                # Upload to app with scrapeMeta
+                now = datetime.now().isoformat()
+                meta = {"page1At": now}
+                if args.refresh:
+                    meta["lastRefreshAt"] = now
+                ok, msg = upload_csv(dest, term, scrape_meta=meta)
                 if ok:
                     print(f"OK ({msg})")
                     uploaded += 1

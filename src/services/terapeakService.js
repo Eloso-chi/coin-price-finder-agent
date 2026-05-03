@@ -395,12 +395,25 @@ function importComps(searchTerm, comps, meta = {}) {
     newCount++;
   }
 
+  // Merge scrapeMeta intelligently: never overwrite earlier timestamps
+  const prevMeta = store[normalizedKey]?.scrapeMeta || {};
+  const incomingMeta = meta.scrapeMeta || {};
+  const mergedScrapeMeta = {
+    page1At: incomingMeta.page1At || prevMeta.page1At || null,
+    deepAt: incomingMeta.deepAt || prevMeta.deepAt || null,
+    maxPageReached: Math.max(incomingMeta.maxPageReached || 0, prevMeta.maxPageReached || 0) || null,
+    lastRefreshAt: incomingMeta.lastRefreshAt || prevMeta.lastRefreshAt || null,
+  };
+  // Remove scrapeMeta from meta spread to avoid double-write
+  const { scrapeMeta: _sm, ...restMeta } = meta;
+
   store[normalizedKey] = {
     searchTerm: searchTerm,
     comps: existing,
     lastImport: new Date().toISOString(),
     importCount: (store[normalizedKey]?.importCount || 0) + 1,
-    ...meta
+    scrapeMeta: mergedScrapeMeta,
+    ...restMeta
   };
 
   _store = store;
@@ -682,7 +695,8 @@ function listDatasets() {
     searchTerm: data.searchTerm,
     compCount: data.comps?.length || 0,
     lastImport: data.lastImport,
-    importCount: data.importCount || 1
+    importCount: data.importCount || 1,
+    scrapeMeta: data.scrapeMeta || null
   }));
 }
 

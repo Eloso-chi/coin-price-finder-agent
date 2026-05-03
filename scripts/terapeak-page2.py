@@ -39,6 +39,7 @@ import random
 import re
 import sys
 import time
+from datetime import datetime
 from pathlib import Path
 
 try:
@@ -778,8 +779,13 @@ def do_page2_run(args):
             # Append page 2 rows to main CSV
             new_count = append_to_csv(main_csv_path, p2_csv_path)
 
-            # Upload the enriched CSV to the app
-            ok, msg = upload_csv(main_csv_path, term)
+            # Upload the enriched CSV to the app with deep pagination metadata
+            now = datetime.now().isoformat()
+            deep_meta = {
+                "deepAt": now,
+                "maxPageReached": effective_max_pages,
+            }
+            ok, msg = upload_csv(main_csv_path, term, scrape_meta=deep_meta)
             if ok:
                 print(f"OK (+{new_count} new from {p2_row_count} scraped, upload: {msg})")
             else:

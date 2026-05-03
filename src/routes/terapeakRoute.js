@@ -79,9 +79,17 @@ router.post('/import', requireAdmin, upload.single('file'), (req, res) => {
     }
 
     // Import into store
+    // Build scrapeMeta from request body fields (sent by terapeak-export.py / terapeak-page2.py)
+    const scrapeMeta = {};
+    if (req.body?.page1At) scrapeMeta.page1At = req.body.page1At;
+    if (req.body?.deepAt) scrapeMeta.deepAt = req.body.deepAt;
+    if (req.body?.maxPageReached) scrapeMeta.maxPageReached = parseInt(req.body.maxPageReached) || null;
+    if (req.body?.lastRefreshAt) scrapeMeta.lastRefreshAt = req.body.lastRefreshAt;
+
     const result = terapeakService.importComps(searchTerm, comps, {
       fileName: req.file.originalname,
-      fileSize: req.file.size
+      fileSize: req.file.size,
+      ...(Object.keys(scrapeMeta).length > 0 ? { scrapeMeta } : {})
     });
 
     res.json({
@@ -299,6 +307,150 @@ router.post('/reimport', requireAdmin, express.json(), async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+/**
+ * GET /api/terapeak/scrape-status
+ * Returns scrape depth status for all datasets.
+ * Query params:
+ *   - needs=deep  -- only datasets that haven't been deep-scraped
+ *   - needs=page1 -- only datasets missing page1At
+ *   - needs=refresh&maxAge=14 -- datasets not refreshed in N days
+ *   - minComps=50 -- only datasets with at least N comps (candidates for deep)
+ */
+router.get('/scrape-status', requireAdmin, (req, res) => {
+  const datasets = terapeakService.listDatasets();
+  const { needs, maxAge, minComps } = req.query;
+  const maxAgeDays = parseInt(maxAge) || 14;
+  const minCompCount = parseInt(minComps) || 0;
+
+  let filtered = datasets;
+
+  if (minComps) {
+    filtered = filtered.filter(d => d.compCount >= minCompCount);
+  }
+
+  if (needs === 'deep') {
+    filtered = filtered.filter(d => !d.scrapeMeta?.deepAt);
+  } else if (needs === 'page1') {
+    filtered = filtered.filter(d => !d.scrapeMeta?.page1At);
+  } else if (needs === 'refresh') {
+    const cutoff = new Date(Date.now() - maxAgeDays * 86400000).toISOString();
+    filtered = filtered.filter(d => {
+      const lastRefresh = d.scrapeMeta?.lastRefreshAt || d.scrapeMeta?.page1At || d.lastImport;
+      return !lastRefresh || lastRefresh < cutoff;
+    });
+  }
+
+  // Summary stats
+  const total = datasets.length;
+  const withPage1 = datasets.filter(d => d.scrapeMeta?.page1At).length;
+  const withDeep = datasets.filter(d => d.scrapeMeta?.deepAt).length;
+
+  res.json({
+    summary: { total, withPage1, withDeep, needsDeep: total - withDeep },
+    datasets: filtered.map(d => ({
+      key: d.key,
+      searchTerm: d.searchTerm,
+      compCount: d.compCount,
+      scrapeMeta: d.scrapeMeta
+    }))
+  });
+});
+
+/**
+ * POST /api/terapeak/backfill-scrape-meta
+ * One-time backfill: parses page2 log files + export progress to stamp
+ * scrapeMeta on existing datasets that were scraped before this feature.
+ * Also stamps page1At from the main export progress.json completed list.
+ */
+router.post('/backfill-scrape-meta', requireAdmin, express.json(), (req, res) => {
+  const fs = require('fs');
+  const path = require('path');
+  const cacheDir = path.join(__dirname, '../../cache');
+  const progressFile = path.join(cacheDir, 'terapeak_export_progress.json');
+
+  let stamped = 0;
+  let deepStamped = 0;
+  let page1Stamped = 0;
+
+  // ── 1. Parse page2 logs to find deep-scraped datasets ──
+  const p2Logs = fs.readdirSync(cacheDir)
+    .filter(f => f.match(/terapeak_(p2_|eagles_p2|lunar_half_oz_p2).*\.log$/))
+    .map(f => path.join(cacheDir, f));
+
+  // Pattern: "  [ 48%] SEARCH TERM... p2:50 p3:50 ... OK (...)"
+  const logLineRe = /^\s+\[\s*\d+%\]\s+(.+?)\.\.\.\s+(p\d+:\d+.*?)\s*OK/;
+  const pageRe = /p(\d+):\d+/g;
+
+  const deepMap = new Map(); // term -> { maxPage, logDate }
+
+  for (const logPath of p2Logs) {
+    const logStat = fs.statSync(logPath);
+    const logDate = logStat.mtime.toISOString();
+    const lines = fs.readFileSync(logPath, 'utf8').split('\n');
+    for (const line of lines) {
+      const m = line.match(logLineRe);
+      if (!m) continue;
+      const term = m[1].trim();
+      const pageStr = m[2];
+      let maxPage = 1;
+      let pm;
+      while ((pm = pageRe.exec(pageStr)) !== null) {
+        maxPage = Math.max(maxPage, parseInt(pm[1]));
+      }
+      pageRe.lastIndex = 0;
+      // Keep the highest maxPage seen across all logs
+      const prev = deepMap.get(term);
+      if (!prev || maxPage > prev.maxPage) {
+        deepMap.set(term, { maxPage, logDate });
+      }
+    }
+  }
+
+  // ── 2. Parse export progress for page1 completions ──
+  let page1Terms = new Set();
+  if (fs.existsSync(progressFile)) {
+    try {
+      const progress = JSON.parse(fs.readFileSync(progressFile, 'utf8'));
+      page1Terms = new Set(progress.completed || []);
+    } catch (_) { /* ignore parse errors */ }
+  }
+
+  // ── 3. Stamp datasets ──
+  for (const [term, { maxPage, logDate }] of deepMap) {
+    terapeakService.importComps(term, [], {
+      scrapeMeta: { deepAt: logDate, maxPageReached: maxPage }
+    });
+    deepStamped++;
+    stamped++;
+  }
+
+  for (const term of page1Terms) {
+    // Only stamp page1At if not already set by deep-scrape pass
+    if (!deepMap.has(term)) {
+      terapeakService.importComps(term, [], {
+        scrapeMeta: { page1At: new Date().toISOString() }
+      });
+      page1Stamped++;
+      stamped++;
+    } else {
+      // Deep-scraped implies page1 was done too
+      terapeakService.importComps(term, [], {
+        scrapeMeta: { page1At: new Date().toISOString() }
+      });
+      page1Stamped++;
+    }
+  }
+
+  res.json({
+    status: 'ok',
+    stamped,
+    deepStamped,
+    page1Stamped,
+    logsProcessed: p2Logs.length,
+    progressTerms: page1Terms.size
+  });
 });
 
 module.exports = router;
