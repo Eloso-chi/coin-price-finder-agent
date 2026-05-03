@@ -157,9 +157,19 @@ async function evaluateOneCoin(coin) {
     const { isMetalBased, metal: detectedMetal } = getCoinMetalProfile(query);
     const isBullion = BULLION_SERIES.some(b => (series || query).toLowerCase().includes(b));
 
+    // #162: World bullion BU fix — "BU" for bullion means raw mint-sealed,
+    // not a PCGS-graded slab. Null out BU-expanded grade so valuation uses
+    // raw pool and gradeNumMismatch filter doesn't kill valid comps.
+    let effectiveGradeNum = gradeNum;
+    let effectiveGrade = grade;
+    if (isBullion && parsed._gradeSource === 'bu-term') {
+      effectiveGradeNum = null;
+      effectiveGrade = '';
+    }
+
     // Expected context for eBay filtering
     const expected = {
-      year, mint, series, grade, weight,
+      year, mint, series, grade: effectiveGrade || null, weight,
       finish: parsed.finish || null,
       isProof, isRoll, isSet: false,
       _rawQuery: query,
@@ -217,7 +227,7 @@ async function evaluateOneCoin(coin) {
 
     // Valuation
     const spotPrice = (isBullion && meltPerOz && weight) ? meltPerOz * weight : null;
-    const result = computeValuation(pcgs, ebay, null, gradeNum, {
+    const result = computeValuation(pcgs, ebay, null, effectiveGradeNum, {
       isBullion,
       greysheet,
       spotPrice,
