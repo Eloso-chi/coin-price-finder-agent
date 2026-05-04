@@ -177,8 +177,15 @@ async function main() {
       const re = new RegExp(filter, 'i');
       datasets = datasets.filter(d => re.test(d.searchTerm || ''));
     }
-    // Sort by compCount desc for most impactful first
-    datasets.sort((a, b) => (b.compCount || 0) - (a.compCount || 0));
+    // Sort or shuffle
+    if (args.includes('--shuffle')) {
+      for (let i = datasets.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [datasets[i], datasets[j]] = [datasets[j], datasets[i]];
+      }
+    } else {
+      datasets.sort((a, b) => (b.compCount || 0) - (a.compCount || 0));
+    }
     if (limit) datasets = datasets.slice(0, limit);
     coins = datasets.map(d => d.searchTerm);
     if (!quiet) process.stderr.write(`Testing ${coins.length} datasets (min ${minComps} comps)...\n`);
