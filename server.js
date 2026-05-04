@@ -53,10 +53,10 @@ app.use(helmet({
   },
 }));
 
-// Global rate limiter — 100 requests per minute per IP
+// Global rate limiter — 5000 requests per minute per IP (dev), 100 in production
 const globalLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 100,
+  max: process.env.NODE_ENV === 'production' ? 100 : 5000,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests, please try again later' }
@@ -66,7 +66,7 @@ app.use(globalLimiter);
 // Stricter limiter for expensive API-calling routes
 const apiLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: process.env.NODE_ENV === 'production' ? 20 : 60,
+  max: process.env.NODE_ENV === 'production' ? 20 : 300,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many API requests, please try again later' }

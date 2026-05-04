@@ -71,13 +71,13 @@ APP_URL = _mod.APP_URL
 ADMIN_API_KEY = _mod.ADMIN_API_KEY
 EBAY_RESEARCH_URL = _mod.EBAY_RESEARCH_URL
 
-# Delays
-DELAY_BETWEEN_SEARCHES = _mod.DELAY_BETWEEN_SEARCHES
-DELAY_PAGE_LOAD = _mod.DELAY_PAGE_LOAD
-DELAY_BEFORE_CLICK = _mod.DELAY_BEFORE_CLICK
-DELAY_MICRO = _mod.DELAY_MICRO
-COFFEE_BREAK_EVERY = _mod.COFFEE_BREAK_EVERY
-COFFEE_BREAK_DURATION = _mod.COFFEE_BREAK_DURATION
+# Delays (tuned faster for page2 -- less overhead since we stay on same search)
+DELAY_BETWEEN_SEARCHES = (3, 7)
+DELAY_PAGE_LOAD = (1.5, 3)
+DELAY_BEFORE_CLICK = (0.3, 0.9)
+DELAY_MICRO = (0.15, 0.6)
+COFFEE_BREAK_EVERY = (30, 55)
+COFFEE_BREAK_DURATION = (15, 35)
 
 # Functions
 has_display = _mod.has_display
@@ -94,7 +94,10 @@ get_search_terms = _mod.get_search_terms
 upload_csv = _mod.upload_csv
 
 # Browser recycle interval
-BROWSER_RECYCLE_EVERY = 40
+BROWSER_RECYCLE_EVERY = 80
+
+# Session-level flag: once RPP is set to 50, skip re-checking
+_rpp_already_set = False
 
 # ── Bullion series eligible for deep pagination (page 3+) ──
 # These high-volume series typically have 100+ sold listings on Terapeak.
@@ -346,9 +349,9 @@ def do_search_and_scrape_page2(page, search_term, download_dir, max_pages=2):
         return None
 
     # Scroll down to reveal results table and pagination
-    for _ in range(random.randint(4, 7)):
+    for _ in range(random.randint(2, 4)):
         human_scroll(page, "down", random.randint(250, 550))
-        time.sleep(random.uniform(0.3, 0.8))
+        time.sleep(random.uniform(0.2, 0.5))
     human_idle(page)
 
     # ── Sort by "Date last sold" (descending = most recent first) ──
@@ -379,9 +382,9 @@ def do_search_and_scrape_page2(page, search_term, download_dir, max_pages=2):
                     page.wait_for_load_state("networkidle", timeout=10000)
                 except PlaywrightTimeout:
                     pass
-            for _ in range(random.randint(2, 4)):
+            for _ in range(random.randint(2, 3)):
                 human_scroll(page, "down", random.randint(200, 500))
-                time.sleep(random.uniform(0.3, 0.7))
+                time.sleep(random.uniform(0.2, 0.5))
     except Exception as e:
         print(f"    (sort by date skipped: {e})")
 
@@ -389,23 +392,26 @@ def do_search_and_scrape_page2(page, search_term, download_dir, max_pages=2):
     page.screenshot(path=str(download_dir / f"_debug_p2_page1_{search_term[:30]}.png"))
 
     # ── Set "Results per page" to 50 (max) ──────────────────
-    try:
-        rpp_select = page.query_selector('select[aria-label="Results per page"]')
-        if rpp_select:
-            current_val = rpp_select.input_value()
-            if current_val != "50":
-                rpp_select.select_option("50")
-                rand_delay(DELAY_PAGE_LOAD)
-                try:
-                    page.wait_for_load_state("networkidle", timeout=15000)
-                except PlaywrightTimeout:
-                    pass
-                time.sleep(2)
-                for _ in range(random.randint(5, 8)):
-                    human_scroll(page, "down", random.randint(300, 600))
-                    time.sleep(random.uniform(0.3, 0.7))
-    except Exception:
-        pass  # Non-critical
+    global _rpp_already_set
+    if not _rpp_already_set:
+        try:
+            rpp_select = page.query_selector('select[aria-label="Results per page"]')
+            if rpp_select:
+                current_val = rpp_select.input_value()
+                if current_val != "50":
+                    rpp_select.select_option("50")
+                    rand_delay(DELAY_PAGE_LOAD)
+                    try:
+                        page.wait_for_load_state("networkidle", timeout=15000)
+                    except PlaywrightTimeout:
+                        pass
+                    time.sleep(2)
+                    for _ in range(random.randint(3, 5)):
+                        human_scroll(page, "down", random.randint(300, 600))
+                        time.sleep(random.uniform(0.2, 0.5))
+                _rpp_already_set = True
+        except Exception:
+            pass  # Non-critical
 
     # ── Paginate through pages 2..max_pages and scrape each ──
     all_csv_rows = []
@@ -452,13 +458,10 @@ def do_search_and_scrape_page2(page, search_term, download_dir, max_pages=2):
         time.sleep(3)
 
         # Scroll to reveal results
-        for _ in range(random.randint(3, 5)):
+        for _ in range(random.randint(2, 3)):
             human_scroll(page, "down", random.randint(200, 500))
-            time.sleep(random.uniform(0.3, 0.8))
+            time.sleep(random.uniform(0.2, 0.5))
         human_idle(page)
-
-        # Debug screenshot
-        page.screenshot(path=str(download_dir / f"_debug_p2_page{page_num}_{search_term[:30]}.png"))
 
         # Scrape this page's DOM table
         scraped = page.evaluate(SCRAPE_TABLE_JS)
@@ -516,11 +519,11 @@ def do_search_and_scrape_page2(page, search_term, download_dir, max_pages=2):
         else:
             break  # Scraped rows but none usable
 
-        # Human-like pause between pages (longer for deeper pages)
-        base_delay = random.uniform(2.5, 6.0)
-        # Every 2-3 pages, take a longer "reading" pause (human scanning results)
-        if page_num % random.randint(2, 3) == 0:
-            base_delay += random.uniform(4.0, 10.0)
+        # Human-like pause between pages
+        base_delay = random.uniform(1.5, 4.0)
+        # Every 4-5 pages, take a longer "reading" pause
+        if page_num % random.randint(4, 5) == 0:
+            base_delay += random.uniform(3.0, 7.0)
         time.sleep(base_delay)
 
     if not all_csv_rows:
@@ -609,6 +612,13 @@ def do_page2_run(args):
         min_rows=args.min_rows,
         filter_pattern=args.filter,
     )
+
+    # Exclude pattern
+    if args.exclude:
+        exclude_re = re.compile(args.exclude, re.IGNORECASE)
+        before = len(candidates)
+        candidates = [c for c in candidates if not exclude_re.search(c["term"])]
+        print(f"  Exclude: filtered out {before - len(candidates)} coins matching /{args.exclude}/i")
 
     if not candidates:
         print("No candidates found. All coins have fewer rows than the threshold.")
@@ -828,10 +838,10 @@ def do_page2_run(args):
                 print(f"  ... taking a {pause:.0f}s break ...")
                 time.sleep(pause)
                 next_coffee = i + 1 + random.randint(*COFFEE_BREAK_EVERY)
-            elif effective_max_pages > 2 and random.random() < 0.3:
-                # Deep pagination coins: 30% chance of a short "scroll break"
+            elif effective_max_pages > 2 and random.random() < 0.15:
+                # Deep pagination coins: 15% chance of a short "scroll break"
                 # between coins to vary the rhythm
-                micro = random.uniform(15, 45)
+                micro = random.uniform(10, 25)
                 print(f"  ... short pause {micro:.0f}s ...")
                 time.sleep(micro)
             else:
@@ -876,6 +886,7 @@ Examples:
     parser.add_argument("--run", action="store_true", help="Run page 2+ enrichment")
     parser.add_argument("--dry-run", action="store_true", help="Show candidates without scraping")
     parser.add_argument("--filter", type=str, help="Only enrich terms matching this regex")
+    parser.add_argument("--exclude", type=str, help="Exclude terms matching this regex")
     parser.add_argument("--limit", type=int, help="Max number of coins to enrich")
     parser.add_argument("--min-rows", type=int, default=50, help="Min rows to qualify (default: 50)")
     parser.add_argument("--max-pages", type=int, default=None,
