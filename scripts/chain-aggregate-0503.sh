@@ -44,7 +44,7 @@ run_batch() {
   echo "  Log: $logfile"
   echo "============================================================"
 
-  eval python3 scripts/terapeak-page2.py $args 2>&1 | tee "$logfile"
+  eval python3 scripts/sales-aggregator.py $args 2>&1 | tee "$logfile"
   local rc=${PIPESTATUS[0]}
 
   if ! check_antibot "$logfile"; then

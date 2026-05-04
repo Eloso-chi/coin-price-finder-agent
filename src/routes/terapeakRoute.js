@@ -55,7 +55,7 @@ router.post('/import', requireAdmin, upload.single('file'), (req, res) => {
     }
 
     // ── Quota: log the import for tracking, but don't enforce the limit ──
-    // Imports are uploads of already-scraped data — the actual Terapeak
+    // Imports are uploads of already-aggregated data — the actual Terapeak
     // search already happened.  Blocking imports doesn't reduce eBay load.
     const queryCount = Math.max(1, parseInt(req.body?.queryCount) || 1);
     const quota = quotaService.getStatus();
@@ -79,17 +79,17 @@ router.post('/import', requireAdmin, upload.single('file'), (req, res) => {
     }
 
     // Import into store
-    // Build scrapeMeta from request body fields (sent by terapeak-export.py / terapeak-page2.py)
-    const scrapeMeta = {};
-    if (req.body?.page1At) scrapeMeta.page1At = req.body.page1At;
-    if (req.body?.deepAt) scrapeMeta.deepAt = req.body.deepAt;
-    if (req.body?.maxPageReached) scrapeMeta.maxPageReached = parseInt(req.body.maxPageReached) || null;
-    if (req.body?.lastRefreshAt) scrapeMeta.lastRefreshAt = req.body.lastRefreshAt;
+    // Build aggregationMeta from request body fields (sent by sales-aggregator.py / terapeak-export.py)
+    const aggregationMeta = {};
+    if (req.body?.page1At) aggregationMeta.page1At = req.body.page1At;
+    if (req.body?.deepAt) aggregationMeta.deepAt = req.body.deepAt;
+    if (req.body?.maxPageReached) aggregationMeta.maxPageReached = parseInt(req.body.maxPageReached) || null;
+    if (req.body?.lastRefreshAt) aggregationMeta.lastRefreshAt = req.body.lastRefreshAt;
 
     const result = terapeakService.importComps(searchTerm, comps, {
       fileName: req.file.originalname,
       fileSize: req.file.size,
-      ...(Object.keys(scrapeMeta).length > 0 ? { scrapeMeta } : {})
+      ...(Object.keys(aggregationMeta).length > 0 ? { aggregationMeta } : {})
     });
 
     res.json({
@@ -310,15 +310,15 @@ router.post('/reimport', requireAdmin, express.json(), async (req, res) => {
 });
 
 /**
- * GET /api/terapeak/scrape-status
- * Returns scrape depth status for all datasets.
+ * GET /api/terapeak/aggregation-status
+ * Returns aggregation depth status for all datasets.
  * Query params:
- *   - needs=deep  -- only datasets that haven't been deep-scraped
+ *   - needs=deep  -- only datasets that haven't been deep-aggregated
  *   - needs=page1 -- only datasets missing page1At
  *   - needs=refresh&maxAge=14 -- datasets not refreshed in N days
  *   - minComps=50 -- only datasets with at least N comps (candidates for deep)
  */
-router.get('/scrape-status', requireAdmin, (req, res) => {
+router.get('/aggregation-status', requireAdmin, (req, res) => {
   const datasets = terapeakService.listDatasets();
   const { needs, maxAge, minComps } = req.query;
   const maxAgeDays = parseInt(maxAge) || 14;
@@ -331,21 +331,21 @@ router.get('/scrape-status', requireAdmin, (req, res) => {
   }
 
   if (needs === 'deep') {
-    filtered = filtered.filter(d => !d.scrapeMeta?.deepAt);
+    filtered = filtered.filter(d => !d.aggregationMeta?.deepAt);
   } else if (needs === 'page1') {
-    filtered = filtered.filter(d => !d.scrapeMeta?.page1At);
+    filtered = filtered.filter(d => !d.aggregationMeta?.page1At);
   } else if (needs === 'refresh') {
     const cutoff = new Date(Date.now() - maxAgeDays * 86400000).toISOString();
     filtered = filtered.filter(d => {
-      const lastRefresh = d.scrapeMeta?.lastRefreshAt || d.scrapeMeta?.page1At || d.lastImport;
+      const lastRefresh = d.aggregationMeta?.lastRefreshAt || d.aggregationMeta?.page1At || d.lastImport;
       return !lastRefresh || lastRefresh < cutoff;
     });
   }
 
   // Summary stats
   const total = datasets.length;
-  const withPage1 = datasets.filter(d => d.scrapeMeta?.page1At).length;
-  const withDeep = datasets.filter(d => d.scrapeMeta?.deepAt).length;
+  const withPage1 = datasets.filter(d => d.aggregationMeta?.page1At).length;
+  const withDeep = datasets.filter(d => d.aggregationMeta?.deepAt).length;
 
   res.json({
     summary: { total, withPage1, withDeep, needsDeep: total - withDeep },
@@ -353,18 +353,23 @@ router.get('/scrape-status', requireAdmin, (req, res) => {
       key: d.key,
       searchTerm: d.searchTerm,
       compCount: d.compCount,
-      scrapeMeta: d.scrapeMeta
+      aggregationMeta: d.aggregationMeta
     }))
   });
 });
 
+// Backward-compat alias for /scrape-status
+router.get('/scrape-status', requireAdmin, (req, res) => {
+  res.redirect(307, `/api/terapeak/aggregation-status?${new URLSearchParams(req.query)}`);
+});
+
 /**
- * POST /api/terapeak/backfill-scrape-meta
+ * POST /api/terapeak/backfill-aggregation-meta
  * One-time backfill: parses page2 log files + export progress to stamp
- * scrapeMeta on existing datasets that were scraped before this feature.
+ * aggregationMeta on existing datasets that were aggregated before this feature.
  * Also stamps page1At from the main export progress.json completed list.
  */
-router.post('/backfill-scrape-meta', requireAdmin, express.json(), (req, res) => {
+router.post('/backfill-aggregation-meta', requireAdmin, express.json(), (req, res) => {
   const fs = require('fs');
   const path = require('path');
   const cacheDir = path.join(__dirname, '../../cache');
@@ -374,7 +379,7 @@ router.post('/backfill-scrape-meta', requireAdmin, express.json(), (req, res) =>
   let deepStamped = 0;
   let page1Stamped = 0;
 
-  // ── 1. Parse page2 logs to find deep-scraped datasets ──
+  // ── 1. Parse page2 logs to find deep-aggregated datasets ──
   const p2Logs = fs.readdirSync(cacheDir)
     .filter(f => f.match(/terapeak_(p2_|eagles_p2|lunar_half_oz_p2).*\.log$/))
     .map(f => path.join(cacheDir, f));
@@ -420,24 +425,24 @@ router.post('/backfill-scrape-meta', requireAdmin, express.json(), (req, res) =>
   // ── 3. Stamp datasets ──
   for (const [term, { maxPage, logDate }] of deepMap) {
     terapeakService.importComps(term, [], {
-      scrapeMeta: { deepAt: logDate, maxPageReached: maxPage }
+      aggregationMeta: { deepAt: logDate, maxPageReached: maxPage }
     });
     deepStamped++;
     stamped++;
   }
 
   for (const term of page1Terms) {
-    // Only stamp page1At if not already set by deep-scrape pass
+    // Only stamp page1At if not already set by deep-aggregation pass
     if (!deepMap.has(term)) {
       terapeakService.importComps(term, [], {
-        scrapeMeta: { page1At: new Date().toISOString() }
+        aggregationMeta: { page1At: new Date().toISOString() }
       });
       page1Stamped++;
       stamped++;
     } else {
-      // Deep-scraped implies page1 was done too
+      // Deep-aggregated implies page1 was done too
       terapeakService.importComps(term, [], {
-        scrapeMeta: { page1At: new Date().toISOString() }
+        aggregationMeta: { page1At: new Date().toISOString() }
       });
       page1Stamped++;
     }

@@ -5,7 +5,7 @@ Drop your Terapeak CSV exports in this folder. They'll be auto-imported on serve
 ## IMPORTANT: Data Authenticity
 
 **Most CSV files in this folder are REAL data** exported from eBay Seller Hub
-Research (Terapeak) via the automated scraper (`scripts/terapeak-export.py`).
+Research (Terapeak) via the automated aggregator (`scripts/terapeak-export.py`).
 A small number of legacy files may still contain synthetic data from early
 development -- these are being replaced as scraping continues.
 
@@ -158,11 +158,11 @@ CSVs are saved locally to `data/terapeak/` even if the upload fails -- nothing i
 
 ## Chain Scraping
 
-For multi-series batch runs, use `scripts/chain-scrape.sh`:
+For multi-series batch runs, use `scripts/chain-aggregate.sh`:
 
 ```bash
 # Source the helper functions
-source scripts/chain-scrape.sh
+source scripts/chain-aggregate.sh
 
 # Run batches sequentially with anti-bot monitoring
 run_batch "morgan_grades" "Morgan.*Dollar.*MS"
@@ -176,7 +176,7 @@ The `run_batch()` function:
 3. After each batch, `check_antibot` tails the log for 3+ consecutive bot-detection failures
 4. If detected, aborts the chain to avoid account flags
 
-Write session-specific chain scripts (e.g. `chain-scrape-session2.sh`) for large multi-batch runs.
+Write session-specific chain scripts (e.g. `chain-aggregate-session2.sh`) for large multi-batch runs.
 
 ## Biweekly Stale Refresh
 
@@ -202,7 +202,7 @@ bash scripts/refresh-stale.sh --include-empty
 bash scripts/refresh-stale.sh --limit 50
 ```
 
-The script queries `GET /api/admin/stale-datasets?days=N`, builds a filter regex from the stale search terms, writes it to a temp file (avoids shell escaping issues with `eval`), and passes it to the scraper.
+The script queries `GET /api/admin/stale-datasets?days=N`, builds a filter regex from the stale search terms, writes it to a temp file (avoids shell escaping issues with `eval`), and passes it to the aggregator.
 
 ## Why not use the Finding API?
 

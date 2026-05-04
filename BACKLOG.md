@@ -7,11 +7,11 @@ Items marked DONE are kept for historical reference.
 
 ## Scraping & Data Pipeline
 
-### ~~S0. Active Listings Guard in Scraper [DONE]~~
+### ~~S0. Active Listings Guard in Aggregator [DONE]~~
 
 Both `terapeak-export.py` and `terapeak-page2.py` now guard against active listings:
 - Tab check: detects "Active listings" tab via DOM after results load
-- Date validation: if <20% of scraped rows have parseable sold dates, aborts with warning
+- Date validation: if <20% of collected rows have parseable sold dates, aborts with warning
 
 ---
 
@@ -19,9 +19,9 @@ Both `terapeak-export.py` and `terapeak-page2.py` now guard against active listi
 
 **Problem:** High-volume coins have only 50 rows (page 1 limit). Deep pagination (pages 2-6) expands bullion to 300 rows.
 
-**Status:** 243 datasets deep-scraped. 165 high-volume datasets remaining (50+ comps, no `deepAt` in scrapeMeta). Batch 3 interrupted at 58%.
+**Status:** 243 datasets deep-aggregated. 165 high-volume datasets remaining (50+ comps, no `deepAt` in aggregationMeta). Batch 3 interrupted at 58%.
 
-**Check remaining:** `GET /api/terapeak/scrape-status?needs=deep&minComps=50`
+**Check remaining:** `GET /api/terapeak/aggregation-status?needs=deep&minComps=50`
 
 **Command:** `python3 scripts/terapeak-page2.py --run --limit N`
 
@@ -98,7 +98,7 @@ Empty titles are already filtered at CSV import (`rowToComp` returns null). The 
 
 ---
 
-### 115. GitHub Actions Scheduled Scrape [LOW -- long-term]
+### 115. GitHub Actions Scheduled Aggregation [LOW -- long-term]
 
 **Problem:** Scraping requires manual codespace start + CAPTCHA. Automating the non-CAPTCHA parts reduces friction.
 
@@ -116,7 +116,7 @@ Empty titles are already filtered at CSV import (`rowToComp` returns null). The 
 
 | # | Item | Commit |
 |---|------|--------|
-| S0 | Active Listings Guard | Tab check + date validation in both scraper scripts |
+| S0 | Active Listings Guard | Tab check + date validation in both aggregation scripts |
 | S1 | Finish Page 1 remaining | Mostly done; 157 remaining are Royal Mint Lunar (no Terapeak data) |
 | S3 | Refresh Stale >30d | `0d6c814` -- 1/42 succeeded (all Royal Mint Lunar = no data on eBay) |
 | 111 | Admin Portal | `public/admin.html` + `/api/admin/*` endpoints |

@@ -25,9 +25,9 @@ Read ALL files in `/memories/repo/` in this order:
 1. `codebase-overview.md` -- stack, structure, services, auth, env vars, dependencies
 2. `future-edits.md` -- full backlog with status (DONE/OPEN), commit hashes, implementation details
 3. `decision-engine-spec.md` -- valuation engine FMV modes, confidence scoring, buy/sell spreads
-4. `terapeak-runbook.md` -- scraper operations, VNC setup, troubleshooting
+4. `terapeak-runbook.md` -- aggregation operations, VNC setup, troubleshooting
 5. `terapeak-data-structure-analysis.md` -- CSV format, column mapping, data quality
-6. `terapeak-export-automation.md` -- Playwright scraper architecture
+6. `terapeak-export-automation.md` -- Playwright aggregation architecture
 7. `ebay-search-filtering-analysis.md` -- keyword building, deny lists, scoring
 8. `cache-invalidation-fix.md` -- cache TTL and eviction details
 9. `finding-api-dead.md` -- eBay Finding API decommission context
@@ -90,7 +90,7 @@ Read the first 50 lines of each to understand the module interface (80 lines for
 
 **Entry point + scripts:**
 30. `server.js` -- Express entry, middleware, route mounting, background timers
-31. `scripts/chain-scrape.sh` -- chained scrape batches with anti-bot monitoring (first 30 lines)
+31. `scripts/chain-aggregate.sh` -- chained aggregation batches with anti-bot monitoring (first 30 lines)
 32. `scripts/refresh-stale.sh` -- one-command stale data refresh with --refresh --max-age (first 30 lines)
 33. `scripts/greysheet-refresh.js` -- bulk Greysheet snapshot collector (first 30 lines)
 34. `scripts/clean-csvs.js` -- CSV junk cleaner (first 20 lines)

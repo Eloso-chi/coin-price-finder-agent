@@ -20,7 +20,7 @@ server.js                              Express entry point (port 3000)
 │   ├─ coinVariantRoute.js             GET /api/coin-variant -- design series resolver
 │   ├─ excelImportRoute.js             POST /api/import/excel -- Excel spreadsheet import
 │   ├─ imageProxyRoute.js              GET /api/image-proxy -- proxied coin images
-│   ├─ terapeakRoute.js                /api/terapeak/* -- Terapeak data, quota, scrape-status
+│   ├─ terapeakRoute.js                /api/terapeak/* -- Terapeak data, quota, aggregation-status
 │   ├─ adminRoute.js                   /api/admin/* -- dashboard, stale datasets, data health
 │   ├─ authRoute.js                    /api/auth/* -- signup, login, me, change-password
 │   └─ coinRoute.js                    /api/coins/* -- collection CRUD (JWT-protected)
@@ -36,7 +36,7 @@ server.js                              Express entry point (port 3000)
 │   ├─ metalsHistoryService.js         Daily spot price history snapshots
 │   ├─ marketAggregator.js             Year x mint market matrix builder + caching
 │   ├─ numistaService.js               Numista API -- search, mintages, rarity
-│   ├─ terapeakService.js              Terapeak CSV import, fuzzy lookup, eviction, auto-import, scrapeMeta tracking
+│   ├─ terapeakService.js              Terapeak CSV import, fuzzy lookup, eviction, auto-import, aggregationMeta tracking
 │   ├─ terapeakQuotaService.js         Daily Terapeak query quota tracker
 │   ├─ adminService.js                 Admin dashboard aggregation (stats, stale detection, data health)
 │   ├─ greysheetHistoryService.js      Daily Greysheet price history snapshots
@@ -89,8 +89,8 @@ server.js                              Express entry point (port 3000)
 │
 ├─ scripts/
 │   ├─ terapeak-export.py              Semi-automated Terapeak CSV exporter (Playwright + blob upload)
-│   ├─ terapeak-page2.py               Page 2 enrichment scraper (extends CSVs beyond 50 rows)
-│   ├─ chain-scrape.sh                 Chain multiple scrape batches with anti-bot monitoring
+│   ├─ sales-aggregator.py               Sales data aggregator (deep pagination) (extends CSVs beyond 50 rows)
+│   ├─ chain-aggregate.sh                 Chain multiple collect batches with anti-bot monitoring
 │   ├─ refresh-stale.sh                One-command biweekly stale data refresh
 │   ├─ greysheet-refresh.js            Bulk Greysheet price snapshot collector (all PCGS + type GSIDs)
 │   ├─ clean-csvs.js                   CSV junk cleaner (deny-pattern purge)
@@ -542,11 +542,11 @@ When the user provides a free-text description (not a cert number), `resolveFrom
 
 ---
 
-## Terapeak Scraper Architecture
+## Terapeak Sales Aggregation Architecture
 
 The project uses two Python scripts (Playwright-based) and one Node.js script to build and maintain the Terapeak sold-comp dataset. All run inside a VNC session (Xtigervnc :1, port 5901, noVNC on 6080).
 
-### Page 1 Scraper -- `scripts/terapeak-export.py`
+### Page 1 Aggregator -- `scripts/terapeak-export.py`
 
 Automates Terapeak CSV downloads from eBay Seller Hub Research:
 
@@ -561,7 +561,7 @@ Automates Terapeak CSV downloads from eBay Seller Hub Research:
 │    2. Enter search keywords + date range (90 days)        │
 │    3. Wait for results table to render                    │
 │    4. Click "Download CSV" button                         │
-│    5. Write .meta file (search_term, scraped_at)          │
+│    5. Write .meta file (search_term, collected_at)          │
 │    6. Upload CSV to Azure Blob Storage (upload_to_blob)   │
 │       Falls back to POST /api/terapeak/import if no creds │
 │  Browser recycled every 40 coins (fresh context)          │
@@ -570,11 +570,11 @@ Automates Terapeak CSV downloads from eBay Seller Hub Research:
 └───────────────────────────────────────────────────────────┘
 ```
 
-Key flags: `--batch N` (coin count), `--priority` (thin-data-first), `--resume` (continue after crash), `--refresh` (re-scrape stale CSVs by file age), `--max-age DAYS` (staleness threshold, default 14).
+Key flags: `--batch N` (coin count), `--priority` (thin-data-first), `--resume` (continue after crash), `--refresh` (re-collect stale CSVs by file age), `--max-age DAYS` (staleness threshold, default 14).
 
 **Active Listings Guard (S0):** Two-layer protection against ingesting unsold asking prices when Terapeak falls back to the Active Listings tab: (1) DOM tab check detects active-tab selectors after results load, (2) date validation rejects pages where <20% of rows have parseable sold dates.
 
-### Page 2+ Deep Pagination -- `scripts/terapeak-page2.py`
+### Page 2+ Deep Pagination -- `scripts/sales-aggregator.py`
 
 Extends CSVs from 50 rows (page 1 limit) to up to 300 rows by scraping pages 2-6:
 
@@ -587,10 +587,10 @@ Extends CSVs from 50 rows (page 1 limit) to up to 300 rows by scraping pages 2-6
 │    1. Read .meta file for original search_term            │
 │    2. Navigate to Terapeak, enter search, load results    │
 │    3. Navigate pages 2..max_pages (6 for bullion, 2 else) │
-│    4. Scrape rows from each page's results table          │
+│    4. Collect rows from each page's results table          │
 │    5. append_to_csv() with composite-key dedup            │
 │       Key: itemId | soldDate | soldPrice                  │
-│    6. Upload with scrapeMeta: deepAt + maxPageReached     │
+│    6. Upload with aggregationMeta: deepAt + maxPageReached     │
 └───────────────────────────────────────────────────────────┘
 ```
 
@@ -598,7 +598,7 @@ Pagination selector: `button.pagination__next:not([disabled])`. Results per page
 
 **Active Listings Guard (S0):** Same two-layer guard as `terapeak-export.py` -- tab check after page 1 loads, and date-ratio validation on each paginated page's rows. Stops pagination early if active listings detected.
 
-**Scrape depth tracking:** Each successful upload sends `deepAt` (ISO timestamp) and `maxPageReached` (highest page number scraped) as form fields. The server merges these into the dataset's `scrapeMeta`, preventing redundant re-scraping. Query `GET /api/terapeak/scrape-status?needs=deep&minComps=50` to see which datasets still need deep pagination.
+**Aggregation depth tracking:** Each successful upload sends `deepAt` (ISO timestamp) and `maxPageReached` (highest page number collected) as form fields. The server merges these into the dataset's `aggregationMeta`, preventing redundant re-collection. Query `GET /api/terapeak/aggregation-status?needs=deep&minComps=50` to see which datasets still need deep pagination.
 
 ### CSV Cleanup -- `scripts/clean-csvs.js`
 
@@ -620,15 +620,15 @@ When the pricing engine calls `lookupComps(keywords, expected)`:
 4. Return comps from the best-matching dataset, scored and sorted
 5. Each comp passes through `isDenied()` and denomination/series filters before use
 
-**Per-dataset metadata:** Each dataset stores `scrapeMeta: { page1At, deepAt, maxPageReached, lastRefreshAt }` to track scraping provenance. `importComps()` merges scrapeMeta intelligently (never overwrites earlier timestamps, maxPageReached only increases).
+**Per-dataset metadata:** Each dataset stores `aggregationMeta: { page1At, deepAt, maxPageReached, lastRefreshAt }` to track scraping provenance. `importComps()` merges aggregationMeta intelligently (never overwrites earlier timestamps, maxPageReached only increases).
 
 **Admin endpoints:**
-- `GET /api/terapeak/scrape-status` -- summary + filtered dataset lists (`needs=deep`, `needs=page1`, `needs=refresh&maxAge=N`, `minComps=N`)
-- `POST /api/terapeak/backfill-scrape-meta` -- one-time backfill from page2 log files
+- `GET /api/terapeak/aggregation-status` -- summary + filtered dataset lists (`needs=deep`, `needs=page1`, `needs=refresh&maxAge=N`, `minComps=N`)
+- `POST /api/terapeak/backfill-aggregation-meta` -- one-time backfill from page2 log files
 
 ### VNC Environment
 
-The scrapers require a graphical environment for Playwright's Chromium:
+The collectors require a graphical environment for Playwright's Chromium:
 
 | Component | Config |
 |-----------|--------|
@@ -638,15 +638,15 @@ The scrapers require a graphical environment for Playwright's Chromium:
 | VNC password | `coin2026` |
 | Login helper | `scripts/vnc-login.py` |
 
-VNC sessions may die between codespace restarts -- always verify with `ps aux | grep Xtigervnc` before running scrapers.
+VNC sessions may die between codespace restarts -- always verify with `ps aux | grep Xtigervnc` before running collectors.
 
-### Chain Scrape -- `scripts/chain-scrape.sh`
+### Chain Aggregation -- `scripts/chain-aggregate.sh`
 
-Chains multiple Terapeak scrape batches sequentially with anti-bot monitoring:
+Chains multiple Terapeak collect batches sequentially with anti-bot monitoring:
 
 ```
 ┌─ Configuration ───────────────────────────────────────────┐
-│  source chain-scrape.sh → exports run_batch() function    │
+│  source chain-aggregate.sh → exports run_batch() function    │
 │  Each batch: name + FILTER_REGEX + optional PID to wait   │
 ├─ Per Batch ───────────────────────────────────────────────┤
 │  1. Wait for previous batch PID (if provided)             │

@@ -23,7 +23,7 @@ Usage:
   # Resume from where you left off after interruption:
   python3 scripts/terapeak-export.py --run --resume
 
-  # Refresh stale data (re-scrape CSVs older than N days):
+  # Refresh stale data (refresh CSVs older than N days):
   python3 scripts/terapeak-export.py --run --refresh --max-age 14
   python3 scripts/terapeak-export.py --run --refresh --max-age 30 --filter "Morgan"
 
@@ -365,11 +365,11 @@ def upload_to_blob(csv_path):
 
 
 # ── Upload to App ───────────────────────────────────────────
-def upload_csv(csv_path, search_term, scrape_meta=None):
+def upload_csv(csv_path, search_term, aggregation_meta=None):
     """Upload a CSV: try Azure Blob first, fall back to app server POST.
     
-    scrape_meta (optional dict): keys like page1At, deepAt, maxPageReached, lastRefreshAt
-    to track scrape depth per dataset.
+    aggregation_meta (optional dict): keys like page1At, deepAt, maxPageReached, lastRefreshAt
+    to track aggregation depth per dataset.
     """
     # Try blob upload first (decoupled from local server)
     if BLOB_ACCOUNT and BLOB_CONTAINER:
@@ -389,9 +389,9 @@ def upload_csv(csv_path, search_term, scrape_meta=None):
         with open(csv_path, "rb") as f:
             files = {"file": (os.path.basename(csv_path), f, "text/csv")}
             data = {"searchTerm": search_term}
-            # Include scrapeMeta fields if provided
-            if scrape_meta:
-                for k, v in scrape_meta.items():
+            # Include aggregationMeta fields if provided
+            if aggregation_meta:
+                for k, v in aggregation_meta.items():
                     if v is not None:
                         data[k] = str(v)
             resp = requests.post(url, files=files, data=data, headers=headers, timeout=30)
@@ -773,7 +773,7 @@ def do_search_and_export(page, search_term, download_dir):
     # Debug: viewport-only screenshot (full_page=True can OOM on heavy pages)
     page.screenshot(path=str(download_dir / f"_debug_after_search_{search_term[:30]}.png"))
 
-    # ── Scrape sold listings directly from DOM ──────────────────
+    # ── Extract sold listings directly from DOM ──────────────────
     # Terapeak no longer provides a CSV Export button.
     # Read the results table and generate CSV ourselves.
     #
@@ -785,7 +785,7 @@ def do_search_and_export(page, search_term, download_dir):
     #
     # No <tbody> -- <tr> are direct children of <table>.
     # Some rows are policy-violation stubs with only 1 cell -- skip them.
-    scraped = page.evaluate("""() => {
+    extracted = page.evaluate("""() => {
         let target = null;
         document.querySelectorAll('table').forEach(t => {
             if (t.querySelector('tr.research-table-header')) target = t;
@@ -850,10 +850,10 @@ def do_search_and_export(page, search_term, download_dir):
         return { rows, tableCount: document.querySelectorAll('table').length };
     }""")
 
-    rows = scraped.get("rows", [])
+    rows = extracted.get("rows", [])
 
     if not rows:
-        print(f"    WARNING: No data rows found ({scraped.get('tableCount', 0)} tables on page)")
+        print(f"    WARNING: No data rows found ({extracted.get('tableCount', 0)} tables on page)")
         page.screenshot(path=str(download_dir / f"_debug_no_data_{search_term[:30]}.png"))
         return None
 
@@ -873,7 +873,7 @@ def do_search_and_export(page, search_term, download_dir):
         page.screenshot(path=str(download_dir / f"_debug_no_dates_{search_term[:30]}.png"))
         return None
 
-    # Convert scraped rows to CSV records
+    # Convert extracted rows to CSV records
     csv_rows = []
     for row in rows:
         title = row.get("title", "")
@@ -910,7 +910,7 @@ def do_search_and_export(page, search_term, download_dir):
         ])
 
     if not csv_rows:
-        print(f"    WARNING: Scraped {len(rows)} rows but none had usable title+price")
+        print(f"    WARNING: Extracted {len(rows)} rows but none had usable title+price")
         page.screenshot(path=str(download_dir / f"_debug_no_data_{search_term[:30]}.png"))
         return None
 
@@ -1147,12 +1147,12 @@ def do_export_run(args):
                 dest = CSV_DIR / entry["filename"]
                 csv_path.rename(dest) if csv_path != dest else None
 
-                # Upload to app with scrapeMeta
+                # Upload to app with aggregationMeta
                 now = datetime.now().isoformat()
                 meta = {"page1At": now}
                 if args.refresh:
                     meta["lastRefreshAt"] = now
-                ok, msg = upload_csv(dest, term, scrape_meta=meta)
+                ok, msg = upload_csv(dest, term, aggregation_meta=meta)
                 if ok:
                     print(f"OK ({msg})")
                     uploaded += 1
@@ -1246,7 +1246,7 @@ Examples:
   python3 scripts/terapeak-export.py --run --limit 10   # Export first 10
   python3 scripts/terapeak-export.py --run --filter "Morgan"  # Morgans only
   python3 scripts/terapeak-export.py --run --resume     # Continue after interruption
-  python3 scripts/terapeak-export.py --run --refresh --max-age 30  # Re-scrape CSVs older than 30 days
+  python3 scripts/terapeak-export.py --run --refresh --max-age 30  # Refresh CSVs older than 30 days
   python3 scripts/terapeak-export.py --run --refresh --max-age 14 --filter "Morgan"  # Refresh stale Morgans
   python3 scripts/terapeak-export.py --batch 10              # Smart batch: 10 coins, priority order
   python3 scripts/terapeak-export.py --batch 8 --filter "Perth"  # 8 Perth coins, thinnest first
@@ -1261,7 +1261,7 @@ Examples:
     parser.add_argument("--dry-run", action="store_true", help="Show what would be exported")
     parser.add_argument("--check", action="store_true", help="Check if cookies are still valid")
     parser.add_argument("--resume", action="store_true", help="Skip already-completed coins")
-    parser.add_argument("--refresh", action="store_true", help="Re-scrape mode: only process coins whose CSV is older than --max-age days")
+    parser.add_argument("--refresh", action="store_true", help="Refresh mode: only process coins whose CSV is older than --max-age days")
     parser.add_argument("--max-age", type=int, default=14, metavar="DAYS", help="Max CSV age in days for --refresh mode (default: 14)")
     parser.add_argument("--filter", type=str, help="Only export terms matching this regex")
     parser.add_argument("--limit", type=int, help="Max number of coins to export")

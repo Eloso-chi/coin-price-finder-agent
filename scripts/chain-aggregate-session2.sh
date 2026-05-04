@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# chain-scrape-session2.sh — Session 2 scrape: finish leftovers + stale + new gaps
+# chain-aggregate-session2.sh — Session 2 aggregate: finish leftovers + stale + new gaps
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -37,7 +37,7 @@ run_batch() {
   echo "  Batch $label complete."
 }
 
-echo "=== Session 2 chain scrape starting at $(date) ==="
+echo "=== Session 2 chain aggregate starting at $(date) ==="
 
 # ── Section 1: Unfinished from last night ──
 run_batch "Indian Head.*Cent"           "indian_head_cent_s2"

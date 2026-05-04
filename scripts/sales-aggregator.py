@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-terapeak-page2.py -- One-time enrichment scraper for Terapeak page 2
+sales-aggregator.py -- Terapeak sales data aggregator (deep pagination)
 
 Supplements the main terapeak-export.py by fetching the SECOND page of
 results for high-volume coins (those with exactly 50 rows from page 1).
@@ -11,19 +11,19 @@ and title+price, so overlapping rows are handled safely.
 
 Usage:
   # Dry run -- show which coins qualify for page 2 enrichment:
-  python3 scripts/terapeak-page2.py --dry-run
+  python3 scripts/sales-aggregator.py --dry-run
 
   # Enrich all 50-row coins:
-  python3 scripts/terapeak-page2.py --run
+  python3 scripts/sales-aggregator.py --run
 
   # Only Morgans:
-  python3 scripts/terapeak-page2.py --run --filter "Morgan"
+  python3 scripts/sales-aggregator.py --run --filter "Morgan"
 
   # Limit batch size:
-  python3 scripts/terapeak-page2.py --run --limit 20
+  python3 scripts/sales-aggregator.py --run --limit 20
 
   # Custom row threshold (default: coins with exactly 50 rows):
-  python3 scripts/terapeak-page2.py --run --min-rows 45
+  python3 scripts/sales-aggregator.py --run --min-rows 45
 
 Requirements:
   Same as terapeak-export.py (playwright, requests, VNC display)
@@ -173,9 +173,9 @@ def get_candidates(min_rows=50, filter_pattern=None):
     return candidates
 
 
-# ── DOM Scrape Table (same JS as terapeak-export.py) ────────
+# ── DOM Extract Table (same JS as terapeak-export.py) ────────
 # Extracted here so it can be called on page 2 independently.
-SCRAPE_TABLE_JS = """() => {
+EXTRACT_TABLE_JS = """() => {
     let target = null;
     document.querySelectorAll('table').forEach(t => {
         if (t.querySelector('tr.research-table-header')) target = t;
@@ -238,9 +238,9 @@ SCRAPE_TABLE_JS = """() => {
 }"""
 
 
-def do_search_and_scrape_page2(page, search_term, download_dir, max_pages=2):
+def do_search_and_collect(page, search_term, download_dir, max_pages=2):
     """
-    Search Terapeak for search_term, then navigate to pages 2..max_pages and scrape.
+    Search Terapeak for search_term, then navigate to pages 2..max_pages and collect.
     For bullion series, max_pages can be higher (e.g., 6) to capture deeper history.
     Returns (csv_path, row_count) tuple, or None on failure, or "BOT_BLOCKED".
     """
@@ -413,7 +413,7 @@ def do_search_and_scrape_page2(page, search_term, download_dir, max_pages=2):
         except Exception:
             pass  # Non-critical
 
-    # ── Paginate through pages 2..max_pages and scrape each ──
+    # ── Paginate through pages 2..max_pages and collect each ──
     all_csv_rows = []
     next_selectors = [
         'button.pagination__next:not([disabled])',
@@ -463,9 +463,9 @@ def do_search_and_scrape_page2(page, search_term, download_dir, max_pages=2):
             time.sleep(random.uniform(0.2, 0.5))
         human_idle(page)
 
-        # Scrape this page's DOM table
-        scraped = page.evaluate(SCRAPE_TABLE_JS)
-        rows = scraped.get("rows", [])
+        # Extract this page's DOM table
+        extracted = page.evaluate(EXTRACT_TABLE_JS)
+        rows = extracted.get("rows", [])
 
         if not rows:
             break  # No data on this page -- stop paginating
@@ -517,7 +517,7 @@ def do_search_and_scrape_page2(page, search_term, download_dir, max_pages=2):
             if max_pages > 2:
                 print(f"p{page_num}:{len(page_csv_rows)} ", end="", flush=True)
         else:
-            break  # Scraped rows but none usable
+            break  # Extracted rows but none usable
 
         # Human-like pause between pages
         base_delay = random.uniform(1.5, 4.0)
@@ -758,7 +758,7 @@ def do_page2_run(args):
         effective_max_pages = args.max_pages if args.max_pages else (6 if is_bullion_term(term) else 2)
 
         try:
-            result = do_search_and_scrape_page2(page, term, DOWNLOAD_DIR, max_pages=effective_max_pages)
+            result = do_search_and_collect(page, term, DOWNLOAD_DIR, max_pages=effective_max_pages)
 
             # Bot detection
             if result == "BOT_BLOCKED":
@@ -795,11 +795,11 @@ def do_page2_run(args):
                 "deepAt": now,
                 "maxPageReached": effective_max_pages,
             }
-            ok, msg = upload_csv(main_csv_path, term, scrape_meta=deep_meta)
+            ok, msg = upload_csv(main_csv_path, term, aggregation_meta=deep_meta)
             if ok:
-                print(f"OK (+{new_count} new from {p2_row_count} scraped, upload: {msg})")
+                print(f"OK (+{new_count} new from {p2_row_count} collected, upload: {msg})")
             else:
-                print(f"OK (+{new_count} new from {p2_row_count} scraped, upload failed: {msg})")
+                print(f"OK (+{new_count} new from {p2_row_count} collected, upload failed: {msg})")
 
             success += 1
             total_new_rows += new_count
@@ -872,25 +872,25 @@ def do_page2_run(args):
 # ── CLI ─────────────────────────────────────────────────────
 def main():
     parser = argparse.ArgumentParser(
-        description="Terapeak page 2 enrichment scraper",
+        description="Terapeak sales data aggregator",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python3 scripts/terapeak-page2.py --dry-run                 # Show candidates
-  python3 scripts/terapeak-page2.py --run                     # Enrich all 50-row coins
-  python3 scripts/terapeak-page2.py --run --filter "Morgan"   # Morgans only
-  python3 scripts/terapeak-page2.py --run --limit 10          # First 10 candidates
-  python3 scripts/terapeak-page2.py --run --min-rows 45       # Custom threshold
+  python3 scripts/sales-aggregator.py --dry-run                 # Show candidates
+  python3 scripts/sales-aggregator.py --run                     # Enrich all 50-row coins
+  python3 scripts/sales-aggregator.py --run --filter "Morgan"   # Morgans only
+  python3 scripts/sales-aggregator.py --run --limit 10          # First 10 candidates
+  python3 scripts/sales-aggregator.py --run --min-rows 45       # Custom threshold
         """,
     )
     parser.add_argument("--run", action="store_true", help="Run page 2+ enrichment")
-    parser.add_argument("--dry-run", action="store_true", help="Show candidates without scraping")
+    parser.add_argument("--dry-run", action="store_true", help="Show candidates without collecting")
     parser.add_argument("--filter", type=str, help="Only enrich terms matching this regex")
     parser.add_argument("--exclude", type=str, help="Exclude terms matching this regex")
     parser.add_argument("--limit", type=int, help="Max number of coins to enrich")
     parser.add_argument("--min-rows", type=int, default=50, help="Min rows to qualify (default: 50)")
     parser.add_argument("--max-pages", type=int, default=None,
-                        help="Max pages to scrape (default: 6 for bullion, 2 for others)")
+                        help="Max pages to collect (default: 6 for bullion, 2 for others)")
     parser.add_argument("--resume", type=str, metavar="LOGFILE",
                         help="Skip coins already completed in this log file (e.g. cache/terapeak_eagles_p2.log)")
 

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# chain-scrape.sh — Run multiple terapeak scrape batches sequentially.
+# chain-aggregate.sh — Run multiple terapeak aggregate batches sequentially.
 # Watches for anti-bot signals and stops if detected.
 #
-# Usage: bash scripts/chain-scrape.sh [PID_TO_WAIT_FOR]
+# Usage: bash scripts/chain-aggregate.sh [PID_TO_WAIT_FOR]
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -15,7 +15,7 @@ check_antibot() {
   if grep -qiE "$ANTIBOT_PATTERNS" "$logfile" 2>/dev/null; then
     echo ""
     echo "!! ANTI-BOT SIGNAL DETECTED in $logfile !!"
-    echo "!! Stopping all scrapes. Review the log: $logfile"
+    echo "!! Stopping all aggregates. Review the log: $logfile"
     grep -iE "$ANTIBOT_PATTERNS" "$logfile" | tail -5
     return 1
   fi
@@ -44,7 +44,7 @@ run_batch() {
   echo "  Batch $label complete."
 }
 
-# Wait for existing scrape process if PID given
+# Wait for existing aggregate process if PID given
 if [[ "${1:-}" =~ ^[0-9]+$ ]]; then
   echo "Waiting for PID $1 to finish..."
   while kill -0 "$1" 2>/dev/null; do
@@ -59,7 +59,7 @@ if [[ "${1:-}" =~ ^[0-9]+$ ]]; then
 fi
 
 echo ""
-echo "=== Chained scrape starting at $(date) ==="
+echo "=== Chained aggregation starting at $(date) ==="
 echo ""
 
 # Batch order: biggest gaps first

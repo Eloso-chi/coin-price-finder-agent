@@ -11,9 +11,9 @@
 #   ./scripts/refresh-stale.sh                    # Refresh top 100 stale (>14 days)
 #   ./scripts/refresh-stale.sh --days 60          # Only coins stale >60 days
 #   ./scripts/refresh-stale.sh --limit 50         # Cap at 50 coins
-#   ./scripts/refresh-stale.sh --dry-run          # Show what would be scraped
-#   ./scripts/refresh-stale.sh --include-empty    # Also scrape empty stubs
-#   ./scripts/refresh-stale.sh --full             # Full startup: VNC + server + login + scrape
+#   ./scripts/refresh-stale.sh --dry-run          # Show what would be refreshed
+#   ./scripts/refresh-stale.sh --include-empty    # Also refresh empty stubs
+#   ./scripts/refresh-stale.sh --full             # Full startup: VNC + server + login + refresh
 #
 # What it does:
 #   1. (--full only) Starts VNC, server, opens login page for CAPTCHA
@@ -60,9 +60,9 @@ while [[ $# -gt 0 ]]; do
       echo ""
       echo "  --days N          Staleness threshold in days (default: 14)"
       echo "  --limit N         Max coins to refresh (default: 100)"
-      echo "  --dry-run         Show what would be scraped, don't scrape"
-      echo "  --include-empty   Also scrape empty stub datasets"
-      echo "  --full            Full startup: VNC + server + login + scrape"
+      echo "  --dry-run         Show what would be refreshed, don't refresh"
+      echo "  --include-empty   Also refresh empty stub datasets"
+      echo "  --full            Full startup: VNC + server + login + refresh"
       exit 0
       ;;
     *) warn "Unknown arg: $1"; shift ;;
@@ -230,7 +230,7 @@ echo "$STALE_INFO" | grep -E '^\s+\d+d|^\s+\.\.\.|^\s+\+|^\s+\(' || true
 
 echo ""
 echo -e "   ${BOLD}Stale: $TOTAL_STALE total ($WITH_DATA with data, $EMPTY empty)${NC}"
-echo -e "   ${BOLD}Targets to scrape: $TARGETS${NC}"
+echo -e "   ${BOLD}Targets to refresh: $TARGETS${NC}"
 
 if [[ "$TARGETS" == "0" ]]; then
   echo -e "\n${GREEN}${BOLD}Nothing stale! All data is fresh within ${STALE_DAYS} days.${NC}"
@@ -238,12 +238,12 @@ if [[ "$TARGETS" == "0" ]]; then
 fi
 
 # ═══════════════════════════════════════════════════════════
-# Step 3: Run scraper (or dry-run)
+# Step 3: Run aggregator (or dry-run)
 # ═══════════════════════════════════════════════════════════
 LOGFILE="cache/terapeak_refresh_$(date +%Y%m%d_%H%M%S).log"
 
 if [[ "$DRY_RUN" == true ]]; then
-  step "Dry run -- would scrape ${TARGETS} datasets"
+  step "Dry run -- would refresh ${TARGETS} datasets"
   echo -e "   ${CYAN}Filter regex (first 200 chars):${NC}"
   echo "   ${FILTER_REGEX:0:200}..."
   echo ""
@@ -260,7 +260,7 @@ curl -sf -X POST "$API_BASE/api/terapeak/quota/reset" \
   -H "x-api-key: $ADMIN_API_KEY" > /dev/null 2>&1 || warn "Quota reset failed (non-fatal)"
 ok "Quota reset"
 
-# Run the scraper
+# Run the aggregator
 DISPLAY=:1 python3 scripts/terapeak-export.py \
   --run --refresh --max-age "$STALE_DAYS" \
   --filter "$FILTER_REGEX" \
@@ -269,7 +269,7 @@ DISPLAY=:1 python3 scripts/terapeak-export.py \
 # ═══════════════════════════════════════════════════════════
 # Step 4: Anti-bot check
 # ═══════════════════════════════════════════════════════════
-step "Post-scrape checks"
+step "Post-refresh checks"
 
 if grep -qiE "$ANTIBOT_PATTERNS" "$LOGFILE" 2>/dev/null; then
   echo ""
@@ -282,7 +282,7 @@ fi
 # Count results
 SUCCEEDED=$(grep -c '^\s*\[.*\].*OK ' "$LOGFILE" 2>/dev/null || echo "0")
 FAILED=$(grep -c 'NO EXPORT' "$LOGFILE" 2>/dev/null || echo "0")
-ok "Scrape complete: ${SUCCEEDED} succeeded, ${FAILED} no data"
+ok "Refresh complete: ${SUCCEEDED} succeeded, ${FAILED} no data"
 
 echo ""
 echo -e "${GREEN}${BOLD}=== Refresh complete ===${NC}"
