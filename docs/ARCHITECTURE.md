@@ -97,9 +97,10 @@ server.js                              Express entry point (port 3000)
 │   ├─ migrate-to-cosmos.js            One-time migration of history data to Cosmos DB
 │   ├─ upload-csvs-to-blob.js          Upload Terapeak CSVs to Azure Blob Storage
 │   ├─ vnc-login.py                    VNC + eBay login helper for Playwright sessions
+│   ├─ pricing-health-full.js          Pricing health check runner (--full, --filter, --limit, --concurrency, --out)
 │   └─ test-metrics/                   Jest metrics capture + summary reporter
 │
-└─ __tests__/                          48 Jest test suites
+└─ __tests__/                          49 Jest test suites
     ├─ fixtures/
     │   └─ golden_coins.json           Curated golden set (14 deterministic test coins)
     └─ helpers/
@@ -576,13 +577,13 @@ Key flags: `--batch N` (coin count), `--priority` (thin-data-first), `--resume` 
 
 ### Page 2+ Deep Pagination -- `scripts/sales-aggregator.py`
 
-Extends CSVs from 50 rows (page 1 limit) to up to 300 rows by scraping pages 2-6:
+Extends CSVs from 50 rows (page 1 limit) to up to 300 rows by collecting pages 2-6:
 
 ```
 ┌─ Candidate Selection ─────────────────────────────────────┐
 │  get_candidates(min_rows=50): scan data/terapeak/*.csv    │
 │  Select files with >= 50 rows (likely truncated)          │
-├─ Scraping ────────────────────────────────────────────────┤
+├─ Collecting ──────────────────────────────────────────────┤
 │  For each candidate:                                      │
 │    1. Read .meta file for original search_term            │
 │    2. Navigate to Terapeak, enter search, load results    │
@@ -595,6 +596,8 @@ Extends CSVs from 50 rows (page 1 limit) to up to 300 rows by scraping pages 2-6
 ```
 
 Pagination selector: `button.pagination__next:not([disabled])`. Results per page control: `select[aria-label="Results per page"]` with 10/20/50 options.
+
+**Dashboard mode:** When run without `--run` or `--dry-run`, the script queries `GET /api/terapeak/aggregation-status` and presents an interactive priority menu showing needs-deep, stale (>14 days), and thin (<20 comps) categories. User picks a category and the script auto-launches the aggregation run with the appropriate filter.
 
 **Active Listings Guard (S0):** Same two-layer guard as `terapeak-export.py` -- tab check after page 1 loads, and date-ratio validation on each paginated page's rows. Stops pagination early if active listings detected.
 
@@ -620,7 +623,7 @@ When the pricing engine calls `lookupComps(keywords, expected)`:
 4. Return comps from the best-matching dataset, scored and sorted
 5. Each comp passes through `isDenied()` and denomination/series filters before use
 
-**Per-dataset metadata:** Each dataset stores `aggregationMeta: { page1At, deepAt, maxPageReached, lastRefreshAt }` to track scraping provenance. `importComps()` merges aggregationMeta intelligently (never overwrites earlier timestamps, maxPageReached only increases).
+**Per-dataset metadata:** Each dataset stores `aggregationMeta: { page1At, deepAt, maxPageReached, lastRefreshAt }` to track aggregation provenance. `importComps()` merges aggregationMeta intelligently (never overwrites earlier timestamps, maxPageReached only increases).
 
 **Admin endpoints:**
 - `GET /api/terapeak/aggregation-status` -- summary + filtered dataset lists (`needs=deep`, `needs=page1`, `needs=refresh&maxAge=N`, `minComps=N`)

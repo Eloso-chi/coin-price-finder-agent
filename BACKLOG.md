@@ -9,7 +9,7 @@ Items marked DONE are kept for historical reference.
 
 ### ~~S0. Active Listings Guard in Aggregator [DONE]~~
 
-Both `terapeak-export.py` and `terapeak-page2.py` now guard against active listings:
+Both `terapeak-export.py` and `sales-aggregator.py` now guard against active listings:
 - Tab check: detects "Active listings" tab via DOM after results load
 - Date validation: if <20% of collected rows have parseable sold dates, aborts with warning
 
@@ -23,9 +23,9 @@ Both `terapeak-export.py` and `terapeak-page2.py` now guard against active listi
 
 **Check remaining:** `GET /api/terapeak/aggregation-status?needs=deep&minComps=50`
 
-**Command:** `python3 scripts/terapeak-page2.py --run --limit N`
+**Command:** `python3 scripts/sales-aggregator.py --run --limit N`
 
-**Files:** `scripts/terapeak-page2.py`
+**Files:** `scripts/sales-aggregator.py`
 
 ---
 

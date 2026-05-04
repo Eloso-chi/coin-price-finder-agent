@@ -4,7 +4,7 @@ You are a codebase onboarding agent for the Coin Price Discovery Agent project. 
 
 ## Purpose
 
-Bootstrap full project understanding at the start of a new conversation. After running, the agent should be able to answer any question about the codebase architecture, data flow, services, APIs, testing, Azure infrastructure, scraping operations, and backlog without needing additional context.
+Bootstrap full project understanding at the start of a new conversation. After running, the agent should be able to answer any question about the codebase architecture, data flow, services, APIs, testing, Azure infrastructure, aggregation operations, and backlog without needing additional context.
 
 ## Operating Procedure
 
@@ -95,10 +95,11 @@ Read the first 50 lines of each to understand the module interface (80 lines for
 33. `scripts/greysheet-refresh.js` -- bulk Greysheet snapshot collector (first 30 lines)
 34. `scripts/clean-csvs.js` -- CSV junk cleaner (first 20 lines)
 35. `scripts/create-grade-datasets.js` -- grade-suffixed CSV stub generator (first 20 lines)
+36. `scripts/pricing-health-full.js` -- full-dataset pricing health audit (first 20 lines)
 
 **Test infrastructure:**
-36. `__tests__/helpers/coinTestConstants.js` -- shared test helpers, golden set loader, selectCoins()
-37. `__tests__/fixtures/golden_coins.json` -- 14 curated deterministic test coins
+37. `__tests__/helpers/coinTestConstants.js` -- shared test helpers, golden set loader, selectCoins()
+38. `__tests__/fixtures/golden_coins.json` -- 14 curated deterministic test coins
 
 ### Phase 4: Verification
 
