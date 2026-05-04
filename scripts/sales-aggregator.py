@@ -10,6 +10,9 @@ The import pipeline (terapeakService.importComps) deduplicates by itemId
 and title+price, so overlapping rows are handled safely.
 
 Usage:
+  # Dashboard mode (default -- queries server for priorities):
+  python3 scripts/sales-aggregator.py
+
   # Dry run -- show which coins qualify for page 2 enrichment:
   python3 scripts/sales-aggregator.py --dry-run
 
@@ -876,11 +879,16 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
+  python3 scripts/sales-aggregator.py                           # Dashboard mode (interactive)
   python3 scripts/sales-aggregator.py --dry-run                 # Show candidates
   python3 scripts/sales-aggregator.py --run                     # Enrich all 50-row coins
   python3 scripts/sales-aggregator.py --run --filter "Morgan"   # Morgans only
   python3 scripts/sales-aggregator.py --run --limit 10          # First 10 candidates
   python3 scripts/sales-aggregator.py --run --min-rows 45       # Custom threshold
+
+Dashboard mode (no --run/--dry-run):
+  Queries the server for dataset priorities and shows an interactive menu
+  to pick which category to aggregate next (stale, needs-deep, thin).
         """,
     )
     parser.add_argument("--run", action="store_true", help="Run page 2+ enrichment")
@@ -899,7 +907,227 @@ Examples:
     if args.run or args.dry_run:
         do_page2_run(args)
     else:
-        parser.print_help()
+        dashboard(args)
+
+
+# ── Dashboard Mode ──────────────────────────────────────────
+def dashboard(args):
+    """Query the server for dataset priorities and present an interactive menu."""
+    print("\n╔══════════════════════════════════════════════════════════════╗")
+    print("║           SALES AGGREGATOR — DASHBOARD                      ║")
+    print("╚══════════════════════════════════════════════════════════════╝\n")
+
+    if not ADMIN_API_KEY:
+        print("ERROR: ADMIN_API_KEY not set. Export it or add to .env")
+        return
+
+    headers = {"x-api-key": ADMIN_API_KEY}
+
+    # Fetch full status from server
+    try:
+        resp = requests.get(f"{APP_URL}/api/terapeak/aggregation-status", headers=headers, timeout=10)
+        resp.raise_for_status()
+        full_data = resp.json()
+    except requests.exceptions.ConnectionError:
+        print(f"ERROR: Cannot connect to server at {APP_URL}")
+        print("  Start the server first: node server.js")
+        return
+    except Exception as e:
+        print(f"ERROR: Failed to fetch aggregation status: {e}")
+        return
+
+    summary = full_data.get("summary", {})
+    total = summary.get("total", 0)
+    with_page1 = summary.get("withPage1", 0)
+    with_deep = summary.get("withDeep", 0)
+    needs_deep = summary.get("needsDeep", 0)
+
+    # Fetch category-specific lists
+    categories = {}
+
+    # 1. Needs deep pagination (page1 done, comps >= 50, no deep yet)
+    try:
+        r = requests.get(f"{APP_URL}/api/terapeak/aggregation-status",
+                         params={"needs": "deep", "minComps": "50"}, headers=headers, timeout=10)
+        r.raise_for_status()
+        categories["deep"] = r.json().get("datasets", [])
+    except Exception:
+        categories["deep"] = []
+
+    # 2. Stale datasets (not refreshed in 14 days)
+    try:
+        r = requests.get(f"{APP_URL}/api/terapeak/aggregation-status",
+                         params={"needs": "refresh", "maxAge": "14"}, headers=headers, timeout=10)
+        r.raise_for_status()
+        categories["stale"] = r.json().get("datasets", [])
+    except Exception:
+        categories["stale"] = []
+
+    # 3. Thin datasets (fewer than 20 comps -- need more data)
+    all_datasets = full_data.get("datasets", [])
+    categories["thin"] = [d for d in all_datasets if d.get("compCount", 0) < 20]
+
+    # ── Display Summary ──────────────────────────────────────
+    print(f"  Server:         {APP_URL}")
+    print(f"  Total datasets: {total}")
+    print(f"  Page 1 done:    {with_page1}/{total}")
+    print(f"  Deep done:      {with_deep}/{total}")
+    print(f"  Needs deep:     {needs_deep}")
+    print()
+
+    # ── Priority Categories ──────────────────────────────────
+    menu_items = []
+
+    if categories["deep"]:
+        n = len(categories["deep"])
+        bullion = [d for d in categories["deep"] if is_bullion_term(d.get("searchTerm", ""))]
+        non_bullion = [d for d in categories["deep"] if not is_bullion_term(d.get("searchTerm", ""))]
+        print(f"  [1] Needs deep pagination:  {n} datasets ({len(bullion)} bullion, {len(non_bullion)} other)")
+        menu_items.append(("deep", categories["deep"]))
+    else:
+        print(f"  [1] Needs deep pagination:  0 (all caught up!)")
+
+    if categories["stale"]:
+        n = len(categories["stale"])
+        print(f"  [2] Stale (>14 days):       {n} datasets")
+        menu_items.append(("stale", categories["stale"]))
+    else:
+        print(f"  [2] Stale (>14 days):       0 (all fresh!)")
+        menu_items.append(("stale", []))
+
+    if categories["thin"]:
+        n = len(categories["thin"])
+        print(f"  [3] Thin (<20 comps):       {n} datasets")
+        menu_items.append(("thin", categories["thin"]))
+    else:
+        print(f"  [3] Thin (<20 comps):       0")
+        menu_items.append(("thin", []))
+
+    print(f"\n  [4] Show all datasets")
+    print(f"  [q] Quit")
+    print()
+
+    # ── Interactive Selection ────────────────────────────────
+    try:
+        choice = input("  Choose [1-4, q]: ").strip().lower()
+    except (EOFError, KeyboardInterrupt):
+        print("\n  Bye.")
+        return
+
+    if choice == "q" or not choice:
+        return
+
+    if choice == "4":
+        _show_all_datasets(all_datasets)
+        return
+
+    choice_idx = int(choice) - 1 if choice.isdigit() else -1
+    if choice_idx < 0 or choice_idx >= len(menu_items):
+        print("  Invalid choice.")
+        return
+
+    category_name, datasets = menu_items[choice_idx]
+    if not datasets:
+        print("  Nothing in this category.")
+        return
+
+    _show_category(category_name, datasets)
+
+    # ── Offer to launch aggregation ─────────────────────────
+    print()
+    try:
+        action = input("  Launch aggregation for this category? [y/N/filter regex]: ").strip()
+    except (EOFError, KeyboardInterrupt):
+        print("\n  Bye.")
+        return
+
+    if not action or action.lower() == "n":
+        return
+
+    # Build search terms from the selected datasets
+    terms = [d.get("searchTerm", "") for d in datasets if d.get("searchTerm")]
+
+    if action.lower() == "y":
+        _launch_run(terms, category_name, filter_pattern=None, args=args)
+    else:
+        # Treat input as a filter regex
+        _launch_run(terms, category_name, filter_pattern=action, args=args)
+
+
+def _show_all_datasets(datasets):
+    """Display a sorted list of all datasets."""
+    sorted_ds = sorted(datasets, key=lambda d: d.get("compCount", 0), reverse=True)
+    print(f"\n  {'#':>4s}  {'Comps':>5s}  {'Deep?':>5s}  Search Term")
+    print(f"  {'─'*4}  {'─'*5}  {'─'*5}  {'─'*50}")
+    for i, d in enumerate(sorted_ds[:100], 1):
+        deep = "yes" if d.get("aggregationMeta", {}) and d["aggregationMeta"].get("deepAt") else "  -"
+        comps = d.get("compCount", 0)
+        term = d.get("searchTerm", d.get("key", "?"))
+        print(f"  {i:4d}  {comps:5d}  {deep:>5s}  {term}")
+    if len(sorted_ds) > 100:
+        print(f"\n  ... and {len(sorted_ds) - 100} more (showing top 100 by comp count)")
+
+
+def _show_category(category_name, datasets):
+    """Display datasets in a category."""
+    label = {
+        "deep": "NEEDS DEEP PAGINATION",
+        "stale": "STALE (>14 DAYS)",
+        "thin": "THIN (<20 COMPS)",
+    }.get(category_name, category_name.upper())
+
+    sorted_ds = sorted(datasets, key=lambda d: d.get("compCount", 0), reverse=True)
+    print(f"\n  ── {label} ({len(sorted_ds)} datasets) ──")
+    print(f"  {'#':>4s}  {'Comps':>5s}  {'Type':>8s}  Search Term")
+    print(f"  {'─'*4}  {'─'*5}  {'─'*8}  {'─'*50}")
+    for i, d in enumerate(sorted_ds[:50], 1):
+        comps = d.get("compCount", 0)
+        term = d.get("searchTerm", d.get("key", "?"))
+        tag = "bullion" if is_bullion_term(term) else "coin"
+        print(f"  {i:4d}  {comps:5d}  {tag:>8s}  {term}")
+    if len(sorted_ds) > 50:
+        print(f"\n  ... and {len(sorted_ds) - 50} more (showing top 50)")
+
+
+def _launch_run(terms, category_name, filter_pattern=None, args=None):
+    """Launch aggregation for a set of terms by re-invoking with --run."""
+    import subprocess
+
+    # Build filter regex from search terms if no explicit filter
+    if filter_pattern:
+        filter_arg = filter_pattern
+    elif len(terms) <= 20:
+        # Build a regex alternation from the terms
+        escaped = [re.escape(t) for t in terms]
+        filter_arg = "|".join(escaped)
+    else:
+        # Too many for a regex -- use the category's needs= param as filter
+        filter_arg = None
+
+    script_path = Path(__file__).resolve()
+    cmd = [sys.executable, str(script_path), "--run"]
+
+    if filter_arg:
+        cmd.extend(["--filter", filter_arg])
+
+    if category_name == "deep":
+        cmd.extend(["--min-rows", "50"])
+    elif category_name == "thin":
+        cmd.extend(["--min-rows", "1"])
+
+    # Inherit user's CLI args
+    if args and hasattr(args, "limit") and args.limit:
+        cmd.extend(["--limit", str(args.limit)])
+    if args and hasattr(args, "max_pages") and args.max_pages:
+        cmd.extend(["--max-pages", str(args.max_pages)])
+    if args and hasattr(args, "exclude") and args.exclude:
+        cmd.extend(["--exclude", args.exclude])
+
+    print(f"\n  Launching: {' '.join(cmd)}\n")
+    print("─" * 60)
+
+    # Replace this process with the run
+    os.execv(sys.executable, cmd)
 
 
 if __name__ == "__main__":
