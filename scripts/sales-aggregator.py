@@ -147,10 +147,254 @@ def get_completed_terms_from_log(log_path):
     return completed
 
 
+# ── Environment Setup ───────────────────────────────────────
+VNC_DISPLAY = ":7"
+VNC_PORT = 5907  # 5900 + display number
+NOVNC_PORT = 6080
+SERVER_PORT = 3000
+
+def _is_port_open(port):
+    """Check if something is listening on the given port."""
+    import socket
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.settimeout(1)
+        return s.connect_ex(("127.0.0.1", port)) == 0
+
+
+def _start_vnc():
+    """Start Xtigervnc + noVNC if not already running."""
+    import subprocess
+    import shutil
+
+    if _is_port_open(VNC_PORT):
+        print(f"  VNC already running on display {VNC_DISPLAY} (port {VNC_PORT})")
+        os.environ["DISPLAY"] = VNC_DISPLAY
+        return True
+
+    xtigervnc = shutil.which("Xtigervnc")
+    if not xtigervnc:
+        print("  ERROR: Xtigervnc not found. Cannot start VNC.")
+        return False
+
+    # Start Xtigervnc
+    subprocess.Popen(
+        [xtigervnc, VNC_DISPLAY, "-geometry", "1280x800",
+         "-SecurityTypes", "None", "-AlwaysShared"],
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+    )
+    time.sleep(1)
+
+    # Start noVNC proxy
+    novnc_proxy = Path("/usr/share/novnc/utils/novnc_proxy")
+    if novnc_proxy.exists():
+        subprocess.Popen(
+            ["bash", str(novnc_proxy), "--vnc", f"localhost:{VNC_PORT}",
+             "--listen", str(NOVNC_PORT)],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        )
+        time.sleep(1)
+        print(f"  VNC started on display {VNC_DISPLAY}, noVNC at http://localhost:{NOVNC_PORT}")
+    else:
+        print(f"  VNC started on display {VNC_DISPLAY} (noVNC proxy not found -- use VNC client on port {VNC_PORT})")
+
+    os.environ["DISPLAY"] = VNC_DISPLAY
+    return True
+
+
+def _start_server():
+    """Start node server.js if not already running on port 3000."""
+    import subprocess
+
+    if _is_port_open(SERVER_PORT):
+        print(f"  Server already running on port {SERVER_PORT}")
+        return True
+
+    server_js = PROJECT_DIR / "server.js"
+    if not server_js.exists():
+        print(f"  ERROR: server.js not found at {server_js}")
+        return False
+
+    subprocess.Popen(
+        ["node", str(server_js)],
+        cwd=str(PROJECT_DIR),
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+    )
+    print(f"  Starting server on port {SERVER_PORT}...")
+
+    # Wait for healthy (up to 30s)
+    for i in range(30):
+        time.sleep(1)
+        try:
+            r = requests.get(f"http://localhost:{SERVER_PORT}/api/health", timeout=2)
+            if r.status_code == 200:
+                print(f"  Server healthy (took {i+1}s)")
+                return True
+        except Exception:
+            pass
+
+    print("  ERROR: Server did not become healthy within 30s")
+    return False
+
+
+def _wait_for_captcha():
+    """Open eBay login in VNC browser and wait for user to solve CAPTCHA.
+    Returns True when login is confirmed."""
+    print(f"\n  ┌─────────────────────────────────────────────────────────┐")
+    print(f"  │  CAPTCHA REQUIRED                                       │")
+    print(f"  │  Open noVNC at http://localhost:{NOVNC_PORT}               │")
+    print(f"  │  Log in and solve any CAPTCHA/2FA in the browser.       │")
+    print(f"  │  I'll auto-detect when you're done...                   │")
+    print(f"  └─────────────────────────────────────────────────────────┘\n")
+    sys.stdout.flush()
+
+    pw = sync_playwright().start()
+    browser = pw.chromium.launch(
+        headless=False,
+        args=["--no-sandbox", "--disable-blink-features=AutomationControlled",
+              "--disable-dev-shm-usage", "--disable-infobars"],
+    )
+    ctx = browser.new_context(
+        viewport={"width": 1280, "height": 900},
+        user_agent=(
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/134.0.0.0 Safari/537.36"
+        ),
+    )
+    ctx.add_init_script("Object.defineProperty(navigator, 'webdriver', { get: () => false });")
+    page = ctx.new_page()
+    page.goto("https://signin.ebay.com/ws/eBayISAPI.dll?SignIn", wait_until="domcontentloaded")
+
+    # Poll for login (up to 10 minutes)
+    logged_in = False
+    for attempt in range(120):
+        time.sleep(5)
+        try:
+            url = page.url
+            cookies = ctx.cookies()
+            ebay_c = [c for c in cookies if c.get("name") == "ebay"]
+            has_sin = ebay_c and "sin%3Din" in ebay_c[0].get("value", "")
+
+            if has_sin and "signin" not in url.lower() and "captcha" not in url.lower():
+                print(f"  [{attempt*5}s] Login detected! (sin=in cookie found)")
+                logged_in = True
+                break
+
+            content = page.content()
+            if ("Hi " in content or "Sign out" in content) and "signin" not in url.lower() and "captcha" not in url.lower():
+                print(f"  [{attempt*5}s] Login detected! (page content check)")
+                logged_in = True
+                break
+        except Exception:
+            pass
+
+    if logged_in:
+        # Save cookies
+        cookies = ctx.cookies()
+        COOKIE_FILE.parent.mkdir(parents=True, exist_ok=True)
+        with open(COOKIE_FILE, "w") as f:
+            json.dump(cookies, f, indent=2)
+        print(f"  Saved {len(cookies)} cookies to {COOKIE_FILE}")
+    else:
+        print("  TIMEOUT: Login not detected after 10 minutes.")
+
+    browser.close()
+    pw.stop()
+    return logged_in
+
+
+def ensure_environment():
+    """Start VNC, server, and validate eBay session. Returns True if ready."""
+    print("\n── Environment Setup ──────────────────────────────────────")
+
+    # 1. Start VNC
+    if not _start_vnc():
+        return False
+
+    # 2. Start server
+    if not _start_server():
+        return False
+
+    # 3. Check session validity
+    if COOKIE_FILE.exists():
+        # Quick check: verify cookies against eBay
+        print("  Checking eBay session...")
+        pw = sync_playwright().start()
+        browser = pw.chromium.launch(
+            headless=False,
+            args=["--no-sandbox", "--disable-blink-features=AutomationControlled",
+                  "--disable-dev-shm-usage", "--disable-infobars"],
+        )
+        ctx = browser.new_context(
+            viewport={"width": 1280, "height": 900},
+            user_agent=(
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/134.0.0.0 Safari/537.36"
+            ),
+        )
+        ctx.add_init_script("Object.defineProperty(navigator, 'webdriver', { get: () => false });")
+        load_cookies(ctx)
+        page = ctx.new_page()
+        page.goto(EBAY_RESEARCH_URL, wait_until="domcontentloaded")
+        time.sleep(3)
+
+        if is_logged_in(page):
+            print("  Session valid!")
+            browser.close()
+            pw.stop()
+            return True
+        else:
+            print("  Session expired.")
+            browser.close()
+            pw.stop()
+    else:
+        print("  No saved cookies found.")
+
+    # 4. Session invalid -- need CAPTCHA
+    return _wait_for_captcha()
+
+
 # ── Candidate Selection ─────────────────────────────────────
+def get_candidates_from_server(min_rows=50, filter_pattern=None):
+    """Query server for coins that still need deep pagination.
+    Returns list of dicts with term and row_count.
+    Falls back to local CSV scan if server is unreachable."""
+    headers = {"x-api-key": ADMIN_API_KEY} if ADMIN_API_KEY else {}
+    try:
+        r = requests.get(
+            f"{APP_URL}/api/terapeak/aggregation-status",
+            params={"needs": "deep", "minComps": str(min_rows)},
+            headers=headers,
+            timeout=10,
+        )
+        r.raise_for_status()
+        datasets = r.json().get("datasets", [])
+    except Exception as e:
+        print(f"  WARNING: Server query failed ({e}), falling back to local CSV scan")
+        return get_candidates(min_rows, filter_pattern)
+
+    candidates = []
+    for d in datasets:
+        search_term = d.get("searchTerm", "")
+        comp_count = d.get("compCount", 0)
+        candidates.append({
+            "term": search_term,
+            "row_count": comp_count,
+        })
+
+    # Apply filter
+    if filter_pattern:
+        pattern = re.compile(filter_pattern, re.IGNORECASE)
+        candidates = [c for c in candidates if pattern.search(c["term"])]
+
+    return candidates
+
+
 def get_candidates(min_rows=50, filter_pattern=None):
     """Find coins with >= min_rows in their CSV (page 1 was full).
-    Returns list of dicts with term, filename, row_count."""
+    Returns list of dicts with term, filename, row_count.
+    NOTE: This is the local-only fallback. Prefer get_candidates_from_server()."""
     terms = get_search_terms()
     candidates = []
 
@@ -552,7 +796,10 @@ def append_to_csv(main_csv_path, page2_csv_path):
     across multiple pages because listings sell repeatedly over time.
     We want to keep rows that represent genuinely different data points.
     Title is included so that blank-itemId sub-rows from different listings
-    (different sellers/images) with the same date+price are not falsely deduped."""
+    (different sellers/images) with the same date+price are not falsely deduped.
+
+    NOTE: No longer used in the main --run loop (server handles dedup now).
+    Kept for manual/offline use cases."""
     # Build composite keys from existing rows
     existing_keys = set()
     with open(main_csv_path, newline="") as f:
@@ -604,14 +851,15 @@ def _read_csv_rows(csv_path):
 # ── Main Export Loop ────────────────────────────────────────
 def do_page2_run(args):
     """Main page 2 enrichment loop."""
-    if not COOKIE_FILE.exists():
-        print("ERROR: No saved cookies. Run terapeak-export.py --login first.")
+    # Ensure VNC, server, and eBay session are ready
+    if not ensure_environment():
+        print("ERROR: Environment setup failed. Cannot proceed.")
         return
 
     DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
-    # Find candidates
-    candidates = get_candidates(
+    # Find candidates -- query server first (excludes coins with deepAt already set)
+    candidates = get_candidates_from_server(
         min_rows=args.min_rows,
         filter_pattern=args.filter,
     )
@@ -624,7 +872,7 @@ def do_page2_run(args):
         print(f"  Exclude: filtered out {before - len(candidates)} coins matching /{args.exclude}/i")
 
     if not candidates:
-        print("No candidates found. All coins have fewer rows than the threshold.")
+        print("No candidates found. All qualifying coins already have deep pagination done.")
         return
 
     # Resume: skip already-completed coins from a previous log
@@ -717,17 +965,9 @@ def do_page2_run(args):
 
     # Launch and verify session
     page = launch_browser()
-    print("Verifying session...")
     page.goto(EBAY_RESEARCH_URL, wait_until="domcontentloaded")
     time.sleep(3)
-    print(f"  Verification URL: {page.url}")
     page.screenshot(path=str(DOWNLOAD_DIR / "_debug_p2_verify.png"))
-
-    if not is_logged_in(page):
-        print("ERROR: Session expired. Run terapeak-export.py --login to refresh.")
-        browser.close()
-        pw_instance.stop()
-        return
 
     print("Session valid. Starting page 2 enrichment...\n")
 
@@ -741,7 +981,6 @@ def do_page2_run(args):
 
     for i, entry in enumerate(candidates):
         term = entry["term"]
-        filename = entry["filename"]
         pct = round((i + 1) / len(candidates) * 100)
 
         # Recycle browser periodically
@@ -787,25 +1026,21 @@ def do_page2_run(args):
                 continue
 
             p2_csv_path, p2_row_count = result
-            main_csv_path = CSV_DIR / filename
 
-            # Append page 2 rows to main CSV
-            new_count = append_to_csv(main_csv_path, p2_csv_path)
-
-            # Upload the enriched CSV to the app with deep pagination metadata
+            # Upload scraped pages directly to server (server deduplicates)
             now = datetime.now().isoformat()
             deep_meta = {
                 "deepAt": now,
                 "maxPageReached": effective_max_pages,
             }
-            ok, msg = upload_csv(main_csv_path, term, aggregation_meta=deep_meta)
+            ok, msg = upload_csv(p2_csv_path, term, aggregation_meta=deep_meta)
             if ok:
-                print(f"OK (+{new_count} new from {p2_row_count} collected, upload: {msg})")
+                print(f"OK (+{p2_row_count} scraped, upload: {msg})")
             else:
-                print(f"OK (+{new_count} new from {p2_row_count} collected, upload failed: {msg})")
+                print(f"OK (+{p2_row_count} scraped, upload failed: {msg})")
 
             success += 1
-            total_new_rows += new_count
+            total_new_rows += p2_row_count
 
             # Clean up temp file
             try:
@@ -900,7 +1135,7 @@ Dashboard mode (no --run/--dry-run):
     parser.add_argument("--max-pages", type=int, default=None,
                         help="Max pages to collect (default: 6 for bullion, 2 for others)")
     parser.add_argument("--resume", type=str, metavar="LOGFILE",
-                        help="Skip coins already completed in this log file (e.g. cache/terapeak_eagles_p2.log)")
+                        help="Skip coins already completed in this log file (legacy fallback -- server tracking handles this automatically now)")
 
     args = parser.parse_args()
 
@@ -921,6 +1156,12 @@ def dashboard(args):
         print("ERROR: ADMIN_API_KEY not set. Export it or add to .env")
         return
 
+    # Ensure server is running (needed for dashboard queries)
+    if not _is_port_open(SERVER_PORT):
+        print("  Server not running. Starting it...")
+        if not _start_server():
+            return
+
     headers = {"x-api-key": ADMIN_API_KEY}
 
     # Fetch full status from server
@@ -930,7 +1171,6 @@ def dashboard(args):
         full_data = resp.json()
     except requests.exceptions.ConnectionError:
         print(f"ERROR: Cannot connect to server at {APP_URL}")
-        print("  Start the server first: node server.js")
         return
     except Exception as e:
         print(f"ERROR: Failed to fetch aggregation status: {e}")
