@@ -60,7 +60,7 @@ async function _priceOne(item) {
     const parsed = pcgsService.parseDescription(query);
     const series = coinData.name || parsed.series || '';
     const year   = coinData.year || parsed.year;
-    const mint   = coinData.mintMark || parsed.mint || '';
+    const mint   = coinData.mintMark || parsed.mint || '';  // user-specified only (drives filtering)
     const grade  = coinData.grade || parsed.grade || '';
     let gradeNum = parsed.gradeNum || parseInt((grade.match(/\d+/) || [])[0]) || null;
 
@@ -214,11 +214,11 @@ async function _priceOne(item) {
       }
     }
 
-    // Fetch eBay comps -- parity with priceRoute (#155): 180d, 3 pages
+    // Fetch eBay comps -- parity with priceRoute (#155): 180d, 3 pages, 8 min comps
     const ebay = await ebayService.fetchSoldComps(keywords, {
       timeWindowDays: 180,
       maxPages: 3,
-      usMinComps: 3,
+      usMinComps: 8,
     }, expected);
 
     // PCGS (cached lookup, no extra API calls if not cached)

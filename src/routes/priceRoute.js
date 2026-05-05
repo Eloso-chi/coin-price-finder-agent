@@ -248,7 +248,7 @@ router.post('/', async (req, res) => {
 
     const expected = {
       year: pcgs.year || identification.parsed?.year,
-      mint: pcgs.mint || identification.parsed?.mint,
+      mint: identification.parsed?.mint || '',  // #167: only user-specified mint drives filtering (PCGS mint used for display only)
       series: pcgs.series || identification.parsed?.series,
       grade: isSet ? null : (pcgs.grade || identification.parsed?.grade),
       designation: pcgs.designation || identification.parsed?.designation,

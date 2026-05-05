@@ -138,7 +138,7 @@ async function evaluateOneCoin(coin) {
     const parsed = pcgsService.parseDescription(query);
     const series = coin.series || coin.name || parsed.series || '';
     const year   = coin.year || parsed.year;
-    const mint   = coin.mintMark || parsed.mint || '';
+    const mint   = coin.mintMark || parsed.mint || '';  // user-specified only (drives filtering)
     const grade  = coin.grade || parsed.grade || '';
     const gradeNum = parsed.gradeNum || parseInt((grade.match(/\d+/) || [])[0]) || null;
 
