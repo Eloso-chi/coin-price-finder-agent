@@ -82,9 +82,14 @@ python3 scripts/sales-aggregator.py --run --min-rows 45
 3. **Server running** at `http://localhost:3000` (for dashboard queries and uploads)
 4. **ADMIN_API_KEY** set in environment (for server API access)
 
+The script auto-starts VNC (Xtigervnc + noVNC) and the server in both
+dashboard and run modes, so manual startup is rarely needed.
+
 ## Workflow
 
-1. Start by running dashboard mode to assess priorities
+1. Start by running dashboard mode to assess priorities.
+   VNC and the server are started automatically.
+   Tell the user: "noVNC is available at http://localhost:6080"
 2. Present the readout to the user with recommendations
 3. If user approves a batch, run with appropriate `--filter` and `--limit`
 4. Monitor progress and report results (new rows added, upload status)

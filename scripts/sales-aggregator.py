@@ -1156,6 +1156,9 @@ def dashboard(args):
         print("ERROR: ADMIN_API_KEY not set. Export it or add to .env")
         return
 
+    # Start VNC early so noVNC is ready for the user when aggregation begins
+    _start_vnc()
+
     # Ensure server is running (needed for dashboard queries)
     if not _is_port_open(SERVER_PORT):
         print("  Server not running. Starting it...")
