@@ -146,7 +146,7 @@ Optional variables:
 | `GREYSHEET_API_KEY` | Greysheet CDN Public API V2 key | *(none)* |
 | `GREYSHEET_BASE_URL` | Greysheet API base URL override | `https://cpgpublicapiv2.greysheet.com/api` |
 | `ADMIN_API_KEY` | API key for admin/destructive endpoints | *(none -- endpoints locked)* |
-| `JWT_SECRET` | Secret key for signing JWTs (auth tokens) | *(random on startup -- sessions expire on restart)* |
+| `JWT_SECRET` | Secret key for signing JWTs (auth tokens). **Required in production** (`NODE_ENV=production`) -- server throws FATAL if unset. | *(random on startup -- sessions expire on restart)* |
 | `PORT` | Server port | `3000` |
 | `EBAY_CACHE_TTL_MS` | eBay cache lifetime | `3600000` (1 hour) |
 | `EBAY_US_MIN_COMPS` | Minimum US comps before global fallback | `8` |
@@ -485,7 +485,7 @@ The **Test Monitor** system records per-run metrics (timestamp, branch, commit, 
 
 A Copilot agent persona (`.github/agents/test-monitor.agent.md`) can be invoked to diagnose failures, quarantine flaky tests, and suggest fixes. See [docs/testing/test-monitor.md](docs/testing/test-monitor.md) for full usage.
 
-Runs **Jest** across 49 test suites:
+Runs **Jest** across 53 test suites:
 
 | Suite | What it covers |
 |---|---|
@@ -535,6 +535,10 @@ Runs **Jest** across 49 test suites:
 | `terapeakImportEviction.test.js` | Terapeak import/eviction lifecycle |
 | `pricingPipeline.test.js` | Pricing pipeline integration: proof isolation, grade pool split, randomized coin parsing, FMV oracle, cross-tab propagation fields, ungraded isolation, cross-tab value verification |
 | `crossRouteConsistency.test.js` | Cross-route consistency: same coin through /api/price and /api/pricing-batch produces matching FMV, confidence, and avgEbay |
+| `greysheetHistoryService.test.js` | Greysheet history: makeKey, recordSnapshot, getHistory, getLatest, evictOld, coinCount, refresh date tracking |
+| `metalsHistoryService.test.js` | Metals history: recordDaily, getHistory, evictOld, METAL_SYMBOLS |
+| `coinHistoryRoute.test.js` | Coin history route: parameter validation, filtering, grade type, metal overlay, greysheet overlay |
+| `metalsRoute.test.js` | Metals route: multi-metal, single metal, currency, validation, error handling (502/500) |
 
 Test helpers live in `__tests__/helpers/coinTestConstants.js` (shared token lists, normalization, compound-word-aware `containsNone`, seeded PRNG, synthetic comp builder, coin catalog with US coins/US bullion/world bullion, golden set loader, and `selectCoins()` composable selector). Golden coin fixtures live in `__tests__/fixtures/golden_coins.json`.
 
@@ -763,6 +767,28 @@ The project includes ~1,200 Terapeak CSV files in `data/terapeak/` containing re
 - **Greysheet liquidity spread** (#54) -- `computeConfidence()` now factors in the wholesale-to-retail spread: tight spread (<=15%) adds +5 confidence, wide spread (>=40%) subtracts -5. Response includes `greysheetSpread: { spreadPct, liquidity, wholesale, retail }`. UI shows a color-coded chip (green/yellow/red).
 - **Adjacent-year context** (#41) -- `buildAdjacentYearContext()` in priceRoute queries Terapeak for the same series +/- 2 years when `soldCount < 5`. Returns `adjacentYears: [{ year, median, compCount }]`. Displayed in both bar and coin UI paths as informational chips (not blended into FMV).
 - **Image proxy SSRF fix** (#35) -- Fixed a bug where the 2 MB size limit handler called `upstream.destroy()` but never called `res.end()`, causing connection hang. Exposed `_allowedHosts` for testing.
+
+### Security Hardening (S1--S2)
+
+- **JWT_SECRET enforcement** -- `authService.js` now throws a FATAL error on startup if `JWT_SECRET` is unset in production (`NODE_ENV=production`). Prevents accidental deployment with random ephemeral secrets.
+- **Terapeak searchTerm validation** -- `terapeakRoute.js` validates `searchTerm` on both `/import` and `/import-text` endpoints: must be a string, max 500 characters. Rejects oversized or non-string payloads with 400.
+- **JSON body size limit** -- `server.js` sets `express.json({ limit: '5mb' })` to prevent memory exhaustion from oversized request bodies.
+- **Image proxy size guard** -- `imageProxyRoute.js` checks the upstream `Content-Length` header before streaming; returns 413 if the response exceeds 2 MB, preventing memory abuse via large image downloads.
+- **Admin audit logging** -- All admin-gated endpoints now log `method`, `path`, `IP`, and `timestamp` on both success and failure for forensic traceability.
+- **Cosmos write-through sync fix** -- `coinStorageService.addCoin()` now always writes to the file store (source of truth) regardless of Cosmos DB availability, eliminating a code path where file writes were skipped when Cosmos was enabled.
+
+### Test Coverage Expansion (+58 tests, 4 new suites)
+
+Four new test suites targeting previously untested history and route modules:
+
+| Suite | Tests | Coverage |
+|-------|-------|----------|
+| `greysheetHistoryService.test.js` | 21 | makeKey, recordSnapshot, getHistory, getLatest, evictOld, coinCount, refresh date tracking |
+| `metalsHistoryService.test.js` | 12 | recordDaily, getHistory, evictOld, METAL_SYMBOLS |
+| `coinHistoryRoute.test.js` | 15 | GET /api/coin-history parameter validation, filtering, grade type, metal overlay, greysheet overlay |
+| `metalsRoute.test.js` | 10 | GET /api/metals multi-metal, single metal, currency, validation, error handling (502/500) |
+
+Total test count: 2,444 tests across 53 suites (up from 2,386 / 49).
 
 ### UX & Accessibility (S1--S4 Review)
 

@@ -41,6 +41,7 @@ server.js                              Express entry point (port 3000)
 │   ├─ adminService.js                 Admin dashboard aggregation (stats, stale detection, data health)
 │   ├─ greysheetHistoryService.js      Daily Greysheet price history snapshots
 │   ├─ authService.js                  Server-side auth (bcrypt + JWT, dual-mode Cosmos + local JSON)
+│   │                                  JWT_SECRET REQUIRED in production (FATAL throw if unset)
 │   └─ coinStorageService.js           Server-side coin CRUD (dual-mode Cosmos + local JSON)
 │
 ├─ src/data/
@@ -100,7 +101,7 @@ server.js                              Express entry point (port 3000)
 │   ├─ pricing-health-full.js          Pricing health check runner (--full, --filter, --limit, --concurrency, --out)
 │   └─ test-metrics/                   Jest metrics capture + summary reporter
 │
-└─ __tests__/                          49 Jest test suites
+└─ __tests__/                          53 Jest test suites
     ├─ fixtures/
     │   └─ golden_coins.json           Curated golden set (14 deterministic test coins)
     └─ helpers/
@@ -797,7 +798,7 @@ The valuation engine separates eBay comps by `gradeType`:
 | `EBAY_TIMEOUT_MS` | No | `10000` | eBay API request timeout |
 | `EBAY_THROTTLE_MS` | No | `1100` | Min ms between eBay API calls |
 | `METALS_CACHE_TTL_MS` | No | `2700000` | Metals cache TTL (ms) |
-| `JWT_SECRET` | No | *(random on startup)* | Secret for signing auth JWTs. Random = sessions expire on server restart |
+| `JWT_SECRET` | **Prod** | *(random on startup)* | Secret for signing auth JWTs. **FATAL throw if unset in production.** Random = sessions expire on server restart |
 | `ADMIN_API_KEY` | No | -- | API key for admin/destructive endpoints |
 | `CACHE_DIR` | No | `../../cache` | Path to file-cache directory (Azure Files: `/mnt/cache`) |
 | `COSMOS_ENDPOINT` | No | -- | Azure Cosmos DB endpoint (enables dual-mode writes) |
@@ -1066,3 +1067,25 @@ The SPA uses CSS custom properties for theming. The dark theme defines 36+ token
 - Sortable headers: `tabindex="0"`, `role="columnheader button"`, `aria-sort`
 - `<canvas>` has `aria-label` for screen readers
 - Tab bar uses `mask-image` gradient to indicate scroll overflow on mobile
+
+---
+
+## Security Hardening
+
+Server-side security controls implemented across the stack:
+
+| Layer | Control | Location |
+|-------|---------|----------|
+| **Auth** | JWT_SECRET required in production (FATAL throw) | `authService.js` |
+| **Auth** | bcrypt 12 rounds, 7-day JWT expiry | `authService.js` |
+| **Input** | JSON body limit 5 MB | `server.js` |
+| **Input** | Terapeak searchTerm: string, max 500 chars | `terapeakRoute.js` |
+| **Input** | Excel upload: magic-byte check (ZIP/PK header) | `excelImportRoute.js` |
+| **Input** | Label allowlist on coin pricing | `priceRoute.js` |
+| **Proxy** | Image proxy: Content-Length check, 413 if > 2 MB | `imageProxyRoute.js` |
+| **Proxy** | Image proxy: allowlisted hosts only (SSRF prevention) | `imageProxyRoute.js` |
+| **Admin** | `x-api-key` header only (no query-param API keys) | `adminRoute.js` |
+| **Admin** | Audit logging: method, path, IP, timestamp on all admin ops | `server.js` |
+| **Headers** | Helmet CSP, rate limiting (express-rate-limit) | `server.js` |
+| **Storage** | File store always written (source of truth), Cosmos as supplement | `coinStorageService.js` |
+| **API key** | Timing-safe comparison (`timingSafeEqual`) | `adminRoute.js` |
