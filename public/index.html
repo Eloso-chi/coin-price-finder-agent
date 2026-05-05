@@ -42,7 +42,7 @@
 
     /* ── Reset & Base ───────────────────────────────────── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    .skip-nav { position: absolute; left: -9999px; top: auto; width: 1px; height: 1px; overflow: hidden; z-index: 100; background: var(--accent); color: #fff; padding: 8px 16px; border-radius: var(--radius); font-weight: 600; text-decoration: none; }
+    .skip-nav { position: absolute; left: -9999px; top: auto; width: 1px; height: 1px; overflow: hidden; z-index: 100; background: var(--accent); color: var(--bg); padding: 8px 16px; border-radius: var(--radius); font-weight: 600; text-decoration: none; }
     .skip-nav:focus { position: fixed; left: 16px; top: 16px; width: auto; height: auto; overflow: visible; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
@@ -60,7 +60,7 @@
     .app-header h1 .logo {
       display: inline-flex; align-items: center; justify-content: center;
       width: 32px; height: 32px; border-radius: var(--radius);
-      background: var(--accent); color: #000; font-weight: 800; font-size: 0.95rem;
+      background: var(--accent); color: var(--bg); font-weight: 800; font-size: 0.95rem;
     }
     .app-header .subtitle { color: var(--text-secondary); font-size: 0.85rem; margin-top: 2px; }
 
@@ -204,7 +204,7 @@
     .fmv-gallery { flex-shrink:0; display:flex; flex-direction:column; align-items:center; gap:6px; }
     .fmv-gallery-main { width:120px; height:120px; border-radius:12px; overflow:hidden; background:var(--card); border:1px solid var(--border); cursor:pointer; position:relative; }
     .fmv-gallery-main img { width:100%; height:100%; object-fit:contain; transition: opacity 0.25s; }
-    .fmv-gallery-main .gallery-nav { position:absolute; top:50%; transform:translateY(-50%); background:rgba(0,0,0,0.45); color:#fff; border:none; border-radius:50%; width:28px; height:28px; font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center; opacity:0.35; transition:opacity 0.2s; line-height:1; padding:0; }
+    .fmv-gallery-main .gallery-nav { position:absolute; top:50%; transform:translateY(-50%); background:rgba(0,0,0,0.45); color:var(--text); border:none; border-radius:50%; width:28px; height:28px; font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center; opacity:0.35; transition:opacity 0.2s; line-height:1; padding:0; }
     .fmv-gallery-main:hover .gallery-nav { opacity:1; }
     .gallery-nav:focus-visible { opacity:1; outline:2px solid var(--accent); outline-offset:2px; }
     .gallery-nav-left { left:3px; }
@@ -213,6 +213,7 @@
     .fmv-gallery-thumbs img { width:28px; height:28px; object-fit:cover; border-radius:4px; border:2px solid transparent; cursor:pointer; opacity:0.6; transition: opacity 0.2s, border-color 0.2s; }
     .fmv-gallery-thumbs img.active { border-color:var(--green); opacity:1; }
     .fmv-gallery-thumbs img:hover { opacity:1; }
+    .fmv-gallery-thumbs img:focus-visible { opacity:1; outline:2px solid var(--accent); outline-offset:2px; }
     .fmv-gallery-count { font-size:0.7rem; color:var(--text-secondary); margin-top:2px; }
     /* Legacy single image fallback */
     .fmv-img { flex-shrink:0; width:100px; height:100px; border-radius:12px; overflow:hidden; background:var(--card); border:1px solid var(--border); }
@@ -1153,7 +1154,7 @@
     <div class="form-mode-switch">
       <span id="mode-label" style="color:var(--text-muted)">Structured Entry</span>
       <button type="button" id="mode-toggle">Switch to Quick Search</button>
-      <button type="button" id="clear-cache-btn" style="margin-left:auto;font-size:.75rem;padding:4px 10px;background:var(--accent-red,#c0392b);color:#fff;border:none;border-radius:4px;cursor:pointer" title="Flush eBay + PCGS caches">Clear Cache</button>
+      <button type="button" id="clear-cache-btn" style="margin-left:auto;font-size:.75rem;padding:4px 10px;background:var(--accent-red,#c0392b);color:var(--text);border:none;border-radius:4px;cursor:pointer" title="Flush eBay + PCGS caches">Clear Cache</button>
     </div>
 
     <!-- ── Quick Search (hidden by default) ──────────────── -->
@@ -3960,7 +3961,7 @@ Silver Libertad 1 oz Proof"></textarea>
       html += '</div>';
       html += '<div class="fmv-gallery-thumbs">';
       galleryImages.slice(0, 4).forEach(function(url, i) {
-        html += '<img src="' + _escUrl(url.replace(/s-l500\./, 's-l96.')) + '" data-idx="' + i + '" class="' + (i === 0 ? 'active' : '') + '" onclick="gallerySelect(\'' + gid + '\',' + i + ')">';
+        html += '<img src="' + _escUrl(url.replace(/s-l500\./, 's-l96.')) + '" data-idx="' + i + '" class="' + (i === 0 ? 'active' : '') + '" role="button" tabindex="0" aria-label="View image ' + (i + 1) + '" onclick="gallerySelect(\'' + gid + '\',' + i + ')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();gallerySelect(\'' + gid + '\',' + i + ')}">';
       });
       html += '</div>';
       if (galleryImages.length > 4) html += '<div class="fmv-gallery-count">' + galleryImages.length + ' photos</div>';
