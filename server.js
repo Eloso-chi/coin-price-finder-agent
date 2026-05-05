@@ -197,6 +197,13 @@ app.listen(PORT, '0.0.0.0', async () => {
     console.log(`  Terapeak CSV purge: deleted ${purgeResult.deleted} stale file(s): ${purgeResult.deletedFiles.join(', ')}`);
   }
 
+  // Hydrate aggregationMeta markers from Cosmos before CSV import (#167)
+  // This ensures deepAt/page1At markers survive restarts and redeploys.
+  const hydrateResult = await terapeakService.hydrateMetaFromCosmos();
+  if (hydrateResult.hydrated > 0) {
+    console.log(`  Terapeak meta hydration: restored ${hydrateResult.hydrated} marker(s) from Cosmos`);
+  }
+
   // Try blob storage first (#99), then fall back to local folder
   const blobClient = require('./src/utils/blobClient');
   let autoResult = { imported: 0, errors: [] };

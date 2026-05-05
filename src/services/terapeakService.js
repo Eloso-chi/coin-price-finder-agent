@@ -47,6 +47,66 @@ function saveStore() {
   }, 500);
 }
 
+/**
+ * Hydrate aggregationMeta markers from Cosmos DB.
+ * Called once at startup BEFORE auto-import so that deepAt/page1At markers
+ * survive codespace rebuilds and App Service restarts.
+ * Only reads the lightweight metadata fields -- does NOT pull comps from Cosmos.
+ */
+async function hydrateMetaFromCosmos() {
+  if (!cosmos.isEnabled()) return { hydrated: 0 };
+
+  const store = loadStore();
+  let hydrated = 0;
+
+  try {
+    const container = cosmos.container('terapeak-sold');
+    // Query only docs that have aggregationMeta with at least one truthy field
+    const { resources } = await container.items
+      .query({
+        query: 'SELECT c.id, c.searchTerm, c.aggregationMeta FROM c WHERE IS_DEFINED(c.aggregationMeta)',
+      })
+      .fetchAll();
+
+    for (const doc of resources) {
+      const meta = doc.aggregationMeta;
+      if (!meta || (!meta.deepAt && !meta.page1At && !meta.lastRefreshAt)) continue;
+
+      // Normalize the key the same way importComps does
+      const key = (doc.searchTerm || doc.id || '').toLowerCase().trim();
+      if (!key) continue;
+
+      // Merge into store -- never overwrite existing markers with null
+      const existing = store[key]?.aggregationMeta || {};
+      const merged = {
+        page1At: existing.page1At || meta.page1At || null,
+        deepAt: existing.deepAt || meta.deepAt || null,
+        maxPageReached: Math.max(existing.maxPageReached || 0, meta.maxPageReached || 0) || null,
+        lastRefreshAt: existing.lastRefreshAt || meta.lastRefreshAt || null,
+      };
+
+      if (store[key]) {
+        store[key].aggregationMeta = merged;
+      } else {
+        // Dataset exists in Cosmos but not locally (CSV may have been purged)
+        store[key] = { searchTerm: doc.searchTerm || key, comps: [], aggregationMeta: merged };
+      }
+      hydrated++;
+    }
+
+    if (hydrated > 0) {
+      _store = store;
+      saveStore();
+    }
+  } catch (err) {
+    if (process.env.NODE_ENV !== 'test') {
+      console.warn('[terapeak] Cosmos meta hydration failed (non-fatal):', err.message);
+    }
+  }
+
+  return { hydrated };
+}
+
 // ── Column name mapping ─────────────────────────────────────
 // Terapeak CSV columns vary slightly between export versions / locales.
 // Map all known variants to canonical internal names.
@@ -405,6 +465,11 @@ function importComps(searchTerm, comps, meta = {}) {
     maxPageReached: Math.max(incomingMeta.maxPageReached || 0, prevMeta.maxPageReached || 0) || null,
     lastRefreshAt: incomingMeta.lastRefreshAt || prevMeta.lastRefreshAt || null,
   };
+
+  // Infer deepAt from comp count: >=100 comps means deep pagination was run
+  if (!mergedAggregationMeta.deepAt && existing.length >= 100) {
+    mergedAggregationMeta.deepAt = mergedAggregationMeta.lastRefreshAt || store[normalizedKey]?.lastImport || new Date().toISOString();
+  }
   // Remove aggregationMeta from meta spread to avoid double-write
   const { aggregationMeta: _sm, ...restMeta } = meta;
 
@@ -420,7 +485,7 @@ function importComps(searchTerm, comps, meta = {}) {
   _store = store;
   saveStore();
 
-  // Write-through to Cosmos DB (#98)
+  // Write-through to Cosmos DB (#98) -- includes aggregationMeta for durable marker persistence
   if (cosmos.isEnabled() && newCount > 0) {
     const doc = {
       id: normalizedKey.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 200),
@@ -428,6 +493,7 @@ function importComps(searchTerm, comps, meta = {}) {
       comps: existing,
       lastImport: store[normalizedKey].lastImport,
       importCount: store[normalizedKey].importCount,
+      aggregationMeta: mergedAggregationMeta,
     };
     cosmos.container('terapeak-sold').items.upsert(doc).catch(err => {
       if (process.env.NODE_ENV !== 'test') console.error('[terapeak] Cosmos write-through failed:', err.message);
@@ -1130,6 +1196,7 @@ module.exports = {
   purgeStaleCSVs,
   autoImportFolder,
   autoImportFromBlob,
+  hydrateMetaFromCosmos,
   normalizeSearchKey,
   detectWeightFromQuery,
   detectMetal: _detectMetalFromText,
