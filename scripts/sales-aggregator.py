@@ -378,6 +378,9 @@ def get_candidates_from_server(min_rows=50, filter_pattern=None):
     for d in datasets:
         search_term = d.get("searchTerm", "")
         comp_count = d.get("compCount", 0)
+        # Skip gold coins -- low eBay sales volume makes deep pagination wasteful
+        if re.search(r'\bgold\b', search_term, re.IGNORECASE):
+            continue
         candidates.append({
             "term": search_term,
             "row_count": comp_count,
@@ -1220,6 +1223,11 @@ def dashboard(args):
 
     # ── Priority Categories ──────────────────────────────────
     menu_items = []
+
+    # Exclude gold coins from deep pagination (low eBay volume)
+    if categories["deep"]:
+        categories["deep"] = [d for d in categories["deep"]
+                              if not re.search(r'\bgold\b', d.get("searchTerm", ""), re.IGNORECASE)]
 
     if categories["deep"]:
         n = len(categories["deep"])
