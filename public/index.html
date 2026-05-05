@@ -204,7 +204,7 @@
     .fmv-gallery { flex-shrink:0; display:flex; flex-direction:column; align-items:center; gap:6px; }
     .fmv-gallery-main { width:120px; height:120px; border-radius:12px; overflow:hidden; background:var(--card); border:1px solid var(--border); cursor:pointer; position:relative; }
     .fmv-gallery-main img { width:100%; height:100%; object-fit:contain; transition: opacity 0.25s; }
-    .fmv-gallery-main .gallery-nav { position:absolute; top:50%; transform:translateY(-50%); background:rgba(0,0,0,0.45); color:var(--text); border:none; border-radius:50%; width:28px; height:28px; font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center; opacity:0.35; transition:opacity 0.2s; line-height:1; padding:0; }
+    .fmv-gallery-main .gallery-nav { position:absolute; top:50%; transform:translateY(-50%); background:rgba(0,0,0,0.45); color:var(--text); border:none; border-radius:50%; width:36px; height:36px; font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center; opacity:0.35; transition:opacity 0.2s; line-height:1; padding:0; }
     .fmv-gallery-main:hover .gallery-nav { opacity:1; }
     .gallery-nav:focus-visible { opacity:1; outline:2px solid var(--accent); outline-offset:2px; }
     .gallery-nav-left { left:3px; }
@@ -1111,7 +1111,7 @@
   </header>
 
   <!-- #151: Skip navigation link -->
-  <a href="#panel-price" class="skip-nav" onclick="document.getElementById('tab-price').focus();return false">Skip to content</a>
+  <a href="#panel-price" class="skip-nav">Skip to content</a>
 
   <!-- ── Tab Navigation ─────────────────────────────────── -->
   <nav class="tab-bar" role="tablist" aria-label="Main tools">
@@ -1142,8 +1142,8 @@
     <div class="pd-mode-bar">
       <label>Pricing</label>
       <div class="pd-mode-toggle" role="group" aria-label="Coin or Bar pricing">
-        <button type="button" id="pd-mode-coin" aria-pressed="true">Coin</button>
-        <button type="button" id="pd-mode-bar" aria-pressed="false">Bar / Bullion</button>
+        <button type="button" id="pd-mode-coin" aria-pressed="true" aria-label="Price a coin">Coin</button>
+        <button type="button" id="pd-mode-bar" aria-pressed="false" aria-label="Price a bar or bullion">Bar / Bullion</button>
       </div>
     </div>
 
@@ -1175,7 +1175,7 @@
             <option value="5">5 oz</option>
             <option value="10">10 oz</option>
           </select>
-          <input id="quickAskingPrice" type="number" step="0.01" placeholder="Asking $" aria-label="Asking price">
+          <input id="quickAskingPrice" type="number" step="0.01" placeholder="Asking $" aria-label="Asking price" inputmode="decimal">
           <button id="quick-submit" class="btn" type="button">Price It</button>
         </div>
       </div>
@@ -1248,15 +1248,15 @@
                 <option value="mint-uncirculated">Mint (Uncirculated) Set</option>
               </select>
             </div>
-            <div class="field-error-msg">Coin name is required</div>
+            <div class="field-error-msg" role="alert">Coin name is required</div>
           </div>
           <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px">
             <div class="field">
               <label for="coinYear">Year <span class="required" aria-hidden="true">*</span></label>
-              <input id="coinYear" type="number" min="1792" max="2040" placeholder="e.g. 1921" required>
+              <input id="coinYear" type="number" min="1792" max="2040" placeholder="e.g. 1921" required inputmode="numeric">
               <span class="hint" id="coinZodiacHint" style="display:none"></span>
               <span class="hint" id="coinDesignHint" style="display:none;color:var(--chip-hint);font-weight:600"></span>
-              <div class="field-error-msg">Enter a valid 4-digit year</div>
+              <div class="field-error-msg" role="alert">Enter a valid 4-digit year</div>
             </div>
             <div class="field">
               <label for="coinMint">Mint Mark</label>
@@ -1279,7 +1279,7 @@
             <label for="coinGrade">Grade</label>
             <div style="display:flex;gap:8px;align-items:center">
             <input id="coinGrade" type="text" placeholder="e.g. MS-65, VF-30, PF-69DCAM" list="grades-list" autocomplete="off" style="flex:1">
-            <label style="display:flex;align-items:center;gap:4px;font-size:0.82rem;white-space:nowrap;cursor:pointer"><input type="checkbox" id="coinProof"> Proof</label>
+            <label class="checkbox-label" style="white-space:nowrap"><input type="checkbox" id="coinProof"> <span>Proof</span></label>
             </div>
             <datalist id="grades-list">
               <option value="AG-3"><option value="G-4"><option value="G-6">
@@ -1316,7 +1316,7 @@
           </div>
           <div class="field">
             <label for="askingPrice">Asking Price</label>
-            <input id="askingPrice" type="number" step="0.01" min="0" placeholder="$ amount being asked">
+            <input id="askingPrice" type="number" step="0.01" min="0" placeholder="$ amount being asked" inputmode="decimal">
             <span class="hint">Seller's asking price for buy/pass calc</span>
           </div>
           <div class="field">
@@ -1467,7 +1467,7 @@
             </div>
             <div class="field" id="barYearField">
               <label for="barYear">Year</label>
-              <input id="barYear" type="number" min="1996" max="2035" placeholder="e.g. 2025">
+              <input id="barYear" type="number" min="1996" max="2035" placeholder="e.g. 2025" inputmode="numeric">
               <span class="hint" id="barZodiacHint" style="display:none"></span>
             </div>
             <div class="field">
@@ -1486,7 +1486,7 @@
           <div class="field-grid-bar">
             <div class="field">
               <label for="barAskingPrice">Asking Price</label>
-              <input id="barAskingPrice" type="number" step="0.01" min="0" placeholder="$ amount being asked">
+              <input id="barAskingPrice" type="number" step="0.01" min="0" placeholder="$ amount being asked" inputmode="decimal">
               <span class="hint">Seller's asking price for buy/pass calc</span>
             </div>
           </div>
@@ -1564,8 +1564,8 @@
           </datalist>
         </div>
         <div class="melt-input-grid">
-          <div><label for="melt-spot">Spot ($/ozt)</label><input id="melt-spot" type="number" step="0.01" min="0" placeholder="loading..."></div>
-          <div><label for="melt-adj">Premium ($)</label><input id="melt-adj" type="number" step="0.01" value="0"></div>
+          <div><label for="melt-spot">Spot ($/ozt)</label><input id="melt-spot" type="number" step="0.01" min="0" placeholder="loading..." inputmode="decimal"></div>
+          <div><label for="melt-adj">Premium ($)</label><input id="melt-adj" type="number" step="0.01" value="0" inputmode="decimal"></div>
           <div><label for="melt-qty">Quantity</label><input id="melt-qty" type="number" step="1" min="1" value="1"></div>
           <div id="melt-roll-wrap"><label for="melt-roll">Coins / Roll</label><input id="melt-roll" type="number" step="1" min="1" value="20"></div>
         </div>
@@ -2311,6 +2311,7 @@ Silver Libertad 1 oz Proof"></textarea>
     <div class="field">
       <label for="changepw-new">New Password</label>
       <input type="password" id="changepw-new" autocomplete="new-password" placeholder="At least 6 characters">
+      <span class="hint">Minimum 6 characters</span>
     </div>
     <div class="field">
       <label for="changepw-confirm">Confirm New Password</label>
@@ -2398,6 +2399,7 @@ Silver Libertad 1 oz Proof"></textarea>
     <div class="field">
       <label for="recovery-new-pw">New Password</label>
       <input type="password" id="recovery-new-pw" autocomplete="new-password" placeholder="At least 6 characters">
+      <span class="hint">Minimum 6 characters</span>
     </div>
     <div class="field">
       <label for="recovery-confirm-pw">Confirm Password</label>
@@ -2530,11 +2532,13 @@ Silver Libertad 1 oz Proof"></textarea>
       if (loggedIn) {
         btn.classList.remove('tab-locked');
         btn.removeAttribute('aria-description');
+        btn.removeAttribute('aria-disabled');
         const lock = btn.querySelector('.lock-icon');
         if (lock) lock.remove();
       } else {
         btn.classList.add('tab-locked');
         btn.setAttribute('aria-description', 'Sign in required');
+        btn.setAttribute('aria-disabled', 'true');
         if (!btn.querySelector('.lock-icon')) {
           btn.insertAdjacentHTML('beforeend', ' <span class="lock-icon" aria-hidden="true">&#x1F512;</span>');
         }
