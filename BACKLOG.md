@@ -52,27 +52,15 @@ Both `terapeak-export.py` and `sales-aggregator.py` now guard against active lis
 
 ## Pricing Accuracy
 
-### P0-A. MintMismatch Over-Filtering on Over-Mintmark Varieties [HIGH]
+### ~~P0-A. MintMismatch Over-Filtering on Over-Mintmark Varieties [DONE]~~
 
-**Problem:** The mintMismatch regex uses `.match()` which only captures the FIRST year-mint pattern. For over-mintmark varieties (e.g. "1882-O/S"), it captures "O" and removes the comp even though "S" is the second mint. Affects 1882-S Morgan dataset: 45 of 329 rows are "O/S" varieties incorrectly removed.
-
-**Root Cause:** `tLow.match(mintRe)` returns only the first match. Titles like "1882-O/S Strong Morgan" get titleMint="O" and are discarded when wantMint="S".
-
-**Fix:** Use `matchAll` + detect over-mintmark slash patterns. If ANY detected mint matches expected, keep the comp.
-
-**Files:** `src/services/ebayService.js` (mintMismatch filter block)
+Fixed in `a1e02ca` (May 1). Uses `matchAll` + over-mintmark detection (`O/S`, `O over S`). 1882-S Morgan: $74.85 -> $133.21.
 
 ---
 
-### P0-B. Batch Route Missing Year in Keywords -- Gold Libertad $18 FMV [HIGH]
+### ~~P0-B. Batch Route Missing Year in Keywords [DONE]~~
 
-**Problem:** `pcgsParsedForKeywords` only passes `{ series }` to `buildKeywords`, omitting year/mint. This produces keywords like "Gold Libertad 1 oz" (no year), causing `lookupComps` to merge ALL gold libertad datasets (all years). Empty-title garbage comps survive filters and yield FMV=$18.74 for a ~$5,000 gold coin.
-
-**Root Cause:** `pricingBatchRoute.js` line ~137: `const pcgsParsedForKeywords = { series: parsed.series || series }` lacks year/mint.
-
-**Fix:** Pass year and mint into pcgsParsedForKeywords so buildKeywords produces year-specific keywords.
-
-**Files:** `src/routes/pricingBatchRoute.js`
+Fixed in `a1e02ca` (May 1). `pricingBatchRoute.js` now passes year/mint into `buildKeywords`. Gold Libertad: $18.74 -> $104.14.
 
 ---
 
@@ -119,6 +107,8 @@ Empty titles are already filtered at CSV import (`rowToComp` returns null). The 
 | S0 | Active Listings Guard | Tab check + date validation in both aggregation scripts |
 | S1 | Finish Page 1 remaining | Mostly done; 157 remaining are Royal Mint Lunar (no Terapeak data) |
 | S3 | Refresh Stale >30d | `0d6c814` -- 1/42 succeeded (all Royal Mint Lunar = no data on eBay) |
+| P0-A | MintMismatch over-filtering (over-mintmark) | `a1e02ca` -- matchAll + over-mintmark detection |
+| P0-B | Batch route missing year in keywords | `a1e02ca` -- pass year/mint into buildKeywords |
 | 111 | Admin Portal | `public/admin.html` + `/api/admin/*` endpoints |
 | 112 | Staleness Tracker Endpoint | `GET /api/admin/stale-datasets` |
 | 113 | One-Click Refresh Script | `scripts/refresh-stale.sh` |

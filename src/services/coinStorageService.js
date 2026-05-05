@@ -94,18 +94,20 @@ function addCoin(userId, coin) {
     cosmos.container('user-coins').items.upsert(doc).catch(err => {
       if (process.env.NODE_ENV !== 'test') console.error('[coinStorage] Cosmos upsert failed:', err.message);
     });
-  } else {
-    const store = loadStore();
-    if (!store[userId]) store[userId] = [];
-    const existing = store[userId].findIndex(c => c.coinHash === hash);
-    if (existing >= 0) {
-      store[userId][existing] = entry;
-    } else {
-      store[userId].push(entry);
-    }
-    _store = store;
-    saveStore();
   }
+
+  // Always write to file store (source of truth for sync reads)
+  const store = loadStore();
+  if (!store[userId]) store[userId] = [];
+  const existing = store[userId].findIndex(c => c.coinHash === hash);
+  if (existing >= 0) {
+    store[userId][existing] = entry;
+  } else {
+    store[userId].push(entry);
+  }
+  _store = store;
+  saveStore();
+
   return hash;
 }
 

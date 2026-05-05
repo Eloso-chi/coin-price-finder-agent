@@ -54,6 +54,14 @@ router.get('/', (req, res) => {
       return;
     }
 
+    // Reject before streaming if Content-Length exceeds cap
+    const contentLength = parseInt(upstream.headers['content-length'], 10);
+    if (contentLength > MAX_SIZE) {
+      res.status(413).json({ error: 'Image too large' });
+      upstream.destroy();
+      return;
+    }
+
     res.setHeader('Content-Type', ct);
     res.setHeader('Cache-Control', 'public, max-age=86400');
 
@@ -62,8 +70,7 @@ router.get('/', (req, res) => {
       received += chunk.length;
       if (received > MAX_SIZE) {
         upstream.destroy();
-        // Headers already sent (200) -- can't change status code.
-        // Just terminate the response to free the connection.
+        // Headers already sent (200) -- terminate the response.
         res.end();
         return;
       }

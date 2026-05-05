@@ -17,9 +17,11 @@ const STORE_PATH = path.join(CACHE_DIR, 'users.json');
 const BCRYPT_ROUNDS = 12;
 
 // ── JWT secret ──────────────────────────────────────────────
-// Use env var if set, otherwise generate a random secret on startup.
-// A generated secret means all JWTs expire on server restart (users must re-login).
-// For persistent sessions across restarts, set JWT_SECRET in your env.
+// In production, JWT_SECRET MUST be set via environment variable.
+// In development, a random secret is generated (sessions lost on restart).
+if (!process.env.JWT_SECRET && process.env.NODE_ENV === 'production') {
+  throw new Error('FATAL: JWT_SECRET environment variable is required in production.');
+}
 const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(48).toString('hex');
 const JWT_EXPIRY = '7d';
 

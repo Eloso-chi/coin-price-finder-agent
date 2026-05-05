@@ -53,6 +53,9 @@ router.post('/import', requireAdmin, upload.single('file'), (req, res) => {
     if (!searchTerm) {
       return res.status(400).json({ error: 'searchTerm is required — the keyword you searched in Terapeak' });
     }
+    if (typeof searchTerm !== 'string' || searchTerm.length > 500) {
+      return res.status(400).json({ error: 'searchTerm must be a string of 500 characters or fewer' });
+    }
 
     // ── Quota: log the import for tracking, but don't enforce the limit ──
     // Imports are uploads of already-aggregated data — the actual Terapeak
@@ -122,6 +125,9 @@ router.post('/import-text', requireAdmin, express.json(), (req, res) => {
     const { csvText, searchTerm } = req.body || {};
     if (!csvText) return res.status(400).json({ error: 'csvText is required' });
     if (!searchTerm) return res.status(400).json({ error: 'searchTerm is required' });
+    if (typeof searchTerm !== 'string' || searchTerm.length > 500) {
+      return res.status(400).json({ error: 'searchTerm must be a string of 500 characters or fewer' });
+    }
 
     const { comps, skipped, columns, unmappedColumns, totalRows } = terapeakService.parseCSV(csvText, searchTerm);
 

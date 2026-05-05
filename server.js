@@ -23,8 +23,10 @@ function requireAdmin(req, res, next) {
   const provided = req.headers['x-api-key'] || '';
   if (provided.length !== ADMIN_API_KEY.length ||
       !crypto.timingSafeEqual(Buffer.from(provided), Buffer.from(ADMIN_API_KEY))) {
+    console.warn(`[admin] AUTH FAILED: ${req.method} ${req.path} from ${req.ip} at ${new Date().toISOString()}`);
     return res.status(401).json({ error: 'Invalid or missing API key' });
   }
+  console.log(`[admin] ${req.method} ${req.path} from ${req.ip} at ${new Date().toISOString()}`);
   next();
 }
 
@@ -81,7 +83,7 @@ const uploadLimiter = rateLimit({
   message: { error: 'Too many upload requests, please try again later' }
 });
 
-app.use(express.json());
+app.use(express.json({ limit: '5mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ── Routes ──────────────────────────────────────────────────
