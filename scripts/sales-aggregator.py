@@ -901,7 +901,7 @@ def do_page2_run(args):
             is_bull = is_bullion_term(c["term"])
             if is_bull:
                 bullion_count += 1
-            max_pg = args.max_pages if args.max_pages else (6 if is_bull else 2)
+            max_pg = args.max_pages if args.max_pages else (5 if is_bull else 2)
             tag = f"[bullion p2-{max_pg}]" if is_bull else "[p2]"
             print(f"  {i:3d}. {c['term']:<50s}  ({c['row_count']} rows) {tag}")
         est_min = len(candidates) * 20 / 60  # ~20 sec per coin per page
@@ -995,9 +995,9 @@ def do_page2_run(args):
 
         print(f"  [{pct:3d}%] {term}...", end=" ", flush=True)
 
-        # Bullion series get deeper pagination (up to 6 pages = 300 results)
+        # Bullion series get deeper pagination (up to 5 pages = 250 results)
         # Non-bullion stays at page 2 only (100 results)
-        effective_max_pages = args.max_pages if args.max_pages else (6 if is_bullion_term(term) else 2)
+        effective_max_pages = args.max_pages if args.max_pages else (5 if is_bullion_term(term) else 2)
 
         try:
             result = do_search_and_collect(page, term, DOWNLOAD_DIR, max_pages=effective_max_pages)
