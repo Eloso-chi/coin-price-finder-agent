@@ -133,6 +133,7 @@ async function _priceOne(item) {
       setType: parsed.setType || null,
       metal: metalKey,
       label: validLabel,
+      _exclusions: parsed._exclusions || null,
       _rawQuery: String(query),
     };
     if (meltPerOz) expected.meltPerOz = meltPerOz;

@@ -779,6 +779,21 @@ function applyFilters(comps, options, expected) {
     });
   }
 
+  // Exclusion-term filter: when the query contains eBay-style exclusion
+  // operators (e.g. "-proof", "-gold"), remove comps whose title contains
+  // the excluded word. This honors the user's intent to exclude specific
+  // product types from their results.
+  if (expected._exclusions && expected._exclusions.length) {
+    removed.excluded = 0;
+    kept = kept.filter(c => {
+      const tLow = c.title.toLowerCase();
+      for (const ex of expected._exclusions) {
+        if (tLow.includes(ex)) { removed.excluded++; return false; }
+      }
+      return true;
+    });
+  }
+
   // USD only for stats
   kept = kept.filter(c => {
     if (c.totalUsd === null) { removed.nonUsd++; return false; }

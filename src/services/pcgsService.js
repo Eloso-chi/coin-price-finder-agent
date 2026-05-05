@@ -266,8 +266,16 @@ async function resolveFromDescription(text) {
 
 // ── Description parser ──────────────────────────────────────
 function parseDescription(text) {
-  const t = text.trim();
+  // Strip eBay/Terapeak exclusion operators (e.g. "-proof", "-gold") before
+  // parsing. These are search-engine directives, not coin attributes.
+  // Preserve them as negative filters for comp filtering downstream.
+  const exclusions = [];
+  const t = text.trim().replace(/(?:^|\s)-(\w+)/g, (_, word) => {
+    exclusions.push(word.toLowerCase());
+    return ' ';
+  }).replace(/\s{2,}/g, ' ').trim();
   const result = {};
+  if (exclusions.length) result._exclusions = exclusions;
 
   // Year: 4-digit starting with 1 or 2
   const yearMatch = t.match(/\b(1[7-9]\d{2}|20[0-2]\d)\b/);

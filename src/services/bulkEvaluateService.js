@@ -172,6 +172,7 @@ async function evaluateOneCoin(coin) {
       year, mint, series, grade: effectiveGrade || null, weight,
       finish: parsed.finish || null,
       isProof, isRoll, isSet: false,
+      _exclusions: parsed._exclusions || null,
       _rawQuery: query,
     };
     if (year && /lunar/i.test(series)) {

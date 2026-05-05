@@ -269,6 +269,7 @@ router.post('/', async (req, res) => {
       perthSeriesLabel: perthSeriesLabel,
       label: validLabel,
       _gradeSource: identification.parsed?._gradeSource || null,
+      _exclusions: identification.parsed?._exclusions || null,
       _rawQuery: String(query),
     };
 
