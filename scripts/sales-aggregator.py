@@ -166,36 +166,40 @@ def _start_vnc():
     import subprocess
     import shutil
 
-    if _is_port_open(VNC_PORT):
+    vnc_was_running = _is_port_open(VNC_PORT)
+
+    if vnc_was_running:
         print(f"  VNC already running on display {VNC_DISPLAY} (port {VNC_PORT})")
-        os.environ["DISPLAY"] = VNC_DISPLAY
-        return True
+    else:
+        xtigervnc = shutil.which("Xtigervnc")
+        if not xtigervnc:
+            print("  ERROR: Xtigervnc not found. Cannot start VNC.")
+            return False
 
-    xtigervnc = shutil.which("Xtigervnc")
-    if not xtigervnc:
-        print("  ERROR: Xtigervnc not found. Cannot start VNC.")
-        return False
-
-    # Start Xtigervnc
-    subprocess.Popen(
-        [xtigervnc, VNC_DISPLAY, "-geometry", "1280x800",
-         "-SecurityTypes", "None", "-AlwaysShared"],
-        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-    )
-    time.sleep(1)
-
-    # Start noVNC proxy
-    novnc_proxy = Path("/usr/share/novnc/utils/novnc_proxy")
-    if novnc_proxy.exists():
+        # Start Xtigervnc
         subprocess.Popen(
-            ["bash", str(novnc_proxy), "--vnc", f"localhost:{VNC_PORT}",
-             "--listen", str(NOVNC_PORT)],
+            [xtigervnc, VNC_DISPLAY, "-geometry", "1280x800",
+             "-SecurityTypes", "None", "-AlwaysShared"],
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
         )
         time.sleep(1)
-        print(f"  VNC started on display {VNC_DISPLAY}, noVNC at http://localhost:{NOVNC_PORT}")
+
+    # Always ensure noVNC proxy is running (it may have died independently)
+    if not _is_port_open(NOVNC_PORT):
+        novnc_proxy = Path("/usr/share/novnc/utils/novnc_proxy")
+        if novnc_proxy.exists():
+            subprocess.Popen(
+                ["bash", str(novnc_proxy), "--vnc", f"localhost:{VNC_PORT}",
+                 "--listen", str(NOVNC_PORT)],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            )
+            time.sleep(1)
+            print(f"  noVNC started at http://localhost:{NOVNC_PORT}")
+        else:
+            print(f"  noVNC proxy not found -- use VNC client on port {VNC_PORT}")
     else:
-        print(f"  VNC started on display {VNC_DISPLAY} (noVNC proxy not found -- use VNC client on port {VNC_PORT})")
+        if not vnc_was_running:
+            print(f"  VNC started on display {VNC_DISPLAY}, noVNC at http://localhost:{NOVNC_PORT}")
 
     os.environ["DISPLAY"] = VNC_DISPLAY
     return True
