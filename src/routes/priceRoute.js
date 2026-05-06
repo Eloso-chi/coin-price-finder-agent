@@ -158,7 +158,9 @@ router.post('/', async (req, res) => {
     const isRoll = !!(coinData?.isRoll || identification.parsed?.isRoll);
 
     // Validate label against allowlist (used in both keyword building and expected object)
-    const validLabel = (coinData?.label && ALLOWED_LABELS.has(coinData.label)) ? coinData.label : null;
+    // User-explicit label takes priority; fall back to auto-detected from parseDescription (e.g. "Type 1")
+    const rawLabel = coinData?.label || identification.parsed?.label || null;
+    const validLabel = (rawLabel && ALLOWED_LABELS.has(rawLabel)) ? rawLabel : null;
 
     let ebayKeywords;
     if (isRoll) {

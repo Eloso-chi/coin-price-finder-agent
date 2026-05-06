@@ -398,6 +398,13 @@ function parseDescription(text) {
     result.finish = 'Proof';
   }
 
+  // Type 1 / Type 2 variant detection — relevant for 2021 ASE/AGE transition year.
+  // Captured as `label` so it flows into keyword building and variant filtering.
+  const typeMatch = t.match(/\btype\s*([12])\b/i);
+  if (typeMatch) {
+    result.label = `Type ${typeMatch[1]}`;
+  }
+
   // Weight: extract "1/2 oz", "1/4 oz", "1/10 oz", "1.5 oz", "5 oz", "10 oz", etc.
   const weightMatch = t.match(/\b(\d+(?:\.\d+)?(?:\/\d+)?)\s*(?:troy\s*)?oz\b/i);
   if (weightMatch) {

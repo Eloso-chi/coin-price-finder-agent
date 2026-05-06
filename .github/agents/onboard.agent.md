@@ -44,10 +44,12 @@ Read these project docs:
 
 1. `README.md` -- project overview, feature list, setup instructions, env var table
 2. `docs/ARCHITECTURE.md` -- module map, data flow, schemas, caching, env vars, valuation engine
-3. `.github/copilot-instructions.md` -- testing rules, safety, conventions
-4. `docs/testing/test-monitor.md` -- test budget, metrics, golden set, flaky test diagnosis
-5. `data/terapeak/README.md` -- data authenticity, CSV format docs, import instructions
-6. `.github/skills/code-review/SKILL.md` -- shared review framework (severity, finding schema)
+3. `docs/BACKLOG.md` -- canonical backlog (single source of truth for planned/in-progress/done work)
+4. `docs/BACKLOG.rules.md` -- backlog governance rules, approval gates, PR hygiene expectations
+5. `.github/copilot-instructions.md` -- testing rules, safety, conventions
+6. `docs/testing/test-monitor.md` -- test budget, metrics, golden set, flaky test diagnosis
+7. `data/terapeak/README.md` -- data authenticity, CSV format docs, import instructions
+8. `.github/skills/code-review/SKILL.md` -- shared review framework (severity, finding schema)
 
 ### Phase 3: Key Source Files (scan exports/structure only)
 

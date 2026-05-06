@@ -9,6 +9,7 @@ const { TTLCache } = require('../utils/cache');
 const stats = require('../utils/stats');
 const { isDenied, detectDenomination, hasSeriesConflict, isCompositionMismatch, BULLION_DENY_DENOM_RE, BULLION_OK_RE, ROLL_PATTERN } = require('../utils/filters');
 const terapeakService = require('./terapeakService');
+const { getSpotOnDate, METAL_SYMBOLS } = require('./metalsHistoryService');
 
 // ── Config ──────────────────────────────────────────────────
 const EBAY_APP_ID        = process.env.EBAY_APP_ID || '';
@@ -895,12 +896,22 @@ function applyFilters(comps, options, expected) {
   // Melt-floor sanity check for bullion: if the price is well below expected
   // melt for the searched weight, the listing is almost certainly a different
   // metal or a smaller/fractional coin that slipped through weight-mismatch.
+  // Uses historical spot price at time of sale when available, so older comps
+  // aren't falsely rejected due to recent spot price increases.
   if (expected.meltPerOz && expected.weight && expected.weight >= 1) {
     removed.meltFloor = 0;
-    // Floor: 40% of expected melt — generous enough for damaged/junk bullion
-    // but catches e.g. silver coins in a gold search or fractional pieces.
-    const meltFloor = expected.meltPerOz * expected.weight * 0.40;
+    // Resolve metal symbol for historical lookup
+    const metalSym = expected.metal ? METAL_SYMBOLS[expected.metal] : null;
     kept = kept.filter(c => {
+      // Determine the appropriate spot price for this comp's sale date
+      let spotForComp = expected.meltPerOz; // default: today's spot
+      if (metalSym && c.soldDate) {
+        const historicalSpot = getSpotOnDate(metalSym, c.soldDate);
+        if (historicalSpot) spotForComp = historicalSpot;
+      }
+      // Floor: 40% of melt at time of sale — generous enough for damaged/junk
+      // bullion but catches e.g. silver coins in a gold search or fractional pieces.
+      const meltFloor = spotForComp * expected.weight * 0.40;
       if (c.totalUsd < meltFloor) {
         removed.meltFloor++;
         return false;
@@ -934,6 +945,19 @@ function applyFilters(comps, options, expected) {
         return true;
       });
     }
+  }
+
+  // Type 1 / Type 2 design variant hard filter (#180): when user specifies a Type,
+  // remove comps that explicitly state the OTHER type. This is critical for the
+  // 2021 ASE/AGE transition year where both designs coexist.
+  if (expected.label === 'Type 1' || expected.label === 'Type 2') {
+    const wantType = expected.label; // "Type 1" or "Type 2"
+    const rejectType = wantType === 'Type 1' ? /\btype\s*2\b/i : /\btype\s*1\b/i;
+    removed.typeMismatch = 0;
+    kept = kept.filter(c => {
+      if (rejectType.test(c.title || '')) { removed.typeMismatch++; return false; }
+      return true;
+    });
   }
 
   // Mint-mark mismatch filter: drop comps whose title explicitly states
@@ -1516,6 +1540,17 @@ function buildKeywords(pcgsData, rawQuery, weight, label) {
   }
   // Append graded slab label (e.g. "First Strike", "Early Releases")
   if (label) parts.push(label);
+
+  // #171: Metal exclusion keywords — when the query is explicitly gold/silver/platinum,
+  // add a negation for the opposite common metal so eBay doesn't return mixed-metal
+  // results (e.g. silver Libertads in a gold Libertad search).
+  const joinedLower = parts.join(' ').toLowerCase();
+  if (/\bgold\b/.test(joinedLower) && !/\bsilver\b/.test(joinedLower)) {
+    parts.push('-silver');
+  } else if (/\bsilver\b/.test(joinedLower) && !/\bgold\b/.test(joinedLower)) {
+    parts.push('-gold');
+  }
+
   // Require at least a series/denomination in the keywords;
   // year + mint alone (e.g. "1956 -D") is too vague and matches wrong coins
   const hasSeries = !!pcgsData?.series;

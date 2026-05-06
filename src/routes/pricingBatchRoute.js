@@ -122,7 +122,9 @@ async function _priceOne(item) {
     let perthSeriesLabel = null;
 
     // Validate label against allowlist (#155 parity with priceRoute)
-    const validLabel = (coinData.label && ALLOWED_LABELS.has(coinData.label)) ? coinData.label : null;
+    // User-explicit label takes priority; fall back to auto-detected from parseDescription (e.g. "Type 1")
+    const rawLabel = coinData.label || parsed.label || null;
+    const validLabel = (rawLabel && ALLOWED_LABELS.has(rawLabel)) ? rawLabel : null;
 
     let expected = {
       year, mint, series, grade, weight,

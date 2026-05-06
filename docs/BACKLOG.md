@@ -37,6 +37,20 @@ Both `terapeak-export.py` and `sales-aggregator.py` now guard against active lis
 
 ---
 
+### S5. Gold Year-Specific CSVs [HIGH -- data gap]
+
+**Problem:** Gold Libertad, Gold Panda, and Gold Eagle all lack year-specific datasets. Gold queries hit mixed-metal generic datasets causing 95-99% attrition.
+
+| Series | Gap | Files Needed |
+|--------|-----|-------------|
+| Gold Libertad (1981-2025) | Only 2 generics + some year-specific exist but need refresh | ~45 |
+| Gold Panda (1982-2025) | Only 1 generic; no year-specific | ~44 |
+| Gold Eagle (gaps in 1oz; missing 1/2, 1/4, 1/10) | ~30 years 1oz, ~38 each fractional | ~130 |
+
+**Command:** `node scripts/create-grade-datasets.js` for stubs, then `python3 scripts/terapeak-export.py`
+
+---
+
 ### 24. Proof Libertad Search Term Quality [DATA QUALITY]
 
 **Problem:** Proof Libertad searches return results dominated by NGC/PCGS slabbed coins. Need to split "raw proof" vs "graded proof" or add negative keywords.
@@ -64,9 +78,71 @@ Fixed in `a1e02ca` (May 1). `pricingBatchRoute.js` now passes year/mint into `bu
 
 ---
 
+### ~~P1-A. Gold Libertad Pipeline Leak -- 99% Attrition [DONE]~~
+
+Fixed May 6. Two changes:
+- `buildKeywords` adds `-silver` exclusion for gold queries (and `-gold` for silver) to reduce wrong-metal eBay results
+- `meltFloor` filter now uses historical spot price at comp's sale date (via `metalsHistoryService.getSpotOnDate()`) instead of today's spot, preventing false-positive removal of older comps when metals have rallied
+- Files: `ebayService.js`, `metalsHistoryService.js`
+
+---
+
+### ~~P1-B. 2024 Krugerrand 1oz -- 93% Weight Attrition [DONE]~~
+
+Fixed May 6 (same metal-exclusion + historical meltFloor changes as #171). Remaining thinness is data quality in the CSV (mixed weights from Terapeak scrape).
+
+---
+
+### ~~#180. AGE Type 1 vs Type 2 Variant Disambiguation [DONE]~~
+
+Fixed May 6:
+- `parseDescription()` detects "Type 1" / "Type 2" in query text, sets `result.label`
+- Parsed label flows into `validLabel` in both routes (user-explicit label takes priority)
+- `buildKeywords` appends Type token to eBay search
+- New `typeMismatch` hard filter in `applyFilters` removes comps with the wrong type
+- Files: `pcgsService.js`, `ebayService.js`, `priceRoute.js`, `pricingBatchRoute.js`
+
+---
+
 ### ~~P1. LowRelevance Over-Filtering on Empty-Title Terapeak Comps [WONTFIX]~~
 
 Empty titles are already filtered at CSV import (`rowToComp` returns null). The `lowRelevance` gate (score < 20) only fires for truly irrelevant comps (multiple mismatches: wrong year + wrong series + wrong weight). High attrition on ASE/Krugerrand is caused by eBay's broad search returning off-topic results in the Terapeak dataset, not by the gate threshold. Survival rates (30/100 for ASE, 8/45 for Krugerrand) are adequate for FMV calculation.
+
+---
+
+### #167. Graded Morgan Cross-Route FMV Divergence [HIGH]
+
+**Problem:** Graded Morgan queries show 30-90% FMV delta between Discovery and Batch routes. Root cause: when user queries "1881 Morgan MS65" (no mint), PCGS lookup resolves to a specific mint mark, activating `mintMismatch` filter which removes most comps.
+
+**Status:** Primary fix verified in place (both routes use `parsed.mint` from user input only). Remaining divergence may stem from grade pool thin-data cascade -- when graded pool is thin, pool fallback uses raw pool (median ~$40 for a $300+ MS65).
+
+**Remaining work:** Add "no mint in query" test cases to `crossRouteConsistency.test.js`. Long-term fix: grade-specific datasets (#91 DONE) provide grade-matched pools.
+
+---
+
+### #166. lowRelevance Over-Filtering on 30g Pandas [MEDIUM]
+
+**Problem:** 2020/2024 30g Pandas lose 71-83 comps to `lowRelevance`. The "30g" weight descriptor not recognized as ~0.9645 troy oz.
+
+**Fix:** Ensure `detectWeightFromTitle` recognizes "30g" / "30 gram" as valid weight. A "30g Silver Panda" listing should score high relevance.
+
+**Files:** `ebayService.js` (detectWeightFromTitle, relevance scoring)
+
+---
+
+### #178. Gold Coins 95-99% Attrition in Mixed-Metal Datasets [MEDIUM]
+
+**Problem:** Gold coins stored in silver-dominated datasets (e.g., generic "Libertad") lose almost all comps to metal filters.
+
+**Fix:** Addressed by #171 (metal exclusion keywords + historical meltFloor). Long-term: gold-specific datasets (S5 above).
+
+---
+
+### #181. 2025 ASE Cross-Route FMV Delta (14.7%) [MEDIUM]
+
+**Problem:** "2025 American Silver Eagle" shows $36.40 (Discovery) vs $41.76 (Batch). Likely from lookback window and recency weighting differences.
+
+**Fix:** Verify both routes use identical recency half-life settings. Consider date-weighted sampling.
 
 ---
 
@@ -109,6 +185,10 @@ Empty titles are already filtered at CSV import (`rowToComp` returns null). The 
 | S3 | Refresh Stale >30d | `0d6c814` -- 1/42 succeeded (all Royal Mint Lunar = no data on eBay) |
 | P0-A | MintMismatch over-filtering (over-mintmark) | `a1e02ca` -- matchAll + over-mintmark detection |
 | P0-B | Batch route missing year in keywords | `a1e02ca` -- pass year/mint into buildKeywords |
+| 171 | Gold Libertad pipeline leak (99% attrition) | May 6 -- metal exclusion keywords + historical meltFloor |
+| 172 | Krugerrand 93% weight attrition | May 6 -- same as #171 |
+| 180 | AGE Type 1/Type 2 disambiguation | May 6 -- parseDescription + typeMismatch filter |
+| 91 | Morgan grade-specific datasets (288 CSVs) | Stubs created + scraped |
 | 111 | Admin Portal | `public/admin.html` + `/api/admin/*` endpoints |
 | 112 | Staleness Tracker Endpoint | `GET /api/admin/stale-datasets` |
 | 113 | One-Click Refresh Script | `scripts/refresh-stale.sh` |

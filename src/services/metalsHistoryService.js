@@ -130,7 +130,48 @@ function evictOld(maxDays = 400) {
   return evicted;
 }
 
+/**
+ * Get the spot price for a metal on a specific date (or nearest prior date).
+ * Returns the price as a number, or null if no historical data is available.
+ *
+ * @param {string} metal — e.g. 'XAU', 'XAG'
+ * @param {string} dateStr — ISO date string (e.g. '2025-11-15') or full ISO timestamp
+ * @returns {number|null}
+ */
+function getSpotOnDate(metal, dateStr) {
+  if (!metal || !dateStr) return null;
+  const store = loadStore();
+  const entries = store[metal];
+  if (!entries || Object.keys(entries).length === 0) return null;
+
+  const targetDate = dateStr.substring(0, 10); // normalize to "YYYY-MM-DD"
+
+  // Exact match
+  if (entries[targetDate] != null) return entries[targetDate];
+
+  // Find the closest prior date (within 7 days tolerance)
+  const dates = Object.keys(entries).sort();
+  let closest = null;
+  for (let i = dates.length - 1; i >= 0; i--) {
+    if (dates[i] <= targetDate) { closest = dates[i]; break; }
+  }
+  if (!closest) {
+    // No prior date — try the first date after target (edge case: data starts after target)
+    for (let i = 0; i < dates.length; i++) {
+      if (dates[i] > targetDate) { closest = dates[i]; break; }
+    }
+  }
+  if (!closest) return null;
+
+  // Only return if within 7 days of target (avoid stale data from gaps)
+  const diffMs = Math.abs(new Date(targetDate) - new Date(closest));
+  const diffDays = diffMs / (1000 * 60 * 60 * 24);
+  if (diffDays > 7) return null;
+
+  return entries[closest];
+}
+
 /** Map common metal names to ISO 4217 symbols */
 const METAL_SYMBOLS = { silver: 'XAG', gold: 'XAU', platinum: 'XPT', palladium: 'XPD' };
 
-module.exports = { recordDaily, getHistory, evictOld, METAL_SYMBOLS };
+module.exports = { recordDaily, getHistory, getSpotOnDate, evictOld, METAL_SYMBOLS };
