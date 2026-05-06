@@ -661,3 +661,210 @@ describe('lookupComps – metal+weight compound preference', () => {
     expect(result.searchTerm).not.toContain('Gold');
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════════
+// eBay exclusion operator handling (regression: #171 fix)
+//
+// When eBay keywords include exclusion operators like "-gold" or "-proof",
+// they must NOT poison Terapeak fuzzy matching or metal detection.
+// ═══════════════════════════════════════════════════════════════════════
+describe('lookupComps – eBay exclusion operator handling', () => {
+  const MOCK_COMP = {
+    title: 'Test comp',
+    price: 50,
+    soldDate: '2025-01-15',
+    totalUsd: 50,
+    source: 'terapeak'
+  };
+
+  function injectStore(datasets) {
+    const CACHE_DIR = path.join(__dirname, '..', 'cache');
+    const STORE_PATH = path.join(CACHE_DIR, 'terapeak_sold.json');
+    if (!fs.existsSync(CACHE_DIR)) fs.mkdirSync(CACHE_DIR, { recursive: true });
+    const store = {};
+    for (const [key, searchTerm, compCount] of datasets) {
+      const normalized = normalizeSearchKey(key);
+      const comps = Array.from({ length: compCount || 1 }, (_, i) => ({
+        ...MOCK_COMP, title: `${key} #${i}`, price: 50 + i
+      }));
+      store[normalized] = {
+        searchTerm: searchTerm || key,
+        comps,
+        lastImport: new Date().toISOString(),
+        importCount: comps.length
+      };
+    }
+    fs.writeFileSync(STORE_PATH, JSON.stringify(store, null, 2));
+    terapeakService._resetStoreCache && terapeakService._resetStoreCache();
+  }
+
+  const STORE_PATH = path.join(__dirname, '..', 'cache', 'terapeak_sold.json');
+  let savedStore;
+  beforeAll(() => {
+    try { savedStore = fs.readFileSync(STORE_PATH, 'utf8'); } catch { savedStore = '{}'; }
+  });
+  afterAll(() => {
+    fs.writeFileSync(STORE_PATH, savedStore);
+  });
+
+  test('"-gold" exclusion in keywords does NOT match gold dataset', () => {
+    injectStore([
+      ['1987 Mexico 1 oz Silver Libertad', '1987 Mexico 1 oz Silver Libertad', 190],
+      ['1987 Mexico 1 oz Gold Libertad', '1987 Mexico 1 oz Gold Libertad', 1],
+    ]);
+    // Query with "-gold" exclusion operator (added by buildKeywords for silver coins)
+    const result = lookupComps('1987 Mexico Silver Libertad 1 oz -gold', { metal: 'silver' });
+    expect(result).not.toBeNull();
+    expect(result.searchTerm).toContain('Silver');
+    expect(result.searchTerm).not.toContain('Gold');
+    expect(result.comps.length).toBe(190);
+  });
+
+  test('"-silver" exclusion in keywords does NOT match silver dataset', () => {
+    injectStore([
+      ['1987 Mexico 1 oz Silver Libertad', '1987 Mexico 1 oz Silver Libertad', 190],
+      ['1987 Mexico 1 oz Gold Libertad', '1987 Mexico 1 oz Gold Libertad', 50],
+    ]);
+    // Query with "-silver" exclusion operator (added by buildKeywords for gold coins)
+    const result = lookupComps('1987 Mexico Gold Libertad 1 oz -silver', { metal: 'gold' });
+    expect(result).not.toBeNull();
+    expect(result.searchTerm).toContain('Gold');
+    expect(result.searchTerm).not.toContain('Silver');
+  });
+
+  test('"-proof" exclusion does NOT trigger specialty guard mismatch', () => {
+    injectStore([
+      ['2023 American Silver Eagle BU', '2023 American Silver Eagle BU', 170],
+      ['2023 American Silver Eagle Proof', '2023 American Silver Eagle Proof', 50],
+    ]);
+    // BU search with "-proof" exclusion — should match BU, not Proof
+    const result = lookupComps('2023 American Silver Eagle -proof -reverse', { metal: 'silver' });
+    expect(result).not.toBeNull();
+    expect(result.searchTerm).toContain('BU');
+    expect(result.searchTerm).not.toContain('Proof');
+  });
+
+  test('multiple exclusion operators are all stripped', () => {
+    injectStore([
+      ['silver libertad 1 oz', 'silver libertad 1 oz -proof -gold', 224],
+    ]);
+    // Query with multiple exclusions
+    const result = lookupComps('silver libertad 1 oz -proof -gold', { metal: 'silver' });
+    expect(result).not.toBeNull();
+    expect(result.comps.length).toBe(224);
+  });
+
+  test('exclusion at start of query is stripped', () => {
+    injectStore([
+      ['1987 Mexico 1 oz Silver Libertad', '1987 Mexico 1 oz Silver Libertad', 100],
+    ]);
+    const result = lookupComps('-gold 1987 Mexico Silver Libertad 1 oz', { metal: 'silver' });
+    expect(result).not.toBeNull();
+    expect(result.searchTerm).toContain('Silver');
+  });
+
+  test('without metal hint, exclusion still prevents wrong metal detection', () => {
+    injectStore([
+      ['1987 Mexico 1 oz Silver Libertad', '1987 Mexico 1 oz Silver Libertad', 190],
+      ['1987 Mexico 1 oz Gold Libertad', '1987 Mexico 1 oz Gold Libertad', 1],
+    ]);
+    // No explicit metal hint — "silver" in query text should win over "-gold"
+    const result = lookupComps('1987 Mexico Silver Libertad 1 oz -gold');
+    expect(result).not.toBeNull();
+    expect(result.searchTerm).toContain('Silver');
+    expect(result.comps.length).toBe(190);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// normalizeSearchKey – exclusion operator stripping
+// ═══════════════════════════════════════════════════════════════════════
+describe('normalizeSearchKey – exclusion operators', () => {
+  test('strips single exclusion operator', () => {
+    const result = normalizeSearchKey('1987 Mexico Silver Libertad 1 oz -gold');
+    expect(result).not.toContain('gold');
+    expect(result).toContain('silver');
+    expect(result).toContain('libertad');
+  });
+
+  test('strips multiple exclusion operators', () => {
+    const result = normalizeSearchKey('silver libertad 1 oz -proof -gold');
+    expect(result).not.toContain('proof');
+    expect(result).not.toContain('gold');
+    expect(result).toContain('silver');
+    expect(result).toContain('libertad');
+  });
+
+  test('strips exclusion at start of string', () => {
+    const result = normalizeSearchKey('-gold 1987 Mexico Silver Libertad');
+    expect(result).not.toContain('gold');
+    expect(result).toContain('1987');
+  });
+
+  test('does not strip hyphenated words (e.g. MS-65)', () => {
+    // "MS-65" should NOT be treated as an exclusion
+    const result = normalizeSearchKey('Morgan MS-65 1893-S');
+    expect(result).toContain('ms-65');
+    expect(result).toContain('1893');
+  });
+
+  test('does not strip mid-word hyphens', () => {
+    // "half-dollar" is not an exclusion
+    const result = normalizeSearchKey('Kennedy half-dollar silver');
+    // After normalize, hyphens in letter-letter context may be preserved
+    expect(result).toContain('kennedy');
+    expect(result).toContain('silver');
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  classifyGradeType -- proof detection
+// ═══════════════════════════════════════════════════════════════
+
+describe('classifyGradeType -- proof detection (Terapeak)', () => {
+  const { classifyGradeType } = require('../src/services/terapeakService');
+
+  test('returns "proof" for title with "Proof" (no slab)', () => {
+    expect(classifyGradeType({ title: '1987 Mexico 1 oz Silver Libertad Proof' })).toBe('proof');
+  });
+
+  test('returns "proof" for "PROOF" (caps)', () => {
+    expect(classifyGradeType({ title: '1987 MEXICAN PROOF LIBERTAD 1 OZ' })).toBe('proof');
+  });
+
+  test('returns "graded" when title has PCGS even with "Proof"', () => {
+    expect(classifyGradeType({ title: '1987 Proof Libertad PCGS PF-69' })).toBe('graded');
+  });
+
+  test('returns "graded" when title has NGC even with "Proof"', () => {
+    expect(classifyGradeType({ title: '1987 NGC PF70 Proof Silver Libertad' })).toBe('graded');
+  });
+
+  test('returns "graded" when title has formal grade PF-69', () => {
+    expect(classifyGradeType({ title: '1987 PF-69 Proof Libertad' })).toBe('graded');
+  });
+
+  test('returns "raw" when no proof/grade indicators', () => {
+    expect(classifyGradeType({ title: '1987 Mexico 1 oz Silver Libertad BU' })).toBe('raw');
+  });
+
+  test('returns "raw" for "proof-like" (PL coins are not proofs)', () => {
+    expect(classifyGradeType({ title: '1881-S Morgan Dollar Proof-Like' })).toBe('raw');
+  });
+
+  test('returns "raw" for "prooflike"', () => {
+    expect(classifyGradeType({ title: '1881-S Morgan Dollar Prooflike' })).toBe('raw');
+  });
+
+  test('returns "proof" for "Reverse Proof"', () => {
+    expect(classifyGradeType({ title: '2021 ASE Type 2 Reverse Proof 1 oz Silver' })).toBe('proof');
+  });
+
+  test('condition "certified" overrides title proof', () => {
+    expect(classifyGradeType({ title: '1987 Proof Libertad', condition: 'Certified - PCGS' })).toBe('graded');
+  });
+
+  test('condition "uncirculated" returns raw even with ambiguous title', () => {
+    expect(classifyGradeType({ title: '1987 Silver Libertad', condition: 'Uncirculated' })).toBe('raw');
+  });
+});

@@ -27,16 +27,29 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
   // pcgs.grade can be set by PCGS Search API even when the user didn't
   // specify a grade, which would incorrectly filter to graded comps.
   const wantsGraded = !!(userGrade);
+  const wantsProof = wantsGraded && /^(proof|pr|pf)$/i.test(String(userGrade || '').trim());
 
   const usGraded = usCompsAll.filter(c => c.gradeType === 'graded');
-  const usRaw    = usCompsAll.filter(c => c.gradeType !== 'graded');
+  const usRaw    = usCompsAll.filter(c => c.gradeType === 'raw');
+  const usProof  = usCompsAll.filter(c => c.gradeType === 'proof');
   const glGraded = glCompsAll.filter(c => c.gradeType === 'graded');
-  const glRaw    = glCompsAll.filter(c => c.gradeType !== 'graded');
+  const glRaw    = glCompsAll.filter(c => c.gradeType === 'raw');
+  const glProof  = glCompsAll.filter(c => c.gradeType === 'proof');
 
   // Pick the pool matching user intent (need >= 3 comps to be usable)
   let usComps, glComps;
   let poolFallback = false;
-  if (wantsGraded) {
+  if (wantsProof) {
+    // User explicitly wants proof coins — use proof pool, fall back to all
+    usComps = usProof.length >= 3 ? usProof : usCompsAll;
+    glComps = glProof.length >= 3 ? glProof : glCompsAll;
+    if (usProof.length >= 3) {
+      const excluded = usCompsAll.length - usProof.length;
+      if (excluded > 0) explanation.push(`Using ${usProof.length} proof comps for FMV (${excluded} non-proof comps excluded).`);
+    } else {
+      explanation.push(`Only ${usProof.length} proof comps — using all ${usCompsAll.length} comps.`);
+    }
+  } else if (wantsGraded) {
     usComps = usGraded.length >= 3 ? usGraded : usCompsAll;
     glComps = glGraded.length >= 3 ? glGraded : glCompsAll;
     // #176: Pool fallback — if graded pool has fewer than 5 SOLD comps but
@@ -63,10 +76,11 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
   } else {
     usComps = usRaw.length >= 3 ? usRaw : usCompsAll;
     glComps = glRaw.length >= 3 ? glRaw : glCompsAll;
-    if (usRaw.length >= 3 && usGraded.length > 0) {
-      explanation.push(`Using ${usRaw.length} raw comps for FMV (${usGraded.length} graded comps excluded).`);
-    } else if (usGraded.length > 0 && usRaw.length < 3) {
-      explanation.push(`Only ${usRaw.length} raw comps — using all ${usCompsAll.length} comps (may include graded).`);
+    if (usRaw.length >= 3 && (usGraded.length > 0 || usProof.length > 0)) {
+      const excluded = usGraded.length + usProof.length;
+      explanation.push(`Using ${usRaw.length} raw comps for FMV (${excluded} graded/proof comps excluded).`);
+    } else if ((usGraded.length > 0 || usProof.length > 0) && usRaw.length < 3) {
+      explanation.push(`Only ${usRaw.length} raw comps — using all ${usCompsAll.length} comps (may include graded/proof).`);
     }
   }
 
@@ -324,9 +338,11 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
       },
       gradePool: {
         wantsGraded,
-        usedPool: poolFallback ? 'raw (fallback)' : wantsGraded ? 'graded' : 'raw',
+        wantsProof,
+        usedPool: poolFallback ? 'raw (fallback)' : wantsProof ? 'proof' : wantsGraded ? 'graded' : 'raw',
         gradedCount: usGraded.length,
         rawCount: usRaw.length,
+        proofCount: usProof.length,
         poolCount: usComps.length,
         totalCount: usCompsAll.length,
         poolFallback,

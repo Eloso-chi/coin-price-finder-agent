@@ -239,12 +239,14 @@ function detectMetal(title) {
 // ── Grade type detection (same logic as ebayService) ──
 const TPG_RE = /\b(PCGS|NGC|ANACS|ICG|CGC)\b/i;
 const GRADE_RE = /\b(MS|PR|PF|SP|AU|XF|EF|VF|VG|AG|FR|PO)\s*[-]?\s*\d{1,2}\+?\b/i;
+const PROOF_RE = /\bproof\b(?![\s-]*like)/i;
 function classifyGradeType(comp) {
   const cond = (comp.condition || '').toLowerCase();
   if (cond.includes('certified') || cond === '2000') return 'graded';
   if (cond.includes('uncirculated') || cond.includes('circulated')) return 'raw';
   const title = comp.title || '';
   if (TPG_RE.test(title) || GRADE_RE.test(title)) return 'graded';
+  if (PROOF_RE.test(title)) return 'proof';
   return 'raw';
 }
 
@@ -529,8 +531,12 @@ function lookupComps(keywords, opts = {}) {
   const store = loadStore();
   const normalizedSearch = normalizeSearchKey(keywords);
 
+  // Strip eBay exclusion operators from the raw keywords before any detection
+  // logic runs.  Tokens like "-gold" would otherwise poison metal/grade detection.
+  const cleanKeywords = (keywords || '').replace(/(?:^|\s)-[a-zA-Z]+/g, ' ').replace(/\s+/g, ' ').trim();
+
   // Detect grade from query or explicit hint so we can prefer grade-specific datasets.
-  const queryGrade = _extractGrade(keywords) || (opts.grade ? opts.grade.toUpperCase().replace(/[\s-]/g, '') : null);
+  const queryGrade = _extractGrade(cleanKeywords) || (opts.grade ? opts.grade.toUpperCase().replace(/[\s-]/g, '') : null);
 
   // Exact match — but only use it when no grade hint is pushing us toward
   // a grade-specific dataset.  When a grade hint exists, fall through to
@@ -547,19 +553,19 @@ function lookupComps(keywords, opts = {}) {
 
   // Detect weight from the ORIGINAL (un-normalized) query and dataset searchTerm
   // since normalizeSearchKey strips '/' turning "1/2" into "12"
-  const searchWeight = detectWeightFromQuery(keywords);
+  const searchWeight = detectWeightFromQuery(cleanKeywords);
 
   // Detect metal from the query so we can prefer matching-metal datasets.
   // Also accept an explicit metal hint from the caller (e.g. expected.metal).
-  const queryMetal = _detectMetalFromText(keywords) || (opts.metal ? opts.metal.toLowerCase() : null);
+  const queryMetal = _detectMetalFromText(cleanKeywords) || (opts.metal ? opts.metal.toLowerCase() : null);
 
   // Detect US mint mark from original query for mint-mark bonus (#174).
-  const queryMintMark = _detectUSMintMark(keywords);
+  const queryMintMark = _detectUSMintMark(cleanKeywords);
 
   // Does the search query contain a specific year?  If not we'll merge
   // comps from ALL matching datasets for better coverage.
   const YEAR_RE = /\b(1[7-9]\d{2}|20[0-4]\d)\b/;
-  const queryHasYear = YEAR_RE.test(keywords);
+  const queryHasYear = YEAR_RE.test(cleanKeywords);
 
   // Fuzzy: bidirectional token matching.
   const searchTokens = normalizedSearch.split(/\s+/).filter(t => t.length > 1);
@@ -623,7 +629,7 @@ function lookupComps(keywords, opts = {}) {
       }
       return null;
     }
-    const queryMintOrigin = detectMintOrigin(keywords);
+    const queryMintOrigin = detectMintOrigin(cleanKeywords);
     const keyMintOrigin = detectMintOrigin(data.searchTerm || key);
     if (queryMintOrigin && keyMintOrigin && queryMintOrigin !== keyMintOrigin) {
       continue; // e.g. query "Perth Rooster" vs dataset "RoyalMint Rooster" — skip
@@ -646,7 +652,7 @@ function lookupComps(keywords, opts = {}) {
     //    tokens — prevents "Silver Eagle" from pulling in Proof/Burnished data. ──
     const SPECIALTY_TOKENS = ['proof', 'burnished', 'enhanced', 'reverse', 'type'];
     const datasetName = (data.searchTerm || key).toLowerCase();
-    const queryLower = keywords.toLowerCase();
+    const queryLower = cleanKeywords.toLowerCase();
     const datasetHasSpecialty = SPECIALTY_TOKENS.some(t => datasetName.includes(t));
     const queryHasSpecialty = SPECIALTY_TOKENS.some(t => queryLower.includes(t));
     if (datasetHasSpecialty && !queryHasSpecialty) {
@@ -916,6 +922,9 @@ function purgeStaleCSVs(folderPath, maxDays = 180) {
 function normalizeSearchKey(term) {
   return (term || '')
     .toLowerCase()
+    // Strip eBay exclusion operators (e.g. "-gold", "-silver") -- these are
+    // eBay search syntax, not meaningful tokens for Terapeak fuzzy matching.
+    .replace(/(?:^|\s)-[a-z]+/g, ' ')
     // Normalize zero→O in year-mint tokens: "1883-0" → "1883-O" (common typo)
     .replace(/\b(\d{4})-0\b/g, '$1-O')
     // Split year-mint tokens: "1956-D" → "1956 d", "1878-CC" → "1878 cc"
@@ -1202,6 +1211,7 @@ module.exports = {
   detectMetal: _detectMetalFromText,
   detectUSMintMark: _detectUSMintMark,
   extractGrade: _extractGrade,
+  classifyGradeType,
   // Exposed for testing
   mapColumn,
   rowToComp,

@@ -48,7 +48,9 @@ const METAL_RE = {
  */
 function getCoinMetalProfile(query) {
   if (!query) return { isMetalBased: false, metal: null };
-  const q = query.toLowerCase();
+  // Strip eBay exclusion operators (e.g. "-gold", "-silver") before metal detection.
+  // These are search syntax, not descriptors of the coin itself.
+  const q = query.replace(/(?:^|\s)-[a-zA-Z]+/g, ' ').toLowerCase().trim();
 
   // 1. Check explicit bullion series
   const isBullion = BULLION_SERIES.some(s => q.includes(s));

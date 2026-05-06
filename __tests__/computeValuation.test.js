@@ -834,3 +834,65 @@ describe('computeValuation — appeal multiplier (#56)', () => {
     expect(boosted.decisions.sell.normal).toBeGreaterThan(base.decisions.sell.normal);
   });
 });
+
+// ═══════════════════════════════════════════════════════════════
+//  Proof coin pool separation
+// ═══════════════════════════════════════════════════════════════
+
+describe('computeValuation — proof pool separation', () => {
+  test('proof comps excluded from raw pool', () => {
+    const raw = makeComps([50, 55, 60], { gradeType: 'raw' });
+    const proof = makeComps([250, 270, 300], { gradeType: 'proof' });
+    const allComps = [...raw, ...proof];
+    const result = computeValuation(mockPcgs(), mockEbay({ usComps: allComps }));
+    // Should use only raw comps (3), not proof
+    expect(result.valuation.gradePool.wantsGraded).toBe(false);
+    expect(result.valuation.gradePool.wantsProof).toBe(false);
+    expect(result.valuation.gradePool.poolCount).toBe(3);
+    expect(result.valuation.gradePool.proofCount).toBe(3);
+    // FMV should reflect raw prices, not inflated proof prices
+    expect(result.valuation.fmvCore).toBeLessThan(100);
+  });
+
+  test('proof pool used when userGrade is "Proof"', () => {
+    const raw = makeComps([50, 55, 60], { gradeType: 'raw' });
+    const proof = makeComps([250, 270, 300], { gradeType: 'proof' });
+    const allComps = [...raw, ...proof];
+    const result = computeValuation(mockPcgs(), mockEbay({ usComps: allComps }), null, 'Proof');
+    expect(result.valuation.gradePool.wantsProof).toBe(true);
+    expect(result.valuation.gradePool.usedPool).toBe('proof');
+    expect(result.valuation.gradePool.poolCount).toBe(3);
+    // FMV should reflect proof prices
+    expect(result.valuation.fmvCore).toBeGreaterThan(200);
+  });
+
+  test('proof pool used when userGrade is "PF"', () => {
+    const proof = makeComps([250, 270, 300, 310], { gradeType: 'proof' });
+    const result = computeValuation(mockPcgs(), mockEbay({ usComps: proof }), null, 'PF');
+    expect(result.valuation.gradePool.wantsProof).toBe(true);
+    expect(result.valuation.gradePool.usedPool).toBe('proof');
+  });
+
+  test('proof + graded + raw all separated correctly', () => {
+    const raw = makeComps([50, 55, 60], { gradeType: 'raw' });
+    const graded = makeComps([150, 160, 170], { gradeType: 'graded' });
+    const proof = makeComps([250, 270, 300], { gradeType: 'proof' });
+    const allComps = [...raw, ...graded, ...proof];
+    const result = computeValuation(mockPcgs(), mockEbay({ usComps: allComps }));
+    // No grade → raw pool only
+    expect(result.valuation.gradePool.poolCount).toBe(3);
+    expect(result.valuation.gradePool.rawCount).toBe(3);
+    expect(result.valuation.gradePool.gradedCount).toBe(3);
+    expect(result.valuation.gradePool.proofCount).toBe(3);
+    expect(result.valuation.fmvCore).toBeLessThan(100);
+  });
+
+  test('falls back to all comps when proof pool too small', () => {
+    const raw = makeComps([50, 55], { gradeType: 'raw' }); // only 2
+    const proof = makeComps([250], { gradeType: 'proof' }); // only 1
+    const allComps = [...raw, ...proof];
+    const result = computeValuation(mockPcgs(), mockEbay({ usComps: allComps }), null, 'Proof');
+    // Should fall back to all comps since only 1 proof
+    expect(result.valuation.gradePool.poolCount).toBe(3);
+  });
+});

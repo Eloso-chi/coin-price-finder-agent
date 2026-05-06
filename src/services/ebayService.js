@@ -127,8 +127,10 @@ function detectMetalFromComposition(value) {
 const TPG_RE          = /\b(PCGS|NGC|ANACS|ICG|CGC)\b/i;
 const FORMAL_GRADE_RE = /\b(MS|PR|PF|SP|AU|XF|EF|VF|VG|AG|FR|PO)\s*[-]?\s*\d{1,2}\+?\b/i;
 
+const PROOF_RE = /\bproof\b(?![\s-]*like)/i;
+
 /**
- * Classify a comp as 'graded' or 'raw' using eBay's structured
+ * Classify a comp as 'graded', 'proof', or 'raw' using eBay's structured
  * condition data first, falling back to title parsing only when
  * the API doesn't provide a conditionId.
  */
@@ -137,7 +139,12 @@ function classifyGradeType(comp) {
 
   // 1. Authoritative: eBay conditionId
   if (cid === '2000') return 'graded';          // "Certified"
-  if (cid === '3000' || cid === '4000') return 'raw';  // "Uncirculated" / "Circulated"
+  if (cid === '3000' || cid === '4000') {
+    // Uncirculated/Circulated condition but may still be proof
+    const title = comp.title || '';
+    if (PROOF_RE.test(title)) return 'proof';
+    return 'raw';
+  }
   // 1000 (New), 1500 (New Other) — not standard for coins but treat as raw
   if (cid === '1000' || cid === '1500') return 'raw';
 
@@ -147,6 +154,7 @@ function classifyGradeType(comp) {
   // 3. Title fallback (least reliable — eBay policy says don't rely on title)
   const title = comp.title || '';
   if (TPG_RE.test(title) || FORMAL_GRADE_RE.test(title)) return 'graded';
+  if (PROOF_RE.test(title)) return 'proof';
 
   return 'raw';
 }
@@ -517,6 +525,7 @@ function scoreMatch(comp, expected) {
   } else {
     // No grade specified → they want raw comps
     if (comp.gradeType === 'graded')  { score -= 25; notes.push('graded-vs-raw'); }
+    if (comp.gradeType === 'proof')   { score -= 25; notes.push('proof-vs-raw'); }
   }
 
   // ── Set-type scoring ──

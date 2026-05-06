@@ -135,6 +135,32 @@ describe('getCoinMetalProfile', () => {
     expect(getCoinMetalProfile('MORGAN DOLLAR 1921')).toEqual({ isMetalBased: true, metal: 'silver' });
     expect(getCoinMetalProfile('GOLD EAGLE 2024')).toEqual({ isMetalBased: true, metal: 'gold' });
   });
+
+  // ── eBay exclusion operators (regression: #171 fix) ───────
+  test('"-gold" exclusion does NOT make silver coin detect as gold', () => {
+    const r = getCoinMetalProfile('1987 Mexico Silver Libertad 1 oz -gold');
+    expect(r).toEqual({ isMetalBased: true, metal: 'silver' });
+  });
+
+  test('"-silver" exclusion does NOT make gold coin detect as silver', () => {
+    const r = getCoinMetalProfile('2024 American Gold Eagle 1 oz -silver');
+    expect(r).toEqual({ isMetalBased: true, metal: 'gold' });
+  });
+
+  test('"-proof -gold" multiple exclusions are stripped', () => {
+    const r = getCoinMetalProfile('2024 American Silver Eagle -proof -gold');
+    expect(r).toEqual({ isMetalBased: true, metal: 'silver' });
+  });
+
+  test('exclusion at start of query is stripped', () => {
+    const r = getCoinMetalProfile('-gold 2025 Canada 1 oz Silver Maple Leaf');
+    expect(r).toEqual({ isMetalBased: true, metal: 'silver' });
+  });
+
+  test('gold bullion with -silver exclusion still detects gold', () => {
+    const r = getCoinMetalProfile('2025 American Gold Buffalo 1 oz -silver');
+    expect(r).toEqual({ isMetalBased: true, metal: 'gold' });
+  });
 });
 
 // ════════════════════════════════════════════════════════════
