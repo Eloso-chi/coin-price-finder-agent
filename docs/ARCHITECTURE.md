@@ -36,7 +36,7 @@ server.js                              Express entry point (port 3000)
 │   ├─ metalsHistoryService.js         Daily spot price history snapshots
 │   ├─ marketAggregator.js             Year x mint market matrix builder + caching
 │   ├─ numistaService.js               Numista API -- search, mintages, rarity
-│   ├─ terapeakService.js              Terapeak CSV import, fuzzy lookup, eviction, auto-import, aggregationMeta tracking
+│   ├─ terapeakService.js              Terapeak CSV import, fuzzy lookup, eviction, auto-import, aggregationMeta tracking (Cosmos write-through + hydration)
 │   ├─ terapeakQuotaService.js         Daily Terapeak query quota tracker
 │   ├─ adminService.js                 Admin dashboard aggregation (stats, stale detection, data health)
 │   ├─ greysheetHistoryService.js      Daily Greysheet price history snapshots
@@ -533,7 +533,7 @@ When the user provides a free-text description (not a cert number), `resolveFrom
 ```
 
 **`parseDescription(query)`** extracts:
-- **Year**: 4-digit number (1700–2099)
+- **Year**: 4-digit number (1700--2099)
 - **Mint mark**: Adjacent to year (`1960-D`), standalone letter (`cent D`), or `CC` (Carson City)
 - **Series**: Pattern-matched against known US series names
 - **Grade**: `MS`/`PR`/`PF`/`AU`/`XF`/`VF`/`F`/`VG`/`G`/`AG`/`FR`/`PO` + numeric grade
@@ -541,6 +541,9 @@ When the user provides a free-text description (not a cert number), `resolveFrom
 - **Metal**: gold, silver, platinum, palladium, copper
 - **Weight**: `1 oz`, `1/2 oz`, `1/4 oz`, `1/10 oz`, `1/20 oz`, `1.5 oz`, `2 oz`, `5 oz`, `10 oz`
 - **Set type**: proof set, silver proof set, prestige proof set, mint set
+- **Exclusion operators**: tokens prefixed with `-` (e.g. `-proof`, `-gold`, `-W`) are stripped from parsed fields and passed through as negative keywords to eBay queries
+
+**Mint filtering (#167):** Only an explicitly user-specified mint mark drives comp filtering in `applyFilters()`. When no mint mark is provided in the query, the `mintMismatch` filter is disabled entirely -- previously the system could infer a mint from the dataset name and over-filter comps. The `usMinComps` threshold is 8 (not 3) to ensure sufficient comps before falling back to global.
 
 ---
 
@@ -578,23 +581,29 @@ Key flags: `--batch N` (coin count), `--priority` (thin-data-first), `--resume` 
 
 ### Page 2+ Deep Pagination -- `scripts/sales-aggregator.py`
 
-Extends CSVs from 50 rows (page 1 limit) to up to 300 rows by collecting pages 2-6:
+Extends CSVs from 50 rows (page 1 limit) to up to 250 rows by collecting pages 2-5:
 
 ```
 ┌─ Candidate Selection ─────────────────────────────────────┐
-│  get_candidates(min_rows=50): scan data/terapeak/*.csv    │
-│  Select files with >= 50 rows (likely truncated)          │
+│  get_candidates(min_rows=50): queries /api/terapeak/      │
+│  aggregation-status?needs=deep&minComps=50                │
+│  Excludes gold coins (regex \bgold\b)                     │
+│  Select datasets with >= 50 comps and no deepAt marker    │
 ├─ Collecting ──────────────────────────────────────────────┤
 │  For each candidate:                                      │
-│    1. Read .meta file for original search_term            │
+│    1. Read search_term from server response               │
 │    2. Navigate to Terapeak, enter search, load results    │
-│    3. Navigate pages 2..max_pages (6 for bullion, 2 else) │
+│    3. Navigate pages 2..max_pages (5 for bullion, 2 else) │
 │    4. Collect rows from each page's results table          │
-│    5. append_to_csv() with composite-key dedup            │
+│    5. Upload CSV with composite-key dedup                 │
 │       Key: itemId | soldDate | soldPrice                  │
-│    6. Upload with aggregationMeta: deepAt + maxPageReached     │
+│    6. Upload with aggregationMeta: deepAt + maxPageReached│
 └───────────────────────────────────────────────────────────┘
 ```
+
+**Cosmos persistence:** aggregationMeta (deepAt, maxPageReached, page1At, lastRefreshAt) is written through to the `terapeak-sold` Cosmos DB container. On server startup, `hydrateMetaFromCosmos()` reads all stored meta back and merges it into the in-memory dataset map. This ensures deep-pagination markers survive server restarts even if the local cache is cleared.
+
+**deepAt inference:** When `importComps()` receives a dataset with >=100 comps but no explicit `deepAt` marker, it automatically infers `deepAt` from the current timestamp. This handles legacy deep-paginated datasets collected before aggregationMeta tracking was added.
 
 Pagination selector: `button.pagination__next:not([disabled])`. Results per page control: `select[aria-label="Results per page"]` with 10/20/50 options.
 
@@ -602,7 +611,7 @@ Pagination selector: `button.pagination__next:not([disabled])`. Results per page
 
 **Active Listings Guard (S0):** Same two-layer guard as `terapeak-export.py` -- tab check after page 1 loads, and date-ratio validation on each paginated page's rows. Stops pagination early if active listings detected.
 
-**Aggregation depth tracking:** Each successful upload sends `deepAt` (ISO timestamp) and `maxPageReached` (highest page number collected) as form fields. The server merges these into the dataset's `aggregationMeta`, preventing redundant re-collection. Query `GET /api/terapeak/aggregation-status?needs=deep&minComps=50` to see which datasets still need deep pagination.
+**Aggregation depth tracking:** Each successful upload sends `deepAt` (ISO timestamp) and `maxPageReached` (highest page number collected) as form fields. The server merges these into the dataset's `aggregationMeta` and writes through to Cosmos DB, preventing redundant re-collection. On server startup, `hydrateMetaFromCosmos()` restores all meta from Cosmos. Query `GET /api/terapeak/aggregation-status?needs=deep&minComps=50` to see which datasets still need deep pagination.
 
 ### CSV Cleanup -- `scripts/clean-csvs.js`
 
@@ -636,13 +645,13 @@ The collectors require a graphical environment for Playwright's Chromium:
 
 | Component | Config |
 |-----------|--------|
-| Display server | Xtigervnc :1, geometry 1280x800 |
-| VNC port | 5901 |
+| Display server | Xtigervnc :7, geometry 1280x800 |
+| VNC port | 5907 |
 | noVNC / websockify | Port 6080 |
 | VNC password | `coin2026` |
 | Login helper | `scripts/vnc-login.py` |
 
-VNC sessions may die between codespace restarts -- always verify with `ps aux | grep Xtigervnc` before running collectors.
+VNC and noVNC are auto-started by `_start_vnc()` in both `--run` and dashboard modes. The function always checks that noVNC/websockify is alive on port 6080, even when Xtigervnc is already running -- this handles the case where the VNC server survives but the websockify proxy dies independently. VNC sessions may die between codespace restarts -- always verify with `ps aux | grep Xtigervnc` before running collectors.
 
 ### Chain Aggregation -- `scripts/chain-aggregate.sh`
 
