@@ -178,7 +178,8 @@ Request
   │
   ├── 6. Valuation + Decisions ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   │   computeValuation(pcgs, ebay, askingPrice, userGrade, { greysheet })
-  │   ├─ Split comps into graded vs raw pools (user intent decides pool)
+  │   ├─ Split comps into graded / proof / raw pools (3-way classification)
+  │   ├─ Select pool by user intent (proof > graded > raw)
   │   ├─ Compute weighted median (recency + match score weights)
   │   ├─ Blend: certified (55/15/10/20) or raw (70/10/20) weights
   │   │   eBay + PCGS Guide + Auction + Greysheet wholesale
@@ -341,7 +342,7 @@ POST { text | items | file(.xlsx) }
     "rangeHigh": 890.00,
     "confidence": 82,
     "explanation": ["Certified coin blend (ebay+pcgs+auction)..."],
-    "gradePool": { "wantsGraded": true, "usedPool": "graded", "gradedCount": 12, "rawCount": 3 },
+    "gradePool": { "wantsGraded": true, "wantsProof": false, "usedPool": "graded", "gradedCount": 12, "rawCount": 3, "proofCount": 0 },
     "lowData": false,
     "compCount": 15,
     "greysheetSpread": { "spreadPct": 12.5, "liquidity": "tight", "wholesale": 800, "retail": 900 },
@@ -507,7 +508,7 @@ The cascade maximizes data quality while handling API limitations. Terapeak loca
 
 **Throttling:** A global 1,100 ms minimum gap between any eBay API call prevents rate-limit issues.
 
-**Grade-type pool split:** After comps are collected, `classifyGradeType()` separates them into graded vs raw pools based on whether the title contains slab/grade indicators. The valuation engine selects the appropriate pool based on user intent (graded if grade specified, raw otherwise) and falls back to all comps if the preferred pool has fewer than 3 entries.
+**Grade-type pool split:** After comps are collected, `classifyGradeType()` classifies each comp into one of three pools: `graded` (PCGS/NGC slabbed or formal grade in title), `proof` (unslabbed proof coins -- title contains "proof" but not "proof-like"), or `raw` (everything else). The valuation engine selects the appropriate pool based on user intent: graded if a grade is specified, proof if grade is "Proof"/"PF"/"PR", raw otherwise. Falls back to all comps if the preferred pool has fewer than 3 entries. This prevents proof coin prices (typically 2-5x BU) from contaminating raw coin valuations.
 
 **Scoring:** Each comp is scored via `scoreMatch(item, expected)`:
 - **+10** per matching attribute (year, mint, series, grade, metal, zodiac)
@@ -787,14 +788,23 @@ The eBay component uses `computeWeightedMedian(comps)` instead of a simple media
 | < 5 US comps | −10 penalty |
 | `isBar` mode | Adjusted base (no PCGS expectation) |
 
-### Graded vs Raw Pool Selection
+### Graded vs Raw vs Proof Pool Selection
 
-The valuation engine separates eBay comps by `gradeType`:
+The valuation engine separates eBay comps by `gradeType` (three-way split):
 
-1. If user specified a grade → prefer `graded` comps pool
-2. If no grade specified → prefer `raw` comps pool
-3. If preferred pool has < 3 comps → fall back to all comps
-4. Explanation notes which pool was used
+1. If user grade is "Proof"/"PF"/"PR" → prefer `proof` comps pool
+2. If user specified any other grade → prefer `graded` comps pool
+3. If no grade specified → prefer `raw` comps pool (excludes both graded AND proof)
+4. If preferred pool has < 3 comps → fall back to all comps
+5. Explanation notes which pool was used and how many were excluded
+
+`classifyGradeType()` priority chain:
+- conditionId 2000 ("Certified") → `graded`
+- TPG regex (PCGS/NGC/ANACS/ICG/CGC) or formal grade (MS-64, PF-69) → `graded`
+- `/\bproof\b(?![\s-]*like)/i` in title → `proof`
+- Everything else → `raw`
+
+This ensures unslabbed proof coins (e.g. Proof Libertads in OGP) don't inflate raw BU valuations.
 
 ---
 
