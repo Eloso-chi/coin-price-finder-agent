@@ -1225,10 +1225,12 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
     // Graded coins (PCGS MS65, NGC AU58) sell for very different prices than
     // raw coins.  Mixing them distorts FMV.  Split into separate pools and
     // use only the pool that matches the user's query.
+    // Always re-classify: stored gradeType may be stale (pre-proof-split imports).
     const wantsGraded = !!expected.grade;
     const beforeSplit = tpComps.length;
     tpComps = tpComps.filter(c => {
-      const gt = c.gradeType || classifyGradeType(c);
+      const gt = classifyGradeType(c);
+      c.gradeType = gt; // update stored value for downstream consumers
       return wantsGraded ? gt === 'graded' : gt === 'raw';
     });
     if (tpComps.length !== beforeSplit) {
