@@ -453,6 +453,61 @@ describe('classifyGradeType', () => {
   test('no grading indicators = raw', () => {
     expect(ebayService.classifyGradeType({ title: '1964 Kennedy Half Dollar Circulated' })).toBe('raw');
   });
+
+  test('conditionId 3000 + proof title = proof', () => {
+    expect(ebayService.classifyGradeType({ conditionId: '3000', title: '1987 Mexico Proof Libertad' })).toBe('proof');
+  });
+
+  test('conditionId 4000 + proof title = proof', () => {
+    expect(ebayService.classifyGradeType({ conditionId: '4000', title: '1987 Proof Silver Libertad' })).toBe('proof');
+  });
+
+  test('proof in title (no conditionId) = proof', () => {
+    expect(ebayService.classifyGradeType({ title: '1987 Mexico 1 oz Silver Libertad Proof' })).toBe('proof');
+  });
+
+  test('proof-like NOT classified as proof', () => {
+    expect(ebayService.classifyGradeType({ title: '1881-S Morgan Dollar Proof-Like' })).toBe('raw');
+  });
+
+  test('conditionId 2000 + proof title = graded (certified takes priority)', () => {
+    expect(ebayService.classifyGradeType({ conditionId: '2000', title: '1987 Proof Libertad NGC PF70' })).toBe('graded');
+  });
+});
+
+// ═════════════════════════════════════════════════════════════
+//  scoreMatch — proof penalties
+// ═════════════════════════════════════════════════════════════
+describe('scoreMatch — proof penalties', () => {
+  test('proof comp penalized when user wants raw (no grade)', () => {
+    const comp = { title: '1987 Mexico Proof Silver Libertad 1 oz', totalUsd: 300, gradeType: 'proof' };
+    const expected = { year: 1987, metal: 'silver' };
+    const scored = ebayService.scoreMatch(comp, expected);
+    expect(scored.matchNotes).toContain('proof-vs-raw');
+    expect(scored.matchNotes).toContain('proof-mismatch-unwanted-proof');
+  });
+
+  test('raw comp NOT penalized when user wants raw', () => {
+    const comp = { title: '1987 Mexico 1 oz Silver Libertad BU', totalUsd: 200, gradeType: 'raw' };
+    const expected = { year: 1987, metal: 'silver' };
+    const scored = ebayService.scoreMatch(comp, expected);
+    expect(scored.matchNotes).not.toContain('proof-vs-raw');
+    expect(scored.matchNotes).not.toContain('proof-mismatch-unwanted-proof');
+  });
+
+  test('proof comp NOT penalized when user wants proof', () => {
+    const comp = { title: '1987 Mexico Proof Silver Libertad', totalUsd: 300, gradeType: 'proof' };
+    const expected = { year: 1987, metal: 'silver', isProof: true };
+    const scored = ebayService.scoreMatch(comp, expected);
+    expect(scored.matchNotes).not.toContain('proof-mismatch-unwanted-proof');
+  });
+
+  test('raw comp penalized when user wants proof', () => {
+    const comp = { title: '1987 Mexico 1 oz Silver Libertad BU', totalUsd: 200, gradeType: 'raw' };
+    const expected = { year: 1987, metal: 'silver', isProof: true };
+    const scored = ebayService.scoreMatch(comp, expected);
+    expect(scored.matchNotes).toContain('proof-mismatch-want-proof');
+  });
 });
 
 // ═════════════════════════════════════════════════════════════

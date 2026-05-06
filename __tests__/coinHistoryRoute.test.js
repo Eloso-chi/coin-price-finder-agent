@@ -218,6 +218,22 @@ describe('GET /api/coin-history', () => {
     expect(res.body.gradeFiltered).toBe(true);
   });
 
+  test('excludes proof comps from raw pool', async () => {
+    terapeakService.lookupComps.mockReturnValue({
+      comps: [
+        makeComp({ gradeType: 'raw', totalUsd: 100 }),
+        makeComp({ gradeType: 'raw', totalUsd: 110 }),
+        makeComp({ gradeType: 'proof', totalUsd: 300 }),
+        makeComp({ gradeType: 'proof', totalUsd: 350 }),
+      ],
+      searchTerm: '1987 Mexico Silver Libertad',
+    });
+    greysheetService.fetchTypePrice.mockResolvedValue(null);
+
+    const res = await request(app).get('/api/coin-history?query=1987+Mexico+Silver+Libertad');
+    expect(res.body.totalComps).toBe(2); // only raw, proofs excluded
+  });
+
   // ═══════════════════════════════════════════════════════════
   //  Metal overlay
   // ═══════════════════════════════════════════════════════════

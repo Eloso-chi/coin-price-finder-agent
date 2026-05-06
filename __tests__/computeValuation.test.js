@@ -873,6 +873,26 @@ describe('computeValuation — proof pool separation', () => {
     expect(result.valuation.gradePool.usedPool).toBe('proof');
   });
 
+  test('proof pool used when userGrade is "PR"', () => {
+    const raw = makeComps([50, 55, 60], { gradeType: 'raw' });
+    const proof = makeComps([250, 270, 300], { gradeType: 'proof' });
+    const allComps = [...raw, ...proof];
+    const result = computeValuation(mockPcgs(), mockEbay({ usComps: allComps }), null, 'PR');
+    expect(result.valuation.gradePool.wantsProof).toBe(true);
+    expect(result.valuation.gradePool.usedPool).toBe('proof');
+    expect(result.valuation.gradePool.poolCount).toBe(3);
+  });
+
+  test('userGrade "PR70" does NOT trigger wantsProof (has number suffix)', () => {
+    const raw = makeComps([50, 55, 60], { gradeType: 'raw' });
+    const proof = makeComps([250, 270, 300], { gradeType: 'proof' });
+    const allComps = [...raw, ...proof];
+    // PR70 matches wantsGraded but NOT the wantsProof regex (requires standalone PR)
+    const result = computeValuation(mockPcgs(), mockEbay({ usComps: allComps }), null, 'PR70');
+    expect(result.valuation.gradePool.wantsProof).toBe(false);
+    expect(result.valuation.gradePool.wantsGraded).toBe(true);
+  });
+
   test('proof + graded + raw all separated correctly', () => {
     const raw = makeComps([50, 55, 60], { gradeType: 'raw' });
     const graded = makeComps([150, 160, 170], { gradeType: 'graded' });
