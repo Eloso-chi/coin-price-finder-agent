@@ -33,7 +33,7 @@ server.js                              Express entry point (port 3000)
 │   ├─ bulkEvaluateService.js           Bulk lot evaluator engine (per-coin FMV + lot summary)
 │   ├─ metalsSpotPrice.js              Multi-provider spot price (round-robin)
 │   ├─ MetalsSpotPriceError.js         Custom error class
-│   ├─ metalsHistoryService.js         Daily spot price history snapshots
+│   ├─ metalsHistoryService.js         Daily spot price history snapshots + getSpotOnDate()
 │   ├─ marketAggregator.js             Year x mint market matrix builder + caching
 │   ├─ numistaService.js               Numista API -- search, mintages, rarity
 │   ├─ terapeakService.js              Terapeak CSV import, fuzzy lookup, eviction, auto-import, aggregationMeta tracking (Cosmos write-through + hydration)
@@ -87,6 +87,13 @@ server.js                              Express entry point (port 3000)
 │
 ├─ data/
 │   └─ terapeak/                       ~2,300+ Terapeak CSV exports (real sold data)
+│
+├─ docs/
+│   ├─ ARCHITECTURE.md                 This file -- technical architecture reference
+│   ├─ BACKLOG.md                      Canonical backlog (single source of truth)
+│   ├─ BACKLOG.rules.md                Backlog governance rules & PR hygiene expectations
+│   └─ testing/
+│       └─ test-monitor.md             Test Monitor usage guide & command reference
 │
 ├─ scripts/
 │   ├─ terapeak-export.py              Semi-automated Terapeak CSV exporter (Playwright + blob upload)
@@ -544,6 +551,12 @@ When the user provides a free-text description (not a cert number), `resolveFrom
 - **Exclusion operators**: tokens prefixed with `-` (e.g. `-proof`, `-gold`, `-W`) are stripped from parsed fields and passed through as negative keywords to eBay queries
 
 **Mint filtering (#167):** Only an explicitly user-specified mint mark drives comp filtering in `applyFilters()`. When no mint mark is provided in the query, the `mintMismatch` filter is disabled entirely -- previously the system could infer a mint from the dataset name and over-filter comps. The `usMinComps` threshold is 8 (not 3) to ensure sufficient comps before falling back to global.
+
+**Metal exclusion keywords (#171, #172):** `buildKeywords()` appends `-silver` for gold coin queries and `-gold` for silver coin queries, preventing cross-metal contamination in eBay results (e.g. silver bars appearing in Gold Libertad searches).
+
+**Historical meltFloor (#171, #172):** The meltFloor filter in `applyFilters()` uses `getSpotOnDate(metal, soldDate)` from `metalsHistoryService` to compute melt value based on each comp's actual sale date, rather than today's spot price. This prevents older comps from being incorrectly rejected when spot has risen significantly since they were sold. Falls back to today's spot if no historical price is available within a 7-day tolerance.
+
+**Type 1/2 variant filter (#180):** When `expected.label` contains "Type 1" or "Type 2", `applyFilters()` hard-removes comps whose titles reference the opposite type (e.g. "Type 2" titles when pricing a Type 1 coin). `pcgsService.parseDescription()` detects "Type 1" / "Type 2" in descriptions and sets `result.label`, which is passed through from the identification step to the expected object in `priceRoute.js` and `pricingBatchRoute.js`.
 
 ---
 

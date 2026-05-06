@@ -630,15 +630,20 @@ __tests__/                         49 Jest test suites (see Tests section)
     coinTestConstants.js           Shared token lists, PRNG, coin catalog, golden set loader, selectCoins()
 docs/
   ARCHITECTURE.md                  Technical architecture reference
+  BACKLOG.md                       Canonical backlog (single source of truth)
+  BACKLOG.rules.md                 Backlog governance rules & PR hygiene expectations
   testing/
     test-monitor.md                Test Monitor usage guide & command reference
 .github/
+  pull_request_template.md         PR template enforcing backlog references
   agents/
     code-reviewer.approval-gated.agent.md  Conductor for multi-agent code review
     implementer.approval-only.agent.md     Applies approved review findings
     onboard.agent.md                       Project onboarding assistant
     performance-review.sub.agent.md        Performance-focused sub-reviewer
     pre-commit-reviewer.agent.md           Quick pre-commit safety check
+    pricing-health.agent.md                Pricing accuracy diagnostics
+    sales-aggregator.agent.md              Sales data aggregation assistant
     security-review.sub.agent.md           OWASP-focused security sub-reviewer
     test-coverage.agent.md                 Test coverage engineer (gap analysis + generation)
     test-monitor.agent.md                  Test health monitoring and diagnostics
@@ -673,6 +678,20 @@ scripts/
 ---
 
 ## Recent Changes
+
+### Pricing Accuracy (P1 Fixes)
+
+- **Metal exclusion keywords (#171, #172)** -- eBay keyword builder now appends `-silver` for gold queries and `-gold` for silver queries, preventing cross-metal contamination (e.g. silver bars appearing in Gold Libertad results).
+- **Historical spot-aware meltFloor (#171, #172)** -- `applyFilters()` now uses `getSpotOnDate(metal, soldDate)` from `metalsHistoryService` to compute the melt floor per comp's actual sale date, instead of using today's spot price. This prevents older comps from being incorrectly rejected when spot has risen significantly.
+- **Type 1/Type 2 variant detection (#180)** -- `pcgsService.parseDescription()` now detects "Type 1" / "Type 2" in coin descriptions and sets `result.label`. Label is passed through from PCGS identification to the eBay expected object via `priceRoute.js` and `pricingBatchRoute.js`.
+- **Type 1/2 hard filter (#180)** -- `applyFilters()` in `ebayService.js` now removes comps whose titles reference the wrong type (e.g. "Type 2" comps when pricing a Type 1 coin). Tracked via `removed.typeMismatch` counter.
+
+### Backlog Governance
+
+- **Canonical backlog** -- `docs/BACKLOG.md` is the single source of truth for planned, in-progress, and completed work. Moved from root `BACKLOG.md`.
+- **Governance rules** -- `docs/BACKLOG.rules.md` codifies approval gates, PR hygiene expectations, item format, and conflict resolution.
+- **PR template** -- `.github/pull_request_template.md` requires every PR to reference a backlog item or justify why not.
+- **Onboard agent updated** -- reads backlog files during Phase 2 so every new session starts with full backlog awareness.
 
 ### Scoring & Filtering Accuracy
 
