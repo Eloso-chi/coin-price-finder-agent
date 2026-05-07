@@ -1205,12 +1205,17 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
         if (!terapeakData || !terapeakData.comps || terapeakData.comps.length === 0) {
           terapeakData = rawData;
         } else {
-          // Both matched — prefer the raw-query dataset when the user's query
-          // mentions "set" and only the raw-query result is a set dataset.
+          // Both matched different datasets — pick the better one.
+          // Prefer raw-query result when:
+          //  1. User's query mentions "set" and only raw matched a set dataset
+          //  2. Raw-query matched a dataset with MORE comps (closer match to user intent)
           const queryHasSet = /\bset\b/i.test(expected._rawQuery);
           const rawIsSet = /\bset\b/i.test(rawData.searchTerm || '');
           const kwIsSet  = /\bset\b/i.test(terapeakData.searchTerm || '');
+          const rawMatchedDifferent = (rawData.searchTerm || '') !== (terapeakData.searchTerm || '');
           if (queryHasSet && rawIsSet && !kwIsSet) {
+            terapeakData = rawData;
+          } else if (rawMatchedDifferent && rawData.comps.length > terapeakData.comps.length) {
             terapeakData = rawData;
           }
         }
