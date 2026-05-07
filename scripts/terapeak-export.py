@@ -45,7 +45,7 @@ import os
 import re
 import sys
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 try:
@@ -956,7 +956,6 @@ def do_export_run(args):
 
     # Apply refresh mode: only keep coins whose CSV is older than --max-age days
     if args.refresh:
-        from datetime import datetime, timedelta
         cutoff = time.time() - (args.max_age * 86400)
         before = len(terms)
         stale_terms = []
