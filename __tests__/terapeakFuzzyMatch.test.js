@@ -112,9 +112,11 @@ describe('normalizeSearchKey', () => {
     expect(normalizeSearchKey(undefined)).toBe('');
   });
 
-  // Fractions: slash stripped after oz-collapse, so "1/2 oz" → "12oz"
-  test('collapses fractional oz before stripping slashes', () => {
-    expect(normalizeSearchKey('1/2 oz Libertad')).toBe('12oz libertad');
+  // Fractions: converted to word forms before oz-collapse
+  test('converts fractional oz to word forms', () => {
+    expect(normalizeSearchKey('1/2 oz Libertad')).toBe('half oz libertad');
+    expect(normalizeSearchKey('1/4 oz Gold Eagle')).toBe('quarter oz gold eagle');
+    expect(normalizeSearchKey('1/10 oz Platinum')).toBe('tenth oz platinum');
   });
 });
 

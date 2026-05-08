@@ -64,18 +64,38 @@ function saveMetaSidecar() {
     _metaSavePending = null;
     const store = loadStore();
     const meta = {};
-    for (const [key, entry] of Object.entries(store)) {
+    for (const [rawKey, entry] of Object.entries(store)) {
       const am = entry.aggregationMeta;
       if (am && (am.deepAt || am.page1At || am.maxPageReached || am.newestSaleDate)) {
-        meta[key] = {
-          deepAt: am.deepAt || null,
-          page1At: am.page1At || null,
-          maxPageReached: am.maxPageReached || null,
-          lastRefreshAt: am.lastRefreshAt || null,
-          newestSaleDate: am.newestSaleDate || null,
-          oldestSaleDate: am.oldestSaleDate || null,
-          compCount: am.compCount || null,
-        };
+        // Normalize key so legacy store entries (with mangled fractions,
+        // unsplit mint marks, etc.) map to the canonical sidecar key.
+        const key = normalizeSearchKey(rawKey);
+        if (!key) continue;
+        // Merge if another raw key already mapped to the same normalized key
+        const existing = meta[key];
+        if (existing) {
+          existing.deepAt = existing.deepAt || am.deepAt || null;
+          existing.page1At = existing.page1At || am.page1At || null;
+          existing.maxPageReached = Math.max(existing.maxPageReached || 0, am.maxPageReached || 0) || null;
+          existing.lastRefreshAt = existing.lastRefreshAt || am.lastRefreshAt || null;
+          existing.newestSaleDate = (existing.newestSaleDate && am.newestSaleDate)
+            ? (existing.newestSaleDate > am.newestSaleDate ? existing.newestSaleDate : am.newestSaleDate)
+            : existing.newestSaleDate || am.newestSaleDate || null;
+          existing.oldestSaleDate = (existing.oldestSaleDate && am.oldestSaleDate)
+            ? (existing.oldestSaleDate < am.oldestSaleDate ? existing.oldestSaleDate : am.oldestSaleDate)
+            : existing.oldestSaleDate || am.oldestSaleDate || null;
+          existing.compCount = (existing.compCount || 0) + (am.compCount || 0) || null;
+        } else {
+          meta[key] = {
+            deepAt: am.deepAt || null,
+            page1At: am.page1At || null,
+            maxPageReached: am.maxPageReached || null,
+            lastRefreshAt: am.lastRefreshAt || null,
+            newestSaleDate: am.newestSaleDate || null,
+            oldestSaleDate: am.oldestSaleDate || null,
+            compCount: am.compCount || null,
+          };
+        }
       }
     }
     fs.writeFile(META_SIDECAR_PATH, JSON.stringify(meta, null, 2) + '\n', (err) => {
@@ -153,7 +173,7 @@ async function hydrateMetaFromCosmos() {
       if (!meta || (!meta.deepAt && !meta.page1At && !meta.lastRefreshAt)) continue;
 
       // Normalize the key the same way importComps does
-      const key = (doc.searchTerm || doc.id || '').toLowerCase().trim();
+      const key = normalizeSearchKey(doc.searchTerm || doc.id || '');
       if (!key) continue;
 
       // Merge into store -- never overwrite existing markers with null
@@ -1039,9 +1059,18 @@ function normalizeSearchKey(term) {
     // Convert fractions to word forms BEFORE oz collapsing and non-alphanum
     // stripping, so "1/2 oz" → "half oz" instead of the broken "12oz".
     // CSV filenames use Half_oz, Quarter_oz, Tenth_oz.
-    .replace(/\b1\/2\s*oz\b/g, 'half oz')
-    .replace(/\b1\/4\s*oz\b/g, 'quarter oz')
+    // Order matters: longer fractions (1/10, 1/20) before shorter (1/2, 1/4).
+    .replace(/\b1\/20\s*oz\b/g, 'twentieth oz')
     .replace(/\b1\/10\s*oz\b/g, 'tenth oz')
+    .replace(/\b1\/4\s*oz\b/g, 'quarter oz')
+    .replace(/\b1\/2\s*oz\b/g, 'half oz')
+    // Also handle already-collapsed forms from legacy Cosmos data where slashes
+    // were stripped before fraction conversion: "12oz" → "half oz", etc.
+    // Order matters: longer patterns (110oz, 120oz) before shorter (12oz, 14oz).
+    .replace(/\b120oz\b/g, 'twentieth oz')
+    .replace(/\b110oz\b/g, 'tenth oz')
+    .replace(/\b14oz\b/g, 'quarter oz')
+    .replace(/\b12oz\b/g, 'half oz')
     // Collapse "N oz" → "Noz" so "1 oz" matches dataset keys like "1oz".
     // Must run BEFORE non-alphanumeric stripping so fractions like "1/2 oz" are handled.
     .replace(/\b(\d+(?:[\/\.]\d+)?)\s*oz\b/g, '$1oz')
