@@ -7,7 +7,7 @@ A dealer-oriented pricing tool that calculates **Fair Market Value (FMV)** for U
 1. **Identifies the coin** — accepts a PCGS cert number, barcode, PCGS coin number, or free-text description (e.g. "1881-CC Morgan dollar MS 64").
 2. **Enriches via PCGS** — fetches price guide value, population, auction history, mintage, and reference images from the PCGS CoinFacts API.
 3. **Pulls eBay sold comps** — queries up to three eBay APIs (Marketplace Insights → Finding → Browse) to collect recent sold prices, then scores and filters them for relevance.
-4. **Supplements with Terapeak data** — imports Terapeak CSV exports (manual upload or auto-import from `data/terapeak/`) for additional sold-comp coverage with daily quota tracking.
+4. **Supplements with Terapeak data** -- imports Terapeak CSV exports (manual upload or auto-import from `data/terapeak/`) for additional sold-comp coverage with daily quota tracking. Tracks per-dataset metadata (`newestSaleDate`, `oldestSaleDate`, `compCount`, deep-pagination markers) in a git-tracked sidecar (`data/terapeak-meta.json`) for reliable staleness detection.
 5. **Fetches Greysheet wholesale pricing** -- queries the CDN Public API V2 by PCGS coin number for wholesale (GreyVal), retail (CPG), PCGS, NGC, and Blue Book values.
 6. **Computes FMV** -- blends PCGS, eBay, auction, and Greysheet data using a weighted median with outlier removal, producing a confidence-scored valuation.
 6. **Generates buy/sell decisions** — outputs max-buy thresholds (70/75/80% of FMV) and sell tiers (fast/normal/premium) with a recommendation.
@@ -16,7 +16,7 @@ A dealer-oriented pricing tool that calculates **Fair Market Value (FMV)** for U
 9. **Price history charting** — returns time-series sold-price data with optional spot-price metal overlay.
 10. **Live metals tracking** — background polling (every 30 min) with round-robin across providers, plus daily history snapshots.
 11. **Market matrix** — year × mint grid of median completed prices and cheapest BIN listings, enriched with Numista rarity data.
-12. **Azure infrastructure** — secrets in Key Vault (managed identity), dual-mode Cosmos DB write-through for all persistent data, Blob Storage for Terapeak CSVs, Azure Files for cache persistence.
+12. **Azure infrastructure** -- secrets in Key Vault (managed identity), dual-mode Cosmos DB write-through for persistent data, Blob Storage for Terapeak CSVs, Azure Files for cache persistence. Git-tracked meta sidecar provides zero-infra persistence fallback when Cosmos is unavailable.
 
 Also supports **bullion bars** (any metal, any size), **proof/mint sets**, **rolls**, and **lunar series** with dedicated input flows and eBay keyword strategies.
 

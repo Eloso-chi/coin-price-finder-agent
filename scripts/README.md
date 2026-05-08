@@ -42,6 +42,7 @@ Operational scripts for data collection, migration, and maintenance. Most script
 | `upload-csvs-to-blob.js` | Upload local Terapeak CSVs to Azure Blob | `node scripts/upload-csvs-to-blob.js [folderPath]` |
 | `migrate-to-cosmos.js` | One-time migration of history data to Cosmos DB | `node scripts/migrate-to-cosmos.js` |
 | `clean-csvs.js` | One-time CSV cleaner (applies DENY_PATTERNS) | `node scripts/clean-csvs.js` |
+| `backfill-sale-dates.js` | Backfill newestSaleDate/oldestSaleDate/compCount into meta sidecar | `node scripts/backfill-sale-dates.js [--dry-run]` |
 
 ### Utilities
 

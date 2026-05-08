@@ -36,7 +36,7 @@ server.js                              Express entry point (port 3000)
 │   ├─ metalsHistoryService.js         Daily spot price history snapshots + getSpotOnDate()
 │   ├─ marketAggregator.js             Year x mint market matrix builder + caching
 │   ├─ numistaService.js               Numista API -- search, mintages, rarity
-│   ├─ terapeakService.js              Terapeak CSV import, fuzzy lookup, eviction, auto-import, aggregationMeta tracking (Cosmos write-through + hydration)
+│   ├─ terapeakService.js              Terapeak CSV import, fuzzy lookup, eviction, auto-import, aggregationMeta tracking (Cosmos write-through + hydration + git-tracked sidecar)
 │   ├─ terapeakQuotaService.js         Daily Terapeak query quota tracker
 │   ├─ adminService.js                 Admin dashboard aggregation (stats, stale detection, data health)
 │   ├─ greysheetHistoryService.js      Daily Greysheet price history snapshots
@@ -86,7 +86,8 @@ server.js                              Express entry point (port 3000)
 │   └─ user_coins.json                 Server-side coin collections (plaintext JSON by userId)
 │
 ├─ data/
-│   └─ terapeak/                       ~2,300+ Terapeak CSV exports (real sold data)
+│   ├─ terapeak/                       ~2,700+ Terapeak CSV exports (real sold data)
+│   └─ terapeak-meta.json              Git-tracked aggregation metadata sidecar (see below)
 │
 ├─ docs/
 │   ├─ ARCHITECTURE.md                 This file -- technical architecture reference
@@ -102,6 +103,7 @@ server.js                              Express entry point (port 3000)
 │   ├─ refresh-stale.sh                One-command biweekly stale data refresh
 │   ├─ greysheet-refresh.js            Bulk Greysheet price snapshot collector (all PCGS + type GSIDs)
 │   ├─ clean-csvs.js                   CSV junk cleaner (deny-pattern purge)
+│   ├─ backfill-sale-dates.js          One-time backfill of newestSaleDate/oldestSaleDate/compCount into meta sidecar
 │   ├─ migrate-to-cosmos.js            One-time migration of history data to Cosmos DB
 │   ├─ upload-csvs-to-blob.js          Upload Terapeak CSVs to Azure Blob Storage
 │   ├─ vnc-login.py                    VNC + eBay login helper for Playwright sessions
@@ -615,7 +617,25 @@ Extends CSVs from 50 rows (page 1 limit) to up to 250 rows by collecting pages 2
 └───────────────────────────────────────────────────────────┘
 ```
 
-**Cosmos persistence:** aggregationMeta (deepAt, maxPageReached, page1At, lastRefreshAt) is written through to the `terapeak-sold` Cosmos DB container. On server startup, `hydrateMetaFromCosmos()` reads all stored meta back and merges it into the in-memory dataset map. This ensures deep-pagination markers survive server restarts even if the local cache is cleared.
+**Three-tier persistence:** aggregationMeta is persisted through three independent mechanisms, loaded in priority order at startup:
+
+1. **Git-tracked sidecar** (`data/terapeak-meta.json`) -- lightweight JSON file storing per-dataset metadata. Git-tracked so it survives codespace rebuilds and cache wipes without any infrastructure dependency. Loaded first via `loadMetaSidecar()`. Debounce-written (1s) whenever `importComps()` detects a metadata change.
+2. **Cosmos DB write-through** -- aggregationMeta is written to the `terapeak-sold` Cosmos DB container on each import. On startup, `hydrateMetaFromCosmos()` merges Cosmos markers into the in-memory store (after sidecar load). Only active when Cosmos connection string is configured.
+3. **CSV row-count inference** -- `importComps()` infers `deepAt` from comp count (>50 = was deep-paginated). Catches legacy datasets that predate explicit tracking.
+
+**Per-dataset metadata fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `page1At` | ISO timestamp | When page 1 CSV export was first run |
+| `deepAt` | ISO timestamp | When deep pagination was run |
+| `maxPageReached` | number | Highest page collected (1-5) |
+| `lastRefreshAt` | ISO timestamp | When last refresh export ran |
+| `newestSaleDate` | YYYY-MM-DD | Most recent sale date in the dataset |
+| `oldestSaleDate` | YYYY-MM-DD | Oldest sale date in the dataset |
+| `compCount` | number | Total comps stored for this dataset |
+
+The `newestSaleDate` field enables **reliable staleness detection** based on actual sale data, not file modification times. A dataset is genuinely stale when `today - newestSaleDate > 30 days`, regardless of when the file was last touched.
 
 **deepAt inference:** When `importComps()` receives a dataset with >=100 comps but no explicit `deepAt` marker, it automatically infers `deepAt` from the current timestamp. This handles legacy deep-paginated datasets collected before aggregationMeta tracking was added.
 
@@ -647,7 +667,7 @@ When the pricing engine calls `lookupComps(keywords, expected)`:
 4. Return comps from the best-matching dataset, scored and sorted
 5. Each comp passes through `isDenied()` and denomination/series filters before use
 
-**Per-dataset metadata:** Each dataset stores `aggregationMeta: { page1At, deepAt, maxPageReached, lastRefreshAt }` to track aggregation provenance. `importComps()` merges aggregationMeta intelligently (never overwrites earlier timestamps, maxPageReached only increases).
+**Per-dataset metadata:** Each dataset stores `aggregationMeta: { page1At, deepAt, maxPageReached, lastRefreshAt, newestSaleDate, oldestSaleDate, compCount }` to track aggregation provenance and data freshness. `importComps()` merges aggregationMeta intelligently (never overwrites earlier timestamps, maxPageReached only increases, sale date bounds expand monotonically).
 
 **Admin endpoints:**
 - `GET /api/terapeak/aggregation-status` -- summary + filtered dataset lists (`needs=deep`, `needs=page1`, `needs=refresh&maxAge=N`, `minComps=N`)
@@ -857,6 +877,7 @@ The server starts several background tasks on boot:
 | Greysheet history refresh | `GS_REFRESH_INTERVAL_DAYS` days (default 3) | Runs `scripts/greysheet-refresh.js` to snapshot wholesale prices for all tracked coins. Checks `greysheetHistoryService.getLastRefreshDate()` on startup and every 12 hours; skips if interval not elapsed. |
 | Blob re-import | 30 min (`BLOB_REIMPORT_MS`) | Polls Azure Blob Storage for new Terapeak CSV uploads; clears eBay cache on new data |
 | Greysheet history eviction | Startup only | Evicts history entries older than 400 days |
+| Terapeak meta sidecar | Startup only | Loads `data/terapeak-meta.json` (aggregation markers + sale date bounds); auto-seeds file on first run |
 | Terapeak auto-import | Startup only | Imports CSVs from `data/terapeak/` (files < 7 days old) |
 | Test account seed | Startup only | Seeds `testcollector` account with sample coins if empty |
 
