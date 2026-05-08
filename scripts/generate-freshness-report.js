@@ -39,6 +39,23 @@ const meta = JSON.parse(fs.readFileSync(META_PATH, 'utf8'));
 const today = new Date();
 const todayStr = today.toISOString().split('T')[0];
 
+// ── Build normalized CSV lookup (handles hyphen/space mismatches) ─────
+const TERAPEAK_DIR = path.join(__dirname, '..', 'data', 'terapeak');
+const csvSet = new Set();
+if (fs.existsSync(TERAPEAK_DIR)) {
+  for (const f of fs.readdirSync(TERAPEAK_DIR)) {
+    if (f.endsWith('.csv')) {
+      // Normalize: lowercase, underscores->spaces, hyphens->spaces
+      const norm = f.slice(0, -4).toLowerCase().replace(/_/g, ' ').replace(/-/g, ' ').replace(/\s+/g, ' ').trim();
+      csvSet.add(norm);
+    }
+  }
+}
+function hasCSVOnDisk(key) {
+  const norm = key.toLowerCase().replace(/-/g, ' ').replace(/\s+/g, ' ').trim();
+  return csvSet.has(norm);
+}
+
 // ── Classify and compute ────────────────────────────────────
 const datasets = [];
 const compositionSummary = {};
@@ -59,8 +76,12 @@ for (const [key, entry] of Object.entries(meta)) {
 
   // Determine actions
   const actions = [];
-  if (newestSaleDate === null && compCount === 0) {
+  const csvExists = hasCSVOnDisk(key);
+  if (newestSaleDate === null && compCount === 0 && !csvExists) {
     actions.push('needs-data');
+  } else if (newestSaleDate === null && compCount === 0 && csvExists) {
+    // CSV exists but meta not backfilled -- needs re-import, not fresh scrape
+    actions.push('refresh-page1');
   } else if (staleDays !== null && staleDays >= STALE_THRESHOLD) {
     actions.push('refresh-page1');
   }
