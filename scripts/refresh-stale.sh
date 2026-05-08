@@ -171,67 +171,47 @@ else
 fi
 
 # ═══════════════════════════════════════════════════════════
-# Step 2: Query staleness API
+# Step 2: Generate freshness report
 # ═══════════════════════════════════════════════════════════
-step "Query staleness API (threshold: ${STALE_DAYS} days, limit: ${LIMIT})"
+step "Generate freshness report (threshold: ${STALE_DAYS} days)"
 
-STALE_JSON=$(curl -sf "$API_BASE/api/admin/stale-datasets?days=${STALE_DAYS}&limit=${LIMIT}" \
-  -H "x-api-key: $ADMIN_API_KEY" 2>&1) || fail "Failed to query staleness API"
+REPORT_FILE="cache/freshness-report.json"
+node scripts/generate-freshness-report.js --stale "$STALE_DAYS" > /dev/null 2>&1 \
+  || fail "Failed to generate freshness report"
+ok "Report written to $REPORT_FILE"
 
-# Parse with Python (available in Codespace)
-STALE_INFO=$(echo "$STALE_JSON" | python3 -c "
+# Parse report summary
+REPORT_INFO=$(python3 -c "
 import sys, json
-data = json.load(sys.stdin)
-stale = data.get('stale', [])
-with_data = [d for d in stale if d.get('compCount', 0) > 0]
-empty = [d for d in stale if d.get('compCount', 0) == 0]
-include_empty = '$INCLUDE_EMPTY' == 'true'
-
-targets = with_data + (empty if include_empty else [])
-
-# Build filter regex (escape special chars, join with |)
-import re
-terms = [re.escape(d['searchTerm']) for d in targets]
-filter_regex = '|'.join(terms) if terms else ''
-
-# Write regex to temp file (avoids shell escaping issues)
-regex_file = '/tmp/terapeak_refresh_regex.txt'
-with open(regex_file, 'w') as f:
-    f.write(filter_regex)
-
-print(f'TOTAL_STALE={len(stale)}')
-print(f'WITH_DATA={len(with_data)}')
-print(f'EMPTY={len(empty)}')
-print(f'TARGETS={len(targets)}')
-
-# Show summary
-for d in with_data[:10]:
-    age = d.get('ageDays') or '?'
-    print(f'  {age}d  {d[\"compCount\"]:3d} comps  {d[\"searchTerm\"]}', file=sys.stderr)
-if len(with_data) > 10:
-    print(f'  ... and {len(with_data)-10} more with data', file=sys.stderr)
-if empty and include_empty:
-    print(f'  + {len(empty)} empty stubs', file=sys.stderr)
-elif empty:
-    print(f'  ({len(empty)} empty stubs excluded -- use --include-empty to add)', file=sys.stderr)
+with open('$REPORT_FILE') as f:
+    data = json.load(f)
+summary = data.get('summary', {})
+actions = summary.get('byAction', {})
+refresh = actions.get('refresh-page1', 0)
+needs_data = actions.get('needs-data', 0)
+total_stale = refresh + needs_data
+total = summary.get('total', 0)
+fresh = actions.get('ok', 0)
+print(f'TOTAL={total}')
+print(f'TOTAL_STALE={total_stale}')
+print(f'REFRESH_PAGE1={refresh}')
+print(f'NEEDS_DATA={needs_data}')
+print(f'FRESH={fresh}')
 ") 2>&1
 
-# Extract numeric variables (safe -- no spaces in values)
-TOTAL_STALE=$(echo "$STALE_INFO" | grep -oP '(?<=^TOTAL_STALE=)\d+' || echo 0)
-WITH_DATA=$(echo "$STALE_INFO" | grep -oP '(?<=^WITH_DATA=)\d+' || echo 0)
-EMPTY=$(echo "$STALE_INFO" | grep -oP '(?<=^EMPTY=)\d+' || echo 0)
-TARGETS=$(echo "$STALE_INFO" | grep -oP '(?<=^TARGETS=)\d+' || echo 0)
-
-# Read regex from temp file
-FILTER_REGEX=$(cat /tmp/terapeak_refresh_regex.txt 2>/dev/null || echo "")
-
-# Show details (stderr lines from Python)
-echo "$STALE_INFO" | grep -E '^\s+\d+d|^\s+\.\.\.|^\s+\+|^\s+\(' || true
+TOTAL=$(echo "$REPORT_INFO" | grep -oP '(?<=^TOTAL=)\d+' || echo 0)
+TOTAL_STALE=$(echo "$REPORT_INFO" | grep -oP '(?<=^TOTAL_STALE=)\d+' || echo 0)
+REFRESH_PAGE1=$(echo "$REPORT_INFO" | grep -oP '(?<=^REFRESH_PAGE1=)\d+' || echo 0)
+NEEDS_DATA=$(echo "$REPORT_INFO" | grep -oP '(?<=^NEEDS_DATA=)\d+' || echo 0)
+FRESH=$(echo "$REPORT_INFO" | grep -oP '(?<=^FRESH=)\d+' || echo 0)
 
 echo ""
-echo -e "   ${BOLD}Stale: $TOTAL_STALE total ($WITH_DATA with data, $EMPTY empty)${NC}"
-echo -e "   ${BOLD}Targets to refresh: $TARGETS${NC}"
+echo -e "   ${BOLD}Total: $TOTAL datasets${NC}"
+echo -e "   ${BOLD}Stale (refresh-page1): $REFRESH_PAGE1${NC}"
+echo -e "   ${BOLD}Needs data (never scraped): $NEEDS_DATA${NC}"
+echo -e "   ${BOLD}Fresh: $FRESH${NC}"
 
+TARGETS=$TOTAL_STALE
 if [[ "$TARGETS" == "0" ]]; then
   echo -e "\n${GREEN}${BOLD}Nothing stale! All data is fresh within ${STALE_DAYS} days.${NC}"
   exit 0
@@ -244,11 +224,9 @@ LOGFILE="cache/terapeak_refresh_$(date +%Y%m%d_%H%M%S).log"
 
 if [[ "$DRY_RUN" == true ]]; then
   step "Dry run -- would refresh ${TARGETS} datasets"
-  echo -e "   ${CYAN}Filter regex (first 200 chars):${NC}"
-  echo "   ${FILTER_REGEX:0:200}..."
   echo ""
   echo -e "   ${CYAN}Command that would run:${NC}"
-  echo "   DISPLAY=:1 python3 scripts/terapeak-export.py --run --refresh --max-age $STALE_DAYS --filter \"<regex>\" 2>&1 | tee $LOGFILE"
+  echo "   DISPLAY=:1 python3 scripts/terapeak-export.py --run --backlog $REPORT_FILE 2>&1 | tee $LOGFILE"
   exit 0
 fi
 
@@ -260,10 +238,10 @@ curl -sf -X POST "$API_BASE/api/terapeak/quota/reset" \
   -H "x-api-key: $ADMIN_API_KEY" > /dev/null 2>&1 || warn "Quota reset failed (non-fatal)"
 ok "Quota reset"
 
-# Run the aggregator
+# Run the aggregator with backlog
 DISPLAY=:1 python3 scripts/terapeak-export.py \
-  --run --refresh --max-age "$STALE_DAYS" \
-  --filter "$FILTER_REGEX" \
+  --run --backlog "$REPORT_FILE" \
+  ${LIMIT:+--limit $LIMIT} \
   2>&1 | tee "$LOGFILE"
 
 # ═══════════════════════════════════════════════════════════

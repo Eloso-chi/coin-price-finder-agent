@@ -946,6 +946,25 @@ def do_export_run(args):
         terms = [t for t in terms if pattern.search(t["term"])]
         print(f"Filtered to {len(terms)} terms matching '{args.filter}'")
 
+    # Apply backlog: read freshness report and keep only datasets needing page1 refresh
+    if args.backlog:
+        import json as _json
+        backlog_path = Path(args.backlog)
+        if not backlog_path.exists():
+            print(f"ERROR: Backlog file not found: {args.backlog}")
+            sys.exit(1)
+        with open(backlog_path) as f:
+            report = _json.load(f)
+        # Extract keys that need refresh-page1
+        backlog_keys = set()
+        for item in report.get("datasets", []):
+            actions = item.get("actions", [])
+            if "refresh-page1" in actions or "needs-data" in actions:
+                backlog_keys.add(item["key"])
+        before = len(terms)
+        terms = [t for t in terms if t["term"] in backlog_keys]
+        print(f"Backlog mode: {len(terms)} from report, skipping {before - len(terms)} not in backlog")
+
     # Apply resume
     progress = load_progress()
     if args.resume:
@@ -1268,6 +1287,7 @@ Examples:
     parser.add_argument("--shuffle", action="store_true", default=True, help="Shuffle order for human-like patterns (default: on)")
     parser.add_argument("--no-shuffle", action="store_false", dest="shuffle", help="Disable shuffle (preserve alphabetical order)")
     parser.add_argument("--batch", type=int, metavar="N", help="Run N coins then stop (use with cron/scheduler)")
+    parser.add_argument("--backlog", type=str, metavar="FILE", help="Read freshness-report.json and use its refresh-page1 items as work queue")
 
     args = parser.parse_args()
 

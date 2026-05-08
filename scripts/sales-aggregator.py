@@ -866,10 +866,33 @@ def do_page2_run(args):
     DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
     # Find candidates -- query server first (excludes coins with deepAt already set)
-    candidates = get_candidates_from_server(
-        min_rows=args.min_rows,
-        filter_pattern=args.filter,
-    )
+    if args.backlog:
+        # Read from freshness report instead of querying server
+        import json as _json
+        backlog_path = Path(args.backlog)
+        if not backlog_path.exists():
+            print(f"ERROR: Backlog file not found: {args.backlog}")
+            return
+        with open(backlog_path) as f:
+            report = _json.load(f)
+        candidates = []
+        for item in report.get("datasets", []):
+            actions = item.get("actions", [])
+            if "deep-paginate" in actions:
+                candidates.append({
+                    "term": item["key"],
+                    "row_count": item.get("compCount", 0),
+                })
+        # Apply filter on top of backlog
+        if args.filter:
+            pattern = re.compile(args.filter, re.IGNORECASE)
+            candidates = [c for c in candidates if pattern.search(c["term"])]
+        print(f"  Backlog mode: {len(candidates)} candidates from report needing deep-paginate")
+    else:
+        candidates = get_candidates_from_server(
+            min_rows=args.min_rows,
+            filter_pattern=args.filter,
+        )
 
     # Exclude pattern
     if args.exclude:
@@ -1122,6 +1145,10 @@ def main():
         epilog="""
 Examples:
   python3 scripts/sales-aggregator.py                           # Dashboard mode (interactive)
+  python3 scripts/sales-aggregator.py --no-dashboard            # Headless dashboard (CLI only, no VNC)
+  python3 scripts/sales-aggregator.py --no-dashboard --decision 1  # Non-interactive, auto-select option 1
+  python3 scripts/sales-aggregator.py --no-dashboard --output json # JSON output for scripting
+  python3 scripts/sales-aggregator.py --no-dashboard --output markdown  # Markdown for Copilot Chat
   python3 scripts/sales-aggregator.py --dry-run                 # Show candidates
   python3 scripts/sales-aggregator.py --run                     # Enrich all 50-row coins
   python3 scripts/sales-aggregator.py --run --filter "Morgan"   # Morgans only
@@ -1131,6 +1158,11 @@ Examples:
 Dashboard mode (no --run/--dry-run):
   Queries the server for dataset priorities and shows an interactive menu
   to pick which category to aggregate next (stale, needs-deep, thin).
+
+Headless mode (--no-dashboard):
+  Same data and decision flow, but never launches VNC or opens a browser.
+  Combine with --decision <N> to skip the interactive prompt.
+  Combine with --output markdown|json for machine/paste-friendly output.
         """,
     )
     parser.add_argument("--run", action="store_true", help="Run page 2+ enrichment")
@@ -1143,13 +1175,356 @@ Dashboard mode (no --run/--dry-run):
                         help="Max pages to collect (default: 6 for bullion, 2 for others)")
     parser.add_argument("--resume", type=str, metavar="LOGFILE",
                         help="Skip coins already completed in this log file (legacy fallback -- server tracking handles this automatically now)")
+    parser.add_argument("--backlog", type=str, metavar="FILE",
+                        help="Read freshness-report.json and use its deep-paginate items as work queue")
+    parser.add_argument("--no-dashboard", action="store_true",
+                        help="Headless mode: skip VNC/browser, print everything to stdout")
+    parser.add_argument("--output", choices=["cli", "markdown", "json"], default="cli",
+                        help="Output format for dashboard data (default: cli)")
+    parser.add_argument("--decision", type=str, metavar="CHOICE",
+                        help="Pre-select dashboard menu choice (1-4 or q) for non-interactive use")
 
     args = parser.parse_args()
 
     if args.run or args.dry_run:
         do_page2_run(args)
+    elif args.no_dashboard:
+        headless_dashboard(args)
     else:
         dashboard(args)
+
+
+# ── Headless Dashboard Mode ─────────────────────────────────
+def headless_dashboard(args):
+    """CLI-only dashboard: same data as dashboard() but no VNC, no browser.
+    Supports --output cli|markdown|json and --decision for non-interactive use."""
+    output_fmt = getattr(args, "output", "cli")
+    decision = getattr(args, "decision", None)
+
+    if not ADMIN_API_KEY:
+        if output_fmt == "json":
+            import json as _json
+            print(_json.dumps({"error": "ADMIN_API_KEY not set"}))
+        else:
+            print("ERROR: ADMIN_API_KEY not set. Export it or add to .env")
+        sys.exit(1)
+
+    # Ensure server is running (needed for API queries) -- no VNC needed here
+    if not _is_port_open(SERVER_PORT):
+        print("  Server not running. Starting it...", file=sys.stderr)
+        if not _start_server():
+            if output_fmt == "json":
+                import json as _json
+                print(_json.dumps({"error": f"Server not running on port {SERVER_PORT}"}))
+            else:
+                print(f"ERROR: Server not reachable on port {SERVER_PORT}")
+            sys.exit(1)
+
+    headers = {"x-api-key": ADMIN_API_KEY}
+
+    # Fetch full status from server
+    try:
+        resp = requests.get(f"{APP_URL}/api/terapeak/aggregation-status", headers=headers, timeout=10)
+        resp.raise_for_status()
+        full_data = resp.json()
+    except requests.exceptions.ConnectionError:
+        msg = f"Cannot connect to server at {APP_URL}"
+        if output_fmt == "json":
+            import json as _json
+            print(_json.dumps({"error": msg}))
+        else:
+            print(f"ERROR: {msg}")
+        sys.exit(1)
+    except Exception as e:
+        msg = f"Failed to fetch aggregation status: {e}"
+        if output_fmt == "json":
+            import json as _json
+            print(_json.dumps({"error": msg}))
+        else:
+            print(f"ERROR: {msg}")
+        sys.exit(1)
+
+    summary = full_data.get("summary", {})
+    total = summary.get("total", 0)
+    with_page1 = summary.get("withPage1", 0)
+    with_deep = summary.get("withDeep", 0)
+    needs_deep_count = summary.get("needsDeep", 0)
+
+    # Fetch category-specific lists
+    categories = {}
+
+    try:
+        r = requests.get(f"{APP_URL}/api/terapeak/aggregation-status",
+                         params={"needs": "deep", "minComps": "50"}, headers=headers, timeout=10)
+        r.raise_for_status()
+        categories["deep"] = r.json().get("datasets", [])
+    except Exception:
+        categories["deep"] = []
+
+    try:
+        r = requests.get(f"{APP_URL}/api/terapeak/aggregation-status",
+                         params={"needs": "refresh", "maxAge": "14"}, headers=headers, timeout=10)
+        r.raise_for_status()
+        categories["stale"] = r.json().get("datasets", [])
+    except Exception:
+        categories["stale"] = []
+
+    all_datasets = full_data.get("datasets", [])
+    categories["thin"] = [d for d in all_datasets if d.get("compCount", 0) < 20]
+
+    # Filter gold out of deep
+    if categories["deep"]:
+        categories["deep"] = [d for d in categories["deep"]
+                              if not re.search(r'\bgold\b', d.get("searchTerm", ""), re.IGNORECASE)]
+
+    # Build menu items
+    menu_items = []
+    menu_labels = []
+
+    bullion_deep = [d for d in categories["deep"] if is_bullion_term(d.get("searchTerm", ""))]
+    non_bullion_deep = [d for d in categories["deep"] if not is_bullion_term(d.get("searchTerm", ""))]
+
+    menu_items.append(("deep", categories["deep"]))
+    menu_labels.append(f"Needs deep pagination: {len(categories['deep'])} ({len(bullion_deep)} bullion, {len(non_bullion_deep)} other)")
+
+    menu_items.append(("stale", categories["stale"]))
+    menu_labels.append(f"Stale (>14 days): {len(categories['stale'])}")
+
+    menu_items.append(("thin", categories["thin"]))
+    menu_labels.append(f"Thin (<20 comps): {len(categories['thin'])}")
+
+    menu_items.append(("all", all_datasets))
+    menu_labels.append(f"Show all datasets: {total}")
+
+    # Compute recommendation
+    if categories["deep"]:
+        recommendation = "1 (deep pagination) -- highest-value work"
+    elif categories["stale"]:
+        recommendation = "2 (stale refresh) -- keep data current"
+    elif categories["thin"]:
+        recommendation = "3 (thin datasets) -- fill gaps"
+    else:
+        recommendation = "None -- all data is current"
+
+    # ── Output ───────────────────────────────────────────────
+    if output_fmt == "json":
+        _headless_output_json(summary, total, with_page1, with_deep, needs_deep_count,
+                              categories, menu_items, menu_labels, recommendation)
+    elif output_fmt == "markdown":
+        _headless_output_markdown(summary, total, with_page1, with_deep, needs_deep_count,
+                                  categories, menu_items, menu_labels, recommendation)
+    else:
+        _headless_output_cli(summary, total, with_page1, with_deep, needs_deep_count,
+                             categories, menu_items, menu_labels, recommendation)
+
+    # ── Decision ─────────────────────────────────────────────
+    if decision is None:
+        # Interactive prompt
+        if output_fmt == "json":
+            # JSON mode without --decision: just output data, no prompt
+            return
+        try:
+            choice = input("\n  Choose [1-4, q]: ").strip().lower()
+        except (EOFError, KeyboardInterrupt):
+            print("\n  No input received. Use --decision <N> for non-interactive mode.")
+            sys.exit(1)
+    else:
+        choice = decision.strip().lower()
+        if output_fmt != "json":
+            print(f"\n  Auto-selected: {choice}")
+
+    if choice == "q" or not choice:
+        if output_fmt != "json":
+            print("  Exiting.")
+        return
+
+    if choice == "4":
+        if output_fmt == "json":
+            import json as _json
+            print(_json.dumps({"allDatasets": [
+                {"term": d.get("searchTerm", d.get("key", "?")),
+                 "comps": d.get("compCount", 0),
+                 "deep": bool(d.get("aggregationMeta", {}).get("deepAt"))}
+                for d in sorted(all_datasets, key=lambda x: x.get("compCount", 0), reverse=True)[:100]
+            ]}, indent=2))
+        else:
+            _show_all_datasets(all_datasets)
+        return
+
+    choice_idx = int(choice) - 1 if choice.isdigit() else -1
+    if choice_idx < 0 or choice_idx >= 3:
+        msg = f"Invalid choice: {choice}. Expected 1-4 or q."
+        if output_fmt == "json":
+            import json as _json
+            print(_json.dumps({"error": msg}))
+        else:
+            print(f"  {msg}")
+        sys.exit(1)
+
+    category_name, datasets = menu_items[choice_idx]
+    if not datasets:
+        if output_fmt != "json":
+            print("  Nothing in this category.")
+        return
+
+    if output_fmt != "json":
+        _show_category(category_name, datasets)
+
+    # Build the run command
+    terms = [d.get("searchTerm", "") for d in datasets if d.get("searchTerm")]
+    if len(terms) <= 20:
+        escaped = [re.escape(t) for t in terms]
+        filter_arg = "|".join(escaped)
+    else:
+        filter_arg = None
+
+    script_path = Path(__file__).resolve()
+    cmd = [sys.executable, str(script_path), "--run"]
+    if filter_arg:
+        cmd.extend(["--filter", filter_arg])
+    if category_name == "deep":
+        cmd.extend(["--min-rows", "50"])
+    elif category_name == "thin":
+        cmd.extend(["--min-rows", "1"])
+    if args and hasattr(args, "limit") and args.limit:
+        cmd.extend(["--limit", str(args.limit)])
+    if args and hasattr(args, "max_pages") and args.max_pages:
+        cmd.extend(["--max-pages", str(args.max_pages)])
+    if args and hasattr(args, "exclude") and args.exclude:
+        cmd.extend(["--exclude", args.exclude])
+
+    cmd_str = " ".join(cmd)
+
+    if output_fmt == "json":
+        import json as _json
+        print(_json.dumps({
+            "selectedCategory": category_name,
+            "datasetCount": len(datasets),
+            "nextCommand": cmd_str,
+        }, indent=2))
+    elif output_fmt == "markdown":
+        print(f"\n### Selected: {category_name} ({len(datasets)} datasets)")
+        print(f"\n**Next step -- run this command:**")
+        print(f"```bash\n{cmd_str}\n```")
+    else:
+        print(f"\n  Selected: {category_name} ({len(datasets)} datasets)")
+        print(f"  Next step -- run this command:")
+        print(f"    {cmd_str}")
+
+
+def _headless_output_cli(summary, total, with_page1, with_deep, needs_deep_count,
+                         categories, menu_items, menu_labels, recommendation):
+    """Print dashboard data as readable CLI tables."""
+    print("\n╔══════════════════════════════════════════════════════════════╗")
+    print("║        SALES AGGREGATOR -- HEADLESS DASHBOARD               ║")
+    print("╚══════════════════════════════════════════════════════════════╝\n")
+
+    print(f"  Server:           {APP_URL}")
+    print(f"  Total datasets:   {total}")
+    print(f"  Page 1 done:      {with_page1}/{total}")
+    print(f"  Deep done:        {with_deep}/{total}")
+    print(f"  Needs deep:       {needs_deep_count}")
+    print()
+
+    print("  ── Priority Categories ──")
+    for i, label in enumerate(menu_labels, 1):
+        print(f"  [{i}] {label}")
+    print(f"  [q] Quit")
+    print()
+    print(f"  Recommended: {recommendation}")
+
+    # Show top 5 from each non-empty category
+    for cat_name, datasets in [("deep", categories["deep"]),
+                               ("stale", categories["stale"]),
+                               ("thin", categories["thin"])]:
+        if not datasets:
+            continue
+        label = {"deep": "Needs Deep", "stale": "Stale", "thin": "Thin"}.get(cat_name, cat_name)
+        sorted_ds = sorted(datasets, key=lambda d: d.get("compCount", 0), reverse=True)
+        print(f"\n  ── Top 5 {label} ──")
+        print(f"  {'#':>4s}  {'Comps':>5s}  {'Type':>8s}  Search Term")
+        print(f"  {'---':>4s}  {'---':>5s}  {'---':>8s}  {'---'}")
+        for i, d in enumerate(sorted_ds[:5], 1):
+            comps = d.get("compCount", 0)
+            term = d.get("searchTerm", d.get("key", "?"))
+            tag = "bullion" if is_bullion_term(term) else "coin"
+            print(f"  {i:4d}  {comps:5d}  {tag:>8s}  {term}")
+        if len(sorted_ds) > 5:
+            print(f"  ... and {len(sorted_ds) - 5} more")
+
+
+def _headless_output_markdown(summary, total, with_page1, with_deep, needs_deep_count,
+                              categories, menu_items, menu_labels, recommendation):
+    """Print dashboard data as Markdown suitable for pasting into Copilot Chat."""
+    print("## Sales Aggregator Dashboard\n")
+    print("| Metric | Value |")
+    print("|--------|-------|")
+    print(f"| Total datasets | {total} |")
+    print(f"| Page 1 done | {with_page1}/{total} |")
+    print(f"| Deep done | {with_deep}/{total} |")
+    print(f"| Needs deep | {needs_deep_count} |")
+    print()
+
+    print("### Priority Categories\n")
+    for i, label in enumerate(menu_labels, 1):
+        print(f"{i}. {label}")
+    print()
+    print(f"**Recommendation:** {recommendation}\n")
+
+    # Tables for each category
+    for cat_name, datasets in [("deep", categories["deep"]),
+                               ("stale", categories["stale"]),
+                               ("thin", categories["thin"])]:
+        if not datasets:
+            continue
+        label = {"deep": "Needs Deep Pagination", "stale": "Stale (>14 Days)", "thin": "Thin (<20 Comps)"}.get(cat_name, cat_name)
+        sorted_ds = sorted(datasets, key=lambda d: d.get("compCount", 0), reverse=True)[:10]
+        print(f"#### {label} (top 10 of {len(datasets)})\n")
+        print("| # | Comps | Type | Search Term |")
+        print("|---|-------|------|-------------|")
+        for i, d in enumerate(sorted_ds, 1):
+            comps = d.get("compCount", 0)
+            term = d.get("searchTerm", d.get("key", "?"))
+            tag = "bullion" if is_bullion_term(term) else "coin"
+            print(f"| {i} | {comps} | {tag} | {term} |")
+        print()
+
+
+def _headless_output_json(summary, total, with_page1, with_deep, needs_deep_count,
+                          categories, menu_items, menu_labels, recommendation):
+    """Print dashboard data as JSON for scripting."""
+    import json as _json
+    output = {
+        "summary": {
+            "total": total,
+            "withPage1": with_page1,
+            "withDeep": with_deep,
+            "needsDeep": needs_deep_count,
+        },
+        "categories": {
+            "deep": {
+                "count": len(categories["deep"]),
+                "datasets": [{"term": d.get("searchTerm", ""), "comps": d.get("compCount", 0)}
+                             for d in sorted(categories["deep"], key=lambda x: x.get("compCount", 0), reverse=True)[:20]],
+            },
+            "stale": {
+                "count": len(categories["stale"]),
+                "datasets": [{"term": d.get("searchTerm", ""), "comps": d.get("compCount", 0)}
+                             for d in sorted(categories["stale"], key=lambda x: x.get("compCount", 0), reverse=True)[:20]],
+            },
+            "thin": {
+                "count": len(categories["thin"]),
+                "datasets": [{"term": d.get("searchTerm", ""), "comps": d.get("compCount", 0)}
+                             for d in sorted(categories["thin"], key=lambda x: x.get("compCount", 0), reverse=True)[:20]],
+            },
+        },
+        "recommendation": recommendation,
+        "options": [
+            {"key": i+1, "label": label}
+            for i, label in enumerate(menu_labels)
+        ],
+    }
+    print(_json.dumps(output, indent=2))
 
 
 # ── Dashboard Mode ──────────────────────────────────────────

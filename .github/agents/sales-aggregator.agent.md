@@ -57,6 +57,27 @@ This shows three priority categories:
 - **Needs-deep** (coins with exactly 50 rows -- likely have more on page 2)
 - **Thin** (low comp count, may need fresh collection)
 
+### Headless Dashboard (recommended in Codespaces)
+
+When VNC is unavailable or you're running non-interactively:
+
+```bash
+# CLI output (readable tables, interactive prompt)
+python3 scripts/sales-aggregator.py --no-dashboard
+
+# Pre-select option 1 (deep pagination) without prompting
+python3 scripts/sales-aggregator.py --no-dashboard --decision 1
+
+# Markdown output for pasting into chat
+python3 scripts/sales-aggregator.py --no-dashboard --output markdown
+
+# JSON for scripting
+python3 scripts/sales-aggregator.py --no-dashboard --output json --decision 1
+```
+
+The `--no-dashboard` flag skips VNC startup entirely. All data and decisions
+are handled via stdout. Use `--decision <N>` to skip the interactive prompt.
+
 ## Run Mode
 
 To actually pull new data:
@@ -77,19 +98,18 @@ python3 scripts/sales-aggregator.py --run --min-rows 45
 
 ## Prerequisites
 
-1. **VNC display** must be available (`:7` on port 5907, noVNC on 6080)
-2. **eBay login cookies** must be valid (`scripts/cache.cookies.json`)
-3. **Server running** at `http://localhost:3000` (for dashboard queries and uploads)
-4. **ADMIN_API_KEY** set in environment (for server API access)
+1. **Server running** at `http://localhost:3000` (for dashboard queries and uploads)
+2. **ADMIN_API_KEY** set in environment (for server API access)
+3. **VNC display** (only needed for `--run` mode, NOT for `--no-dashboard`)
+4. **eBay login cookies** (only needed for `--run` mode)
 
-The script auto-starts VNC (Xtigervnc + noVNC) and the server in both
-dashboard and run modes, so manual startup is rarely needed.
+The script auto-starts the server if needed. VNC is only started in
+dashboard mode (without `--no-dashboard`) and run mode.
 
 ## Workflow
 
-1. Start by running dashboard mode to assess priorities.
-   VNC and the server are started automatically.
-   Tell the user: "noVNC is available at http://localhost:6080"
+1. Start by running headless dashboard to assess priorities:
+   `python3 scripts/sales-aggregator.py --no-dashboard`
 2. Present the readout to the user with recommendations
 3. If user approves a batch, run with appropriate `--filter` and `--limit`
 4. Monitor progress and report results (new rows added, upload status)

@@ -341,10 +341,14 @@ router.get('/aggregation-status', requireAdmin, (req, res) => {
   } else if (needs === 'page1') {
     filtered = filtered.filter(d => !d.aggregationMeta?.page1At);
   } else if (needs === 'refresh') {
-    const cutoff = new Date(Date.now() - maxAgeDays * 86400000).toISOString();
+    const cutoffDate = new Date(Date.now() - maxAgeDays * 86400000).toISOString().split('T')[0]; // YYYY-MM-DD
     filtered = filtered.filter(d => {
+      // Use newestSaleDate (ground truth from actual sold data) if available;
+      // fall back to process timestamps for datasets not yet backfilled.
+      const newestSale = d.aggregationMeta?.newestSaleDate;
+      if (newestSale) return newestSale < cutoffDate;
       const lastRefresh = d.aggregationMeta?.lastRefreshAt || d.aggregationMeta?.page1At || d.lastImport;
-      return !lastRefresh || lastRefresh < cutoff;
+      return !lastRefresh || lastRefresh < cutoffDate;
     });
   }
 

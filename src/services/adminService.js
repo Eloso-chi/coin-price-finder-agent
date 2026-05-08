@@ -12,43 +12,45 @@ const TERAPEAK_DIR = process.env.TERAPEAK_DATA_DIR || 'data/terapeak';
 // ── Staleness Tracker ───────────────────────────────────────
 
 /**
- * Analyze staleness of all Terapeak CSV datasets.
- * Derives "newest sold date" from each CSV to determine data freshness.
+ * Analyze staleness of all Terapeak datasets.
+ * Uses newestSaleDate from aggregationMeta (pre-computed, no CSV re-parsing).
+ * Falls back to CSV parsing only for datasets missing newestSaleDate in meta.
  *
  * @param {object} opts
- * @param {number} [opts.days=30]  — flag CSVs with no sale newer than this many days
- * @param {number} [opts.limit=50] — max results to return (sorted stalest-first)
+ * @param {number} [opts.days=30]  -- flag datasets with no sale newer than this many days
+ * @param {number} [opts.limit=50] -- max results to return (sorted stalest-first)
  * @returns {{ stale: object[], summary: object }}
  */
 function getStaleDatasets(opts = {}) {
   const days = opts.days || 30;
   const limit = opts.limit || 50;
-  const cutoff = new Date(Date.now() - days * 86_400_000);
+  const cutoffDate = new Date(Date.now() - days * 86_400_000);
+  const cutoffStr = cutoffDate.toISOString().split('T')[0]; // YYYY-MM-DD
 
-  const csvFiles = _listCSVFiles();
+  // Primary path: read from terapeakService in-memory store (fast, uses sidecar data)
+  const terapeakService = require('./terapeakService');
+  const datasets = terapeakService.listDatasets();
   const results = [];
 
-  for (const csvPath of csvFiles) {
-    const baseName = path.basename(csvPath, '.csv');
-    const metaPath = csvPath.replace(/\.csv$/i, '.meta');
-    const searchTerm = fs.existsSync(metaPath)
-      ? fs.readFileSync(metaPath, 'utf8').trim()
-      : baseName.replace(/_/g, ' ');
+  for (const d of datasets) {
+    const newestSaleDate = d.aggregationMeta?.newestSaleDate || null;
+    const oldestSaleDate = d.aggregationMeta?.oldestSaleDate || null;
+    const compCount = d.compCount || 0;
 
-    const stats = _analyzeCSV(csvPath);
-    if (!stats) continue;
+    let ageDays = null;
+    if (newestSaleDate) {
+      ageDays = Math.round((Date.now() - new Date(newestSaleDate).getTime()) / 86_400_000);
+    }
 
-    const isStale = !stats.newestSoldDate || stats.newestSoldDate < cutoff;
+    const isStale = !newestSaleDate || newestSaleDate < cutoffStr;
 
     results.push({
-      file: baseName,
-      searchTerm,
-      compCount: stats.compCount,
-      newestSoldDate: stats.newestSoldDate ? stats.newestSoldDate.toISOString() : null,
-      oldestSoldDate: stats.oldestSoldDate ? stats.oldestSoldDate.toISOString() : null,
-      ageDays: stats.newestSoldDate
-        ? Math.round((Date.now() - stats.newestSoldDate.getTime()) / 86_400_000)
-        : null,
+      file: d.key.replace(/ /g, '_'),
+      searchTerm: d.searchTerm || d.key,
+      compCount,
+      newestSoldDate: newestSaleDate,
+      oldestSoldDate: oldestSaleDate,
+      ageDays,
       isStale,
     });
   }
