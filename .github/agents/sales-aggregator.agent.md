@@ -108,12 +108,25 @@ dashboard mode (without `--no-dashboard`) and run mode.
 
 ## Workflow
 
-1. Start by running headless dashboard to assess priorities:
+1. **Read the freshness report** (generate if missing or stale):
+   ```bash
+   cd /workspaces/coin-price-agent && node scripts/generate-freshness-report.js --summary
+   ```
+   This writes `cache/freshness-report.json` and prints a summary.
+   If the report already exists and is valid (<24h old), it uses the cached copy.
+   Always regenerate if you're unsure: `node scripts/generate-freshness-report.js`
+
+2. Run headless dashboard to assess priorities:
    `python3 scripts/sales-aggregator.py --no-dashboard`
-2. Present the readout to the user with recommendations
-3. If user approves a batch, run with appropriate `--filter` and `--limit`
-4. Monitor progress and report results (new rows added, upload status)
-5. After completion, suggest running pricing-health to validate the new data
+3. Present the readout to the user with recommendations
+4. If user approves a batch, run with `--backlog cache/freshness-report.json`:
+   - Page 1 refresh: `python3 scripts/terapeak-export.py --run --backlog cache/freshness-report.json --limit N`
+   - Deep pagination: `python3 scripts/sales-aggregator.py --run --backlog cache/freshness-report.json --limit N`
+5. Monitor progress and report results (new rows added, upload status)
+6. After completion, suggest running pricing-health to validate the new data
+
+**Tip:** For a quick triage without running aggregation, use the
+`@freshness-triage` agent instead.
 
 ## Important Notes
 
