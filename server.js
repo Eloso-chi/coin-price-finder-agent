@@ -197,6 +197,12 @@ app.listen(PORT, '0.0.0.0', async () => {
     console.log(`  Terapeak CSV purge: deleted ${purgeResult.deleted} stale file(s): ${purgeResult.deletedFiles.join(', ')}`);
   }
 
+  // Hydrate aggregationMeta from git-tracked sidecar first (zero-infra persistence)
+  const sidecarResult = terapeakService.loadMetaSidecar();
+  if (sidecarResult.hydrated > 0) {
+    console.log(`  Terapeak meta sidecar: restored ${sidecarResult.hydrated} marker(s) from data/terapeak-meta.json`);
+  }
+
   // Hydrate aggregationMeta markers from Cosmos before CSV import (#167)
   // This ensures deepAt/page1At markers survive restarts and redeploys.
   const hydrateResult = await terapeakService.hydrateMetaFromCosmos();
@@ -233,6 +239,12 @@ app.listen(PORT, '0.0.0.0', async () => {
     const ebayService = require('./src/services/ebayService');
     ebayService.clearCache();
     console.log(`  eBay cache cleared (Terapeak data updated)`);
+  }
+
+  // Seed meta sidecar on first run (or if it was deleted)
+  if (!require('fs').existsSync(require('path').join(__dirname, 'data/terapeak-meta.json'))) {
+    terapeakService.saveMetaSidecar();
+    console.log('  Terapeak meta sidecar: seeded data/terapeak-meta.json');
   }
 
   const datasets = terapeakService.listDatasets();

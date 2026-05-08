@@ -1,58 +1,45 @@
-Item Title,Item ID,Sold Date,Sold Price,Shipping,Condition,Seller,Format,Item URL
-[Removed] Item 136838898422,136838898422,"Feb 2, 2026",$70.89,$0.00,,,Fixed price,
-[Removed] Item 236501047169,236501047169,"Jan 18, 2026",$60.01,$0.00,,,Fixed price,
-[Removed] Item 397587924719,397587924719,"Feb 21, 2026",$60.45,$0.00,,,Fixed price,
-,,"Nov 17, 2025",$33.71,$0.00,,,Fixed price,
-,,"Nov 15, 2025",$33.99,$0.00,,,Fixed price,
-XF 1879-O Morgan Silver Dollar (1 coin),365921547794,"Jan 28, 2026",$61.07,$0.00,,,Fixed price,https://www.ebay.com/itm/365921547794
-[Removed] Item 376573998022,376573998022,"Nov 17, 2025",$90.72,$0.00,,,Fixed price,
-[Removed] Item 406709648387,406709648387,"Mar 27, 2026",$62.49,$0.00,,,Fixed price,
-VF 1879-O Morgan Silver Dollar (1 coin),135244734039,"Jan 2, 2026",$58.51,$0.00,,,Fixed price,https://www.ebay.com/itm/135244734039
-,,"Nov 16, 2025",$34.22,$0.00,,,Fixed price,
-,,"Jan 25, 2026",$72.39,$0.00,,,Fixed price,
-,,"Oct 20, 2025",$93.03,$0.00,,,Fixed price,
-[Removed] Item 365934835359,365934835359,"Oct 24, 2025",$34.45,$0.00,,,Fixed price,
-VG/F 1879-O Morgan Silver Dollar (1 coin),126671178344,"Jan 24, 2026",$61.91,$0.00,,,Fixed price,https://www.ebay.com/itm/126671178344
-[Removed] Item 389212163226,389212163226,"Nov 19, 2025",$92.90,$0.00,,,Fixed price,
-1879 O Morgan Dollar VF Very Fine 90% Silver $1 US Coin Collectible,365683745997,"Jan 24, 2026",$79.88,$0.00,,,Fixed price,https://www.ebay.com/itm/365683745997
-AU+ 1879-O Morgan Silver Dollar (1 coin),126227206194,"Mar 7, 2026",$70.70,$5.28,,,Fixed price,https://www.ebay.com/itm/126227206194
-1879 O Morgan Silver Dollar $1 Brilliant Uncirculated BU 90% Silver,196257842619,"Apr 4, 2026",$266.67,$0.00,,,Fixed price,https://www.ebay.com/itm/196257842619
-[Removed] Item 357625813476,357625813476,"Dec 7, 2025",$90.00,$0.00,,,Fixed price,
-AU 1879-O MORGAN SILVER DOLLAR NICELY TONED QUALITY COLLECTOR GRADE COIN M-1764,177798782081,"Mar 31, 2026",$90.20,$5.25,,,Fixed price,https://www.ebay.com/itm/177798782081
-[Removed] Item 236471722584,236471722584,"Nov 19, 2025",$99.00,$0.00,,,Fixed price,
-,,"Nov 20, 2025",$35.92,$0.00,,,Fixed price,
-1879-O Morgan Silver Dollar MS61 PCGS,297738925434,"Feb 18, 2026",$217.25,$0.00,,,Fixed price,https://www.ebay.com/itm/297738925434
-,,"Nov 21, 2025",$47.78,$4.50,,,Fixed price,
-,,"Dec 30, 2025",$350.00,$0.00,,,Fixed price,
-,,"Nov 12, 2025",$50.00,$0.00,,,Fixed price,
-,,"Nov 8, 2025",$27.00,$2.99,,,Fixed price,
-1879 Morgan Silver Dollar San Francisco Mint American Currency 90% Silver Coin O,115325989513,"Jan 23, 2026",$79.95,$0.00,,,Fixed price,https://www.ebay.com/itm/115325989513
-,,"Dec 29, 2025",$60.00,$4.95,,,Fixed price,
-,,"Dec 9, 2025",$54.00,$0.00,,,Fixed price,
-,,"Dec 19, 2025",$225.00,$0.00,,,Fixed price,
-,,"Nov 8, 2025",$115.00,$6.00,,,Fixed price,
-,,"Oct 10, 2025",$123.50,$0.00,,,Fixed price,
-,,"Oct 12, 2025",$69.95,$4.46,,,Auction,
-,,"Oct 9, 2025",$102.00,$4.80,,,Fixed price,
-,,"Oct 24, 2025",$69.95,$4.46,,,Auction,
-,,"Oct 26, 2025",$43.88,$0.00,,,Auction,
-,,"Dec 23, 2025",$60.00,$5.00,,,Fixed price,
-,,"Dec 18, 2025",$95.00,$0.00,,,Fixed price,
-,,"Nov 6, 2025",$69.95,$4.46,,,Auction,
-,,"Nov 9, 2025",$39.00,$5.00,,,Auction,
-,,"Nov 7, 2025",$168.50,$7.49,,,Auction,
-,,"Nov 9, 2025",$73.95,$4.46,,,Auction,
-,,"Jan 6, 2026",$84.95,$5.25,,,Fixed price,
-,,"Nov 5, 2025",$78.95,$5.25,,,Fixed price,
-,,"Nov 15, 2025",$39.35,$4.00,,,Auction,
-,,"Nov 21, 2025",$567.00,$7.49,,,Auction,
-,,"Nov 23, 2025",$59.00,$6.50,,,Auction,
-,,"Nov 26, 2025",$105.95,$4.46,,,Auction,
-,,"Nov 26, 2025",$97.95,$4.46,,,Auction,
-,,"Nov 27, 2025",$78.00,$4.46,,,Auction,
-[Removed] Item 376573998022,376573998022,"Nov 17, 2025",$90.70,$0.00,,,Fixed price,,28
-1879 O Morgan Silver Dollar $1 Brilliant Uncirculated BU 90% Silver,196257842619,"Apr 10, 2026",$267.48,$0.00,,,Fixed price,https://www.ebay.com/itm/196257842619,8
-1879 O Morgan Dollar VF Very Fine 90% Silver $1 US Coin Collectible,365683745997,"Jan 24, 2026",$81.49,$0.00,,,Fixed price,https://www.ebay.com/itm/365683745997,8
+Item Title,Item ID,Sold Date,Sold Price,Shipping,Condition,Seller,Format,Item URL,Quantity Sold
+[Removed] Item 136838898422,136838898422,"Feb 2, 2026",$70.89,$0.00,,,Fixed price,,93
+[Removed] Item 318055750324,318055750324,"May 2, 2026",$60.41,$0.00,,,Fixed price,,59
+[Removed] Item 236501047169,236501047169,"Jan 18, 2026",$60.01,$0.00,,,Fixed price,,60
+[Removed] Item 397587924719,397587924719,"Feb 21, 2026",$60.45,$0.00,,,Fixed price,,51
+XF 1879-O Morgan Silver Dollar (1 coin),365921547794,"Jan 28, 2026",$61.07,$0.00,,,Fixed price,https://www.ebay.com/itm/365921547794,38
+,,"Nov 15, 2025",$33.98,$0.00,,,Fixed price,,28
+,,"Nov 17, 2025",$33.94,$0.00,,,Fixed price,,23
+[Removed] Item 406709648387,406709648387,"Mar 27, 2026",$62.49,$0.00,,,Fixed price,,24
+VF 1879-O Morgan Silver Dollar (1 coin),135244734039,"Jan 2, 2026",$58.66,$0.00,,,Fixed price,https://www.ebay.com/itm/135244734039,24
+,,"Jan 25, 2026",$72.39,$0.00,,,Fixed price,,20
+1879 O Morgan Silver Dollar $1 Brilliant Uncirculated BU 90% Silver,196257842619,"May 5, 2026",$271.99,$0.00,,,Fixed price,https://www.ebay.com/itm/196257842619,16
+VG/F 1879-O Morgan Silver Dollar (1 coin),126671178344,"Jan 24, 2026",$61.91,$0.00,,,Fixed price,https://www.ebay.com/itm/126671178344,17
+[Removed] Item 376573998022,376573998022,"Nov 17, 2025",$90.21,$0.00,,,Fixed price,,13
+[Removed] Item 389212163226,389212163226,"Nov 19, 2025",$92.90,$0.00,,,Fixed price,,11
+,,"Nov 16, 2025",$33.65,$0.00,,,Fixed price,,8
+AU+ 1879-O Morgan Silver Dollar (1 coin),126227206194,"Mar 7, 2026",$71.98,$5.28,,,Fixed price,https://www.ebay.com/itm/126227206194,6
+1879 O Morgan Dollar VF Very Fine 90% Silver $1 US Coin Collectible,365683745997,"Jan 24, 2026",$86.32,$0.00,,,Fixed price,https://www.ebay.com/itm/365683745997,6
+"1879 ""O"" Morgan SILVER Dollar $1 PCGS MS63 #197 Unc BU Uncirculated ECC&C.",397913573415,"May 7, 2026",$46.83,$0.00,,,Fixed price,https://www.ebay.com/itm/397913573415,7
+AU 1879-O MORGAN SILVER DOLLAR NICELY TONED QUALITY COLLECTOR GRADE COIN M-1764,177798782081,"Mar 31, 2026",$90.20,$5.25,,,Fixed price,https://www.ebay.com/itm/177798782081,5
+[Removed] Item 236471722584,236471722584,"Nov 19, 2025",$99.00,$0.00,,,Fixed price,,5
+[Removed] Item 357625813476,357625813476,"Dec 7, 2025",$90.00,$0.00,,,Fixed price,,6
+1879 O Morgan Silver Dollar $1 Brilliant Uncirculated BU 90% Silver,358520440042,"May 7, 2026",$44.31,$0.00,,,Fixed price,https://www.ebay.com/itm/358520440042,27
+,,"Nov 20, 2025",$35.92,$0.00,,,Fixed price,,4
+,,"Nov 21, 2025",$47.78,$4.50,,,Fixed price,,2
+,,"Dec 30, 2025",$350.00,$0.00,,,Fixed price,,2
+,,"Nov 12, 2025",$50.00,$0.00,,,Fixed price,,2
+1879 Morgan Silver Dollar San Francisco Mint American Currency 90% Silver Coin O,115325989513,"Jan 23, 2026",$79.95,$0.00,,,Fixed price,https://www.ebay.com/itm/115325989513,1
+,,"Dec 29, 2025",$60.00,$4.95,,,Fixed price,,1
+,,"Dec 9, 2025",$54.00,$0.00,,,Fixed price,,1
+,,"Dec 19, 2025",$225.00,$0.00,,,Fixed price,,1
+,,"Dec 23, 2025",$60.00,$5.00,,,Fixed price,,1
+,,"Dec 18, 2025",$95.00,$0.00,,,Fixed price,,1
+,,"Nov 9, 2025",$39.00,$5.00,,,Auction,,1
+,,"Nov 9, 2025",$73.95,$4.46,,,Auction,,1
+,,"Jan 6, 2026",$84.95,$5.25,,,Fixed price,,1
+,,"Nov 15, 2025",$39.35,$4.00,,,Auction,,1
+,,"Nov 21, 2025",$567.00,$7.49,,,Auction,,1
+,,"Nov 23, 2025",$59.00,$6.50,,,Auction,,1
+,,"Nov 26, 2025",$105.95,$4.46,,,Auction,,1
+,,"Nov 26, 2025",$97.95,$4.46,,,Auction,,1
+,,"Nov 27, 2025",$78.00,$4.46,,,Auction,,1
 ,,"Nov 24, 2025",$45.00,$4.50,,,Fixed price,,1
 ,,"Dec 2, 2025",$89.20,$0.00,,,Auction,,1
 ,,"Dec 2, 2025",$69.95,$4.46,,,Auction,,1
@@ -62,154 +49,3 @@ AU 1879-O MORGAN SILVER DOLLAR NICELY TONED QUALITY COLLECTOR GRADE COIN M-1764,
 ,,"Dec 28, 2025",$145.00,$7.00,,,Fixed price,,1
 ,,"Dec 11, 2025",$26.55,$7.00,,,Auction,,1
 ,,"Dec 14, 2025",$152.50,$0.00,,,Auction,,1
-,,"Dec 17, 2025",$316.00,$4.76,,,Auction,,1
-,,"Dec 20, 2025",$48.00,$5.00,,,Auction,,1
-,,"Dec 26, 2025",$68.00,$0.00,,,Auction,,1
-,,"Dec 27, 2025",$69.95,$4.46,,,Auction,,1
-,,"Dec 27, 2025",$96.95,$4.46,,,Auction,,1
-,,"Dec 30, 2025",$73.00,$0.00,,,Auction,,1
-,,"Jan 3, 2026",$71.00,$5.15,,,Auction,,1
-,,"Jan 4, 2026",$69.95,$5.15,,,Auction,,1
-,,"Jan 6, 2026",$104.95,$5.15,,,Auction,,1
-,,"Jan 13, 2026",$71.00,$5.15,,,Auction,,1
-1879-O AU53 PCGS New Orleans Mint Morgan Silver Dollar,116970759355,"Jan 14, 2026",$72.00,$5.15,,,Auction,https://www.ebay.com/itm/116970759355,1
-1879-O AU53 PCGS New Orleans Mint Morgan Silver Dollar,116970759358,"Jan 14, 2026",$70.95,$5.15,,,Auction,https://www.ebay.com/itm/116970759358,1
-,,"Jan 12, 2026",$91.73,$13.27,,,Fixed price,,1
-1879-O AU55 PCGS New Orleans Mint Morgan Silver Dollar,116973123174,"Jan 15, 2026",$98.95,$5.15,,,Auction,https://www.ebay.com/itm/116973123174,1
-1879-O AU53 Great Detail PCGS New Orleans Mint Morgan Silver Dollar,116975122107,"Jan 16, 2026",$87.79,$5.15,,,Auction,https://www.ebay.com/itm/116975122107,1
-1879-O AU53 Golden Rim toning PCGS New Orleans Mint Morgan Silver Dollar,116975122121,"Jan 16, 2026",$75.77,$5.15,,,Auction,https://www.ebay.com/itm/116975122121,1
-1879-O MS63 Brilliant Surfaces PCGS New Orleans Mint Morgan Silver Dollar,116982464346,"Jan 20, 2026",$458.95,$5.15,,,Auction,https://www.ebay.com/itm/116982464346,1
-1879-O AU58 Dark Golden Toning PCGS New Orleans Mint Morgan Silver Dollar,116983910085,"Jan 21, 2026",$108.50,$5.15,,,Auction,https://www.ebay.com/itm/116983910085,1
-1885-O MS62 Excellent PCGS New Orleans Mint Morgan Silver Dollar,116983984777,"Jan 21, 2026",$81.00,$5.15,,,Auction,https://www.ebay.com/itm/116983984777,1
-1879-O AU53 Dark Toning PCGS New Orleans Mint Morgan Silver Dollar,116987426100,"Jan 23, 2026",$91.00,$5.15,,,Auction,https://www.ebay.com/itm/116987426100,1
-1879-O AU58 Dark/Gold Toning PCGS New Orleans Mint Morgan Silver Dollar,116992486609,"Jan 27, 2026",$105.95,$5.15,,,Auction,https://www.ebay.com/itm/116992486609,1
-1879-O AU58 PCGS New Orleans Mint Morgan Silver Dollar,116998174165,"Jan 30, 2026",$110.00,$5.15,,,Auction,https://www.ebay.com/itm/116998174165,1
-1879-O MS62 Mint State High-Grade PCGS New Orleans Mint Morgan Silver Dollar,116999822119,"Jan 31, 2026",$204.95,$5.15,,,Auction,https://www.ebay.com/itm/116999822119,1
-1879 O Morgan 90% Silver Dollar,117001002340,"Jan 30, 2026",$84.00,$5.00,,,Auction,https://www.ebay.com/itm/117001002340,1
-DMPL!! 1879 O Morgan Silver Dollar ~ SUPER RARE DPL ~ DEEP MIRROR PROOF LIKE $1,117001369030,"Feb 1, 2026",$260.00,$4.18,,,Auction,https://www.ebay.com/itm/117001369030,1
-1879 O $1 Morgan Silver One Dollar - Almost Uncirculated - Shiney Coin,117011466291,"Mar 5, 2026",$85.00,$5.00,,,Fixed price,https://www.ebay.com/itm/117011466291,1
-1879-O AU58 PCGS New Orleans Mint Morgan Silver Dollar,117013335677,"Feb 8, 2026",$104.95,$5.15,,,Auction,https://www.ebay.com/itm/117013335677,1
-1879-O white BU Morgan silver dollar. NGC MS61. #ndo007,117013822305,"Feb 6, 2026",$159.00,$0.00,,,Fixed price,https://www.ebay.com/itm/117013822305,1
-1879-O MORGAN SILVER DOLLAR CHOICE 90% Silver US Coin,117015635243,"Feb 3, 2026",$69.99,$5.52,,,Fixed price,https://www.ebay.com/itm/117015635243,1
-1879 O $1 Morgan Silver One Dollar US Coin HIGH GRADE,117015651948,"Feb 3, 2026",$79.99,$5.52,,,Fixed price,https://www.ebay.com/itm/117015651948,1
-1879-O AU55 PCGS New Orleans Mint Morgan Silver Dollar,117017970512,"Feb 10, 2026",$97.95,$5.15,,,Auction,https://www.ebay.com/itm/117017970512,1
-1879-O AU58 Dark/Gold Toning PCGS New Orleans Mint Morgan Silver Dollar,117021460863,"Feb 12, 2026",$105.95,$5.15,,,Auction,https://www.ebay.com/itm/117021460863,1
-1879-O AU55 PCGS New Orleans Mint Morgan Silver Dollar,117024567265,"Feb 14, 2026",$95.95,$5.50,,,Auction,https://www.ebay.com/itm/117024567265,1
-1879-O AU55 PCGS New Orleans Mint Morgan Silver Dollar,117024567276,"Feb 14, 2026",$97.95,$5.50,,,Auction,https://www.ebay.com/itm/117024567276,1
-1879-O Morgan Silver Dollar AU (cn16114),117028532346,"Mar 5, 2026",$110.00,$4.00,,,Fixed price,https://www.ebay.com/itm/117028532346,1
-1879-O Morgan Silver Dollar (cn16208),117030543074,"Feb 10, 2026",$80.00,$0.00,,,Fixed price,https://www.ebay.com/itm/117030543074,1
-1879-O Morgan Silver Dollar XF++ (cn16273),117041027164,"Feb 20, 2026",$78.00,$4.00,,,Fixed price,https://www.ebay.com/itm/117041027164,1
-1879-O AU58 PCGS New Orleans Mint Morgan Silver Dollar,117044495959,"Feb 25, 2026",$107.50,$5.50,,,Auction,https://www.ebay.com/itm/117044495959,1
-1879-O AU58 Splendid Surfaces PCGS New Orleans Mint Morgan Silver Dollar,117050021605,"Feb 28, 2026",$104.95,$5.50,,,Auction,https://www.ebay.com/itm/117050021605,1
-1879-O AU58 Slight Dark Rim Toning PCGS New Orleans Mint Morgan Silver Dollar,117050021610,"Feb 28, 2026",$104.95,$5.50,,,Auction,https://www.ebay.com/itm/117050021610,1
-1879-O AU58 PCGS Bright Surfaces New Orleans Mint Morgan Silver Dollar,117052030750,"Mar 1, 2026",$104.95,$5.50,,,Auction,https://www.ebay.com/itm/117052030750,1
-1879-O AU55 PCGS New Orleans Mint Morgan Silver Dollar,117053775417,"Mar 2, 2026",$99.95,$5.50,,,Auction,https://www.ebay.com/itm/117053775417,1
-1879-O AU58 Red/Rust/Gold Toning PCGS New Orleans Mint Morgan Silver Dollar,117058926412,"Mar 5, 2026",$108.95,$5.50,,,Auction,https://www.ebay.com/itm/117058926412,1
-1879 O Morgan Silver Dollar,117064589835,"Mar 8, 2026",$78.01,$0.00,,,Auction,https://www.ebay.com/itm/117064589835,1
-1879-O AU55 PCGS Bright Surfaces New Orleans Mint Morgan Silver Dollar,117071638640,"Mar 12, 2026",$99.95,$5.50,,,Auction,https://www.ebay.com/itm/117071638640,1
-1879-O AU58 Spectacular Surfaces PCGS New Orleans Mint Morgan Silver Dollars,117073814182,"Mar 13, 2026",$104.95,$5.50,,,Auction,https://www.ebay.com/itm/117073814182,1
-1879-O Morgan Silver Dollar AU condition,117091335629,"Mar 26, 2026",$60.00,$5.95,,,Auction,https://www.ebay.com/itm/117091335629,1
-1879-O AU50 PCGS New Orleans Mint Morgan Silver Dollar,117097170709,"Mar 26, 2026",$85.00,$5.50,,,Auction,https://www.ebay.com/itm/117097170709,1
-1879-O MORGAN DOLLAR,117103890033,"Mar 23, 2026",$64.00,$0.25,,,Fixed price,https://www.ebay.com/itm/117103890033,1
-1879 O Morgan Silver Dollar ~ RARE HIGH GRADE COIN ~ 90% Silver $1,117104629184,"Mar 28, 2026",$86.11,$6.75,,,Auction,https://www.ebay.com/itm/117104629184,1
-1879-O AU55 Important Date/Mint Mark PCGS New Orleans Mint Morgan Silver Dollar,117107988948,"Apr 1, 2026",$97.95,$5.50,,,Auction,https://www.ebay.com/itm/117107988948,1
-1879-O Morgan Silver Dollar US,117109955226,"Apr 2, 2026",$70.00,$5.52,,,Auction,https://www.ebay.com/itm/117109955226,1
-1879-O MORGAN SILVER DOLLAR RARE KEY DATE #172917-162C,122621570011,"Feb 27, 2026",$210.00,$0.00,,,Fixed price,https://www.ebay.com/itm/122621570011,1
-,,"Jan 1, 2026",$67.00,$0.00,,,Fixed price,,1
-,,"Oct 23, 2025",$129.00,$0.00,,,Fixed price,,1
-1879-O Morgan Silver Dollar UNC,126678808387,"Feb 14, 2026",$110.00,$5.00,,,Fixed price,https://www.ebay.com/itm/126678808387,1
-,,"Jan 7, 2026",$65.00,$0.00,,,Fixed price,,1
-1879-O AU MORGAN LOW MINTAGE SILVER DOLLAR 90% $1 ID3,127033887969,"Mar 22, 2026",$85.00,$5.25,,,Fixed price,https://www.ebay.com/itm/127033887969,1
-,,"Oct 17, 2025",$55.00,$0.00,,,Fixed price,,1
-,,"Oct 28, 2025",$89.99,$7.50,,,Fixed price,,1
-,,"Dec 27, 2025",$62.99,$0.00,,,Fixed price,,1
-,,"Dec 15, 2025",$63.00,$0.00,,,Fixed price,,1
-"1879-O Morgan Silver Dollar Silver Coin, Lustrous Choice BU++",127413449287,"Jan 19, 2026",$80.99,$0.00,,,Fixed price,https://www.ebay.com/itm/127413449287,1
-,,"Oct 19, 2025",$58.00,$4.25,,,Auction,,1
-,,"Oct 16, 2025",$49.00,$0.00,,,Auction,,1
-,,"Oct 19, 2025",$52.00,$0.00,,,Auction,,1
-,,"Oct 22, 2025",$47.43,$0.00,,,Auction,,1
-,,"Oct 25, 2025",$106.48,$8.40,,,Auction,,1
-,,"Oct 29, 2025",$42.00,$0.50,,,Auction,,1
-,,"Nov 1, 2025",$47.00,$0.00,,,Auction,,1
-,,"Nov 1, 2025",$48.00,$0.00,,,Auction,,1
-,,"Nov 3, 2025",$39.00,$0.00,,,Auction,,1
-,,"Nov 5, 2025",$48.00,$0.00,,,Auction,,1
-,,"Nov 8, 2025",$187.00,$9.00,,,Auction,,1
-"1879-O Morgan Silver Dollar BU / UNC Details Low Mintage of 2,887,000 (Polished)",127466387706,"Jan 26, 2026",$75.00,$8.75,,,Fixed price,https://www.ebay.com/itm/127466387706,1
-,,"Nov 9, 2025",$40.00,$0.00,,,Auction,,1
-,,"Nov 13, 2025",$52.02,$0.00,,,Auction,,1
-,,"Nov 20, 2025",$41.69,$0.00,,,Auction,,1
-,,"Nov 30, 2025",$365.07,$0.00,,,Auction,,1
-,,"Nov 22, 2025",$44.75,$0.00,,,Auction,,1
-,,"Nov 26, 2025",$42.20,$0.00,,,Auction,,1
-,,"Nov 27, 2025",$44.88,$0.00,,,Auction,,1
-,,"Nov 30, 2025",$42.95,$0.00,,,Auction,,1
-,,"Nov 28, 2025",$51.00,$0.00,,,Auction,,1
-,,"Nov 25, 2025",$511.77,$8.35,,,Auction,,1
-,,"Dec 1, 2025",$39.58,$0.00,,,Auction,,1
-,,"Dec 1, 2025",$47.00,$0.00,,,Auction,,1
-,,"Dec 5, 2025",$52.95,$0.00,,,Auction,,1
-,,"Dec 4, 2025",$46.64,$0.00,,,Auction,,1
-,,"Dec 5, 2025",$50.00,$0.00,,,Auction,,1
-,,"Dec 5, 2025",$86.00,$0.00,,,Auction,,1
-,,"Dec 7, 2025",$52.01,$0.00,,,Auction,,1
-,,"Dec 9, 2025",$52.95,$0.00,,,Auction,,1
-,,"Dec 10, 2025",$48.49,$0.00,,,Auction,,1
-,,"Jan 3, 2026",$66.00,$7.50,,,Auction,,1
-,,"Dec 9, 2025",$46.00,$0.00,,,Auction,,1
-,,"Dec 13, 2025",$68.00,$0.00,,,Auction,,1
-,,"Dec 13, 2025",$46.00,$0.00,,,Auction,,1
-,,"Jan 4, 2026",$65.00,$0.00,,,Fixed price,,1
-,,"Dec 15, 2025",$51.50,$0.00,,,Auction,,1
-,,"Jan 10, 2026",$172.50,$8.10,,,Auction,,1
-,,"Dec 17, 2025",$55.00,$0.00,,,Auction,,1
-,,"Dec 21, 2025",$55.00,$0.00,,,Auction,,1
-,,"Dec 22, 2025",$52.58,$0.00,,,Auction,,1
-,,"Dec 22, 2025",$55.00,$0.00,,,Auction,,1
-,,"Dec 22, 2025",$58.00,$0.00,,,Auction,,1
-,,"Dec 25, 2025",$63.50,$0.00,,,Auction,,1
-1879-o Morgan Silver Dollar Brilliant Uncirculated,127571567193,"Jan 17, 2026",$83.00,$8.40,,,Auction,https://www.ebay.com/itm/127571567193,1
-,,"Dec 28, 2025",$64.00,$2.77,,,Auction,,1
-1879-o Morgan Silver Dollar Almost Uncirculated,127583938760,"Jan 24, 2026",$80.00,$1.93,,,Auction,https://www.ebay.com/itm/127583938760,1
-,,"Dec 28, 2025",$258.50,$5.95,,,Auction,,1
-,,"Jan 5, 2026",$132.50,$9.25,,,Auction,,1
-,,"Jan 11, 2026",$63.00,$0.00,,,Auction,,1
-,,"Jan 12, 2026",$69.00,$0.00,,,Auction,,1
-1879-O $1 Morgan Silver Dollar - NGC MS62,127610165577,"Feb 4, 2026",$190.00,$5.00,,,Fixed price,https://www.ebay.com/itm/127610165577,1
-1879-o Morgan Silver Dollar Brilliant Uncirculated,127624728144,"Feb 14, 2026",$89.56,$7.95,,,Auction,https://www.ebay.com/itm/127624728144,1
-VG/F 1879-O Morgan Silver Dollar (1 coin) *1879,127626079165,"Jan 22, 2026",$76.00,$0.00,,,Auction,https://www.ebay.com/itm/127626079165,1
-1879-O 1896-O Morgan Silver Dollar - 90% US Coin 2 Coin Lot! *568,127628354632,"Jan 21, 2026",$144.50,$0.00,,,Auction,https://www.ebay.com/itm/127628354632,1
-1879-O Morgan Silver Dollar $1 - New Orleans Mint - XF+ Details - Cleaned,127630086937,"Jan 24, 2026",$78.55,$0.00,,,Auction,https://www.ebay.com/itm/127630086937,1
-1879-O Morgan Dollar US $1 Coin 90% Silver F/VF Better Date,127631495147,"Jan 26, 2026",$74.00,$3.82,,,Auction,https://www.ebay.com/itm/127631495147,1
-1879-O Morgan Silver Dollar AU+ Strong Eye Appeal & Luster,127631591182,"Jan 25, 2026",$107.50,$4.88,,,Auction,https://www.ebay.com/itm/127631591182,1
-1899-O $1 MORGAN SILVER DOLLAR PCGS MS63 NEW ORLEANS MINT NO RESERVE,127631677318,"Jan 23, 2026",$93.00,$10.00,,,Auction,https://www.ebay.com/itm/127631677318,1
-1879-S 1880-O Morgan Silver Dollar - 90% US Coin 2 Coin Lot! *653,127637427838,"Jan 26, 2026",$158.61,$0.00,,,Auction,https://www.ebay.com/itm/127637427838,1
-1879-o Morgan Silver Dollar Brilliant Uncirculated CAMEO with Slight Mirrors,127640265854,"Feb 21, 2026",$153.33,$3.62,,,Auction,https://www.ebay.com/itm/127640265854,1
-SD3 💎 1884 O Morgan Silver Dollar UNC A/U++ Toning Rainbow,127641205166,"Jan 25, 2026",$89.30,$5.50,,,Fixed price,https://www.ebay.com/itm/127641205166,1
-XF 1879-O Morgan Silver Dollar (1 coin) *2713,127641495729,"Jan 30, 2026",$82.82,$0.00,,,Auction,https://www.ebay.com/itm/127641495729,1
-"1879-S And 1891-O Morgan Silver Dollars, Nice Coins, Awesome Dates! #46",127643063841,"Jan 31, 2026",$123.50,$8.95,,,Auction,https://www.ebay.com/itm/127643063841,1
-Better 1879-O Morgan Silver Dollar - 90% US Coin - Nice Coin *054,127643538444,"Jan 29, 2026",$87.60,$0.00,,,Auction,https://www.ebay.com/itm/127643538444,1
-1901-O 1879-S Morgan Silver Dollar - 90% US Coin 2 Coin Lot! *704,127645523684,"Jan 30, 2026",$166.00,$0.00,,,Auction,https://www.ebay.com/itm/127645523684,1
-1879-O Morgan Silver Dollar 90% Silver US Coin,127652260957,"Feb 12, 2026",$59.99,$4.99,,,Fixed price,https://www.ebay.com/itm/127652260957,1
-1879-o Morgan Silver Dollar Brilliant Uncirculated Cameo With Mirrors,127654015816,"Feb 28, 2026",$145.00,$2.85,,,Auction,https://www.ebay.com/itm/127654015816,1
-XF 1879-O Morgan Silver Dollar (1 coin) *8773,127655635546,"Feb 6, 2026",$82.00,$0.00,,,Auction,https://www.ebay.com/itm/127655635546,1
-Early - 1879-O Morgan Silver Dollar - 90% US Coin *591,127657509366,"Feb 5, 2026",$79.07,$0.00,,,Auction,https://www.ebay.com/itm/127657509366,1
-Better 1879-O Morgan Silver Dollar - 90% US Coin - Nice Coin *983,127659607921,"Feb 6, 2026",$71.00,$0.00,,,Auction,https://www.ebay.com/itm/127659607921,1
-Early - 1879-O Morgan Silver Dollar - 90% US Coin *605,127661569642,"Feb 7, 2026",$64.00,$0.00,,,Auction,https://www.ebay.com/itm/127661569642,1
-1879-o Morgan Silver Dollar Brilliant Uncirculated Slight Cameo & Mirrors Toned,127666503976,"Mar 7, 2026",$129.00,$8.75,,,Auction,https://www.ebay.com/itm/127666503976,1
-US Coin 1879 O Morgan Silver Dollar Choice Lustrous BU NO RESERVE!,127667511232,"Feb 11, 2026",$144.50,$7.00,,,Auction,https://www.ebay.com/itm/127667511232,1
-1887-O MORGAN DOLLAR - .900 SILVER COIN,127671636727,"Feb 9, 2026",$54.99,$4.97,,,Fixed price,https://www.ebay.com/itm/127671636727,1
-Better 1879-O Morgan Silver Dollar - 90% US Coin - Nice Coin *459,127673693172,"Feb 13, 2026",$72.00,$0.00,,,Auction,https://www.ebay.com/itm/127673693172,1
-Better 1879-O Morgan Silver Dollar - 90% US Coin - Nice Coin *820,127674111205,"Feb 13, 2026",$76.00,$0.00,,,Auction,https://www.ebay.com/itm/127674111205,1
-Early - 1879-O Morgan Silver Dollar - 90% US Coin *403,127675997978,"Feb 14, 2026",$74.00,$0.00,,,Auction,https://www.ebay.com/itm/127675997978,1
-1879-o $1 Morgan Silver Dollar,127677173019,"Feb 11, 2026",$66.00,$5.20,,,Fixed price,https://www.ebay.com/itm/127677173019,1
-[Removed] Item 376573998022,376573998022,"Nov 17, 2025",$90.69,$0.00,,,Fixed price,,27
-1879 O Morgan Silver Dollar $1 Brilliant Uncirculated BU 90% Silver,196257842619,"Apr 16, 2026",$269.30,$0.00,,,Fixed price,https://www.ebay.com/itm/196257842619,11
-,,"Oct 20, 2025",$93.02,$0.00,,,Fixed price,,13
-1879 O Morgan Dollar VF Very Fine 90% Silver $1 US Coin Collectible,365683745997,"Jan 24, 2026",$83.56,$0.00,,,Fixed price,https://www.ebay.com/itm/365683745997,7
-,,"Jan 14, 2026",$72.00,$5.15,,,Auction,,1
-,,"Jan 14, 2026",$70.95,$5.15,,,Auction,,1
-,,"Jan 15, 2026",$98.95,$5.15,,,Auction,,1
-,,"Jan 16, 2026",$87.79,$5.15,,,Auction,,1
-,,"Jan 16, 2026",$75.77,$5.15,,,Auction,,1

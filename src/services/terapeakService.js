@@ -16,6 +16,9 @@ const CACHE_DIR = require('../utils/cachePath').CACHE_DIR;
 const cosmos = require('../utils/cosmosClient');
 const STORE_PATH = path.join(CACHE_DIR, 'terapeak_sold.json');
 
+// Git-tracked sidecar: lightweight aggregationMeta that survives codespace rebuilds
+const META_SIDECAR_PATH = path.join(__dirname, '../../data/terapeak-meta.json');
+
 // (CACHE_DIR mkdir handled by cachePath.js)
 
 // ── Persistent store ────────────────────────────────────────
@@ -45,6 +48,77 @@ function saveStore() {
       }
     });
   }, 500);
+}
+
+// ── Meta sidecar (git-tracked) ──────────────────────────────────
+let _metaSavePending = null;
+
+/**
+ * Write a lightweight JSON sidecar with just aggregationMeta per search term.
+ * Git-tracked in data/terapeak-meta.json so markers survive codespace rebuilds
+ * without requiring Cosmos.
+ */
+function saveMetaSidecar() {
+  if (_metaSavePending) clearTimeout(_metaSavePending);
+  _metaSavePending = setTimeout(() => {
+    _metaSavePending = null;
+    const store = loadStore();
+    const meta = {};
+    for (const [key, entry] of Object.entries(store)) {
+      const am = entry.aggregationMeta;
+      if (am && (am.deepAt || am.page1At || am.maxPageReached)) {
+        meta[key] = {
+          deepAt: am.deepAt || null,
+          page1At: am.page1At || null,
+          maxPageReached: am.maxPageReached || null,
+          lastRefreshAt: am.lastRefreshAt || null,
+        };
+      }
+    }
+    fs.writeFile(META_SIDECAR_PATH, JSON.stringify(meta, null, 2) + '\n', (err) => {
+      if (err && process.env.NODE_ENV !== 'test') {
+        console.error('[terapeak] Failed to save meta sidecar:', err.message);
+      }
+    });
+  }, 1000);
+}
+
+/**
+ * Load aggregationMeta markers from the git-tracked sidecar file.
+ * Called at startup BEFORE CSV import so deepAt markers are pre-seeded.
+ * Returns { hydrated: number }.
+ */
+function loadMetaSidecar() {
+  const store = loadStore();
+  let hydrated = 0;
+  try {
+    const raw = JSON.parse(fs.readFileSync(META_SIDECAR_PATH, 'utf8'));
+    for (const [key, meta] of Object.entries(raw)) {
+      if (!meta || (!meta.deepAt && !meta.page1At)) continue;
+      const existing = store[key]?.aggregationMeta || {};
+      const merged = {
+        page1At: existing.page1At || meta.page1At || null,
+        deepAt: existing.deepAt || meta.deepAt || null,
+        maxPageReached: Math.max(existing.maxPageReached || 0, meta.maxPageReached || 0) || null,
+        lastRefreshAt: existing.lastRefreshAt || meta.lastRefreshAt || null,
+      };
+      if (store[key]) {
+        store[key].aggregationMeta = merged;
+      } else {
+        store[key] = { searchTerm: key, comps: [], aggregationMeta: merged };
+      }
+      hydrated++;
+    }
+    if (hydrated > 0) {
+      _store = store;
+      // Don't saveStore() here -- the main cache file may not exist yet on fresh rebuild
+    }
+  } catch (err) {
+    if (err.code !== 'ENOENT' && process.env.NODE_ENV !== 'test') {
+      console.warn('[terapeak] Failed to load meta sidecar:', err.message);
+    }
+  }
+  return { hydrated };
 }
 
 /**
@@ -468,8 +542,9 @@ function importComps(searchTerm, comps, meta = {}) {
     lastRefreshAt: incomingMeta.lastRefreshAt || prevMeta.lastRefreshAt || null,
   };
 
-  // Infer deepAt from comp count: >=100 comps means deep pagination was run
-  if (!mergedAggregationMeta.deepAt && existing.length >= 100) {
+  // Infer deepAt from comp count: >50 comps means deep pagination was run
+  // (page 1 caps at 50 results)
+  if (!mergedAggregationMeta.deepAt && existing.length > 50) {
     mergedAggregationMeta.deepAt = mergedAggregationMeta.lastRefreshAt || store[normalizedKey]?.lastImport || new Date().toISOString();
   }
   // Remove aggregationMeta from meta spread to avoid double-write
@@ -487,8 +562,16 @@ function importComps(searchTerm, comps, meta = {}) {
   _store = store;
   saveStore();
 
-  // Write-through to Cosmos DB (#98) -- includes aggregationMeta for durable marker persistence
-  if (cosmos.isEnabled() && newCount > 0) {
+  // Write-through to Cosmos DB (#98) -- includes aggregationMeta for durable marker persistence.
+  // Also write when aggregationMeta changed (e.g. deepAt inferred from comp count)
+  // even if no new comps, so markers survive codespace rebuilds.
+  const metaChanged = mergedAggregationMeta.deepAt !== (prevMeta.deepAt || null)
+    || mergedAggregationMeta.page1At !== (prevMeta.page1At || null)
+    || mergedAggregationMeta.maxPageReached !== (prevMeta.maxPageReached || null);
+
+  // Persist meta sidecar (git-tracked) whenever markers change
+  if (metaChanged) saveMetaSidecar();
+  if (cosmos.isEnabled() && (newCount > 0 || metaChanged)) {
     const doc = {
       id: normalizedKey.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 200),
       searchTerm: normalizedKey,
@@ -1084,7 +1167,14 @@ function autoImportFolder(folderPath, opts = {}) {
       const { comps } = parseCSV(csvData, searchTerm);
       if (comps.length === 0) { skipped++; continue; }
 
-      const result = importComps(searchTerm, comps, { fileName: file, autoImported: true });
+      // If CSV has >50 rows, it was deep-paginated (page 1 caps at 50).
+      // Set deepAt so the aggregator doesn't re-scrape it.
+      const importMeta = { fileName: file, autoImported: true };
+      if (comps.length > 50) {
+        importMeta.aggregationMeta = { deepAt: new Date().toISOString() };
+      }
+
+      const result = importComps(searchTerm, comps, importMeta);
       if (result.newComps > 0) {
         console.log(`[terapeak] Auto-imported ${file}: ${result.newComps} new comps for "${searchTerm}" (${result.totalStored} total)`);
         imported++;
@@ -1164,7 +1254,13 @@ async function autoImportFromBlob(opts = {}) {
         const { comps } = parseCSV(csvData, searchTerm);
         if (comps.length === 0) { skipped++; continue; }
 
-        const result = importComps(searchTerm, comps, { fileName, autoImported: true });
+        // If CSV has >50 rows, it was deep-paginated (page 1 caps at 50).
+        const blobImportMeta = { fileName, autoImported: true };
+        if (comps.length > 50) {
+          blobImportMeta.aggregationMeta = { deepAt: new Date().toISOString() };
+        }
+
+        const result = importComps(searchTerm, comps, blobImportMeta);
         if (result.newComps > 0) {
           console.log(`[terapeak] Blob-imported ${fileName}: ${result.newComps} new comps for "${searchTerm}" (${result.totalStored} total)`);
           imported++;
@@ -1206,6 +1302,8 @@ module.exports = {
   autoImportFolder,
   autoImportFromBlob,
   hydrateMetaFromCosmos,
+  loadMetaSidecar,
+  saveMetaSidecar,
   normalizeSearchKey,
   detectWeightFromQuery,
   detectMetal: _detectMetalFromText,
