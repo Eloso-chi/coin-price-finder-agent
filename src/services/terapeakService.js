@@ -66,12 +66,15 @@ function saveMetaSidecar() {
     const meta = {};
     for (const [key, entry] of Object.entries(store)) {
       const am = entry.aggregationMeta;
-      if (am && (am.deepAt || am.page1At || am.maxPageReached)) {
+      if (am && (am.deepAt || am.page1At || am.maxPageReached || am.newestSaleDate)) {
         meta[key] = {
           deepAt: am.deepAt || null,
           page1At: am.page1At || null,
           maxPageReached: am.maxPageReached || null,
           lastRefreshAt: am.lastRefreshAt || null,
+          newestSaleDate: am.newestSaleDate || null,
+          oldestSaleDate: am.oldestSaleDate || null,
+          compCount: am.compCount || null,
         };
       }
     }
@@ -94,13 +97,16 @@ function loadMetaSidecar() {
   try {
     const raw = JSON.parse(fs.readFileSync(META_SIDECAR_PATH, 'utf8'));
     for (const [key, meta] of Object.entries(raw)) {
-      if (!meta || (!meta.deepAt && !meta.page1At)) continue;
+      if (!meta || (!meta.deepAt && !meta.page1At && !meta.newestSaleDate)) continue;
       const existing = store[key]?.aggregationMeta || {};
       const merged = {
         page1At: existing.page1At || meta.page1At || null,
         deepAt: existing.deepAt || meta.deepAt || null,
         maxPageReached: Math.max(existing.maxPageReached || 0, meta.maxPageReached || 0) || null,
         lastRefreshAt: existing.lastRefreshAt || meta.lastRefreshAt || null,
+        newestSaleDate: existing.newestSaleDate || meta.newestSaleDate || null,
+        oldestSaleDate: existing.oldestSaleDate || meta.oldestSaleDate || null,
+        compCount: existing.compCount || meta.compCount || null,
       };
       if (store[key]) {
         store[key].aggregationMeta = merged;
@@ -542,6 +548,23 @@ function importComps(searchTerm, comps, meta = {}) {
     lastRefreshAt: incomingMeta.lastRefreshAt || prevMeta.lastRefreshAt || null,
   };
 
+  // Compute sale date bounds from all comps (existing + newly added)
+  let newestSaleDate = prevMeta.newestSaleDate || null;
+  let oldestSaleDate = prevMeta.oldestSaleDate || null;
+  for (const comp of comps) {
+    const sd = comp.soldDate;
+    if (!sd) continue;
+    // Normalize to YYYY-MM-DD for comparison
+    const d = new Date(sd);
+    if (isNaN(d.getTime())) continue;
+    const iso = d.toISOString().split('T')[0];
+    if (!newestSaleDate || iso > newestSaleDate) newestSaleDate = iso;
+    if (!oldestSaleDate || iso < oldestSaleDate) oldestSaleDate = iso;
+  }
+  mergedAggregationMeta.newestSaleDate = newestSaleDate;
+  mergedAggregationMeta.oldestSaleDate = oldestSaleDate;
+  mergedAggregationMeta.compCount = existing.length;
+
   // Infer deepAt from comp count: >50 comps means deep pagination was run
   // (page 1 caps at 50 results)
   if (!mergedAggregationMeta.deepAt && existing.length > 50) {
@@ -567,7 +590,8 @@ function importComps(searchTerm, comps, meta = {}) {
   // even if no new comps, so markers survive codespace rebuilds.
   const metaChanged = mergedAggregationMeta.deepAt !== (prevMeta.deepAt || null)
     || mergedAggregationMeta.page1At !== (prevMeta.page1At || null)
-    || mergedAggregationMeta.maxPageReached !== (prevMeta.maxPageReached || null);
+    || mergedAggregationMeta.maxPageReached !== (prevMeta.maxPageReached || null)
+    || mergedAggregationMeta.newestSaleDate !== (prevMeta.newestSaleDate || null);
 
   // Persist meta sidecar (git-tracked) whenever markers change
   if (metaChanged) saveMetaSidecar();
