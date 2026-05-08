@@ -955,15 +955,22 @@ def do_export_run(args):
             sys.exit(1)
         with open(backlog_path) as f:
             report = _json.load(f)
-        # Extract keys that need refresh-page1
+        # Extract keys that need refresh-page1 or have no data at all
         backlog_keys = set()
         for item in report.get("datasets", []):
             actions = item.get("actions", [])
             if "refresh-page1" in actions or "needs-data" in actions:
                 backlog_keys.add(item["key"])
+        # Filter existing terms to backlog keys
+        existing_keys = {t["term"] for t in terms}
         before = len(terms)
         terms = [t for t in terms if t["term"] in backlog_keys]
-        print(f"Backlog mode: {len(terms)} from report, skipping {before - len(terms)} not in backlog")
+        # Inject needs-data keys that have no CSV yet (new exports)
+        missing_keys = backlog_keys - existing_keys
+        for key in sorted(missing_keys):
+            filename = key.replace(" ", "_") + ".csv"
+            terms.append({"term": key, "filename": filename})
+        print(f"Backlog mode: {len(terms)} from report ({len(missing_keys)} new, {len(terms) - len(missing_keys)} existing), skipping {before - (len(terms) - len(missing_keys))} not in backlog")
 
     # Apply resume
     progress = load_progress()
