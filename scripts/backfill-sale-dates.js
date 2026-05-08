@@ -9,14 +9,19 @@
 
 const fs = require('fs');
 const path = require('path');
+const { normalizeSearchKey } = require('../src/services/terapeakService');
 
 const TERAPEAK_DIR = path.join(__dirname, '..', 'data', 'terapeak');
 const META_PATH = path.join(__dirname, '..', 'data', 'terapeak-meta.json');
 const DRY_RUN = process.argv.includes('--dry-run');
 
-function normalizeSearchKey(filename) {
-  // Strip .csv, replace underscores with spaces, lowercase
-  return filename.replace(/\.csv$/, '').replace(/_/g, ' ').toLowerCase();
+function deriveSearchTerm(filename) {
+  // Mirror terapeakService.deriveSearchTerm: strip extension, replace _ with space
+  const metaPath = path.join(TERAPEAK_DIR, filename.replace(/\.[^.]+$/, '.meta'));
+  if (fs.existsSync(metaPath)) {
+    return fs.readFileSync(metaPath, 'utf8').trim();
+  }
+  return filename.replace(/\.[^.]+$/, '').replace(/[_]+/g, ' ').trim();
 }
 
 function parseSoldDate(dateStr) {
@@ -86,13 +91,25 @@ try {
 
 let updated = 0;
 let skipped = 0;
+let migrated = 0;
 
 for (const file of files) {
-  const key = normalizeSearchKey(file);
+  const searchTerm = deriveSearchTerm(file);
+  const key = normalizeSearchKey(searchTerm);
   const filePath = path.join(TERAPEAK_DIR, file);
   const result = extractDatesFromCSV(filePath);
 
   if (!result) { skipped++; continue; }
+
+  // Check if an old-format key exists (e.g. with hyphens) that should be migrated
+  // to the canonical normalizeSearchKey format.
+  const oldFormatKey = file.replace(/\.csv$/, '').replace(/_/g, ' ').toLowerCase();
+  if (oldFormatKey !== key && meta[oldFormatKey] && !meta[key]) {
+    // Migrate: move old entry to canonical key, merge data
+    meta[key] = { ...meta[oldFormatKey] };
+    delete meta[oldFormatKey];
+    migrated++;
+  }
 
   if (!meta[key]) meta[key] = {};
   meta[key].newestSaleDate = result.newestSaleDate;
@@ -101,7 +118,7 @@ for (const file of files) {
   updated++;
 }
 
-console.log(`Updated: ${updated}, Skipped: ${skipped}`);
+console.log(`Updated: ${updated}, Skipped: ${skipped}, Migrated: ${migrated}`);
 
 if (DRY_RUN) {
   // Show a sample

@@ -957,19 +957,36 @@ def do_export_run(args):
             report = _json.load(f)
         # Extract keys that need refresh-page1 or have no data at all
         backlog_keys = set()
+        backlog_search_terms = {}
         for item in report.get("datasets", []):
             actions = item.get("actions", [])
             if "refresh-page1" in actions or "needs-data" in actions:
                 backlog_keys.add(item["key"])
+                backlog_search_terms[item["key"]] = item.get("searchTerm", item["key"])
         # Filter existing terms to backlog keys
         existing_keys = {t["term"] for t in terms}
         before = len(terms)
         terms = [t for t in terms if t["term"] in backlog_keys]
-        # Inject needs-data keys that have no CSV yet (new exports)
+        # Inject needs-data keys that have no CSV yet (new exports).
+        # Try to find an existing CSV on disk via word-set matching so we
+        # don't create duplicate files with a different naming convention.
         missing_keys = backlog_keys - existing_keys
+        _csv_word_lookup = {}
+        for _f in sorted(TERAPEAK_DIR.glob("*.csv")):
+            _ws = frozenset(_f.stem.lower().replace("_", " ").replace("-", " ").split())
+            _csv_word_lookup[_ws] = _f.name
         for key in sorted(missing_keys):
-            filename = key.replace(" ", "_") + ".csv"
-            terms.append({"term": key, "filename": filename})
+            key_ws = frozenset(key.lower().replace("-", " ").split())
+            existing_csv = _csv_word_lookup.get(key_ws)
+            if existing_csv:
+                # CSV exists under a different naming -- use its filename
+                search_term = existing_csv.replace(".csv", "").replace("_", " ")
+                terms.append({"term": search_term, "filename": existing_csv})
+            else:
+                # Genuinely new -- use the searchTerm from report as eBay query
+                st = backlog_search_terms.get(key, key)
+                filename = st.replace(" ", "_") + ".csv"
+                terms.append({"term": st, "filename": filename})
         print(f"Backlog mode: {len(terms)} from report ({len(missing_keys)} new, {len(terms) - len(missing_keys)} existing), skipping {before - (len(terms) - len(missing_keys))} not in backlog")
 
     # Apply resume

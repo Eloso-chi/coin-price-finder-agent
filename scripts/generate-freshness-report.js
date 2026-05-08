@@ -16,6 +16,7 @@
 const fs = require('fs');
 const path = require('path');
 const { classifyComposition, classifyGradeCategory } = require('../src/utils/coinMetalProfile');
+const { normalizeSearchKey } = require('../src/services/terapeakService');
 
 const META_PATH = path.join(__dirname, '..', 'data', 'terapeak-meta.json');
 const OUTPUT_PATH = path.join(__dirname, '..', 'cache', 'freshness-report.json');
@@ -39,21 +40,47 @@ const meta = JSON.parse(fs.readFileSync(META_PATH, 'utf8'));
 const today = new Date();
 const todayStr = today.toISOString().split('T')[0];
 
-// ── Build normalized CSV lookup (handles hyphen/space mismatches) ─────
+// ── Build normalized CSV lookup ─────────────────────────────
+// Uses normalizeSearchKey (same as server) for consistent matching.
+// Also builds a word-set index for fuzzy fallback (catches word-order and
+// country/adjective differences like "mexico" vs "mexican").
 const TERAPEAK_DIR = path.join(__dirname, '..', 'data', 'terapeak');
-const csvSet = new Set();
+const csvNormSet = new Set();
+const csvWordSets = new Set();
 if (fs.existsSync(TERAPEAK_DIR)) {
   for (const f of fs.readdirSync(TERAPEAK_DIR)) {
     if (f.endsWith('.csv')) {
-      // Normalize: lowercase, underscores->spaces, hyphens->spaces
-      const norm = f.slice(0, -4).toLowerCase().replace(/_/g, ' ').replace(/-/g, ' ').replace(/\s+/g, ' ').trim();
-      csvSet.add(norm);
+      // Primary: derive search term the same way the server does
+      const searchTerm = f.slice(0, -4).replace(/[_]+/g, ' ').trim();
+      csvNormSet.add(normalizeSearchKey(searchTerm));
+      // Fallback: word-set with country->adjective normalization
+      const ws = f.slice(0, -4).toLowerCase()
+        .replace(/[_-]/g, ' ')
+        .replace(/\bmexican\b/g, 'mexico')
+        .replace(/\bcanadian\b/g, 'canada')
+        .replace(/\bchinese\b/g, 'china')
+        .replace(/\baustralian\b/g, 'australia')
+        .replace(/\baustrian\b/g, 'austria')
+        .replace(/\bbritish\b/g, 'britain')
+        .split(/\s+/).filter(Boolean).sort().join(' ');
+      csvWordSets.add(ws);
     }
   }
 }
 function hasCSVOnDisk(key) {
-  const norm = key.toLowerCase().replace(/-/g, ' ').replace(/\s+/g, ' ').trim();
-  return csvSet.has(norm);
+  // 1. Try normalizeSearchKey match (covers mint-mark and fraction normalization)
+  if (csvNormSet.has(normalizeSearchKey(key))) return true;
+  // 2. Try word-set match (covers word-order and country/adjective mismatches)
+  const ws = key.toLowerCase()
+    .replace(/[_-]/g, ' ')
+    .replace(/\bmexican\b/g, 'mexico')
+    .replace(/\bcanadian\b/g, 'canada')
+    .replace(/\bchinese\b/g, 'china')
+    .replace(/\baustralian\b/g, 'australia')
+    .replace(/\baustrian\b/g, 'austria')
+    .replace(/\bbritish\b/g, 'britain')
+    .split(/\s+/).filter(Boolean).sort().join(' ');
+  return csvWordSets.has(ws);
 }
 
 // ── Classify and compute ────────────────────────────────────
