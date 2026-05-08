@@ -623,3 +623,53 @@ describe('priceRoute response — cross-tab value verification', () => {
     expect(res.body.pcgs?.year).toBe(2024);
   });
 });
+
+// ═══════════════════════════════════════════════════════════════
+//  6. Finish field in response (#11)
+// ═══════════════════════════════════════════════════════════════
+describe('parseDescription — finish field in identification.parsed', () => {
+
+  test('Reverse Proof query produces finish in parsed result', () => {
+    const parsed = parseDescription('2021 American Silver Eagle Reverse Proof');
+    expect(parsed.finish).toBe('Reverse Proof');
+  });
+
+  test('Burnished query produces finish in parsed result', () => {
+    const parsed = parseDescription('2015 American Silver Eagle Burnished');
+    expect(parsed.finish).toBe('Burnished');
+  });
+
+  test('Standalone Proof produces finish=Proof in parsed result', () => {
+    const parsed = parseDescription('2024 American Silver Eagle Proof');
+    expect(parsed.finish).toBe('Proof');
+  });
+
+  test('BU query produces no finish in parsed result', () => {
+    const parsed = parseDescription('2024 American Silver Eagle');
+    expect(parsed.finish).toBeFalsy();
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  7. Lunar response fields (#10)
+// ═══════════════════════════════════════════════════════════════
+describe('lunar enrichment — expected object fields', () => {
+
+  test('lunar query sets zodiacAnimal and isLunarCoin in expected', () => {
+    // Verify parseDescription handles lunar queries
+    const parsed = parseDescription('2024 Perth Lunar Dragon 1 oz Silver');
+    expect(parsed.series).toBeDefined();
+    expect(parsed.year).toBe(2024);
+    expect(parsed.metal).toBe('silver');
+  });
+
+  test('zodiacForYear returns correct animal for 2024', () => {
+    const { zodiacForYear } = jest.requireActual('../src/data/constants');
+    expect(zodiacForYear(2024)).toBe('Dragon');
+  });
+
+  test('zodiacForYear returns correct animal for 2023', () => {
+    const { zodiacForYear } = jest.requireActual('../src/data/constants');
+    expect(zodiacForYear(2023)).toBe('Rabbit');
+  });
+});

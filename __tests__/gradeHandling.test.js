@@ -334,3 +334,118 @@ describe('parseDescription — edge cases', () => {
     expect(p.gradeNum).toBe(1);
   });
 });
+
+/* ═══════════════════════════════════════════════════════════════
+ *  Finish / special strike detection — parseDescription
+ * ═══════════════════════════════════════════════════════════════ */
+describe('parseDescription — finish detection', () => {
+
+  test.each([
+    ['2023 American Silver Eagle Enhanced Reverse Proof', 'Enhanced Reverse Proof'],
+    ['2021 American Silver Eagle Reverse Proof',         'Reverse Proof'],
+    ['2015 American Silver Eagle Burnished',             'Burnished'],
+    ['2005 American Silver Eagle Satin Finish',          'Satin Finish'],
+    ['2022 Libertad 1 oz Silver Antiqued',               'Antiqued'],
+    ['2009 Ultra High Relief Gold Double Eagle',         'High Relief'],
+    ['2024 Kookaburra 1 oz Silver Colorized',            'Colorized'],
+    ['2024 Britannia 1 oz Silver Coloured',              'Colorized'],
+  ])('%s → finish=%s', (query, expectedFinish) => {
+    const p = parseDescription(query);
+    expect(p.finish).toBe(expectedFinish);
+  });
+
+  test('finish "Reverse Proof" prevents "Proof" grade assignment', () => {
+    const p = parseDescription('2021 Morgan Dollar Reverse Proof');
+    expect(p.finish).toBe('Reverse Proof');
+    expect(p.grade).not.toBe('Proof');
+  });
+
+  test('finish "Enhanced Reverse Proof" takes priority over "Reverse Proof"', () => {
+    const p = parseDescription('2019 American Silver Eagle Enhanced Reverse Proof');
+    expect(p.finish).toBe('Enhanced Reverse Proof');
+  });
+
+  test('BU coin without finish keywords has no finish', () => {
+    const p = parseDescription('2024 American Silver Eagle');
+    expect(p.finish).toBeUndefined();
+  });
+});
+
+/* ═══════════════════════════════════════════════════════════════
+ *  Designation extraction — parseDescription
+ * ═══════════════════════════════════════════════════════════════ */
+describe('parseDescription — designation extraction', () => {
+
+  test.each([
+    ['1963 Franklin Half Dollar PR67 DCAM', 'DCAM'],
+    ['1963 Franklin Half Dollar PR67 CAM',  'CAM'],
+    ['1881-S Morgan Dollar MS65 PL',        'PL'],
+    ['1884-CC Morgan Dollar MS63 DPL',      'DPL'],
+    ['1945 Mercury Dime MS67 FB',           'FB'],
+    ['1942 Walking Liberty Half MS65 FBL',  'FBL'],
+    ['2020 Standing Liberty Quarter MS67 FS','FS'],
+    ['1916-D Mercury Dime MS65 FH',         'FH'],
+    ['1909 S VDB Lincoln Cent MS65 RD',     'RD'],
+    ['1909 VDB Lincoln Cent MS64 RB',       'RB'],
+    ['1864 Indian Head Cent MS63 BN',       'BN'],
+  ])('%s → designation=%s', (query, expectedDes) => {
+    const p = parseDescription(query);
+    expect(p.designation).toBe(expectedDes);
+  });
+
+  test('no designation when not present', () => {
+    const p = parseDescription('1921 Morgan Dollar MS65');
+    expect(p.designation).toBeFalsy();
+  });
+});
+
+/* ═══════════════════════════════════════════════════════════════
+ *  Standalone "Proof" keyword → finish + grade
+ * ═══════════════════════════════════════════════════════════════ */
+describe('parseDescription — standalone Proof keyword', () => {
+
+  test('"Proof" without grade or finish sets finish=Proof and grade=Proof', () => {
+    const p = parseDescription('2024 Silver Eagle Proof');
+    expect(p.finish).toBe('Proof');
+    expect(p.grade).toBe('Proof');
+  });
+
+  test('"Proof Set" does NOT set finish=Proof (it sets series/setType)', () => {
+    const p = parseDescription('2024 US Proof Set');
+    expect(p.setType).toBeDefined();
+    expect(p.finish).not.toBe('Proof');
+  });
+
+  test('"Proof" with explicit grade PF69 does NOT override the grade', () => {
+    const p = parseDescription('2024 Silver Eagle Proof PF69');
+    expect(p.grade).toBe('PR69');
+    expect(p.gradeNum).toBe(69);
+  });
+});
+
+/* ═══════════════════════════════════════════════════════════════
+ *  scoreMatch — finish-aware scoring
+ * ═══════════════════════════════════════════════════════════════ */
+describe('scoreMatch — finish-aware variant scoring', () => {
+
+  test('Reverse Proof comp penalized when query is plain BU', () => {
+    const comp = { title: '2021 American Silver Eagle Reverse Proof', totalUsd: 80, matchScore: 70 };
+    const expected = { year: 2021, series: 'American Silver Eagle', _rawQuery: '2021 American Silver Eagle' };
+    scoreMatch(comp, expected);
+    expect(comp.matchNotes).toContain('variant-mismatch');
+  });
+
+  test('Burnished comp penalized when query is plain BU', () => {
+    const comp = { title: '2015 American Silver Eagle Burnished W Mint', totalUsd: 60, matchScore: 70 };
+    const expected = { year: 2015, series: 'American Silver Eagle', _rawQuery: '2015 American Silver Eagle' };
+    scoreMatch(comp, expected);
+    expect(comp.matchNotes).toContain('variant-mismatch');
+  });
+
+  test('Reverse Proof comp NOT penalized when query asks for Reverse Proof', () => {
+    const comp = { title: '2021 American Silver Eagle Reverse Proof', totalUsd: 80, matchScore: 70 };
+    const expected = { year: 2021, series: 'American Silver Eagle', finish: 'Reverse Proof', _rawQuery: '2021 American Silver Eagle Reverse Proof' };
+    scoreMatch(comp, expected);
+    expect(comp.matchNotes || []).not.toContain('variant-mismatch');
+  });
+});

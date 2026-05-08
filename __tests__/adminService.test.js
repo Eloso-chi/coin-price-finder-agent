@@ -93,27 +93,17 @@ describe('_listCSVFiles', () => {
 
 describe('getStaleDatasets', () => {
   beforeEach(() => {
-    // Clean up CSV files from previous tests
-    for (const f of fs.readdirSync(tmpDir)) {
-      fs.unlinkSync(path.join(tmpDir, f));
-    }
+    terapeakService.listDatasets.mockReset();
   });
 
   test('identifies stale datasets based on days threshold', () => {
-    // Fresh dataset: sold date is today
-    const freshCsv = path.join(tmpDir, 'fresh.csv');
-    const today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-    fs.writeFileSync(freshCsv,
-      `Item Title,Item ID,Sold Date,Sold Price\nCoin,111,"${today}",$100\n`
-    );
+    const todayStr = new Date().toISOString().split('T')[0];
+    const oldStr = new Date(Date.now() - 60 * 86_400_000).toISOString().split('T')[0];
 
-    // Stale dataset: sold date is 60 days ago
-    const staleCsv = path.join(tmpDir, 'stale.csv');
-    const oldDate = new Date(Date.now() - 60 * 86_400_000);
-    const oldDateStr = oldDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-    fs.writeFileSync(staleCsv,
-      `Item Title,Item ID,Sold Date,Sold Price\nCoin,222,"${oldDateStr}",$200\n`
-    );
+    terapeakService.listDatasets.mockReturnValue([
+      { key: 'fresh', searchTerm: 'fresh coin', compCount: 5, aggregationMeta: { newestSaleDate: todayStr } },
+      { key: 'stale', searchTerm: 'stale coin', compCount: 3, aggregationMeta: { newestSaleDate: oldStr } },
+    ]);
 
     const result = adminService.getStaleDatasets({ days: 30 });
     expect(result.summary.totalCSVs).toBe(2);
@@ -124,30 +114,32 @@ describe('getStaleDatasets', () => {
   });
 
   test('respects limit parameter', () => {
+    const datasets = [];
     for (let i = 0; i < 5; i++) {
-      const csv = path.join(tmpDir, `old${i}.csv`);
-      const d = new Date(Date.now() - (90 + i) * 86_400_000);
-      const ds = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-      fs.writeFileSync(csv, `Item Title,Item ID,Sold Date,Sold Price\nCoin,${i},"${ds}",$100\n`);
+      const d = new Date(Date.now() - (90 + i) * 86_400_000).toISOString().split('T')[0];
+      datasets.push({ key: `old${i}`, searchTerm: `old coin ${i}`, compCount: 1, aggregationMeta: { newestSaleDate: d } });
     }
+    terapeakService.listDatasets.mockReturnValue(datasets);
+
     const result = adminService.getStaleDatasets({ days: 30, limit: 3 });
     expect(result.stale.length).toBe(3);
   });
 
   test('generates filter regex', () => {
-    const csv = path.join(tmpDir, 'Morgan_1921.csv');
-    fs.writeFileSync(csv,
-      'Item Title,Item ID,Sold Date,Sold Price\nCoin,111,"Jan 1, 2025",$100\n'
-    );
-    fs.writeFileSync(path.join(tmpDir, 'Morgan_1921.meta'), '1921 Morgan Silver Dollar');
+    const oldStr = new Date(Date.now() - 60 * 86_400_000).toISOString().split('T')[0];
+    terapeakService.listDatasets.mockReturnValue([
+      { key: 'morgan 1921', searchTerm: '1921 Morgan Silver Dollar', compCount: 2, aggregationMeta: { newestSaleDate: oldStr } },
+    ]);
 
     const result = adminService.getStaleDatasets({ days: 30 });
     expect(result.summary.filterRegex).toContain('1921 Morgan Silver Dollar');
   });
 
   test('empty CSVs have null age', () => {
-    const csv = path.join(tmpDir, 'stub.csv');
-    fs.writeFileSync(csv, 'Item Title,Item ID,Sold Date,Sold Price\n');
+    terapeakService.listDatasets.mockReturnValue([
+      { key: 'stub', searchTerm: 'stub coin', compCount: 0, aggregationMeta: {} },
+    ]);
+
     const result = adminService.getStaleDatasets({ days: 30 });
     const stub = result.stale.find(s => s.file === 'stub');
     expect(stub).toBeDefined();

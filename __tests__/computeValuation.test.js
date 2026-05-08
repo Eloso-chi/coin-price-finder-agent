@@ -916,3 +916,108 @@ describe('computeValuation — proof pool separation', () => {
     expect(result.valuation.gradePool.poolCount).toBe(3);
   });
 });
+
+// ═══════════════════════════════════════════════════════════════
+//  Greysheet confidence bonus (#4)
+// ═══════════════════════════════════════════════════════════════
+describe('computeValuation — Greysheet confidence bonus', () => {
+  test('hasGreysheet adds confidence vs no Greysheet', () => {
+    const comps = makeComps([100, 110, 105, 115, 108, 112, 107, 103, 109, 111], { _source: 'finding' });
+    const pcgs = mockPcgs({ verified: true, pcgsNo: 7070, priceGuide: 120 });
+
+    const withGS = computeValuation(pcgs, mockEbay({ usComps: comps }), null, null, {
+      greysheet: { greyVal: 95, cpgVal: 110 },
+    });
+    const withoutGS = computeValuation(pcgs, mockEbay({ usComps: comps }), null, null, {});
+
+    expect(withGS.valuation.confidence).toBeGreaterThan(withoutGS.valuation.confidence);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  Greysheet FMV blend in certified/raw modes (#5)
+// ═══════════════════════════════════════════════════════════════
+describe('computeValuation — Greysheet blend in certified mode', () => {
+  test('Greysheet data influences FMV for certified coins', () => {
+    const comps = makeComps([100, 110, 105, 115, 108], { _source: 'finding', gradeType: 'graded' });
+    const pcgs = mockPcgs({ verified: true, pcgsNo: 7070, priceGuide: 150 });
+
+    const withGS = computeValuation(pcgs, mockEbay({ usComps: comps }), null, 'MS65', {
+      greysheet: { greyVal: 80, cpgVal: 95 },
+    });
+    const withoutGS = computeValuation(pcgs, mockEbay({ usComps: comps }), null, 'MS65', {});
+
+    // Greysheet should shift the FMV (direction depends on implementation, but they should differ)
+    expect(withGS.valuation.fmvCore).not.toBe(withoutGS.valuation.fmvCore);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  Filter attrition confidence penalty (#6)
+// ═══════════════════════════════════════════════════════════════
+describe('computeValuation — filter attrition confidence penalty', () => {
+  test('high attrition (>90%) reduces confidence significantly', () => {
+    const comps = makeComps([100, 110, 105, 115, 108, 112, 107, 103, 109, 111], { _source: 'finding' });
+    const pcgs = mockPcgs({ verified: true, pcgsNo: 7070 });
+
+    const highAttrition = computeValuation(pcgs,
+      { ...mockEbay({ usComps: comps }), us: { ...mockEbay({ usComps: comps }).us, attritionPct: 95 } },
+      null, null, {});
+    const lowAttrition = computeValuation(pcgs,
+      { ...mockEbay({ usComps: comps }), us: { ...mockEbay({ usComps: comps }).us, attritionPct: 10 } },
+      null, null, {});
+
+    expect(lowAttrition.valuation.confidence).toBeGreaterThan(highAttrition.valuation.confidence);
+  });
+
+  test('moderate attrition (70-90%) has smaller penalty than >90%', () => {
+    const comps = makeComps([100, 110, 105, 115, 108, 112, 107, 103, 109, 111], { _source: 'finding' });
+    const pcgs = mockPcgs({ verified: true, pcgsNo: 7070 });
+
+    const extreme = computeValuation(pcgs,
+      { ...mockEbay({ usComps: comps }), us: { ...mockEbay({ usComps: comps }).us, attritionPct: 95 } },
+      null, null, {});
+    const moderate = computeValuation(pcgs,
+      { ...mockEbay({ usComps: comps }), us: { ...mockEbay({ usComps: comps }).us, attritionPct: 80 } },
+      null, null, {});
+
+    expect(moderate.valuation.confidence).toBeGreaterThan(extreme.valuation.confidence);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  Pool fallback confidence penalty (#7)
+// ═══════════════════════════════════════════════════════════════
+describe('computeValuation — pool fallback confidence penalty', () => {
+  test('falling back from graded to raw pool reduces confidence', () => {
+    // Only raw comps — when user requests graded, it falls back to raw pool
+    const rawComps = makeComps([100, 110, 105, 115, 108], { _source: 'finding', gradeType: 'raw' });
+    const gradedComps = makeComps([200, 210, 205, 215, 208], { _source: 'finding', gradeType: 'graded' });
+    const pcgs = mockPcgs({ verified: true, pcgsNo: 7070 });
+
+    // Sufficient graded comps — no fallback
+    const noFallback = computeValuation(pcgs, mockEbay({ usComps: gradedComps }), null, 'MS65', {});
+    // Only raw comps with graded request — triggers fallback
+    const withFallback = computeValuation(pcgs, mockEbay({ usComps: rawComps }), null, 'MS65', {});
+
+    expect(noFallback.valuation.confidence).toBeGreaterThan(withFallback.valuation.confidence);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  Sold ratio confidence factor (#8)
+// ═══════════════════════════════════════════════════════════════
+describe('computeValuation — sold ratio confidence factor', () => {
+  test('mostly active listings (low soldRatio) reduces confidence', () => {
+    // All sold comps
+    const soldComps = makeComps([100, 110, 105, 115, 108, 112, 107, 103, 109, 111], { _source: 'finding' });
+    // All browse (active listing) comps
+    const browseComps = makeComps([100, 110, 105, 115, 108, 112, 107, 103, 109, 111], { _source: 'browse' });
+    const pcgs = mockPcgs({ verified: true, pcgsNo: 7070 });
+
+    const allSold = computeValuation(pcgs, mockEbay({ usComps: soldComps }), null, null, {});
+    const allBrowse = computeValuation(pcgs, mockEbay({ usComps: browseComps }), null, null, {});
+
+    expect(allSold.valuation.confidence).toBeGreaterThan(allBrowse.valuation.confidence);
+  });
+});

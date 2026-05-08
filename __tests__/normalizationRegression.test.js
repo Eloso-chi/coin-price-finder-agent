@@ -210,10 +210,11 @@ describe('detectWeightFromQuery -- fraction consistency with normalizeSearchKey'
 //  Verify that broken-fraction keys are identifiable
 // ═══════════════════════════════════════════════════════════════
 describe('ghost key patterns', () => {
-  test('mangled fraction keys do NOT match correct-form keys', () => {
-    // "12oz" (mangled from "1/2 oz") must NOT equal "half oz"
+  test('collapsed fraction keys now normalize to the same form as word fractions', () => {
+    // After the collapsed-fraction fix, "12oz" normalizes to "half oz"
+    // just like "1/2 oz" does -- this is the intended behavior
     expect(normalizeSearchKey('american gold eagle 12oz'))
-      .not.toBe(normalizeSearchKey('american gold eagle half oz'));
+      .toBe(normalizeSearchKey('american gold eagle half oz'));
   });
 
   test('mangled fraction pattern is detectable via regex', () => {

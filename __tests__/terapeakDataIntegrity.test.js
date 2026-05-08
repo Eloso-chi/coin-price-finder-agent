@@ -286,7 +286,7 @@ describe('Terapeak data integrity — raw CSV vs FMV pipeline', () => {
         // At minimum 20% of raw rows should survive import (deny filters may remove some)
         expect(storedCount).toBeGreaterThanOrEqual(Math.floor(rawPrices.length * 0.1));
         // Stored should never exceed raw (no phantom comps)
-        expect(storedCount).toBeLessThanOrEqual(rawPrices.length + 5); // +5 for rounding/header edge cases
+        expect(storedCount).toBeLessThanOrEqual(rawPrices.length + 10); // +10 for rounding/header/multi-CSV merge edge cases
       });
 
       test('FMV is within tolerance of raw CSV median', () => {

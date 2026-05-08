@@ -167,3 +167,74 @@ describe('error handling', () => {
     expect(res.body.error).toMatch(/Internal server error/);
   });
 });
+
+// ════════════════════════════════════════════════════════════
+//  Bar-specific response shape (#12)
+// ════════════════════════════════════════════════════════════
+describe('bar response shape', () => {
+  beforeEach(() => {
+    fetchSoldComps.mockResolvedValue(MOCK_EBAY);
+    computeValuation.mockReturnValue(MOCK_VALUATION);
+  });
+
+  test('response.bar contains metal, size, brand, pureOzt, and condition', async () => {
+    const res = await post({ metal: 'gold', size: '1 oz', brand: 'PAMP' });
+    expect(res.status).toBe(200);
+    expect(res.body.bar).toEqual(expect.objectContaining({
+      metal: 'gold',
+      size: '1 oz',
+      brand: 'PAMP',
+      pureOzt: expect.any(Number),
+      condition: expect.any(String),
+    }));
+  });
+
+  test('pureOzt is correct for different sizes', async () => {
+    for (const [size, expected] of [['1 oz', 1], ['10 oz', 10], ['5 oz', 5]]) {
+      const res = await post({ metal: 'silver', size });
+      expect(res.status).toBe(200);
+      expect(res.body.bar.pureOzt).toBe(expected);
+    }
+  });
+
+  test('response.bar defaults brand to Generic when not provided', async () => {
+    const res = await post({ metal: 'silver', size: '1 oz' });
+    expect(res.status).toBe(200);
+    expect(res.body.bar.brand).toBe('Generic');
+  });
+
+  test('response.query echoes input parameters', async () => {
+    const res = await post({ metal: 'gold', size: '1 oz', brand: 'PAMP', condition: 'sealed', askingPrice: 2100 });
+    expect(res.status).toBe(200);
+    expect(res.body.query).toEqual(expect.objectContaining({
+      metal: 'gold',
+      size: '1 oz',
+      brand: 'PAMP',
+      condition: 'sealed',
+      askingPrice: 2100,
+    }));
+  });
+
+  test('response has ebay, valuation, and decisions at top level', async () => {
+    const res = await post({ metal: 'gold', size: '1 oz' });
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty('ebay');
+    expect(res.body).toHaveProperty('valuation');
+    expect(res.body).toHaveProperty('decisions');
+    expect(res.body.ebay).toHaveProperty('us');
+    expect(res.body.ebay).toHaveProperty('keywords');
+  });
+
+  test('lunar bar has zodiacAnimal and series in response', async () => {
+    const res = await post({ metal: 'gold', size: '1 oz', brand: 'Perth', series: 'lunar', year: 2024 });
+    expect(res.status).toBe(200);
+    expect(res.body.bar.zodiacAnimal).toBe('Dragon');
+    expect(res.body.bar.series).toBe('Lunar');
+  });
+
+  test('response.bar.year passes through when provided', async () => {
+    const res = await post({ metal: 'silver', size: '1 oz', year: 2020 });
+    expect(res.status).toBe(200);
+    expect(res.body.bar.year).toBe(2020);
+  });
+});
