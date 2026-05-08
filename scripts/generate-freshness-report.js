@@ -10,6 +10,9 @@
  *   node scripts/generate-freshness-report.js              # Generate report
  *   node scripts/generate-freshness-report.js --summary    # Print summary only (no file write)
  *   node scripts/generate-freshness-report.js --stale 15   # Override stale threshold (default 15)
+ *   node scripts/generate-freshness-report.js --composition gold   # Filter to gold-containing keys only
+ *   node scripts/generate-freshness-report.js --batch 100         # Also write a batch file (top N by priority)
+ *   node scripts/generate-freshness-report.js --composition silver --batch 100  # Silver-only batch
  */
 'use strict';
 
@@ -29,6 +32,15 @@ const staleIdx = args.indexOf('--stale');
 const STALE_THRESHOLD = staleIdx >= 0 ? parseInt(args[staleIdx + 1]) || 15 : 15;
 const VERY_STALE_THRESHOLD = STALE_THRESHOLD * 2; // 30d if threshold is 15
 const LOW_COMP_THRESHOLD = 100;
+
+// Composition filter: only include datasets whose key contains this word
+// e.g. --composition gold, --composition silver, --composition bullion
+const compIdx = args.indexOf('--composition');
+const COMPOSITION_FILTER = compIdx >= 0 ? (args[compIdx + 1] || '').toLowerCase() : null;
+
+// Batch generation: write top N entries to cache/freshness-batch-100.json
+const batchIdx = args.indexOf('--batch');
+const BATCH_SIZE = batchIdx >= 0 ? parseInt(args[batchIdx + 1]) || 100 : 0;
 
 // ── Load meta sidecar ───────────────────────────────────────
 if (!fs.existsSync(META_PATH)) {
@@ -88,6 +100,9 @@ const datasets = [];
 const compositionSummary = {};
 
 for (const [key, entry] of Object.entries(meta)) {
+  // Apply composition filter if specified
+  if (COMPOSITION_FILTER && !key.includes(COMPOSITION_FILTER)) continue;
+
   const composition = classifyComposition(key);
   const gradeCategory = classifyGradeCategory(key);
   const newestSaleDate = entry.newestSaleDate || null;
@@ -191,7 +206,8 @@ const report = {
 
 // ── Output ──────────────────────────────────────────────────
 // Print human-readable summary
-console.log(`\nFreshness Report (${todayStr})`);
+const filterLabel = COMPOSITION_FILTER ? ` [filter: ${COMPOSITION_FILTER}]` : '';
+console.log(`\nFreshness Report (${todayStr})${filterLabel}`);
 console.log(`  Total datasets:    ${total}`);
 console.log(`  Fresh (<${STALE_THRESHOLD}d):      ${fresh}`);
 console.log(`  Stale (${STALE_THRESHOLD}-${VERY_STALE_THRESHOLD}d):    ${stale15d}`);
@@ -245,4 +261,33 @@ if (!summaryOnly) {
   console.log(`  Valid until: ${report.validUntil}`);
 } else {
   console.log('  (--summary mode, no file written)');
+}
+
+// ── Batch generation ──────────────────────────────────────────
+if (BATCH_SIZE > 0) {
+  // Priority: needs-data (compCount < 20) first sorted by stalest,
+  // then refresh-page1 sorted by stalest.
+  const needsData = datasets
+    .filter(d => d.actions.includes('needs-data'))
+    .sort((a, b) => (b.staleDays || 9999) - (a.staleDays || 9999));
+  const refreshPage1 = datasets
+    .filter(d => d.actions.includes('refresh-page1') && !d.actions.includes('needs-data'))
+    .sort((a, b) => (b.staleDays || 0) - (a.staleDays || 0));
+  const batchItems = [...needsData, ...refreshPage1].slice(0, BATCH_SIZE);
+
+  const batchFile = path.join(path.dirname(OUTPUT_PATH), 'freshness-batch-100.json');
+  const batchOut = {
+    generatedAt: new Date().toISOString(),
+    validUntil: new Date(Date.now() + 86400000).toISOString(),
+    staleThresholdDays: STALE_THRESHOLD,
+    compositionFilter: COMPOSITION_FILTER || null,
+    summary: {
+      total: batchItems.length,
+      needsData: batchItems.filter(d => d.actions.includes('needs-data')).length,
+      refresh: batchItems.filter(d => !d.actions.includes('needs-data')).length,
+    },
+    datasets: batchItems,
+  };
+  fs.writeFileSync(batchFile, JSON.stringify(batchOut, null, 2) + '\n');
+  console.log(`  Batch written: ${batchFile} (${batchItems.length} items${COMPOSITION_FILTER ? ', filter: ' + COMPOSITION_FILTER : ''})`);
 }

@@ -125,9 +125,17 @@ BULLION_PATTERNS = [
 ]
 _BULLION_RE = re.compile('|'.join(BULLION_PATTERNS), re.IGNORECASE)
 
+# Gold coins are low-volume -- cap pagination at 2 pages instead of 5.
+_GOLD_RE = re.compile(r'\bgold\b', re.IGNORECASE)
+
 def is_bullion_term(search_term):
     """Return True if the search term matches a bullion series eligible for deep pagination."""
     return bool(_BULLION_RE.search(search_term))
+
+def is_gold_term(search_term):
+    """Return True if the search term contains 'gold'. Gold coins trade less
+    frequently and don't benefit from deep pagination beyond 2 pages."""
+    return bool(_GOLD_RE.search(search_term))
 
 
 def get_completed_terms_from_log(log_path):
@@ -929,10 +937,23 @@ def do_page2_run(args):
         # Sort by row count for display
         for i, c in enumerate(sorted(candidates, key=lambda x: -x["row_count"]), 1):
             is_bull = is_bullion_term(c["term"])
+            is_gold = is_gold_term(c["term"])
             if is_bull:
                 bullion_count += 1
-            max_pg = args.max_pages if args.max_pages else (5 if is_bull else 2)
-            tag = f"[bullion p2-{max_pg}]" if is_bull else "[p2]"
+            if args.max_pages:
+                max_pg = args.max_pages
+            elif is_gold:
+                max_pg = 2
+            elif is_bull:
+                max_pg = 5
+            else:
+                max_pg = 2
+            if is_gold:
+                tag = f"[gold p2]"
+            elif is_bull:
+                tag = f"[bullion p2-{max_pg}]"
+            else:
+                tag = "[p2]"
             print(f"  {i:3d}. {c['term']:<50s}  ({c['row_count']} rows) {tag}")
         est_min = len(candidates) * 20 / 60  # ~20 sec per coin per page
         print(f"\nBullion series: {bullion_count}/{len(candidates)}")
@@ -1026,8 +1047,16 @@ def do_page2_run(args):
         print(f"  [{pct:3d}%] {term}...", end=" ", flush=True)
 
         # Bullion series get deeper pagination (up to 5 pages = 250 results)
+        # Gold bullion caps at 2 pages -- low volume, not worth the time
         # Non-bullion stays at page 2 only (100 results)
-        effective_max_pages = args.max_pages if args.max_pages else (5 if is_bullion_term(term) else 2)
+        if args.max_pages:
+            effective_max_pages = args.max_pages
+        elif is_gold_term(term):
+            effective_max_pages = 2
+        elif is_bullion_term(term):
+            effective_max_pages = 5
+        else:
+            effective_max_pages = 2
 
         try:
             result = do_search_and_collect(page, term, DOWNLOAD_DIR, max_pages=effective_max_pages)
