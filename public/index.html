@@ -3056,6 +3056,7 @@ Silver Libertad 1 oz Proof"></textarea>
    * ═══════════════════════════════════════════════════════════ */
   const BarForm = {
     els: {},
+    _barOptions: [],   // cached brand/series from API
 
     init() {
       this.els = {
@@ -3076,10 +3077,44 @@ Silver Libertad 1 oz Proof"></textarea>
       };
       this._bindPreview();
       this._bindSubmit();
+      this._fetchBarOptions();
+      this.els.brand.addEventListener('input',  () => this._populateSeries());
+      this.els.brand.addEventListener('change', () => this._populateSeries());
+    },
+
+    async _fetchBarOptions() {
+      try {
+        const resp = await fetch('/api/bar-price/options');
+        const data = await resp.json();
+        this._barOptions = data.brands || [];
+        this._populateSeries();
+      } catch (e) { /* silent -- dropdown stays with None */ }
+    },
+
+    _populateSeries() {
+      const sel = this.els.series;
+      const brandVal = (this.els.brand.value || '').trim().toLowerCase();
+      const prev = sel.value;
+      sel.innerHTML = '<option value="">None</option>';
+      // match brand by substring (e.g. "PAMP Suisse" matches key "pamp")
+      const match = this._barOptions.find(b => brandVal.includes(b.brand));
+      if (match) {
+        match.series.forEach(s => {
+          const opt = document.createElement('option');
+          opt.value = s.name;
+          opt.textContent = s.name;
+          sel.appendChild(opt);
+        });
+      }
+      // restore previous selection if still valid
+      if (prev && sel.querySelector('option[value="' + prev + '"]')) {
+        sel.value = prev;
+      }
+      this._updatePreview();
     },
 
     _isLunar() {
-      return this.els.series.value === 'lunar';
+      return /^lunar$/i.test(this.els.series.value);
     },
 
     _isPerth() {
@@ -3092,6 +3127,7 @@ Silver Libertad 1 oz Proof"></textarea>
       const metal  = this.els.metal.value;
       const year   = parseInt(this.els.year.value) || null;
       const lunar  = this._isLunar();
+      const seriesVal = this.els.series.value;
       const parts  = [];
       if (year) parts.push(String(year));
       if (brand) parts.push(brand);
@@ -3109,6 +3145,10 @@ Silver Libertad 1 oz Proof"></textarea>
           const animal = zodiacAnimal(year);
           if (animal) parts.push(animal);
         }
+      } else if (seriesVal) {
+        // Non-lunar series: inject the display name from the selected option
+        const selOpt = this.els.series.options[this.els.series.selectedIndex];
+        if (selOpt && selOpt.textContent) parts.push(selOpt.textContent);
       }
       return parts.join(' ');
     },
