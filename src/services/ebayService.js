@@ -658,10 +658,11 @@ function scoreBarMatch(comp, expected) {
   const tLow = (comp.title || '').toLowerCase();
   const tNorm = tLow.replace(/\s+/g, '');
 
-  // Brand match (20 pts)
+  // Brand match (20 pts) / mismatch (-25 pts)
   if (expected.brand) {
     const brandLow = expected.brand.toLowerCase();
     if (tLow.includes(brandLow)) { score += 20; notes.push('brand-match'); }
+    else { score -= 25; notes.push('brand-mismatch'); }
   }
 
   // Size match (15 pts) -- normalize and check alternates for gram sizes
@@ -705,9 +706,10 @@ function scoreBarMatch(comp, expected) {
     if (/\blunar\b/i.test(tLow)) { score += 5; notes.push('lunar-match'); }
   }
 
-  // Bar series match (5 pts) -- e.g. "edelmetalle", "fortuna", "cast"
-  if (expected.barSeriesRe && expected.barSeriesRe.test(tLow)) {
-    score += 5; notes.push('bar-series-match');
+  // Bar series match (10 pts) / mismatch (-15 pts)
+  if (expected.barSeriesRe) {
+    if (expected.barSeriesRe.test(tLow)) { score += 10; notes.push('bar-series-match'); }
+    else { score -= 15; notes.push('bar-series-mismatch'); }
   }
 
   // Zodiac animal match (5 pts) -- Lunar series
@@ -759,8 +761,11 @@ function applyFilters(comps, options, expected) {
   // A score below 20 means almost nothing matched (year, series, weight, metal all wrong).
   // For set searches, use a higher gate (30) since set-specific penalties push
   // individual coins and wrong set types well below baseline.
+  // For bar searches with a brand specified, use 45 to exclude wrong-brand comps.
   // This prevents completely irrelevant items (e.g. electronics, clothing) from appearing.
-  const relevanceGate = expected.isSet ? 30 : 20;
+  const relevanceGate = (expected.type === 'bar' && expected.brand) ? 45
+    : expected.isSet ? 30
+    : 20;
   removed.lowRelevance = 0;
   let kept = comps.filter(c => {
     if (c.matchScore != null && c.matchScore < relevanceGate) { removed.lowRelevance++; return false; }
