@@ -8,7 +8,19 @@ const router = express.Router();
 const ebayService = require('../services/ebayService');
 const { computeValuation } = require('../services/valuationService');
 const { zodiacForYear, perthLunarSeries } = require('../data/constants');
-const { detectBarSeries } = require('../data/barSeries');
+const { BAR_SERIES, detectBarSeries } = require('../data/barSeries');
+
+// ── GET /api/bar-options — return available brands + series for dropdowns ──
+router.get('/options', (_req, res) => {
+  const options = Object.entries(BAR_SERIES).map(([brand, entries]) => ({
+    brand,
+    series: entries.map(e => ({
+      name: e.series,
+      aliases: e.aliases,
+    })),
+  }));
+  res.json({ brands: options });
+});
 
 // ── Size normalization helpers ──────────────────────────────
 /**
