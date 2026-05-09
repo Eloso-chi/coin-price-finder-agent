@@ -3260,6 +3260,28 @@ Silver Libertad 1 oz Proof"></textarea>
       const bar     = d.bar || {};
       let html = '';
 
+      // ── Cross-tab pull-through (bar → tracker / history / melt) ──
+      try {
+        const barMetal = bar.metal || this.els.metal.value;
+        const barSize  = bar.size || this.els.size.value;
+        const barBrand = bar.brand || (this.els.brand.value || '').trim();
+        // Tracker: switch to bar mode and pre-fill fields
+        if (typeof EbayTracker !== 'undefined') {
+          EbayTracker.setBar(barMetal, barSize, barBrand);
+        }
+        // Price History: pass the eBay keywords query
+        const historyQuery = d.ebay?.keywords
+          || ((barBrand ? barBrand + ' ' : '') + barSize + ' ' + barMetal + ' bar');
+        if (historyQuery && typeof CoinHistoryLink !== 'undefined') {
+          CoinHistoryLink.setCoin(historyQuery, historyQuery);
+        }
+        // Melt Calculator: pass metal and troy oz
+        if (typeof MeltCalc !== 'undefined' && barMetal && bar.pureOzt) {
+          const barLabel = (barBrand ? barBrand + ' ' : '') + barMetal + ' bar ' + barSize;
+          MeltCalc.setCoin(barMetal, bar.pureOzt, barLabel);
+        }
+      } catch (_) { /* non-critical */ }
+
       // \u2500\u2500 Bar info header
       const brandLabel = bar.brand || 'Generic';
       html += '<div class="card" style="text-align:center;padding:18px">';
@@ -3520,10 +3542,27 @@ Silver Libertad 1 oz Proof"></textarea>
       }
 
       // \u2500\u2500 Raw JSON
+      // ── Cross-tab Quick Links ──
+      html += '<div class="cross-tab-links">';
+      html += '<span style="color:var(--text-muted);align-self:center">View on:</span>';
+      html += '<a data-tab="tab-melt" title="Open in Melt Calculator">Melt Calculator</a>';
+      html += '<a data-tab="tab-tracker" title="Open in Live eBay Tracker">eBay Tracker</a>';
+      html += '<a data-tab="tab-history" title="Open in Price History">Price History</a>';
+      html += '</div>';
+
       html += '<details><summary>View raw JSON response</summary>';
       html += '<pre class="json">' + _esc(JSON.stringify(d, null, 2)) + '</pre></details>';
 
       container.innerHTML = html;
+
+      // Wire cross-tab quick links
+      container.querySelectorAll('.cross-tab-links a[data-tab]').forEach(function(a) {
+        a.addEventListener('click', function(e) {
+          e.preventDefault();
+          var tabBtn = document.getElementById(a.dataset.tab);
+          if (tabBtn) tabBtn.click();
+        });
+      });
 
       // Wire "Show all" comps buttons
       container.querySelectorAll('.comps-show-all').forEach(function(btn) {
@@ -4953,6 +4992,26 @@ Silver Libertad 1 oz Proof"></textarea>
       // Clear stale results so the user sees fresh data when they switch tabs
       this._clearResults();
       // If the tracker tab is already visible, load immediately; otherwise mark pending
+      const trackerPanel = document.getElementById('panel-tracker');
+      if (trackerPanel && trackerPanel.getAttribute('aria-hidden') === 'false') {
+        this._load();
+      } else {
+        this._pendingLoad = true;
+      }
+    },
+
+    /**
+     * Set bar fields from Price Discovery results.
+     * Switches to bar mode and pre-fills metal, size, brand.
+     */
+    setBar(metal, size, brand) {
+      if (!this.els) return;
+      this._setMode('bar');
+      if (metal && this.els.barMetal) this.els.barMetal.value = metal;
+      if (size && this.els.barSize) this.els.barSize.value = size;
+      if (brand && this.els.barBrand) this.els.barBrand.value = brand;
+      this._weight = null;
+      this._clearResults();
       const trackerPanel = document.getElementById('panel-tracker');
       if (trackerPanel && trackerPanel.getAttribute('aria-hidden') === 'false') {
         this._load();
