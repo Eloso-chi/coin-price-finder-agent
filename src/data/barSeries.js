@@ -18,6 +18,12 @@ const BAR_SERIES = {
     { series: 'Original',          re: /\boriginal\b/i,                    keywords: 'original',             aliases: ['original bar'] },
     { series: 'Schloss Guldengossa', re: /\bschloss\b|\bguldengossa\b/i,   keywords: 'schloss guldengossa',  aliases: ['schloss', 'guldengossa', 'castle'] },
     { series: 'Security Line',     re: /\bsecurity\s*line\b/i,             keywords: 'security line',        aliases: ['security'] },
+    { series: 'Fireworks',         re: /\bfirework/i,                       keywords: 'fireworks',            aliases: ['firework'] },
+    { series: 'Tree of Life',      re: /\btree\s+of\s+life\b/i,           keywords: 'tree of life',         aliases: ['tree of life', 'tara'] },
+    { series: 'Love',              re: /\blove\b|\bheart/i,                keywords: 'love',                 aliases: ['hearts', 'valentines', 'valentine'] },
+    { series: 'Christmas',         re: /\bchristmas\b|\bxmas\b/i,         keywords: 'christmas',            aliases: ['merry christmas', 'xmas', 'holiday'] },
+    { series: 'USA Edition',       re: /\busa\s*edition\b|\bold\s*glory\b/i, keywords: 'usa edition',       aliases: ['old glory', 'usa'] },
+    { series: 'Shamrock',          re: /\bshamrock\b/i,                    keywords: 'shamrock',             aliases: ['irish', 'clover'] },
   ],
 
   // ── PAMP Suisse ───────────────────────────────────────────
@@ -31,6 +37,19 @@ const BAR_SERIES = {
     { series: 'Romanesque Cross',  re: /\bromanesque\b/i,                  keywords: 'romanesque cross',     aliases: ['cross'] },
     { series: 'America the Free',  re: /\bamerica\s+the\s+free\b/i,       keywords: 'america the free',     aliases: ['bald eagle'] },
     { series: 'Multigram',         re: /\bmultigram\b/i,                   keywords: 'multigram',            aliases: ['divisible', 'breakable'] },
+    { series: 'Coca-Cola',         re: /\bcoca[- ]?cola\b|\bcoke\b/i,     keywords: 'coca-cola',            aliases: ['coke', 'coca cola'] },
+    { series: 'Zodiac - Aries',    re: /\baries\b/i,                       keywords: 'aries',                aliases: ['ram'] },
+    { series: 'Zodiac - Taurus',   re: /\btaurus\b/i,                      keywords: 'taurus',               aliases: ['bull'] },
+    { series: 'Zodiac - Gemini',   re: /\bgemini\b/i,                      keywords: 'gemini',               aliases: ['twins'] },
+    { series: 'Zodiac - Cancer',   re: /\bcancer\b/i,                      keywords: 'cancer',               aliases: ['crab'] },
+    { series: 'Zodiac - Leo',      re: /\bleo\b/i,                         keywords: 'leo',                  aliases: ['lion'] },
+    { series: 'Zodiac - Virgo',    re: /\bvirgo\b/i,                       keywords: 'virgo',                aliases: ['maiden'] },
+    { series: 'Zodiac - Libra',    re: /\blibra\b/i,                       keywords: 'libra',                aliases: ['scales'] },
+    { series: 'Zodiac - Scorpio',  re: /\bscorpio\b/i,                     keywords: 'scorpio',              aliases: ['scorpion'] },
+    { series: 'Zodiac - Sagittarius', re: /\bsagittarius\b/i,              keywords: 'sagittarius',          aliases: ['archer'] },
+    { series: 'Zodiac - Capricorn', re: /\bcapricorn\b/i,                  keywords: 'capricorn',            aliases: ['goat'] },
+    { series: 'Zodiac - Aquarius', re: /\baquarius\b/i,                    keywords: 'aquarius',             aliases: ['water bearer'] },
+    { series: 'Zodiac - Pisces',   re: /\bpisces\b/i,                      keywords: 'pisces',               aliases: ['fish'] },
   ],
 
   // ── Perth Mint ────────────────────────────────────────────
