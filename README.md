@@ -30,7 +30,7 @@ The browser UI is a single-page app served from `public/index.html` with a dark 
 
 | Tab | Description |
 |-----|-------------|
-| **Price Discovery** | Main search — two sub-modes: Coin (structured or quick-search entry) and Bar/Bullion. Submits to `/api/price` or `/api/bar-price`. Renders FMV hero card with image gallery, confidence score, buy/sell decisions, metadata chips, eBay stats, comp list, and raw JSON. |
+| **Price Discovery** | Main search -- two sub-modes: Coin (structured or quick-search entry) and Bar/Bullion. Bar mode has a dynamic series dropdown (populated from `GET /api/bar-price/options`) that filters by selected brand -- 7 brands with 40+ series (Geiger Edelmetalle, PAMP Fortuna, Coca-Cola, 12 Zodiac signs, Perth Lunar, Scottsdale, Valcambi, Heraeus, Credit Suisse). Submits to `/api/price` or `/api/bar-price`. Renders FMV hero card with image gallery, confidence score, buy/sell decisions, metadata chips, eBay stats, comp list, cross-tab quick links, and raw JSON. |
 | **Melt Calculator** | Offline calculator for 80+ US coin types and 20 bar sizes. Auto-fetches spot prices from `/api/metals` and polls every 5 minutes. Shows per-coin, per-roll, and total melt values at spot and spot+premium. Quantity minimum enforced at 1. |
 | **Live eBay Tracker** | Market matrix from `/api/market/ebay`. Three display modes: Year × Mint (numismatic coins), Year × Grade (bullion), and Brand table (bars). Cells show median sold price, cheapest BIN link, key date badge, and Numista rarity. Color-coded legend. |
 | **Lot Evaluator** | Bulk collection pricing tool. Accepts a text list (one coin per line, pipe-delimited fields), JSON array, or Excel upload. Submits to `POST /api/bulk-evaluate`, then streams results via SSE. Shows per-coin FMV table with progress bar, lot summary card (total FMV, melt, avg confidence, bullion %), and three buy tiers (cherry-pick, fair lot, full retail). Applies lot-level discounts for size, low confidence, and concentration risk. Export results as CSV or JSON. |
@@ -96,9 +96,12 @@ The My Coins and Price History tabs are locked for logged-out users:
 
 ### Cross-Tab Linkage
 
-- **Price Discovery → Live eBay Tracker:** After pricing a coin, the tracker's series input is pre-populated. Switching to the tracker tab auto-loads the matrix.
-- **Price Discovery → Price History:** A `CoinHistoryLink` object stores the query. Switching to the History tab auto-runs the chart.
-- **Price Discovery → Melt Calculator:** `MeltCalc.setCoin()` receives metal type and pure troy ounces from the pricing result. Switching to the Melt tab shows the calculation pre-populated for the identified coin.
+Both coin and bar results pull through to all other tabs:
+
+- **Price Discovery → Live eBay Tracker:** After pricing a coin, the tracker's series input is pre-populated. After pricing a bar, `EbayTracker.setBar()` switches the tracker to bar mode and pre-fills metal, size, and brand. Switching to the tracker tab auto-loads the matrix.
+- **Price Discovery → Price History:** A `CoinHistoryLink` object stores the query (eBay keywords for bars, series for coins). Switching to the History tab auto-runs the chart.
+- **Price Discovery → Melt Calculator:** `MeltCalc.setCoin()` receives metal type and pure troy ounces from the pricing result. Works for both coins and bars. Switching to the Melt tab shows the calculation pre-populated.
+- **Cross-tab quick links:** Both coin and bar results render "View on: Melt Calculator | eBay Tracker | Price History" links at the bottom for one-click tab navigation.
 
 ---
 

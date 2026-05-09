@@ -12,6 +12,7 @@ server.js                              Express entry point (port 3000)
 ├─ src/routes/
 │   ├─ priceRoute.js                   POST /api/price  -- coin pricing orchestrator
 │   ├─ barPriceRoute.js                POST /api/bar-price -- bullion bar pricing
+│   │                                  GET  /api/bar-price/options -- brand/series list for dropdowns
 │   ├─ pricingBatchRoute.js            POST /api/pricing-batch -- batch pricing (up to 25)
 │   ├─ bulkEvaluateRoute.js            POST /api/bulk-evaluate + SSE streaming (lot evaluator)
 │   ├─ metalsRoute.js                  GET /api/metals[/:metal] -- spot prices
@@ -50,6 +51,7 @@ server.js                              Express entry point (port 3000)
 │   ├─ mintages.js                     Mintage reference data by series/year/mint
 │   ├─ halfDollarSeries.js             Half Dollar design eras + year-based resolver
 │   ├─ constants.js                    Zodiac cycle + Perth Lunar series helpers
+│   ├─ barSeries.js                    Bar brand/series data (7 brands, 40+ series) + detection helpers
 │   └─ lunarReference.js               Perth / Royal / RAMint lunar comparison
 │
 ├─ src/utils/
@@ -110,7 +112,7 @@ server.js                              Express entry point (port 3000)
 │   ├─ pricing-health-full.js          Pricing health check runner (--full, --filter, --limit, --concurrency, --out)
 │   └─ test-metrics/                   Jest metrics capture + summary reporter
 │
-└─ __tests__/                          53 Jest test suites
+└─ __tests__/                          55 Jest test suites
     ├─ fixtures/
     │   └─ golden_coins.json           Curated golden set (14 deterministic test coins)
     └─ helpers/
@@ -208,10 +210,29 @@ Request
 ```
 Request { metal, size, brand?, series?, year?, condition?, askingPrice? }
   │
-  ├── 1. Build eBay keywords (year + brand + size + metal + "bar" + lunar labels)
-  ├── 2. fetchSoldComps (same 3-tier cascade as coins)
-  ├── 3. computeValuation with pcgs = { _isBar: true }
-  └── Response { keywords, comps stats, valuation, decisions }
+  ├── 1. Normalize size (".5 gram" → "0.5 gram", whitespace trim)
+  ├── 2. Detect bar series (barSeries.detectBarSeries(brand, series))
+  │   └─ Matches against BAR_SERIES registry: series name, aliases, regex
+  │      7 brands: Geiger (11), PAMP (22), Perth Mint (5), Scottsdale (3),
+  │      Valcambi (1), Heraeus (1), Credit Suisse (2)
+  ├── 3. Build eBay keywords (year + brand + series keywords + size + metal + "bar")
+  ├── 4. fetchSoldComps with bar-specific scoring:
+  │   ├─ Brand match (+20) / mismatch (-25)
+  │   ├─ Series match (+10) / mismatch (-15)
+  │   ├─ Size match (+15), metal match (+10), bar keyword (+5)
+  │   └─ Relevance gate: 45 (brand specified) vs 20 (generic)
+  ├── 5. computeValuation with pcgs = { _isBar: true }
+  └── Response { keywords, bar, comps stats, valuation, decisions }
+```
+
+### Bar Options — `GET /api/bar-price/options`
+
+```
+Response { brands: [{ brand, series: [{ name, aliases }] }] }
+
+Returns the full BAR_SERIES registry for frontend dropdowns.
+The frontend fetches this on page load, then dynamically populates
+the series <select> when the user picks a brand.
 ```
 
 ### Spot Prices — `GET /api/metals`
@@ -373,11 +394,43 @@ POST { text | items | file(.xlsx) }
   "metal": "gold",
   "size": "1 oz",
   "brand": "PAMP",
-  "series": null,
+  "series": "Fortuna",
   "year": null,
   "condition": "sealed",
   "askingPrice": 2400,
   "options": { "timeWindowDays": 90 }
+}
+```
+
+**Response** (key fields):
+
+```json
+{
+  "bar": { "metal": "gold", "size": "1 oz", "brand": "PAMP", "pureOzt": 1.0 },
+  "ebay": {
+    "keywords": "PAMP Fortuna 1 oz gold bar",
+    "us": { "comps": [...], "stats": { "count": 20, "median": 2350 } }
+  },
+  "valuation": { "fmvCore": 2360, "confidence": 78, "series": "Fortuna" },
+  "decisions": { "buy": { "max70": 1652, "max80": 1888 }, "sell": { "normal": 2360 } }
+}
+```
+
+### `GET /api/bar-price/options`
+
+**Response:**
+
+```json
+{
+  "brands": [
+    {
+      "brand": "pamp",
+      "series": [
+        { "name": "Fortuna", "aliases": ["lady fortuna"] },
+        { "name": "Coca-Cola", "aliases": ["coke", "coca cola"] }
+      ]
+    }
+  ]
 }
 ```
 
@@ -1030,24 +1083,36 @@ The SPA contains several IIFEs and objects in inline `<script>` blocks:
 | `_esc(str)` / `_escUrl(url)` | XSS-safe HTML and URL escaping |
 | `initTabs()` | Tab controller with auth gate for locked tabs |
 | `AUTH_GATED_TABS` | `['tab-mycoins', 'tab-history']` |
-| `CoinForm` / `BarForm` | Structured entry forms |
+| `CoinForm` / `BarForm` | Structured entry forms. BarForm fetches brand/series from `GET /api/bar-price/options` on init and dynamically populates the series dropdown on brand change. |
 | `runQuery()` | Coin form submission -> POST `/api/price` -> `renderResults()` |
-| `renderResults(d)` | ~500 lines: FMV hero card, gallery, comps, "I Have This Coin" button |
+| `renderResults(d)` | ~500 lines: FMV hero card, gallery, comps, "I Have This Coin" button, cross-tab links |
+| `BarForm._renderBarResults(d)` | Bar-specific results with cross-tab pull-through to Tracker/History/Melt |
 | `MeltCalc` | Offline melt calculator with spot auto-fetch |
-| `EbayTracker` | Market matrix UI (year x mint, year x grade, brand table) |
+| `EbayTracker` | Market matrix UI (year x mint, year x grade, brand table). `setSeries()` for coins, `setBar()` for bars. |
 | `TerapeakImporter` | CSV upload UI + dataset management |
 | `CoinHistoryLink` | Cross-tab state for auto-loading price history chart |
 | `initAuthUI()` | Auth dialog: login/signup toggle, badge, recovery link hidden |
 
 ### Cross-Tab Linkage
 
-```
-Price Discovery --setSeries()-->  Live eBay Tracker
-                                  (pre-fills series, auto-loads on tab switch)
+Both coin and bar pricing results pull through to all other tabs:
 
-Price Discovery --CoinHistoryLink.setCoin()--> Price History
-                                               (pre-fills query, auto-charts on tab switch)
 ```
+Coin Price Discovery --setSeries()-->           Live eBay Tracker (coin mode)
+                                                (pre-fills series, auto-loads on tab switch)
+
+Bar Price Discovery  --setBar(metal,size,brand)--> Live eBay Tracker (bar mode)
+                                                   (switches to bar mode, pre-fills fields)
+
+Both              --CoinHistoryLink.setCoin()--> Price History
+                                                 (pre-fills query, auto-charts on tab switch)
+
+Both              --MeltCalc.setCoin()-->        Melt Calculator
+                                                 (pre-fills metal + troy oz)
+```
+
+Cross-tab quick-link buttons ("View on: Melt Calculator | eBay Tracker | Price History")
+appear at the bottom of both coin and bar results.
 
 ### Storage Summary
 
