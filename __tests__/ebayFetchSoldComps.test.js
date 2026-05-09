@@ -525,6 +525,22 @@ describe('detectWeightFromTitle', () => {
   test('null for no weight', () => expect(ebayService.detectWeightFromTitle('Morgan Dollar')).toBeNull());
   test('null for empty', () => expect(ebayService.detectWeightFromTitle('')).toBeNull());
   test('null for null', () => expect(ebayService.detectWeightFromTitle(null)).toBeNull());
+
+  // Gram-based weights (#187)
+  test('1 gram', () => expect(ebayService.detectWeightFromTitle('Geiger 1 gram Gold Bar')).toBeCloseTo(1 / 31.1035, 5));
+  test('0.5 gram', () => expect(ebayService.detectWeightFromTitle('PAMP 0.5 gram Gold Bar')).toBeCloseTo(0.5 / 31.1035, 5));
+  test('0.5g (short)', () => expect(ebayService.detectWeightFromTitle('PAMP 0.5g Gold Bar')).toBeCloseTo(0.5 / 31.1035, 5));
+  test('2.5 gram', () => expect(ebayService.detectWeightFromTitle('Perth 2.5 gram Gold Bar')).toBeCloseTo(2.5 / 31.1035, 5));
+  test('5 gram', () => expect(ebayService.detectWeightFromTitle('Valcambi 5 gram Gold Bar')).toBeCloseTo(5 / 31.1035, 5));
+  test('10 gram', () => expect(ebayService.detectWeightFromTitle('Argor-Heraeus 10 gram Gold Bar')).toBeCloseTo(10 / 31.1035, 5));
+  test('100 gram', () => expect(ebayService.detectWeightFromTitle('PAMP Suisse 100 gram Silver Bar')).toBeCloseTo(100 / 31.1035, 5));
+  test('half gram', () => expect(ebayService.detectWeightFromTitle('Geiger Edelmetalle half gram Gold Bar')).toBeCloseTo(0.5 / 31.1035, 5));
+  test('1 kilo', () => expect(ebayService.detectWeightFromTitle('Perth Mint 1 kilo Silver Bar')).toBeCloseTo(32.1507, 3));
+  test('gram takes priority when listed before oz', () => {
+    // Title has gram first -- should detect gram weight
+    const w = ebayService.detectWeightFromTitle('5 gram Gold Bar');
+    expect(w).toBeCloseTo(5 / 31.1035, 5);
+  });
 });
 
 // ═════════════════════════════════════════════════════════════

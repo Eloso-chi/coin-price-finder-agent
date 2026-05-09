@@ -238,3 +238,138 @@ describe('bar response shape', () => {
     expect(res.body.bar.year).toBe(2020);
   });
 });
+
+// ════════════════════════════════════════════════════════════
+//  Fractional gram sizes (#187)
+// ════════════════════════════════════════════════════════════
+describe('fractional gram sizes', () => {
+  beforeEach(() => {
+    fetchSoldComps.mockResolvedValue(MOCK_EBAY);
+    computeValuation.mockReturnValue(MOCK_VALUATION);
+  });
+
+  test('pureOzt correct for 0.5 gram', async () => {
+    const res = await post({ metal: 'gold', size: '0.5 gram' });
+    expect(res.status).toBe(200);
+    expect(res.body.bar.pureOzt).toBeCloseTo(0.5 / 31.1035, 5);
+  });
+
+  test('pureOzt correct for .5 gram (no leading zero)', async () => {
+    const res = await post({ metal: 'gold', size: '.5 gram' });
+    expect(res.status).toBe(200);
+    expect(res.body.bar.pureOzt).toBeCloseTo(0.5 / 31.1035, 5);
+  });
+
+  test('pureOzt correct for 1 gram', async () => {
+    const res = await post({ metal: 'gold', size: '1 gram' });
+    expect(res.status).toBe(200);
+    expect(res.body.bar.pureOzt).toBeCloseTo(1 / 31.1035, 5);
+  });
+
+  test('pureOzt correct for 2.5 gram', async () => {
+    const res = await post({ metal: 'gold', size: '2.5 gram' });
+    expect(res.status).toBe(200);
+    expect(res.body.bar.pureOzt).toBeCloseTo(2.5 / 31.1035, 5);
+  });
+
+  test('pureOzt correct for 1 kilo', async () => {
+    const res = await post({ metal: 'silver', size: '1 kilo' });
+    expect(res.status).toBe(200);
+    expect(res.body.bar.pureOzt).toBeCloseTo(32.1507, 3);
+  });
+
+  test('.5 gram normalizes to 0.5 gram in eBay keywords', async () => {
+    await post({ metal: 'gold', size: '.5 gram', brand: 'Geiger' });
+    const keywords = fetchSoldComps.mock.calls[0][0];
+    expect(keywords).toContain('0.5 gram');
+    // Should NOT start with just ".5" (no leading zero)
+    expect(keywords).not.toMatch(/(?<!\d)\.5 gram/);
+  });
+
+  test('expected.weight is set for weight-mismatch filtering', async () => {
+    await post({ metal: 'gold', size: '0.5 gram', brand: 'PAMP' });
+    const expected = fetchSoldComps.mock.calls[0][2];
+    expect(expected.weight).toBeCloseTo(0.5 / 31.1035, 5);
+  });
+
+  test('expected.weight is set for oz sizes too', async () => {
+    await post({ metal: 'gold', size: '1 oz' });
+    const expected = fetchSoldComps.mock.calls[0][2];
+    expect(expected.weight).toBe(1);
+  });
+
+  test('expected.barSize is normalized', async () => {
+    await post({ metal: 'gold', size: '.5 gram' });
+    const expected = fetchSoldComps.mock.calls[0][2];
+    expect(expected.barSize).toBe('0.5 gram');
+  });
+});
+
+// ════════════════════════════════════════════════════════════
+//  Bar series detection (#187)
+// ════════════════════════════════════════════════════════════
+describe('bar series detection', () => {
+  beforeEach(() => {
+    fetchSoldComps.mockResolvedValue(MOCK_EBAY);
+    computeValuation.mockReturnValue(MOCK_VALUATION);
+  });
+
+  test('Geiger edelmetalle adds series keywords to search', async () => {
+    await post({ metal: 'gold', size: '1 gram', brand: 'Geiger', series: 'edelmetalle' });
+    const keywords = fetchSoldComps.mock.calls[0][0];
+    expect(keywords).toContain('edelmetalle');
+    expect(keywords).toContain('Geiger');
+    expect(keywords).toContain('bar');
+  });
+
+  test('response.bar.series is set for Geiger Edelmetalle', async () => {
+    const res = await post({ metal: 'gold', size: '1 gram', brand: 'Geiger', series: 'edelmetalle' });
+    expect(res.status).toBe(200);
+    expect(res.body.bar.series).toBe('Edelmetalle');
+  });
+
+  test('PAMP fortuna adds fortuna to keywords', async () => {
+    await post({ metal: 'gold', size: '1 oz', brand: 'PAMP', series: 'fortuna' });
+    const keywords = fetchSoldComps.mock.calls[0][0];
+    expect(keywords).toContain('fortuna');
+  });
+
+  test('response.bar.series is set for PAMP Fortuna', async () => {
+    const res = await post({ metal: 'gold', size: '1 oz', brand: 'PAMP', series: 'fortuna' });
+    expect(res.status).toBe(200);
+    expect(res.body.bar.series).toBe('Fortuna');
+  });
+
+  test('Perth Mint cast adds cast to keywords', async () => {
+    await post({ metal: 'gold', size: '1 oz', brand: 'Perth Mint', series: 'cast' });
+    const keywords = fetchSoldComps.mock.calls[0][0];
+    expect(keywords).toContain('cast');
+  });
+
+  test('expected.barSeries and barSeriesRe are set', async () => {
+    await post({ metal: 'gold', size: '1 oz', brand: 'PAMP', series: 'fortuna' });
+    const expected = fetchSoldComps.mock.calls[0][2];
+    expect(expected.barSeries).toBe('Fortuna');
+    expect(expected.barSeriesRe).toBeInstanceOf(RegExp);
+  });
+
+  test('unknown series leaves barSeries null', async () => {
+    await post({ metal: 'gold', size: '1 oz', brand: 'PAMP', series: 'nonexistent' });
+    const expected = fetchSoldComps.mock.calls[0][2];
+    expect(expected.barSeries).toBeNull();
+    expect(expected.barSeriesRe).toBeNull();
+  });
+
+  test('lunar series still takes priority over bar series detection', async () => {
+    const res = await post({ metal: 'gold', size: '1 oz', brand: 'Perth', series: 'lunar', year: 2024 });
+    expect(res.status).toBe(200);
+    expect(res.body.bar.series).toBe('Lunar');
+    expect(res.body.bar.zodiacAnimal).toBe('Dragon');
+  });
+
+  test('no series leaves bar.series null', async () => {
+    const res = await post({ metal: 'gold', size: '1 oz', brand: 'PAMP' });
+    expect(res.status).toBe(200);
+    expect(res.body.bar.series).toBeNull();
+  });
+});

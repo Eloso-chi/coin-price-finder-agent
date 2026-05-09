@@ -60,6 +60,21 @@ async function throttle() {
 function detectWeightFromTitle(title) {
   if (!title) return null;
   const t = title.toLowerCase();
+
+  // ── Gram-based weights (bars) ─────────────────────────────
+  // "1 gram", "0.5g", "2.5 gram", "100g", ".5 gram", etc.
+  const GRAM = '(?:grams?|g)\\b';
+  const gm = t.match(new RegExp('\\b(\\d+(?:\\.\\d+)?)\\s*' + GRAM, 'i'));
+  if (gm) return parseFloat(gm[1]) / 31.1035;
+  // ".5 gram" (no leading zero)
+  const gm2 = t.match(new RegExp('(?:^|\\s)\\.(\\d+)\\s*' + GRAM, 'i'));
+  if (gm2) return parseFloat('0.' + gm2[1]) / 31.1035;
+  // "half gram"
+  if (/\bhalf\s+gram\b/i.test(t)) return 0.5 / 31.1035;
+  // Kilo
+  if (/\b(?:1\s*)?kilo(?:gram)?\b/i.test(t)) return 32.1507;
+
+  // ── Oz-based weights ──────────────────────────────────────
   // Weight-unit suffix: matches "oz", "ozt", "ounce", "ounces",
   // "troy oz", "troy ounce", "troy ounce oz", etc.
   const OZ = '(?:troy\\s+)?(?:ounces?(?:\\s+oz)?|ozt?|oz)\\b';
@@ -649,10 +664,22 @@ function scoreBarMatch(comp, expected) {
     if (tLow.includes(brandLow)) { score += 20; notes.push('brand-match'); }
   }
 
-  // Size match (15 pts) — normalize e.g. "1 oz" → "1oz"
+  // Size match (15 pts) -- normalize and check alternates for gram sizes
   if (expected.barSize) {
     const sizeNorm = expected.barSize.toLowerCase().replace(/\s+/g, '');
-    if (tNorm.includes(sizeNorm)) { score += 15; notes.push('size-match'); }
+    let sizeMatched = tNorm.includes(sizeNorm);
+    // Also check alternate representations: "0.5gram" ↔ ".5gram" ↔ "1/2gram"
+    if (!sizeMatched) {
+      const gramMatch = expected.barSize.match(/^(\d+(?:\.\d+)?)\s*gram/i);
+      if (gramMatch) {
+        const grams = parseFloat(gramMatch[1]);
+        const alts = [grams + 'g', grams + 'gram'];
+        if (grams === 0.5) alts.push('1/2gram', '1/2g', 'halfgram');
+        if (grams === 2.5) alts.push('2.5g');
+        sizeMatched = alts.some(a => tNorm.includes(a));
+      }
+    }
+    if (sizeMatched) { score += 15; notes.push('size-match'); }
   }
 
   // Metal match (10 pts)
@@ -678,7 +705,12 @@ function scoreBarMatch(comp, expected) {
     if (/\blunar\b/i.test(tLow)) { score += 5; notes.push('lunar-match'); }
   }
 
-  // Zodiac animal match (5 pts) — Lunar series
+  // Bar series match (5 pts) -- e.g. "edelmetalle", "fortuna", "cast"
+  if (expected.barSeriesRe && expected.barSeriesRe.test(tLow)) {
+    score += 5; notes.push('bar-series-match');
+  }
+
+  // Zodiac animal match (5 pts) -- Lunar series
   if (expected.zodiacAnimal && tLow.includes(expected.zodiacAnimal.toLowerCase())) {
     score += 5; notes.push('animal-match');
   }
