@@ -1749,7 +1749,11 @@ def _show_category(category_name, datasets):
 
 
 def _launch_run(terms, category_name, filter_pattern=None, args=None):
-    """Launch aggregation for a set of terms by re-invoking with --run."""
+    """Launch aggregation for a set of terms.
+
+    For 'stale' category, delegates to terapeak-export.py (page 1 refresh).
+    For 'deep'/'thin' categories, re-invokes sales-aggregator.py (page 2+ enrichment).
+    """
     import subprocess
 
     # Build filter regex from search terms if no explicit filter
@@ -1763,24 +1767,37 @@ def _launch_run(terms, category_name, filter_pattern=None, args=None):
         # Too many for a regex -- use the category's needs= param as filter
         filter_arg = None
 
-    script_path = Path(__file__).resolve()
-    cmd = [sys.executable, str(script_path), "--run"]
+    # Stale datasets need page 1 re-scrape via terapeak-export.py
+    if category_name == "stale":
+        export_script = Path(__file__).resolve().parent / "terapeak-export.py"
+        cmd = [sys.executable, str(export_script), "--run", "--refresh", "--max-age", "14"]
 
-    if filter_arg:
-        cmd.extend(["--filter", filter_arg])
+        if filter_arg:
+            cmd.extend(["--filter", filter_arg])
 
-    if category_name == "deep":
-        cmd.extend(["--min-rows", "50"])
-    elif category_name == "thin":
-        cmd.extend(["--min-rows", "1"])
+        if args and hasattr(args, "limit") and args.limit:
+            cmd.extend(["--limit", str(args.limit)])
 
-    # Inherit user's CLI args
-    if args and hasattr(args, "limit") and args.limit:
-        cmd.extend(["--limit", str(args.limit)])
-    if args and hasattr(args, "max_pages") and args.max_pages:
-        cmd.extend(["--max-pages", str(args.max_pages)])
-    if args and hasattr(args, "exclude") and args.exclude:
-        cmd.extend(["--exclude", args.exclude])
+    else:
+        # Deep pagination / thin enrichment via sales-aggregator.py
+        script_path = Path(__file__).resolve()
+        cmd = [sys.executable, str(script_path), "--run"]
+
+        if filter_arg:
+            cmd.extend(["--filter", filter_arg])
+
+        if category_name == "deep":
+            cmd.extend(["--min-rows", "50"])
+        elif category_name == "thin":
+            cmd.extend(["--min-rows", "1"])
+
+        # Inherit user's CLI args
+        if args and hasattr(args, "limit") and args.limit:
+            cmd.extend(["--limit", str(args.limit)])
+        if args and hasattr(args, "max_pages") and args.max_pages:
+            cmd.extend(["--max-pages", str(args.max_pages)])
+        if args and hasattr(args, "exclude") and args.exclude:
+            cmd.extend(["--exclude", args.exclude])
 
     print(f"\n  Launching: {' '.join(cmd)}\n")
     print("─" * 60)
