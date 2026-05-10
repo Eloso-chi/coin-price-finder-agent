@@ -128,6 +128,10 @@ const KEY_DATES = [
   // ═══════════════════════════════════════════════════════════
   // SEATED LIBERTY
   // ═══════════════════════════════════════════════════════════
+  { series: 'seated liberty half dollar', year: 1870, mint: 'CC', tier: 'key', note: 'Carson City key; only 54,617 minted' },
+  { series: 'seated liberty half',        year: 1870, mint: 'CC', tier: 'key', note: 'Carson City key; only 54,617 minted' },
+  { series: 'seated liberty half dollar', year: 1878, mint: 'CC', tier: 'semi-key', note: 'Low CC mintage; 62,000 minted' },
+  { series: 'seated liberty quarter',     year: 1870, mint: 'CC', tier: 'key', note: 'Only 8,340 minted; scarce' },
   { series: 'seated liberty dollar', year: 1870, mint: 'S', tier: 'key', note: 'Major key date; very few known' },
   { series: 'seated liberty dollar', year: 1871, mint: 'CC', tier: 'key', note: 'Only 1,376 minted; Carson City key' },
   { series: 'seated liberty dollar', year: 1873, mint: 'CC', tier: 'key', note: 'Only 2,300 minted' },

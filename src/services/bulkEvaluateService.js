@@ -182,7 +182,7 @@ async function evaluateOneCoin(coin) {
 
     // Spot price for bullion
     const METAL_SYM = { silver: 'XAG', gold: 'XAU', platinum: 'XPT', palladium: 'XPD' };
-    const metalKey = detectedMetal || parsed.metal || null;
+    const metalKey = parsed.metal || detectedMetal || null;
     let meltPerOz = null;
     if (metalKey && weight) {
       const sym = METAL_SYM[metalKey];

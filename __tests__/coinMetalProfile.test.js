@@ -61,6 +61,37 @@ describe('getCoinMetalProfile', () => {
     expect(r).toEqual({ isMetalBased: true, metal: 'gold' });
   });
 
+  // ── Platinum / Palladium bullion (#184) ───────────────────
+  test('platinum eagle → platinum (inferred from series)', () => {
+    const r = getCoinMetalProfile('American Platinum Eagle 1 oz');
+    expect(r).toEqual({ isMetalBased: true, metal: 'platinum' });
+  });
+
+  test('palladium eagle → palladium (inferred from series)', () => {
+    const r = getCoinMetalProfile('2023 Palladium Eagle 1 oz BU');
+    expect(r).toEqual({ isMetalBased: true, metal: 'palladium' });
+  });
+
+  test('platinum eagle without explicit metal keyword → platinum', () => {
+    const r = getCoinMetalProfile('2022 Platinum Eagle MS70');
+    expect(r).toEqual({ isMetalBased: true, metal: 'platinum' });
+  });
+
+  test('"platinum bar" → platinum via keyword', () => {
+    const r = getCoinMetalProfile('1 oz platinum bar PAMP');
+    expect(r).toEqual({ isMetalBased: true, metal: 'platinum' });
+  });
+
+  test('"palladium" keyword in non-series query → palladium', () => {
+    const r = getCoinMetalProfile('1 oz palladium round');
+    expect(r).toEqual({ isMetalBased: true, metal: 'palladium' });
+  });
+
+  test('platinum eagle with -silver exclusion → platinum', () => {
+    const r = getCoinMetalProfile('American Platinum Eagle 1 oz -silver');
+    expect(r).toEqual({ isMetalBased: true, metal: 'platinum' });
+  });
+
   // ── US gold coin series ───────────────────────────────────
   test('saint-gaudens → gold', () => {
     const r = getCoinMetalProfile('1924 Saint-Gaudens $20 MS65');

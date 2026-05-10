@@ -84,7 +84,7 @@ async function _priceOne(item) {
     const isBullion = BULLION_1OZ_DEFAULT.some(b => (series || '').toLowerCase().includes(b));
     const { metal: detectedMetal } = getCoinMetalProfile(query);
     const METAL_SYM = { silver: 'XAG', gold: 'XAU', platinum: 'XPT', palladium: 'XPD' };
-    const metalKey = detectedMetal || parsed.metal || null;
+    const metalKey = parsed.metal || detectedMetal || null;
 
     // #162: World bullion BU fix — null out BU-expanded grade for bullion coins.
     // "BU" expands to gradeNum 60 (MS60) but for bullion it means raw mint-sealed.

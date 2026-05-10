@@ -35,8 +35,10 @@ const GOLD_US_COIN_SERIES = [
 ];
 
 const METAL_RE = {
-  silver: /\bsilver\b/i,
-  gold:   /\bgold\b/i,
+  silver:    /\bsilver\b/i,
+  gold:      /\bgold\b/i,
+  platinum:  /\bplatinum\b/i,
+  palladium: /\bpalladium\b/i,
 };
 
 /**
@@ -56,10 +58,14 @@ function getCoinMetalProfile(query) {
   const isBullion = BULLION_SERIES.some(s => q.includes(s));
   if (isBullion) {
     // Determine metal from the query text
-    if (METAL_RE.gold.test(q))   return { isMetalBased: true, metal: 'gold' };
-    if (METAL_RE.silver.test(q)) return { isMetalBased: true, metal: 'silver' };
+    if (METAL_RE.gold.test(q))      return { isMetalBased: true, metal: 'gold' };
+    if (METAL_RE.silver.test(q))    return { isMetalBased: true, metal: 'silver' };
+    if (METAL_RE.platinum.test(q))  return { isMetalBased: true, metal: 'platinum' };
+    if (METAL_RE.palladium.test(q)) return { isMetalBased: true, metal: 'palladium' };
     // Bullion but metal not explicit — infer from series name
     if (/gold eagle|gold buffalo|krugerrand/i.test(q)) return { isMetalBased: true, metal: 'gold' };
+    if (/platinum eagle/i.test(q))  return { isMetalBased: true, metal: 'platinum' };
+    if (/palladium eagle/i.test(q)) return { isMetalBased: true, metal: 'palladium' };
     // Default bullion to silver (most common)
     return { isMetalBased: true, metal: 'silver' };
   }
@@ -75,8 +81,10 @@ function getCoinMetalProfile(query) {
   }
 
   // 4. Explicit metal keyword in query (e.g. "1 oz silver round")
-  if (METAL_RE.gold.test(q))   return { isMetalBased: true, metal: 'gold' };
-  if (METAL_RE.silver.test(q)) return { isMetalBased: true, metal: 'silver' };
+  if (METAL_RE.gold.test(q))      return { isMetalBased: true, metal: 'gold' };
+  if (METAL_RE.silver.test(q))    return { isMetalBased: true, metal: 'silver' };
+  if (METAL_RE.platinum.test(q))  return { isMetalBased: true, metal: 'platinum' };
+  if (METAL_RE.palladium.test(q)) return { isMetalBased: true, metal: 'palladium' };
 
   return { isMetalBased: false, metal: null };
 }
