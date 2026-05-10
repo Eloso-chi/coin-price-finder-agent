@@ -100,18 +100,22 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
   const pcgsGuide    = pcgs?.priceGuide?.valueUsd || null;
   const auctionMedian = pcgs?.auction?.medianUsd || null;
 
+  // ── Spot price for bullion premium calculation ──
+  const spotPrice = opts.spotPrice || null;
+
   // ── Gather Greysheet wholesale ──
   const gsData = opts.greysheet || null;
-  const greysheetVal = gsData?.greyVal || null;
+  // #188: Discard Greysheet values that are clearly nominal (< 1% of spot) for bullion.
+  // Some Greysheet type entries return face value ($2-$6) for gold coins worth $3000+.
+  const rawGreysheetVal = gsData?.greyVal || null;
+  const greysheetVal = (isBullion && spotPrice > 0 && rawGreysheetVal != null && rawGreysheetVal < spotPrice * 0.01)
+    ? null : rawGreysheetVal;
 
   // #54: Greysheet wholesale-to-retail spread as liquidity signal
   // Narrow spread = liquid (easy to buy/sell), wide = illiquid (hard to sell)
   const gsSpreadPct = (gsData?.greyVal > 0 && gsData?.cpgVal > 0)
     ? +((gsData.cpgVal - gsData.greyVal) / gsData.greyVal * 100).toFixed(1)
     : null;
-
-  // ── Spot price for bullion premium calculation ──
-  const spotPrice = opts.spotPrice || null;
 
   // ── Blend ──
   let fmv = null;
@@ -143,6 +147,17 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
       explanation.push(`Greysheet blend: 85% spot-premium + 15% wholesale ($${greysheetVal.toFixed(2)}).`);
     }
   }
+
+  // #188: Bullion spot-only fallback — no comps survived filtering but spot price is known.
+  // Use spot with 0% premium (conservative) rather than falling through to a nominal Greysheet value.
+  if (fmv == null && isBullion && spotPrice > 0 && ebayMedian == null) {
+    fmv = spotPrice;
+    method = 'bullion-spot-only';
+    explanation.push(
+      `Bullion spot fallback (no comps): spot $${spotPrice.toFixed(2)} used as FMV with 0% premium.`
+    );
+  }
+
   // #51: Dynamic weights based on grade tier.
   // High-grade coins (MS67+) trade at auction, not eBay commodity market.
   // Low-grade / raw coins are best reflected by eBay street prices.
@@ -360,6 +375,10 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
         spotPrice: +spotPrice.toFixed(2),
         premiumPct: +((fmv / spotPrice - 1) * 100).toFixed(1),
         ebayMedian: +ebayMedian.toFixed(2),
+      } : method === 'bullion-spot-only' ? {
+        spotPrice: +spotPrice.toFixed(2),
+        premiumPct: 0,
+        ebayMedian: null,
       } : null
     },
     decisions: {
