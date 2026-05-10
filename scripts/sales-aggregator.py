@@ -1567,9 +1567,6 @@ def dashboard(args):
         print("ERROR: ADMIN_API_KEY not set. Export it or add to .env")
         return
 
-    # Start VNC early so noVNC is ready for the user when aggregation begins
-    _start_vnc()
-
     # Ensure server is running (needed for dashboard queries)
     if not _is_port_open(SERVER_PORT):
         print("  Server not running. Starting it...")
@@ -1801,6 +1798,13 @@ def _launch_run(terms, category_name, filter_pattern=None, args=None):
 
     print(f"\n  Launching: {' '.join(cmd)}\n")
     print("─" * 60)
+
+    # Ensure VNC + server are running before handing off.
+    # terapeak-export.py does not start these itself, and os.execv
+    # replaces this process so nothing can restart them later.
+    _start_vnc()
+    if not _is_port_open(SERVER_PORT):
+        _start_server()
 
     # Replace this process with the run
     os.execv(sys.executable, cmd)

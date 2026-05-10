@@ -1226,12 +1226,18 @@ function autoImportFolder(folderPath, opts = {}) {
       const { comps } = parseCSV(csvData, searchTerm);
       if (comps.length === 0) { skipped++; continue; }
 
-      // If CSV has >50 rows, it was deep-paginated (page 1 caps at 50).
-      // Set deepAt so the aggregator doesn't re-scrape it.
+      // Stamp aggregationMeta so the dataset is visible to aggregation-status.
+      // page1At is derived from the CSV file's modification time (best proxy for
+      // when the data was originally collected).  deepAt is inferred when the CSV
+      // has >50 rows (page 1 caps at 50, so more rows = was deep-paginated).
+      const csvStat2 = fs.statSync(path.join(absPath, file));
+      const fileMtime = new Date(csvStat2.mtimeMs).toISOString();
       const importMeta = { fileName: file, autoImported: true };
+      const aggMeta = { page1At: fileMtime };
       if (comps.length > 50) {
-        importMeta.aggregationMeta = { deepAt: new Date().toISOString() };
+        aggMeta.deepAt = fileMtime;
       }
+      importMeta.aggregationMeta = aggMeta;
 
       const result = importComps(searchTerm, comps, importMeta);
       if (result.newComps > 0) {

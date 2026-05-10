@@ -488,7 +488,7 @@ The **Test Monitor** system records per-run metrics (timestamp, branch, commit, 
 
 A Copilot agent persona (`.github/agents/test-monitor.agent.md`) can be invoked to diagnose failures, quarantine flaky tests, and suggest fixes. See [docs/testing/test-monitor.md](docs/testing/test-monitor.md) for full usage.
 
-Runs **Jest** across 53 test suites:
+Runs **Jest** across 56 test suites:
 
 | Suite | What it covers |
 |---|---|
@@ -542,6 +542,12 @@ Runs **Jest** across 53 test suites:
 | `metalsHistoryService.test.js` | Metals history: recordDaily, getHistory, evictOld, METAL_SYMBOLS |
 | `coinHistoryRoute.test.js` | Coin history route: parameter validation, filtering, grade type, metal overlay, greysheet overlay |
 | `metalsRoute.test.js` | Metals route: multi-metal, single metal, currency, validation, error handling (502/500) |
+| `barPriceRoute.test.js` | Bar pricing route: metal/size validation, brand detection, keyword building |
+| `barSeries.test.js` | Bar series detection: brand/series matching, aliases, regex patterns |
+| `coinMetalProfile.test.js` | Metal profile detection: silver/gold/platinum/palladium, bullion inference, exclusion operators |
+| `holdoutValidation.test.js` | Holdout validation: 80/20 split on real Terapeak data, FMV within IQR of held-out set (10 coins, seeded PRNG) |
+| `normalizationRegression.test.js` | Normalization regression: series/year/mint parsing edge cases |
+| `terapeakDataIntegrity.test.js` | Terapeak data integrity: CSV structure, header validation, duplicate detection |
 
 Test helpers live in `__tests__/helpers/coinTestConstants.js` (shared token lists, normalization, compound-word-aware `containsNone`, seeded PRNG, synthetic comp builder, coin catalog with US coins/US bullion/world bullion, golden set loader, and `selectCoins()` composable selector). Golden coin fixtures live in `__tests__/fixtures/golden_coins.json`.
 
@@ -594,7 +600,7 @@ src/
   utils/
     cache.js                       TTLCache with optional JSON file persistence
     stats.js                       Statistical functions (median, MAD, weighted median)
-    coinMetalProfile.js            Metal detection for bullion/silver/gold coins
+    coinMetalProfile.js            Metal detection for bullion coins (silver/gold/platinum/palladium)
     filters.js                     Deny-list filtering, denomination & series checks
     responseValidator.js           /api/price response schema & sanity validation
     excelMapper.js                 Excel-to-backup converter (header aliases, series normalization)
@@ -626,7 +632,7 @@ public/
 samples/
   test-collection.xlsx             Sample Excel import fixture
   no-collectors-sheet.xlsx         Error-case fixture (missing sheet)
-__tests__/                         49 Jest test suites (see Tests section)
+__tests__/                         56 Jest test suites (see Tests section)
   fixtures/
     golden_coins.json              Curated golden set coins (14 deterministic test coins)
   helpers/
@@ -684,6 +690,10 @@ scripts/
 
 ### Pricing Accuracy (P1 Fixes)
 
+- **Platinum/palladium metal detection (#184)** -- `coinMetalProfile.js` now supports all four precious metals. Previously only silver and gold were in the `METAL_RE` dictionary and bullion inference regex, so "Platinum Eagle" and "Palladium Eagle" were misidentified as silver. Added platinum and palladium regex patterns to `METAL_RE`, platinum/palladium inference checks in the bullion series section, and explicit keyword detection for all four metals.
+- **Metal priority fix (#184)** -- `pricingBatchRoute.js` and `bulkEvaluateService.js` had `detectedMetal || parsed.metal`, which meant the wrong silver value (truthy) from `getCoinMetalProfile` prevented the parsed platinum/palladium from being used. Fixed to `parsed.metal || detectedMetal`.
+- **Seated Liberty key dates (#170)** -- Added 1870-CC Half Dollar (both "Liberty Seated Half Dollar" and "Seated Liberty Half Dollar" series name variants), 1878-CC Half Dollar (semi-key), and 1870-CC Quarter to `keyDates.js`. Fixed empty CSV stub for 1870-CC (was 0 bytes, now has proper header).
+- **Holdout validation test (#177)** -- New `holdoutValidation.test.js` suite with 11 tests. Uses 80/20 split on real Terapeak CSV data to validate FMV within IQR (+/-20% tolerance) of the held-out set. 10 diverse coins (5 bullion, 5 numismatic), seeded PRNG (seed=42), pass rate assertion >= 70%. Current result: 10/10 pass (100%).
 - **Metal exclusion keywords (#171, #172)** -- eBay keyword builder now appends `-silver` for gold queries and `-gold` for silver queries, preventing cross-metal contamination (e.g. silver bars appearing in Gold Libertad results).
 - **Historical spot-aware meltFloor (#171, #172)** -- `applyFilters()` now uses `getSpotOnDate(metal, soldDate)` from `metalsHistoryService` to compute the melt floor per comp's actual sale date, instead of using today's spot price. This prevents older comps from being incorrectly rejected when spot has risen significantly.
 - **Type 1/Type 2 variant detection (#180)** -- `pcgsService.parseDescription()` now detects "Type 1" / "Type 2" in coin descriptions and sets `result.label`. Label is passed through from PCGS identification to the eBay expected object via `priceRoute.js` and `pricingBatchRoute.js`.
@@ -736,7 +746,7 @@ scripts/
 
 ### Terapeak Data Pipeline
 
-The project includes ~1,200 Terapeak CSV files in `data/terapeak/` containing real sold-comp data collected from eBay Seller Hub Research. The data pipeline has three stages:
+The project includes ~2,800 Terapeak CSV files in `data/terapeak/` containing real sold-comp data collected from eBay Seller Hub Research. The data pipeline has three stages:
 
 **Stage 1: Page 1 Collection** -- `scripts/terapeak-export.py` uses Playwright to automate Terapeak searches and CSV downloads. It loops through all coin search terms, exports 50 rows per coin, and uploads CSVs directly to Azure Blob Storage via the Azure SDK (`upload_to_blob()`), falling back to HTTP POST to the local server if blob credentials are unavailable. Features: `--login` for manual eBay cookie capture, `--run` for headless batch execution, `--batch N` for safe incremental collection, `--priority` for thin-data-first ordering, `--resume` to continue after interruption, `--refresh` to re-collect stale CSVs (age-aware, skips fresh files), `--max-age DAYS` to set the staleness threshold (default 14), browser recycling every 40 coins, and auto-recovery from crashes (up to 5). Requires VNC (Xtigervnc :1), Python 3.12+, and Playwright.
 
@@ -812,7 +822,7 @@ Four new test suites targeting previously untested history and route modules:
 | `coinHistoryRoute.test.js` | 15 | GET /api/coin-history parameter validation, filtering, grade type, metal overlay, greysheet overlay |
 | `metalsRoute.test.js` | 10 | GET /api/metals multi-metal, single metal, currency, validation, error handling (502/500) |
 
-Total test count: 2,444 tests across 53 suites (up from 2,386 / 49).
+Total test count: 2,658 tests across 56 suites.
 
 ### UX & Accessibility (S1--S4 Review)
 

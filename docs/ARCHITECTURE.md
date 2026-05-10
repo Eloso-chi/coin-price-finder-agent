@@ -58,7 +58,7 @@ server.js                              Express entry point (port 3000)
 │   ├─ cache.js                        TTLCache class (in-memory + optional file persistence)
 │   ├─ stats.js                        Statistical functions (median, MAD, weighted median, etc.)
 │   ├─ filters.js                      Deny-list filtering, denomination & series checks
-│   ├─ coinMetalProfile.js             Metal detection for bullion/silver/gold coins
+│   ├─ coinMetalProfile.js             Metal detection for bullion coins (silver/gold/platinum/palladium)
 │   ├─ responseValidator.js            /api/price response schema & sanity validation
 │   ├─ excelMapper.js                  Excel-to-backup converter (header aliases, series normalization)
 │   ├─ cachePath.js                    Centralized CACHE_DIR from env var
@@ -88,7 +88,7 @@ server.js                              Express entry point (port 3000)
 │   └─ user_coins.json                 Server-side coin collections (plaintext JSON by userId)
 │
 ├─ data/
-│   ├─ terapeak/                       ~2,700+ Terapeak CSV exports (real sold data)
+│   ├─ terapeak/                       ~2,800+ Terapeak CSV exports (real sold data)
 │   └─ terapeak-meta.json              Git-tracked aggregation metadata sidecar (see below)
 │
 ├─ docs/
@@ -112,7 +112,7 @@ server.js                              Express entry point (port 3000)
 │   ├─ pricing-health-full.js          Pricing health check runner (--full, --filter, --limit, --concurrency, --out)
 │   └─ test-metrics/                   Jest metrics capture + summary reporter
 │
-└─ __tests__/                          55 Jest test suites
+└─ __tests__/                          56 Jest test suites
     ├─ fixtures/
     │   └─ golden_coins.json           Curated golden set (14 deterministic test coins)
     └─ helpers/
