@@ -7767,13 +7767,13 @@
     "compCount": 73
   },
   "1922 peace silver dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-08T22:32:47.313Z",
+    "deepAt": "2026-05-11T02:04:36.213286",
+    "page1At": "2026-05-11T02:04:36.213286",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-05",
+    "lastRefreshAt": "2026-05-11T02:04:36.213286",
+    "newestSaleDate": "2026-05-10",
     "oldestSaleDate": "2026-03-06",
-    "compCount": 40
+    "compCount": 72
   },
   "1922 peace silver dollar ms63": {
     "deepAt": null,
@@ -7884,13 +7884,13 @@
     "compCount": 43
   },
   "1923 peace silver dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-08T22:32:47.314Z",
+    "deepAt": "2026-05-11T02:03:12.430790",
+    "page1At": "2026-05-11T02:03:12.430790",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-02",
-    "oldestSaleDate": "2026-03-06",
-    "compCount": 45
+    "lastRefreshAt": "2026-05-11T02:03:12.430790",
+    "newestSaleDate": "2026-05-10",
+    "oldestSaleDate": "2025-11-19",
+    "compCount": 83
   },
   "1923 standing liberty quarter": {
     "deepAt": null,
@@ -8289,13 +8289,13 @@
     "compCount": 48
   },
   "1926 peace silver dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-08T22:32:47.317Z",
+    "deepAt": "2026-05-11T02:01:47.265282",
+    "page1At": "2026-05-11T02:01:47.265282",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-03",
-    "oldestSaleDate": "2026-03-06",
-    "compCount": 47
+    "lastRefreshAt": "2026-05-11T02:01:47.265282",
+    "newestSaleDate": "2026-05-10",
+    "oldestSaleDate": "2025-11-14",
+    "compCount": 90
   },
   "1926 peace silver dollar ms65": {
     "deepAt": null,
@@ -20179,12 +20179,12 @@
   },
   "peace silver dollar generic": {
     "deepAt": null,
-    "page1At": "2026-04-08T22:32:47.537Z",
+    "page1At": "2026-05-11T02:07:13.444836",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-05",
+    "lastRefreshAt": "2026-05-11T02:07:13.444836",
+    "newestSaleDate": "2026-04-30",
     "oldestSaleDate": "2026-03-13",
-    "compCount": 25
+    "compCount": 41
   },
   "2020 lunar mouse 1oz gold": {
     "deepAt": null,
