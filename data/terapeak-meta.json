@@ -1161,13 +1161,13 @@
     "compCount": 99
   },
   "1878 morgan silver dollar ms64": {
-    "deepAt": null,
-    "page1At": "2026-04-25T21:19:34.955Z",
+    "deepAt": "2026-05-10T20:19:03.934939",
+    "page1At": "2026-05-10T20:19:03.934939",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-19",
+    "lastRefreshAt": "2026-05-10T20:19:03.934939",
+    "newestSaleDate": "2026-05-08",
     "oldestSaleDate": "2025-11-07",
-    "compCount": 44
+    "compCount": 89
   },
   "1878 morgan silver dollar ms65": {
     "deepAt": "2026-05-04T22:42:30.621Z",
@@ -1216,12 +1216,12 @@
   },
   "1879 cc morgan silver dollar ms64": {
     "deepAt": null,
-    "page1At": "2026-04-25T21:01:56.491Z",
+    "page1At": "2026-05-10T21:08:04.371279",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-03-11",
+    "lastRefreshAt": "2026-05-10T21:08:04.371279",
+    "newestSaleDate": "2026-05-05",
     "oldestSaleDate": "2026-03-11",
-    "compCount": 1
+    "compCount": 2
   },
   "1879 o morgan silver dollar": {
     "deepAt": null,
@@ -1405,12 +1405,12 @@
   },
   "1880 o morgan silver dollar ms63": {
     "deepAt": null,
-    "page1At": "2026-04-25T21:08:06.532Z",
+    "page1At": "2026-05-10T22:10:39.055274",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-18",
+    "lastRefreshAt": "2026-05-10T22:10:39.055274",
+    "newestSaleDate": "2026-05-05",
     "oldestSaleDate": "2025-11-04",
-    "compCount": 31
+    "compCount": 49
   },
   "1880 o morgan silver dollar ms64": {
     "deepAt": null,
@@ -1917,13 +1917,13 @@
     "compCount": 209
   },
   "1883 o morgan silver dollar ms63": {
-    "deepAt": null,
-    "page1At": "2026-04-25T20:41:46.358Z",
+    "deepAt": "2026-05-10T20:57:26.923915",
+    "page1At": "2026-05-10T20:57:26.923915",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-25",
-    "oldestSaleDate": "2026-04-10",
-    "compCount": 48
+    "lastRefreshAt": "2026-05-10T20:57:26.923915",
+    "newestSaleDate": "2026-05-05",
+    "oldestSaleDate": "2025-11-15",
+    "compCount": 95
   },
   "1883 o morgan silver dollar ms64": {
     "deepAt": "2026-05-04T21:59:26.983Z",
@@ -1954,12 +1954,12 @@
   },
   "1883 s morgan silver dollar ms63": {
     "deepAt": null,
-    "page1At": "2026-04-25T20:37:39.931Z",
+    "page1At": "2026-05-10T21:47:45.700889",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-19",
+    "lastRefreshAt": "2026-05-10T21:47:45.700889",
+    "newestSaleDate": "2026-05-03",
     "oldestSaleDate": "2025-10-28",
-    "compCount": 37
+    "compCount": 45
   },
   "1883 s morgan silver dollar ms64": {
     "deepAt": "2026-05-04T20:46:09.808Z",
@@ -2358,13 +2358,13 @@
     "compCount": 250
   },
   "1885 morgan silver dollar ms63": {
-    "deepAt": null,
-    "page1At": "2026-04-25T20:28:43.071Z",
+    "deepAt": "2026-05-10T20:40:19.087831",
+    "page1At": "2026-05-10T20:40:19.087831",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-16",
+    "lastRefreshAt": "2026-05-10T20:40:19.087831",
+    "newestSaleDate": "2026-05-10",
     "oldestSaleDate": "2025-10-29",
-    "compCount": 47
+    "compCount": 91
   },
   "1885 morgan silver dollar ms64": {
     "deepAt": "2026-05-04T22:55:28.242Z",
@@ -2395,9 +2395,9 @@
   },
   "1886 o morgan silver dollar ms63": {
     "deepAt": null,
-    "page1At": "2026-04-25T21:22:44.812Z",
+    "page1At": "2026-05-10T21:19:50.857008",
     "maxPageReached": null,
-    "lastRefreshAt": null,
+    "lastRefreshAt": "2026-05-10T21:19:50.857008",
     "newestSaleDate": "2026-03-18",
     "oldestSaleDate": "2026-01-13",
     "compCount": 3
@@ -2521,12 +2521,12 @@
   },
   "1887 o morgan silver dollar ms64": {
     "deepAt": null,
-    "page1At": "2026-04-25T20:18:38.836Z",
+    "page1At": "2026-05-10T20:44:14.878631",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-23",
-    "oldestSaleDate": "2026-02-09",
-    "compCount": 14
+    "lastRefreshAt": "2026-05-10T20:44:14.878631",
+    "newestSaleDate": "2026-05-09",
+    "oldestSaleDate": "2025-11-19",
+    "compCount": 24
   },
   "1887 o morgan silver dollar ms65": {
     "deepAt": null,
@@ -2907,13 +2907,13 @@
     "compCount": 208
   },
   "1890 o morgan silver dollar ms63": {
-    "deepAt": null,
-    "page1At": "2026-04-25T20:27:37.926Z",
+    "deepAt": "2026-05-10T21:35:42.790467",
+    "page1At": "2026-05-10T21:35:42.790467",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-23",
+    "lastRefreshAt": "2026-05-10T21:35:42.790467",
+    "newestSaleDate": "2026-05-05",
     "oldestSaleDate": "2025-10-29",
-    "compCount": 47
+    "compCount": 55
   },
   "1890 o morgan silver dollar ms64": {
     "deepAt": null,
@@ -3349,12 +3349,12 @@
   },
   "1892 morgan silver dollar ms64": {
     "deepAt": null,
-    "page1At": "2026-04-25T20:55:34.217Z",
+    "page1At": "2026-05-10T22:15:51.657628",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-21",
+    "lastRefreshAt": "2026-05-10T22:15:51.657628",
+    "newestSaleDate": "2026-05-09",
     "oldestSaleDate": "2025-11-04",
-    "compCount": 23
+    "compCount": 27
   },
   "1892 morgan silver dollar ms65": {
     "deepAt": null,
@@ -3493,12 +3493,12 @@
   },
   "1893 morgan silver dollar": {
     "deepAt": "2026-04-17T20:01:26.553Z",
-    "page1At": "2026-04-17T20:01:26.553Z",
+    "page1At": "2026-05-10T20:42:40.715767",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-01-19",
+    "lastRefreshAt": "2026-05-10T20:42:40.715767",
+    "newestSaleDate": "2026-05-10",
     "oldestSaleDate": "2025-10-11",
-    "compCount": 165
+    "compCount": 113
   },
   "1894 o barber dime": {
     "deepAt": null,
@@ -3529,21 +3529,21 @@
   },
   "1894 o morgan silver dollar": {
     "deepAt": "2026-04-17T22:10:10.241Z",
-    "page1At": "2026-04-17T22:10:10.241Z",
+    "page1At": "2026-05-10T21:01:34.397429",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-17",
+    "lastRefreshAt": "2026-05-10T21:01:34.397429",
+    "newestSaleDate": "2026-05-04",
     "oldestSaleDate": "2025-10-15",
-    "compCount": 172
+    "compCount": 196
   },
   "1894 o morgan silver dollar ms64": {
     "deepAt": null,
-    "page1At": "2026-04-20T02:12:44.315Z",
+    "page1At": "2026-05-10T21:37:09.640017",
     "maxPageReached": null,
-    "lastRefreshAt": null,
+    "lastRefreshAt": "2026-05-10T21:37:09.640017",
     "newestSaleDate": "2026-03-31",
     "oldestSaleDate": "2025-11-09",
-    "compCount": 2
+    "compCount": 1
   },
   "1894 s barber dime": {
     "deepAt": null,
@@ -3574,27 +3574,27 @@
   },
   "1894 s morgan silver dollar": {
     "deepAt": "2026-04-17T23:12:20.871Z",
-    "page1At": "2026-04-17T23:12:20.871Z",
+    "page1At": "2026-05-10T20:33:26.651084",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-16",
+    "lastRefreshAt": "2026-05-10T20:33:26.651084",
+    "newestSaleDate": "2026-05-06",
     "oldestSaleDate": "2025-10-10",
-    "compCount": 195
+    "compCount": 184
   },
   "1894 s morgan silver dollar ms63": {
     "deepAt": null,
-    "page1At": "2026-05-08T17:42:37.702Z",
+    "page1At": "2026-05-10T20:53:39.232859",
     "maxPageReached": null,
-    "lastRefreshAt": null,
+    "lastRefreshAt": "2026-05-10T20:53:39.232859",
     "newestSaleDate": "2026-03-30",
     "oldestSaleDate": "2025-12-06",
     "compCount": 3
   },
   "1894 s morgan silver dollar ms64": {
     "deepAt": null,
-    "page1At": "2026-04-20T02:54:22.316Z",
+    "page1At": "2026-05-10T22:12:03.427150",
     "maxPageReached": null,
-    "lastRefreshAt": null,
+    "lastRefreshAt": "2026-05-10T22:12:03.427150",
     "newestSaleDate": "2026-02-22",
     "oldestSaleDate": "2026-02-22",
     "compCount": 1
@@ -3646,30 +3646,30 @@
   },
   "1894 morgan silver dollar": {
     "deepAt": "2026-04-17T22:49:17.692Z",
-    "page1At": "2026-04-17T22:49:17.692Z",
+    "page1At": "2026-05-10T22:57:38.626304",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-11",
+    "lastRefreshAt": "2026-05-10T22:57:38.626304",
+    "newestSaleDate": "2026-05-10",
     "oldestSaleDate": "2025-10-15",
-    "compCount": 207
+    "compCount": 226
   },
   "1894 morgan silver dollar ms63": {
     "deepAt": null,
-    "page1At": "2026-04-20T03:44:16.306Z",
+    "page1At": "2026-05-10T22:45:18.834590",
     "maxPageReached": null,
-    "lastRefreshAt": null,
+    "lastRefreshAt": "2026-05-10T22:45:18.834590",
     "newestSaleDate": "2026-03-30",
     "oldestSaleDate": "2025-12-06",
-    "compCount": 4
+    "compCount": 6
   },
   "1894 morgan silver dollar ms64": {
     "deepAt": null,
-    "page1At": "2026-04-20T02:20:04.469Z",
+    "page1At": "2026-05-10T20:29:22.059017",
     "maxPageReached": null,
-    "lastRefreshAt": null,
+    "lastRefreshAt": "2026-05-10T20:29:22.059017",
     "newestSaleDate": "2026-03-31",
     "oldestSaleDate": "2025-11-09",
-    "compCount": 3
+    "compCount": 2
   },
   "1895 o barber dime": {
     "deepAt": null,
@@ -3700,12 +3700,12 @@
   },
   "1895 o morgan silver dollar": {
     "deepAt": "2026-04-18T00:48:34.576Z",
-    "page1At": "2026-04-18T00:48:34.576Z",
+    "page1At": "2026-05-10T22:24:05.777342",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-17",
+    "lastRefreshAt": "2026-05-10T22:24:05.777342",
+    "newestSaleDate": "2026-05-10",
     "oldestSaleDate": "2025-10-15",
-    "compCount": 233
+    "compCount": 242
   },
   "1895 s barber dime": {
     "deepAt": null,
@@ -3745,18 +3745,18 @@
   },
   "1895 s morgan silver dollar ms63": {
     "deepAt": null,
-    "page1At": "2026-04-20T01:28:18.514Z",
+    "page1At": "2026-05-10T21:46:14.328165",
     "maxPageReached": null,
-    "lastRefreshAt": null,
+    "lastRefreshAt": "2026-05-10T21:46:14.328165",
     "newestSaleDate": "2026-03-14",
     "oldestSaleDate": "2025-11-27",
     "compCount": 2
   },
   "1895 s morgan silver dollar ms64": {
     "deepAt": null,
-    "page1At": "2026-04-20T02:57:21.818Z",
+    "page1At": "2026-05-10T22:54:47.663604",
     "maxPageReached": null,
-    "lastRefreshAt": null,
+    "lastRefreshAt": "2026-05-10T22:54:47.663604",
     "newestSaleDate": "2026-04-14",
     "oldestSaleDate": "2025-11-24",
     "compCount": 2
@@ -3808,12 +3808,12 @@
   },
   "1895 morgan silver dollar proof": {
     "deepAt": null,
-    "page1At": "2026-04-05T18:57:43.530Z",
+    "page1At": "2026-05-10T22:53:16.966732",
     "maxPageReached": null,
-    "lastRefreshAt": null,
+    "lastRefreshAt": "2026-05-10T22:53:16.966732",
     "newestSaleDate": "2026-04-05",
-    "oldestSaleDate": "2026-04-04",
-    "compCount": 2
+    "oldestSaleDate": "2025-11-18",
+    "compCount": 7
   },
   "1896 o barber dime": {
     "deepAt": null,
@@ -3862,21 +3862,21 @@
   },
   "1896 o morgan silver dollar ms64": {
     "deepAt": null,
-    "page1At": "2026-04-20T01:43:53.776Z",
+    "page1At": "2026-05-10T21:40:07.114170",
     "maxPageReached": null,
-    "lastRefreshAt": null,
+    "lastRefreshAt": "2026-05-10T21:40:07.114170",
     "newestSaleDate": "2026-03-29",
-    "oldestSaleDate": "2026-03-09",
-    "compCount": 2
+    "oldestSaleDate": "2026-02-06",
+    "compCount": 3
   },
   "1896 o morgan silver dollar ms65": {
     "deepAt": null,
-    "page1At": "2026-04-20T00:26:06.591Z",
+    "page1At": "2026-05-10T22:28:12.097543",
     "maxPageReached": null,
-    "lastRefreshAt": null,
+    "lastRefreshAt": "2026-05-10T22:28:12.097543",
     "newestSaleDate": "2026-04-05",
     "oldestSaleDate": "2026-02-03",
-    "compCount": 2
+    "compCount": 3
   },
   "1896 s barber dime": {
     "deepAt": null,
@@ -3916,21 +3916,21 @@
   },
   "1896 s morgan silver dollar ms63": {
     "deepAt": null,
-    "page1At": "2026-04-20T01:55:48.557Z",
+    "page1At": "2026-05-10T21:32:39.296567",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-03-11",
+    "lastRefreshAt": "2026-05-10T21:32:39.296567",
+    "newestSaleDate": "2026-04-27",
     "oldestSaleDate": "2025-10-26",
-    "compCount": 13
+    "compCount": 23
   },
   "1896 s morgan silver dollar ms64": {
     "deepAt": null,
-    "page1At": "2026-04-20T02:52:00.523Z",
+    "page1At": "2026-05-10T21:21:22.853695",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-12",
+    "lastRefreshAt": "2026-05-10T21:21:22.853695",
+    "newestSaleDate": "2026-05-04",
     "oldestSaleDate": "2025-10-22",
-    "compCount": 26
+    "compCount": 36
   },
   "1896 barber dime": {
     "deepAt": null,
@@ -3987,31 +3987,31 @@
     "compCount": 195
   },
   "1896 morgan silver dollar ms63": {
-    "deepAt": null,
-    "page1At": "2026-04-20T01:46:00.697Z",
+    "deepAt": "2026-05-10T21:57:21.693497",
+    "page1At": "2026-05-10T21:57:21.693497",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-12",
+    "lastRefreshAt": "2026-05-10T21:57:21.693497",
+    "newestSaleDate": "2026-04-22",
     "oldestSaleDate": "2025-10-24",
-    "compCount": 47
+    "compCount": 53
   },
   "1896 morgan silver dollar ms64": {
-    "deepAt": null,
-    "page1At": "2026-04-20T04:11:55.238Z",
+    "deepAt": "2026-05-10T20:38:51.676720",
+    "page1At": "2026-05-10T20:38:51.676720",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-15",
+    "lastRefreshAt": "2026-05-10T20:38:51.676720",
+    "newestSaleDate": "2026-04-29",
     "oldestSaleDate": "2025-10-23",
-    "compCount": 50
+    "compCount": 59
   },
   "1896 morgan silver dollar ms65": {
-    "deepAt": null,
-    "page1At": "2026-04-20T01:34:42.747Z",
+    "deepAt": "2026-05-10T22:37:13.584595",
+    "page1At": "2026-05-10T22:37:13.584595",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-15",
+    "lastRefreshAt": "2026-05-10T22:37:13.584595",
+    "newestSaleDate": "2026-05-09",
     "oldestSaleDate": "2025-10-23",
-    "compCount": 49
+    "compCount": 73
   },
   "1897 o barber dime": {
     "deepAt": null,
@@ -4051,12 +4051,12 @@
   },
   "1897 o morgan silver dollar ms63": {
     "deepAt": null,
-    "page1At": "2026-04-20T02:41:29.149Z",
+    "page1At": "2026-05-10T22:21:06.838584",
     "maxPageReached": null,
-    "lastRefreshAt": null,
+    "lastRefreshAt": "2026-05-10T22:21:06.838584",
     "newestSaleDate": "2026-04-01",
     "oldestSaleDate": "2025-11-02",
-    "compCount": 3
+    "compCount": 2
   },
   "1897 s barber dime": {
     "deepAt": null,
@@ -4096,39 +4096,39 @@
   },
   "1897 s morgan silver dollar": {
     "deepAt": "2026-04-17T22:53:03.712Z",
-    "page1At": "2026-04-17T22:53:03.712Z",
+    "page1At": "2026-05-10T21:10:59.583471",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-17",
+    "lastRefreshAt": "2026-05-10T21:10:59.583471",
+    "newestSaleDate": "2026-05-03",
     "oldestSaleDate": "2025-10-10",
-    "compCount": 128
+    "compCount": 129
   },
   "1897 s morgan silver dollar ms63": {
-    "deepAt": null,
-    "page1At": "2026-04-20T03:17:27.756Z",
+    "deepAt": "2026-05-10T22:04:14.488619",
+    "page1At": "2026-05-10T22:04:14.488619",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-14",
+    "lastRefreshAt": "2026-05-10T22:04:14.488619",
+    "newestSaleDate": "2026-05-05",
     "oldestSaleDate": "2025-10-23",
-    "compCount": 43
+    "compCount": 63
   },
   "1897 s morgan silver dollar ms64": {
-    "deepAt": null,
-    "page1At": "2026-04-25T20:42:47.321Z",
+    "deepAt": "2026-05-10T23:05:55.189453",
+    "page1At": "2026-05-10T23:05:55.189453",
     "maxPageReached": null,
-    "lastRefreshAt": null,
+    "lastRefreshAt": "2026-05-10T23:05:55.189453",
     "newestSaleDate": "2026-04-18",
     "oldestSaleDate": "2025-10-29",
-    "compCount": 40
+    "compCount": 58
   },
   "1897 s morgan silver dollar ms65": {
     "deepAt": null,
-    "page1At": "2026-04-20T04:21:54.022Z",
+    "page1At": "2026-05-10T23:08:49.034848",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-15",
+    "lastRefreshAt": "2026-05-10T23:08:49.034848",
+    "newestSaleDate": "2026-05-05",
     "oldestSaleDate": "2025-12-23",
-    "compCount": 10
+    "compCount": 16
   },
   "1897 barber dime": {
     "deepAt": null,
@@ -4185,13 +4185,13 @@
     "compCount": 271
   },
   "1897 morgan silver dollar ms63": {
-    "deepAt": null,
-    "page1At": "2026-04-20T03:29:36.606Z",
+    "deepAt": "2026-05-10T21:58:47.039283",
+    "page1At": "2026-05-10T21:58:47.039283",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-19",
-    "oldestSaleDate": "2026-03-02",
-    "compCount": 49
+    "lastRefreshAt": "2026-05-10T21:58:47.039283",
+    "newestSaleDate": "2026-04-26",
+    "oldestSaleDate": "2025-11-16",
+    "compCount": 86
   },
   "1897 morgan silver dollar ms64": {
     "deepAt": "2026-05-04T22:06:08.709Z",
@@ -4204,12 +4204,12 @@
   },
   "1897 morgan silver dollar ms65": {
     "deepAt": null,
-    "page1At": "2026-04-25T21:11:25.357Z",
+    "page1At": "2026-05-10T20:27:49.742492",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-15",
+    "lastRefreshAt": "2026-05-10T20:27:49.742492",
+    "newestSaleDate": "2026-05-06",
     "oldestSaleDate": "2025-11-04",
-    "compCount": 33
+    "compCount": 48
   },
   "1898 o barber dime": {
     "deepAt": null,
@@ -4240,21 +4240,21 @@
   },
   "1898 o morgan silver dollar": {
     "deepAt": "2026-04-18T01:33:57.179Z",
-    "page1At": "2026-04-18T01:33:57.179Z",
+    "page1At": "2026-05-10T22:22:36.609385",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-15",
+    "lastRefreshAt": "2026-05-10T22:22:36.609385",
+    "newestSaleDate": "2026-05-07",
     "oldestSaleDate": "2025-10-15",
-    "compCount": 227
+    "compCount": 222
   },
   "1898 o morgan silver dollar ms63": {
-    "deepAt": null,
-    "page1At": "2026-04-20T03:27:28.566Z",
+    "deepAt": "2026-05-10T21:16:08.686979",
+    "page1At": "2026-05-10T21:16:08.686979",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-15",
+    "lastRefreshAt": "2026-05-10T21:16:08.686979",
+    "newestSaleDate": "2026-04-29",
     "oldestSaleDate": "2025-10-22",
-    "compCount": 42
+    "compCount": 67
   },
   "1898 o morgan silver dollar ms64": {
     "deepAt": "2026-05-04T21:30:14.907Z",
@@ -4266,13 +4266,13 @@
     "compCount": 94
   },
   "1898 o morgan silver dollar ms65": {
-    "deepAt": null,
-    "page1At": "2026-04-25T20:26:28.688Z",
+    "deepAt": "2026-05-10T21:24:19.420033",
+    "page1At": "2026-05-10T21:24:19.420033",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-24",
-    "oldestSaleDate": "2026-02-23",
-    "compCount": 50
+    "lastRefreshAt": "2026-05-10T21:24:19.420033",
+    "newestSaleDate": "2026-05-09",
+    "oldestSaleDate": "2025-11-13",
+    "compCount": 80
   },
   "1898 s barber dime": {
     "deepAt": null,
@@ -4312,30 +4312,30 @@
   },
   "1898 s morgan silver dollar ms63": {
     "deepAt": null,
-    "page1At": "2026-04-20T02:46:54.426Z",
+    "page1At": "2026-05-10T21:31:11.708811",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-12",
+    "lastRefreshAt": "2026-05-10T21:31:11.708811",
+    "newestSaleDate": "2026-05-06",
     "oldestSaleDate": "2025-11-09",
-    "compCount": 18
+    "compCount": 19
   },
   "1898 s morgan silver dollar ms64": {
     "deepAt": null,
-    "page1At": "2026-04-20T04:24:06.000Z",
+    "page1At": "2026-05-10T22:48:59.313751",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-19",
+    "lastRefreshAt": "2026-05-10T22:48:59.313751",
+    "newestSaleDate": "2026-05-07",
     "oldestSaleDate": "2025-11-21",
-    "compCount": 15
+    "compCount": 23
   },
   "1898 s morgan silver dollar ms65": {
     "deepAt": null,
-    "page1At": "2026-04-20T04:28:46.885Z",
+    "page1At": "2026-05-10T20:20:33.208880",
     "maxPageReached": null,
-    "lastRefreshAt": null,
+    "lastRefreshAt": "2026-05-10T20:20:33.208880",
     "newestSaleDate": "2026-04-15",
     "oldestSaleDate": "2025-11-16",
-    "compCount": 9
+    "compCount": 14
   },
   "1898 barber dime": {
     "deepAt": null,
@@ -4384,21 +4384,21 @@
   },
   "1898 morgan silver dollar": {
     "deepAt": "2026-04-17T19:53:03.048Z",
-    "page1At": "2026-04-17T19:53:03.048Z",
+    "page1At": "2026-05-10T21:38:39.150077",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-11",
+    "lastRefreshAt": "2026-05-10T21:38:39.150077",
+    "newestSaleDate": "2026-05-09",
     "oldestSaleDate": "2025-10-15",
-    "compCount": 191
+    "compCount": 178
   },
   "1898 morgan silver dollar ms63": {
-    "deepAt": null,
-    "page1At": "2026-04-20T01:01:42.170Z",
+    "deepAt": "2026-05-10T22:00:08.815750",
+    "page1At": "2026-05-10T22:00:08.815750",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-15",
+    "lastRefreshAt": "2026-05-10T22:00:08.815750",
+    "newestSaleDate": "2026-05-09",
     "oldestSaleDate": "2025-10-22",
-    "compCount": 46
+    "compCount": 62
   },
   "1898 morgan silver dollar ms64": {
     "deepAt": "2026-05-04T23:09:58.760Z",
@@ -4464,13 +4464,13 @@
     "compCount": 58
   },
   "1899 o morgan silver dollar ms64": {
-    "deepAt": null,
-    "page1At": "2026-04-20T01:12:20.266Z",
+    "deepAt": "2026-05-10T22:32:07.416701",
+    "page1At": "2026-05-10T22:32:07.416701",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-19",
-    "oldestSaleDate": "2026-03-18",
-    "compCount": 50
+    "lastRefreshAt": "2026-05-10T22:32:07.416701",
+    "newestSaleDate": "2026-05-09",
+    "oldestSaleDate": "2025-11-12",
+    "compCount": 90
   },
   "1899 o morgan silver dollar ms65": {
     "deepAt": "2026-05-04T22:16:26.629Z",
@@ -4510,39 +4510,39 @@
   },
   "1899 s morgan silver dollar": {
     "deepAt": "2026-04-17T22:22:24.298Z",
-    "page1At": "2026-04-17T22:22:24.298Z",
+    "page1At": "2026-05-10T23:01:40.204878",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-17",
+    "lastRefreshAt": "2026-05-10T23:01:40.204878",
+    "newestSaleDate": "2026-05-10",
     "oldestSaleDate": "2025-10-12",
-    "compCount": 194
+    "compCount": 213
   },
   "1899 s morgan silver dollar ms63": {
     "deepAt": null,
-    "page1At": "2026-04-20T03:54:56.731Z",
+    "page1At": "2026-05-10T22:26:50.964246",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-19",
+    "lastRefreshAt": "2026-05-10T22:26:50.964246",
+    "newestSaleDate": "2026-04-26",
     "oldestSaleDate": "2025-11-05",
-    "compCount": 4
+    "compCount": 8
   },
   "1899 s morgan silver dollar ms64": {
-    "deepAt": null,
-    "page1At": "2026-04-20T00:43:19.091Z",
+    "deepAt": "2026-05-10T21:50:17.823239",
+    "page1At": "2026-05-10T21:50:17.823239",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-15",
+    "lastRefreshAt": "2026-05-10T21:50:17.823239",
+    "newestSaleDate": "2026-05-08",
     "oldestSaleDate": "2025-10-25",
-    "compCount": 43
+    "compCount": 54
   },
   "1899 s morgan silver dollar ms65": {
     "deepAt": null,
-    "page1At": "2026-04-20T03:15:08.555Z",
+    "page1At": "2026-05-10T21:53:16.710274",
     "maxPageReached": null,
-    "lastRefreshAt": null,
+    "lastRefreshAt": "2026-05-10T21:53:16.710274",
     "newestSaleDate": "2026-02-17",
     "oldestSaleDate": "2025-10-24",
-    "compCount": 3
+    "compCount": 2
   },
   "1899 barber dime": {
     "deepAt": null,
@@ -4599,31 +4599,31 @@
     "compCount": 255
   },
   "1899 morgan silver dollar ms63": {
-    "deepAt": null,
-    "page1At": "2026-04-20T01:58:08.831Z",
+    "deepAt": "2026-05-10T21:14:39.954897",
+    "page1At": "2026-05-10T21:14:39.954897",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-19",
-    "oldestSaleDate": "2026-03-16",
-    "compCount": 49
+    "lastRefreshAt": "2026-05-10T21:14:39.954897",
+    "newestSaleDate": "2026-05-04",
+    "oldestSaleDate": "2025-11-13",
+    "compCount": 83
   },
   "1899 morgan silver dollar ms64": {
-    "deepAt": null,
-    "page1At": "2026-04-20T01:14:37.649Z",
+    "deepAt": "2026-05-10T22:01:36.742924",
+    "page1At": "2026-05-10T22:01:36.742924",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-17",
+    "lastRefreshAt": "2026-05-10T22:01:36.742924",
+    "newestSaleDate": "2026-05-09",
     "oldestSaleDate": "2025-10-23",
-    "compCount": 46
+    "compCount": 55
   },
   "1899 morgan silver dollar ms65": {
-    "deepAt": null,
-    "page1At": "2026-04-20T02:10:40.314Z",
+    "deepAt": "2026-05-10T22:29:36.167947",
+    "page1At": "2026-05-10T22:29:36.167947",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-05",
+    "lastRefreshAt": "2026-05-10T22:29:36.167947",
+    "newestSaleDate": "2026-04-22",
     "oldestSaleDate": "2025-10-24",
-    "compCount": 49
+    "compCount": 65
   },
   "1900 o barber dime": {
     "deepAt": null,
@@ -4654,21 +4654,21 @@
   },
   "1900 o morgan silver dollar": {
     "deepAt": "2026-04-17T19:02:33.297Z",
-    "page1At": "2026-04-17T19:02:33.297Z",
+    "page1At": "2026-05-10T21:34:07.852475",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-17",
+    "lastRefreshAt": "2026-05-10T21:34:07.852475",
+    "newestSaleDate": "2026-05-09",
     "oldestSaleDate": "2025-10-16",
-    "compCount": 189
+    "compCount": 176
   },
   "1900 o morgan silver dollar ms63": {
-    "deepAt": null,
-    "page1At": "2026-04-20T03:57:18.050Z",
+    "deepAt": "2026-05-10T20:52:15.112410",
+    "page1At": "2026-05-10T20:52:15.112410",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-11",
+    "lastRefreshAt": "2026-05-10T20:52:15.112410",
+    "newestSaleDate": "2026-05-03",
     "oldestSaleDate": "2025-10-24",
-    "compCount": 49
+    "compCount": 75
   },
   "1900 o morgan silver dollar ms64": {
     "deepAt": "2026-05-04T20:31:10.070Z",
@@ -4680,13 +4680,13 @@
     "compCount": 93
   },
   "1900 o morgan silver dollar ms65": {
-    "deepAt": null,
-    "page1At": "2026-04-20T04:27:47.317Z",
+    "deepAt": "2026-05-10T21:28:44.887953",
+    "page1At": "2026-05-10T21:28:44.887953",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-15",
+    "lastRefreshAt": "2026-05-10T21:28:44.887953",
+    "newestSaleDate": "2026-05-10",
     "oldestSaleDate": "2025-10-22",
-    "compCount": 49
+    "compCount": 61
   },
   "1900 s barber dime": {
     "deepAt": null,
@@ -4717,39 +4717,39 @@
   },
   "1900 s morgan silver dollar": {
     "deepAt": "2026-04-17T22:37:20.634Z",
-    "page1At": "2026-04-17T22:37:20.634Z",
+    "page1At": "2026-05-10T20:21:59.437838",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-15",
+    "lastRefreshAt": "2026-05-10T20:21:59.437838",
+    "newestSaleDate": "2026-05-10",
     "oldestSaleDate": "2025-10-11",
-    "compCount": 186
+    "compCount": 202
   },
   "1900 s morgan silver dollar ms63": {
     "deepAt": null,
-    "page1At": "2026-04-20T01:42:48.508Z",
+    "page1At": "2026-05-10T21:03:03.313748",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-12",
+    "lastRefreshAt": "2026-05-10T21:03:03.313748",
+    "newestSaleDate": "2026-05-06",
     "oldestSaleDate": "2025-11-16",
-    "compCount": 18
+    "compCount": 23
   },
   "1900 s morgan silver dollar ms64": {
-    "deepAt": null,
-    "page1At": "2026-04-20T04:17:32.275Z",
+    "deepAt": "2026-05-10T21:51:47.065961",
+    "page1At": "2026-05-10T21:51:47.065961",
     "maxPageReached": null,
-    "lastRefreshAt": null,
+    "lastRefreshAt": "2026-05-10T21:51:47.065961",
     "newestSaleDate": "2026-04-19",
     "oldestSaleDate": "2025-10-22",
-    "compCount": 49
+    "compCount": 64
   },
   "1900 s morgan silver dollar ms65": {
     "deepAt": null,
-    "page1At": "2026-04-20T04:02:16.406Z",
+    "page1At": "2026-05-10T20:26:20.524139",
     "maxPageReached": null,
-    "lastRefreshAt": null,
+    "lastRefreshAt": "2026-05-10T20:26:20.524139",
     "newestSaleDate": "2026-02-18",
     "oldestSaleDate": "2025-12-12",
-    "compCount": 4
+    "compCount": 7
   },
   "1900 barber dime": {
     "deepAt": null,
@@ -4815,13 +4815,13 @@
     "compCount": 57
   },
   "1900 morgan silver dollar ms64": {
-    "deepAt": null,
-    "page1At": "2026-04-20T00:48:51.365Z",
+    "deepAt": "2026-05-10T22:41:26.778632",
+    "page1At": "2026-05-10T22:41:26.778632",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-19",
+    "lastRefreshAt": "2026-05-10T22:41:26.778632",
+    "newestSaleDate": "2026-05-10",
     "oldestSaleDate": "2025-10-24",
-    "compCount": 49
+    "compCount": 83
   },
   "1900 morgan silver dollar ms65": {
     "deepAt": "2026-05-04T22:34:02.423Z",
@@ -4861,12 +4861,12 @@
   },
   "1901 o morgan silver dollar": {
     "deepAt": "2026-04-17T23:00:36.841Z",
-    "page1At": "2026-04-17T23:00:36.841Z",
+    "page1At": "2026-05-10T22:05:47.876133",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-12",
+    "lastRefreshAt": "2026-05-10T22:05:47.876133",
+    "newestSaleDate": "2026-05-05",
     "oldestSaleDate": "2025-10-11",
-    "compCount": 143
+    "compCount": 107
   },
   "1901 o morgan silver dollar ms63": {
     "deepAt": "2026-05-04T20:44:01.896Z",
@@ -4888,12 +4888,12 @@
   },
   "1901 o morgan silver dollar ms65": {
     "deepAt": "2026-05-10T17:17:30.960Z",
-    "page1At": "2026-05-08T17:41:15.552Z",
+    "page1At": "2026-05-10T21:41:41.155281",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-05-08",
+    "lastRefreshAt": "2026-05-10T21:41:41.155281",
+    "newestSaleDate": "2026-05-09",
     "oldestSaleDate": "2025-10-29",
-    "compCount": 59
+    "compCount": 57
   },
   "1901 s barber dime": {
     "deepAt": null,
@@ -4924,30 +4924,30 @@
   },
   "1901 s morgan silver dollar": {
     "deepAt": "2026-04-17T22:05:58.604Z",
-    "page1At": "2026-04-17T22:05:58.604Z",
+    "page1At": "2026-05-10T20:17:42.414889",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-16",
+    "lastRefreshAt": "2026-05-10T20:17:42.414889",
+    "newestSaleDate": "2026-05-10",
     "oldestSaleDate": "2025-10-13",
-    "compCount": 188
+    "compCount": 214
   },
   "1901 s morgan silver dollar ms63": {
     "deepAt": null,
-    "page1At": "2026-04-20T02:09:34.493Z",
+    "page1At": "2026-05-10T21:05:35.176476",
     "maxPageReached": null,
-    "lastRefreshAt": null,
+    "lastRefreshAt": "2026-05-10T21:05:35.176476",
     "newestSaleDate": "2026-04-13",
     "oldestSaleDate": "2025-11-08",
-    "compCount": 6
+    "compCount": 9
   },
   "1901 s morgan silver dollar ms64": {
     "deepAt": null,
-    "page1At": "2026-04-25T21:15:35.242Z",
+    "page1At": "2026-05-10T22:40:07.644479",
     "maxPageReached": null,
-    "lastRefreshAt": null,
+    "lastRefreshAt": "2026-05-10T22:40:07.644479",
     "newestSaleDate": "2026-03-25",
     "oldestSaleDate": "2025-11-10",
-    "compCount": 4
+    "compCount": 3
   },
   "1901 barber dime": {
     "deepAt": null,
@@ -4996,12 +4996,12 @@
   },
   "1901 morgan silver dollar": {
     "deepAt": "2026-04-17T22:02:15.907Z",
-    "page1At": "2026-04-17T22:02:15.907Z",
+    "page1At": "2026-05-10T20:36:00.306745",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-16",
+    "lastRefreshAt": "2026-05-10T20:36:00.306745",
+    "newestSaleDate": "2026-05-06",
     "oldestSaleDate": "2025-10-19",
-    "compCount": 213
+    "compCount": 195
   },
   "1901 morgan silver dollar ms63": {
     "deepAt": "2026-05-04T20:39:50.679Z",
@@ -5013,13 +5013,13 @@
     "compCount": 79
   },
   "1901 morgan silver dollar ms64": {
-    "deepAt": null,
-    "page1At": "2026-04-25T21:13:32.142Z",
+    "deepAt": "2026-05-10T23:03:08.298889",
+    "page1At": "2026-05-10T23:03:08.298889",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-22",
+    "lastRefreshAt": "2026-05-10T23:03:08.298889",
+    "newestSaleDate": "2026-05-10",
     "oldestSaleDate": "2025-10-27",
-    "compCount": 50
+    "compCount": 57
   },
   "1901 morgan silver dollar ms65": {
     "deepAt": "2026-05-04T19:25:54.340Z",
@@ -5059,12 +5059,12 @@
   },
   "1902 o morgan silver dollar": {
     "deepAt": "2026-04-17T22:30:09.028Z",
-    "page1At": "2026-04-17T22:30:09.028Z",
+    "page1At": "2026-05-10T21:25:46.149037",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-17",
+    "lastRefreshAt": "2026-05-10T21:25:46.149037",
+    "newestSaleDate": "2026-05-08",
     "oldestSaleDate": "2025-10-10",
-    "compCount": 134
+    "compCount": 136
   },
   "1902 o morgan silver dollar ms63": {
     "deepAt": "2026-05-04T21:28:13.380Z",
@@ -5122,36 +5122,36 @@
   },
   "1902 s morgan silver dollar": {
     "deepAt": "2026-04-18T01:00:14.718Z",
-    "page1At": "2026-04-18T01:00:14.718Z",
+    "page1At": "2026-05-10T21:44:52.218068",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-17",
+    "lastRefreshAt": "2026-05-10T21:44:52.218068",
+    "newestSaleDate": "2026-05-08",
     "oldestSaleDate": "2025-10-14",
-    "compCount": 190
+    "compCount": 199
   },
   "1902 s morgan silver dollar ms63": {
     "deepAt": null,
-    "page1At": "2026-04-20T04:20:51.943Z",
+    "page1At": "2026-05-10T20:24:52.871936",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-05",
+    "lastRefreshAt": "2026-05-10T20:24:52.871936",
+    "newestSaleDate": "2026-04-22",
     "oldestSaleDate": "2025-10-22",
-    "compCount": 17
+    "compCount": 21
   },
   "1902 s morgan silver dollar ms64": {
-    "deepAt": null,
-    "page1At": "2026-04-20T03:42:09.706Z",
+    "deepAt": "2026-05-10T20:23:18.242894",
+    "page1At": "2026-05-10T20:23:18.242894",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-19",
+    "lastRefreshAt": "2026-05-10T20:23:18.242894",
+    "newestSaleDate": "2026-05-03",
     "oldestSaleDate": "2025-10-24",
-    "compCount": 37
+    "compCount": 53
   },
   "1902 s morgan silver dollar ms65": {
     "deepAt": null,
-    "page1At": "2026-04-20T01:05:57.061Z",
+    "page1At": "2026-05-10T21:22:53.936978",
     "maxPageReached": null,
-    "lastRefreshAt": null,
+    "lastRefreshAt": "2026-05-10T21:22:53.936978",
     "newestSaleDate": "2026-02-19",
     "oldestSaleDate": "2026-02-19",
     "compCount": 1
@@ -5220,13 +5220,13 @@
     "compCount": 61
   },
   "1902 morgan silver dollar ms64": {
-    "deepAt": null,
-    "page1At": "2026-04-20T02:28:27.971Z",
+    "deepAt": "2026-05-10T21:00:10.207367",
+    "page1At": "2026-05-10T21:00:10.207367",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-19",
+    "lastRefreshAt": "2026-05-10T21:00:10.207367",
+    "newestSaleDate": "2026-05-09",
     "oldestSaleDate": "2026-03-17",
-    "compCount": 50
+    "compCount": 81
   },
   "1902 morgan silver dollar ms65": {
     "deepAt": "2026-05-04T20:16:41.898Z",
@@ -5275,30 +5275,30 @@
   },
   "1903 o morgan silver dollar ms63": {
     "deepAt": null,
-    "page1At": "2026-04-20T03:14:01.491Z",
+    "page1At": "2026-05-10T22:38:39.969371",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-13",
+    "lastRefreshAt": "2026-05-10T22:38:39.969371",
+    "newestSaleDate": "2026-05-06",
     "oldestSaleDate": "2025-10-26",
-    "compCount": 24
+    "compCount": 40
   },
   "1903 o morgan silver dollar ms64": {
-    "deepAt": null,
-    "page1At": "2026-04-20T02:37:02.759Z",
+    "deepAt": "2026-05-10T22:51:52.316866",
+    "page1At": "2026-05-10T22:51:52.316866",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-17",
+    "lastRefreshAt": "2026-05-10T22:51:52.316866",
+    "newestSaleDate": "2026-05-10",
     "oldestSaleDate": "2025-10-25",
-    "compCount": 38
+    "compCount": 56
   },
   "1903 o morgan silver dollar ms65": {
     "deepAt": null,
-    "page1At": "2026-04-20T02:56:19.142Z",
+    "page1At": "2026-05-10T23:11:40.810468",
     "maxPageReached": null,
-    "lastRefreshAt": null,
+    "lastRefreshAt": "2026-05-10T23:11:40.810468",
     "newestSaleDate": "2026-04-15",
     "oldestSaleDate": "2025-11-12",
-    "compCount": 19
+    "compCount": 27
   },
   "1903 s barber dime": {
     "deepAt": null,
@@ -5338,18 +5338,18 @@
   },
   "1903 s morgan silver dollar ms63": {
     "deepAt": null,
-    "page1At": "2026-04-20T03:52:55.508Z",
+    "page1At": "2026-05-10T21:27:16.179975",
     "maxPageReached": null,
-    "lastRefreshAt": null,
+    "lastRefreshAt": "2026-05-10T21:27:16.179975",
     "newestSaleDate": "2026-04-08",
     "oldestSaleDate": "2026-03-15",
     "compCount": 2
   },
   "1903 s morgan silver dollar ms64": {
     "deepAt": null,
-    "page1At": "2026-04-20T02:25:21.486Z",
+    "page1At": "2026-05-10T20:58:49.130622",
     "maxPageReached": null,
-    "lastRefreshAt": null,
+    "lastRefreshAt": "2026-05-10T20:58:49.130622",
     "newestSaleDate": "2026-03-25",
     "oldestSaleDate": "2026-02-28",
     "compCount": 2
@@ -5401,12 +5401,12 @@
   },
   "1903 morgan silver dollar": {
     "deepAt": "2026-04-17T21:47:23.474Z",
-    "page1At": "2026-04-17T21:47:23.474Z",
+    "page1At": "2026-05-10T22:56:16.808711",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-07",
+    "lastRefreshAt": "2026-05-10T22:56:16.808711",
+    "newestSaleDate": "2026-05-10",
     "oldestSaleDate": "2025-10-10",
-    "compCount": 182
+    "compCount": 191
   },
   "1903 morgan silver dollar ms63": {
     "deepAt": "2026-05-04T22:04:50.363Z",
@@ -5427,13 +5427,13 @@
     "compCount": 82
   },
   "1903 morgan silver dollar ms65": {
-    "deepAt": null,
-    "page1At": "2026-04-20T03:07:42.938Z",
+    "deepAt": "2026-05-10T21:54:43.915680",
+    "page1At": "2026-05-10T21:54:43.915680",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-15",
+    "lastRefreshAt": "2026-05-10T21:54:43.915680",
+    "newestSaleDate": "2026-05-06",
     "oldestSaleDate": "2025-11-12",
-    "compCount": 49
+    "compCount": 80
   },
   "1904 o barber half dollar": {
     "deepAt": null,
@@ -5463,31 +5463,31 @@
     "compCount": 179
   },
   "1904 o morgan silver dollar ms63": {
-    "deepAt": null,
-    "page1At": "2026-04-20T03:45:24.793Z",
+    "deepAt": "2026-05-10T22:19:40.748717",
+    "page1At": "2026-05-10T22:19:40.748717",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-16",
+    "lastRefreshAt": "2026-05-10T22:19:40.748717",
+    "newestSaleDate": "2026-05-09",
     "oldestSaleDate": "2025-10-22",
-    "compCount": 45
+    "compCount": 70
   },
   "1904 o morgan silver dollar ms64": {
-    "deepAt": null,
-    "page1At": "2026-04-25T20:51:47.549Z",
+    "deepAt": "2026-05-10T20:16:18.584978",
+    "page1At": "2026-05-10T20:16:18.584978",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-18",
+    "lastRefreshAt": "2026-05-10T20:16:18.584978",
+    "newestSaleDate": "2026-05-02",
     "oldestSaleDate": "2025-10-28",
-    "compCount": 48
+    "compCount": 65
   },
   "1904 o morgan silver dollar ms65": {
-    "deepAt": null,
-    "page1At": "2026-04-25T21:03:58.433Z",
+    "deepAt": "2026-05-10T23:04:30.720609",
+    "page1At": "2026-05-10T23:04:30.720609",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-25",
-    "oldestSaleDate": "2026-02-28",
-    "compCount": 50
+    "lastRefreshAt": "2026-05-10T23:04:30.720609",
+    "newestSaleDate": "2026-05-10",
+    "oldestSaleDate": "2025-11-15",
+    "compCount": 80
   },
   "1904 s barber dime": {
     "deepAt": null,
@@ -5527,12 +5527,12 @@
   },
   "1904 s morgan silver dollar ms63": {
     "deepAt": null,
-    "page1At": "2026-04-20T04:25:05.803Z",
+    "page1At": "2026-05-10T21:09:30.959772",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-19",
+    "lastRefreshAt": "2026-05-10T21:09:30.959772",
+    "newestSaleDate": "2026-05-06",
     "oldestSaleDate": "2025-10-24",
-    "compCount": 34
+    "compCount": 42
   },
   "1904 s morgan silver dollar ms64": {
     "deepAt": "2026-05-04T20:29:08.365Z",
@@ -5545,9 +5545,9 @@
   },
   "1904 s morgan silver dollar ms65": {
     "deepAt": null,
-    "page1At": "2026-04-20T03:30:44.281Z",
+    "page1At": "2026-05-10T23:10:13.617544",
     "maxPageReached": null,
-    "lastRefreshAt": null,
+    "lastRefreshAt": "2026-05-10T23:10:13.617544",
     "newestSaleDate": "2026-04-19",
     "oldestSaleDate": "2025-11-04",
     "compCount": 3
@@ -5616,22 +5616,22 @@
     "compCount": 95
   },
   "1904 morgan silver dollar ms64": {
-    "deepAt": null,
-    "page1At": "2026-04-20T00:20:55.518Z",
+    "deepAt": "2026-05-10T20:37:31.200860",
+    "page1At": "2026-05-10T20:37:31.200860",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-18",
-    "oldestSaleDate": "2026-03-31",
-    "compCount": 48
+    "lastRefreshAt": "2026-05-10T20:37:31.200860",
+    "newestSaleDate": "2026-05-07",
+    "oldestSaleDate": "2025-11-23",
+    "compCount": 92
   },
   "1904 morgan silver dollar ms65": {
-    "deepAt": null,
-    "page1At": "2026-04-20T02:32:53.676Z",
+    "deepAt": "2026-05-10T23:00:12.263000",
+    "page1At": "2026-05-10T23:00:12.263000",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-19",
-    "oldestSaleDate": "2026-03-01",
-    "compCount": 50
+    "lastRefreshAt": "2026-05-10T23:00:12.263000",
+    "newestSaleDate": "2026-05-10",
+    "oldestSaleDate": "2025-11-15",
+    "compCount": 81
   },
   "1905 o barber dime": {
     "deepAt": null,
@@ -7560,13 +7560,13 @@
     "compCount": 189
   },
   "1921 d morgan silver dollar ms63": {
-    "deepAt": null,
-    "page1At": "2026-04-25T20:46:07.010Z",
+    "deepAt": "2026-05-10T22:33:35.497522",
+    "page1At": "2026-05-10T22:33:35.497522",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-19",
-    "oldestSaleDate": "2026-01-27",
-    "compCount": 48
+    "lastRefreshAt": "2026-05-10T22:33:35.497522",
+    "newestSaleDate": "2026-05-09",
+    "oldestSaleDate": "2025-11-12",
+    "compCount": 78
   },
   "1921 d morgan silver dollar ms64": {
     "deepAt": "2026-05-04T23:03:39.681Z",
@@ -7579,12 +7579,12 @@
   },
   "1921 d morgan silver dollar ms65": {
     "deepAt": null,
-    "page1At": "2026-04-20T00:36:44.389Z",
+    "page1At": "2026-05-10T22:25:27.047468",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-05",
+    "lastRefreshAt": "2026-05-10T22:25:27.047468",
+    "newestSaleDate": "2026-04-29",
     "oldestSaleDate": "2025-10-24",
-    "compCount": 27
+    "compCount": 36
   },
   "1921 d walking liberty half": {
     "deepAt": null,
@@ -7633,12 +7633,12 @@
   },
   "1921 morgan silver dollar": {
     "deepAt": "2026-04-17T20:08:52.623Z",
-    "page1At": "2026-04-17T20:08:52.623Z",
+    "page1At": "2026-05-10T22:08:12.529910",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-17",
+    "lastRefreshAt": "2026-05-10T22:08:12.529910",
+    "newestSaleDate": "2026-05-10",
     "oldestSaleDate": "2025-10-18",
-    "compCount": 162
+    "compCount": 187
   },
   "1921 morgan silver dollar ms63": {
     "deepAt": "2026-05-04T21:15:39.244Z",
@@ -7650,22 +7650,22 @@
     "compCount": 98
   },
   "1921 morgan silver dollar ms64": {
-    "deepAt": null,
-    "page1At": "2026-04-20T04:48:32.786Z",
+    "deepAt": "2026-05-10T22:50:19.185103",
+    "page1At": "2026-05-10T22:50:19.185103",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-19",
+    "lastRefreshAt": "2026-05-10T22:50:19.185103",
+    "newestSaleDate": "2026-05-08",
     "oldestSaleDate": "2026-04-03",
-    "compCount": 49
+    "compCount": 90
   },
   "1921 morgan silver dollar ms65": {
-    "deepAt": null,
-    "page1At": "2026-04-20T04:56:14.513Z",
+    "deepAt": "2026-05-10T20:50:45.318736",
+    "page1At": "2026-05-10T20:50:45.318736",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-16",
+    "lastRefreshAt": "2026-05-10T20:50:45.318736",
+    "newestSaleDate": "2026-05-10",
     "oldestSaleDate": "2025-10-31",
-    "compCount": 50
+    "compCount": 86
   },
   "1921 peace silver dollar": {
     "deepAt": null,
@@ -7713,13 +7713,13 @@
     "compCount": 43
   },
   "1922 d peace dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-10T14:35:16.606Z",
+    "deepAt": "2026-05-11T01:39:25.358134",
+    "page1At": "2026-05-11T01:39:25.358134",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-08",
+    "lastRefreshAt": "2026-05-11T01:39:25.358134",
+    "newestSaleDate": "2026-04-29",
     "oldestSaleDate": "2025-10-13",
-    "compCount": 49
+    "compCount": 69
   },
   "1922 d peace silver dollar": {
     "deepAt": null,
@@ -7749,22 +7749,22 @@
     "compCount": 23
   },
   "1922 s peace dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-10T14:12:43.164Z",
+    "deepAt": "2026-05-11T01:45:03.646650",
+    "page1At": "2026-05-11T01:45:03.646650",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-03-20",
+    "lastRefreshAt": "2026-05-11T01:45:03.646650",
+    "newestSaleDate": "2026-05-10",
     "oldestSaleDate": "2025-10-13",
-    "compCount": 34
+    "compCount": 60
   },
   "1922 s peace silver dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-15T16:43:13.588Z",
+    "deepAt": "2026-05-11T01:42:11.340700",
+    "page1At": "2026-05-11T01:42:11.340700",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-15",
+    "lastRefreshAt": "2026-05-11T01:42:11.340700",
+    "newestSaleDate": "2026-05-10",
     "oldestSaleDate": "2026-04-10",
-    "compCount": 39
+    "compCount": 73
   },
   "1922 peace silver dollar": {
     "deepAt": null,
@@ -7785,13 +7785,13 @@
     "compCount": 50
   },
   "1923 d peace dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-10T14:28:53.236Z",
+    "deepAt": "2026-05-11T01:40:45.164580",
+    "page1At": "2026-05-11T01:40:45.164580",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-09",
+    "lastRefreshAt": "2026-05-11T01:40:45.164580",
+    "newestSaleDate": "2026-05-08",
     "oldestSaleDate": "2025-10-23",
-    "compCount": 48
+    "compCount": 56
   },
   "1923 d peace silver dollar": {
     "deepAt": null,
@@ -7830,13 +7830,13 @@
     "compCount": 38
   },
   "1923 s peace dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-10T14:20:56.885Z",
+    "deepAt": "2026-05-11T01:55:57.103184",
+    "page1At": "2026-05-11T01:55:57.103184",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-03",
+    "lastRefreshAt": "2026-05-11T01:55:57.103184",
+    "newestSaleDate": "2026-05-10",
     "oldestSaleDate": "2025-10-22",
-    "compCount": 47
+    "compCount": 81
   },
   "1923 s peace silver dollar": {
     "deepAt": null,
@@ -7956,22 +7956,22 @@
     "compCount": 17
   },
   "1924 s peace dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-10T14:58:06.894Z",
+    "deepAt": "2026-05-11T01:58:49.256448",
+    "page1At": "2026-05-11T01:58:49.256448",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-08",
+    "lastRefreshAt": "2026-05-11T01:58:49.256448",
+    "newestSaleDate": "2026-05-10",
     "oldestSaleDate": "2025-10-15",
-    "compCount": 35
+    "compCount": 68
   },
   "1924 s peace silver dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-15T16:10:28.075Z",
+    "deepAt": "2026-05-11T01:43:37.907891",
+    "page1At": "2026-05-11T01:43:37.907891",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-14",
+    "lastRefreshAt": "2026-05-11T01:43:37.907891",
+    "newestSaleDate": "2026-05-10",
     "oldestSaleDate": "2025-10-23",
-    "compCount": 31
+    "compCount": 67
   },
   "1924 s peace silver dollar ms64": {
     "deepAt": null,
@@ -8010,13 +8010,13 @@
     "compCount": 45
   },
   "1924 peace silver dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-08T22:32:47.315Z",
+    "deepAt": "2026-05-11T01:46:26.201589",
+    "page1At": "2026-05-11T01:46:26.201589",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-04",
-    "oldestSaleDate": "2026-03-06",
-    "compCount": 35
+    "lastRefreshAt": "2026-05-11T01:46:26.201589",
+    "newestSaleDate": "2026-05-10",
+    "oldestSaleDate": "2025-11-19",
+    "compCount": 70
   },
   "1924 peace silver dollar ms65": {
     "deepAt": null,
@@ -8082,13 +8082,13 @@
     "compCount": 48
   },
   "1925 s peace silver dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-15T17:25:07.171Z",
+    "deepAt": "2026-05-11T01:52:04.226092",
+    "page1At": "2026-05-11T01:52:04.226092",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-15",
+    "lastRefreshAt": "2026-05-11T01:52:04.226092",
+    "newestSaleDate": "2026-05-10",
     "oldestSaleDate": "2026-04-04",
-    "compCount": 44
+    "compCount": 87
   },
   "1925 s peace silver dollar ms64": {
     "deepAt": null,
@@ -8127,13 +8127,13 @@
     "compCount": 42
   },
   "1925 peace silver dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-08T22:32:47.316Z",
+    "deepAt": "2026-05-11T01:57:25.776138",
+    "page1At": "2026-05-11T01:57:25.776138",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-05",
-    "oldestSaleDate": "2026-03-08",
-    "compCount": 40
+    "lastRefreshAt": "2026-05-11T01:57:25.776138",
+    "newestSaleDate": "2026-05-10",
+    "oldestSaleDate": "2025-11-19",
+    "compCount": 73
   },
   "1925 standing liberty quarter": {
     "deepAt": null,
@@ -8244,13 +8244,13 @@
     "compCount": 45
   },
   "1926 s peace silver dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-15T18:19:20.215Z",
+    "deepAt": "2026-05-11T02:00:17.023395",
+    "page1At": "2026-05-11T02:00:17.023395",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-15",
-    "oldestSaleDate": "2026-04-11",
-    "compCount": 42
+    "lastRefreshAt": "2026-05-11T02:00:17.023395",
+    "newestSaleDate": "2026-05-08",
+    "oldestSaleDate": "2025-11-13",
+    "compCount": 90
   },
   "1926 s peace silver dollar ms64": {
     "deepAt": null,
@@ -8334,13 +8334,13 @@
     "compCount": 47
   },
   "1927 d peace dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-10T14:41:01.864Z",
+    "deepAt": "2026-05-11T01:50:40.303723",
+    "page1At": "2026-05-11T01:50:40.303723",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-03-11",
+    "lastRefreshAt": "2026-05-11T01:50:40.303723",
+    "newestSaleDate": "2026-04-25",
     "oldestSaleDate": "2025-10-12",
-    "compCount": 48
+    "compCount": 65
   },
   "1927 d peace silver dollar": {
     "deepAt": null,
@@ -8388,13 +8388,13 @@
     "compCount": 48
   },
   "1927 s peace dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-10T14:52:38.091Z",
+    "deepAt": "2026-05-11T01:49:10.491839",
+    "page1At": "2026-05-11T01:49:10.491839",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-09",
+    "lastRefreshAt": "2026-05-11T01:49:10.491839",
+    "newestSaleDate": "2026-05-09",
     "oldestSaleDate": "2025-10-15",
-    "compCount": 47
+    "compCount": 77
   },
   "1927 s peace silver dollar": {
     "deepAt": null,
@@ -8865,13 +8865,13 @@
     "compCount": 42
   },
   "1934 d peace dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-10T14:46:42.231Z",
+    "deepAt": "2026-05-11T01:47:43.721751",
+    "page1At": "2026-05-11T01:47:43.721751",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-03-31",
+    "lastRefreshAt": "2026-05-11T01:47:43.721751",
+    "newestSaleDate": "2026-05-08",
     "oldestSaleDate": "2025-10-14",
-    "compCount": 48
+    "compCount": 70
   },
   "1934 d peace silver dollar": {
     "deepAt": null,
@@ -8973,13 +8973,13 @@
     "compCount": 38
   },
   "1934 peace dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-10T14:51:42.471Z",
+    "deepAt": "2026-05-11T01:53:26.240702",
+    "page1At": "2026-05-11T01:53:26.240702",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-03",
+    "lastRefreshAt": "2026-05-11T01:53:26.240702",
+    "newestSaleDate": "2026-05-07",
     "oldestSaleDate": "2025-10-12",
-    "compCount": 48
+    "compCount": 67
   },
   "1934 peace silver dollar": {
     "deepAt": null,
@@ -13366,12 +13366,12 @@
   },
   "1988 great britain 1oz gold britannia": {
     "deepAt": null,
-    "page1At": "2026-04-15T23:53:03.895Z",
+    "page1At": "2026-05-10T19:50:19.198707",
     "maxPageReached": null,
-    "lastRefreshAt": null,
+    "lastRefreshAt": "2026-05-10T19:50:19.198707",
     "newestSaleDate": "2026-03-11",
     "oldestSaleDate": "2026-01-11",
-    "compCount": 3
+    "compCount": 5
   },
   "1988 canada 1oz gold maple leaf": {
     "deepAt": null,
@@ -14527,12 +14527,12 @@
   },
   "1997 british silver britannia": {
     "deepAt": null,
-    "page1At": "2026-04-05T21:33:12.131Z",
+    "page1At": "2026-05-10T20:12:33.873207",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-03-29",
-    "oldestSaleDate": "2026-03-14",
-    "compCount": 3
+    "lastRefreshAt": "2026-05-10T20:12:33.873207",
+    "newestSaleDate": "2026-05-06",
+    "oldestSaleDate": "2025-11-27",
+    "compCount": 16
   },
   "1997 great britain 1oz silver britannia": {
     "deepAt": null,
@@ -14599,12 +14599,12 @@
   },
   "1997 silver britannia 1oz": {
     "deepAt": null,
-    "page1At": "2026-05-08T21:58:44.539Z",
+    "page1At": "2026-05-10T19:56:41.272147",
     "maxPageReached": null,
-    "lastRefreshAt": null,
+    "lastRefreshAt": "2026-05-10T19:56:41.272147",
     "newestSaleDate": "2026-05-06",
     "oldestSaleDate": "2025-10-18",
-    "compCount": 30
+    "compCount": 31
   },
   "1997 us mint set": {
     "deepAt": null,
@@ -14967,13 +14967,13 @@
     "compCount": 3
   },
   "2000 great britain 1oz silver britannia": {
-    "deepAt": null,
-    "page1At": "2026-05-08T21:55:55.690Z",
+    "deepAt": "2026-05-10T20:04:50.290510",
+    "page1At": "2026-05-10T20:04:50.290510",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-05-02",
+    "lastRefreshAt": "2026-05-10T20:04:50.290510",
+    "newestSaleDate": "2026-05-10",
     "oldestSaleDate": "2025-10-26",
-    "compCount": 39
+    "compCount": 62
   },
   "2000 canada 1oz gold maple leaf": {
     "deepAt": null,
@@ -15103,12 +15103,12 @@
   },
   "2001 british silver britannia": {
     "deepAt": null,
-    "page1At": "2026-04-08T22:32:47.424Z",
+    "page1At": "2026-05-10T20:14:30.083517",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-03-31",
-    "oldestSaleDate": "2026-03-06",
-    "compCount": 9
+    "lastRefreshAt": "2026-05-10T20:14:30.083517",
+    "newestSaleDate": "2026-04-29",
+    "oldestSaleDate": "2025-11-23",
+    "compCount": 26
   },
   "2001 great britain 1oz silver britannia": {
     "deepAt": null,
@@ -15553,12 +15553,12 @@
   },
   "2004 great britain 1oz silver britannia": {
     "deepAt": null,
-    "page1At": "2026-04-16T00:13:53.165Z",
+    "page1At": "2026-05-10T19:58:08.352030",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-03-21",
+    "lastRefreshAt": "2026-05-10T19:58:08.352030",
+    "newestSaleDate": "2026-05-10",
     "oldestSaleDate": "2025-10-21",
-    "compCount": 10
+    "compCount": 18
   },
   "2004 canada 1oz gold maple leaf": {
     "deepAt": null,
@@ -16300,12 +16300,12 @@
   },
   "2009 great britain 1oz silver britannia": {
     "deepAt": null,
-    "page1At": "2026-04-15T23:45:44.393Z",
+    "page1At": "2026-05-10T20:10:05.125159",
     "maxPageReached": null,
-    "lastRefreshAt": null,
+    "lastRefreshAt": "2026-05-10T20:10:05.125159",
     "newestSaleDate": "2026-04-09",
     "oldestSaleDate": "2025-10-25",
-    "compCount": 9
+    "compCount": 8
   },
   "2009 canada 1oz gold maple leaf": {
     "deepAt": "2026-05-03T20:06:09.733Z",
@@ -16957,12 +16957,12 @@
   },
   "2013 great britain 1oz gold britannia": {
     "deepAt": null,
-    "page1At": "2026-04-15T23:30:29.710Z",
+    "page1At": "2026-05-10T19:51:46.205640",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-01",
+    "lastRefreshAt": "2026-05-10T19:51:46.205640",
+    "newestSaleDate": "2026-05-02",
     "oldestSaleDate": "2025-11-16",
-    "compCount": 6
+    "compCount": 9
   },
   "2013 great britain 1oz silver britannia": {
     "deepAt": null,
@@ -17137,9 +17137,9 @@
   },
   "2014 great britain 1oz gold britannia": {
     "deepAt": null,
-    "page1At": "2026-04-16T00:26:55.693Z",
+    "page1At": "2026-05-10T20:01:01.969363",
     "maxPageReached": null,
-    "lastRefreshAt": null,
+    "lastRefreshAt": "2026-05-10T20:01:01.969363",
     "newestSaleDate": "2026-03-10",
     "oldestSaleDate": "2026-03-10",
     "compCount": 1
@@ -19612,12 +19612,12 @@
   },
   "great britain 1oz silver britannia": {
     "deepAt": "2026-04-18T18:14:13.974Z",
-    "page1At": "2026-04-18T18:14:13.974Z",
+    "page1At": "2026-05-10T20:08:26.609185",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-18",
+    "lastRefreshAt": "2026-05-10T20:08:26.609185",
+    "newestSaleDate": "2026-05-10",
     "oldestSaleDate": "2025-10-27",
-    "compCount": 200
+    "compCount": 205
   },
   "great britain half oz silver britannia": {
     "deepAt": null,
@@ -21076,5 +21076,14 @@
     "newestSaleDate": "2026-05-10",
     "oldestSaleDate": "2026-05-10",
     "compCount": 1
+  },
+  "2007 great britain 1oz silver britannia": {
+    "deepAt": null,
+    "page1At": "2026-05-10T19:54:04.214231",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-10T19:54:04.214231",
+    "newestSaleDate": "2026-03-18",
+    "oldestSaleDate": "2025-11-13",
+    "compCount": 11
   }
 }
