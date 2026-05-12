@@ -10,6 +10,7 @@ const stats = require('../utils/stats');
 const { isDenied, detectDenomination, hasSeriesConflict, isCompositionMismatch, BULLION_DENY_DENOM_RE, BULLION_OK_RE, ROLL_PATTERN } = require('../utils/filters');
 const terapeakService = require('./terapeakService');
 const { getSpotOnDate, METAL_SYMBOLS } = require('./metalsHistoryService');
+const { detectWeightFromTitle } = require('../utils/coinMetalProfile');
 
 // ── Config ──────────────────────────────────────────────────
 const EBAY_APP_ID        = process.env.EBAY_APP_ID || '';
@@ -52,46 +53,7 @@ async function throttle() {
   _lastRequestTime = Date.now();
 }
 
-// ── Weight detection from listing title ──────────────────────
-/**
- * Detect coin/bar weight (in troy oz) from listing title.
- * Returns numeric oz (e.g. 0.25, 1, 5) or null if no weight detected.
- */
-function detectWeightFromTitle(title) {
-  if (!title) return null;
-  const t = title.toLowerCase();
-
-  // ── Gram-based weights (bars) ─────────────────────────────
-  // "1 gram", "0.5g", "2.5 gram", "100g", ".5 gram", etc.
-  const GRAM = '(?:grams?|g)\\b';
-  const gm = t.match(new RegExp('\\b(\\d+(?:\\.\\d+)?)\\s*' + GRAM, 'i'));
-  if (gm) return parseFloat(gm[1]) / 31.1035;
-  // ".5 gram" (no leading zero)
-  const gm2 = t.match(new RegExp('(?:^|\\s)\\.(\\d+)\\s*' + GRAM, 'i'));
-  if (gm2) return parseFloat('0.' + gm2[1]) / 31.1035;
-  // "half gram"
-  if (/\bhalf\s+gram\b/i.test(t)) return 0.5 / 31.1035;
-  // Kilo
-  if (/\b(?:1\s*)?kilo(?:gram)?\b/i.test(t)) return 32.1507;
-
-  // ── Oz-based weights ──────────────────────────────────────
-  // Weight-unit suffix: matches "oz", "ozt", "ounce", "ounces",
-  // "troy oz", "troy ounce", "troy ounce oz", etc.
-  const OZ = '(?:troy\\s+)?(?:ounces?(?:\\s+oz)?|ozt?|oz)\\b';
-  // Specific fractions first (before generic integer pattern)
-  const fracRe = new RegExp('\\b(1\\/20|1\\/10|1\\/4|1\\/2)\\s*' + OZ, 'i');
-  const fracMatch = t.match(fracRe);
-  if (fracMatch) {
-    const frac = { '1/20': 0.05, '1/10': 0.1, '1/4': 0.25, '1/2': 0.5 };
-    return frac[fracMatch[1]] || null;
-  }
-  if (/\bquarter\s*(?:troy\s+)?(?:ounce|ozt?|oz)\b/i.test(t))  return 0.25;
-  if (/\bhalf\s*(?:troy\s+)?(?:ounce|ozt?|oz)\b/i.test(t))     return 0.5;
-  // Generic "N oz/ounce/ozt" — integers and decimals (e.g. "1 oz", "2oz", "1.5 ounce")
-  const m = t.match(new RegExp('\\b(\\d+(?:\\.\\d+)?)\\s*' + OZ, 'i'));
-  if (m) return parseFloat(m[1]);
-  return null;
-}
+// ── detectWeightFromTitle imported from ../utils/coinMetalProfile ──
 
 // ── isDenied imported from ../utils/filters ─────────────────
 
