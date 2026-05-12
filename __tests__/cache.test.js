@@ -19,7 +19,7 @@ function tmpFile(name) {
 }
 
 function cleanup(filePath) {
-  try { fs.unlinkSync(filePath); } catch (_) {}
+  try { fs.unlinkSync(filePath); } catch (_) { /* ignore */ }
 }
 
 // ═══════════════════════════════════════════════════════════════

@@ -145,7 +145,7 @@ function parseCoinString(coinStr) {
     // Remove only standalone mint token
     remainder = remainder.replace(new RegExp('\\b' + mint + '\\b', 'i'), '').trim();
   }
-  remainder = remainder.replace(/\s+/g, ' ').replace(/^[\s,\-]+|[\s,\-]+$/g, '').trim();
+  remainder = remainder.replace(/\s+/g, ' ').replace(/^[\s,-]+|[\s,-]+$/g, '').trim();
   if (remainder) series = remainder.slice(0, 200);
 
   return {

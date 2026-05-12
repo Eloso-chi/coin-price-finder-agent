@@ -275,7 +275,7 @@ async function lookupCoin(parsed, country) {
     const issuer = resolveIssuer(country);
 
     // Search for types
-    const types = await searchTypes(q, { issuer, year: parsed.year });
+    let types = await searchTypes(q, { issuer, year: parsed.year });
     if (!types || types.length === 0) {
       // Retry without year filter (broader search)
       const broaderTypes = await searchTypes(q, { issuer });
@@ -292,7 +292,7 @@ async function lookupCoin(parsed, country) {
           limitations: ['No matching types found in Numista catalogue']
         };
       }
-      types?.length || (types = broaderTypes);  // fallback
+      types = broaderTypes;
     }
 
     // Pick the best-matching type

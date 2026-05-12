@@ -168,14 +168,14 @@ function parseRawCSVPrices(csvFile) {
   for (let i = 1; i < lines.length; i++) {
     const row = parseCsvRow(lines[i]);
     if (!row || row.length <= priceIdx) continue;
-    const rawPrice = (row[priceIdx] || '').replace(/["\$,]/g, '').trim();
+    const rawPrice = (row[priceIdx] || '').replace(/["$,]/g, '').trim();
     const price = parseFloat(rawPrice);
     if (isNaN(price) || price <= 0) continue;
 
     // Add shipping if column exists (mirrors rowToComp: totalUsd = price + shipping)
     let shipping = 0;
     if (shipIdx !== -1 && row[shipIdx]) {
-      const s = parseFloat(row[shipIdx].replace(/["\$,]/g, '').trim());
+      const s = parseFloat(row[shipIdx].replace(/["$,]/g, '').trim());
       if (!isNaN(s)) shipping = s;
     }
     prices.push(price + shipping);
@@ -236,7 +236,7 @@ afterAll(() => {
   const fs = require('fs');
   const cachePath = require('../src/utils/cachePath');
   const storePath = require('path').join(cachePath.CACHE_DIR, 'terapeak_sold.json');
-  try { fs.writeFileSync(storePath, '{}'); } catch {}
+  try { fs.writeFileSync(storePath, '{}'); } catch { /* ignore */ }
 });
 
 // ═══════════════════════════════════════════════════════════════

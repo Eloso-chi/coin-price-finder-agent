@@ -316,7 +316,7 @@ const COLUMN_MAP = {
  * Normalize a column header string to its canonical field name.
  */
 function mapColumn(header) {
-  const h = (header || '').toLowerCase().trim().replace(/[_\-]+/g, ' ').replace(/\s+/g, ' ');
+  const h = (header || '').toLowerCase().trim().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ');
   return COLUMN_MAP[h] || null;
 }
 
@@ -1073,12 +1073,12 @@ function normalizeSearchKey(term) {
     .replace(/\b12oz\b/g, 'half oz')
     // Collapse "N oz" → "Noz" so "1 oz" matches dataset keys like "1oz".
     // Must run BEFORE non-alphanumeric stripping so fractions like "1/2 oz" are handled.
-    .replace(/\b(\d+(?:[\/\.]\d+)?)\s*oz\b/g, '$1oz')
+    .replace(/\b(\d+(?:[/.]\d+)?)\s*oz\b/g, '$1oz')
     // Strip standalone Roman numerals (i, ii, iii, iv, v) -- these are series
     // labels (e.g. "Lunar III") that don't appear in Terapeak dataset keys
     // and poison fuzzy matching by inflating the token count.
     .replace(/\b(i{1,3}|iv|v)\b/g, '')
-    .replace(/[^a-z0-9\s\-]/g, '')
+    .replace(/[^a-z0-9\s-]/g, '')
     .replace(/\s+/g, ' ')
     .trim();
 }
