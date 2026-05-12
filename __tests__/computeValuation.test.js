@@ -883,14 +883,15 @@ describe('computeValuation — proof pool separation', () => {
     expect(result.valuation.gradePool.poolCount).toBe(3);
   });
 
-  test('userGrade "PR70" does NOT trigger wantsProof (has number suffix)', () => {
+  test('userGrade "PR70" triggers wantsProof (#184: PR/PF prefix = proof)', () => {
     const raw = makeComps([50, 55, 60], { gradeType: 'raw' });
     const proof = makeComps([250, 270, 300], { gradeType: 'proof' });
     const allComps = [...raw, ...proof];
-    // PR70 matches wantsGraded but NOT the wantsProof regex (requires standalone PR)
+    // #184: PR70 starts with "PR" → wantsProof = true, uses proof pool
     const result = computeValuation(mockPcgs(), mockEbay({ usComps: allComps }), null, 'PR70');
-    expect(result.valuation.gradePool.wantsProof).toBe(false);
+    expect(result.valuation.gradePool.wantsProof).toBe(true);
     expect(result.valuation.gradePool.wantsGraded).toBe(true);
+    expect(result.valuation.gradePool.usedPool).toBe('proof');
   });
 
   test('proof + graded + raw all separated correctly', () => {
@@ -907,13 +908,14 @@ describe('computeValuation — proof pool separation', () => {
     expect(result.valuation.fmvCore).toBeLessThan(100);
   });
 
-  test('falls back to all comps when proof pool too small', () => {
+  test('uses proof pool even when small — no BU fallback (#184)', () => {
     const raw = makeComps([50, 55], { gradeType: 'raw' }); // only 2
     const proof = makeComps([250], { gradeType: 'proof' }); // only 1
     const allComps = [...raw, ...proof];
     const result = computeValuation(mockPcgs(), mockEbay({ usComps: allComps }), null, 'Proof');
-    // Should fall back to all comps since only 1 proof
-    expect(result.valuation.gradePool.poolCount).toBe(3);
+    // #184: Never mix BU into proof FMV — use proof pool regardless of size
+    expect(result.valuation.gradePool.poolCount).toBe(1);
+    expect(result.valuation.lowData).toBe(true);
   });
 });
 

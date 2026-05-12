@@ -93,8 +93,14 @@ function detectMetalFromComposition(value) {
 }
 
 // ── Graded (certified / slabbed) vs Raw detection ──────────
-// Priority chain for classifying a comp as graded or raw:
-//   1. conditionId  (eBay structured data — authoritative)
+// Classification uses two independent axes:
+//   Axis 1: Certification — graded (TPG-slabbed) vs raw
+//   Axis 2: Strike type   — proof vs business strike (BU)
+// A slabbed proof (e.g. PCGS PR69 DCAM) is 'proof', not 'graded',
+// because strike type determines which pricing pool it belongs to.
+//
+// Priority chain:
+//   1. conditionId  (eBay structured data — authoritative for certification)
 //       2000 = "Certified" (graded by approved TPG)
 //       3000 = "Uncirculated" (raw)
 //       4000 = "Circulated" (raw)
@@ -110,15 +116,22 @@ const PROOF_RE = /\bproof\b(?![\s-]*like)/i;
  * Classify a comp as 'graded', 'proof', or 'raw' using eBay's structured
  * condition data first, falling back to title parsing only when
  * the API doesn't provide a conditionId.
+ *
+ * #182: Slabbed proofs (conditionId=2000 + "proof" in title) are classified
+ * as 'proof' so they land in the proof pool, not the graded (BU) pool.
  */
 function classifyGradeType(comp) {
   const cid = comp.conditionId ? String(comp.conditionId) : null;
+  const title = comp.title || '';
 
   // 1. Authoritative: eBay conditionId
-  if (cid === '2000') return 'graded';          // "Certified"
+  if (cid === '2000') {
+    // #182: Certified coin — check if it's a slabbed proof or slabbed BU
+    if (PROOF_RE.test(title)) return 'proof';
+    return 'graded';
+  }
   if (cid === '3000' || cid === '4000') {
     // Uncirculated/Circulated condition but may still be proof
-    const title = comp.title || '';
     if (PROOF_RE.test(title)) return 'proof';
     return 'raw';
   }
@@ -126,12 +139,15 @@ function classifyGradeType(comp) {
   if (cid === '1000' || cid === '1500') return 'raw';
 
   // 2. ConditionDescriptors / localizedAspects (set by Browse API normalizer)
-  if (comp._certificationAspect) return 'graded';
+  if (comp._certificationAspect) {
+    // #182: Certified via aspect — still check for proof
+    if (PROOF_RE.test(title)) return 'proof';
+    return 'graded';
+  }
 
   // 3. Title fallback (least reliable — eBay policy says don't rely on title)
-  const title = comp.title || '';
-  if (TPG_RE.test(title) || FORMAL_GRADE_RE.test(title)) return 'graded';
   if (PROOF_RE.test(title)) return 'proof';
+  if (TPG_RE.test(title) || FORMAL_GRADE_RE.test(title)) return 'graded';
 
   return 'raw';
 }
@@ -489,6 +505,18 @@ function scoreMatch(comp, expected) {
     score -= 25; notes.push('proof-mismatch-want-proof');
   } else if (!userWantsProof && titleHasProof && !expected.isSet) {
     score -= 25; notes.push('proof-mismatch-unwanted-proof');
+  }
+
+  // ── #183: Designation scoring (DCAM / CAM / etc.) ──
+  // On proof coins, DCAM vs CAM vs plain can mean 10-40%+ price difference.
+  // Soft scoring (not a hard filter) to avoid thin-pool problems.
+  if (expected.designation && userWantsProof) {
+    const desigRe = new RegExp('\\b' + expected.designation.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'i');
+    if (desigRe.test(tLow)) {
+      score += 10; notes.push('designation-match');
+    } else {
+      score -= 15; notes.push('designation-mismatch');
+    }
   }
 
   // ── Grade-type classification + mismatch penalty ──

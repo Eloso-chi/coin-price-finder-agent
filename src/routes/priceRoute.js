@@ -401,6 +401,7 @@ router.post('/', async (req, res) => {
 
     const { valuation, decisions } = computeValuation(pcgs, ebay, askingPrice || null, userGrade, {
       isBullion,
+      isProof: expected.isProof,
       greysheet,
       saleContext,
       appealMultiplier: resolvedAppeal,
