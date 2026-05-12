@@ -110,23 +110,19 @@ Empty titles are already filtered at CSV import (`rowToComp` returns null). The 
 
 ---
 
-### #167. Graded Morgan Cross-Route FMV Divergence [HIGH]
+### ~~#167. Graded Morgan Cross-Route FMV Divergence [DONE]~~
 
-**Problem:** Graded Morgan queries show 30-90% FMV delta between Discovery and Batch routes. Root cause: when user queries "1881 Morgan MS65" (no mint), PCGS lookup resolves to a specific mint mark, activating `mintMismatch` filter which removes most comps.
+Added cross-route consistency tests for graded Morgan MS65 (no mint), Walking Liberty MS64 (no mint), and 30g Silver Panda. Tests verify Discovery and Batch routes produce consistent FMV within 25% tolerance.
 
-**Status:** Primary fix verified in place (both routes use `parsed.mint` from user input only). Remaining divergence may stem from grade pool thin-data cascade -- when graded pool is thin, pool fallback uses raw pool (median ~$40 for a $300+ MS65).
-
-**Remaining work:** Add "no mint in query" test cases to `crossRouteConsistency.test.js`. Long-term fix: grade-specific datasets (#91 DONE) provide grade-matched pools.
+**Merged:** PR #3 (May 12)
 
 ---
 
-### #166. lowRelevance Over-Filtering on 30g Pandas [MEDIUM]
+### ~~#166. lowRelevance Over-Filtering on 30g Pandas [DONE]~~
 
-**Problem:** 2020/2024 30g Pandas lose 71-83 comps to `lowRelevance`. The "30g" weight descriptor not recognized as ~0.9645 troy oz.
+Added gram-based weight parsing to `parseDescription()` in `pcgsService.js`. "30g", "30 gram", "31.1g" now correctly convert to troy oz (÷ 31.1035). Matches existing gram handling in `detectWeightFromTitle`.
 
-**Fix:** Ensure `detectWeightFromTitle` recognizes "30g" / "30 gram" as valid weight. A "30g Silver Panda" listing should score high relevance.
-
-**Files:** `ebayService.js` (detectWeightFromTitle, relevance scoring)
+**Merged:** PR #3 (May 12)
 
 ---
 
@@ -192,31 +188,19 @@ Classic branch protection rule added: require `test` status check, require PR be
 
 ---
 
-### 118. Add ESLint Configuration [MEDIUM]
+### ~~118. Add ESLint Configuration [DONE]~~
 
-**Problem:** No linter configured anywhere. No style enforcement, no detection of unused variables, shadowed names, or common JS pitfalls.
+Installed ESLint with flat config (`@eslint/js` recommended rules, CommonJS sourceType, Node/Jest globals). Added `npm run lint` script. Fixed all blocking errors: `const` reassignment bug in `numistaService.js`, 5 duplicate keys in `mintages.js`. 83 `no-unused-vars` warnings remain (non-blocking).
 
-**Fix:**
-- Install `eslint` + `@eslint/js` (flat config)
-- Start with `recommended` rules only (avoid style-only noise)
-- Add `npm run lint` script to package.json
-- Wire into CI (#116) once stable
-- Run initial pass, fix blocking errors, suppress warnings for existing code
-
-**Files:** `eslint.config.js`, `package.json`
+**Merged:** PR #2 (May 12)
 
 ---
 
-### 119. Add Dependency Security Scanning to CI [MEDIUM]
+### ~~119. Add Dependency Security Scanning to CI [DONE]~~
 
-**Problem:** 7 known vulnerabilities (3 high: axios, xlsx, fast-xml-builder). No automated detection -- vulns only found via manual `npm audit`.
+Added `npm audit --audit-level=high` step to CI (xlsx excluded -- unmaintained, no fix). Added `dependabot.yml` for weekly npm + GitHub Actions scanning. Upgraded axios 1.15→1.16, express-rate-limit updated. Added `pull_request` trigger to CI workflow so checks run on PRs.
 
-**Fix:**
-- Add `npm audit --audit-level=high` step to CI (fail on high/critical)
-- Add `dependabot.yml` for automated PR creation on vulnerable deps
-- Triage current vulns: upgrade axios, evaluate xlsx alternatives (SheetJS is unmaintained)
-
-**Files:** `.github/workflows/main_coinpricefinder-h3a3b5g0dmdydna4.yml`, `.github/dependabot.yml`
+**Merged:** PR #1 (May 12)
 
 ---
 
