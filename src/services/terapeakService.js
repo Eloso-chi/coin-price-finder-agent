@@ -42,6 +42,7 @@ function saveStore() {
   if (_savePending) clearTimeout(_savePending);
   _savePending = setTimeout(() => {
     _savePending = null;
+    if (!_store) return; // guard: never persist null/empty store
     const data = JSON.stringify(_store, null, 2);
     fs.writeFile(STORE_PATH, data, (err) => {
       if (err && process.env.NODE_ENV !== 'test') {
