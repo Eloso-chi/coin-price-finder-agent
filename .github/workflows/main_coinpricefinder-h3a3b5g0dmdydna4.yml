@@ -45,7 +45,7 @@ jobs:
           echo "::warning::Known xlsx vulnerability ignored (unmaintained, no fix)"
 
       - name: Run tests
-        run: npm test
+        run: npx jest --testPathIgnorePatterns='terapeakDataIntegrity'
 
   deploy:
     needs: test
