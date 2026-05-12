@@ -10,6 +10,7 @@
     "start": "node server.js",
     "dev": "node --watch server.js",
     "test": "jest --verbose",
+    "lint": "eslint .",
     "test:metrics": "node scripts/test-metrics/run-with-metrics.cjs",
     "test:summary": "node scripts/test-metrics/summarize.cjs"
   },
@@ -41,8 +42,11 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "axios-mock-adapter": "^2.1.0",
+    "eslint": "^10.3.0",
     "fake-indexeddb": "^6.2.5",
+    "globals": "^17.6.0",
     "jest": "^30.2.0",
     "supertest": "^7.1.0"
   },

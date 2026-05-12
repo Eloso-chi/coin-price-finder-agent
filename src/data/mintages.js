@@ -2034,7 +2034,6 @@ const SERIES_ALIASES = {
   'canadian gold maple':  'canadian gold maple leaf',
   'maple leaf':          'canadian silver maple leaf',
   'maple':               'canadian silver maple leaf',
-  'silver maple':        'canadian silver maple leaf',
   // Canadian Gold Maple fractionals
   'canadian gold maple leaf 1/2 oz':  'canadian gold maple leaf 1/2 oz',
   'canadian gold maple leaf 1/4 oz':  'canadian gold maple leaf 1/4 oz',
@@ -2125,7 +2124,6 @@ const SERIES_ALIASES = {
   'perth mint lunar':    'australian lunar silver',
   'perth mint lunar silver': 'australian lunar silver',
   'perth mint lunar gold':   'australian lunar gold',
-  'australian lunar':    'australian lunar silver',
   'lunar silver':        'australian lunar silver',
   'lunar gold':          'australian lunar gold',
   // Royal Australian Mint Lunar
@@ -2218,11 +2216,6 @@ const SERIES_ALIASES = {
   '2026 half dollar':                       'kennedy half dollar',
   '2026 cent':                              'lincoln cent',
   '2026 penny':                             'lincoln cent',
-  // Explicit Indian Head Cent aliases (prevent ambiguity with Indian Head Eagle)
-  'indian head cent':           'indian head cent',
-  'indian cent':                'indian head cent',
-  'indian penny':               'indian head cent',
-  'indian head penny':          'indian head cent',
   // American Platinum Eagle
   'platinum eagle':             'american platinum eagle',
   'american platinum eagle':    'american platinum eagle',

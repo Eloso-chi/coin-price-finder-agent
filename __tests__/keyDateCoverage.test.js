@@ -66,7 +66,7 @@ function hasGeneratorCoverage(entry) {
 
   // 2. Filename contains year-mint  (e.g. 1893-S_Morgan_Silver_Dollar.csv)
   const fnTag = `${year}${mintSuffix}`.toLowerCase();
-  if (FILENAMES.some(f => f.includes(fnTag) && seriesOverlaps(s, f.replace(/[_\.]/g, ' ')))) {
+  if (FILENAMES.some(f => f.includes(fnTag) && seriesOverlaps(s, f.replace(/[_.]/g, ' ')))) {
     return true;
   }
 

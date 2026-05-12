@@ -293,7 +293,7 @@ describe('purgeStaleCSVs', () => {
 
   afterEach(() => {
     // Clean up temp dir
-    try { fs.rmSync(tmpDir, { recursive: true }); } catch {}
+    try { fs.rmSync(tmpDir, { recursive: true }); } catch { /* ignore */ }
   });
 
   function writeCSV(name, rows) {
@@ -378,7 +378,7 @@ describe('autoImportFolder', () => {
   });
 
   afterEach(() => {
-    try { fs.rmSync(tmpDir, { recursive: true }); } catch {}
+    try { fs.rmSync(tmpDir, { recursive: true }); } catch { /* ignore */ }
   });
 
   test('imports CSVs from folder', () => {
