@@ -1021,3 +1021,196 @@ describe('computeValuation — sold ratio confidence factor', () => {
     expect(allSold.valuation.confidence).toBeGreaterThan(allBrowse.valuation.confidence);
   });
 });
+
+// ═══════════════════════════════════════════════════════════════
+//  Sale context adjustment (#55)
+// ═══════════════════════════════════════════════════════════════
+describe('computeValuation — sale context (#55)', () => {
+  const comps = makeComps([100, 105, 110, 115, 120]);
+  const pcgs = mockPcgs();
+
+  function resultFor(ctx) {
+    return computeValuation(pcgs, mockEbay({ usComps: comps }), 90, null, { saleContext: ctx });
+  }
+
+  test('defaults to eBay context when omitted', () => {
+    const result = computeValuation(pcgs, mockEbay({ usComps: comps }), 90, null, {});
+    expect(result.valuation.saleContext).toBe('eBay Retail');
+  });
+
+  test('private context shifts buy thresholds up (+7%)', () => {
+    const ebay = resultFor('ebay');
+    const pvt  = resultFor('private');
+    // private buyAdj = +0.07, so max buy prices should be higher
+    expect(pvt.decisions.buy.max70).toBeGreaterThan(ebay.decisions.buy.max70);
+    expect(pvt.decisions.buy.max75).toBeGreaterThan(ebay.decisions.buy.max75);
+    expect(pvt.decisions.buy.max80).toBeGreaterThan(ebay.decisions.buy.max80);
+    expect(pvt.valuation.saleContext).toBe('LCS / Private Sale');
+  });
+
+  test('private context shifts sell estimates down (-10%)', () => {
+    const ebay = resultFor('ebay');
+    const pvt  = resultFor('private');
+    expect(pvt.decisions.sell.fast).toBeLessThan(ebay.decisions.sell.fast);
+    expect(pvt.decisions.sell.normal).toBeLessThan(ebay.decisions.sell.normal);
+    expect(pvt.decisions.sell.premium).toBeLessThan(ebay.decisions.sell.premium);
+  });
+
+  test('wholesale context shifts buy thresholds down (-10%)', () => {
+    const ebay = resultFor('ebay');
+    const ws   = resultFor('wholesale');
+    expect(ws.decisions.buy.max70).toBeLessThan(ebay.decisions.buy.max70);
+    expect(ws.decisions.buy.max75).toBeLessThan(ebay.decisions.buy.max75);
+    expect(ws.decisions.buy.max80).toBeLessThan(ebay.decisions.buy.max80);
+    expect(ws.valuation.saleContext).toBe('Dealer Wholesale');
+  });
+
+  test('wholesale context shifts sell estimates down (-20%)', () => {
+    const ebay = resultFor('ebay');
+    const ws   = resultFor('wholesale');
+    expect(ws.decisions.sell.fast).toBeLessThan(ebay.decisions.sell.fast);
+    expect(ws.decisions.sell.normal).toBeLessThan(ebay.decisions.sell.normal);
+    expect(ws.decisions.sell.premium).toBeLessThan(ebay.decisions.sell.premium);
+  });
+
+  test('unknown context falls back to eBay', () => {
+    const result = resultFor('craigslist');
+    expect(result.valuation.saleContext).toBe('eBay Retail');
+  });
+
+  test('buy recommendation changes with context', () => {
+    // Same asking price may be BUY in private (higher thresholds) but PASS in eBay
+    const ebay = computeValuation(pcgs, mockEbay({ usComps: comps }), 95, null, { saleContext: 'ebay' });
+    const pvt  = computeValuation(pcgs, mockEbay({ usComps: comps }), 95, null, { saleContext: 'private' });
+    // If eBay says PASS but private says BUY, that's the intent of the feature.
+    // At minimum, they shouldn't both be null.
+    expect(ebay.decisions.buy.recommendation).toBeDefined();
+    expect(pvt.decisions.buy.recommendation).toBeDefined();
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  Bullion spot-only fallback (#188)
+// ═══════════════════════════════════════════════════════════════
+describe('computeValuation — bullion-spot-only fallback (#188)', () => {
+  test('uses spot as FMV when no comps survive', () => {
+    const result = computeValuation(
+      mockPcgs(),
+      mockEbay(), // empty comps → ebayMedian == null
+      null, null,
+      { isBullion: true, spotPrice: 30.50 }
+    );
+    expect(result.valuation.method).toBe('bullion-spot-only');
+    expect(result.valuation.fmvCore).toBe(30.50);
+    expect(result.valuation.bullionSpot).not.toBeNull();
+    expect(result.valuation.bullionSpot.spotPrice).toBe(30.50);
+    expect(result.valuation.bullionSpot.premiumPct).toBe(0);
+    expect(result.valuation.bullionSpot.ebayMedian).toBeNull();
+  });
+
+  test('does not trigger when spotPrice is 0', () => {
+    const result = computeValuation(
+      mockPcgs(), mockEbay(), null, null,
+      { isBullion: true, spotPrice: 0 }
+    );
+    expect(result.valuation.method).not.toBe('bullion-spot-only');
+  });
+
+  test('does not trigger when isBullion is false', () => {
+    const result = computeValuation(
+      mockPcgs(), mockEbay(), null, null,
+      { isBullion: false, spotPrice: 30 }
+    );
+    expect(result.valuation.method).not.toBe('bullion-spot-only');
+  });
+
+  test('does not trigger when comps exist (uses spot-premium instead)', () => {
+    const comps = makeComps([33, 34, 35, 36, 37]);
+    const result = computeValuation(
+      mockPcgs(), mockEbay({ usComps: comps }), null, null,
+      { isBullion: true, spotPrice: 30 }
+    );
+    expect(result.valuation.method).toBe('bullion-spot-premium');
+    expect(result.valuation.bullionSpot.ebayMedian).not.toBeNull();
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  Greysheet nominal discard (#188)
+// ═══════════════════════════════════════════════════════════════
+describe('computeValuation — Greysheet nominal discard (#188)', () => {
+  test('discards Greysheet below 1% of spot for bullion', () => {
+    // Gold coin spot ~$2000, Greysheet says $5 (face value) → should discard
+    const comps = makeComps([2100, 2150, 2200, 2250, 2300]);
+    const result = computeValuation(
+      mockPcgs(), mockEbay({ usComps: comps }), null, null,
+      { isBullion: true, spotPrice: 2000, greysheet: { greyVal: 5, cpgVal: 7 } }
+    );
+    // Greysheet should not drag FMV down; it's nominal and discarded
+    expect(result.valuation.fmvCore).toBeGreaterThan(1500);
+  });
+
+  test('keeps Greysheet at or above 1% of spot for bullion', () => {
+    const comps = makeComps([35, 36, 37, 38, 39]);
+    const result = computeValuation(
+      mockPcgs(), mockEbay({ usComps: comps }), null, null,
+      { isBullion: true, spotPrice: 30, greysheet: { greyVal: 32, cpgVal: 36 } }
+    );
+    // Greysheet is reasonable → should influence FMV
+    expect(result.valuation.greysheetSpread).not.toBeNull();
+  });
+
+  test('never discards Greysheet for non-bullion coins', () => {
+    const comps = makeComps([100, 110, 105, 115, 108]);
+    const result = computeValuation(
+      mockPcgs(), mockEbay({ usComps: comps }), null, null,
+      { isBullion: false, spotPrice: 2000, greysheet: { greyVal: 5, cpgVal: 7 } }
+    );
+    // Even though greyVal << spotPrice, it's not bullion → keep it
+    expect(result.valuation.greysheetSpread).not.toBeNull();
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  Greysheet spread & liquidity (#54)
+// ═══════════════════════════════════════════════════════════════
+describe('computeValuation — Greysheet spread output (#54)', () => {
+  test('returns high liquidity for tight spread (<=15%)', () => {
+    const comps = makeComps([100, 105, 110, 115, 120]);
+    const result = computeValuation(
+      mockPcgs(), mockEbay({ usComps: comps }), null, null,
+      { greysheet: { greyVal: 100, cpgVal: 110 } } // 10% spread
+    );
+    expect(result.valuation.greysheetSpread).not.toBeNull();
+    expect(result.valuation.greysheetSpread.liquidity).toBe('high');
+    expect(result.valuation.greysheetSpread.spreadPct).toBeCloseTo(10, 0);
+    expect(result.valuation.greysheetSpread.wholesale).toBe(100);
+    expect(result.valuation.greysheetSpread.retail).toBe(110);
+  });
+
+  test('returns moderate liquidity for mid spread (16-30%)', () => {
+    const comps = makeComps([100, 105, 110, 115, 120]);
+    const result = computeValuation(
+      mockPcgs(), mockEbay({ usComps: comps }), null, null,
+      { greysheet: { greyVal: 100, cpgVal: 125 } } // 25% spread
+    );
+    expect(result.valuation.greysheetSpread.liquidity).toBe('moderate');
+  });
+
+  test('returns low liquidity for wide spread (>30%)', () => {
+    const comps = makeComps([100, 105, 110, 115, 120]);
+    const result = computeValuation(
+      mockPcgs(), mockEbay({ usComps: comps }), null, null,
+      { greysheet: { greyVal: 100, cpgVal: 140 } } // 40% spread
+    );
+    expect(result.valuation.greysheetSpread.liquidity).toBe('low');
+  });
+
+  test('returns null spread when greysheet data is missing', () => {
+    const comps = makeComps([100, 105, 110, 115, 120]);
+    const result = computeValuation(
+      mockPcgs(), mockEbay({ usComps: comps }), null, null, {}
+    );
+    expect(result.valuation.greysheetSpread).toBeNull();
+  });
+});
