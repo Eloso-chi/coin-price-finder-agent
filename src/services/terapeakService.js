@@ -11,6 +11,7 @@ const fs = require('fs');
 const path = require('path');
 const { parse } = require('csv-parse/sync');
 const { isDenied, ROLL_PATTERN } = require('../utils/filters');
+const { detectWeightFromTitle, weightToKeyToken } = require('../utils/coinMetalProfile');
 
 const CACHE_DIR = require('../utils/cachePath').CACHE_DIR;
 const cosmos = require('../utils/cosmosClient');
@@ -531,9 +532,54 @@ function parseCSV(csvData, searchTerm) {
  * @param {object} [meta]      - optional metadata
  * @returns {object} import summary
  */
-function importComps(searchTerm, comps, meta = {}) {
+function importComps(searchTerm, comps, meta = {}, _reclassifying = false) {
   const store = loadStore();
   const normalizedKey = normalizeSearchKey(searchTerm);
+
+  // ── Import-time reclassification ──────────────────────────
+  // Detect the expected weight from the dataset key. For each comp, detect
+  // actual weight from its title. If they differ, reroute the comp to the
+  // correct dataset instead of discarding it.
+  let reclassified = 0;
+  if (!_reclassifying) {
+    const expectedWeight = detectWeightFromQuery(normalizedKey);
+    const expectedMetal  = _detectMetalFromText(normalizedKey);
+    if (expectedWeight != null) {
+      const reroute = {};   // targetKey -> comp[]
+      const keep = [];
+      for (const comp of comps) {
+        const actualWeight = detectWeightFromTitle(comp.title);
+        const actualMetal  = _detectMetalFromText(comp.title);
+        // Metal mismatch (e.g. silver comp in gold dataset) -- skip reclassification
+        // unless both are null (can't determine)
+        if (expectedMetal && actualMetal && actualMetal !== expectedMetal) {
+          keep.push(comp);  // leave in place; meltFloor filter will catch it
+          continue;
+        }
+        if (actualWeight != null && Math.abs(actualWeight - expectedWeight) >= 0.01) {
+          const targetToken = weightToKeyToken(actualWeight);
+          if (targetToken) {
+            const currentToken = weightToKeyToken(expectedWeight);
+            if (currentToken) {
+              const targetKey = normalizedKey.replace(currentToken, targetToken);
+              if (targetKey !== normalizedKey) {
+                if (!reroute[targetKey]) reroute[targetKey] = [];
+                reroute[targetKey].push(comp);
+                continue;
+              }
+            }
+          }
+        }
+        keep.push(comp);
+      }
+      // Recursively import rerouted comps into their correct datasets
+      for (const [targetKey, reroutedComps] of Object.entries(reroute)) {
+        importComps(targetKey, reroutedComps, {}, true);
+        reclassified += reroutedComps.length;
+      }
+      comps = keep;
+    }
+  }
 
   // Dedup against existing comps for this key
   const existing = store[normalizedKey]?.comps || [];
@@ -640,6 +686,7 @@ function importComps(searchTerm, comps, meta = {}) {
     key: normalizedKey,
     newComps: newCount,
     duplicatesSkipped: dupCount,
+    reclassified,
     totalStored: existing.length,
     lastImport: store[normalizedKey].lastImport
   };

@@ -145,10 +145,73 @@ function classifyGradeCategory(key) {
   return GRADE_RE_SUFFIX.test(key || '') ? 'graded' : 'raw';
 }
 
+// ── Weight detection from listing titles ────────────────────
+// Shared utility used by ebayService (comp filtering) and terapeakService
+// (import-time reclassification). Handles grams, kilos, oz fractions.
+
+/**
+ * Detect weight (in troy oz) from an eBay listing title.
+ * Handles grams, kilos, fractional oz, full oz.
+ * @param {string} title
+ * @returns {number|null} weight in troy oz, or null if undetectable
+ */
+function detectWeightFromTitle(title) {
+  if (!title) return null;
+  const t = title.toLowerCase();
+
+  // Gram-based weights (bars)
+  const GRAM = '(?:grams?|g)\\b';
+  const gm = t.match(new RegExp('\\b(\\d+(?:\\.\\d+)?)\\s*' + GRAM, 'i'));
+  if (gm) return parseFloat(gm[1]) / 31.1035;
+  const gm2 = t.match(new RegExp('(?:^|\\s)\\.(\\d+)\\s*' + GRAM, 'i'));
+  if (gm2) return parseFloat('0.' + gm2[1]) / 31.1035;
+  if (/\bhalf\s+gram\b/i.test(t)) return 0.5 / 31.1035;
+  if (/\b(?:1\s*)?kilo(?:gram)?\b/i.test(t)) return 32.1507;
+
+  // Oz-based weights
+  const OZ = '(?:troy\\s+)?(?:ounces?(?:\\s+oz)?|ozt?|oz)\\b';
+  const fracRe = new RegExp('\\b(1\\/20|1\\/10|1\\/4|1\\/2)\\s*' + OZ, 'i');
+  const fracMatch = t.match(fracRe);
+  if (fracMatch) {
+    const frac = { '1/20': 0.05, '1/10': 0.1, '1/4': 0.25, '1/2': 0.5 };
+    return frac[fracMatch[1]] || null;
+  }
+  if (/\bquarter\s*(?:troy\s+)?(?:ounce|ozt?|oz)\b/i.test(t))  return 0.25;
+  if (/\bhalf\s*(?:troy\s+)?(?:ounce|ozt?|oz)\b/i.test(t))     return 0.5;
+  const m = t.match(new RegExp('\\b(\\d+(?:\\.\\d+)?)\\s*' + OZ, 'i'));
+  if (m) return parseFloat(m[1]);
+  return null;
+}
+
+/**
+ * Map a numeric weight (troy oz) to the word-form token used in dataset keys.
+ * @param {number} weight
+ * @returns {string|null} e.g. "half oz", "quarter oz", "1oz", or null
+ */
+function weightToKeyToken(weight) {
+  if (weight == null) return null;
+  const WEIGHT_TOKENS = [
+    [0.05,   'twentieth oz'],
+    [0.1,    'tenth oz'],
+    [0.25,   'quarter oz'],
+    [0.5,    'half oz'],
+  ];
+  for (const [w, token] of WEIGHT_TOKENS) {
+    if (Math.abs(weight - w) < 0.01) return token;
+  }
+  // Integer or decimal oz (e.g. 1, 2, 5, 10, 100)
+  if (weight >= 1 && Math.abs(weight - Math.round(weight)) < 0.01) {
+    return Math.round(weight) + 'oz';
+  }
+  return null;
+}
+
 module.exports = {
   getCoinMetalProfile,
   classifyComposition,
   classifyGradeCategory,
+  detectWeightFromTitle,
+  weightToKeyToken,
   BULLION_SERIES,
   SILVER_US_COIN_SERIES,
   GOLD_US_COIN_SERIES,
