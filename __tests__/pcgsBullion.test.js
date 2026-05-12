@@ -68,7 +68,8 @@ describe('PCGS resolution — World Silver Bullion', () => {
     { q: '2024 Austrian Silver Philharmonic 1 oz',      series: /philharmonic/i, year: 2024, metal: 'silver', weight: 1 },
     { q: '2023 Mexican Silver Libertad 1 oz',           series: /libertad/i, year: 2023, metal: 'silver', weight: 1 },
     { q: '2024 Australian Silver Kookaburra 1 oz',      series: /kookaburra/i, year: 2024, metal: 'silver', weight: 1 },
-    { q: '2023 Chinese Silver Panda 30g',               series: /panda/i, year: 2023, metal: 'silver' },
+    { q: '2023 Chinese Silver Panda 30g',               series: /panda/i, year: 2023, metal: 'silver', weight: 30 / 31.1035 },
+    { q: '2020 China 30 gram Silver Panda',              series: /panda/i, year: 2020, metal: 'silver', weight: 30 / 31.1035 },
     { q: '2024 Silver Krugerrand 1 oz',                 series: /krugerrand/i, year: 2024, metal: 'silver', weight: 1 },
     // Fractional silver
     { q: '2024 British Silver Britannia 1/4 oz',        series: /britannia/i, year: 2024, metal: 'silver', weight: 0.25 },

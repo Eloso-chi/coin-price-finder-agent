@@ -252,6 +252,61 @@ describe('cross-route consistency — /api/price vs /api/pricing-batch', () => {
     expect(batch.body.results[0].error).toBeUndefined();
   });
 
+  // #167: Graded Morgan without mint mark — both routes should use only
+  // user-supplied mint (empty), not PCGS-resolved mint, for filtering.
+  test('graded Morgan without mint produces consistent FMV (#167)', async () => {
+    const query = '1881 Morgan Silver Dollar MS65';
+
+    const [single, batch] = await Promise.all([
+      request(app).post('/api/price').send({ query }),
+      request(app).post('/api/pricing-batch').send({ items: [{ query }] }),
+    ]);
+
+    expect(single.status).toBe(200);
+    expect(batch.status).toBe(200);
+
+    const singleFmv = single.body.valuation?.fmvCore;
+    const batchFmv = batch.body.results?.[0]?.fmv;
+
+    // Both should return the same FMV (same mocked valuation)
+    expect(singleFmv).toBe(batchFmv);
+  });
+
+  test('graded Walking Liberty without mint produces consistent FMV (#167)', async () => {
+    const query = '1942 Walking Liberty Half Dollar MS64';
+
+    const [single, batch] = await Promise.all([
+      request(app).post('/api/price').send({ query }),
+      request(app).post('/api/pricing-batch').send({ items: [{ query }] }),
+    ]);
+
+    expect(single.status).toBe(200);
+    expect(batch.status).toBe(200);
+
+    const singleFmv = single.body.valuation?.fmvCore;
+    const batchFmv = batch.body.results?.[0]?.fmv;
+
+    expect(singleFmv).toBe(batchFmv);
+  });
+
+  // #166: 30g Panda weight parsing — ensure gram-based weights are recognized
+  test('30g Silver Panda produces consistent FMV across routes (#166)', async () => {
+    const query = '2020 30g Silver Panda';
+
+    const [single, batch] = await Promise.all([
+      request(app).post('/api/price').send({ query }),
+      request(app).post('/api/pricing-batch').send({ items: [{ query }] }),
+    ]);
+
+    expect(single.status).toBe(200);
+    expect(batch.status).toBe(200);
+
+    const singleFmv = single.body.valuation?.fmvCore;
+    const batchFmv = batch.body.results?.[0]?.fmv;
+
+    expect(singleFmv).toBe(batchFmv);
+  });
+
   // Seeded random selection from the full coin catalog
   const randomCoins = selectCoins('crossRoute');
 

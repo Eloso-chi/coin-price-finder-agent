@@ -418,6 +418,16 @@ function parseDescription(text) {
     result.weightRaw = weightMatch[0];
   }
 
+  // Gram-based weight: "30g", "30 gram", "31.1 grams", etc.
+  // Convert grams to troy ounces (1 troy oz = 31.1035 g).
+  if (!result.weight) {
+    const gramMatch = t.match(/\b(\d+(?:\.\d+)?)\s*(?:grams?|g)\b/i);
+    if (gramMatch) {
+      result.weight = parseFloat(gramMatch[1]) / 31.1035;
+      result.weightRaw = gramMatch[0];
+    }
+  }
+
   // Metal detection — infer from series name or explicit keywords
   const metalPatterns = [
     { metal: 'gold',      re: /\bgold\b/i },
