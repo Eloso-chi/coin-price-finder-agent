@@ -339,16 +339,24 @@ function detectMetal(title) {
 }
 
 // ── Grade type detection (same logic as ebayService) ──
+// #182: Slabbed proofs classified as 'proof' not 'graded'.
 const TPG_RE = /\b(PCGS|NGC|ANACS|ICG|CGC)\b/i;
 const GRADE_RE = /\b(MS|PR|PF|SP|AU|XF|EF|VF|VG|AG|FR|PO)\s*[-]?\s*\d{1,2}\+?\b/i;
 const PROOF_RE = /\bproof\b(?![\s-]*like)/i;
 function classifyGradeType(comp) {
   const cond = (comp.condition || '').toLowerCase();
-  if (cond.includes('certified') || cond === '2000') return 'graded';
-  if (cond.includes('uncirculated') || cond.includes('circulated')) return 'raw';
   const title = comp.title || '';
-  if (TPG_RE.test(title) || GRADE_RE.test(title)) return 'graded';
+  if (cond.includes('certified') || cond === '2000') {
+    // Certified — check if it's a slabbed proof or slabbed BU
+    if (PROOF_RE.test(title)) return 'proof';
+    return 'graded';
+  }
+  if (cond.includes('uncirculated') || cond.includes('circulated')) {
+    if (PROOF_RE.test(title)) return 'proof';
+    return 'raw';
+  }
   if (PROOF_RE.test(title)) return 'proof';
+  if (TPG_RE.test(title) || GRADE_RE.test(title)) return 'graded';
   return 'raw';
 }
 

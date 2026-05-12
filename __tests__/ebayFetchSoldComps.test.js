@@ -471,7 +471,7 @@ describe('classifyGradeType', () => {
   });
 
   test('conditionId 2000 + proof title = graded (certified takes priority)', () => {
-    expect(ebayService.classifyGradeType({ conditionId: '2000', title: '1987 Proof Libertad NGC PF70' })).toBe('graded');
+    expect(ebayService.classifyGradeType({ conditionId: '2000', title: '1987 Proof Libertad NGC PF70' })).toBe('proof');
   });
 });
 

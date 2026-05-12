@@ -835,15 +835,15 @@ describe('classifyGradeType -- proof detection (Terapeak)', () => {
   });
 
   test('returns "graded" when title has PCGS even with "Proof"', () => {
-    expect(classifyGradeType({ title: '1987 Proof Libertad PCGS PF-69' })).toBe('graded');
+    expect(classifyGradeType({ title: '1987 Proof Libertad PCGS PF-69' })).toBe('proof');
   });
 
   test('returns "graded" when title has NGC even with "Proof"', () => {
-    expect(classifyGradeType({ title: '1987 NGC PF70 Proof Silver Libertad' })).toBe('graded');
+    expect(classifyGradeType({ title: '1987 NGC PF70 Proof Silver Libertad' })).toBe('proof');
   });
 
   test('returns "graded" when title has formal grade PF-69', () => {
-    expect(classifyGradeType({ title: '1987 PF-69 Proof Libertad' })).toBe('graded');
+    expect(classifyGradeType({ title: '1987 PF-69 Proof Libertad' })).toBe('proof');
   });
 
   test('returns "raw" when no proof/grade indicators', () => {
@@ -863,7 +863,7 @@ describe('classifyGradeType -- proof detection (Terapeak)', () => {
   });
 
   test('condition "certified" overrides title proof', () => {
-    expect(classifyGradeType({ title: '1987 Proof Libertad', condition: 'Certified - PCGS' })).toBe('graded');
+    expect(classifyGradeType({ title: '1987 Proof Libertad', condition: 'Certified - PCGS' })).toBe('proof');
   });
 
   test('condition "uncirculated" returns raw even with ambiguous title', () => {
