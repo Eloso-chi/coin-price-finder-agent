@@ -834,15 +834,15 @@ describe('classifyGradeType -- proof detection (Terapeak)', () => {
     expect(classifyGradeType({ title: '1987 MEXICAN PROOF LIBERTAD 1 OZ' })).toBe('proof');
   });
 
-  test('returns "graded" when title has PCGS even with "Proof"', () => {
+  test('returns "proof" when title has PCGS with "Proof" (#182: strike type wins)', () => {
     expect(classifyGradeType({ title: '1987 Proof Libertad PCGS PF-69' })).toBe('proof');
   });
 
-  test('returns "graded" when title has NGC even with "Proof"', () => {
+  test('returns "proof" when title has NGC with "Proof" (#182: strike type wins)', () => {
     expect(classifyGradeType({ title: '1987 NGC PF70 Proof Silver Libertad' })).toBe('proof');
   });
 
-  test('returns "graded" when title has formal grade PF-69', () => {
+  test('returns "proof" when title has formal grade PF-69 with Proof (#182)', () => {
     expect(classifyGradeType({ title: '1987 PF-69 Proof Libertad' })).toBe('proof');
   });
 
@@ -862,7 +862,7 @@ describe('classifyGradeType -- proof detection (Terapeak)', () => {
     expect(classifyGradeType({ title: '2021 ASE Type 2 Reverse Proof 1 oz Silver' })).toBe('proof');
   });
 
-  test('condition "certified" overrides title proof', () => {
+  test('condition "certified" + proof title = proof (#182: strike type determines pool)', () => {
     expect(classifyGradeType({ title: '1987 Proof Libertad', condition: 'Certified - PCGS' })).toBe('proof');
   });
 

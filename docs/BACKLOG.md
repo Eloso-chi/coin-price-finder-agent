@@ -174,11 +174,18 @@ Added gram-based weight parsing to `parseDescription()` in `pcgsService.js`. "30
 
 ---
 
-### #185. World Proof Greysheet Type Map Expansion [MEDIUM]
+### #185. World Proof Greysheet Type Map Expansion [MEDIUM -- BLOCKED]
 
-**Problem:** Missing proof-specific GSIDs for major world bullion proofs (Krugerrand, Kookaburra, Libertad, Philharmonic, Gold Maple Leaf). Proof queries fall back to MS wholesale price in the Greysheet blend.
+**Problem:** Missing proof-specific GSIDs for major world bullion proofs (Krugerrand, Kookaburra, Philharmonic, Gold Maple Leaf). Proof queries fall back to MS wholesale price in the Greysheet blend.
 
 **Fix:** Add proof-specific GSIDs to `TYPE_GSID_MAP` (requires Greysheet catalog lookup for correct IDs). Data-only change, no code logic.
+
+**Blocked:** `cpgpublicapi2.greysheet.com` DNS not resolvable from GitHub Codespaces (Azure network). Must query from deployed server or local machine. Missing entries:
+- `krugerrand|1|gold|proof`
+- `kookaburra|1|proof`
+- `philharmonic|1|silver|proof`
+- `philharmonic|1|gold|proof`
+- `maple leaf|1|gold|proof`
 
 **Files:** `greysheetTypeMap.js`
 

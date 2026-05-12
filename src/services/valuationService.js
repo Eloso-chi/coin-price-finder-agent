@@ -27,7 +27,10 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
   // pcgs.grade can be set by PCGS Search API even when the user didn't
   // specify a grade, which would incorrectly filter to graded comps.
   const wantsGraded = !!(userGrade);
-  const wantsProof = wantsGraded && /^(proof|pr|pf)$/i.test(String(userGrade || '').trim());
+  // #184: Detect proof intent from userGrade string OR explicit isProof opt.
+  // userGrade can be "Proof", "PF69", "PR69 DCAM", or a bare number (batch route).
+  // opts.isProof is the definitive signal from the route layer.
+  const wantsProof = !!(opts.isProof) || (wantsGraded && /^(proof|pr|pf)/i.test(String(userGrade || '').trim()));
 
   const usGraded = usCompsAll.filter(c => c.gradeType === 'graded');
   const usRaw    = usCompsAll.filter(c => c.gradeType === 'raw');
@@ -40,14 +43,17 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
   let usComps, glComps;
   let poolFallback = false;
   if (wantsProof) {
-    // User explicitly wants proof coins — use proof pool, fall back to all
-    usComps = usProof.length >= 3 ? usProof : usCompsAll;
-    glComps = glProof.length >= 3 ? glProof : glCompsAll;
-    if (usProof.length >= 3) {
+    // #184: Never mix BU comps into proof FMV — they are fundamentally different products.
+    // Use proof pool regardless of count. Flag lowData when thin.
+    usComps = usProof;
+    glComps = glProof;
+    if (usProof.length === 0) {
+      explanation.push(`⚠ No proof comps found — cannot compute proof FMV. BU comps excluded to prevent incorrect valuation.`);
+    } else if (usProof.length < 3) {
+      explanation.push(`⚠ Only ${usProof.length} proof comp${usProof.length === 1 ? '' : 's'} — low-data proof FMV (BU comps excluded).`);
+    } else {
       const excluded = usCompsAll.length - usProof.length;
       if (excluded > 0) explanation.push(`Using ${usProof.length} proof comps for FMV (${excluded} non-proof comps excluded).`);
-    } else {
-      explanation.push(`Only ${usProof.length} proof comps — using all ${usCompsAll.length} comps.`);
     }
   } else if (wantsGraded) {
     usComps = usGraded.length >= 3 ? usGraded : usCompsAll;

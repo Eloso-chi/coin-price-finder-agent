@@ -470,7 +470,7 @@ describe('classifyGradeType', () => {
     expect(ebayService.classifyGradeType({ title: '1881-S Morgan Dollar Proof-Like' })).toBe('raw');
   });
 
-  test('conditionId 2000 + proof title = graded (certified takes priority)', () => {
+  test('conditionId 2000 + proof title = proof (#182: strike type determines pool)', () => {
     expect(ebayService.classifyGradeType({ conditionId: '2000', title: '1987 Proof Libertad NGC PF70' })).toBe('proof');
   });
 });

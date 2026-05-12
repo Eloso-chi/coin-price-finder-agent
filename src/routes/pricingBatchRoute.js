@@ -252,6 +252,7 @@ async function _priceOne(item) {
 
     const result = computeValuation(pcgs, ebay, null, gradeNum, {
       isBullion,
+      isProof,
       isSet,
       isRoll,
       greysheet,

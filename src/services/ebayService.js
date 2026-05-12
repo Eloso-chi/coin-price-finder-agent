@@ -507,6 +507,18 @@ function scoreMatch(comp, expected) {
     score -= 25; notes.push('proof-mismatch-unwanted-proof');
   }
 
+  // ── #183: Designation scoring (DCAM / CAM / etc.) ──
+  // On proof coins, DCAM vs CAM vs plain can mean 10-40%+ price difference.
+  // Soft scoring (not a hard filter) to avoid thin-pool problems.
+  if (expected.designation && userWantsProof) {
+    const desigRe = new RegExp('\\b' + expected.designation.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'i');
+    if (desigRe.test(tLow)) {
+      score += 10; notes.push('designation-match');
+    } else {
+      score -= 15; notes.push('designation-mismatch');
+    }
+  }
+
   // ── Grade-type classification + mismatch penalty ──
   // gradeType was set during normalization via classifyGradeType();
   // re-classify here in case it wasn't set (e.g. cached comps from older format)
