@@ -65,7 +65,7 @@ jobs:
         run: npm ci --omit=dev
 
       - name: Azure Login (OIDC)
-        uses: azure/login@v2
+        uses: azure/login@v3
         with:
           client-id: 9b2be52a-2084-476f-99b9-57224e257e73
           tenant-id: 920d19c1-a625-4183-8fcf-1666fac04b10
