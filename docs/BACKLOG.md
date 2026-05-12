@@ -176,6 +176,88 @@ Empty titles are already filtered at CSV import (`rowToComp` returns null). The 
 
 ---
 
+### 116. Add Test + Lint Gate to CI Pipeline [HIGH]
+
+**Problem:** CI workflow only deploys -- never runs tests or linting. Broken code ships to production on every push to main.
+
+**Fix:**
+- Add `npm test` step before deploy (fail-fast on test failure)
+- Add lint step once linter is configured (#118)
+- Consider splitting into build/test job + deploy job with dependency
+
+**Files:** `.github/workflows/main_coinpricefinder-h3a3b5g0dmdydna4.yml`
+
+---
+
+### 117. Enable Branch Protection on main [HIGH]
+
+**Problem:** No branch protection rules. Direct push to main, force-push, and untested merges are all allowed. Single accidental push can break production.
+
+**Fix:**
+- Require status checks to pass (CI test job) before merge
+- Require at least 1 approval on PRs (optional for solo dev, but enables Copilot review)
+- Prevent force-push to main
+- Configure via GitHub Settings > Branches > Branch protection rules
+
+**Files:** GitHub repo settings (not a code change)
+
+---
+
+### 118. Add ESLint Configuration [MEDIUM]
+
+**Problem:** No linter configured anywhere. No style enforcement, no detection of unused variables, shadowed names, or common JS pitfalls.
+
+**Fix:**
+- Install `eslint` + `@eslint/js` (flat config)
+- Start with `recommended` rules only (avoid style-only noise)
+- Add `npm run lint` script to package.json
+- Wire into CI (#116) once stable
+- Run initial pass, fix blocking errors, suppress warnings for existing code
+
+**Files:** `eslint.config.js`, `package.json`
+
+---
+
+### 119. Add Dependency Security Scanning to CI [MEDIUM]
+
+**Problem:** 7 known vulnerabilities (3 high: axios, xlsx, fast-xml-builder). No automated detection -- vulns only found via manual `npm audit`.
+
+**Fix:**
+- Add `npm audit --audit-level=high` step to CI (fail on high/critical)
+- Add `dependabot.yml` for automated PR creation on vulnerable deps
+- Triage current vulns: upgrade axios, evaluate xlsx alternatives (SheetJS is unmaintained)
+
+**Files:** `.github/workflows/main_coinpricefinder-h3a3b5g0dmdydna4.yml`, `.github/dependabot.yml`
+
+---
+
+### 120. Structured Logging [LOW -- long-term]
+
+**Problem:** All logging is raw `console.log`/`console.warn` across 10 services and 9 routes. No structured format, no log levels, no correlation IDs. Production debugging requires Azure log stream with manual grep.
+
+**Fix:**
+- Adopt `pino` (fast, JSON-structured, low overhead)
+- Add request correlation ID middleware (X-Request-ID header)
+- Replace `console.*` calls incrementally (service-by-service)
+- Configure Azure App Service to ingest JSON logs
+
+**Files:** All service + route files, new `src/utils/logger.js`
+
+---
+
+### 121. Wire Copilot Agents to CI [LOW -- long-term]
+
+**Problem:** 12 Copilot agents exist (security review, code review, pre-commit) but only run on manual invocation. No automated trigger on PR creation.
+
+**Fix:**
+- Add GitHub Actions workflow triggered on `pull_request` that invokes Copilot code review
+- Leverage `security-review.sub.agent.md` + `code-reviewer.approval-gated.agent.md` via Copilot PR review
+- Evaluate GitHub Copilot for PRs (auto-review) as alternative to custom workflow
+
+**Files:** `.github/workflows/` (new workflow), agent configs
+
+---
+
 ## Completed (reference)
 
 | # | Item | Commit |
