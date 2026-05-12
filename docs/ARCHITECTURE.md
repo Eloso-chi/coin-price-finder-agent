@@ -58,7 +58,7 @@ server.js                              Express entry point (port 3000)
 │   ├─ cache.js                        TTLCache class (in-memory + optional file persistence)
 │   ├─ stats.js                        Statistical functions (median, MAD, weighted median, etc.)
 │   ├─ filters.js                      Deny-list filtering, denomination & series checks
-│   ├─ coinMetalProfile.js             Metal detection for bullion coins (silver/gold/platinum/palladium)
+│   ├─ coinMetalProfile.js             Metal detection + weight detection (detectWeightFromTitle, weightToKeyToken) for bullion
 │   ├─ responseValidator.js            /api/price response schema & sanity validation
 │   ├─ excelMapper.js                  Excel-to-backup converter (header aliases, series normalization)
 │   ├─ cachePath.js                    Centralized CACHE_DIR from env var
@@ -110,9 +110,12 @@ server.js                              Express entry point (port 3000)
 │   ├─ upload-csvs-to-blob.js          Upload Terapeak CSVs to Azure Blob Storage
 │   ├─ vnc-login.py                    VNC + eBay login helper for Playwright sessions
 │   ├─ pricing-health-full.js          Pricing health check runner (--full, --filter, --limit, --concurrency, --out)
+│   ├─ reclassify-comps.js             Batch comp reclassification (weight mismatch detection + reroute)
+│   ├─ build-evidence-index.js         Historical evidence index builder
+│   ├─ generate-freshness-report.js    Freshness triage report (4-state decision tree)
 │   └─ test-metrics/                   Jest metrics capture + summary reporter
 │
-└─ __tests__/                          56 Jest test suites
+└─ __tests__/                          60 Jest test suites
     ├─ fixtures/
     │   └─ golden_coins.json           Curated golden set (14 deterministic test coins)
     └─ helpers/
@@ -721,6 +724,8 @@ When the pricing engine calls `lookupComps(keywords, expected)`:
 5. Each comp passes through `isDenied()` and denomination/series filters before use
 
 **Per-dataset metadata:** Each dataset stores `aggregationMeta: { page1At, deepAt, maxPageReached, lastRefreshAt, newestSaleDate, oldestSaleDate, compCount }` to track aggregation provenance and data freshness. `importComps()` merges aggregationMeta intelligently (never overwrites earlier timestamps, maxPageReached only increases, sale date bounds expand monotonically).
+
+**Import-time reclassification:** `importComps()` detects weight mismatches at import time. For each comp, `detectWeightFromTitle()` (from `coinMetalProfile.js`) extracts the actual weight from the listing title and compares it to the dataset's expected weight (from `detectWeightFromQuery()`). Mismatched comps are automatically rerouted to the correct dataset key using `weightToKeyToken()` mapping (e.g. a 1/4 oz comp imported into a 1oz dataset is rerouted to the "quarter oz" dataset). Metal mismatches are left in place for the meltFloor filter. The `reclassified` count is included in the import result.
 
 **Admin endpoints:**
 - `GET /api/terapeak/aggregation-status` -- summary + filtered dataset lists (`needs=deep`, `needs=page1`, `needs=refresh&maxAge=N`, `minComps=N`)

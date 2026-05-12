@@ -488,7 +488,7 @@ The **Test Monitor** system records per-run metrics (timestamp, branch, commit, 
 
 A Copilot agent persona (`.github/agents/test-monitor.agent.md`) can be invoked to diagnose failures, quarantine flaky tests, and suggest fixes. See [docs/testing/test-monitor.md](docs/testing/test-monitor.md) for full usage.
 
-Runs **Jest** across 56 test suites:
+Runs **Jest** across 60 test suites:
 
 | Suite | What it covers |
 |---|---|
@@ -544,7 +544,9 @@ Runs **Jest** across 56 test suites:
 | `metalsRoute.test.js` | Metals route: multi-metal, single metal, currency, validation, error handling (502/500) |
 | `barPriceRoute.test.js` | Bar pricing route: metal/size validation, brand detection, keyword building |
 | `barSeries.test.js` | Bar series detection: brand/series matching, aliases, regex patterns |
-| `coinMetalProfile.test.js` | Metal profile detection: silver/gold/platinum/palladium, bullion inference, exclusion operators |
+| `coinMetalProfile.test.js` | Metal profile detection: silver/gold/platinum/palladium, bullion inference, exclusion operators, detectWeightFromTitle, weightToKeyToken |
+| `reclassification.test.js` | Comp reclassification: weight detection, key token mapping, import-time rerouting, metal mismatch handling |
+| `freshnessReport.test.js` | Freshness report: 4-state decision tree, summary stats, batch mode |
 | `holdoutValidation.test.js` | Holdout validation: 80/20 split on real Terapeak data, FMV within IQR of held-out set (10 coins, seeded PRNG) |
 | `normalizationRegression.test.js` | Normalization regression: series/year/mint parsing edge cases |
 | `terapeakDataIntegrity.test.js` | Terapeak data integrity: CSV structure, header validation, duplicate detection |
@@ -600,7 +602,7 @@ src/
   utils/
     cache.js                       TTLCache with optional JSON file persistence
     stats.js                       Statistical functions (median, MAD, weighted median)
-    coinMetalProfile.js            Metal detection for bullion coins (silver/gold/platinum/palladium)
+│   ├─ coinMetalProfile.js             Metal detection, weight detection (detectWeightFromTitle, weightToKeyToken) for bullion coins
     filters.js                     Deny-list filtering, denomination & series checks
     responseValidator.js           /api/price response schema & sanity validation
     excelMapper.js                 Excel-to-backup converter (header aliases, series normalization)
@@ -672,6 +674,9 @@ scripts/
   chain-aggregate.sh               Chain multiple aggregation batches sequentially with anti-bot monitoring
   refresh-stale.sh                 One-command stale data refresh (queries staleness API, builds filter, runs aggregator)
   pricing-health-full.js           Pricing health check runner (--full, --filter, --limit, --concurrency, --out)
+  reclassify-comps.js              Batch comp reclassification (weight mismatch detection + reroute to correct dataset)
+  build-evidence-index.js          Historical evidence index builder (scans logs + CSVs)
+  generate-freshness-report.js     Freshness triage report (4-state: Missing/LowSignal/Stale/Fresh)
   clean-csvs.js                    CSV junk cleaner (deny-pattern purge across all CSVs)
   greysheet-refresh.js             Bulk Greysheet price snapshot collector (runs automatically every 3 days)
   migrate-to-cosmos.js             One-time migration of history data to Azure Cosmos DB
@@ -822,7 +827,7 @@ Four new test suites targeting previously untested history and route modules:
 | `coinHistoryRoute.test.js` | 15 | GET /api/coin-history parameter validation, filtering, grade type, metal overlay, greysheet overlay |
 | `metalsRoute.test.js` | 10 | GET /api/metals multi-metal, single metal, currency, validation, error handling (502/500) |
 
-Total test count: 2,658 tests across 56 suites.
+Total test count: 2,736 tests across 60 suites.
 
 ### UX & Accessibility (S1--S4 Review)
 
@@ -883,6 +888,13 @@ A comprehensive UX and accessibility review produced 36 findings across four sev
 
 - **`scripts/chain-aggregate.sh`** -- chains multiple Terapeak collect batches sequentially with anti-bot monitoring. Exports a reusable `run_batch()` function that runs `terapeak-export.py` with the given filter and logs to `cache/terapeak_<name>.log`. Includes `check_antibot()` which tails the batch log for 3+ consecutive bot-detection failures and aborts the chain if detected. Supports passing a PID to wait on before starting (for session handoffs).
 - **`scripts/refresh-stale.sh`** -- one-command biweekly stale data refresh. Queries `GET /api/admin/stale-datasets?days=N` to identify datasets older than the threshold (default 14 days), builds a filter regex from stale search terms, and passes it to `terapeak-export.py --run --refresh --max-age N --filter`. Uses `--refresh` mode (age-aware) instead of `--resume` (binary existence check) so that stale CSVs are refreshed even though they already exist on disk. Options: `--full` (cold start refresh), `--days N` (staleness threshold), `--dry-run` (preview without collecting), `--include-empty` (include datasets with zero comps), `--limit N` (cap the number of terms).
+
+### Comp Reclassification (Weight Mismatch Recovery)
+
+- **Import-time reclassification** -- `importComps()` now detects weight mismatches at import time. For each incoming comp, `detectWeightFromTitle()` extracts the actual weight from the listing title and compares it to the dataset's expected weight (from `detectWeightFromQuery()`). Mismatched comps are automatically rerouted to the correct dataset key via `weightToKeyToken()` mapping. Metal mismatches (e.g. silver comp in gold dataset) are left in place for the meltFloor filter to handle.
+- **Batch reclassification script** -- `scripts/reclassify-comps.js` scans all datasets in the terapeak store, identifies comps whose detected weight doesn't match the dataset's expected weight, and reroutes them. Dry-run by default (`--apply` to commit changes). Initial run identified 9,838 comps for reclassification across 3,156 datasets.
+- **Shared weight utilities** -- `detectWeightFromTitle()` extracted from `ebayService.js` to `coinMetalProfile.js` for reuse across services. Handles grams, kilos, fractional oz (1/2, 1/4, 1/10, 1/20), word forms (half, quarter), and integer oz. `weightToKeyToken()` maps numeric weights to dataset key tokens (0.25 -> "quarter oz", 0.5 -> "half oz", 1 -> "1oz").
+- **Store corruption guard** -- `saveStore()` now guards against persisting a null store (prevents corruption when `_resetStoreCache()` is called in tests and the debounced write fires afterwards).
 
 ### Golden Set + Seeded Runs (Test Infrastructure)
 
