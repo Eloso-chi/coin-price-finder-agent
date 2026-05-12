@@ -176,30 +176,19 @@ Empty titles are already filtered at CSV import (`rowToComp` returns null). The 
 
 ---
 
-### 116. Add Test + Lint Gate to CI Pipeline [HIGH]
+### ~~116. Add Test + Lint Gate to CI Pipeline [DONE]~~
 
-**Problem:** CI workflow only deploys -- never runs tests or linting. Broken code ships to production on every push to main.
+Split CI workflow into `test` + `deploy` jobs. Test job runs full `npm ci` + `npm test`; deploy depends on test passing. Lint step deferred to #118.
 
-**Fix:**
-- Add `npm test` step before deploy (fail-fast on test failure)
-- Add lint step once linter is configured (#118)
-- Consider splitting into build/test job + deploy job with dependency
-
-**Files:** `.github/workflows/main_coinpricefinder-h3a3b5g0dmdydna4.yml`
+**Commit:** `9738bda` (May 12)
 
 ---
 
-### 117. Enable Branch Protection on main [HIGH]
+### ~~117. Enable Branch Protection on main [DONE]~~
 
-**Problem:** No branch protection rules. Direct push to main, force-push, and untested merges are all allowed. Single accidental push can break production.
+Classic branch protection rule added: require `test` status check, require PR before merging (0 approvals), require up-to-date branches, block force-push and deletions.
 
-**Fix:**
-- Require status checks to pass (CI test job) before merge
-- Require at least 1 approval on PRs (optional for solo dev, but enables Copilot review)
-- Prevent force-push to main
-- Configure via GitHub Settings > Branches > Branch protection rules
-
-**Files:** GitHub repo settings (not a code change)
+**Configured:** May 12 (GitHub Settings)
 
 ---
 
