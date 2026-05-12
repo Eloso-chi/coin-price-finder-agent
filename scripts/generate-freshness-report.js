@@ -6,12 +6,20 @@
  * grade, computes staleness from newestSaleDate, determines next actions,
  * and writes cache/freshness-report.json.
  *
+ * Freshness statuses:
+ *   Fresh              -- newestSaleDate within threshold
+ *   Stale              -- newestSaleDate beyond threshold, sufficient data to confirm
+ *   LowSignalMarketData -- too few comps to reliably determine freshness/staleness
+ *   Missing            -- no data at all (no comps, no CSV)
+ *
  * Usage:
  *   node scripts/generate-freshness-report.js              # Generate report
  *   node scripts/generate-freshness-report.js --summary    # Print summary only (no file write)
  *   node scripts/generate-freshness-report.js --stale 15   # Override stale threshold (default 15)
+ *   node scripts/generate-freshness-report.js --low-signal 10  # Override low-signal threshold (default 10)
  *   node scripts/generate-freshness-report.js --composition gold   # Filter to gold-containing keys only
  *   node scripts/generate-freshness-report.js --batch 100         # Also write a batch file (top N by priority)
+ *   node scripts/generate-freshness-report.js --mode default|low-signal|bullion|all  # Batch mode filter
  *   node scripts/generate-freshness-report.js --composition silver --batch 100  # Silver-only batch
  */
 'use strict';
@@ -33,6 +41,11 @@ const STALE_THRESHOLD = staleIdx >= 0 ? parseInt(args[staleIdx + 1]) || 15 : 15;
 const VERY_STALE_THRESHOLD = STALE_THRESHOLD * 2; // 30d if threshold is 15
 const LOW_COMP_THRESHOLD = 100;
 
+// Low-signal threshold: datasets with comps > 0 but < this value are classified
+// LowSignalMarketData instead of Fresh/Stale. Default 10, configurable.
+const lowSigIdx = args.indexOf('--low-signal');
+const LOW_SIGNAL_THRESHOLD = lowSigIdx >= 0 ? parseInt(args[lowSigIdx + 1]) || 10 : 10;
+
 // Composition filter: only include datasets whose key contains this word
 // e.g. --composition gold, --composition silver, --composition bullion
 const compIdx = args.indexOf('--composition');
@@ -41,6 +54,14 @@ const COMPOSITION_FILTER = compIdx >= 0 ? (args[compIdx + 1] || '').toLowerCase(
 // Batch generation: write top N entries to cache/freshness-batch-100.json
 const batchIdx = args.indexOf('--batch');
 const BATCH_SIZE = batchIdx >= 0 ? parseInt(args[batchIdx + 1]) || 100 : 0;
+
+// Batch mode: controls which datasets are included in the batch file.
+//   default    -- excludes LowSignalMarketData (normal stale/missing only)
+//   low-signal -- includes only LowSignalMarketData datasets
+//   bullion    -- includes only bullion-tagged datasets
+//   all        -- includes everything
+const modeIdx = args.indexOf('--mode');
+const BATCH_MODE = modeIdx >= 0 ? (args[modeIdx + 1] || 'default') : 'default';
 
 // ── Load meta sidecar ───────────────────────────────────────
 if (!fs.existsSync(META_PATH)) {
@@ -116,30 +137,79 @@ for (const [key, entry] of Object.entries(meta)) {
     staleDays = Math.floor(diff / 86400000);
   }
 
-  // Determine actions
-  const actions = [];
+  // ── Freshness classification (mutually exclusive) ──────────
+  // Priority: Missing > LowSignalMarketData > Stale > Fresh
+  let freshnessStatus;
+  let freshnessReason;
   const csvExists = hasCSVOnDisk(key);
-  if (newestSaleDate === null && compCount === 0 && !csvExists) {
-    actions.push('needs-data');
-  } else if (newestSaleDate === null && compCount === 0 && csvExists) {
-    // CSV exists but meta not backfilled -- needs re-import, not fresh scrape
-    actions.push('refresh-page1');
+
+  if (compCount === 0 && newestSaleDate === null) {
+    freshnessStatus = 'Missing';
+    freshnessReason = csvExists
+      ? 'CSV exists but meta not backfilled; needs re-import'
+      : 'No data collected yet';
+  } else if (compCount > 0 && compCount < LOW_SIGNAL_THRESHOLD) {
+    freshnessStatus = 'LowSignalMarketData';
+    freshnessReason = `Only ${compCount} comp(s); insufficient to determine staleness`;
   } else if (staleDays !== null && staleDays >= STALE_THRESHOLD) {
+    freshnessStatus = 'Stale';
+    freshnessReason = `Newest sale ${staleDays}d ago (threshold: ${STALE_THRESHOLD}d)`;
+  } else if (staleDays !== null) {
+    freshnessStatus = 'Fresh';
+    freshnessReason = `Newest sale ${staleDays}d ago`;
+  } else {
+    // compCount > 0 but no newestSaleDate (edge case: comps without dates)
+    freshnessStatus = 'LowSignalMarketData';
+    freshnessReason = `${compCount} comp(s) but no sale dates; cannot assess freshness`;
+  }
+
+  // ── Determine actions (backward-compatible) ────────────────
+  const actions = [];
+  if (freshnessStatus === 'Missing' && !csvExists) {
+    actions.push('needs-data');
+  } else if (freshnessStatus === 'Missing' && csvExists) {
+    actions.push('refresh-page1');
+  } else if (freshnessStatus === 'LowSignalMarketData') {
+    actions.push('low-signal');
+  } else if (freshnessStatus === 'Stale') {
     actions.push('refresh-page1');
   }
   if (compCount >= 50 && !hasDeepAt) {
     actions.push('deep-paginate');
   }
-  if (compCount > 0 && compCount < 20) {
+  // Keep backward-compatible needs-data for very low comps that aren't LowSignal
+  if (compCount > 0 && compCount < 20 && freshnessStatus !== 'LowSignalMarketData') {
     actions.push('needs-data');
   }
   if (actions.length === 0) {
     actions.push('ok');
   }
 
+  // ── Identifier integration (fast path from terapeak-meta.json) ──
+  const storedIds = entry.identifiers || null;
+  // Fallback: derive bullion tag from classifyComposition if no stored identifier
+  const isBullion = storedIds
+    ? storedIds.is_bullion
+    : (composition === 'bullion' || composition === 'bar');
+  const isLowVolumeCandidate = storedIds
+    ? storedIds.is_low_volume_candidate
+    : (compCount > 0 && compCount < LOW_SIGNAL_THRESHOLD);
+
+  const identifiers = storedIds || {
+    is_low_volume_candidate: isLowVolumeCandidate,
+    is_bullion: isBullion,
+    identifier_reason: isBullion
+      ? `${composition} detected via classifyComposition`
+      : (isLowVolumeCandidate ? `${compCount} comps below threshold` : 'no stored identifiers'),
+    identifier_source: storedIds ? storedIds.identifier_source : 'fallback_live',
+    identifier_confidence: storedIds ? storedIds.identifier_confidence : 'Low',
+  };
+
   const record = {
     key,
     searchTerm: entry.searchTerm || key.replace(/(^|\s)\S/g, c => c.toUpperCase()),
+    freshnessStatus,
+    freshnessReason,
     composition,
     gradeCategory,
     newestSaleDate,
@@ -147,17 +217,20 @@ for (const [key, entry] of Object.entries(meta)) {
     compCount,
     hasDeepAt,
     actions,
+    identifiers,
   };
   datasets.push(record);
 
   // Accumulate composition summary
   if (!compositionSummary[composition]) {
-    compositionSummary[composition] = { total: 0, stale15d: 0, stale30d: 0, lowComps: 0, fresh: 0, missing: 0 };
+    compositionSummary[composition] = { total: 0, stale15d: 0, stale30d: 0, lowComps: 0, lowSignal: 0, fresh: 0, missing: 0 };
   }
   const cs = compositionSummary[composition];
   cs.total++;
-  if (newestSaleDate === null) {
+  if (freshnessStatus === 'Missing') {
     cs.missing++;
+  } else if (freshnessStatus === 'LowSignalMarketData') {
+    cs.lowSignal++;
   } else if (staleDays >= VERY_STALE_THRESHOLD) {
     cs.stale30d++;
   } else if (staleDays >= STALE_THRESHOLD) {
@@ -180,10 +253,11 @@ datasets.sort((a, b) => {
 
 // ── Build summary ───────────────────────────────────────────
 const total = datasets.length;
-const fresh = datasets.filter(d => d.staleDays !== null && d.staleDays < STALE_THRESHOLD).length;
-const stale15d = datasets.filter(d => d.staleDays !== null && d.staleDays >= STALE_THRESHOLD && d.staleDays < VERY_STALE_THRESHOLD).length;
-const stale30d = datasets.filter(d => d.staleDays !== null && d.staleDays >= VERY_STALE_THRESHOLD).length;
-const missing = datasets.filter(d => d.staleDays === null).length;
+const fresh = datasets.filter(d => d.freshnessStatus === 'Fresh').length;
+const stale15d = datasets.filter(d => d.freshnessStatus === 'Stale' && d.staleDays < VERY_STALE_THRESHOLD).length;
+const stale30d = datasets.filter(d => d.freshnessStatus === 'Stale' && d.staleDays >= VERY_STALE_THRESHOLD).length;
+const missing = datasets.filter(d => d.freshnessStatus === 'Missing').length;
+const lowSignal = datasets.filter(d => d.freshnessStatus === 'LowSignalMarketData').length;
 const lowComps = datasets.filter(d => d.compCount > 0 && d.compCount < LOW_COMP_THRESHOLD).length;
 
 const summary = {
@@ -192,7 +266,9 @@ const summary = {
   stale15d,
   stale30d,
   missing,
+  lowSignal,
   lowComps,
+  lowSignalThreshold: LOW_SIGNAL_THRESHOLD,
   byComposition: compositionSummary,
 };
 
@@ -210,6 +286,7 @@ const filterLabel = COMPOSITION_FILTER ? ` [filter: ${COMPOSITION_FILTER}]` : ''
 console.log(`\nFreshness Report (${todayStr})${filterLabel}`);
 console.log(`  Total datasets:    ${total}`);
 console.log(`  Fresh (<${STALE_THRESHOLD}d):      ${fresh}`);
+console.log(`  Low-signal (<${LOW_SIGNAL_THRESHOLD} comps): ${lowSignal}`);
 console.log(`  Stale (${STALE_THRESHOLD}-${VERY_STALE_THRESHOLD}d):    ${stale15d}`);
 console.log(`  Very stale (>${VERY_STALE_THRESHOLD}d): ${stale30d}`);
 console.log(`  Missing data:      ${missing}`);
@@ -221,12 +298,12 @@ for (const comp of compOrder) {
   const cs = compositionSummary[comp];
   if (!cs) continue;
   const pct = Math.round((cs.fresh / cs.total) * 100);
-  console.log(`    ${comp.padEnd(20)} ${String(cs.total).padStart(5)} total  ${String(cs.fresh).padStart(5)} fresh (${pct}%)  ${String(cs.stale15d + cs.stale30d).padStart(5)} stale  ${String(cs.lowComps).padStart(5)} low-comps`);
+  console.log(`    ${comp.padEnd(20)} ${String(cs.total).padStart(5)} total  ${String(cs.fresh).padStart(5)} fresh (${pct}%)  ${String(cs.lowSignal || 0).padStart(5)} low-sig  ${String(cs.stale15d + cs.stale30d).padStart(5)} stale  ${String(cs.lowComps).padStart(5)} low-comps`);
 }
 console.log('');
 
 // Top 10 stalest with data
-const stalestWithData = datasets.filter(d => d.staleDays !== null && d.compCount > 0 && d.staleDays >= STALE_THRESHOLD);
+const stalestWithData = datasets.filter(d => d.freshnessStatus === 'Stale' && d.compCount > 0);
 if (stalestWithData.length > 0) {
   console.log(`  Top 10 stalest (with data):`);
   for (const d of stalestWithData.slice(0, 10)) {
@@ -234,6 +311,28 @@ if (stalestWithData.length > 0) {
   }
   if (stalestWithData.length > 10) {
     console.log(`    ... and ${stalestWithData.length - 10} more`);
+  }
+  console.log('');
+}
+
+// Low-signal market data section
+const lowSignalItems = datasets.filter(d => d.freshnessStatus === 'LowSignalMarketData');
+if (lowSignalItems.length > 0) {
+  console.log(`  Low-signal market data (${lowSignalItems.length} datasets, <${LOW_SIGNAL_THRESHOLD} comps):`);
+  const bullionLowSig = lowSignalItems.filter(d => d.identifiers.is_bullion);
+  const otherLowSig = lowSignalItems.filter(d => !d.identifiers.is_bullion);
+  if (bullionLowSig.length > 0) {
+    console.log(`    Bullion: ${bullionLowSig.length}`);
+  }
+  if (otherLowSig.length > 0) {
+    console.log(`    Non-bullion: ${otherLowSig.length}`);
+  }
+  for (const d of lowSignalItems.slice(0, 5)) {
+    const bull = d.identifiers.is_bullion ? ' [BULLION]' : '';
+    console.log(`    ${String(d.compCount).padStart(4)} comps  ${d.composition.padEnd(20)} ${d.key}${bull}`);
+  }
+  if (lowSignalItems.length > 5) {
+    console.log(`    ... and ${lowSignalItems.length - 5} more`);
   }
   console.log('');
 }
@@ -265,29 +364,59 @@ if (!summaryOnly) {
 
 // ── Batch generation ──────────────────────────────────────────
 if (BATCH_SIZE > 0) {
-  // Priority: needs-data (compCount < 20) first sorted by stalest,
-  // then refresh-page1 sorted by stalest.
-  const needsData = datasets
-    .filter(d => d.actions.includes('needs-data'))
-    .sort((a, b) => (b.staleDays || 9999) - (a.staleDays || 9999));
-  const refreshPage1 = datasets
-    .filter(d => d.actions.includes('refresh-page1') && !d.actions.includes('needs-data'))
-    .sort((a, b) => (b.staleDays || 0) - (a.staleDays || 0));
-  const batchItems = [...needsData, ...refreshPage1].slice(0, BATCH_SIZE);
+  let batchPool;
+
+  if (BATCH_MODE === 'low-signal') {
+    // Low-signal mode: only LowSignalMarketData datasets
+    batchPool = datasets
+      .filter(d => d.freshnessStatus === 'LowSignalMarketData')
+      .sort((a, b) => (a.compCount || 0) - (b.compCount || 0));
+  } else if (BATCH_MODE === 'bullion') {
+    // Bullion mode: only bullion-tagged datasets (any freshness status)
+    batchPool = datasets
+      .filter(d => d.identifiers.is_bullion && d.freshnessStatus !== 'Fresh')
+      .sort((a, b) => (b.staleDays || 9999) - (a.staleDays || 9999));
+  } else if (BATCH_MODE === 'all') {
+    // All mode: everything that isn't Fresh
+    const needsData = datasets
+      .filter(d => d.actions.includes('needs-data'))
+      .sort((a, b) => (b.staleDays || 9999) - (a.staleDays || 9999));
+    const lowSig = datasets
+      .filter(d => d.freshnessStatus === 'LowSignalMarketData')
+      .sort((a, b) => (a.compCount || 0) - (b.compCount || 0));
+    const refreshPage1 = datasets
+      .filter(d => d.actions.includes('refresh-page1') && !d.actions.includes('needs-data'))
+      .sort((a, b) => (b.staleDays || 0) - (a.staleDays || 0));
+    batchPool = [...needsData, ...lowSig, ...refreshPage1];
+  } else {
+    // Default mode: excludes LowSignalMarketData
+    const needsData = datasets
+      .filter(d => d.actions.includes('needs-data') && d.freshnessStatus !== 'LowSignalMarketData')
+      .sort((a, b) => (b.staleDays || 9999) - (a.staleDays || 9999));
+    const refreshPage1 = datasets
+      .filter(d => d.actions.includes('refresh-page1') && !d.actions.includes('needs-data'))
+      .sort((a, b) => (b.staleDays || 0) - (a.staleDays || 0));
+    batchPool = [...needsData, ...refreshPage1];
+  }
+
+  const batchItems = batchPool.slice(0, BATCH_SIZE);
 
   const batchFile = path.join(path.dirname(OUTPUT_PATH), 'freshness-batch-100.json');
   const batchOut = {
     generatedAt: new Date().toISOString(),
     validUntil: new Date(Date.now() + 86400000).toISOString(),
     staleThresholdDays: STALE_THRESHOLD,
+    lowSignalThreshold: LOW_SIGNAL_THRESHOLD,
+    batchMode: BATCH_MODE,
     compositionFilter: COMPOSITION_FILTER || null,
     summary: {
       total: batchItems.length,
       needsData: batchItems.filter(d => d.actions.includes('needs-data')).length,
-      refresh: batchItems.filter(d => !d.actions.includes('needs-data')).length,
+      lowSignal: batchItems.filter(d => d.freshnessStatus === 'LowSignalMarketData').length,
+      refresh: batchItems.filter(d => d.actions.includes('refresh-page1')).length,
     },
     datasets: batchItems,
   };
   fs.writeFileSync(batchFile, JSON.stringify(batchOut, null, 2) + '\n');
-  console.log(`  Batch written: ${batchFile} (${batchItems.length} items${COMPOSITION_FILTER ? ', filter: ' + COMPOSITION_FILTER : ''})`);
+  console.log(`  Batch written: ${batchFile} (${batchItems.length} items, mode: ${BATCH_MODE}${COMPOSITION_FILTER ? ', filter: ' + COMPOSITION_FILTER : ''})`);
 }
