@@ -137,6 +137,17 @@ def is_gold_term(search_term):
     frequently and don't benefit from deep pagination beyond 2 pages."""
     return bool(_GOLD_RE.search(search_term))
 
+_BAR_RE = re.compile(r'\bbar\b', re.IGNORECASE)
+
+def is_bar_term(search_term):
+    """Return True if the search term contains 'bar' (gold/silver bars)."""
+    return bool(_BAR_RE.search(search_term))
+
+def is_low_volume(dataset):
+    """Return True if the dataset is flagged as low-volume by build-evidence-index.js."""
+    ids = dataset.get("identifiers") or {}
+    return ids.get("is_low_volume_candidate", False)
+
 
 def get_completed_terms_from_log(log_path):
     """Parse a page2 log file and return a set of search terms already processed (OK or NO PAGE 2)."""
@@ -1306,6 +1317,21 @@ def headless_dashboard(args):
         categories["deep"] = [d for d in categories["deep"]
                               if not re.search(r'\bgold\b', d.get("searchTerm", ""), re.IGNORECASE)]
 
+    # Split stale into sub-categories (S6 + S7)
+    stale_all = categories["stale"]
+    categories["stale_gold_bullion"] = [d for d in stale_all
+                                         if is_gold_term(d.get("searchTerm", ""))
+                                         and not is_bar_term(d.get("searchTerm", ""))]
+    categories["stale_gold_bars"] = [d for d in stale_all
+                                      if is_bar_term(d.get("searchTerm", ""))
+                                      and is_gold_term(d.get("searchTerm", ""))]
+    categories["stale_low_volume"] = [d for d in stale_all if is_low_volume(d)]
+    gold_bar_low_keys = set()
+    for d in categories["stale_gold_bullion"] + categories["stale_gold_bars"] + categories["stale_low_volume"]:
+        gold_bar_low_keys.add(d.get("key", d.get("searchTerm", "")))
+    categories["stale"] = [d for d in stale_all
+                           if d.get("key", d.get("searchTerm", "")) not in gold_bar_low_keys]
+
     # Build menu items
     menu_items = []
     menu_labels = []
@@ -1317,10 +1343,19 @@ def headless_dashboard(args):
     menu_labels.append(f"Needs deep pagination: {len(categories['deep'])} ({len(bullion_deep)} bullion, {len(non_bullion_deep)} other)")
 
     menu_items.append(("stale", categories["stale"]))
-    menu_labels.append(f"Stale (>14 days): {len(categories['stale'])}")
+    menu_labels.append(f"Stale (>14 days): {len(categories['stale'])} (excl. gold/bars/low-vol)")
 
     menu_items.append(("thin", categories["thin"]))
     menu_labels.append(f"Thin (<20 comps): {len(categories['thin'])}")
+
+    menu_items.append(("stale_gold_bullion", categories["stale_gold_bullion"]))
+    menu_labels.append(f"Gold bullion stale: {len(categories['stale_gold_bullion'])}")
+
+    menu_items.append(("stale_gold_bars", categories["stale_gold_bars"]))
+    menu_labels.append(f"Gold bars stale: {len(categories['stale_gold_bars'])}")
+
+    menu_items.append(("stale_low_volume", categories["stale_low_volume"]))
+    menu_labels.append(f"Low volume stale: {len(categories['stale_low_volume'])}")
 
     menu_items.append(("all", all_datasets))
     menu_labels.append(f"Show all datasets: {total}")
@@ -1367,7 +1402,7 @@ def headless_dashboard(args):
             print("  Exiting.")
         return
 
-    if choice == "4":
+    if choice == "7":
         if output_fmt == "json":
             import json as _json
             print(_json.dumps({"allDatasets": [
@@ -1381,8 +1416,8 @@ def headless_dashboard(args):
         return
 
     choice_idx = int(choice) - 1 if choice.isdigit() else -1
-    if choice_idx < 0 or choice_idx >= 3:
-        msg = f"Invalid choice: {choice}. Expected 1-4 or q."
+    if choice_idx < 0 or choice_idx >= 6:
+        msg = f"Invalid choice: {choice}. Expected 1-7 or q."
         if output_fmt == "json":
             import json as _json
             print(_json.dumps({"error": msg}))
@@ -1463,12 +1498,20 @@ def _headless_output_cli(summary, total, with_page1, with_deep, needs_deep_count
     print(f"  Recommended: {recommendation}")
 
     # Show top 5 from each non-empty category
+    _CAT_LABELS = {
+        "deep": "Needs Deep", "stale": "Stale", "thin": "Thin",
+        "stale_gold_bullion": "Gold Bullion Stale", "stale_gold_bars": "Gold Bars Stale",
+        "stale_low_volume": "Low Volume Stale",
+    }
     for cat_name, datasets in [("deep", categories["deep"]),
                                ("stale", categories["stale"]),
-                               ("thin", categories["thin"])]:
+                               ("thin", categories["thin"]),
+                               ("stale_gold_bullion", categories.get("stale_gold_bullion", [])),
+                               ("stale_gold_bars", categories.get("stale_gold_bars", [])),
+                               ("stale_low_volume", categories.get("stale_low_volume", []))]:
         if not datasets:
             continue
-        label = {"deep": "Needs Deep", "stale": "Stale", "thin": "Thin"}.get(cat_name, cat_name)
+        label = _CAT_LABELS.get(cat_name, cat_name)
         sorted_ds = sorted(datasets, key=lambda d: d.get("compCount", 0), reverse=True)
         print(f"\n  ── Top 5 {label} ──")
         print(f"  {'#':>4s}  {'Comps':>5s}  {'Type':>8s}  Search Term")
@@ -1501,12 +1544,20 @@ def _headless_output_markdown(summary, total, with_page1, with_deep, needs_deep_
     print(f"**Recommendation:** {recommendation}\n")
 
     # Tables for each category
+    _MD_LABELS = {
+        "deep": "Needs Deep Pagination", "stale": "Stale (>14 Days)", "thin": "Thin (<20 Comps)",
+        "stale_gold_bullion": "Gold Bullion Stale", "stale_gold_bars": "Gold Bars Stale",
+        "stale_low_volume": "Low Volume Stale",
+    }
     for cat_name, datasets in [("deep", categories["deep"]),
                                ("stale", categories["stale"]),
-                               ("thin", categories["thin"])]:
+                               ("thin", categories["thin"]),
+                               ("stale_gold_bullion", categories.get("stale_gold_bullion", [])),
+                               ("stale_gold_bars", categories.get("stale_gold_bars", [])),
+                               ("stale_low_volume", categories.get("stale_low_volume", []))]:
         if not datasets:
             continue
-        label = {"deep": "Needs Deep Pagination", "stale": "Stale (>14 Days)", "thin": "Thin (<20 Comps)"}.get(cat_name, cat_name)
+        label = _MD_LABELS.get(cat_name, cat_name)
         sorted_ds = sorted(datasets, key=lambda d: d.get("compCount", 0), reverse=True)[:10]
         print(f"#### {label} (top 10 of {len(datasets)})\n")
         print("| # | Comps | Type | Search Term |")
@@ -1545,6 +1596,21 @@ def _headless_output_json(summary, total, with_page1, with_deep, needs_deep_coun
                 "count": len(categories["thin"]),
                 "datasets": [{"term": d.get("searchTerm", ""), "comps": d.get("compCount", 0)}
                              for d in sorted(categories["thin"], key=lambda x: x.get("compCount", 0), reverse=True)[:20]],
+            },
+            "stale_gold_bullion": {
+                "count": len(categories.get("stale_gold_bullion", [])),
+                "datasets": [{"term": d.get("searchTerm", ""), "comps": d.get("compCount", 0)}
+                             for d in sorted(categories.get("stale_gold_bullion", []), key=lambda x: x.get("compCount", 0), reverse=True)[:20]],
+            },
+            "stale_gold_bars": {
+                "count": len(categories.get("stale_gold_bars", [])),
+                "datasets": [{"term": d.get("searchTerm", ""), "comps": d.get("compCount", 0)}
+                             for d in sorted(categories.get("stale_gold_bars", []), key=lambda x: x.get("compCount", 0), reverse=True)[:20]],
+            },
+            "stale_low_volume": {
+                "count": len(categories.get("stale_low_volume", [])),
+                "datasets": [{"term": d.get("searchTerm", ""), "comps": d.get("compCount", 0)}
+                             for d in sorted(categories.get("stale_low_volume", []), key=lambda x: x.get("compCount", 0), reverse=True)[:20]],
             },
         },
         "recommendation": recommendation,
@@ -1618,6 +1684,24 @@ def dashboard(args):
     all_datasets = full_data.get("datasets", [])
     categories["thin"] = [d for d in all_datasets if d.get("compCount", 0) < 20]
 
+    # ── Split stale into sub-categories ──────────────────────
+    # S6: Gold bullion and gold bars get their own categories
+    # S7: Low-volume coins are excluded from stale
+    stale_all = categories["stale"]
+    categories["stale_gold_bullion"] = [d for d in stale_all
+                                         if is_gold_term(d.get("searchTerm", ""))
+                                         and not is_bar_term(d.get("searchTerm", ""))]
+    categories["stale_gold_bars"] = [d for d in stale_all
+                                      if is_bar_term(d.get("searchTerm", ""))
+                                      and is_gold_term(d.get("searchTerm", ""))]
+    categories["stale_low_volume"] = [d for d in stale_all if is_low_volume(d)]
+    # Main stale: exclude gold, bars, and low-volume
+    gold_bar_low_keys = set()
+    for d in categories["stale_gold_bullion"] + categories["stale_gold_bars"] + categories["stale_low_volume"]:
+        gold_bar_low_keys.add(d.get("key", d.get("searchTerm", "")))
+    categories["stale"] = [d for d in stale_all
+                           if d.get("key", d.get("searchTerm", "")) not in gold_bar_low_keys]
+
     # ── Display Summary ──────────────────────────────────────
     print(f"  Server:         {APP_URL}")
     print(f"  Total datasets: {total}")
@@ -1639,33 +1723,37 @@ def dashboard(args):
         bullion = [d for d in categories["deep"] if is_bullion_term(d.get("searchTerm", ""))]
         non_bullion = [d for d in categories["deep"] if not is_bullion_term(d.get("searchTerm", ""))]
         print(f"  [1] Needs deep pagination:  {n} datasets ({len(bullion)} bullion, {len(non_bullion)} other)")
-        menu_items.append(("deep", categories["deep"]))
     else:
         print(f"  [1] Needs deep pagination:  0 (all caught up!)")
+    menu_items.append(("deep", categories["deep"]))
 
-    if categories["stale"]:
-        n = len(categories["stale"])
-        print(f"  [2] Stale (>14 days):       {n} datasets")
-        menu_items.append(("stale", categories["stale"]))
-    else:
-        print(f"  [2] Stale (>14 days):       0 (all fresh!)")
-        menu_items.append(("stale", []))
+    n_stale = len(categories["stale"])
+    print(f"  [2] Stale (>14 days):       {n_stale} datasets (excl. gold/bars/low-vol)")
+    menu_items.append(("stale", categories["stale"]))
 
-    if categories["thin"]:
-        n = len(categories["thin"])
-        print(f"  [3] Thin (<20 comps):       {n} datasets")
-        menu_items.append(("thin", categories["thin"]))
-    else:
-        print(f"  [3] Thin (<20 comps):       0")
-        menu_items.append(("thin", []))
+    n_thin = len(categories["thin"])
+    print(f"  [3] Thin (<20 comps):       {n_thin} datasets")
+    menu_items.append(("thin", categories["thin"]))
 
-    print(f"\n  [4] Show all datasets")
+    n_gold_bullion = len(categories["stale_gold_bullion"])
+    print(f"  [4] Gold bullion stale:     {n_gold_bullion} datasets")
+    menu_items.append(("stale_gold_bullion", categories["stale_gold_bullion"]))
+
+    n_gold_bars = len(categories["stale_gold_bars"])
+    print(f"  [5] Gold bars stale:        {n_gold_bars} datasets")
+    menu_items.append(("stale_gold_bars", categories["stale_gold_bars"]))
+
+    n_low_vol = len(categories["stale_low_volume"])
+    print(f"  [6] Low volume stale:       {n_low_vol} datasets (flagged by evidence index)")
+    menu_items.append(("stale_low_volume", categories["stale_low_volume"]))
+
+    print(f"\n  [7] Show all datasets")
     print(f"  [q] Quit")
     print()
 
     # ── Interactive Selection ────────────────────────────────
     try:
-        choice = input("  Choose [1-4, q]: ").strip().lower()
+        choice = input("  Choose [1-7, q]: ").strip().lower()
     except (EOFError, KeyboardInterrupt):
         print("\n  Bye.")
         return
@@ -1673,7 +1761,7 @@ def dashboard(args):
     if choice == "q" or not choice:
         return
 
-    if choice == "4":
+    if choice == "7":
         _show_all_datasets(all_datasets)
         return
 
@@ -1730,6 +1818,9 @@ def _show_category(category_name, datasets):
         "deep": "NEEDS DEEP PAGINATION",
         "stale": "STALE (>14 DAYS)",
         "thin": "THIN (<20 COMPS)",
+        "stale_gold_bullion": "GOLD BULLION STALE (>14 DAYS)",
+        "stale_gold_bars": "GOLD BARS STALE (>14 DAYS)",
+        "stale_low_volume": "LOW VOLUME STALE (>14 DAYS)",
     }.get(category_name, category_name.upper())
 
     sorted_ds = sorted(datasets, key=lambda d: d.get("compCount", 0), reverse=True)
@@ -1764,8 +1855,8 @@ def _launch_run(terms, category_name, filter_pattern=None, args=None):
         # Too many for a regex -- use the category's needs= param as filter
         filter_arg = None
 
-    # Stale datasets need page 1 re-scrape via terapeak-export.py
-    if category_name == "stale":
+    # Stale datasets (all stale sub-categories) need page 1 re-scrape via terapeak-export.py
+    if category_name in ("stale", "stale_gold_bullion", "stale_gold_bars", "stale_low_volume"):
         export_script = Path(__file__).resolve().parent / "terapeak-export.py"
         cmd = [sys.executable, str(export_script), "--run", "--refresh", "--max-age", "14"]
 
