@@ -201,15 +201,19 @@ function _detectWeight(text) {
   return null;
 }
 
-// Finish / strike-type detection from text
+// Finish / strike-type detection from text (longest match first)
 function _detectFinish(text) {
   if (!text) return null;
   const t = text.toLowerCase();
-  if (/\breverse\s*proof\b/.test(t))  return 'reverse proof';
-  if (/\bproof\b/.test(t))            return 'proof';
-  if (/\bburnished\b/.test(t))        return 'burnished';
-  if (/\bsatin\b/.test(t))            return 'satin';
-  if (/\bPR\b/.test(text))            return 'proof';  // case-sensitive PR
+  if (/\benhanced\s+reverse\s*proof\b/.test(t)) return 'enhanced reverse proof';
+  if (/\breverse\s*proof\b/.test(t))            return 'reverse proof';
+  if (/\bproof\b(?![\s-]*like)/.test(t))        return 'proof';
+  if (/\bburnished\b/.test(t))                  return 'burnished';
+  if (/\bsatin\b/.test(t))                      return 'satin';
+  if (/\bantiqued\b/.test(t))                   return 'antiqued';
+  if (/\bhigh\s*relief\b/.test(t))              return 'high relief';
+  if (/\bcolou?rized\b/.test(t))                return 'colorized';
+  if (/\bpr[-\s]?\d|(?:\b(?:pr|pf)\b.*\b(?:dcam|cam|uc)\b)/i.test(t)) return 'proof';
   return null;
 }
 
