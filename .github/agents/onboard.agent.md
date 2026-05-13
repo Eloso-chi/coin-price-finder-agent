@@ -34,6 +34,7 @@ Read ALL files in `/memories/repo/` in this order:
 10. `label-feature-context.md` -- label/variant feature design
 11. `synthetic-data-audit.md` -- which data is real vs synthetic
 12. `azure-infrastructure.md` -- Key Vault, Cosmos DB, Blob Storage, Azure Files
+13. `numismatic-terminology.md` -- strike types, grade prefixes, pool classification rules, common traps
 
 Skip any files that don't exist (the list may change over time).
 Read any additional files found in Phase 0 that are not listed above.
@@ -50,6 +51,7 @@ Read these project docs:
 6. `docs/testing/test-monitor.md` -- test budget, metrics, golden set, flaky test diagnosis
 7. `data/terapeak/README.md` -- data authenticity, CSV format docs, import instructions
 8. `.github/skills/code-review/SKILL.md` -- shared review framework (severity, finding schema)
+9. `.github/skills/numismatics/SKILL.md` -- domain knowledge: classification decision tree, finish detection, audit checklist
 
 ### Phase 3: Key Source Files (scan exports/structure only)
 
