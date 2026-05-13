@@ -99,6 +99,14 @@ function saveMetaSidecar() {
           };
         }
       }
+      // Preserve identifiers (stamped by build-evidence-index.js)
+      if (entry.identifiers) {
+        const key = normalizeSearchKey(rawKey);
+        if (key) {
+          if (!meta[key]) meta[key] = {};
+          meta[key].identifiers = entry.identifiers;
+        }
+      }
     }
     fs.writeFile(META_SIDECAR_PATH, JSON.stringify(meta, null, 2) + '\n', (err) => {
       if (err && process.env.NODE_ENV !== 'test') {
@@ -119,7 +127,7 @@ function loadMetaSidecar() {
   try {
     const raw = JSON.parse(fs.readFileSync(META_SIDECAR_PATH, 'utf8'));
     for (const [key, meta] of Object.entries(raw)) {
-      if (!meta || (!meta.deepAt && !meta.page1At && !meta.newestSaleDate)) continue;
+      if (!meta || (!meta.deepAt && !meta.page1At && !meta.newestSaleDate && !meta.identifiers)) continue;
       const existing = store[key]?.aggregationMeta || {};
       const merged = {
         page1At: existing.page1At || meta.page1At || null,
@@ -134,6 +142,10 @@ function loadMetaSidecar() {
         store[key].aggregationMeta = merged;
       } else {
         store[key] = { searchTerm: key, comps: [], aggregationMeta: merged };
+      }
+      // Restore identifiers (stamped by build-evidence-index.js)
+      if (meta.identifiers && !store[key].identifiers) {
+        store[key].identifiers = meta.identifiers;
       }
       hydrated++;
     }
@@ -648,12 +660,16 @@ function importComps(searchTerm, comps, meta = {}, _reclassifying = false) {
   // Remove aggregationMeta from meta spread to avoid double-write
   const { aggregationMeta: _sm, ...restMeta } = meta;
 
+  // Preserve identifiers (stamped by build-evidence-index.js) across imports
+  const prevIdentifiers = store[normalizedKey]?.identifiers || null;
+
   store[normalizedKey] = {
     searchTerm: searchTerm,
     comps: existing,
     lastImport: new Date().toISOString(),
     importCount: (store[normalizedKey]?.importCount || 0) + 1,
     aggregationMeta: mergedAggregationMeta,
+    ...(prevIdentifiers ? { identifiers: prevIdentifiers } : {}),
     ...restMeta
   };
 
@@ -678,6 +694,7 @@ function importComps(searchTerm, comps, meta = {}, _reclassifying = false) {
       lastImport: store[normalizedKey].lastImport,
       importCount: store[normalizedKey].importCount,
       aggregationMeta: mergedAggregationMeta,
+      ...(store[normalizedKey].identifiers ? { identifiers: store[normalizedKey].identifiers } : {}),
     };
     cosmos.container('terapeak-sold').items.upsert(doc).catch(err => {
       if (process.env.NODE_ENV !== 'test') console.error('[terapeak] Cosmos write-through failed:', err.message);
@@ -977,7 +994,8 @@ function listDatasets() {
     compCount: data.comps?.length || 0,
     lastImport: data.lastImport,
     importCount: data.importCount || 1,
-    aggregationMeta: data.aggregationMeta || data.scrapeMeta || null
+    aggregationMeta: data.aggregationMeta || data.scrapeMeta || null,
+    ...(data.identifiers ? { identifiers: data.identifiers } : {})
   }));
 }
 

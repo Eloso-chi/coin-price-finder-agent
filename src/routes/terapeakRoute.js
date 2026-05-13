@@ -363,7 +363,8 @@ router.get('/aggregation-status', requireAdmin, (req, res) => {
       key: d.key,
       searchTerm: d.searchTerm,
       compCount: d.compCount,
-      aggregationMeta: d.aggregationMeta
+      aggregationMeta: d.aggregationMeta,
+      ...(d.identifiers ? { identifiers: d.identifiers } : {})
     }))
   });
 });

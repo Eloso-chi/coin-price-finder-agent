@@ -51,6 +51,44 @@ Both `terapeak-export.py` and `sales-aggregator.py` now guard against active lis
 
 ---
 
+### S6. Dashboard Gold Bullion & Gold Bars Staleness Categories [MEDIUM]
+
+**Problem:** Gold coins (501 datasets) and gold bars (5 datasets) are mixed into the general "Stale" dashboard category. Gold is excluded from deep pagination but runs unchecked in stale refreshes, wasting time on low-volume items. Need separate dashboard categories so gold can be refreshed intentionally.
+
+**Fix:**
+- Split stale category: filter gold out of the main "Stale" list (matching deep pagination behavior)
+- Add "Gold Bullion Stale" category (coins matching `is_bullion_term` + `\bgold\b`)
+- Add "Gold Bars Stale" category (terms matching `\bbar\b`)
+- Each gets its own menu entry with count and independent launch
+
+**Files:** `scripts/sales-aggregator.py` (dashboard function, headless output functions, `_launch_run`)
+
+---
+
+### S7. Low-Volume Coin Dashboard Filter [MEDIUM]
+
+**Problem:** `build-evidence-index.js` computes `is_low_volume_candidate` flags from 105 run logs, but the data was never persisted into `terapeak-meta.json` (the file has 3,364 entries, zero with evidence fields). The dashboard has no category or filter for low-volume coins, so stale refreshes waste time on coins with consistently < 10 comps.
+
+**Fix:**
+1. Run `node scripts/build-evidence-index.js` to stamp low-volume candidates into `terapeak-meta.json`
+2. Ensure `POST /api/terapeak/import` preserves evidence fields when updating meta (don't overwrite `is_low_volume_candidate`)
+3. Add "Low Volume" exclusion filter to the stale dashboard category (or separate category)
+4. Expose low-volume flag in `GET /api/terapeak/aggregation-status` response
+
+**Files:** `scripts/build-evidence-index.js`, `scripts/sales-aggregator.py`, `src/services/terapeakService.js` (import/meta persistence), `src/routes/adminRoute.js` (aggregation-status endpoint)
+
+---
+
+### S8. Barber Quarter/Dime/Dollar Dashboard Filter [LOW]
+
+**Problem:** Barber quarters, dimes, and dollars are low-demand series that appear in stale refreshes. Barber halves are worth keeping (higher collector demand), but the other denominations dilute refresh runs.
+
+**Fix:** Add a dashboard filter or separate category for Barber non-halves. Regex: `barber.*(quarter|dime|dollar)` (excludes "Barber Half"). Could be implemented as part of S7's low-volume system if evidence index confirms they're consistently low-comp.
+
+**Files:** `scripts/sales-aggregator.py`
+
+---
+
 ### 24. Proof Libertad Search Term Quality [DATA QUALITY]
 
 **Problem:** Proof Libertad searches return results dominated by NGC/PCGS slabbed coins. Need to split "raw proof" vs "graded proof" or add negative keywords.
