@@ -236,7 +236,26 @@ _NEARBY_KEYS = {
 def human_type(element, text, page=None):
     """Type text character by character with random delays, like a human.
     Occasionally makes a typo (nearby key), pauses, backspaces, and retypes.
-    If page is provided, occasionally pause mid-word (like thinking)."""
+    If page is provided, occasionally pause mid-word (like thinking).
+
+    For long strings (>20 chars), pastes most of the text and types the
+    last few characters -- mimics a common copy-paste-then-adjust pattern
+    that real users exhibit when entering saved search terms.
+    """
+    # For long terms, paste the bulk and type the tail (natural copy-paste)
+    PASTE_THRESHOLD = 20
+    TAIL_LEN = random.randint(4, 8)
+    if len(text) > PASTE_THRESHOLD and page:
+        paste_part = text[:-TAIL_LEN]
+        type_part = text[-TAIL_LEN:]
+        # Clipboard paste (Ctrl+V / Meta+V)
+        element.fill(paste_part)
+        time.sleep(random.uniform(0.2, 0.5))
+        # Place cursor at end and type remaining chars naturally
+        element.press("End")
+        time.sleep(random.uniform(0.1, 0.3))
+        text = type_part  # fall through to char-by-char loop below
+
     for i, ch in enumerate(text):
         # ~4% chance of typo on letters/digits (skip spaces and punctuation)
         if ch.lower() in _NEARBY_KEYS and random.random() < 0.04:
@@ -410,6 +429,56 @@ def upload_csv(csv_path, search_term, aggregation_meta=None):
         return False, f"Cannot connect to {APP_URL} -- is the server running?"
     except Exception as e:
         return False, str(e)
+
+
+import threading
+
+# Last async upload result -- checked before starting the next coin
+_last_upload_result = {"ok": None, "msg": None, "term": None, "thread": None}
+
+def upload_csv_async(csv_path, search_term, aggregation_meta=None, cleanup=False):
+    """Fire-and-forget wrapper around upload_csv. Runs the upload in a
+    background thread so the next coin's navigation can start immediately.
+    Call drain_upload() before the next upload to log the previous result.
+    If cleanup=True, deletes csv_path after upload finishes."""
+    # Drain any pending upload first
+    drain_upload()
+
+    def _worker():
+        try:
+            ok, msg = upload_csv(csv_path, search_term, aggregation_meta)
+            _last_upload_result["ok"] = ok
+            _last_upload_result["msg"] = msg
+        except Exception as e:
+            _last_upload_result["ok"] = False
+            _last_upload_result["msg"] = str(e)
+        finally:
+            if cleanup:
+                try:
+                    Path(csv_path).unlink(missing_ok=True)
+                except Exception:
+                    pass
+
+    _last_upload_result["term"] = search_term
+    _last_upload_result["ok"] = None
+    t = threading.Thread(target=_worker, daemon=True)
+    _last_upload_result["thread"] = t
+    t.start()
+
+
+def drain_upload(timeout=10):
+    """Wait for the last async upload to finish and log the result."""
+    t = _last_upload_result.get("thread")
+    if t is None or not t.is_alive():
+        return
+    t.join(timeout=timeout)
+    term = _last_upload_result.get("term", "?")
+    ok = _last_upload_result.get("ok")
+    msg = _last_upload_result.get("msg", "?")
+    if ok is None:
+        print(f"  [async upload] {term}: timed out after {timeout}s")
+    elif not ok:
+        print(f"  [async upload] {term}: failed -- {msg}")
 
 
 # ── Login Flow ──────────────────────────────────────────────
