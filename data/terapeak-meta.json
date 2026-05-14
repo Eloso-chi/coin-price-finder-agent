@@ -3045,13 +3045,13 @@
     "compCount": 50
   },
   "1890 morgan silver dollar ms64": {
-    "deepAt": null,
+    "deepAt": "2026-05-14T14:55:26.997752",
     "page1At": "2026-05-08T01:50:01.206Z",
-    "maxPageReached": null,
+    "maxPageReached": 2,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-05-05",
+    "newestSaleDate": "2026-05-13",
     "oldestSaleDate": "2026-02-22",
-    "compCount": 50
+    "compCount": 55
   },
   "1890 morgan silver dollar ms65": {
     "deepAt": null,
@@ -3468,13 +3468,13 @@
     "compCount": 41
   },
   "1893 s barber quarter": {
-    "deepAt": null,
-    "page1At": "2026-04-10T15:08:57.733Z",
+    "deepAt": "2026-05-14T04:55:57.475Z",
+    "page1At": "2026-05-14T14:05:43.154954",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-01",
+    "newestSaleDate": "2026-05-02",
     "oldestSaleDate": "2025-10-14",
-    "compCount": 37
+    "compCount": 57
   },
   "1893 s morgan silver dollar": {
     "deepAt": null,
@@ -4215,13 +4215,13 @@
     "compCount": 271
   },
   "1897 morgan silver dollar ms63": {
-    "deepAt": null,
+    "deepAt": "2026-05-14T14:53:23.142168",
     "page1At": "2026-05-10T21:58:47.036Z",
-    "maxPageReached": null,
+    "maxPageReached": 2,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-26",
+    "newestSaleDate": "2026-05-14",
     "oldestSaleDate": "2025-11-16",
-    "compCount": 50
+    "compCount": 92
   },
   "1897 morgan silver dollar ms64": {
     "deepAt": "2026-05-04T22:06:08.709Z",
@@ -9310,12 +9310,12 @@
   },
   "1936 s walking liberty half dollar": {
     "deepAt": null,
-    "page1At": "2026-04-26T15:37:39.704Z",
+    "page1At": "2026-05-14T13:57:50.463595",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-24",
+    "newestSaleDate": "2026-05-11",
     "oldestSaleDate": "2025-10-28",
-    "compCount": 44
+    "compCount": 46
   },
   "1936 s walking liberty half ms64": {
     "deepAt": null,
@@ -9940,12 +9940,12 @@
   },
   "1941 s walking liberty half ms65": {
     "deepAt": null,
-    "page1At": "2026-05-07T01:29:06.926Z",
+    "page1At": "2026-05-14T14:18:45.644215",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-05-04",
+    "newestSaleDate": "2026-05-09",
     "oldestSaleDate": "2025-11-08",
-    "compCount": 19
+    "compCount": 21
   },
   "1941 s washington quarter": {
     "deepAt": null,
@@ -10218,13 +10218,13 @@
     "compCount": 37
   },
   "1943 p jefferson silver war nickel": {
-    "deepAt": null,
-    "page1At": "2026-04-29T07:24:16.095Z",
+    "deepAt": "2026-05-14T04:55:58.775Z",
+    "page1At": "2026-05-14T14:27:42.796538",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-28",
+    "newestSaleDate": "2026-05-14",
     "oldestSaleDate": "2025-11-06",
-    "compCount": 47
+    "compCount": 89
   },
   "1943 s jefferson silver war nickel": {
     "deepAt": "2026-05-14T04:55:58.776Z",
@@ -10587,13 +10587,13 @@
     "compCount": 40
   },
   "1945 s walking liberty half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-26T15:01:36.892Z",
+    "deepAt": "2026-05-14T04:55:58.828Z",
+    "page1At": "2026-05-14T14:22:20.647375",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-25",
+    "newestSaleDate": "2026-05-13",
     "oldestSaleDate": "2026-04-12",
-    "compCount": 42
+    "compCount": 83
   },
   "1945 s walking liberty half ms63": {
     "deepAt": null,
@@ -10875,13 +10875,13 @@
     "compCount": 47
   },
   "1948 d franklin half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-10T14:34:17.654Z",
+    "deepAt": "2026-05-14T04:55:58.867Z",
+    "page1At": "2026-05-14T14:04:07.525261",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-09",
+    "newestSaleDate": "2026-05-12",
     "oldestSaleDate": "2025-10-20",
-    "compCount": 45
+    "compCount": 68
   },
   "1948 d roosevelt dime": {
     "deepAt": null,
@@ -14233,12 +14233,12 @@
   },
   "1989 canada 1oz silver maple leaf": {
     "deepAt": "2026-05-01T22:40:25.105Z",
-    "page1At": "2026-05-01T22:40:25.105Z",
+    "page1At": "2026-05-14T14:26:13.508981",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-29",
+    "newestSaleDate": "2026-05-07",
     "oldestSaleDate": "2025-10-19",
-    "compCount": 122
+    "compCount": 160
   },
   "1989 china quarter oz gold panda": {
     "deepAt": null,
@@ -16959,13 +16959,13 @@
     "compCount": 5
   },
   "1999 australia 1oz silver kookaburra": {
-    "deepAt": null,
-    "page1At": "2026-04-26T22:16:08.471Z",
+    "deepAt": "2026-05-14T04:55:59.849Z",
+    "page1At": "2026-05-14T14:12:33.129781",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-26",
+    "newestSaleDate": "2026-05-07",
     "oldestSaleDate": "2025-10-28",
-    "compCount": 47
+    "compCount": 65
   },
   "1999 austria tenth oz gold philharmonic": {
     "deepAt": null,
@@ -19561,12 +19561,12 @@
   },
   "2008 austria 1oz silver philharmonic": {
     "deepAt": "2026-04-18T18:26:52.465Z",
-    "page1At": "2026-04-18T18:26:52.465Z",
+    "page1At": "2026-05-14T14:15:46.953763",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-16",
+    "newestSaleDate": "2026-05-07",
     "oldestSaleDate": "2025-10-25",
-    "compCount": 143
+    "compCount": 146
   },
   "2008 great britain quarter oz silver britannia": {
     "deepAt": null,
@@ -20416,12 +20416,12 @@
   },
   "2010 mexico quarter oz silver libertad proof": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-14T14:09:58.075884",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-03-17",
+    "newestSaleDate": "2026-05-12",
     "oldestSaleDate": "2025-10-31",
-    "compCount": 14
+    "compCount": 9
   },
   "2010 mexico twentieth oz silver libertad proof": {
     "deepAt": null,
@@ -20551,12 +20551,12 @@
   },
   "2011 great britain 1oz silver britannia": {
     "deepAt": null,
-    "page1At": "2026-04-29T03:50:46.501Z",
+    "page1At": "2026-05-14T14:14:09.059661",
     "maxPageReached": null,
     "lastRefreshAt": null,
     "newestSaleDate": "2026-04-19",
     "oldestSaleDate": "2025-11-24",
-    "compCount": 30
+    "compCount": 32
   },
   "2011 canada tenth oz gold maple leaf": {
     "deepAt": null,
@@ -21163,7 +21163,7 @@
   },
   "2012 mexico 1oz silver libertad proof": {
     "deepAt": null,
-    "page1At": "2026-04-29T12:02:21.507Z",
+    "page1At": "2026-05-14T14:23:42.365348",
     "maxPageReached": null,
     "lastRefreshAt": null,
     "newestSaleDate": "2026-04-14",
@@ -21216,13 +21216,13 @@
     "compCount": 14
   },
   "2013 american gold buffalo 1oz": {
-    "deepAt": null,
-    "page1At": "2026-04-15T19:39:05.092Z",
+    "deepAt": "2026-05-14T04:56:05.300Z",
+    "page1At": "2026-05-14T13:59:22.290860",
     "maxPageReached": null,
     "lastRefreshAt": null,
     "newestSaleDate": "2026-04-14",
     "oldestSaleDate": "2025-12-18",
-    "compCount": 50
+    "compCount": 52
   },
   "2013 american gold eagle tenth oz": {
     "deepAt": null,
@@ -22116,13 +22116,13 @@
     "compCount": 1
   },
   "2015 australia 1oz silver kookaburra": {
-    "deepAt": null,
-    "page1At": "2026-04-26T22:25:03.197Z",
+    "deepAt": "2026-05-14T04:56:05.400Z",
+    "page1At": "2026-05-14T14:29:13.670734",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-21",
+    "newestSaleDate": "2026-05-12",
     "oldestSaleDate": "2025-11-10",
-    "compCount": 45
+    "compCount": 79
   },
   "2015 austria tenth oz gold philharmonic": {
     "deepAt": null,
@@ -23529,13 +23529,13 @@
     "compCount": 48
   },
   "2018 us mint uncirculated set": {
-    "deepAt": null,
-    "page1At": "2026-04-10T15:25:43.924Z",
+    "deepAt": "2026-05-14T04:56:05.612Z",
+    "page1At": "2026-05-14T14:34:49.069054",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-09",
+    "newestSaleDate": "2026-05-13",
     "oldestSaleDate": "2025-10-30",
-    "compCount": 43
+    "compCount": 58
   },
   "2018 us proof set": {
     "deepAt": null,
@@ -23674,12 +23674,12 @@
   },
   "2019 canada 1oz gold maple leaf": {
     "deepAt": null,
-    "page1At": "2026-04-15T21:27:42.828Z",
+    "page1At": "2026-05-14T14:17:09.988814",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-15",
+    "newestSaleDate": "2026-04-21",
     "oldestSaleDate": "2025-10-24",
-    "compCount": 22
+    "compCount": 21
   },
   "2019 canada 1oz silver maple leaf": {
     "deepAt": "2026-05-04T01:24:20.961Z",
@@ -27859,12 +27859,12 @@
   },
   "40 silver kennedy half dollar 1 face value": {
     "deepAt": null,
-    "page1At": "2026-05-09T19:19:02.074Z",
+    "page1At": "2026-05-14T14:07:09.391196",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-20",
+    "newestSaleDate": "2026-05-10",
     "oldestSaleDate": "2025-11-23",
-    "compCount": 41
+    "compCount": 46
   },
   "90 silver dimes 1 face value": {
     "deepAt": null,
