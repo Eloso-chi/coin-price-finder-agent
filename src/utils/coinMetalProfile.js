@@ -19,7 +19,7 @@ const BULLION_SERIES = [
  * Matches broadly — the caller can refine with year if needed.
  */
 const SILVER_US_COIN_SERIES = [
-  'morgan', 'peace dollar', 'walking liberty', 'seated liberty',
+  'morgan', 'peace dollar', 'peace silver dollar', 'walking liberty', 'seated liberty',
   'barber half', 'barber quarter', 'barber dime',
   'franklin half', 'mercury dime', 'roosevelt dime',
   'washington quarter', 'standing liberty quarter',
@@ -103,25 +103,66 @@ const BASE_METAL_SERIES = [
 ];
 
 /** Proof/mint set patterns */
-const SET_PATTERNS = ['proof set', 'mint set', 'prestige set'];
+const SET_PATTERNS = ['proof set', 'mint set', 'prestige set', 'us mint uncirculated set'];
 
 /** Junk silver patterns */
 const JUNK_SILVER_PATTERNS = ['junk silver'];
 
+/** Junk silver sold by denomination (e.g. "90% silver dimes 1 face value") */
+const JUNK_SILVER_DENOM_PATTERNS = ['90 silver dimes', '90 silver quarters', '90 silver half dollars'];
+
+/** Fractional-weight tokens used in normalized dataset keys */
+const FRACTIONAL_WEIGHT_RE = /\b(?:half|quarter|tenth|twentieth)\s*oz\b/;
+
+/** Multi-oz bullion (2oz and above) */
+const MULTI_OZ_RE = /\b(?:[2-9]|[1-9]\d+)oz\b/;
+
+/** Proof bullion */
+const PROOF_RE = /\bproof\b/;
+
+/**
+ * Detect metal from a bullion key using explicit keywords or series inference.
+ * @param {string} k - lowercased key
+ * @returns {'gold'|'silver'|'platinum'|'palladium'|null}
+ */
+function detectMetalFromKey(k) {
+  if (METAL_RE.gold.test(k))      return 'gold';
+  if (METAL_RE.silver.test(k))    return 'silver';
+  if (METAL_RE.platinum.test(k))  return 'platinum';
+  if (METAL_RE.palladium.test(k)) return 'palladium';
+  // Infer from series name when metal keyword is absent
+  if (/gold eagle|gold buffalo|krugerrand/i.test(k)) return 'gold';
+  if (/platinum eagle/i.test(k))  return 'platinum';
+  if (/palladium eagle/i.test(k)) return 'palladium';
+  // Most remaining bullion (eagles, maples, etc.) default to silver
+  return 'silver';
+}
+
 /**
  * Classify a dataset key into a composition category.
+ * Bullion is subdivided by weight class (fractional, multi-oz, standard)
+ * and finish (proof vs BU).
  *
  * @param {string} key - normalized dataset key (lowercase)
- * @returns {'bullion'|'bar'|'silver-numismatic'|'gold-numismatic'|'base-metal'|'set'|'junk-silver'|'unknown'}
+ * @returns {'bullion'|'bullion-fractional-gold'|'bullion-fractional-silver'|'bullion-multioz'|'bullion-proof'|'bar'|'silver-numismatic'|'gold-numismatic'|'base-metal'|'set'|'junk-silver'|'junk-silver-denom'|'unknown'}
  */
 function classifyComposition(key) {
   if (!key) return 'unknown';
   const k = key.toLowerCase();
 
   if (JUNK_SILVER_PATTERNS.some(p => k.includes(p))) return 'junk-silver';
+  if (JUNK_SILVER_DENOM_PATTERNS.some(p => k.includes(p))) return 'junk-silver-denom';
   if (BAR_ROUND_PATTERNS.some(p => k.includes(p))) return 'bar';
   if (SET_PATTERNS.some(p => k.includes(p))) return 'set';
-  if (BULLION_SERIES.some(s => k.includes(s))) return 'bullion';
+  if (BULLION_SERIES.some(s => k.includes(s))) {
+    if (FRACTIONAL_WEIGHT_RE.test(k)) {
+      const metal = detectMetalFromKey(k);
+      return metal === 'gold' ? 'bullion-fractional-gold' : 'bullion-fractional-silver';
+    }
+    if (MULTI_OZ_RE.test(k)) return 'bullion-multioz';
+    if (PROOF_RE.test(k)) return 'bullion-proof';
+    return 'bullion';
+  }
   if (GOLD_US_COIN_SERIES.some(s => k.includes(s))) return 'gold-numismatic';
   // "indian head eagle" and "indian quarter eagle" are gold but won't match
   // GOLD_US_COIN_SERIES which has "indian head gold" -- catch them explicitly
