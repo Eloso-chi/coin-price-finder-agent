@@ -342,8 +342,25 @@ const METAL_RE = [
   { metal: 'palladium', re: /\bpalladium\b/i },
   { metal: 'copper', re: /\bcopper\b/i },
 ];
+// Decorative patterns where "gold" does NOT indicate the primary metal
+const _DECORATIVE_GOLD_RE = /\bgold[\s-]*(gild|plat|finish|color|dust|marble|rutil|rhodium)/i;
+const _MULTI_METAL_RE = /\bmulti[\s-]*metal\b/i;
 function detectMetal(title) {
   if (!title) return null;
+  const t = title.toLowerCase();
+  const hasGold   = /\bgold\b/.test(t);
+  const hasSilver = /\bsilver\b/.test(t);
+  if (hasGold && hasSilver) {
+    const weightGold   = /\b(?:\d[\d./]*\s*(?:troy\s*)?oz)\s+gold\b|\bgold\s+(?:\d[\d./]*\s*(?:troy\s*)?oz)\b/.test(t);
+    const weightSilver = /\b(?:\d[\d./]*\s*(?:troy\s*)?oz)\s+silver\b|\bsilver\s+(?:\d[\d./]*\s*(?:troy\s*)?oz)\b/.test(t);
+    if (weightSilver && !weightGold) return 'silver';
+    if (weightGold && !weightSilver) return 'gold';
+    if (_DECORATIVE_GOLD_RE.test(title)) return 'silver';
+    if (_MULTI_METAL_RE.test(t)) return 'silver';
+    if (/\b(?:ruthenium|rhodium|black)\b/i.test(t)) return 'silver';
+    if (/\.999\d*\s*(?:fine\s+)?silver\b/.test(t)) return 'silver';
+    if (/\bfine\s+silver\b/.test(t)) return 'silver';
+  }
   for (const { metal, re } of METAL_RE) {
     if (re.test(title)) return metal;
   }

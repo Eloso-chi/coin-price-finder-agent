@@ -66,12 +66,50 @@ const METAL_PATTERNS = [
   { metal: 'copper',    re: /\bcopper\b/i },
 ];
 
+// Decorative/plating patterns where "gold" does NOT indicate the primary metal.
+// E.g. "24k Gold Gilded 1 oz Silver Coin" is silver, not gold.
+const DECORATIVE_GOLD_RE = /\bgold[\s-]*(gild|plat|finish|color|dust|marble|rutil|rhodium)/i;
+// Multi-metal decorative indicator: "Multi-Metal Gold", "Black Platinum & Gold"
+const MULTI_METAL_RE = /\bmulti[\s-]*metal\b/i;
+
 /**
- * Detect metal from a listing title string.
+ * Detect primary metal from a listing title string.
+ * When both "gold" and "silver" appear, uses weight-adjacent context and
+ * decorative pattern detection to determine the actual bullion metal.
  * Returns 'gold', 'silver', 'platinum', 'palladium', 'copper', or null.
  */
 function detectMetalFromTitle(title) {
   if (!title) return null;
+  const t = title.toLowerCase();
+  const hasGold   = /\bgold\b/.test(t);
+  const hasSilver = /\bsilver\b/.test(t);
+
+  // When both gold and silver appear, determine the primary metal
+  if (hasGold && hasSilver) {
+    // Check which metal is adjacent to weight/oz tokens (primary bullion indicator)
+    const weightGold   = /\b(?:\d[\d./]*\s*(?:troy\s*)?oz)\s+gold\b|\bgold\s+(?:\d[\d./]*\s*(?:troy\s*)?oz)\b/.test(t);
+    const weightSilver = /\b(?:\d[\d./]*\s*(?:troy\s*)?oz)\s+silver\b|\bsilver\s+(?:\d[\d./]*\s*(?:troy\s*)?oz)\b/.test(t);
+    if (weightSilver && !weightGold) return 'silver';
+    if (weightGold && !weightSilver) return 'gold';
+
+    // Check for decorative gold patterns (gilded, plated, finish, etc.)
+    if (DECORATIVE_GOLD_RE.test(title)) return 'silver';
+
+    // Multi-metal / bi-metal decorative editions are typically silver base
+    if (MULTI_METAL_RE.test(t)) return 'silver';
+
+    // "X & Gold" / "Gold &" with other plating metals = decorative gold on silver
+    if (/\b(?:ruthenium|rhodium|black)\b/i.test(t)) return 'silver';
+
+    // ".999 silver" / ".999 fine silver" = silver coin with decorative gold
+    if (/\.999\d*\s*(?:fine\s+)?silver\b/.test(t)) return 'silver';
+
+    // "fine silver" without weight-adjacent gold = silver base
+    if (/\bfine\s+silver\b/.test(t)) return 'silver';
+
+    // If no weight context or decorative clues, fall through to first-match
+  }
+
   for (const { metal, re } of METAL_PATTERNS) {
     if (re.test(title)) return metal;
   }
@@ -837,12 +875,14 @@ function applyFilters(comps, options, expected) {
     return true;
   });
 
-  // Metal-mismatch filter: drop comps whose detected metal contradicts expected
+  // Metal-mismatch filter: drop comps whose detected metal contradicts expected.
+  // #178: Re-detect metal from title to handle stale _detectedMetal values
+  // from comps imported before the mixed-metal disambiguation fix.
   if (expected.metal) {
     const wantMetal = expected.metal.toLowerCase();
     removed.metalMismatch = 0;
     kept = kept.filter(c => {
-      const compMetal = c._detectedMetal;
+      const compMetal = detectMetalFromTitle(c.title) ?? c._detectedMetal;
       // If comp has no detected metal, keep it (benefit of the doubt)
       if (!compMetal) return true;
       if (compMetal !== wantMetal) { removed.metalMismatch++; return false; }
@@ -1370,7 +1410,11 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
 
         const dedupedUS = dedup(rawUS);
         const scoredUS = dedupedUS.map(c => scoreMatch(c, expected));
+        // #168: API-fetched comps are keyword-searched (inherently multi-year),
+        // similar to generic Terapeak datasets. Relax year filter for bullion.
+        if (expected.weight) expected._fromGenericDataset = true;
         const filterUS = applyFilters(scoredUS, opts, expected);
+        delete expected._fromGenericDataset;
 
         // Merge with any Insights comps
         const mergedUS = usResult ? dedup([...usResult.comps, ...filterUS.kept]) : filterUS.kept;
@@ -1410,7 +1454,9 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
 
             const dedupedRetry = dedup(rawRetry);
             const scoredRetry = dedupedRetry.map(c => scoreMatch(c, expected));
+            if (expected.weight) expected._fromGenericDataset = true;
             const filterRetry = applyFilters(scoredRetry, opts, expected);
+            delete expected._fromGenericDataset;
             const mergedRetry = usResult ? dedup([...usResult.comps, ...filterRetry.kept]) : filterRetry.kept;
             const mergedPrices = mergedRetry.map(c => c.totalUsd);
             usResult = { stats: stats.summarize(mergedPrices), comps: mergedRetry, removed: filterRetry.removed, error: null };
@@ -1488,7 +1534,9 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
       const browseComps = await browseSearch(keywords, PER_PAGE * opts.maxPages, expected._brandFilter || null);
       const dedupedBrowse = dedup(browseComps);
       const scoredBrowse = dedupedBrowse.map(c => scoreMatch(c, expected));
+      if (expected.weight) expected._fromGenericDataset = true;
       const { kept, removed } = applyFilters(scoredBrowse, opts, expected);
+      delete expected._fromGenericDataset;
       const prices = kept.map(c => c.totalUsd);
       usedFallback = true;
 
@@ -1614,6 +1662,7 @@ module.exports = {
   dedup,
   clearCache,
   detectWeightFromTitle,
+  detectMetalFromTitle,
   applyFilters,
   classifyGradeType
 };

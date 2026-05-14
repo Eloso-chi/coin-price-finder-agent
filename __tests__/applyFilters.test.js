@@ -7,7 +7,7 @@
 
 'use strict';
 
-const { applyFilters, scoreMatch, detectWeightFromTitle, classifyGradeType } = require('../src/services/ebayService');
+const { applyFilters, scoreMatch, detectWeightFromTitle, classifyGradeType, detectMetalFromTitle } = require('../src/services/ebayService');
 
 // ── Helper: build a synthetic comp ──────────────────────────
 function makeComp(overrides = {}) {
@@ -535,5 +535,145 @@ describe('classifyGradeType()', () => {
 
   test('plain BU title → raw', () => {
     expect(classifyGradeType({ title: '1964 Kennedy Half Dollar BU' })).toBe('raw');
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  detectMetalFromTitle — mixed-metal disambiguation (#178)
+// ═══════════════════════════════════════════════════════════════
+
+describe('detectMetalFromTitle — mixed-metal disambiguation', () => {
+  test('silver coin with "24k Gold Gilded" returns silver', () => {
+    expect(detectMetalFromTitle('2024 Mexico Libertad Aztec Jaguar 24k Gold Gilded 1 oz Silver Art Coin')).toBe('silver');
+  });
+
+  test('silver coin with "Gold-Finish" returns silver', () => {
+    expect(detectMetalFromTitle('2024 Colorized Mexico Libertad 24kt Gold-Finish BU 999 1 oz Silver Coin')).toBe('silver');
+  });
+
+  test('silver coin with "Gold Diamond Dust" returns silver', () => {
+    expect(detectMetalFromTitle('2024 1 Oz Silver Mexico Libertad Sun & Moon: Yin Yang 24k Gold Diamond Dust Coin')).toBe('silver');
+  });
+
+  test('silver coin with "Gold & Platinum Edition" returns silver', () => {
+    expect(detectMetalFromTitle('2024 Mexico Libertad Holo Diamond Dust Gold & Platinum Edition 1 oz Silver Coin')).toBe('silver');
+  });
+
+  test('silver coin with ".999 silver" and decorative gold returns silver', () => {
+    expect(detectMetalFromTitle('2024 Mexico Libertad Black Platinum & Gold and Silver 1 oz .999 Fine')).toBe('silver');
+  });
+
+  test('silver coin with gold color returns silver', () => {
+    expect(detectMetalFromTitle('2024 Libertad Aztec Eagle Warrior 24k Gold Color Silver Coin')).toBe('silver');
+  });
+
+  test('genuine gold coin returns gold', () => {
+    expect(detectMetalFromTitle('2024 1 oz Mexico Libertad .999 Fine Gold 1 Onza Coin BU')).toBe('gold');
+  });
+
+  test('genuine silver coin returns silver', () => {
+    expect(detectMetalFromTitle('2024 Mexico 1 oz Silver Libertad BU')).toBe('silver');
+  });
+
+  test('genuine platinum coin returns platinum', () => {
+    expect(detectMetalFromTitle('2024 American Platinum Eagle 1 oz')).toBe('platinum');
+  });
+
+  test('gold-only title (no silver) returns gold', () => {
+    expect(detectMetalFromTitle('2024 1/10 oz Gold Libertad Onza')).toBe('gold');
+  });
+
+  test('silver-only title (no gold) returns silver', () => {
+    expect(detectMetalFromTitle('2024 Silver Eagle 1 oz BU')).toBe('silver');
+  });
+
+  test('no metal words returns null', () => {
+    expect(detectMetalFromTitle('1964 Kennedy Half Dollar BU')).toBeNull();
+  });
+
+  test('null/empty returns null', () => {
+    expect(detectMetalFromTitle(null)).toBeNull();
+    expect(detectMetalFromTitle('')).toBeNull();
+  });
+
+  test('weight-adjacent silver overrides earlier gold mention', () => {
+    // "Gold" appears first but "1 oz Silver" is the weight-adjacent metal
+    expect(detectMetalFromTitle('Gold Plated 2024 Mexico 1 oz Silver Libertad')).toBe('silver');
+  });
+
+  test('weight-adjacent gold overrides earlier silver mention', () => {
+    // "Silver" appears first but "1 oz Gold" is the weight-adjacent metal
+    expect(detectMetalFromTitle('Silver Toned 2024 Mexico 1 oz Gold Libertad')).toBe('gold');
+  });
+
+  test('multi-metal decorative edition returns silver', () => {
+    expect(detectMetalFromTitle('2024 Mexico 1-oz Silver Libertad Multi-Metal Gold & Black Ruthenium BU')).toBe('silver');
+  });
+
+  test('black platinum & gold decorative returns silver', () => {
+    expect(detectMetalFromTitle('2024 Mexico 1 Ounce Silver Libertad Black Platinum & Gold - OGP COA')).toBe('silver');
+  });
+
+  test('fine silver with gold decoration returns silver', () => {
+    expect(detectMetalFromTitle('Black Platinum & Gold and Silver Libertad 2024 1 oz Fine Silver Coin Mexico')).toBe('silver');
+  });
+
+  test('rhodium + gold decorative returns silver', () => {
+    expect(detectMetalFromTitle('Yellow Gold and White Rhodium Libertad 2024 1 oz Fine Silver Coin')).toBe('silver');
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  yearMismatch — generic dataset skip logic (#165, #168)
+// ═══════════════════════════════════════════════════════════════
+
+describe('applyFilters — yearMismatch', () => {
+  test('strict year filter on year-specific datasets for bullion (tolerance=0)', () => {
+    const comps = [
+      makeComp({ title: '2024 Silver Eagle 1 oz BU', matchScore: 70 }),
+      makeComp({ title: '2023 Silver Eagle 1 oz BU', matchScore: 70 }),
+      makeComp({ title: '2021 Silver Eagle 1 oz BU', matchScore: 70 }),
+    ];
+    // Not a generic dataset (no _fromGenericDataset flag)
+    const { kept, removed } = applyFilters(comps, {}, { year: 2024, weight: 1 });
+    expect(kept.length).toBe(1); // only 2024
+    expect(removed.yearMismatch).toBe(2);
+  });
+
+  test('skips year filter on generic datasets for bullion (#165)', () => {
+    const comps = [
+      makeComp({ title: '2024 Silver Eagle 1 oz BU', matchScore: 70 }),
+      makeComp({ title: '2023 Silver Eagle 1 oz BU', matchScore: 70 }),
+      makeComp({ title: '2021 Silver Eagle 1 oz BU', matchScore: 70 }),
+    ];
+    const { kept, removed } = applyFilters(comps, {}, {
+      year: 2024, weight: 1, _fromGenericDataset: true,
+    });
+    expect(kept.length).toBe(3); // all kept -- year filter skipped
+    expect(removed.yearMismatch).toBeUndefined();
+  });
+
+  test('non-bullion generic dataset uses wider tolerance (+-3 years)', () => {
+    const comps = [
+      makeComp({ title: '2024 Kennedy Half Dollar', matchScore: 70 }),
+      makeComp({ title: '2021 Kennedy Half Dollar', matchScore: 70 }),  // within 3
+      makeComp({ title: '2019 Kennedy Half Dollar', matchScore: 70 }),  // outside 3
+    ];
+    const { kept, removed } = applyFilters(comps, {}, {
+      year: 2024, _fromGenericDataset: true,  // no weight = not bullion
+    });
+    expect(kept.length).toBe(2);
+    expect(removed.yearMismatch).toBe(1);
+  });
+
+  test('numismatic year-specific dataset uses tolerance +-1', () => {
+    const comps = [
+      makeComp({ title: '1921 Morgan Silver Dollar', matchScore: 70 }),
+      makeComp({ title: '1922 Peace Dollar', matchScore: 70 }),       // within 1
+      makeComp({ title: '1918 Morgan Silver Dollar', matchScore: 70 }), // outside 1
+    ];
+    const { kept, removed } = applyFilters(comps, {}, { year: 1921 });
+    expect(kept.length).toBe(2);
+    expect(removed.yearMismatch).toBe(1);
   });
 });
