@@ -190,7 +190,7 @@ for (const [key, entry] of Object.entries(meta)) {
   // Fallback: derive bullion tag from classifyComposition if no stored identifier
   const isBullion = storedIds
     ? storedIds.is_bullion
-    : (composition === 'bullion' || composition === 'bar');
+    : (composition === 'bullion' || composition === 'bar' || composition.startsWith('bullion-fractional'));
   const isLowVolumeCandidate = storedIds
     ? storedIds.is_low_volume_candidate
     : (compCount > 0 && compCount < LOW_SIGNAL_THRESHOLD);
@@ -293,12 +293,12 @@ console.log(`  Missing data:      ${missing}`);
 console.log(`  Low comps (<${LOW_COMP_THRESHOLD}):  ${lowComps}`);
 console.log('');
 console.log('  By composition:');
-const compOrder = ['bullion', 'silver-numismatic', 'gold-numismatic', 'base-metal', 'set', 'bar', 'junk-silver', 'unknown'];
+const compOrder = ['bullion', 'bullion-fractional-gold', 'bullion-fractional-silver', 'silver-numismatic', 'gold-numismatic', 'base-metal', 'set', 'bar', 'junk-silver', 'unknown'];
 for (const comp of compOrder) {
   const cs = compositionSummary[comp];
   if (!cs) continue;
   const pct = Math.round((cs.fresh / cs.total) * 100);
-  console.log(`    ${comp.padEnd(20)} ${String(cs.total).padStart(5)} total  ${String(cs.fresh).padStart(5)} fresh (${pct}%)  ${String(cs.lowSignal || 0).padStart(5)} low-sig  ${String(cs.stale15d + cs.stale30d).padStart(5)} stale  ${String(cs.lowComps).padStart(5)} low-comps`);
+  console.log(`    ${comp.padEnd(26)} ${String(cs.total).padStart(5)} total  ${String(cs.fresh).padStart(5)} fresh (${pct}%)  ${String(cs.lowSignal || 0).padStart(5)} low-sig  ${String(cs.stale15d + cs.stale30d).padStart(5)} stale  ${String(cs.lowComps).padStart(5)} low-comps`);
 }
 console.log('');
 
@@ -307,7 +307,7 @@ const stalestWithData = datasets.filter(d => d.freshnessStatus === 'Stale' && d.
 if (stalestWithData.length > 0) {
   console.log(`  Top 10 stalest (with data):`);
   for (const d of stalestWithData.slice(0, 10)) {
-    console.log(`    ${String(d.staleDays).padStart(3)}d  ${String(d.compCount).padStart(4)} comps  ${d.composition.padEnd(20)} ${d.key}`);
+    console.log(`    ${String(d.staleDays).padStart(3)}d  ${String(d.compCount).padStart(4)} comps  ${d.composition.padEnd(26)} ${d.key}`);
   }
   if (stalestWithData.length > 10) {
     console.log(`    ... and ${stalestWithData.length - 10} more`);
@@ -329,7 +329,7 @@ if (lowSignalItems.length > 0) {
   }
   for (const d of lowSignalItems.slice(0, 5)) {
     const bull = d.identifiers.is_bullion ? ' [BULLION]' : '';
-    console.log(`    ${String(d.compCount).padStart(4)} comps  ${d.composition.padEnd(20)} ${d.key}${bull}`);
+    console.log(`    ${String(d.compCount).padStart(4)} comps  ${d.composition.padEnd(26)} ${d.key}${bull}`);
   }
   if (lowSignalItems.length > 5) {
     console.log(`    ... and ${lowSignalItems.length - 5} more`);

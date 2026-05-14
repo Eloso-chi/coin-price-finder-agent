@@ -108,11 +108,34 @@ const SET_PATTERNS = ['proof set', 'mint set', 'prestige set'];
 /** Junk silver patterns */
 const JUNK_SILVER_PATTERNS = ['junk silver'];
 
+/** Fractional-weight tokens used in normalized dataset keys */
+const FRACTIONAL_WEIGHT_RE = /\b(?:half|quarter|tenth|twentieth)\s*oz\b/;
+
+/**
+ * Detect metal from a bullion key using explicit keywords or series inference.
+ * @param {string} k - lowercased key
+ * @returns {'gold'|'silver'|'platinum'|'palladium'|null}
+ */
+function detectMetalFromKey(k) {
+  if (METAL_RE.gold.test(k))      return 'gold';
+  if (METAL_RE.silver.test(k))    return 'silver';
+  if (METAL_RE.platinum.test(k))  return 'platinum';
+  if (METAL_RE.palladium.test(k)) return 'palladium';
+  // Infer from series name when metal keyword is absent
+  if (/gold eagle|gold buffalo|krugerrand/i.test(k)) return 'gold';
+  if (/platinum eagle/i.test(k))  return 'platinum';
+  if (/palladium eagle/i.test(k)) return 'palladium';
+  // Most remaining bullion (eagles, maples, etc.) default to silver
+  return 'silver';
+}
+
 /**
  * Classify a dataset key into a composition category.
+ * Bullion keys with fractional weights (half, quarter, tenth, twentieth oz)
+ * are split into bullion-fractional-gold or bullion-fractional-silver.
  *
  * @param {string} key - normalized dataset key (lowercase)
- * @returns {'bullion'|'bar'|'silver-numismatic'|'gold-numismatic'|'base-metal'|'set'|'junk-silver'|'unknown'}
+ * @returns {'bullion'|'bullion-fractional-gold'|'bullion-fractional-silver'|'bar'|'silver-numismatic'|'gold-numismatic'|'base-metal'|'set'|'junk-silver'|'unknown'}
  */
 function classifyComposition(key) {
   if (!key) return 'unknown';
@@ -121,7 +144,13 @@ function classifyComposition(key) {
   if (JUNK_SILVER_PATTERNS.some(p => k.includes(p))) return 'junk-silver';
   if (BAR_ROUND_PATTERNS.some(p => k.includes(p))) return 'bar';
   if (SET_PATTERNS.some(p => k.includes(p))) return 'set';
-  if (BULLION_SERIES.some(s => k.includes(s))) return 'bullion';
+  if (BULLION_SERIES.some(s => k.includes(s))) {
+    if (FRACTIONAL_WEIGHT_RE.test(k)) {
+      const metal = detectMetalFromKey(k);
+      return metal === 'gold' ? 'bullion-fractional-gold' : 'bullion-fractional-silver';
+    }
+    return 'bullion';
+  }
   if (GOLD_US_COIN_SERIES.some(s => k.includes(s))) return 'gold-numismatic';
   // "indian head eagle" and "indian quarter eagle" are gold but won't match
   // GOLD_US_COIN_SERIES which has "indian head gold" -- catch them explicitly
