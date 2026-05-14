@@ -347,4 +347,8 @@ app.listen(PORT, '0.0.0.0', async () => {
     }, BLOB_REIMPORT_MS);
     console.log(`  Terapeak blob re-import: polling every ${BLOB_REIMPORT_MS / 60000} min`);
   }
+
+  // ── APR Prefetch Scheduler (nightly, burns remaining PCGS quota) ──
+  const prefetchScheduler = require('./src/services/prefetchScheduler');
+  prefetchScheduler.init();
 });
