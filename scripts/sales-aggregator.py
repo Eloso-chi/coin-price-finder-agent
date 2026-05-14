@@ -95,6 +95,8 @@ load_cookies = _mod.load_cookies
 is_logged_in = _mod.is_logged_in
 get_search_terms = _mod.get_search_terms
 upload_csv = _mod.upload_csv
+upload_csv_async = _mod.upload_csv_async
+drain_upload = _mod.drain_upload
 
 # Browser recycle interval
 BROWSER_RECYCLE_EVERY = 80
@@ -1098,25 +1100,18 @@ def do_page2_run(args):
             p2_csv_path, p2_row_count = result
 
             # Upload scraped pages directly to server (server deduplicates)
+            # Async upload: fire-and-forget so next coin's navigation starts
+            # immediately. Result is drained before the next upload.
             now = datetime.now().isoformat()
             deep_meta = {
                 "deepAt": now,
                 "maxPageReached": effective_max_pages,
             }
-            ok, msg = upload_csv(p2_csv_path, term, aggregation_meta=deep_meta)
-            if ok:
-                print(f"OK (+{p2_row_count} scraped, upload: {msg})")
-            else:
-                print(f"OK (+{p2_row_count} scraped, upload failed: {msg})")
+            upload_csv_async(p2_csv_path, term, aggregation_meta=deep_meta, cleanup=True)
+            print(f"OK (+{p2_row_count} scraped, uploading...)")
 
             success += 1
             total_new_rows += p2_row_count
-
-            # Clean up temp file
-            try:
-                p2_csv_path.unlink()
-            except Exception:
-                pass
 
         except PlaywrightTimeout:
             print("TIMEOUT")
@@ -1162,6 +1157,7 @@ def do_page2_run(args):
                 break
 
     # Cleanup
+    drain_upload()  # wait for last async upload to finish
     try:
         save_cookies(context)
         browser.close()
