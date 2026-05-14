@@ -92,11 +92,14 @@ async function _priceOne(item) {
       gradeNum = null;
     }
 
-    // Spot price for bullion -- fetch before eBay so meltPerOz is available for comp filtering
+    // Spot price for metal-based coins -- fetch before eBay so meltPerOz is
+    // available for comp filtering.  Gate on metalKey + weight (not isBullion)
+    // to match priceRoute parity: any coin with a detected metal and weight
+    // gets a spot price, even if isBullion detection fails (#184).
     let meltPerOz = null;
     let spotStale = false;
     let spotAsOf = null;
-    if (isBullion && metalKey && weight) {
+    if (metalKey && weight) {
       const sym = METAL_SYM[metalKey];
       if (sym) {
         try {
