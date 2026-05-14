@@ -4,6 +4,17 @@
 const axios = require('axios');
 jest.mock('axios');
 
+// Mock pcgsQuotaService to avoid file I/O in tests
+jest.mock('../src/services/pcgsQuotaService', () => ({
+  syncFromHeaders: jest.fn(),
+  recordCall: jest.fn().mockReturnValue({ remaining: 999, used: 1 }),
+  tripBreaker: jest.fn(),
+  isBreakerTripped: jest.fn().mockReturnValue(false),
+  getStatus: jest.fn().mockReturnValue({ used: 0, remaining: 1000, limit: 1000 }),
+  getAvailableForPrefetch: jest.fn().mockReturnValue(900),
+  DAILY_LIMIT: 1000
+}));
+
 // Ensure PCGS_API_KEY is set so we exercise the API paths (not the "no key" early return)
 process.env.PCGS_API_KEY = 'test-key-123';
 
@@ -38,7 +49,7 @@ beforeEach(() => {
 
 describe('lookupByCert', () => {
   test('returns verified coin for valid cert number', async () => {
-    axios.get.mockResolvedValueOnce({ data: MOCK_COIN_RESPONSE });
+    axios.get.mockResolvedValueOnce({ data: MOCK_COIN_RESPONSE, headers: {} });
     const result = await pcgsService.lookupByCert('12345678');
 
     expect(result.verified).toBe(true);
@@ -56,7 +67,7 @@ describe('lookupByCert', () => {
   });
 
   test('returns cached result on second call', async () => {
-    axios.get.mockResolvedValueOnce({ data: MOCK_COIN_RESPONSE });
+    axios.get.mockResolvedValueOnce({ data: MOCK_COIN_RESPONSE, headers: {} });
     await pcgsService.lookupByCert('12345678');
     const result2 = await pcgsService.lookupByCert('12345678');
 
@@ -72,13 +83,24 @@ describe('lookupByCert', () => {
     expect(result.limitations[0]).toMatch(/PCGS cert lookup failed/);
   });
 
-  test('retries on 429 and 5xx errors', async () => {
-    jest.useFakeTimers();
+  test('trips breaker on 429 (no retry)', async () => {
     const err429 = new Error('Too Many Requests');
     err429.response = { status: 429 };
+    axios.get.mockRejectedValueOnce(err429);
+
+    const result = await pcgsService.lookupByCert('11111111');
+    expect(result.verified).toBe(false);
+    expect(result.limitations[0]).toMatch(/PCGS cert lookup failed/);
+    expect(axios.get).toHaveBeenCalledTimes(1); // no retry on 429
+  });
+
+  test('retries on 5xx errors', async () => {
+    jest.useFakeTimers();
+    const err500 = new Error('Internal Server Error');
+    err500.response = { status: 500 };
     axios.get
-      .mockRejectedValueOnce(err429)
-      .mockResolvedValueOnce({ data: MOCK_COIN_RESPONSE });
+      .mockRejectedValueOnce(err500)
+      .mockResolvedValueOnce({ data: MOCK_COIN_RESPONSE, headers: {} });
 
     const promise = pcgsService.lookupByCert('11111111');
     await jest.advanceTimersByTimeAsync(2000);
@@ -89,7 +111,7 @@ describe('lookupByCert', () => {
   });
 
   test('passes correct URL and auth headers', async () => {
-    axios.get.mockResolvedValueOnce({ data: MOCK_COIN_RESPONSE });
+    axios.get.mockResolvedValueOnce({ data: MOCK_COIN_RESPONSE, headers: {} });
     await pcgsService.lookupByCert('12345678');
 
     expect(axios.get).toHaveBeenCalledWith(
@@ -105,7 +127,7 @@ describe('lookupByCert', () => {
 
 describe('lookupByCoinNumberAndGrade', () => {
   test('returns verified coin for valid PCGS number + grade', async () => {
-    axios.get.mockResolvedValueOnce({ data: MOCK_COIN_RESPONSE });
+    axios.get.mockResolvedValueOnce({ data: MOCK_COIN_RESPONSE, headers: {} });
     const result = await pcgsService.lookupByCoinNumberAndGrade(7126, 64);
 
     expect(result.verified).toBe(true);
@@ -113,7 +135,7 @@ describe('lookupByCoinNumberAndGrade', () => {
   });
 
   test('passes correct URL with PCGSNo and GradeNo', async () => {
-    axios.get.mockResolvedValueOnce({ data: MOCK_COIN_RESPONSE });
+    axios.get.mockResolvedValueOnce({ data: MOCK_COIN_RESPONSE, headers: {} });
     await pcgsService.lookupByCoinNumberAndGrade(7126, 64);
 
     expect(axios.get).toHaveBeenCalledWith(
@@ -133,7 +155,7 @@ describe('lookupByCoinNumberAndGrade', () => {
 
 describe('resolveFromDescription', () => {
   test('returns parsed data when cert number is detected and API succeeds', async () => {
-    axios.get.mockResolvedValueOnce({ data: MOCK_COIN_RESPONSE });
+    axios.get.mockResolvedValueOnce({ data: MOCK_COIN_RESPONSE, headers: {} });
     const result = await pcgsService.resolveFromDescription('12345678');
 
     expect(result.verified).toBe(true);
@@ -142,7 +164,7 @@ describe('resolveFromDescription', () => {
 
   test('falls through to search endpoint for free-text queries', async () => {
     // First call: search endpoint
-    axios.get.mockResolvedValueOnce({ data: MOCK_COIN_RESPONSE });
+    axios.get.mockResolvedValueOnce({ data: MOCK_COIN_RESPONSE, headers: {} });
 
     const result = await pcgsService.resolveFromDescription('1881-CC Morgan Dollar MS-64');
     expect(result.verified).toBe(true);
@@ -155,8 +177,8 @@ describe('resolveFromDescription', () => {
   test('rejects search result with year mismatch', async () => {
     const wrongYear = { ...MOCK_COIN_RESPONSE, Year: 1900 };
     axios.get
-      .mockResolvedValueOnce({ data: wrongYear }) // search returns wrong year
-      .mockResolvedValueOnce({ data: MOCK_COIN_RESPONSE }); // table lookup succeeds
+      .mockResolvedValueOnce({ data: wrongYear, headers: {} }) // search returns wrong year
+      .mockResolvedValueOnce({ data: MOCK_COIN_RESPONSE, headers: {} }); // table lookup succeeds
 
     const result = await pcgsService.resolveFromDescription('1881-CC Morgan Dollar MS-64');
     // Should still produce a result (falls through to table lookup)
@@ -165,7 +187,7 @@ describe('resolveFromDescription', () => {
 
   test('rejects search result with series mismatch (Jefferson vs Buffalo)', async () => {
     const wrongSeries = { ...MOCK_COIN_RESPONSE, SeriesName: 'Buffalo Nickels 1913-1938', Year: 1960 };
-    axios.get.mockResolvedValueOnce({ data: wrongSeries });
+    axios.get.mockResolvedValueOnce({ data: wrongSeries, headers: {} });
 
     const result = await pcgsService.resolveFromDescription('1960 Jefferson Nickel');
     // Should NOT trust the Buffalo result for a Jefferson query
@@ -185,7 +207,7 @@ describe('resolveFromDescription', () => {
 
 describe('_mapResponse internals (via lookupByCert)', () => {
   test('handles empty/null PCGS response', async () => {
-    axios.get.mockResolvedValueOnce({ data: null });
+    axios.get.mockResolvedValueOnce({ data: null, headers: {} });
     const result = await pcgsService.lookupByCert('00000000');
     expect(result.verified).toBe(false);
     expect(result.limitations[0]).toMatch(/Empty PCGS response/);
@@ -199,7 +221,7 @@ describe('_mapResponse internals (via lookupByCert)', () => {
         { Fullsize: 'https://images.pcgs.com/rev.jpg' },
       ],
     };
-    axios.get.mockResolvedValueOnce({ data });
+    axios.get.mockResolvedValueOnce({ data, headers: {} });
     const result = await pcgsService.lookupByCert('22222222');
     expect(result.coinImages).toHaveLength(2);
   });
@@ -209,7 +231,7 @@ describe('_mapResponse internals (via lookupByCert)', () => {
       ...MOCK_COIN_RESPONSE,
       AuctionList: [{ Price: 100 }, { Price: 200 }, { Price: 150 }],
     };
-    axios.get.mockResolvedValueOnce({ data });
+    axios.get.mockResolvedValueOnce({ data, headers: {} });
     const result = await pcgsService.lookupByCert('33333333');
     expect(result.auction.count).toBe(3);
     expect(result.auction.medianUsd).toBe(150);
@@ -218,14 +240,14 @@ describe('_mapResponse internals (via lookupByCert)', () => {
 
   test('maps price guide value', async () => {
     const data = { ...MOCK_COIN_RESPONSE, PriceGuideValue: 1500 };
-    axios.get.mockResolvedValueOnce({ data });
+    axios.get.mockResolvedValueOnce({ data, headers: {} });
     const result = await pcgsService.lookupByCert('44444444');
     expect(result.priceGuide.valueUsd).toBe(1500);
   });
 
   test('handles zero price guide value as null', async () => {
     const data = { ...MOCK_COIN_RESPONSE, PriceGuideValue: 0 };
-    axios.get.mockResolvedValueOnce({ data });
+    axios.get.mockResolvedValueOnce({ data, headers: {} });
     const result = await pcgsService.lookupByCert('55555555');
     expect(result.priceGuide.valueUsd).toBeNull();
   });

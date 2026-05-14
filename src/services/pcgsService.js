@@ -4,6 +4,7 @@
 const axios = require('axios');
 const { TTLCache } = require('../utils/cache');
 const { lookupPCGSNumber } = require('../data/pcgsNumbers');
+const pcgsQuota = require('./pcgsQuotaService');
 
 const path = require('path');
 const fs = require('fs');
@@ -19,6 +20,10 @@ const cache = new TTLCache({ defaultTTL: 86_400_000, filePath: path.join(CACHE_D
 
 // ── HTTP helper with retry ──────────────────────────────────
 async function pcgsGet(urlPath, retries = 2) {
+  if (pcgsQuota.isBreakerTripped()) {
+    throw Object.assign(new Error('PCGS quota breaker tripped'), { breakerTripped: true });
+  }
+
   const url = `${PCGS_BASE}${urlPath}`;
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
@@ -29,10 +34,33 @@ async function pcgsGet(urlPath, retries = 2) {
         },
         timeout: TIMEOUT
       });
+
+      // Sync quota from response headers
+      const remaining = parseInt(resp.headers?.['x-ratelimit-remaining'], 10);
+      const limit = parseInt(resp.headers?.['x-ratelimit-limit'], 10);
+      if (!isNaN(remaining)) {
+        pcgsQuota.syncFromHeaders(remaining, isNaN(limit) ? undefined : limit);
+      }
+      pcgsQuota.recordCall('coinfacts');
+
       return resp.data;
     } catch (err) {
       const status = err.response?.status;
-      if (status === 429 || (status >= 500 && status < 600)) {
+
+      // Sync headers even on error responses
+      if (err.response?.headers) {
+        const remaining = parseInt(err.response.headers['x-ratelimit-remaining'], 10);
+        const limit = parseInt(err.response.headers['x-ratelimit-limit'], 10);
+        if (!isNaN(remaining)) {
+          pcgsQuota.syncFromHeaders(remaining, isNaN(limit) ? undefined : limit);
+        }
+      }
+
+      if (status === 429) {
+        pcgsQuota.tripBreaker();
+        throw err;
+      }
+      if (status >= 500 && status < 600) {
         if (attempt < retries) {
           await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
           continue;
