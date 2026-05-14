@@ -288,7 +288,7 @@ function computeIdentifiers() {
   for (const [normKey, ev] of evidence) {
     // -- Bullion detection: reuse classifyComposition from coinMetalProfile --
     const composition = classifyComposition(normKey);
-    const isBullion = composition === 'bullion' || composition === 'bar' || composition.startsWith('bullion-fractional');
+    const isBullion = composition === 'bullion' || composition === 'bar' || composition.startsWith('bullion-');
     const bullionSignalHits = isBullion ? 1 : 0;
 
     // -- Low-volume candidate detection --

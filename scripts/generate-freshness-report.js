@@ -190,7 +190,7 @@ for (const [key, entry] of Object.entries(meta)) {
   // Fallback: derive bullion tag from classifyComposition if no stored identifier
   const isBullion = storedIds
     ? storedIds.is_bullion
-    : (composition === 'bullion' || composition === 'bar' || composition.startsWith('bullion-fractional'));
+    : (composition === 'bullion' || composition === 'bar' || composition.startsWith('bullion-'));
   const isLowVolumeCandidate = storedIds
     ? storedIds.is_low_volume_candidate
     : (compCount > 0 && compCount < LOW_SIGNAL_THRESHOLD);
@@ -293,7 +293,7 @@ console.log(`  Missing data:      ${missing}`);
 console.log(`  Low comps (<${LOW_COMP_THRESHOLD}):  ${lowComps}`);
 console.log('');
 console.log('  By composition:');
-const compOrder = ['bullion', 'bullion-fractional-gold', 'bullion-fractional-silver', 'silver-numismatic', 'gold-numismatic', 'base-metal', 'set', 'bar', 'junk-silver', 'unknown'];
+const compOrder = ['bullion', 'bullion-proof', 'bullion-multioz', 'bullion-fractional-gold', 'bullion-fractional-silver', 'silver-numismatic', 'gold-numismatic', 'base-metal', 'set', 'bar', 'junk-silver', 'junk-silver-denom', 'unknown'];
 for (const comp of compOrder) {
   const cs = compositionSummary[comp];
   if (!cs) continue;
