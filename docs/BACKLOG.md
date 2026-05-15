@@ -150,49 +150,37 @@ Added gram-based weight parsing to `parseDescription()` in `pcgsService.js`. "30
 
 ---
 
-### #178. Gold Coins 95-99% Attrition in Mixed-Metal Datasets [MEDIUM]
+### ~~#178. Gold Coins 95-99% Attrition in Mixed-Metal Datasets [DONE]~~
 
-**Problem:** Gold coins stored in silver-dominated datasets (e.g., generic "Libertad") lose almost all comps to metal filters.
-
-**Fix:** Addressed by #171 (metal exclusion keywords + historical meltFloor). Long-term: gold-specific datasets (S5 above).
+Fixed by #171: `buildKeywords()` adds `-silver` for gold queries / `-gold` for silver queries. `meltFloor` uses `getSpotOnDate()` for historical spot pricing. Long-term: gold-specific datasets (S5).
 
 ---
 
-### #181. 2025 ASE Cross-Route FMV Delta (14.7%) [MEDIUM]
+### ~~#181. 2025 ASE Cross-Route FMV Delta [DONE]~~
 
-**Problem:** "2025 American Silver Eagle" shows $36.40 (Discovery) vs $41.76 (Batch). Likely from lookback window and recency weighting differences.
-
-**Fix:** Verify both routes use identical recency half-life settings. Consider date-weighted sampling.
+Resolved: recency half-life is centralized in `valuationService.js` (`halfLifeDays = isBullion ? 30 : 90`), not per-route. Both routes pass `isBullion` identically -- no configuration divergence possible.
 
 ---
 
-### #182. Proof Coin FMV Accuracy -- Slabbed Proof Classification Fix [HIGH]
+### ~~#182. Proof Coin FMV Accuracy -- Slabbed Proof Classification Fix [DONE]~~
 
-**Problem:** `classifyGradeType()` returns `'graded'` for all `conditionId=2000` comps, including slabbed proofs (e.g., PCGS PR69 DCAM). Slabbed proofs land in the graded pool with BU slabs, depleting the proof pool and mixing unlike comps.
-
-**Fix:** When `conditionId=2000`, also check title for proof regex. Slabbed proofs classified as `'proof'` instead of `'graded'`.
+`classifyGradeType()` now checks `PROOF_RE.test(title)` when `conditionId=2000`, returning `'proof'` before `'graded'`. Slabbed proofs correctly land in proof pool.
 
 **Files:** `ebayService.js` (`classifyGradeType`)
 
 ---
 
-### #183. Designation-Aware Comp Scoring (DCAM/CAM) [HIGH]
+### ~~#183. Designation-Aware Comp Scoring (DCAM/CAM) [DONE]~~
 
-**Problem:** DCAM vs CAM vs no-designation comps are mixed in the same pool. DCAM coins are worth 10-40%+ more than CAM on modern proofs. Designation is parsed and injected into eBay keywords but NOT used in scoring or filtering.
-
-**Fix:** Add +10 match score for designation match, -15 for designation mismatch on proof coins. Soft scoring (not a hard filter) to avoid thin-pool problems.
+`scoreMatch()` now applies `+10` for designation match and `-15` for mismatch, gated on `expected.designation && userWantsProof`. Soft scoring preserves thin pools.
 
 **Files:** `ebayService.js` (`scoreMatch`)
 
 ---
 
-### #184. Block Proof-to-BU Fallback in Pool Selection [HIGH]
+### ~~#184. Block Proof-to-BU Fallback in Pool Selection [DONE]~~
 
-**Problem:** When <3 proof comps exist, valuation falls back to ALL comps (including BU). BU and proof are fundamentally different products; mixing produces a wrong FMV, not an approximate one.
-
-**Fix:** For proof queries: use proof pool regardless of count. 1-2 comps = flag `lowData` + reduce confidence. 0 comps = null FMV with explanation. Never mix BU comps into proof FMV.
-
-**Depends on:** #182 (ensures slabbed proofs land in proof pool first)
+When `wantsProof=true`, proof pool is used unconditionally (no count threshold). 1-2 comps flags `lowData` + reduced confidence. Never mixes BU comps into proof FMV.
 
 **Files:** `valuationService.js` (`computeValuation` pool selection)
 
@@ -323,6 +311,11 @@ Added `npm audit --audit-level=high` step to CI (xlsx excluded -- unmaintained, 
 | 111 | Admin Portal | `public/admin.html` + `/api/admin/*` endpoints |
 | 112 | Staleness Tracker Endpoint | `GET /api/admin/stale-datasets` |
 | 113 | One-Click Refresh Script | `scripts/refresh-stale.sh` |
+| 178 | Gold coins attrition (metal exclusion + historical meltFloor) | May 2026 -- `buildKeywords` + `getSpotOnDate()` |
+| 181 | Cross-route FMV delta (centralized half-life) | May 2026 -- `valuationService.js` |
+| 182 | Slabbed proof classification fix | May 2026 -- `classifyGradeType()` proof check |
+| 183 | DCAM/CAM designation scoring | May 2026 -- `scoreMatch()` +10/-15 |
+| 184 | Block proof-to-BU fallback | May 2026 -- proof pool unconditional |
 | 21 | Batch pricing in My Coins | `my-coins.js` `_fetchPricing` (chunks of 25) |
 | 22 | Event delegation | `my-coins.js` `_setupDelegation()` |
 | 23 | Client-side spot cache | `my-coins.js` 5-min `SPOT_CACHE_TTL` |
