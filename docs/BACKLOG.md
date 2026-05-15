@@ -175,9 +175,9 @@ Resolved: recency half-life is centralized in `valuationService.js` (`halfLifeDa
 
 ### ~~#182. Proof Coin FMV Accuracy -- Slabbed Proof Classification Fix [DONE]~~
 
-`classifyGradeType()` now checks `PROOF_RE.test(title)` when `conditionId=2000`, returning `'proof'` before `'graded'`. Slabbed proofs correctly land in proof pool.
+Fixed: `classifyGradeType()` now checks `PROOF_RE` when `conditionId=2000` (or `_certificationAspect` set). Slabbed proofs (e.g., PCGS PR69 DCAM) classified as `'proof'` instead of `'graded'`. Same logic applied in `terapeakService.classifyGradeType()`. 20 tests in `classifyGradeType.test.js`.
 
-**Files:** `ebayService.js` (`classifyGradeType`)
+**Files:** `ebayService.js`, `terapeakService.js`, `__tests__/classifyGradeType.test.js`
 
 ---
 
@@ -191,9 +191,9 @@ Resolved: recency half-life is centralized in `valuationService.js` (`halfLifeDa
 
 ### ~~#184. Block Proof-to-BU Fallback in Pool Selection [DONE]~~
 
-When `wantsProof=true`, proof pool is used unconditionally (no count threshold). 1-2 comps flags `lowData` + reduced confidence. Never mixes BU comps into proof FMV.
+Fixed: Proof pool used regardless of comp count. 0 comps = null FMV with explanation. 1-2 comps = lowData flag. BU comps never mixed in. Proof intent detected from `opts.isProof` or userGrade prefix (PR/PF/Proof). 7 tests in `computeValuation.test.js`.
 
-**Files:** `valuationService.js` (`computeValuation` pool selection)
+**Files:** `valuationService.js`, `__tests__/computeValuation.test.js`
 
 ---
 

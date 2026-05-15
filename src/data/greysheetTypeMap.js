@@ -48,6 +48,7 @@ const TYPE_GSID_MAP = {
   'maple leaf|0.1|gold':         373793,  // Gold Maple Leaf G$5 One-Tenth Ounce MS [Type]
   'maple leaf|1|platinum':       320561,  // Platinum Maple Leaf P$50 One Ounce MS [Type]
   // Note: Canadian Gold Maple Leaf 1/20 oz and Silver Polar Bear have no Greysheet Type entries.
+  // Note: No Gold Maple Leaf Proof Type entry exists in Greysheet (verified 2025-01-27).
 
   // ── Australia ──────────────────────────────────────────────
   'kookaburra|1':                393577,  // Kookaburra S$1 1oz Silver MS [Type]
@@ -57,11 +58,13 @@ const TYPE_GSID_MAP = {
   'lunar|0.5|silver|proof':      395571,  // Lunar 1/2 oz Silver PR DCAM [Type]
   'lunar|1|gold':                393627,  // Lunar G$100 Gold, 1996- MS [Type]
   // Note: AU Gold Kangaroo weights, Gold Lunar 1/10 and 1/20 have no separate Type entries.
+  // Note: No Kookaburra or Kangaroo Proof Type entries exist in Greysheet (verified 2025-01-27).
 
   // ── Austria ────────────────────────────────────────────────
   'philharmonic|1|silver': 374302,  // Vienna Philharmonic Silver 1 Ounce MS [Type]
-  'philharmonic|1|gold':   395557,  // Vienna Philharmonic Gold 1 Ounce MS [Type]
+  'philharmonic|1|gold':   398019,  // Vienna Philharmonic Gold Euro €100 1 Ounce, 2002- MS [Type]
   // Note: Gold Phil fractional (1/10, 1/4, 1/2) only have Schilling-era entries, no Euro-era Type.
+  // Note: No proof Type entries exist for Philharmonic in the Greysheet catalog (verified 2025-01-27).
 
   // ── South Africa ───────────────────────────────────────────
   'krugerrand|1|gold':     373711,  // Gold KR 1 Ounce MS [Type]
@@ -69,7 +72,7 @@ const TYPE_GSID_MAP = {
   'krugerrand|0.5|gold':   395941,  // Gold KR 1/2 Ounce MS [Type]
   'krugerrand|0.25|gold':  395932,  // Gold KR 1/4 Ounce MS [Type]
   'krugerrand|0.1|gold':   396050,  // Gold KR 1/10 Ounce MS [Type]
-  // Note: Gold KR proof (all weights) and Silver KR MS have no Type entries.
+  // Note: Gold KR proof (all weights), Silver KR MS, and Gold KR 1/20 oz have no Type entries (verified 2025-01-27).
 
   // ── China ──────────────────────────────────────────────────
   'panda|1|gold':                395439,  // Panda Gold G100Y 1982-2016 1oz MS [Type]
