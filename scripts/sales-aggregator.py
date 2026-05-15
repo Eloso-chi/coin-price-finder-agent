@@ -150,6 +150,12 @@ def is_low_volume(dataset):
     ids = dataset.get("identifiers") or {}
     return ids.get("is_low_volume_candidate", False)
 
+_BARBER_NONHALF_RE = re.compile(r'\bbarber\b(?!.*\bhalf\b)', re.IGNORECASE)
+
+def is_barber_nonhalf_term(search_term):
+    """Return True if the search term is a Barber quarter/dime/dollar (not half)."""
+    return bool(_BARBER_NONHALF_RE.search(search_term))
+
 
 def get_completed_terms_from_log(log_path):
     """Parse a page2 log file and return a set of search terms already processed (OK or NO PAGE 2)."""
@@ -1313,7 +1319,7 @@ def headless_dashboard(args):
         categories["deep"] = [d for d in categories["deep"]
                               if not re.search(r'\bgold\b', d.get("searchTerm", ""), re.IGNORECASE)]
 
-    # Split stale into sub-categories (S6 + S7)
+    # Split stale into sub-categories (S6 + S7 + S8)
     stale_all = categories["stale"]
     categories["stale_gold_bullion"] = [d for d in stale_all
                                          if is_gold_term(d.get("searchTerm", ""))
@@ -1322,11 +1328,14 @@ def headless_dashboard(args):
                                       if is_bar_term(d.get("searchTerm", ""))
                                       and is_gold_term(d.get("searchTerm", ""))]
     categories["stale_low_volume"] = [d for d in stale_all if is_low_volume(d)]
-    gold_bar_low_keys = set()
-    for d in categories["stale_gold_bullion"] + categories["stale_gold_bars"] + categories["stale_low_volume"]:
-        gold_bar_low_keys.add(d.get("key", d.get("searchTerm", "")))
+    categories["stale_barber_nonhalf"] = [d for d in stale_all
+                                           if is_barber_nonhalf_term(d.get("searchTerm", ""))]
+    excluded_keys = set()
+    for d in (categories["stale_gold_bullion"] + categories["stale_gold_bars"]
+              + categories["stale_low_volume"] + categories["stale_barber_nonhalf"]):
+        excluded_keys.add(d.get("key", d.get("searchTerm", "")))
     categories["stale"] = [d for d in stale_all
-                           if d.get("key", d.get("searchTerm", "")) not in gold_bar_low_keys]
+                           if d.get("key", d.get("searchTerm", "")) not in excluded_keys]
 
     # Build menu items
     menu_items = []
@@ -1339,7 +1348,7 @@ def headless_dashboard(args):
     menu_labels.append(f"Needs deep pagination: {len(categories['deep'])} ({len(bullion_deep)} bullion, {len(non_bullion_deep)} other)")
 
     menu_items.append(("stale", categories["stale"]))
-    menu_labels.append(f"Stale (>14 days): {len(categories['stale'])} (excl. gold/bars/low-vol)")
+    menu_labels.append(f"Stale (>14 days): {len(categories['stale'])} (excl. gold/bars/low-vol/barber)")
 
     menu_items.append(("thin", categories["thin"]))
     menu_labels.append(f"Thin (<20 comps): {len(categories['thin'])}")
@@ -1352,6 +1361,9 @@ def headless_dashboard(args):
 
     menu_items.append(("stale_low_volume", categories["stale_low_volume"]))
     menu_labels.append(f"Low volume stale: {len(categories['stale_low_volume'])}")
+
+    menu_items.append(("stale_barber_nonhalf", categories["stale_barber_nonhalf"]))
+    menu_labels.append(f"Barber non-half stale: {len(categories['stale_barber_nonhalf'])}")
 
     menu_items.append(("all", all_datasets))
     menu_labels.append(f"Show all datasets: {total}")
@@ -1398,7 +1410,7 @@ def headless_dashboard(args):
             print("  Exiting.")
         return
 
-    if choice == "7":
+    if choice == str(len(menu_items)):
         if output_fmt == "json":
             import json as _json
             print(_json.dumps({"allDatasets": [
@@ -1412,8 +1424,8 @@ def headless_dashboard(args):
         return
 
     choice_idx = int(choice) - 1 if choice.isdigit() else -1
-    if choice_idx < 0 or choice_idx >= 6:
-        msg = f"Invalid choice: {choice}. Expected 1-7 or q."
+    if choice_idx < 0 or choice_idx >= len(menu_items):
+        msg = f"Invalid choice: {choice}. Expected 1-{len(menu_items)+1} or q."
         if output_fmt == "json":
             import json as _json
             print(_json.dumps({"error": msg}))
@@ -1683,6 +1695,7 @@ def dashboard(args):
     # ── Split stale into sub-categories ──────────────────────
     # S6: Gold bullion and gold bars get their own categories
     # S7: Low-volume coins are excluded from stale
+    # S8: Barber non-halves get their own category
     stale_all = categories["stale"]
     categories["stale_gold_bullion"] = [d for d in stale_all
                                          if is_gold_term(d.get("searchTerm", ""))
@@ -1691,12 +1704,15 @@ def dashboard(args):
                                       if is_bar_term(d.get("searchTerm", ""))
                                       and is_gold_term(d.get("searchTerm", ""))]
     categories["stale_low_volume"] = [d for d in stale_all if is_low_volume(d)]
-    # Main stale: exclude gold, bars, and low-volume
-    gold_bar_low_keys = set()
-    for d in categories["stale_gold_bullion"] + categories["stale_gold_bars"] + categories["stale_low_volume"]:
-        gold_bar_low_keys.add(d.get("key", d.get("searchTerm", "")))
+    categories["stale_barber_nonhalf"] = [d for d in stale_all
+                                           if is_barber_nonhalf_term(d.get("searchTerm", ""))]
+    # Main stale: exclude gold, bars, low-volume, and barber non-halves
+    excluded_keys = set()
+    for d in (categories["stale_gold_bullion"] + categories["stale_gold_bars"]
+              + categories["stale_low_volume"] + categories["stale_barber_nonhalf"]):
+        excluded_keys.add(d.get("key", d.get("searchTerm", "")))
     categories["stale"] = [d for d in stale_all
-                           if d.get("key", d.get("searchTerm", "")) not in gold_bar_low_keys]
+                           if d.get("key", d.get("searchTerm", "")) not in excluded_keys]
 
     # ── Display Summary ──────────────────────────────────────
     print(f"  Server:         {APP_URL}")
@@ -1724,7 +1740,7 @@ def dashboard(args):
     menu_items.append(("deep", categories["deep"]))
 
     n_stale = len(categories["stale"])
-    print(f"  [2] Stale (>14 days):       {n_stale} datasets (excl. gold/bars/low-vol)")
+    print(f"  [2] Stale (>14 days):       {n_stale} datasets (excl. gold/bars/low-vol/barber)")
     menu_items.append(("stale", categories["stale"]))
 
     n_thin = len(categories["thin"])
@@ -1743,13 +1759,17 @@ def dashboard(args):
     print(f"  [6] Low volume stale:       {n_low_vol} datasets (flagged by evidence index)")
     menu_items.append(("stale_low_volume", categories["stale_low_volume"]))
 
-    print(f"\n  [7] Show all datasets")
+    n_barber = len(categories["stale_barber_nonhalf"])
+    print(f"  [7] Barber non-half stale:  {n_barber} datasets")
+    menu_items.append(("stale_barber_nonhalf", categories["stale_barber_nonhalf"]))
+
+    print(f"\n  [8] Show all datasets")
     print(f"  [q] Quit")
     print()
 
     # ── Interactive Selection ────────────────────────────────
     try:
-        choice = input("  Choose [1-7, q]: ").strip().lower()
+        choice = input("  Choose [1-8, q]: ").strip().lower()
     except (EOFError, KeyboardInterrupt):
         print("\n  Bye.")
         return
@@ -1757,7 +1777,7 @@ def dashboard(args):
     if choice == "q" or not choice:
         return
 
-    if choice == "7":
+    if choice == "8":
         _show_all_datasets(all_datasets)
         return
 
