@@ -21,12 +21,14 @@
  *   node scripts/generate-freshness-report.js --batch 100         # Also write a batch file (top N by priority)
  *   node scripts/generate-freshness-report.js --mode default|low-signal|bullion|all  # Batch mode filter
  *   node scripts/generate-freshness-report.js --composition silver --batch 100  # Silver-only batch
+ *   node scripts/generate-freshness-report.js --metal gold            # Filter to gold-metal datasets only
+ *   node scripts/generate-freshness-report.js --metal silver --batch 50  # Silver-metal batch
  */
 'use strict';
 
 const fs = require('fs');
 const path = require('path');
-const { classifyComposition, classifyGradeCategory } = require('../src/utils/coinMetalProfile');
+const { classifyComposition, classifyGradeCategory, getCoinMetalProfile } = require('../src/utils/coinMetalProfile');
 const { normalizeSearchKey } = require('../src/services/terapeakService');
 
 const META_PATH = path.join(__dirname, '..', 'data', 'terapeak-meta.json');
@@ -54,6 +56,11 @@ const COMPOSITION_FILTER = compIdx >= 0 ? (args[compIdx + 1] || '').toLowerCase(
 // Batch generation: write top N entries to cache/freshness-batch-100.json
 const batchIdx = args.indexOf('--batch');
 const BATCH_SIZE = batchIdx >= 0 ? parseInt(args[batchIdx + 1]) || 100 : 0;
+
+// Metal filter: only include datasets whose detected metal matches
+// e.g. --metal silver, --metal gold, --metal platinum
+const metalIdx = args.indexOf('--metal');
+const METAL_FILTER = metalIdx >= 0 ? (args[metalIdx + 1] || '').toLowerCase() : null;
 
 // Batch mode: controls which datasets are included in the batch file.
 //   default    -- excludes LowSignalMarketData (normal stale/missing only)
@@ -125,6 +132,10 @@ for (const [key, entry] of Object.entries(meta)) {
   if (COMPOSITION_FILTER && !key.includes(COMPOSITION_FILTER)) continue;
 
   const composition = classifyComposition(key);
+  const { metal } = getCoinMetalProfile(key);
+
+  // Apply metal filter if specified
+  if (METAL_FILTER && metal !== METAL_FILTER) continue;
   const gradeCategory = classifyGradeCategory(key);
   const newestSaleDate = entry.newestSaleDate || null;
   const compCount = entry.compCount || 0;
@@ -211,6 +222,7 @@ for (const [key, entry] of Object.entries(meta)) {
     freshnessStatus,
     freshnessReason,
     composition,
+    metal: metal || 'other',
     gradeCategory,
     newestSaleDate,
     staleDays,
@@ -299,6 +311,28 @@ for (const comp of compOrder) {
   if (!cs) continue;
   const pct = Math.round((cs.fresh / cs.total) * 100);
   console.log(`    ${comp.padEnd(26)} ${String(cs.total).padStart(5)} total  ${String(cs.fresh).padStart(5)} fresh (${pct}%)  ${String(cs.lowSignal || 0).padStart(5)} low-sig  ${String(cs.stale15d + cs.stale30d).padStart(5)} stale  ${String(cs.lowComps).padStart(5)} low-comps`);
+}
+console.log('');
+
+// By metal summary
+const metalSummary = {};
+for (const d of datasets) {
+  const m = d.metal || 'other';
+  if (!metalSummary[m]) metalSummary[m] = { total: 0, fresh: 0, lowSignal: 0, stale: 0, missing: 0 };
+  const ms = metalSummary[m];
+  ms.total++;
+  if (d.freshnessStatus === 'Fresh') ms.fresh++;
+  else if (d.freshnessStatus === 'LowSignalMarketData') ms.lowSignal++;
+  else if (d.freshnessStatus === 'Missing') ms.missing++;
+  else ms.stale++;
+}
+console.log('  By metal:');
+const metalOrder = ['silver', 'gold', 'platinum', 'palladium', 'other'];
+for (const m of metalOrder) {
+  const ms = metalSummary[m];
+  if (!ms) continue;
+  const pct = Math.round((ms.fresh / ms.total) * 100);
+  console.log(`    ${m.padEnd(12)} ${String(ms.total).padStart(5)} total  ${String(ms.fresh).padStart(5)} fresh (${pct}%)  ${String(ms.lowSignal).padStart(5)} low-sig  ${String(ms.stale).padStart(5)} stale  ${String(ms.missing).padStart(5)} missing`);
 }
 console.log('');
 
