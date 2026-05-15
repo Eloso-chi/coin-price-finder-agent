@@ -1319,3 +1319,88 @@ describe('computeValuation — auctionData response field', () => {
     expect(result.valuation.auctionData.trend.pct).toBe(22.5);
   });
 });
+
+// ═══════════════════════════════════════════════════════════════
+//  #184: Proof pool isolation — never mix BU comps into proof FMV
+// ═══════════════════════════════════════════════════════════════
+
+describe('computeValuation — proof pool isolation (#184)', () => {
+  test('uses only proof comps when userGrade starts with PR', () => {
+    const proofComps = makeComps([200, 210, 220], { gradeType: 'proof' });
+    const gradedComps = makeComps([100, 105, 110], { gradeType: 'graded' });
+    const allComps = [...proofComps, ...gradedComps];
+    const result = computeValuation(
+      mockPcgs(), mockEbay({ usComps: allComps }), null, 'PR69 DCAM'
+    );
+    // FMV should be near proof prices (~210), not graded (~105)
+    expect(result.valuation.fmvCore).toBeGreaterThan(150);
+    expect(result.valuation.gradePool.wantsProof).toBe(true);
+    expect(result.valuation.gradePool.usedPool).toBe('proof');
+  });
+
+  test('uses only proof comps when userGrade starts with PF', () => {
+    const proofComps = makeComps([200, 210, 220], { gradeType: 'proof' });
+    const gradedComps = makeComps([100, 105, 110], { gradeType: 'graded' });
+    const allComps = [...proofComps, ...gradedComps];
+    const result = computeValuation(
+      mockPcgs(), mockEbay({ usComps: allComps }), null, 'PF70'
+    );
+    expect(result.valuation.fmvCore).toBeGreaterThan(150);
+    expect(result.valuation.gradePool.wantsProof).toBe(true);
+  });
+
+  test('uses only proof comps when opts.isProof is true', () => {
+    const proofComps = makeComps([200, 210, 220], { gradeType: 'proof' });
+    const gradedComps = makeComps([100, 105, 110], { gradeType: 'graded' });
+    const allComps = [...proofComps, ...gradedComps];
+    const result = computeValuation(
+      mockPcgs(), mockEbay({ usComps: allComps }), null, null, { isProof: true }
+    );
+    expect(result.valuation.fmvCore).toBeGreaterThan(150);
+    expect(result.valuation.gradePool.wantsProof).toBe(true);
+  });
+
+  test('does NOT fall back to all comps when proof pool has < 3 comps', () => {
+    const proofComps = makeComps([200, 210], { gradeType: 'proof' });
+    const gradedComps = makeComps([100, 105, 110, 115, 120], { gradeType: 'graded' });
+    const allComps = [...proofComps, ...gradedComps];
+    const result = computeValuation(
+      mockPcgs(), mockEbay({ usComps: allComps }), null, 'PR69'
+    );
+    // FMV should still be from proof comps (~205), not graded (~110)
+    expect(result.valuation.fmvCore).toBeGreaterThan(150);
+    expect(result.valuation.explanation.some(e => /low-data proof/i.test(e))).toBe(true);
+  });
+
+  test('returns null FMV with explanation when 0 proof comps', () => {
+    const gradedComps = makeComps([100, 105, 110, 115, 120], { gradeType: 'graded' });
+    const result = computeValuation(
+      mockPcgs(), mockEbay({ usComps: gradedComps }), null, 'PR69'
+    );
+    expect(result.valuation.fmvCore).toBeNull();
+    expect(result.valuation.explanation.some(e => /no proof comps/i.test(e))).toBe(true);
+  });
+
+  test('userGrade "Proof" triggers proof pool selection', () => {
+    const proofComps = makeComps([200, 210, 220, 230], { gradeType: 'proof' });
+    const rawComps = makeComps([50, 55, 60], { gradeType: 'raw' });
+    const allComps = [...proofComps, ...rawComps];
+    const result = computeValuation(
+      mockPcgs(), mockEbay({ usComps: allComps }), null, 'Proof'
+    );
+    expect(result.valuation.fmvCore).toBeGreaterThan(150);
+    expect(result.valuation.gradePool.wantsProof).toBe(true);
+  });
+
+  test('non-proof grade does not trigger proof pool', () => {
+    const proofComps = makeComps([200, 210, 220], { gradeType: 'proof' });
+    const gradedComps = makeComps([100, 105, 110, 115, 120], { gradeType: 'graded' });
+    const allComps = [...proofComps, ...gradedComps];
+    const result = computeValuation(
+      mockPcgs(), mockEbay({ usComps: allComps }), null, 'MS65'
+    );
+    // Should use graded pool, not proof
+    expect(result.valuation.gradePool.wantsProof).toBe(false);
+    expect(result.valuation.fmvCore).toBeLessThan(150);
+  });
+});
