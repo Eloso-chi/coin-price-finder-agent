@@ -31948,12 +31948,12 @@
   },
   "1988 canada 1oz silver maple leaf": {
     "deepAt": "2026-05-03T02:42:11.947Z",
-    "page1At": "2026-05-03T02:42:11.947Z",
+    "page1At": "2026-05-15T21:46:21.157251",
     "maxPageReached": null,
     "lastRefreshAt": null,
     "newestSaleDate": "2026-04-28",
     "oldestSaleDate": "2025-10-21",
-    "compCount": 211,
+    "compCount": 224,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -32787,13 +32787,13 @@
     }
   },
   "1990 australia 1oz silver kookaburra": {
-    "deepAt": null,
-    "page1At": "2026-04-26T22:13:41.400Z",
+    "deepAt": "2026-05-15T19:12:33.329Z",
+    "page1At": "2026-05-15T21:17:38.250474",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-26",
+    "newestSaleDate": "2026-05-14",
     "oldestSaleDate": "2025-10-28",
-    "compCount": 49,
+    "compCount": 94,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -33838,12 +33838,12 @@
   },
   "1992 mexico 1oz silver libertad": {
     "deepAt": "2026-05-02T18:02:36.325Z",
-    "page1At": "2026-05-02T18:02:36.325Z",
+    "page1At": "2026-05-15T22:07:44.258870",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-29",
+    "newestSaleDate": "2026-05-07",
     "oldestSaleDate": "2025-10-13",
-    "compCount": 164
+    "compCount": 191
   },
   "1992 mexico tenth oz silver libertad proof": {
     "deepAt": null,
@@ -35716,12 +35716,12 @@
   },
   "1996 mexico 1oz silver libertad": {
     "deepAt": "2026-05-02T20:43:53.666Z",
-    "page1At": "2026-05-02T20:43:53.666Z",
+    "page1At": "2026-05-15T21:38:31.869826",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-30",
+    "newestSaleDate": "2026-05-15",
     "oldestSaleDate": "2025-10-15",
-    "compCount": 186
+    "compCount": 204
   },
   "1996 mexico twentieth oz silver libertad proof": {
     "deepAt": null,
@@ -37681,12 +37681,12 @@
   },
   "2000 mexico 1oz silver libertad": {
     "deepAt": "2026-05-03T01:46:04.316Z",
-    "page1At": "2026-05-03T01:46:04.316Z",
+    "page1At": "2026-05-15T21:42:02.679015",
     "maxPageReached": null,
     "lastRefreshAt": null,
     "newestSaleDate": "2026-04-28",
     "oldestSaleDate": "2025-10-13",
-    "compCount": 184
+    "compCount": 192
   },
   "2000 mexico 20oz silver libertad proof": {
     "deepAt": null,
@@ -38436,13 +38436,13 @@
     "compCount": 1
   },
   "2002 australia 1oz silver kookaburra": {
-    "deepAt": null,
-    "page1At": "2026-04-15T23:48:35.650Z",
+    "deepAt": "2026-05-15T19:12:33.733Z",
+    "page1At": "2026-05-15T20:46:49.943742",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-15",
-    "oldestSaleDate": "2025-12-10",
-    "compCount": 48,
+    "newestSaleDate": "2026-05-02",
+    "oldestSaleDate": "2025-11-16",
+    "compCount": 60,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -38908,12 +38908,12 @@
   },
   "2003 great britain 1oz silver britannia": {
     "deepAt": null,
-    "page1At": "2026-04-29T07:54:28.599Z",
+    "page1At": "2026-05-15T22:21:04.673856",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-28",
+    "newestSaleDate": "2026-04-29",
     "oldestSaleDate": "2025-11-01",
-    "compCount": 27,
+    "compCount": 30,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -40000,12 +40000,12 @@
   },
   "2005 canada 1oz silver maple leaf": {
     "deepAt": "2026-05-03T01:57:36.721Z",
-    "page1At": "2026-05-03T01:57:36.721Z",
+    "page1At": "2026-05-15T20:49:23.993554",
     "maxPageReached": null,
     "lastRefreshAt": null,
     "newestSaleDate": "2026-04-23",
     "oldestSaleDate": "2025-10-19",
-    "compCount": 188,
+    "compCount": 198,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -40390,12 +40390,12 @@
   },
   "2006 australia 1oz silver kookaburra": {
     "deepAt": null,
-    "page1At": "2026-04-26T22:27:21.958Z",
+    "page1At": "2026-05-15T21:21:53.072940",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-26",
-    "oldestSaleDate": "2026-01-28",
-    "compCount": 29,
+    "newestSaleDate": "2026-05-02",
+    "oldestSaleDate": "2025-11-16",
+    "compCount": 39,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -40851,13 +40851,13 @@
     "compCount": 199
   },
   "2007 australia 1oz silver kookaburra": {
-    "deepAt": null,
-    "page1At": "2026-04-29T06:27:13.811Z",
+    "deepAt": "2026-05-15T19:12:33.909Z",
+    "page1At": "2026-05-15T21:03:45.878389",
     "maxPageReached": null,
     "lastRefreshAt": null,
     "newestSaleDate": "2026-04-26",
     "oldestSaleDate": "2025-11-01",
-    "compCount": 50,
+    "compCount": 56,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -43128,13 +43128,13 @@
     }
   },
   "2011 austria 1oz silver philharmonic": {
-    "deepAt": null,
-    "page1At": "2026-04-30T00:08:46.099Z",
+    "deepAt": "2026-05-15T19:12:34.040Z",
+    "page1At": "2026-05-15T21:57:56.882542",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-19",
+    "newestSaleDate": "2026-05-05",
     "oldestSaleDate": "2025-11-01",
-    "compCount": 44,
+    "compCount": 58,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -45054,13 +45054,13 @@
     "compCount": 2
   },
   "2014 austria 1oz silver philharmonic": {
-    "deepAt": null,
-    "page1At": "2026-04-29T06:50:41.310Z",
+    "deepAt": "2026-05-15T19:12:34.221Z",
+    "page1At": "2026-05-15T20:55:05.411883",
     "maxPageReached": null,
     "lastRefreshAt": null,
     "newestSaleDate": "2026-04-26",
     "oldestSaleDate": "2025-10-31",
-    "compCount": 40,
+    "compCount": 55,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -45427,12 +45427,12 @@
   },
   "2014 mexico 1oz silver libertad": {
     "deepAt": "2026-04-12T17:10:22.621Z",
-    "page1At": "2026-04-12T17:10:22.621Z",
+    "page1At": "2026-05-15T21:30:16.720146",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-11",
+    "newestSaleDate": "2026-05-09",
     "oldestSaleDate": "2025-10-12",
-    "compCount": 193,
+    "compCount": 227,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -46455,13 +46455,13 @@
     }
   },
   "2016 australia 1oz silver kookaburra": {
-    "deepAt": null,
-    "page1At": "2026-04-29T06:00:00.853Z",
+    "deepAt": "2026-05-15T19:12:34.317Z",
+    "page1At": "2026-05-15T22:19:40.128768",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-21",
+    "newestSaleDate": "2026-05-12",
     "oldestSaleDate": "2025-11-09",
-    "compCount": 50,
+    "compCount": 89,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -46506,13 +46506,13 @@
     }
   },
   "2016 great britain 1oz silver britannia": {
-    "deepAt": null,
-    "page1At": "2026-04-29T20:31:24.630Z",
+    "deepAt": "2026-05-15T19:12:34.318Z",
+    "page1At": "2026-05-15T21:32:58.945357",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-15",
+    "newestSaleDate": "2026-04-26",
     "oldestSaleDate": "2025-11-19",
-    "compCount": 33,
+    "compCount": 55,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -48451,12 +48451,12 @@
   },
   "2019 great britain 1oz silver britannia": {
     "deepAt": null,
-    "page1At": "2026-04-29T08:10:25.306Z",
+    "page1At": "2026-05-15T21:35:53.177160",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-24",
+    "newestSaleDate": "2026-05-04",
     "oldestSaleDate": "2025-11-18",
-    "compCount": 33,
+    "compCount": 47,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -49147,12 +49147,12 @@
   },
   "2020 canada 1oz silver maple leaf": {
     "deepAt": "2026-05-01T21:11:49.051Z",
-    "page1At": "2026-05-01T21:11:49.051Z",
+    "page1At": "2026-05-15T20:44:27.239969",
     "maxPageReached": null,
     "lastRefreshAt": null,
     "newestSaleDate": "2026-04-30",
     "oldestSaleDate": "2025-10-18",
-    "compCount": 240,
+    "compCount": 272,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -50502,13 +50502,13 @@
     "compCount": 3
   },
   "2022 austria 1oz silver philharmonic": {
-    "deepAt": null,
-    "page1At": "2026-04-29T06:57:23.940Z",
+    "deepAt": "2026-05-15T19:12:34.617Z",
+    "page1At": "2026-05-15T22:23:58.611364",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-22",
+    "newestSaleDate": "2026-05-06",
     "oldestSaleDate": "2025-11-12",
-    "compCount": 30,
+    "compCount": 62,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -50866,12 +50866,12 @@
   },
   "2022 mexico 1oz silver libertad": {
     "deepAt": "2026-05-02T18:35:09.453Z",
-    "page1At": "2026-05-02T18:35:09.453Z",
+    "page1At": "2026-05-15T20:57:59.698502",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-30",
+    "newestSaleDate": "2026-05-13",
     "oldestSaleDate": "2025-10-15",
-    "compCount": 158
+    "compCount": 195
   },
   "2022 mexico twentieth oz silver libertad proof": {
     "deepAt": null,
@@ -57412,12 +57412,12 @@
   },
   "2010 lunar tiger 1oz silver": {
     "deepAt": "2026-05-02T00:05:22.084Z",
-    "page1At": "2026-05-02T00:05:22.084Z",
+    "page1At": "2026-05-15T20:41:47.940422",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-24",
+    "newestSaleDate": "2026-04-29",
     "oldestSaleDate": "2025-11-01",
-    "compCount": 78,
+    "compCount": 91,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -70435,12 +70435,12 @@
   },
   "1983 mexican silver libertad 1oz": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-15T21:34:24.080160",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-06",
-    "oldestSaleDate": "2025-12-29",
-    "compCount": 24,
+    "newestSaleDate": "2026-05-11",
+    "oldestSaleDate": "2025-12-16",
+    "compCount": 48,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -70897,12 +70897,12 @@
   },
   "1986 mexican silver libertad 1oz": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-15T21:52:11.683099",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-29",
+    "newestSaleDate": "2026-05-09",
     "oldestSaleDate": "2025-10-19",
-    "compCount": 298,
+    "compCount": 30,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -70939,12 +70939,12 @@
   },
   "1987 american silver eagle 1oz": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-15T21:31:39.836855",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-12",
+    "newestSaleDate": "2026-04-23",
     "oldestSaleDate": "2025-10-16",
-    "compCount": 258,
+    "compCount": 48,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -71072,12 +71072,12 @@
   },
   "1987 chinese silver panda 1oz": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-15T21:12:10.325242",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-27",
+    "newestSaleDate": "2026-05-04",
     "oldestSaleDate": "2025-10-21",
-    "compCount": 74,
+    "compCount": 17,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -71170,12 +71170,12 @@
   },
   "1988 american silver eagle 1oz": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-15T21:19:08.565522",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-12",
+    "newestSaleDate": "2026-05-13",
     "oldestSaleDate": "2025-10-14",
-    "compCount": 210,
+    "compCount": 39,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -71282,12 +71282,12 @@
   },
   "1988 canadian silver maple leaf 1oz": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-15T21:24:41.632047",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-28",
+    "newestSaleDate": "2026-05-05",
     "oldestSaleDate": "2025-10-21",
-    "compCount": 224,
+    "compCount": 23,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -71625,12 +71625,12 @@
   },
   "1989 mexican silver libertad 1oz": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-15T21:05:10.297656",
     "maxPageReached": null,
     "lastRefreshAt": null,
     "newestSaleDate": "2026-04-29",
     "oldestSaleDate": "2025-10-14",
-    "compCount": 189,
+    "compCount": 6,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -71737,12 +71737,12 @@
   },
   "1990 australian silver kookaburra 1oz": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-15T21:28:55.600054",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-26",
+    "newestSaleDate": "2026-05-14",
     "oldestSaleDate": "2025-10-28",
-    "compCount": 50,
+    "compCount": 45,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -72528,12 +72528,12 @@
   },
   "1993 american silver eagle 1oz": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-15T21:26:12.368786",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-12",
+    "newestSaleDate": "2026-05-12",
     "oldestSaleDate": "2025-10-17",
-    "compCount": 164,
+    "compCount": 42,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -72598,12 +72598,12 @@
   },
   "1993 australian silver kookaburra 1oz": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-15T22:15:40.696688",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-25",
+    "newestSaleDate": "2026-05-14",
     "oldestSaleDate": "2025-11-03",
-    "compCount": 50,
+    "compCount": 17,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -73123,12 +73123,12 @@
   },
   "1995 australian silver kookaburra 1oz": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-15T21:37:12.958913",
     "maxPageReached": null,
     "lastRefreshAt": null,
     "newestSaleDate": "2026-04-28",
     "oldestSaleDate": "2025-11-03",
-    "compCount": 50,
+    "compCount": 14,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -73382,12 +73382,12 @@
   },
   "1996 australian silver kookaburra 1oz": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-15T21:50:51.633892",
     "maxPageReached": null,
     "lastRefreshAt": null,
     "newestSaleDate": "2026-04-23",
-    "oldestSaleDate": "2026-01-21",
-    "compCount": 50,
+    "oldestSaleDate": "2025-11-17",
+    "compCount": 13,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -73494,12 +73494,12 @@
   },
   "1996 chinese silver panda 1oz": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-15T22:05:01.105001",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-30",
+    "newestSaleDate": "2026-05-12",
     "oldestSaleDate": "2025-10-25",
-    "compCount": 149,
+    "compCount": 23,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -73669,12 +73669,12 @@
   },
   "1997 australian silver kookaburra 1oz": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-15T22:18:12.795545",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-20",
+    "newestSaleDate": "2026-04-30",
     "oldestSaleDate": "2025-11-01",
-    "compCount": 50,
+    "compCount": 4,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -74537,12 +74537,12 @@
   },
   "1999 mexican silver libertad 1oz": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-15T21:59:23.301741",
     "maxPageReached": null,
     "lastRefreshAt": null,
     "newestSaleDate": "2026-04-29",
     "oldestSaleDate": "2025-10-09",
-    "compCount": 134,
+    "compCount": 6,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -74649,12 +74649,12 @@
   },
   "2000 australian silver kookaburra 1oz": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-15T21:16:13.273156",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-28",
+    "newestSaleDate": "2026-05-01",
     "oldestSaleDate": "2025-11-02",
-    "compCount": 50,
+    "compCount": 8,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -74957,12 +74957,12 @@
   },
   "2001 australian silver kookaburra 1oz": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-15T22:13:00.933516",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-15",
-    "oldestSaleDate": "2026-01-27",
-    "compCount": 50,
+    "newestSaleDate": "2026-05-03",
+    "oldestSaleDate": "2025-11-17",
+    "compCount": 35,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -75657,12 +75657,12 @@
   },
   "2003 british silver britannia 1oz": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-15T20:53:40.462675",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-28",
+    "newestSaleDate": "2026-05-01",
     "oldestSaleDate": "2025-11-01",
-    "compCount": 29,
+    "compCount": 7,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -75846,12 +75846,12 @@
   },
   "2004 american silver eagle 1oz": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-15T21:44:51.394096",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-12",
+    "newestSaleDate": "2026-05-13",
     "oldestSaleDate": "2025-10-15",
-    "compCount": 154,
+    "compCount": 44,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -76273,12 +76273,12 @@
   },
   "2005 british silver britannia 1oz": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-15T22:00:49.452205",
     "maxPageReached": null,
     "lastRefreshAt": null,
     "newestSaleDate": "2026-04-20",
     "oldestSaleDate": "2025-11-12",
-    "compCount": 12,
+    "compCount": 3,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -76630,12 +76630,12 @@
   },
   "2006 canadian silver maple leaf 1oz": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-15T20:43:07.232095",
     "maxPageReached": null,
     "lastRefreshAt": null,
     "newestSaleDate": "2026-04-24",
     "oldestSaleDate": "2025-11-03",
-    "compCount": 86,
+    "compCount": 6,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -76672,12 +76672,12 @@
   },
   "2006 chinese silver panda 1oz": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-15T20:59:26.290593",
     "maxPageReached": null,
     "lastRefreshAt": null,
     "newestSaleDate": "2026-04-29",
     "oldestSaleDate": "2025-10-21",
-    "compCount": 116,
+    "compCount": 18,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -76798,12 +76798,12 @@
   },
   "2007 american silver eagle 1oz": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-15T22:02:16.783871",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-11",
+    "newestSaleDate": "2026-05-12",
     "oldestSaleDate": "2025-10-13",
-    "compCount": 213,
+    "compCount": 48,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -76945,12 +76945,12 @@
   },
   "2007 british silver britannia 1oz": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-15T20:52:14.774694",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-03-18",
+    "newestSaleDate": "2026-04-23",
     "oldestSaleDate": "2025-11-13",
-    "compCount": 15,
+    "compCount": 6,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -77092,12 +77092,12 @@
   },
   "2007 mexican silver libertad 1oz": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-15T21:49:35.327587",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-30",
+    "newestSaleDate": "2026-05-11",
     "oldestSaleDate": "2025-10-11",
-    "compCount": 135,
+    "compCount": 10,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -77267,12 +77267,12 @@
   },
   "2008 austrian silver philharmonic 1oz": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-15T22:06:19.010127",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-16",
+    "newestSaleDate": "2026-05-07",
     "oldestSaleDate": "2025-10-25",
-    "compCount": 184,
+    "compCount": 19,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -77302,12 +77302,12 @@
   },
   "2008 british silver britannia 1oz": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-15T21:48:12.514071",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-28",
+    "newestSaleDate": "2026-05-08",
     "oldestSaleDate": "2025-11-11",
-    "compCount": 15,
+    "compCount": 7,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -77960,12 +77960,12 @@
   },
   "2010 australian silver kookaburra 1oz": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-15T22:10:31.423859",
     "maxPageReached": null,
     "lastRefreshAt": null,
     "newestSaleDate": "2026-04-25",
     "oldestSaleDate": "2025-10-29",
-    "compCount": 50,
+    "compCount": 12,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -78002,12 +78002,12 @@
   },
   "2010 austrian silver philharmonic 1oz": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-15T21:07:55.017446",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-03-03",
+    "newestSaleDate": "2026-05-07",
     "oldestSaleDate": "2025-10-31",
-    "compCount": 50,
+    "compCount": 7,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -78044,12 +78044,12 @@
   },
   "2010 british silver britannia 1oz": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-15T21:53:45.842338",
     "maxPageReached": null,
     "lastRefreshAt": null,
     "newestSaleDate": "2026-04-15",
     "oldestSaleDate": "2025-11-06",
-    "compCount": 33,
+    "compCount": 2,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -78254,12 +78254,12 @@
   },
   "2011 american silver eagle bu": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-15T22:09:03.354316",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-11",
+    "newestSaleDate": "2026-05-14",
     "oldestSaleDate": "2025-10-13",
-    "compCount": 153,
+    "compCount": 42,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -78345,12 +78345,12 @@
   },
   "2011 austrian silver philharmonic 1oz": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-15T22:03:35.806987",
     "maxPageReached": null,
     "lastRefreshAt": null,
     "newestSaleDate": "2026-04-19",
     "oldestSaleDate": "2025-11-01",
-    "compCount": 50,
+    "compCount": 10,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -79101,12 +79101,12 @@
   },
   "2013 british silver britannia 1oz": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-15T20:56:34.630431",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-22",
+    "newestSaleDate": "2026-05-07",
     "oldestSaleDate": "2025-11-04",
-    "compCount": 50,
+    "compCount": 35,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -79143,12 +79143,12 @@
   },
   "2013 canadian silver maple leaf 1oz": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-15T20:50:53.680464",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-27",
+    "newestSaleDate": "2026-05-07",
     "oldestSaleDate": "2025-10-26",
-    "compCount": 236,
+    "compCount": 44,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -79381,12 +79381,12 @@
   },
   "2014 australian silver kookaburra 1oz": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-15T21:10:41.896799",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-26",
-    "oldestSaleDate": "2026-02-14",
-    "compCount": 50,
+    "newestSaleDate": "2026-05-11",
+    "oldestSaleDate": "2025-11-17",
+    "compCount": 36,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -79612,12 +79612,12 @@
   },
   "2014 mexican silver libertad 1oz": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-15T21:06:34.258761",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-11",
+    "newestSaleDate": "2026-05-06",
     "oldestSaleDate": "2025-10-12",
-    "compCount": 252,
+    "compCount": 22,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -80431,12 +80431,12 @@
   },
   "2017 american silver eagle 1oz": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-15T21:20:32.587212",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-12",
+    "newestSaleDate": "2026-05-14",
     "oldestSaleDate": "2025-10-12",
-    "compCount": 217,
+    "compCount": 44,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -80886,12 +80886,12 @@
   },
   "2018 austrian silver philharmonic 1oz": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-15T21:14:43.890677",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-19",
+    "newestSaleDate": "2026-05-10",
     "oldestSaleDate": "2025-11-02",
-    "compCount": 30,
+    "compCount": 6,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -81201,12 +81201,12 @@
   },
   "2019 australian silver kookaburra 1oz": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-15T21:00:54.020993",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-17",
+    "newestSaleDate": "2026-05-10",
     "oldestSaleDate": "2025-11-02",
-    "compCount": 50,
+    "compCount": 16,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -81243,12 +81243,12 @@
   },
   "2019 austrian silver philharmonic 1oz": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-15T21:27:33.650346",
     "maxPageReached": null,
     "lastRefreshAt": null,
     "newestSaleDate": "2026-04-14",
     "oldestSaleDate": "2025-10-23",
-    "compCount": 24,
+    "compCount": 5,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -81558,12 +81558,12 @@
   },
   "2020 australian silver kookaburra 1oz": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-15T22:25:26.762419",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-09",
+    "newestSaleDate": "2026-05-14",
     "oldestSaleDate": "2025-10-20",
-    "compCount": 50,
+    "compCount": 32,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -81922,12 +81922,12 @@
   },
   "2021 austrian silver philharmonic 1oz": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-15T21:09:15.321690",
     "maxPageReached": null,
     "lastRefreshAt": null,
     "newestSaleDate": "2026-04-03",
     "oldestSaleDate": "2025-11-11",
-    "compCount": 50,
+    "compCount": 14,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -82006,12 +82006,12 @@
   },
   "2021 canadian silver maple leaf 1oz": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-15T21:43:26.278046",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-30",
+    "newestSaleDate": "2026-05-14",
     "oldestSaleDate": "2025-11-02",
-    "compCount": 169,
+    "compCount": 49,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -82307,12 +82307,12 @@
   },
   "2022 austrian silver philharmonic 1oz": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-15T22:14:21.040389",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-22",
+    "newestSaleDate": "2026-04-26",
     "oldestSaleDate": "2025-11-01",
-    "compCount": 50,
+    "compCount": 20,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -82349,12 +82349,12 @@
   },
   "2022 british silver britannia 1oz": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-15T21:23:12.594752",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-24",
+    "newestSaleDate": "2026-05-10",
     "oldestSaleDate": "2025-11-17",
-    "compCount": 50,
+    "compCount": 36,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -85459,6 +85459,15 @@
     "lastRefreshAt": null,
     "newestSaleDate": "2026-03-28",
     "oldestSaleDate": "2026-03-28",
+    "compCount": 1
+  },
+  "1996 australian silver kookaburra 2oz": {
+    "deepAt": null,
+    "page1At": null,
+    "maxPageReached": null,
+    "lastRefreshAt": null,
+    "newestSaleDate": "2026-03-07",
+    "oldestSaleDate": "2026-03-07",
     "compCount": 1
   }
 }
