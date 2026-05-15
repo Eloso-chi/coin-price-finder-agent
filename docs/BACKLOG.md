@@ -37,53 +37,39 @@ Both `terapeak-export.py` and `sales-aggregator.py` now guard against active lis
 
 ---
 
-### S5. Gold Year-Specific CSVs [HIGH -- data gap]
+### S5. Gold Year-Specific CSVs [HIGH -- partial]
 
 **Problem:** Gold Libertad, Gold Panda, and Gold Eagle all lack year-specific datasets. Gold queries hit mixed-metal generic datasets causing 95-99% attrition.
 
-| Series | Gap | Files Needed |
-|--------|-----|-------------|
-| Gold Libertad (1981-2025) | Only 2 generics + some year-specific exist but need refresh | ~45 |
-| Gold Panda (1982-2025) | Only 1 generic; no year-specific | ~44 |
-| Gold Eagle (gaps in 1oz; missing 1/2, 1/4, 1/10) | ~30 years 1oz, ~38 each fractional | ~130 |
+**Status (May 2026):** Stubs created and partially populated. 89 empty stubs remain (84 Gold Eagle fractional, 4 Gold Libertad, 1 Gold Panda). Populated: 50 Gold Libertad, 59 Gold Panda, 43+ Gold Eagle 1oz, 79-80 each fractional.
 
-**Command:** `node scripts/create-grade-datasets.js` for stubs, then `python3 scripts/terapeak-export.py`
+**Next:** Run `python3 scripts/terapeak-export.py --run --filter "Gold Eagle"` (requires VNC + cookies).
 
 ---
 
-### S6. Dashboard Gold Bullion & Gold Bars Staleness Categories [MEDIUM]
+### ~~S6. Dashboard Gold Bullion & Gold Bars Staleness Categories [DONE]~~
 
-**Problem:** Gold coins (501 datasets) and gold bars (5 datasets) are mixed into the general "Stale" dashboard category. Gold is excluded from deep pagination but runs unchecked in stale refreshes, wasting time on low-volume items. Need separate dashboard categories so gold can be refreshed intentionally.
+Implemented in both `dashboard()` and `headless_dashboard()`. Stale split into: main (excl. gold/bars/low-vol/barber), gold bullion, gold bars, low volume, barber non-half. Each has its own menu entry [4]/[5] with count and independent launch.
 
-**Fix:**
-- Split stale category: filter gold out of the main "Stale" list (matching deep pagination behavior)
-- Add "Gold Bullion Stale" category (coins matching `is_bullion_term` + `\bgold\b`)
-- Add "Gold Bars Stale" category (terms matching `\bbar\b`)
-- Each gets its own menu entry with count and independent launch
-
-**Files:** `scripts/sales-aggregator.py` (dashboard function, headless output functions, `_launch_run`)
+**Files:** `scripts/sales-aggregator.py`
 
 ---
 
-### S7. Low-Volume Coin Dashboard Filter [MEDIUM]
+### ~~S7. Low-Volume Coin Dashboard Filter [DONE]~~
 
-**Problem:** `build-evidence-index.js` computes `is_low_volume_candidate` flags from 105 run logs, but the data was never persisted into `terapeak-meta.json` (the file has 3,364 entries, zero with evidence fields). The dashboard has no category or filter for low-volume coins, so stale refreshes waste time on coins with consistently < 10 comps.
+All pieces implemented:
+1. `build-evidence-index.js` run (May 2026): 3879 keys stamped, 464 low-volume candidates flagged
+2. `terapeakService.js` preserves identifiers across imports (non-destructive merge)
+3. Dashboard menu item [6] "Low volume stale" excludes flagged datasets from main stale list
+4. `GET /api/terapeak/aggregation-status` returns identifiers in response
 
-**Fix:**
-1. Run `node scripts/build-evidence-index.js` to stamp low-volume candidates into `terapeak-meta.json`
-2. Ensure `POST /api/terapeak/import` preserves evidence fields when updating meta (don't overwrite `is_low_volume_candidate`)
-3. Add "Low Volume" exclusion filter to the stale dashboard category (or separate category)
-4. Expose low-volume flag in `GET /api/terapeak/aggregation-status` response
-
-**Files:** `scripts/build-evidence-index.js`, `scripts/sales-aggregator.py`, `src/services/terapeakService.js` (import/meta persistence), `src/routes/adminRoute.js` (aggregation-status endpoint)
+**Files:** `scripts/build-evidence-index.js`, `scripts/sales-aggregator.py`, `src/services/terapeakService.js`, `src/routes/terapeakRoute.js`
 
 ---
 
-### S8. Barber Quarter/Dime/Dollar Dashboard Filter [LOW]
+### ~~S8. Barber Quarter/Dime/Dollar Dashboard Filter [DONE]~~
 
-**Problem:** Barber quarters, dimes, and dollars are low-demand series that appear in stale refreshes. Barber halves are worth keeping (higher collector demand), but the other denominations dilute refresh runs.
-
-**Fix:** Add a dashboard filter or separate category for Barber non-halves. Regex: `barber.*(quarter|dime|dollar)` (excludes "Barber Half"). Could be implemented as part of S7's low-volume system if evidence index confirms they're consistently low-comp.
+Added `is_barber_nonhalf_term()` filter (regex: `\bbarber\b(?!.*\bhalf\b)`). Barber non-halves (297 datasets) get their own dashboard category [7], excluded from main stale list. Both interactive and headless dashboards updated.
 
 **Files:** `scripts/sales-aggregator.py`
 
@@ -325,6 +311,9 @@ Added `npm audit --audit-level=high` step to CI (xlsx excluded -- unmaintained, 
 | S0 | Active Listings Guard | Tab check + date validation in both aggregation scripts |
 | S1 | Finish Page 1 remaining | Mostly done; 157 remaining are Royal Mint Lunar (no Terapeak data) |
 | S3 | Refresh Stale >30d | `0d6c814` -- 1/42 succeeded (all Royal Mint Lunar = no data on eBay) |
+| S6 | Dashboard Gold Bullion & Bars categories | May 2026 -- stale split into gold/bars/low-vol/barber |
+| S7 | Low-Volume Coin Dashboard Filter | May 2026 -- evidence index (464 flagged), dashboard menu [6] |
+| S8 | Barber Non-Half Dashboard Filter | May 2026 -- `is_barber_nonhalf_term()`, dashboard menu [7] |
 | P0-A | MintMismatch over-filtering (over-mintmark) | `a1e02ca` -- matchAll + over-mintmark detection |
 | P0-B | Batch route missing year in keywords | `a1e02ca` -- pass year/mint into buildKeywords |
 | 171 | Gold Libertad pipeline leak (99% attrition) | May 6 -- metal exclusion keywords + historical meltFloor |
