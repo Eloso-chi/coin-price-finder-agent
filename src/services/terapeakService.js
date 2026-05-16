@@ -814,8 +814,9 @@ function lookupComps(keywords, opts = {}) {
     //    clearly indicate a different weight than what was searched. ──
     // Use the original searchTerm for weight detection (not the normalized key)
     const keyWeight = detectWeightFromQuery(data.searchTerm || key);
-    if (searchWeight !== null && keyWeight !== null && Math.abs(searchWeight - keyWeight) > 0.01) {
-      continue; // e.g. search "1oz" vs dataset "half oz" — skip entirely
+    if (searchWeight !== null && keyWeight !== null) {
+      const wtDiff = Math.abs(searchWeight - keyWeight) / Math.max(searchWeight, keyWeight);
+      if (wtDiff > 0.05) continue; // e.g. search "1oz" vs dataset "half oz" — skip entirely
     }
 
     // ── Metal-mismatch guard: reject datasets whose name specifies a
@@ -910,8 +911,9 @@ function lookupComps(keywords, opts = {}) {
       // gold bullion queries from leaking into generic/silver datasets that
       // happen to share series tokens.
       let weightMatchBonus = 0;
-      if (queryMetal && searchWeight !== null && keyMetal === queryMetal && keyWeight !== null && Math.abs(searchWeight - keyWeight) <= 0.01) {
-        weightMatchBonus = 0.15;
+      if (queryMetal && searchWeight !== null && keyMetal === queryMetal && keyWeight !== null) {
+        const wtDiff = Math.abs(searchWeight - keyWeight) / Math.max(searchWeight, keyWeight);
+        if (wtDiff <= 0.05) weightMatchBonus = 0.15;
       }
 
       // US mint-mark bonus (#174): single-letter mint marks (S, D, O, W)
@@ -932,7 +934,15 @@ function lookupComps(keywords, opts = {}) {
       let gradeBonus = 0;
       if (queryGrade && keyGrade === queryGrade) gradeBonus = 0.15;
 
-      candidates.push({ key, data, score: combined + bonus + metalBonus + weightMatchBonus + mintMarkBonus + gradeBonus, isGeneric, keyMetal, keyGrade });
+      // Year-specificity bonus: when query has a year and dataset matches
+      // that exact year, strongly prefer it over yearless/Generic datasets.
+      let yearBonus = 0;
+      if (queryYear) {
+        const keyYearMatch2 = key.match(/\b(1[7-9]\d{2}|20[0-4]\d)\b/);
+        if (keyYearMatch2 && keyYearMatch2[1] === queryYear) yearBonus = 0.20;
+      }
+
+      candidates.push({ key, data, score: combined + bonus + metalBonus + weightMatchBonus + mintMarkBonus + gradeBonus + yearBonus, isGeneric, keyMetal, keyGrade });
     }
   }
 
@@ -1195,6 +1205,9 @@ function detectWeightFromQuery(text) {
   // Generic "N oz" or "Noz"
   const m = t.match(/\b(\d+(?:\.\d+)?)\s*oz\b/);
   if (m) return parseFloat(m[1]);
+  // Grams: "30g", "31.1 grams", etc. — convert to troy ounces
+  const gm = t.match(/\b(\d+(?:\.\d+)?)\s*g(?:ram)?s?\b/);
+  if (gm) return parseFloat(gm[1]) / 31.1035;
   // Standalone weight words at end of string or followed by non-alpha
   // (dataset names like "Perth Lunar III 2024 Dragon Gold Quarter")
   if (/\btwentieth\b/.test(t)) return 0.05;
