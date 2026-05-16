@@ -29,11 +29,22 @@ Both `terapeak-export.py` and `sales-aggregator.py` now guard against active lis
 
 ---
 
+### S3. Eliminate Disk-CSV Dual-Write from Export Script [MEDIUM]
+
+**Problem:** `terapeak-export.py` writes CSVs to both `data/terapeak/` (disk) and blob storage. This dual-write caused the data-loss bug fixed in `fix/csv-merge-on-refresh` -- naive file moves overwrote deep-paginated data with page-1 results.
+
+**Proposed change:**
+1. Export script uploads CSVs directly to blob storage only (already does this).
+2. Remove the `_merge_csv` / file-move step that writes to `data/terapeak/`.
+3. Server imports exclusively from blob on startup (`autoImportFromBlob`).
+4. `data/terapeak/` becomes a read-only cache populated by the server, not the script.
+
+**Benefits:** Single source of truth (blob); eliminates file-overwrite bug class; no git churn.
+**Trade-offs:** Requires blob availability for imports; slower restart (network vs disk); lose git-tracked comp history (mitigated by blob versioning).
+
+---
+
 ### S4. Refresh Stale 14-30 Days [MEDIUM -- defer after S2]
-
-**Problem:** ~1,031 CSVs older than 14 days. Many are high-volume coins worth refreshing (Morgans, ASEs, etc.) unlike the >30d batch which was all low-volume Lunar coins.
-
-**Command:** `python3 scripts/terapeak-export.py --run --refresh --max-age 14 --limit 100`
 
 ---
 

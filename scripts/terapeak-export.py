@@ -356,6 +356,91 @@ def get_search_terms():
     return terms
 
 
+# ── CSV Merge (preserves deep-paginated data on refresh) ────
+def _merge_csv(new_csv_path, existing_csv_path):
+    """Merge new CSV rows into existing CSV, deduplicating by Item ID and
+    title+price+date.  Returns the path of the merged file (always existing_csv_path).
+    If the existing file doesn't exist, simply moves new_csv into place."""
+    if not existing_csv_path.exists():
+        new_csv_path.rename(existing_csv_path)
+        return existing_csv_path
+
+    # Read existing rows
+    existing_rows = {}  # dedup key -> row
+    existing_ids = set()
+    header = None
+    with open(existing_csv_path, "r", newline="", encoding="utf-8") as f:
+        reader = csv.reader(f)
+        header = next(reader, None)
+        for row in reader:
+            if len(row) < 4:
+                continue
+            item_id = row[1].strip() if len(row) > 1 else ""
+            title = row[0].strip().lower()[:80]
+            price = row[3].strip() if len(row) > 3 else ""
+            date = row[2].strip() if len(row) > 2 else ""
+            dedup_key = f"{title}|{price}|{date}"
+            if item_id:
+                existing_ids.add(item_id)
+            existing_rows[dedup_key] = row
+
+    # Read new rows and merge
+    new_count = 0
+    with open(new_csv_path, "r", newline="", encoding="utf-8") as f:
+        reader = csv.reader(f)
+        new_header = next(reader, None)
+        if header is None:
+            header = new_header
+        for row in reader:
+            if len(row) < 4:
+                continue
+            item_id = row[1].strip() if len(row) > 1 else ""
+            title = row[0].strip().lower()[:80]
+            price = row[3].strip() if len(row) > 3 else ""
+            date = row[2].strip() if len(row) > 2 else ""
+            # Skip if item ID already exists
+            if item_id and item_id in existing_ids:
+                continue
+            dedup_key = f"{title}|{price}|{date}"
+            if dedup_key in existing_rows:
+                continue
+            existing_rows[dedup_key] = row
+            if item_id:
+                existing_ids.add(item_id)
+            new_count += 1
+
+    # Shrink guard: refuse to write if merged result would be smaller than existing
+    all_rows = list(existing_rows.values())
+    existing_row_count = sum(1 for _ in open(existing_csv_path, encoding="utf-8")) - 1  # minus header
+    if len(all_rows) < existing_row_count:
+        print(f"    SHRINK GUARD: merged ({len(all_rows)}) < existing ({existing_row_count}) -- keeping existing")
+        if new_csv_path.exists() and new_csv_path != existing_csv_path:
+            new_csv_path.unlink()
+        return existing_csv_path
+
+    # Write merged result (sorted by date descending for readability)
+    # Sort by sold date descending (column index 2)
+    def sort_key(row):
+        try:
+            from datetime import datetime as _dt
+            return _dt.strptime(row[2].strip().strip('"'), "%b %d, %Y")
+        except (ValueError, IndexError):
+            return datetime.min
+    all_rows.sort(key=sort_key, reverse=True)
+
+    with open(existing_csv_path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        if header:
+            writer.writerow(header)
+        writer.writerows(all_rows)
+
+    # Clean up temp file
+    if new_csv_path.exists() and new_csv_path != existing_csv_path:
+        new_csv_path.unlink()
+
+    return existing_csv_path
+
+
 # ── Upload to Azure Blob Storage ────────────────────────────
 def upload_to_blob(csv_path):
     """Upload a CSV file directly to Azure Blob Storage.
@@ -1254,9 +1339,9 @@ def do_export_run(args):
                     progress.setdefault("failed", []).append(term)
                     continue
 
-                # Copy to data/terapeak/
+                # Merge with existing CSV (preserve deep-paginated data)
                 dest = CSV_DIR / entry["filename"]
-                csv_path.rename(dest) if csv_path != dest else None
+                dest = _merge_csv(csv_path, dest)
 
                 # Upload to app with aggregationMeta
                 now = datetime.now().isoformat()
