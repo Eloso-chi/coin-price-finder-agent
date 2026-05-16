@@ -4693,12 +4693,12 @@
   },
   "1883 liberty nickel no cents": {
     "deepAt": null,
-    "page1At": "2026-04-26T15:46:23.768Z",
+    "page1At": "2026-05-16T03:22:29.570476",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-25",
+    "newestSaleDate": "2026-05-11",
     "oldestSaleDate": "2025-11-14",
-    "compCount": 43,
+    "compCount": 49,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": false,
@@ -5784,13 +5784,13 @@
     }
   },
   "1886 liberty nickel": {
-    "deepAt": null,
-    "page1At": "2026-04-26T15:52:01.323Z",
+    "deepAt": "2026-05-15T19:12:22.107Z",
+    "page1At": "2026-05-16T03:28:15.473989",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-26",
+    "newestSaleDate": "2026-05-14",
     "oldestSaleDate": "2026-04-01",
-    "compCount": 47,
+    "compCount": 92,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": false,
@@ -7003,12 +7003,12 @@
   },
   "1890 liberty nickel": {
     "deepAt": null,
-    "page1At": "2026-04-26T16:12:22.211Z",
+    "page1At": "2026-05-16T03:23:54.592260",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-23",
+    "newestSaleDate": "2026-05-10",
     "oldestSaleDate": "2025-11-15",
-    "compCount": 22,
+    "compCount": 26,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": false,
@@ -8178,13 +8178,13 @@
     }
   },
   "1893 liberty nickel": {
-    "deepAt": null,
-    "page1At": "2026-04-26T15:53:02.550Z",
+    "deepAt": "2026-05-15T19:12:22.556Z",
+    "page1At": "2026-05-16T03:15:21.817540",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-24",
+    "newestSaleDate": "2026-05-15",
     "oldestSaleDate": "2026-04-02",
-    "compCount": 34,
+    "compCount": 70,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": false,
@@ -8536,12 +8536,12 @@
   },
   "1894 liberty nickel": {
     "deepAt": null,
-    "page1At": "2026-04-26T15:56:02.797Z",
+    "page1At": "2026-05-16T03:19:32.058214",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-24",
+    "newestSaleDate": "2026-05-07",
     "oldestSaleDate": "2025-11-07",
-    "compCount": 25,
+    "compCount": 30,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": false,
@@ -8913,13 +8913,13 @@
     }
   },
   "1895 liberty nickel": {
-    "deepAt": null,
-    "page1At": "2026-04-26T16:01:19.820Z",
+    "deepAt": "2026-05-15T19:12:22.630Z",
+    "page1At": "2026-05-16T03:20:59.829013",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-25",
-    "oldestSaleDate": "2026-03-28",
-    "compCount": 42,
+    "newestSaleDate": "2026-05-06",
+    "oldestSaleDate": "2025-11-18",
+    "compCount": 75,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": false,
@@ -9753,13 +9753,13 @@
     }
   },
   "1897 liberty nickel": {
-    "deepAt": null,
-    "page1At": "2026-04-26T16:00:09.801Z",
+    "deepAt": "2026-05-15T19:12:22.723Z",
+    "page1At": "2026-05-16T03:18:05.489627",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-25",
+    "newestSaleDate": "2026-05-15",
     "oldestSaleDate": "2026-04-05",
-    "compCount": 34,
+    "compCount": 67,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": false,
@@ -10719,13 +10719,13 @@
     }
   },
   "1899 liberty nickel": {
-    "deepAt": null,
-    "page1At": "2026-04-26T15:55:00.731Z",
+    "deepAt": "2026-05-15T19:12:22.823Z",
+    "page1At": "2026-05-16T03:25:18.483942",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-25",
-    "oldestSaleDate": "2026-04-10",
-    "compCount": 36,
+    "newestSaleDate": "2026-05-14",
+    "oldestSaleDate": "2025-12-02",
+    "compCount": 67,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": false,
@@ -11203,12 +11203,12 @@
   },
   "1900 liberty nickel": {
     "deepAt": null,
-    "page1At": "2026-04-26T16:17:51.243Z",
+    "page1At": "2026-05-16T03:26:43.919628",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-24",
+    "newestSaleDate": "2026-05-14",
     "oldestSaleDate": "2025-11-13",
-    "compCount": 30,
+    "compCount": 49,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": false,
@@ -13072,12 +13072,12 @@
   },
   "1904 liberty nickel": {
     "deepAt": null,
-    "page1At": "2026-04-26T15:58:21.452Z",
+    "page1At": "2026-05-16T03:13:57.213918",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-25",
+    "newestSaleDate": "2026-05-11",
     "oldestSaleDate": "2025-11-20",
-    "compCount": 23,
+    "compCount": 45,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": false,
@@ -13386,13 +13386,13 @@
     }
   },
   "1905 liberty nickel": {
-    "deepAt": null,
-    "page1At": "2026-04-26T16:10:02.977Z",
+    "deepAt": "2026-05-15T19:12:23.102Z",
+    "page1At": "2026-05-16T03:16:46.628562",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-25",
+    "newestSaleDate": "2026-05-15",
     "oldestSaleDate": "2025-11-07",
-    "compCount": 31,
+    "compCount": 54,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": false,
@@ -14310,13 +14310,13 @@
     }
   },
   "1908 liberty nickel": {
-    "deepAt": null,
-    "page1At": "2026-04-26T15:47:32.646Z",
+    "deepAt": "2026-05-15T19:12:23.167Z",
+    "page1At": "2026-05-16T03:12:24.995673",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-22",
+    "newestSaleDate": "2026-05-11",
     "oldestSaleDate": "2025-10-29",
-    "compCount": 42,
+    "compCount": 58,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": false,
@@ -15403,12 +15403,12 @@
   },
   "1912 liberty nickel": {
     "deepAt": null,
-    "page1At": "2026-04-26T15:48:44.092Z",
+    "page1At": "2026-05-16T03:29:39.447852",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-25",
+    "newestSaleDate": "2026-05-15",
     "oldestSaleDate": "2025-11-14",
-    "compCount": 35,
+    "compCount": 42,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": false,
@@ -17019,13 +17019,13 @@
     }
   },
   "1918 s walking liberty half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-26T15:27:37.944Z",
+    "deepAt": "2026-05-15T19:12:23.376Z",
+    "page1At": "2026-05-16T02:48:16.064738",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-20",
+    "newestSaleDate": "2026-05-05",
     "oldestSaleDate": "2025-11-01",
-    "compCount": 44,
+    "compCount": 68,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": false,
@@ -17965,12 +17965,12 @@
   },
   "1921 peace silver dollar ms65": {
     "deepAt": null,
-    "page1At": "2026-05-07T01:10:03.491Z",
+    "page1At": "2026-05-16T02:34:50.695494",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-26",
+    "newestSaleDate": "2026-05-15",
     "oldestSaleDate": "2025-11-27",
-    "compCount": 16,
+    "compCount": 21,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": false,
@@ -18174,13 +18174,13 @@
     }
   },
   "1922 peace silver dollar ms63": {
-    "deepAt": null,
-    "page1At": "2026-05-07T02:24:48.611Z",
+    "deepAt": "2026-05-15T19:12:23.532Z",
+    "page1At": "2026-05-16T02:22:17.432949",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-29",
+    "newestSaleDate": "2026-05-11",
     "oldestSaleDate": "2025-11-12",
-    "compCount": 50,
+    "compCount": 56,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": false,
@@ -18238,12 +18238,12 @@
   },
   "1923 d peace silver dollar ms64": {
     "deepAt": null,
-    "page1At": "2026-05-07T01:42:09.788Z",
+    "page1At": "2026-05-16T02:09:12.418860",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-20",
+    "newestSaleDate": "2026-05-13",
     "oldestSaleDate": "2025-11-12",
-    "compCount": 16,
+    "compCount": 24,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": false,
@@ -20652,13 +20652,13 @@
     }
   },
   "1933 s walking liberty half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-26T15:10:31.678Z",
+    "deepAt": "2026-05-15T19:12:23.789Z",
+    "page1At": "2026-05-16T02:06:17.988478",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-26",
+    "newestSaleDate": "2026-05-15",
     "oldestSaleDate": "2026-04-11",
-    "compCount": 45,
+    "compCount": 89,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": false,
@@ -20800,12 +20800,12 @@
   },
   "1934 d walking liberty half dollar": {
     "deepAt": null,
-    "page1At": "2026-04-26T15:29:48.512Z",
+    "page1At": "2026-05-16T02:51:00.437350",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-25",
+    "newestSaleDate": "2026-05-15",
     "oldestSaleDate": "2025-11-05",
-    "compCount": 24,
+    "compCount": 49,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": false,
@@ -20904,13 +20904,13 @@
     }
   },
   "1934 s walking liberty half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-26T15:16:20.161Z",
+    "deepAt": "2026-05-15T19:12:23.827Z",
+    "page1At": "2026-05-16T02:25:08.916794",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-22",
+    "newestSaleDate": "2026-05-14",
     "oldestSaleDate": "2025-10-28",
-    "compCount": 46,
+    "compCount": 90,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": false,
@@ -21052,12 +21052,12 @@
   },
   "1934 walking liberty half ms63": {
     "deepAt": null,
-    "page1At": "2026-05-07T01:46:39.467Z",
+    "page1At": "2026-05-16T02:46:53.309715",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-03-10",
+    "newestSaleDate": "2026-05-10",
     "oldestSaleDate": "2025-11-11",
-    "compCount": 14,
+    "compCount": 17,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": false,
@@ -21303,13 +21303,13 @@
     }
   },
   "1935 s walking liberty half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-26T15:04:58.554Z",
+    "deepAt": "2026-05-15T19:12:23.884Z",
+    "page1At": "2026-05-16T02:31:58.947809",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-25",
+    "newestSaleDate": "2026-05-14",
     "oldestSaleDate": "2026-04-02",
-    "compCount": 41,
+    "compCount": 74,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": false,
@@ -21576,13 +21576,13 @@
     }
   },
   "1936 d walking liberty half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-26T15:24:19.076Z",
+    "deepAt": "2026-05-15T19:12:23.902Z",
+    "page1At": "2026-05-16T01:56:49.351956",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-24",
+    "newestSaleDate": "2026-05-14",
     "oldestSaleDate": "2026-04-05",
-    "compCount": 45,
+    "compCount": 80,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": false,
@@ -21618,13 +21618,13 @@
     }
   },
   "1936 d washington quarter": {
-    "deepAt": null,
-    "page1At": "2026-04-15T16:08:21.493Z",
+    "deepAt": "2026-05-15T19:12:23.904Z",
+    "page1At": "2026-05-16T02:30:40.227374",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-13",
+    "newestSaleDate": "2026-05-15",
     "oldestSaleDate": "2025-10-18",
-    "compCount": 48,
+    "compCount": 79,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": false,
@@ -22080,13 +22080,13 @@
     }
   },
   "1937 s walking liberty half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-26T15:43:03.456Z",
+    "deepAt": "2026-05-15T19:12:23.925Z",
+    "page1At": "2026-05-16T02:29:12.390843",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-23",
+    "newestSaleDate": "2026-05-15",
     "oldestSaleDate": "2025-10-31",
-    "compCount": 43,
+    "compCount": 79,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": false,
@@ -23193,13 +23193,13 @@
     }
   },
   "1941 mercury dime": {
-    "deepAt": null,
-    "page1At": "2026-04-10T15:19:10.455Z",
+    "deepAt": "2026-05-15T19:12:24.000Z",
+    "page1At": "2026-05-16T02:52:19.174231",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-05",
+    "newestSaleDate": "2026-05-15",
     "oldestSaleDate": "2025-11-12",
-    "compCount": 42,
+    "compCount": 82,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": false,
@@ -23277,13 +23277,13 @@
     }
   },
   "1941 washington quarter silver": {
-    "deepAt": null,
-    "page1At": "2026-04-10T15:34:44.450Z",
+    "deepAt": "2026-05-15T19:12:24.005Z",
+    "page1At": "2026-05-16T03:05:04.805782",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-08",
+    "newestSaleDate": "2026-05-11",
     "oldestSaleDate": "2025-10-16",
-    "compCount": 42,
+    "compCount": 66,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": false,
@@ -23509,12 +23509,12 @@
   },
   "1942 s walking liberty half dollar": {
     "deepAt": null,
-    "page1At": "2026-04-26T15:06:01.176Z",
+    "page1At": "2026-05-16T01:58:12.108389",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-02",
+    "newestSaleDate": "2026-05-11",
     "oldestSaleDate": "2025-10-28",
-    "compCount": 24,
+    "compCount": 39,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": false,
@@ -23697,13 +23697,13 @@
     }
   },
   "1943 d jefferson silver war nickel": {
-    "deepAt": null,
-    "page1At": "2026-04-29T06:28:39.793Z",
+    "deepAt": "2026-05-15T19:12:24.030Z",
+    "page1At": "2026-05-16T02:42:06.952940",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-28",
+    "newestSaleDate": "2026-05-15",
     "oldestSaleDate": "2025-11-08",
-    "compCount": 46,
+    "compCount": 64,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": false,
@@ -24243,13 +24243,13 @@
     }
   },
   "1944 s jefferson silver war nickel": {
-    "deepAt": null,
-    "page1At": "2026-04-30T14:37:16.367Z",
+    "deepAt": "2026-05-15T19:12:24.086Z",
+    "page1At": "2026-05-16T02:02:14.342328",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-30",
-    "oldestSaleDate": "2026-04-11",
-    "compCount": 42,
+    "newestSaleDate": "2026-05-15",
+    "oldestSaleDate": "2025-11-27",
+    "compCount": 73,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": false,
@@ -24474,13 +24474,13 @@
     }
   },
   "1944 walking liberty half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-10T15:20:07.926Z",
+    "deepAt": "2026-05-15T19:12:24.102Z",
+    "page1At": "2026-05-16T02:44:02.851517",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-05",
+    "newestSaleDate": "2026-05-14",
     "oldestSaleDate": "2025-10-17",
-    "compCount": 45,
+    "compCount": 66,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": false,
@@ -24516,13 +24516,13 @@
     }
   },
   "1945 d jefferson silver war nickel": {
-    "deepAt": null,
-    "page1At": "2026-04-29T06:34:09.050Z",
+    "deepAt": "2026-05-15T19:12:24.105Z",
+    "page1At": "2026-05-16T02:45:28.199227",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-28",
+    "newestSaleDate": "2026-05-15",
     "oldestSaleDate": "2025-11-09",
-    "compCount": 44,
+    "compCount": 61,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": false,
@@ -24558,13 +24558,13 @@
     }
   },
   "1945 d walking liberty half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-26T15:35:15.565Z",
+    "deepAt": "2026-05-15T19:12:24.108Z",
+    "page1At": "2026-05-16T02:14:44.549217",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-26",
+    "newestSaleDate": "2026-05-15",
     "oldestSaleDate": "2026-04-14",
-    "compCount": 36,
+    "compCount": 79,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": false,
@@ -24621,13 +24621,13 @@
     }
   },
   "1945 s jefferson silver war nickel": {
-    "deepAt": null,
-    "page1At": "2026-04-30T14:09:28.316Z",
+    "deepAt": "2026-05-15T19:12:24.112Z",
+    "page1At": "2026-05-16T01:55:28.365306",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-30",
+    "newestSaleDate": "2026-05-15",
     "oldestSaleDate": "2025-11-06",
-    "compCount": 47,
+    "compCount": 85,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": false,
@@ -24789,13 +24789,13 @@
     }
   },
   "1945 walking liberty half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-10T15:30:10.390Z",
+    "deepAt": "2026-05-15T19:12:24.121Z",
+    "page1At": "2026-05-16T02:03:34.783373",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-08",
+    "newestSaleDate": "2026-05-15",
     "oldestSaleDate": "2025-10-19",
-    "compCount": 36,
+    "compCount": 73,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": false,
@@ -26974,12 +26974,12 @@
   },
   "1956 d franklin half dollar": {
     "deepAt": null,
-    "page1At": "2026-05-09T18:42:15.982Z",
+    "page1At": "2026-05-16T01:51:25.423398",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-18",
-    "oldestSaleDate": "2026-01-11",
-    "compCount": 16,
+    "newestSaleDate": "2026-05-07",
+    "oldestSaleDate": "2025-11-19",
+    "compCount": 24,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": false,
@@ -27120,13 +27120,13 @@
     }
   },
   "1957 d franklin half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-10T14:50:47.536Z",
+    "deepAt": "2026-05-15T19:12:24.296Z",
+    "page1At": "2026-05-16T02:49:35.216412",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-08",
+    "newestSaleDate": "2026-05-15",
     "oldestSaleDate": "2025-10-12",
-    "compCount": 44,
+    "compCount": 87,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": false,
@@ -27708,13 +27708,13 @@
     }
   },
   "1961 d franklin half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-10T14:19:09.667Z",
+    "deepAt": "2026-05-15T19:12:24.340Z",
+    "page1At": "2026-05-16T03:00:47.488686",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-08",
+    "newestSaleDate": "2026-05-11",
     "oldestSaleDate": "2025-10-13",
-    "compCount": 45,
+    "compCount": 73,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": false,
@@ -28548,13 +28548,13 @@
     }
   },
   "1968 d kennedy half dollar 40 silver": {
-    "deepAt": null,
-    "page1At": "2026-04-10T14:56:17.574Z",
+    "deepAt": "2026-05-15T19:12:24.381Z",
+    "page1At": "2026-05-16T02:55:02.143930",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-08",
+    "newestSaleDate": "2026-05-15",
     "oldestSaleDate": "2025-10-15",
-    "compCount": 46,
+    "compCount": 88,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": false,
@@ -32560,12 +32560,12 @@
   },
   "1989 mexico 1oz silver libertad proof": {
     "deepAt": null,
-    "page1At": "2026-04-29T12:01:00.070Z",
+    "page1At": "2026-05-16T04:13:06.575956",
     "maxPageReached": null,
     "lastRefreshAt": null,
     "newestSaleDate": "2026-04-26",
     "oldestSaleDate": "2025-12-12",
-    "compCount": 11,
+    "compCount": 13,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -33007,12 +33007,12 @@
   },
   "1990 mexico 1oz silver libertad proof": {
     "deepAt": null,
-    "page1At": "2026-04-26T19:43:01.391Z",
+    "page1At": "2026-05-16T03:49:33.693998",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-24",
+    "newestSaleDate": "2026-05-13",
     "oldestSaleDate": "2025-11-04",
-    "compCount": 30,
+    "compCount": 39,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -33028,12 +33028,12 @@
   },
   "1990 us mint uncirculated set p d": {
     "deepAt": null,
-    "page1At": "2026-04-10T15:17:18.469Z",
+    "page1At": "2026-05-16T03:33:22.322747",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-10",
+    "newestSaleDate": "2026-05-15",
     "oldestSaleDate": "2025-10-24",
-    "compCount": 32,
+    "compCount": 50,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": false,
@@ -33439,7 +33439,7 @@
   },
   "1991 mexico 1oz silver libertad proof": {
     "deepAt": null,
-    "page1At": "2026-04-26T19:39:35.927Z",
+    "page1At": "2026-05-16T04:07:31.713328",
     "maxPageReached": null,
     "lastRefreshAt": null,
     "newestSaleDate": "2026-04-15",
@@ -43519,12 +43519,12 @@
   },
   "2011 mexico 1oz silver libertad proof": {
     "deepAt": null,
-    "page1At": "2026-04-26T19:41:52.477Z",
+    "page1At": "2026-05-16T03:41:44.249037",
     "maxPageReached": null,
     "lastRefreshAt": null,
     "newestSaleDate": "2026-04-23",
     "oldestSaleDate": "2025-11-02",
-    "compCount": 25,
+    "compCount": 26,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -44788,12 +44788,12 @@
   },
   "2013 mexico 1oz silver libertad proof": {
     "deepAt": "2026-05-02T18:12:57.067Z",
-    "page1At": "2026-05-02T18:12:57.067Z",
+    "page1At": "2026-05-16T04:14:28.027701",
     "maxPageReached": null,
     "lastRefreshAt": null,
     "newestSaleDate": "2026-04-26",
     "oldestSaleDate": "2025-10-28",
-    "compCount": 63,
+    "compCount": 65,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -46750,10 +46750,10 @@
   },
   "2016 mexico quarter oz silver libertad": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-16T04:27:17.253514",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-26",
+    "newestSaleDate": "2026-05-10",
     "oldestSaleDate": "2025-10-27",
     "compCount": 21,
     "identifiers": {
@@ -47344,12 +47344,12 @@
   },
   "2017 mexico half oz silver libertad": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-16T04:33:38.725797",
     "maxPageReached": null,
     "lastRefreshAt": null,
     "newestSaleDate": "2026-04-30",
     "oldestSaleDate": "2025-10-19",
-    "compCount": 34
+    "compCount": 36
   },
   "2017 mexico twentieth oz silver libertad": {
     "deepAt": null,
@@ -48157,12 +48157,12 @@
   },
   "2018 mexico 1oz silver libertad proof": {
     "deepAt": "2026-05-02T19:32:11.024Z",
-    "page1At": "2026-05-02T19:32:11.024Z",
+    "page1At": "2026-05-16T03:59:46.825814",
     "maxPageReached": null,
     "lastRefreshAt": null,
     "newestSaleDate": "2026-04-21",
     "oldestSaleDate": "2025-11-10",
-    "compCount": 48,
+    "compCount": 50,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -48712,7 +48712,7 @@
   },
   "2019 mexico 1oz silver libertad proof": {
     "deepAt": null,
-    "page1At": "2026-04-26T19:33:56.981Z",
+    "page1At": "2026-05-16T03:44:35.242988",
     "maxPageReached": null,
     "lastRefreshAt": null,
     "newestSaleDate": "2026-04-26",
@@ -50911,12 +50911,12 @@
   },
   "2022 mexico 1oz silver libertad proof": {
     "deepAt": "2026-05-04T00:43:24.723Z",
-    "page1At": "2026-05-04T00:43:24.723Z",
+    "page1At": "2026-05-16T04:18:44.423862",
     "maxPageReached": null,
     "lastRefreshAt": null,
     "newestSaleDate": "2026-04-27",
     "oldestSaleDate": "2025-11-02",
-    "compCount": 37,
+    "compCount": 42,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -52255,12 +52255,12 @@
   },
   "2024 great britain tenth oz silver britannia": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-16T04:29:41.267695",
     "maxPageReached": null,
     "lastRefreshAt": null,
     "newestSaleDate": "2026-04-19",
     "oldestSaleDate": "2025-11-07",
-    "compCount": 18
+    "compCount": 19
   },
   "2024 great britain quarter oz silver britannia": {
     "deepAt": null,
@@ -53926,12 +53926,12 @@
   },
   "american platinum eagle half oz": {
     "deepAt": "2026-05-14T04:56:06.115Z",
-    "page1At": "2026-04-30T18:09:07.629Z",
+    "page1At": "2026-05-16T04:20:46.100348",
     "maxPageReached": null,
     "lastRefreshAt": null,
     "newestSaleDate": "2026-04-29",
-    "oldestSaleDate": "2025-12-29",
-    "compCount": 46,
+    "oldestSaleDate": "2025-12-04",
+    "compCount": 55,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -66207,12 +66207,12 @@
   },
   "1916 d walking liberty half": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-16T01:52:49.222256",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-25",
+    "newestSaleDate": "2026-05-15",
     "oldestSaleDate": "2025-11-04",
-    "compCount": 50,
+    "compCount": 45,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": false,
@@ -66417,12 +66417,12 @@
   },
   "1917 s walking liberty half": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-16T02:16:03.876055",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-22",
+    "newestSaleDate": "2026-05-15",
     "oldestSaleDate": "2025-11-16",
-    "compCount": 50,
+    "compCount": 40,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": false,
@@ -66606,12 +66606,12 @@
   },
   "1918 s walking liberty half": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-16T02:57:54.141190",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-20",
+    "newestSaleDate": "2026-05-05",
     "oldestSaleDate": "2025-11-01",
-    "compCount": 50,
+    "compCount": 43,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": false,
@@ -66676,12 +66676,12 @@
   },
   "1918 walking liberty half": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-16T02:00:54.172115",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-25",
+    "newestSaleDate": "2026-05-09",
     "oldestSaleDate": "2025-11-19",
-    "compCount": 50,
+    "compCount": 46,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": false,
@@ -66907,12 +66907,12 @@
   },
   "1920 d walking liberty half": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-16T02:40:37.220941",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-22",
+    "newestSaleDate": "2026-05-01",
     "oldestSaleDate": "2025-10-30",
-    "compCount": 50,
+    "compCount": 23,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": false,
@@ -66970,12 +66970,12 @@
   },
   "1920 s walking liberty half": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-16T02:07:42.117453",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-26",
+    "newestSaleDate": "2026-05-15",
     "oldestSaleDate": "2025-11-10",
-    "compCount": 50,
+    "compCount": 36,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": false,
@@ -67803,12 +67803,12 @@
   },
   "1934 d walking liberty half": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-16T02:20:52.376382",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-25",
+    "newestSaleDate": "2026-05-15",
     "oldestSaleDate": "2025-10-30",
-    "compCount": 50,
+    "compCount": 35,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": false,
@@ -67901,12 +67901,12 @@
   },
   "1934 s walking liberty half": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-16T02:59:23.374664",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-22",
+    "newestSaleDate": "2026-05-14",
     "oldestSaleDate": "2025-10-28",
-    "compCount": 50,
+    "compCount": 48,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": false,
@@ -67992,12 +67992,12 @@
   },
   "1934 walking liberty half": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-16T02:11:55.770219",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-21",
+    "newestSaleDate": "2026-05-15",
     "oldestSaleDate": "2025-10-28",
-    "compCount": 50,
+    "compCount": 45,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": false,
@@ -68195,12 +68195,12 @@
   },
   "1935 walking liberty half": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-16T02:04:58.723804",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-26",
-    "oldestSaleDate": "2026-04-20",
-    "compCount": 50,
+    "newestSaleDate": "2026-05-13",
+    "oldestSaleDate": "2025-11-21",
+    "compCount": 43,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": false,
@@ -68293,12 +68293,12 @@
   },
   "1936 s walking liberty half": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-16T02:23:41.661071",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-24",
+    "newestSaleDate": "2026-05-11",
     "oldestSaleDate": "2025-10-28",
-    "compCount": 50,
+    "compCount": 26,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": false,
@@ -68328,12 +68328,12 @@
   },
   "1936 walking liberty half": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-16T02:10:31.247622",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-26",
+    "newestSaleDate": "2026-05-15",
     "oldestSaleDate": "2025-11-17",
-    "compCount": 50,
+    "compCount": 41,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": false,
@@ -68363,12 +68363,12 @@
   },
   "1937 d walking liberty half": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-16T02:19:26.907724",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-22",
+    "newestSaleDate": "2026-05-11",
     "oldestSaleDate": "2025-10-28",
-    "compCount": 50,
+    "compCount": 39,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": false,
@@ -68622,12 +68622,12 @@
   },
   "1939 walking liberty half": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-16T02:39:11.244108",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-23",
+    "newestSaleDate": "2026-05-15",
     "oldestSaleDate": "2025-11-01",
-    "compCount": 50,
+    "compCount": 43,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": false,
@@ -68804,12 +68804,12 @@
   },
   "1941 s walking liberty half": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-16T02:26:31.897972",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-25",
+    "newestSaleDate": "2026-05-15",
     "oldestSaleDate": "2026-04-10",
-    "compCount": 50,
+    "compCount": 43,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": false,
@@ -68888,12 +68888,12 @@
   },
   "1942 d walking liberty half": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-16T02:36:19.323249",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-26",
+    "newestSaleDate": "2026-05-15",
     "oldestSaleDate": "2026-04-11",
-    "compCount": 50,
+    "compCount": 41,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": false,
@@ -68923,12 +68923,12 @@
   },
   "1942 p jefferson war nickel": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-16T01:59:34.237323",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-29",
-    "oldestSaleDate": "2026-04-14",
-    "compCount": 50,
+    "newestSaleDate": "2026-05-15",
+    "oldestSaleDate": "2025-11-26",
+    "compCount": 46,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": false,
@@ -68944,12 +68944,12 @@
   },
   "1942 s jefferson war nickel": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-16T02:27:53.321735",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-28",
+    "newestSaleDate": "2026-05-15",
     "oldestSaleDate": "2025-11-14",
-    "compCount": 50,
+    "compCount": 40,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": false,
@@ -69238,12 +69238,12 @@
   },
   "1943 washington quarter": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-16T03:02:14.505787",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-04",
+    "newestSaleDate": "2026-05-12",
     "oldestSaleDate": "2025-10-16",
-    "compCount": 50,
+    "compCount": 43,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": false,
@@ -69259,12 +69259,12 @@
   },
   "1944 d jefferson war nickel": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-16T03:03:40.282191",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-30",
+    "newestSaleDate": "2026-05-15",
     "oldestSaleDate": "2025-11-08",
-    "compCount": 50,
+    "compCount": 45,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": false,
@@ -69371,12 +69371,12 @@
   },
   "1944 s walking liberty half": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-16T02:37:49.547187",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-18",
+    "newestSaleDate": "2026-05-15",
     "oldestSaleDate": "2025-11-09",
-    "compCount": 50,
+    "compCount": 42,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": false,
@@ -69434,12 +69434,12 @@
   },
   "1945 d jefferson war nickel": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-16T02:17:32.672486",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-28",
+    "newestSaleDate": "2026-05-15",
     "oldestSaleDate": "2025-11-09",
-    "compCount": 50,
+    "compCount": 44,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": false,
@@ -69539,12 +69539,12 @@
   },
   "1945 s jefferson war nickel": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-16T02:53:38.390736",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-30",
+    "newestSaleDate": "2026-05-15",
     "oldestSaleDate": "2025-11-06",
-    "compCount": 50,
+    "compCount": 43,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": false,
@@ -69798,12 +69798,12 @@
   },
   "1947 d walking liberty half": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-16T01:54:12.522015",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-20",
+    "newestSaleDate": "2026-05-15",
     "oldestSaleDate": "2025-10-31",
-    "compCount": 50,
+    "compCount": 39,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": false,
@@ -70918,12 +70918,12 @@
   },
   "1986 mexican silver libertad 1oz proof": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-16T03:51:02.896372",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-27",
+    "newestSaleDate": "2026-05-03",
     "oldestSaleDate": "2025-11-04",
-    "compCount": 100,
+    "compCount": 10,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -71149,12 +71149,12 @@
   },
   "1987 mexican silver libertad 1oz proof": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-16T04:01:09.296517",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-19",
+    "newestSaleDate": "2026-05-11",
     "oldestSaleDate": "2025-11-02",
-    "compCount": 42,
+    "compCount": 5,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -71646,12 +71646,12 @@
   },
   "1989 mexican silver libertad 1oz proof": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-16T04:08:54.424951",
     "maxPageReached": null,
     "lastRefreshAt": null,
     "newestSaleDate": "2026-04-26",
     "oldestSaleDate": "2025-12-12",
-    "compCount": 11,
+    "compCount": 2,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -71940,12 +71940,12 @@
   },
   "1990 mexican silver libertad 1oz proof": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-16T04:16:00.096309",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-24",
+    "newestSaleDate": "2026-05-13",
     "oldestSaleDate": "2025-11-04",
-    "compCount": 31,
+    "compCount": 14,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -72227,12 +72227,12 @@
   },
   "1991 mexican silver libertad 1oz proof": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-16T03:54:31.531530",
     "maxPageReached": null,
     "lastRefreshAt": null,
     "newestSaleDate": "2026-04-15",
     "oldestSaleDate": "2025-11-02",
-    "compCount": 25,
+    "compCount": 4,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -76441,12 +76441,12 @@
   },
   "2005 mexican silver libertad 1oz proof": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-16T03:43:12.539365",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-18",
+    "newestSaleDate": "2026-05-11",
     "oldestSaleDate": "2025-11-24",
-    "compCount": 16,
+    "compCount": 1,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -77113,12 +77113,12 @@
   },
   "2007 mexican silver libertad 1oz proof": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-16T03:37:54.113258",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-17",
+    "newestSaleDate": "2026-05-11",
     "oldestSaleDate": "2025-11-02",
-    "compCount": 17,
+    "compCount": 1,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -77470,12 +77470,12 @@
   },
   "2008 mexican silver libertad 1oz proof": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-16T03:39:16.206596",
     "maxPageReached": null,
     "lastRefreshAt": null,
     "newestSaleDate": "2026-04-24",
     "oldestSaleDate": "2025-11-30",
-    "compCount": 16,
+    "compCount": 1,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -78555,12 +78555,12 @@
   },
   "2011 mexican silver libertad 1oz proof": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-16T04:10:18.935023",
     "maxPageReached": null,
     "lastRefreshAt": null,
     "newestSaleDate": "2026-04-23",
     "oldestSaleDate": "2025-10-30",
-    "compCount": 42,
+    "compCount": 2,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -78912,12 +78912,12 @@
   },
   "2012 mexican silver libertad 1oz proof": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-16T04:03:36.312551",
     "maxPageReached": null,
     "lastRefreshAt": null,
     "newestSaleDate": "2026-04-14",
     "oldestSaleDate": "2025-11-02",
-    "compCount": 19,
+    "compCount": 3,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -79997,12 +79997,12 @@
   },
   "2015 mexican silver libertad 1oz proof": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-16T03:36:30.958049",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-18",
+    "newestSaleDate": "2026-05-05",
     "oldestSaleDate": "2025-10-29",
-    "compCount": 43,
+    "compCount": 3,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -81446,12 +81446,12 @@
   },
   "2019 mexican silver libertad 1oz proof": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-16T04:04:58.624726",
     "maxPageReached": null,
     "lastRefreshAt": null,
     "newestSaleDate": "2026-04-26",
     "oldestSaleDate": "2025-10-28",
-    "compCount": 50,
+    "compCount": 3,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -81789,12 +81789,12 @@
   },
   "2020 mexican silver libertad 1oz proof": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-16T03:45:56.492969",
     "maxPageReached": null,
     "lastRefreshAt": null,
     "newestSaleDate": "2026-04-26",
     "oldestSaleDate": "2025-10-31",
-    "compCount": 97,
+    "compCount": 8,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -82832,12 +82832,12 @@
   },
   "2023 mexican silver libertad 1oz proof": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-16T04:11:44.153584",
     "maxPageReached": null,
     "lastRefreshAt": null,
     "newestSaleDate": "2026-04-29",
     "oldestSaleDate": "2025-11-02",
-    "compCount": 224,
+    "compCount": 13,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -85352,12 +85352,12 @@
   },
   "standing liberty quarter generic": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-16T02:33:30.720781",
     "maxPageReached": null,
     "lastRefreshAt": null,
     "newestSaleDate": "2026-04-09",
     "oldestSaleDate": "2025-10-20",
-    "compCount": 50,
+    "compCount": 5,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": false,
@@ -85373,12 +85373,12 @@
   },
   "walking liberty half dollar generic": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-16T02:56:28.716473",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-10",
+    "newestSaleDate": "2026-04-20",
     "oldestSaleDate": "2025-11-09",
-    "compCount": 50,
+    "compCount": 28,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": false,
@@ -85415,12 +85415,12 @@
   },
   "washington quarter silver generic": {
     "deepAt": null,
-    "page1At": null,
+    "page1At": "2026-05-16T02:13:17.997335",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "newestSaleDate": "2026-04-10",
+    "newestSaleDate": "2026-05-11",
     "oldestSaleDate": "2025-10-15",
-    "compCount": 50,
+    "compCount": 43,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": false,
@@ -85468,6 +85468,33 @@
     "lastRefreshAt": null,
     "newestSaleDate": "2026-03-07",
     "oldestSaleDate": "2026-03-07",
+    "compCount": 1
+  },
+  "2012 mexican silver libertad half oz proof": {
+    "deepAt": null,
+    "page1At": null,
+    "maxPageReached": null,
+    "lastRefreshAt": null,
+    "newestSaleDate": "2026-02-23",
+    "oldestSaleDate": "2026-02-08",
+    "compCount": 2
+  },
+  "2023 mexican silver libertad 5oz proof": {
+    "deepAt": null,
+    "page1At": null,
+    "maxPageReached": null,
+    "lastRefreshAt": null,
+    "newestSaleDate": "2026-04-13",
+    "oldestSaleDate": "2026-04-13",
+    "compCount": 1
+  },
+  "2024 great britain half oz silver britannia": {
+    "deepAt": null,
+    "page1At": null,
+    "maxPageReached": null,
+    "lastRefreshAt": null,
+    "newestSaleDate": "2026-04-13",
+    "oldestSaleDate": "2026-04-13",
     "compCount": 1
   }
 }
