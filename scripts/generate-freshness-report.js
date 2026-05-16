@@ -176,7 +176,17 @@ for (const [key, entry] of Object.entries(meta)) {
 
   // ── Determine actions (backward-compatible) ────────────────
   const actions = [];
-  if (freshnessStatus === 'Missing' && !csvExists) {
+
+  // Dormant detection: datasets with >= 2 consecutive no-data attempts
+  // within the last 60 days are marked dormant and excluded from refresh queues.
+  const noDataCount = entry.noDataCount || 0;
+  const noDataAt = entry.noDataAt || null;
+  const noDataAgeDays = noDataAt ? Math.floor((today - new Date(noDataAt)) / 86400000) : null;
+  const isDormant = noDataCount >= 2 && noDataAgeDays !== null && noDataAgeDays < 60;
+
+  if (isDormant) {
+    actions.push('dormant');
+  } else if (freshnessStatus === 'Missing' && !csvExists) {
     actions.push('needs-data');
   } else if (freshnessStatus === 'Missing' && csvExists) {
     actions.push('refresh-page1');
@@ -230,6 +240,7 @@ for (const [key, entry] of Object.entries(meta)) {
     hasDeepAt,
     actions,
     identifiers,
+    ...(noDataCount > 0 ? { noDataCount, noDataAt } : {}),
   };
   datasets.push(record);
 
