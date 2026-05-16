@@ -80,10 +80,13 @@ describe('recordDaily', () => {
 
   test('accepts custom timestamp', () => {
     const metal = `TEST_TS_${Date.now()}`;
-    recordDaily(metal, 1200.50, '2026-04-15T12:00:00Z');
+    // Use a date 5 days ago so it's always within the 30-day getHistory window
+    const fiveDaysAgo = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000);
+    const isoDate = fiveDaysAgo.toISOString().slice(0, 10);
+    recordDaily(metal, 1200.50, `${isoDate}T12:00:00Z`);
     const history = getHistory(metal, 30);
     const dates = history.map(h => h[0]);
-    expect(dates).toContain('2026-04-15');
+    expect(dates).toContain(isoDate);
   });
 });
 
