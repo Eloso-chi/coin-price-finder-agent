@@ -566,6 +566,25 @@ def drain_upload(timeout=10):
         print(f"  [async upload] {term}: failed -- {msg}")
 
 
+def _report_no_data(search_term):
+    """Notify the server that Terapeak returned no results for this dataset.
+    Increments noDataCount so the freshness triage can mark it dormant."""
+    url = f"{APP_URL}/api/terapeak/report-no-data"
+    headers = {"Content-Type": "application/json"}
+    if ADMIN_API_KEY:
+        headers["x-api-key"] = ADMIN_API_KEY
+    try:
+        resp = requests.post(url, json={"searchTerm": search_term}, headers=headers, timeout=10)
+        if resp.status_code == 200:
+            data = resp.json()
+            count = data.get("noDataCount", "?")
+            if int(count) >= 2:
+                print(f"  (dormant: {count} consecutive empty attempts)")
+        # Non-fatal -- silently ignore errors
+    except Exception:
+        pass
+
+
 # ── Login Flow ──────────────────────────────────────────────
 def do_login():
     """Open a visible browser for manual eBay login. Save cookies when done."""
@@ -1110,13 +1129,20 @@ def do_export_run(args):
         with open(backlog_path) as f:
             report = _json.load(f)
         # Extract keys that need refresh-page1 or have no data at all
+        # Skip dormant datasets (noDataCount >= 2 and last attempt < 60 days ago)
         backlog_keys = set()
         backlog_search_terms = {}
+        dormant_count = 0
         for item in report.get("datasets", []):
             actions = item.get("actions", [])
+            if "dormant" in actions:
+                dormant_count += 1
+                continue
             if "refresh-page1" in actions or "needs-data" in actions:
                 backlog_keys.add(item["key"])
                 backlog_search_terms[item["key"]] = item.get("searchTerm", item["key"])
+        if dormant_count:
+            print(f"Skipping {dormant_count} dormant datasets (no Terapeak results on prior attempts)")
         # Filter existing terms to backlog keys
         existing_keys = {t["term"] for t in terms}
         before = len(terms)
@@ -1359,6 +1385,7 @@ def do_export_run(args):
                 progress.setdefault("completed", []).append(term)
             else:
                 print("NO EXPORT (no results or button not found)")
+                _report_no_data(term)
                 failed += 1
                 progress.setdefault("failed", []).append(term)
 

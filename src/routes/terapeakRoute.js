@@ -375,6 +375,36 @@ router.get('/scrape-status', requireAdmin, (req, res) => {
 });
 
 /**
+ * POST /api/terapeak/report-no-data
+ * Called by the export script when Terapeak returns no results for a dataset.
+ * Increments noDataCount and stamps noDataAt so the freshness triage can
+ * mark the dataset as dormant after repeated empty attempts.
+ * Body: { searchTerm: string }
+ */
+router.post('/report-no-data', requireAdmin, express.json(), (req, res) => {
+  const searchTerm = req.body?.searchTerm;
+  if (!searchTerm || typeof searchTerm !== 'string') {
+    return res.status(400).json({ error: 'searchTerm is required' });
+  }
+  const store = terapeakService.listDatasets();
+  const normalizedKey = terapeakService.normalizeSearchKey(searchTerm);
+  const existing = store.find(d => d.key === normalizedKey);
+  const prevCount = existing?.aggregationMeta?.noDataCount || 0;
+
+  const result = terapeakService.updateDatasetMeta(searchTerm, {
+    noDataAt: new Date().toISOString(),
+    noDataCount: prevCount + 1,
+  });
+
+  res.json({
+    status: 'ok',
+    key: result.key,
+    noDataCount: result.aggregationMeta.noDataCount,
+    noDataAt: result.aggregationMeta.noDataAt,
+  });
+});
+
+/**
  * POST /api/terapeak/backfill-aggregation-meta
  * One-time backfill: parses page2 log files + export progress to stamp
  * aggregationMeta on existing datasets that were aggregated before this feature.

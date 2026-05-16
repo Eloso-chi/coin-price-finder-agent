@@ -68,7 +68,7 @@ function saveMetaSidecar() {
     const meta = {};
     for (const [rawKey, entry] of Object.entries(store)) {
       const am = entry.aggregationMeta;
-      if (am && (am.deepAt || am.page1At || am.maxPageReached || am.newestSaleDate)) {
+      if (am && (am.deepAt || am.page1At || am.maxPageReached || am.newestSaleDate || am.noDataAt)) {
         // Normalize key so legacy store entries (with mangled fractions,
         // unsplit mint marks, etc.) map to the canonical sidecar key.
         const key = normalizeSearchKey(rawKey);
@@ -87,6 +87,11 @@ function saveMetaSidecar() {
             ? (existing.oldestSaleDate < am.oldestSaleDate ? existing.oldestSaleDate : am.oldestSaleDate)
             : existing.oldestSaleDate || am.oldestSaleDate || null;
           existing.compCount = (existing.compCount || 0) + (am.compCount || 0) || null;
+          // Dormant tracking: keep highest noDataCount
+          if (am.noDataAt) {
+            existing.noDataAt = existing.noDataAt && existing.noDataAt > am.noDataAt ? existing.noDataAt : am.noDataAt;
+            existing.noDataCount = Math.max(existing.noDataCount || 0, am.noDataCount || 0);
+          }
         } else {
           meta[key] = {
             deepAt: am.deepAt || null,
@@ -96,6 +101,7 @@ function saveMetaSidecar() {
             newestSaleDate: am.newestSaleDate || null,
             oldestSaleDate: am.oldestSaleDate || null,
             compCount: am.compCount || null,
+            ...(am.noDataAt ? { noDataAt: am.noDataAt, noDataCount: am.noDataCount || 0 } : {}),
           };
         }
       }
@@ -651,6 +657,11 @@ function importComps(searchTerm, comps, meta = {}, _reclassifying = false) {
     maxPageReached: Math.max(incomingMeta.maxPageReached || 0, prevMeta.maxPageReached || 0) || null,
     lastRefreshAt: incomingMeta.lastRefreshAt || prevMeta.lastRefreshAt || null,
   };
+  // Successful import with comps resets dormant tracking (self-healing)
+  if (comps.length > 0 && prevMeta.noDataCount) {
+    mergedAggregationMeta.noDataAt = null;
+    mergedAggregationMeta.noDataCount = 0;
+  }
 
   // Compute sale date bounds from all comps (existing + newly added)
   let newestSaleDate = prevMeta.newestSaleDate || null;
@@ -1008,6 +1019,32 @@ function _mergeDatasets(candidates) {
     _merged: true,
     _datasetCount: sourceNames.length
   };
+}
+
+/**
+ * Update aggregationMeta for a dataset without importing comps.
+ * Used to stamp noDataAt/noDataCount when Terapeak returns no results.
+ */
+function updateDatasetMeta(searchTerm, metaUpdates) {
+  const store = loadStore();
+  const normalizedKey = normalizeSearchKey(searchTerm);
+  if (!store[normalizedKey]) {
+    // Dataset doesn't exist in store yet -- create a skeleton entry
+    store[normalizedKey] = {
+      searchTerm,
+      comps: [],
+      lastImport: null,
+      importCount: 0,
+      aggregationMeta: {},
+    };
+  }
+  const am = store[normalizedKey].aggregationMeta || {};
+  Object.assign(am, metaUpdates);
+  store[normalizedKey].aggregationMeta = am;
+  _store = store;
+  saveStore();
+  saveMetaSidecar();
+  return { key: normalizedKey, aggregationMeta: am };
 }
 
 /**
@@ -1484,6 +1521,7 @@ module.exports = {
   detectUSMintMark: _detectUSMintMark,
   extractGrade: _extractGrade,
   classifyGradeType,
+  updateDatasetMeta,
   // Exposed for testing
   mapColumn,
   rowToComp,
