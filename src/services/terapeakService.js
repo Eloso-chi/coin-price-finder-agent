@@ -83,7 +83,11 @@ function saveMetaSidecar() {
           existing.deepAt = existing.deepAt || am.deepAt || null;
           existing.page1At = existing.page1At || am.page1At || null;
           existing.maxPageReached = Math.max(existing.maxPageReached || 0, am.maxPageReached || 0) || null;
-          existing.lastRefreshAt = existing.lastRefreshAt || am.lastRefreshAt || null;
+          // lastRefreshAt: always take the newest value (not first-write)
+          existing.lastRefreshAt = (existing.lastRefreshAt && am.lastRefreshAt)
+            ? (existing.lastRefreshAt > am.lastRefreshAt ? existing.lastRefreshAt : am.lastRefreshAt)
+            : existing.lastRefreshAt || am.lastRefreshAt || null;
+          existing.refreshCount = (existing.refreshCount || 0) + (am.refreshCount || 0);
           existing.newestSaleDate = (existing.newestSaleDate && am.newestSaleDate)
             ? (existing.newestSaleDate > am.newestSaleDate ? existing.newestSaleDate : am.newestSaleDate)
             : existing.newestSaleDate || am.newestSaleDate || null;
@@ -102,6 +106,7 @@ function saveMetaSidecar() {
             page1At: am.page1At || null,
             maxPageReached: am.maxPageReached || null,
             lastRefreshAt: am.lastRefreshAt || null,
+            refreshCount: am.refreshCount || 0,
             newestSaleDate: am.newestSaleDate || null,
             oldestSaleDate: am.oldestSaleDate || null,
             compCount: am.compCount || null,
@@ -659,7 +664,12 @@ function importComps(searchTerm, comps, meta = {}, _reclassifying = false) {
     page1At: incomingMeta.page1At || prevMeta.page1At || null,
     deepAt: incomingMeta.deepAt || prevMeta.deepAt || null,
     maxPageReached: Math.max(incomingMeta.maxPageReached || 0, prevMeta.maxPageReached || 0) || null,
-    lastRefreshAt: incomingMeta.lastRefreshAt || prevMeta.lastRefreshAt || null,
+    // lastRefreshAt: always take newest (tracks most recent page-1 pull)
+    lastRefreshAt: (incomingMeta.lastRefreshAt && prevMeta.lastRefreshAt)
+      ? (incomingMeta.lastRefreshAt > prevMeta.lastRefreshAt ? incomingMeta.lastRefreshAt : prevMeta.lastRefreshAt)
+      : incomingMeta.lastRefreshAt || prevMeta.lastRefreshAt || null,
+    // refreshCount: increment on each page-1 import
+    refreshCount: (prevMeta.refreshCount || 0) + (incomingMeta.page1At ? 1 : 0),
   };
   // Successful import with comps resets dormant tracking (self-healing)
   if (comps.length > 0 && prevMeta.noDataCount) {
