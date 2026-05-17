@@ -446,13 +446,28 @@ function parseDescription(text) {
     result.weightRaw = weightMatch[0];
   }
 
-  // Gram-based weight: "30g", "30 gram", "31.1 grams", etc.
+  // Gram-based weight: "30g", "30 gram", "31.1 grams", ".5g", "half gram", etc.
   // Convert grams to troy ounces (1 troy oz = 31.1035 g).
   if (!result.weight) {
-    const gramMatch = t.match(/\b(\d+(?:\.\d+)?)\s*(?:grams?|g)\b/i);
-    if (gramMatch) {
-      result.weight = parseFloat(gramMatch[1]) / 31.1035;
-      result.weightRaw = gramMatch[0];
+    // Leading-dot gram format FIRST: ".5g", ".5 gram" (no leading zero)
+    // Must come before standard regex which incorrectly matches ".5g" as "5g"
+    const dotGramMatch = t.match(/(?:^|\s)\.(\d+)\s*(?:grams?|g)\b/i);
+    if (dotGramMatch) {
+      result.weight = parseFloat('0.' + dotGramMatch[1]) / 31.1035;
+      result.weightRaw = dotGramMatch[0].trim();
+    }
+    // Standard format: "5g", "0.5g", "30 gram", "31.1 grams"
+    if (!result.weight) {
+      const gramMatch = t.match(/\b(\d+(?:\.\d+)?)\s*(?:grams?|g)\b/i);
+      if (gramMatch) {
+        result.weight = parseFloat(gramMatch[1]) / 31.1035;
+        result.weightRaw = gramMatch[0];
+      }
+    }
+    // "half gram" without numeric prefix
+    if (!result.weight && /\bhalf\s+gram\b/i.test(t)) {
+      result.weight = 0.5 / 31.1035;
+      result.weightRaw = 'half gram';
     }
   }
 
