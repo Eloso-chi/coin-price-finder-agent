@@ -82,7 +82,7 @@ describe('generate-freshness-report.js', () => {
     const ds = report.datasets[0];
     expect(ds.freshnessStatus).toBe('Stale');
     expect(ds.freshnessReason).toMatch(/threshold/);
-    expect(ds.actions).toContain('refresh-page1');
+    expect(ds.actions).toContain('refresh');
   });
 
   test('LowSignalMarketData -- few comps', () => {
@@ -102,8 +102,8 @@ describe('generate-freshness-report.js', () => {
     const report = runReport(meta);
     const ds = report.datasets[0];
     expect(ds.freshnessStatus).toBe('LowSignalMarketData');
-    expect(ds.freshnessReason).toMatch(/insufficient/i);
-    expect(ds.actions).toContain('low-signal');
+    expect(ds.freshnessReason).toMatch(/thin market/i);
+    expect(ds.actions).toContain('monitor-refresh');
     expect(ds.identifiers.is_low_volume_candidate).toBe(true);
   });
 
@@ -147,7 +147,7 @@ describe('generate-freshness-report.js', () => {
     expect(ds.freshnessStatus).toBe('LowSignalMarketData');
     expect(ds.identifiers.is_bullion).toBe(true);
     expect(ds.identifiers.is_low_volume_candidate).toBe(true);
-    expect(ds.actions).toContain('low-signal');
+    expect(ds.actions).toContain('monitor-refresh');
   });
 
   test('Missing -- no data at all', () => {
@@ -159,7 +159,7 @@ describe('generate-freshness-report.js', () => {
     const report = runReport(meta);
     const ds = report.datasets[0];
     expect(ds.freshnessStatus).toBe('Missing');
-    expect(ds.actions).toContain('needs-data');
+    expect(ds.actions).toContain('initial-fetch');
   });
 
   // ── Summary counts ────────────────────────────────────────

@@ -43,10 +43,14 @@ const STALE_THRESHOLD = staleIdx >= 0 ? parseInt(args[staleIdx + 1]) || 15 : 15;
 const VERY_STALE_THRESHOLD = STALE_THRESHOLD * 2; // 30d if threshold is 15
 const LOW_COMP_THRESHOLD = 100;
 
-// Low-signal threshold: datasets with comps > 0 but < this value are classified
-// LowSignalMarketData instead of Fresh/Stale. Default 10, configurable.
+// Market depth thresholds
+const THIN_MARKET_THRESHOLD = 10;     // <10 comps = thin market
+const CONFIRMED_THIN_REFRESHES = 3;   // After N refreshes still thin = confirmed-thin
+const THIN_MARKET_CADENCE_DAYS = 60;  // Thin-market datasets only refresh every 60d
+
+// Low-signal threshold (backward compat): datasets with comps > 0 but < this value.
 const lowSigIdx = args.indexOf('--low-signal');
-const LOW_SIGNAL_THRESHOLD = lowSigIdx >= 0 ? parseInt(args[lowSigIdx + 1]) || 10 : 10;
+const LOW_SIGNAL_THRESHOLD = lowSigIdx >= 0 ? parseInt(args[lowSigIdx + 1]) || 10 : THIN_MARKET_THRESHOLD;
 
 // Composition filter: only include datasets whose key contains this word
 // e.g. --composition gold, --composition silver, --composition bullion
@@ -148,34 +152,43 @@ for (const [key, entry] of Object.entries(meta)) {
     staleDays = Math.floor(diff / 86400000);
   }
 
-  // ── Freshness classification (mutually exclusive) ──────────
-  // Priority: Missing > LowSignalMarketData > Stale > Fresh
-  let freshnessStatus;
-  let freshnessReason;
+  // ── Two-axis classification ────────────────────────────────
+  // Axis 1: Freshness (temporal -- when was data last pulled?)
+  // Axis 2: Market Depth (structural -- does this market have enough volume?)
   const csvExists = hasCSVOnDisk(key);
+  const refreshCount = entry.refreshCount || 0;
+  const lastRefreshAt = entry.lastRefreshAt || entry.page1At || null;
+  const lastRefreshDays = lastRefreshAt ? Math.floor((today - new Date(lastRefreshAt)) / 86400000) : null;
 
+  // Axis 1: Freshness
+  let freshness;
   if (compCount === 0 && newestSaleDate === null) {
-    freshnessStatus = 'Missing';
-    freshnessReason = csvExists
-      ? 'CSV exists but meta not backfilled; needs re-import'
-      : 'No data collected yet';
-  } else if (compCount > 0 && compCount < LOW_SIGNAL_THRESHOLD) {
-    freshnessStatus = 'LowSignalMarketData';
-    freshnessReason = `Only ${compCount} comp(s); insufficient to determine staleness`;
+    freshness = csvExists ? 'stale' : 'missing';
+  } else if (staleDays !== null && staleDays >= VERY_STALE_THRESHOLD) {
+    freshness = 'very-stale';
   } else if (staleDays !== null && staleDays >= STALE_THRESHOLD) {
-    freshnessStatus = 'Stale';
-    freshnessReason = `Newest sale ${staleDays}d ago (threshold: ${STALE_THRESHOLD}d)`;
+    freshness = 'stale';
   } else if (staleDays !== null) {
-    freshnessStatus = 'Fresh';
-    freshnessReason = `Newest sale ${staleDays}d ago`;
+    freshness = 'fresh';
   } else {
-    // compCount > 0 but no newestSaleDate (edge case: comps without dates)
-    freshnessStatus = 'LowSignalMarketData';
-    freshnessReason = `${compCount} comp(s) but no sale dates; cannot assess freshness`;
+    freshness = 'stale'; // comps but no dates = treat as stale
   }
 
-  // ── Determine actions (backward-compatible) ────────────────
-  const actions = [];
+  // Axis 2: Market Depth
+  let marketDepth;
+  if (compCount === 0 && !csvExists && refreshCount === 0) {
+    marketDepth = 'untested';
+  } else if (compCount === 0) {
+    marketDepth = 'empty';
+  } else if (compCount < THIN_MARKET_THRESHOLD) {
+    if (refreshCount >= CONFIRMED_THIN_REFRESHES) {
+      marketDepth = 'confirmed-thin';
+    } else {
+      marketDepth = 'thin';
+    }
+  } else {
+    marketDepth = 'viable';
+  }
 
   // Dormant detection: datasets with >= 2 consecutive no-data attempts
   // within the last 60 days are marked dormant and excluded from refresh queues.
@@ -184,27 +197,73 @@ for (const [key, entry] of Object.entries(meta)) {
   const noDataAgeDays = noDataAt ? Math.floor((today - new Date(noDataAt)) / 86400000) : null;
   const isDormant = noDataCount >= 2 && noDataAgeDays !== null && noDataAgeDays < 60;
 
+  // ── Backward-compat: derive legacy freshnessStatus ─────────
+  let freshnessStatus;
+  let freshnessReason;
+  if (freshness === 'missing') {
+    freshnessStatus = 'Missing';
+    freshnessReason = csvExists ? 'CSV exists but meta not backfilled' : 'No data collected yet';
+  } else if (marketDepth === 'thin' || marketDepth === 'confirmed-thin') {
+    freshnessStatus = 'LowSignalMarketData';
+    freshnessReason = `Only ${compCount} comp(s); thin market (${refreshCount} refreshes)`;
+  } else if (freshness === 'stale' || freshness === 'very-stale') {
+    freshnessStatus = 'Stale';
+    freshnessReason = `Newest sale ${staleDays}d ago (threshold: ${STALE_THRESHOLD}d)`;
+  } else {
+    freshnessStatus = 'Fresh';
+    freshnessReason = `Newest sale ${staleDays}d ago`;
+  }
+
+  // ── Priority-based actions (from matrix) ───────────────────
+  const actions = [];
+  let priority = null; // P0=urgent, P1=normal, P2=background, P3=monitor, null=skip
+
   if (isDormant) {
     actions.push('dormant');
-  } else if (freshnessStatus === 'Missing' && !csvExists) {
-    actions.push('needs-data');
-  } else if (freshnessStatus === 'Missing' && csvExists) {
-    actions.push('refresh-page1');
-  } else if (freshnessStatus === 'LowSignalMarketData') {
-    actions.push('low-signal');
-  } else if (freshnessStatus === 'Stale') {
-    actions.push('refresh-page1');
+    priority = null;
+  } else if (freshness === 'missing' && marketDepth === 'untested') {
+    actions.push('initial-fetch');
+    priority = 'P2';
+  } else if (marketDepth === 'confirmed-thin') {
+    // Confirmed thin: only refresh on extended cadence (90d)
+    if (lastRefreshDays !== null && lastRefreshDays >= 90) {
+      actions.push('monitor-refresh');
+      priority = 'P3';
+    } else {
+      actions.push('confirmed-thin-skip');
+      priority = null;
+    }
+  } else if (marketDepth === 'thin') {
+    // Thin market: refresh on 60d cadence only
+    if (lastRefreshDays === null || lastRefreshDays >= THIN_MARKET_CADENCE_DAYS) {
+      actions.push('monitor-refresh');
+      priority = 'P3';
+    } else {
+      actions.push('thin-wait');
+      priority = null;
+    }
+  } else if (marketDepth === 'empty') {
+    actions.push('dormant');
+    priority = null;
+  } else if (freshness === 'very-stale' && marketDepth === 'viable') {
+    actions.push('refresh');
+    priority = 'P0';
+  } else if (freshness === 'stale' && marketDepth === 'viable') {
+    actions.push('refresh');
+    priority = 'P1';
+  } else if (freshness === 'fresh' && marketDepth === 'viable') {
+    actions.push('ok');
+    priority = null;
+  } else {
+    actions.push('ok');
+    priority = null;
   }
-  if (compCount >= 50 && !hasDeepAt) {
+
+  // Deep-paginate: viable + >=50 comps + not yet deep-paged
+  if (compCount >= 50 && !hasDeepAt && marketDepth === 'viable') {
     actions.push('deep-paginate');
   }
-  // Keep backward-compatible needs-data for very low comps that aren't LowSignal
-  if (compCount > 0 && compCount < 20 && freshnessStatus !== 'LowSignalMarketData') {
-    actions.push('needs-data');
-  }
-  if (actions.length === 0) {
-    actions.push('ok');
-  }
+  if (actions.length === 0) actions.push('ok');
 
   // ── Identifier integration (fast path from terapeak-meta.json) ──
   const storedIds = entry.identifiers || null;
@@ -229,6 +288,11 @@ for (const [key, entry] of Object.entries(meta)) {
   const record = {
     key,
     searchTerm: entry.searchTerm || key.replace(/(^|\s)\S/g, c => c.toUpperCase()),
+    // New two-axis classification
+    freshness,
+    marketDepth,
+    priority,
+    // Legacy (backward compat)
     freshnessStatus,
     freshnessReason,
     composition,
@@ -237,6 +301,8 @@ for (const [key, entry] of Object.entries(meta)) {
     newestSaleDate,
     staleDays,
     compCount,
+    refreshCount,
+    lastRefreshDays,
     hasDeepAt,
     actions,
     identifiers,
@@ -266,8 +332,13 @@ for (const [key, entry] of Object.entries(meta)) {
   }
 }
 
-// Sort: stalest first (null = infinitely stale)
+// Sort: by priority tier first (P0 > P1 > P2 > P3 > null), then stalest first
+const priorityOrder = { P0: 0, P1: 1, P2: 2, P3: 3 };
 datasets.sort((a, b) => {
+  const pa = a.priority ? priorityOrder[a.priority] : 99;
+  const pb = b.priority ? priorityOrder[b.priority] : 99;
+  if (pa !== pb) return pa - pb;
+  // Within same priority, stalest first
   if (a.staleDays === null && b.staleDays === null) return 0;
   if (a.staleDays === null) return -1;
   if (b.staleDays === null) return 1;
@@ -283,6 +354,22 @@ const missing = datasets.filter(d => d.freshnessStatus === 'Missing').length;
 const lowSignal = datasets.filter(d => d.freshnessStatus === 'LowSignalMarketData').length;
 const lowComps = datasets.filter(d => d.compCount > 0 && d.compCount < LOW_COMP_THRESHOLD).length;
 
+// New: priority-based counts
+const priorityCounts = {
+  P0: datasets.filter(d => d.priority === 'P0').length,
+  P1: datasets.filter(d => d.priority === 'P1').length,
+  P2: datasets.filter(d => d.priority === 'P2').length,
+  P3: datasets.filter(d => d.priority === 'P3').length,
+  skip: datasets.filter(d => d.priority === null).length,
+};
+const depthCounts = {
+  viable: datasets.filter(d => d.marketDepth === 'viable').length,
+  thin: datasets.filter(d => d.marketDepth === 'thin').length,
+  'confirmed-thin': datasets.filter(d => d.marketDepth === 'confirmed-thin').length,
+  empty: datasets.filter(d => d.marketDepth === 'empty').length,
+  untested: datasets.filter(d => d.marketDepth === 'untested').length,
+};
+
 const summary = {
   total,
   fresh,
@@ -292,6 +379,8 @@ const summary = {
   lowSignal,
   lowComps,
   lowSignalThreshold: LOW_SIGNAL_THRESHOLD,
+  priorityCounts,
+  depthCounts,
   byComposition: compositionSummary,
 };
 
@@ -314,6 +403,21 @@ console.log(`  Stale (${STALE_THRESHOLD}-${VERY_STALE_THRESHOLD}d):    ${stale15
 console.log(`  Very stale (>${VERY_STALE_THRESHOLD}d): ${stale30d}`);
 console.log(`  Missing data:      ${missing}`);
 console.log(`  Low comps (<${LOW_COMP_THRESHOLD}):  ${lowComps}`);
+console.log('');
+console.log('  Priority queue (action tiers):');
+console.log(`    P0 refresh-urgent:  ${priorityCounts.P0}`);
+console.log(`    P1 refresh:         ${priorityCounts.P1}`);
+console.log(`    P2 initial-fetch:   ${priorityCounts.P2}`);
+console.log(`    P3 monitor:         ${priorityCounts.P3}`);
+console.log(`    Skip (ok/dormant):  ${priorityCounts.skip}`);
+console.log(`    Actionable total:   ${priorityCounts.P0 + priorityCounts.P1 + priorityCounts.P2 + priorityCounts.P3}`);
+console.log('');
+console.log('  Market depth:');
+console.log(`    Viable (>=10):      ${depthCounts.viable}`);
+console.log(`    Thin (1-9):         ${depthCounts.thin}`);
+console.log(`    Confirmed thin:     ${depthCounts['confirmed-thin']}`);
+console.log(`    Empty (0 after try):${depthCounts.empty}`);
+console.log(`    Untested:           ${depthCounts.untested}`);
 console.log('');
 console.log('  By composition:');
 const compOrder = ['bullion', 'bullion-proof', 'bullion-multioz', 'bullion-fractional-gold', 'bullion-fractional-silver', 'silver-numismatic', 'gold-numismatic', 'base-metal', 'set', 'bar', 'junk-silver', 'junk-silver-denom', 'unknown'];
@@ -412,36 +516,25 @@ if (BATCH_SIZE > 0) {
   let batchPool;
 
   if (BATCH_MODE === 'low-signal') {
-    // Low-signal mode: only LowSignalMarketData datasets
+    // Low-signal mode: thin + confirmed-thin datasets (backward compat)
     batchPool = datasets
-      .filter(d => d.freshnessStatus === 'LowSignalMarketData')
+      .filter(d => d.marketDepth === 'thin' || d.marketDepth === 'confirmed-thin')
       .sort((a, b) => (a.compCount || 0) - (b.compCount || 0));
   } else if (BATCH_MODE === 'bullion') {
-    // Bullion mode: only bullion-tagged datasets (any freshness status)
+    // Bullion mode: only bullion-tagged datasets that have an action
     batchPool = datasets
-      .filter(d => d.identifiers.is_bullion && d.freshnessStatus !== 'Fresh')
-      .sort((a, b) => (b.staleDays || 9999) - (a.staleDays || 9999));
+      .filter(d => d.identifiers.is_bullion && d.priority !== null)
+      .sort((a, b) => (priorityOrder[a.priority] || 99) - (priorityOrder[b.priority] || 99));
   } else if (BATCH_MODE === 'all') {
-    // All mode: everything that isn't Fresh
-    const needsData = datasets
-      .filter(d => d.actions.includes('needs-data'))
-      .sort((a, b) => (b.staleDays || 9999) - (a.staleDays || 9999));
-    const lowSig = datasets
-      .filter(d => d.freshnessStatus === 'LowSignalMarketData')
-      .sort((a, b) => (a.compCount || 0) - (b.compCount || 0));
-    const refreshPage1 = datasets
-      .filter(d => d.actions.includes('refresh-page1') && !d.actions.includes('needs-data'))
-      .sort((a, b) => (b.staleDays || 0) - (a.staleDays || 0));
-    batchPool = [...needsData, ...lowSig, ...refreshPage1];
+    // All mode: everything actionable (P0-P3), sorted by priority
+    batchPool = datasets
+      .filter(d => d.priority !== null)
+      .sort((a, b) => (priorityOrder[a.priority] || 99) - (priorityOrder[b.priority] || 99));
   } else {
-    // Default mode: excludes LowSignalMarketData
-    const needsData = datasets
-      .filter(d => d.actions.includes('needs-data') && d.freshnessStatus !== 'LowSignalMarketData')
-      .sort((a, b) => (b.staleDays || 9999) - (a.staleDays || 9999));
-    const refreshPage1 = datasets
-      .filter(d => d.actions.includes('refresh-page1') && !d.actions.includes('needs-data'))
-      .sort((a, b) => (b.staleDays || 0) - (a.staleDays || 0));
-    batchPool = [...needsData, ...refreshPage1];
+    // Default mode: P0 + P1 only (viable markets needing refresh)
+    batchPool = datasets
+      .filter(d => d.priority === 'P0' || d.priority === 'P1')
+      .sort((a, b) => (priorityOrder[a.priority] || 99) - (priorityOrder[b.priority] || 99));
   }
 
   const batchItems = batchPool.slice(0, BATCH_SIZE);
@@ -456,9 +549,10 @@ if (BATCH_SIZE > 0) {
     compositionFilter: COMPOSITION_FILTER || null,
     summary: {
       total: batchItems.length,
-      needsData: batchItems.filter(d => d.actions.includes('needs-data')).length,
-      lowSignal: batchItems.filter(d => d.freshnessStatus === 'LowSignalMarketData').length,
-      refresh: batchItems.filter(d => d.actions.includes('refresh-page1')).length,
+      P0: batchItems.filter(d => d.priority === 'P0').length,
+      P1: batchItems.filter(d => d.priority === 'P1').length,
+      P2: batchItems.filter(d => d.priority === 'P2').length,
+      P3: batchItems.filter(d => d.priority === 'P3').length,
     },
     datasets: batchItems,
   };
