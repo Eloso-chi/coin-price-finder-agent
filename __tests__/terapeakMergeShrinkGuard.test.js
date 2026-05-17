@@ -20,6 +20,12 @@ beforeEach(() => {
   clearAll();
   _resetStoreCache();
 });
+// Cancel any pending debounced writes after all tests complete
+afterAll(() => {
+  terapeakService._cancelPendingSaves();
+  clearAll();
+  _resetStoreCache();
+});
 
 describe('import never shrinks dataset', () => {
   test('re-importing subset of comps does not reduce totalStored', () => {

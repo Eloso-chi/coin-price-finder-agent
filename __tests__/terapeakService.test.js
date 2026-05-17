@@ -28,6 +28,11 @@ afterAll(() => { console.log.mockRestore(); console.error.mockRestore(); console
 // Reset the in-memory store between tests AND wipe data to isolate from disk
 beforeEach(() => { _resetStoreCache(); clearAll(); });
 afterEach(() => { clearAll(); _resetStoreCache(); });
+// Cancel any pending debounced writes after all tests complete
+afterAll(() => {
+  const terapeakService = require('../src/services/terapeakService');
+  terapeakService._cancelPendingSaves();
+});
 
 // ═══════════════════════════════════════════════════════════════
 //  normalizeSearchKey

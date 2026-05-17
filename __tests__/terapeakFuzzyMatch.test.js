@@ -24,6 +24,12 @@ const {
   listDatasets
 } = terapeakService;
 
+// Global teardown: cancel any debounced writes from terapeakService
+// to prevent them from overwriting restored files after afterAll runs.
+afterAll(() => {
+  terapeakService._cancelPendingSaves && terapeakService._cancelPendingSaves();
+});
+
 // ═══════════════════════════════════════════════════════════════════════
 // detectWeightFromQuery
 // ═══════════════════════════════════════════════════════════════════════

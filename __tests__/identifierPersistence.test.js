@@ -19,6 +19,11 @@ beforeAll(() => {
 });
 
 afterAll(() => {
+  // Cancel any pending debounced writes BEFORE restoring files.
+  // Without this, saveStore()/saveMetaSidecar() timers fire after restore
+  // and overwrite production data with test data (root cause of sidecar loss).
+  const svc = require('../src/services/terapeakService');
+  svc._cancelPendingSaves();
   // Restore original state
   if (originalStore !== null) fs.writeFileSync(STORE_PATH, originalStore);
   if (originalMeta !== null) fs.writeFileSync(META_SIDECAR_PATH, originalMeta);
@@ -28,6 +33,9 @@ afterAll(() => {
 
 // Fresh require each test to reset in-memory store
 function freshService() {
+  // Cancel any debounced writes from the previous module instance
+  // before resetting, so they don't fire and overwrite our test data.
+  try { require('../src/services/terapeakService')._cancelPendingSaves(); } catch {}
   jest.resetModules();
   return require('../src/services/terapeakService');
 }

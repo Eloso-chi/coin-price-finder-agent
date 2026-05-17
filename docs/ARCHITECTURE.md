@@ -83,13 +83,13 @@ server.js                              Express entry point (port 3000)
 │   ├─ metals_spot.json                Persisted metals spot prices (stale fallback)
 │   ├─ metals_history.json             Daily spot price snapshots
 │   ├─ greysheet_history.json          Daily Greysheet price snapshots
-│   ├─ terapeak_sold.json              Imported Terapeak comp data (~2,326 datasets, ~119K comps)
+│   ├─ terapeak_sold.json              Imported Terapeak comp data (~3,306 datasets)
 │   ├─ users.json                      Server-side user accounts (bcrypt hashes + UUIDs)
 │   └─ user_coins.json                 Server-side coin collections (plaintext JSON by userId)
 │
 ├─ data/
-│   ├─ terapeak/                       ~2,800+ Terapeak CSV exports (real sold data)
-│   └─ terapeak-meta.json              Git-tracked aggregation metadata sidecar (see below)
+│   ├─ terapeak/                       ~3,249 Terapeak CSV exports (real sold data)
+│   └─ terapeak-meta.json              Git-tracked aggregation metadata sidecar (see below) + dormant tracking
 │
 ├─ docs/
 │   ├─ ARCHITECTURE.md                 This file -- technical architecture reference
@@ -112,10 +112,10 @@ server.js                              Express entry point (port 3000)
 │   ├─ pricing-health-full.js          Pricing health check runner (--full, --filter, --limit, --concurrency, --out)
 │   ├─ reclassify-comps.js             Batch comp reclassification (weight mismatch detection + reroute)
 │   ├─ build-evidence-index.js         Historical evidence index builder
-│   ├─ generate-freshness-report.js    Freshness triage report (4-state decision tree)
+│   ├─ generate-freshness-report.js    Freshness triage report (5-state decision tree: Fresh/Stale/LowSignal/Missing/Dormant)
 │   └─ test-metrics/                   Jest metrics capture + summary reporter
 │
-└─ __tests__/                          60 Jest test suites
+└─ __tests__/                          68 Jest test suites
     ├─ fixtures/
     │   └─ golden_coins.json           Curated golden set (14 deterministic test coins)
     └─ helpers/
@@ -690,10 +690,16 @@ Extends CSVs from 50 rows (page 1 limit) to up to 250 rows by collecting pages 2
 | `newestSaleDate` | YYYY-MM-DD | Most recent sale date in the dataset |
 | `oldestSaleDate` | YYYY-MM-DD | Oldest sale date in the dataset |
 | `compCount` | number | Total comps stored for this dataset |
+| `noDataCount` | number | Consecutive empty Terapeak results (dormant tracking) |
+| `noDataAt` | ISO timestamp | When the last no-data result was recorded |
 
 The `newestSaleDate` field enables **reliable staleness detection** based on actual sale data, not file modification times. A dataset is genuinely stale when `today - newestSaleDate > 30 days`, regardless of when the file was last touched.
 
 **deepAt inference:** When `importComps()` receives a dataset with >=100 comps but no explicit `deepAt` marker, it automatically infers `deepAt` from the current timestamp. This handles legacy deep-paginated datasets collected before aggregationMeta tracking was added.
+
+**Dormant dataset tracking:** Datasets that consistently return zero Terapeak results are marked dormant to avoid wasting scrape cycles. When `terapeak-export.py` encounters "NO EXPORT", it calls `POST /api/terapeak/report-no-data` to increment `noDataCount` and stamp `noDataAt`. After 2+ consecutive empty attempts, `generate-freshness-report.js` assigns the `dormant` action and the export script skips those datasets. Self-healing: successful import resets `noDataCount` to 0; dormant status auto-expires after 60 days.
+
+**CSV merge protection (PR #21):** The export script's file-move step uses `_merge_csv()` instead of destructive overwrite. New rows are deduplicated against existing data (by `itemId` exact match and `title+price+date` composite key). A shrink guard refuses to write if the merged result has fewer rows than the existing file -- preventing deep-paginated CSVs (100-580 rows) from being truncated by single-page refreshes (<=50 rows).
 
 Pagination selector: `button.pagination__next:not([disabled])`. Results per page control: `select[aria-label="Results per page"]` with 10/20/50 options.
 
@@ -723,12 +729,13 @@ When the pricing engine calls `lookupComps(keywords, expected)`:
 4. Return comps from the best-matching dataset, scored and sorted
 5. Each comp passes through `isDenied()` and denomination/series filters before use
 
-**Per-dataset metadata:** Each dataset stores `aggregationMeta: { page1At, deepAt, maxPageReached, lastRefreshAt, newestSaleDate, oldestSaleDate, compCount }` to track aggregation provenance and data freshness. `importComps()` merges aggregationMeta intelligently (never overwrites earlier timestamps, maxPageReached only increases, sale date bounds expand monotonically).
+**Per-dataset metadata:** Each dataset stores `aggregationMeta: { page1At, deepAt, maxPageReached, lastRefreshAt, newestSaleDate, oldestSaleDate, compCount, noDataCount, noDataAt }` to track aggregation provenance, data freshness, and dormant status. `importComps()` merges aggregationMeta intelligently (never overwrites earlier timestamps, maxPageReached only increases, sale date bounds expand monotonically, noDataCount resets on successful import).
 
 **Import-time reclassification:** `importComps()` detects weight mismatches at import time. For each comp, `detectWeightFromTitle()` (from `coinMetalProfile.js`) extracts the actual weight from the listing title and compares it to the dataset's expected weight (from `detectWeightFromQuery()`). Mismatched comps are automatically rerouted to the correct dataset key using `weightToKeyToken()` mapping (e.g. a 1/4 oz comp imported into a 1oz dataset is rerouted to the "quarter oz" dataset). Metal mismatches are left in place for the meltFloor filter. The `reclassified` count is included in the import result.
 
 **Admin endpoints:**
 - `GET /api/terapeak/aggregation-status` -- summary + filtered dataset lists (`needs=deep`, `needs=page1`, `needs=refresh&maxAge=N`, `minComps=N`)
+- `POST /api/terapeak/report-no-data` -- increment `noDataCount` for a dataset (called by export script on empty results)
 - `POST /api/terapeak/backfill-aggregation-meta` -- one-time backfill from page2 log files
 
 ### VNC Environment

@@ -228,6 +228,9 @@ beforeAll(() => {
 });
 
 afterAll(() => {
+  // Cancel pending debounced writes before cleanup to prevent them
+  // from firing after this block and overwriting production files.
+  terapeakService._cancelPendingSaves();
   // Clear the real data we imported and flush to disk synchronously
   // to prevent pollution of other test files running in the same worker
   terapeakService.clearAll();

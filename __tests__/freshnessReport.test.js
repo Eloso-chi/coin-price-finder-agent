@@ -17,6 +17,9 @@ beforeAll(() => {
   }
 });
 afterAll(() => {
+  // Cancel any pending debounced writes before restoring
+  const terapeakService = require('../src/services/terapeakService');
+  if (terapeakService._cancelPendingSaves) terapeakService._cancelPendingSaves();
   if (originalMeta != null) {
     fs.writeFileSync(META_PATH, originalMeta);
   }

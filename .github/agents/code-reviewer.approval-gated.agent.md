@@ -85,7 +85,7 @@ While sub-agents run, perform your own review covering:
 - Change intent validation
 - Correctness & safety
 - Testing readiness
-- Maintainability
+- Maintainability (including dead code: unused exports, orphan files, unreachable branches)
 - Operability
 
 ### Step 6: Synthesize Report

@@ -28,6 +28,12 @@ beforeEach(() => {
   clearAll();
   _resetStoreCache();
 });
+// Cancel any pending debounced writes after all tests complete
+afterAll(() => {
+  terapeakService._cancelPendingSaves();
+  clearAll();
+  _resetStoreCache();
+});
 
 /* ════════════════════════════════════════════════════════════
  *  importComps — basic import

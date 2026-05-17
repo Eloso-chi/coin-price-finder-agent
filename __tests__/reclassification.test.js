@@ -84,6 +84,11 @@ describe('importComps reclassification', () => {
   beforeEach(() => {
     terapeakService._resetStoreCache();
   });
+  // Cancel any pending debounced writes after all tests complete
+  afterAll(() => {
+    terapeakService._cancelPendingSaves();
+    terapeakService._resetStoreCache();
+  });
 
   test('reclassifies comp with wrong weight to correct dataset', () => {
     // Import a 1/4 oz comp into a 1oz dataset

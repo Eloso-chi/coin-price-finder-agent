@@ -38,6 +38,9 @@ function loadStore() {
 }
 
 function saveStore() {
+  // Skip debounced writes in test mode -- tests manage disk state manually.
+  // This prevents timers from firing after test cleanup and clobbering files.
+  if (process.env.NODE_ENV === 'test') return;
   // Debounced async write -- coalesces rapid successive calls into one I/O.
   if (_savePending) clearTimeout(_savePending);
   _savePending = setTimeout(() => {
@@ -61,6 +64,7 @@ let _metaSavePending = null;
  * without requiring Cosmos.
  */
 function saveMetaSidecar() {
+  if (process.env.NODE_ENV === 'test') return;
   if (_metaSavePending) clearTimeout(_metaSavePending);
   _metaSavePending = setTimeout(() => {
     _metaSavePending = null;
@@ -1525,5 +1529,9 @@ module.exports = {
   // Exposed for testing
   mapColumn,
   rowToComp,
-  _resetStoreCache() { _store = null; }
+  _resetStoreCache() { _store = null; },
+  _cancelPendingSaves() {
+    if (_savePending) { clearTimeout(_savePending); _savePending = null; }
+    if (_metaSavePending) { clearTimeout(_metaSavePending); _metaSavePending = null; }
+  },
 };

@@ -57,6 +57,7 @@ Apply OWASP Top 10 thinking to every change:
 
 ## 6. Maintainability
 
+- **Dead code** -- unused exports, unreachable branches, orphan files, commented-out blocks, functions with zero call sites, routes never hit
 - **Duplication** -- repeated logic that should be extracted
 - **Naming** -- unclear variable/function names, misleading identifiers
 - **Complexity** -- deeply nested conditionals, functions > 50 lines, magic numbers
