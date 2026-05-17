@@ -197,6 +197,30 @@ When `wantsProof=true`, proof pool is used unconditionally (no count threshold).
 
 ---
 
+### #186. Bulk Lot Evaluator FMV Divergence from Price Discovery [MEDIUM]
+
+**Problem:** The bulk lot evaluator produces different FMV than the individual price discovery route for the same coin (e.g. "mexican silver libertad 2004 1oz"). No grade, no COA/box -- purely bullion raw coin -- yet numbers differ.
+
+**Root cause:** `evaluateOneCoin()` in `bulkEvaluateService.js` calls `fetchSoldComps` with a lighter config than the price route:
+
+| Parameter | Price Discovery | Bulk Evaluator |
+|---|---|---|
+| `timeWindowDays` | 180 | 90 |
+| `maxPages` | 3 | 1 |
+| `usMinComps` | 8 | 3 |
+| `expected.metal` | Set explicitly | Missing (auto-detect only) |
+
+The narrower time window produces a different comp pool (fewer comps, different median). The lower `usMinComps` means Terapeak satisfies sooner with fewer data points instead of extending lookback. Missing `expected.metal` can affect Terapeak dataset matching and metal-mismatch scoring.
+
+**Fix:**
+1. Align `timeWindowDays` to 180, `maxPages` to 2 (compromise), `usMinComps` to 6
+2. Set `expected.metal` from `parsed.metal || detectedMetal`
+3. Trade-off: ~1.5-2x slower bulk evaluations (more Terapeak/API work per coin)
+
+**Files:** `bulkEvaluateService.js` (`evaluateOneCoin`, lines 209-212)
+
+---
+
 ### #185. World Proof Greysheet Type Map Expansion [MEDIUM -- BLOCKED]
 
 **Problem:** Missing proof-specific GSIDs for major world bullion proofs (Krugerrand, Kookaburra, Philharmonic, Gold Maple Leaf). Proof queries fall back to MS wholesale price in the Greysheet blend.
