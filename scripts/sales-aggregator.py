@@ -104,6 +104,15 @@ BROWSER_RECYCLE_EVERY = 80
 # Session-level flag: once RPP is set to 50, skip re-checking
 _rpp_already_set = False
 
+# Session-level flag: once sort-by-date is confirmed, skip re-sorting (#200)
+_sort_confirmed = False
+
+
+def reset_sort_state():
+    """Call after browser recycle to force re-sort on next search."""
+    global _sort_confirmed
+    _sort_confirmed = False
+
 # ── Bullion series eligible for deep pagination (page 3+) ──
 # These high-volume series typically have 100+ sold listings on Terapeak.
 BULLION_PATTERNS = [
@@ -637,25 +646,16 @@ def do_search_and_collect(page, search_term, download_dir, max_pages=2):
 
     # ── Sort by "Date last sold" (descending = most recent first) ──
     # Default is Best Match.  Click once for ascending, again for descending.
-    try:
-        date_header = page.query_selector(
-            'th:has-text("Date last sold"), '
-            'th:has-text("Date Last Sold"), '
-            'button:has-text("Date last sold")'
-        )
-        if date_header:
-            rand_delay(DELAY_BEFORE_CLICK)
-            human_click(page, date_header)
-            time.sleep(random.uniform(1.5, 3.0))
-            try:
-                page.wait_for_load_state("networkidle", timeout=10000)
-            except PlaywrightTimeout:
-                pass
-            # Check sort direction via JS (handles both th and button inside th)
-            sort_dir = date_header.evaluate(
-                "el => (el.getAttribute('aria-sort') || el.closest('th')?.getAttribute('aria-sort') || '')"
+    # Optimization (#200): eBay persists sort within session -- skip after first.
+    global _sort_confirmed
+    if not _sort_confirmed:
+        try:
+            date_header = page.query_selector(
+                'th:has-text("Date last sold"), '
+                'th:has-text("Date Last Sold"), '
+                'button:has-text("Date last sold")'
             )
-            if sort_dir == "ascending":
+            if date_header:
                 rand_delay(DELAY_BEFORE_CLICK)
                 human_click(page, date_header)
                 time.sleep(random.uniform(1.5, 3.0))
@@ -663,11 +663,24 @@ def do_search_and_collect(page, search_term, download_dir, max_pages=2):
                     page.wait_for_load_state("networkidle", timeout=10000)
                 except PlaywrightTimeout:
                     pass
-            for _ in range(random.randint(2, 3)):
-                human_scroll(page, "down", random.randint(200, 500))
-                time.sleep(random.uniform(0.2, 0.5))
-    except Exception as e:
-        print(f"    (sort by date skipped: {e})")
+                # Check sort direction via JS (handles both th and button inside th)
+                sort_dir = date_header.evaluate(
+                    "el => (el.getAttribute('aria-sort') || el.closest('th')?.getAttribute('aria-sort') || '')"
+                )
+                if sort_dir == "ascending":
+                    rand_delay(DELAY_BEFORE_CLICK)
+                    human_click(page, date_header)
+                    time.sleep(random.uniform(1.5, 3.0))
+                    try:
+                        page.wait_for_load_state("networkidle", timeout=10000)
+                    except PlaywrightTimeout:
+                        pass
+                _sort_confirmed = True
+                for _ in range(random.randint(2, 3)):
+                    human_scroll(page, "down", random.randint(200, 500))
+                    time.sleep(random.uniform(0.2, 0.5))
+        except Exception as e:
+            print(f"    (sort by date skipped: {e})")
 
     # Debug screenshot of page 1
     page.screenshot(path=str(download_dir / f"_debug_p2_page1_{search_term[:30]}.png"))
@@ -1058,6 +1071,7 @@ def do_page2_run(args):
             print(f"  ... recycling browser ...")
             try:
                 page = launch_browser()
+                reset_sort_state()
                 consecutive_crashes = 0
             except Exception as e:
                 print(f"  FATAL: Browser restart failed: {e}")
@@ -1092,6 +1106,7 @@ def do_page2_run(args):
                 time.sleep(cooldown)
                 try:
                     page = launch_browser()
+                    reset_sort_state()
                 except Exception:
                     pass
                 failed += 1
@@ -1134,6 +1149,7 @@ def do_page2_run(args):
                 print(f"  ... browser crashed, restarting ({consecutive_crashes}/5) ...")
                 try:
                     page = launch_browser()
+                    reset_sort_state()
                 except Exception as e2:
                     print(f"  FATAL: Browser restart failed: {e2}")
                     break
