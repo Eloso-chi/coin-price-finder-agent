@@ -7,7 +7,7 @@
 
 'use strict';
 
-const { ZODIAC, zodiacForYear, perthLunarSeries } = require('../src/data/constants');
+const { ZODIAC, zodiacForYear, perthLunarSeries, BULLION_1OZ_DEFAULT, ALLOWED_LABELS } = require('../src/data/constants');
 
 // ═══════════════════════════════════════════════════════════════
 //  zodiacForYear()
@@ -96,5 +96,54 @@ describe('ZODIAC constant', () => {
   test('starts with Rat, ends with Pig', () => {
     expect(ZODIAC[0]).toBe('Rat');
     expect(ZODIAC[11]).toBe('Pig');
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  BULLION_1OZ_DEFAULT
+// ═══════════════════════════════════════════════════════════════
+
+describe('BULLION_1OZ_DEFAULT', () => {
+  test('is an array with 15 entries', () => {
+    expect(Array.isArray(BULLION_1OZ_DEFAULT)).toBe(true);
+    expect(BULLION_1OZ_DEFAULT).toHaveLength(15);
+  });
+
+  test('contains expected core bullion series', () => {
+    expect(BULLION_1OZ_DEFAULT).toContain('silver eagle');
+    expect(BULLION_1OZ_DEFAULT).toContain('maple leaf');
+    expect(BULLION_1OZ_DEFAULT).toContain('krugerrand');
+    expect(BULLION_1OZ_DEFAULT).toContain('britannia');
+  });
+
+  test('all entries are lowercase strings', () => {
+    for (const entry of BULLION_1OZ_DEFAULT) {
+      expect(typeof entry).toBe('string');
+      expect(entry).toBe(entry.toLowerCase());
+    }
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  ALLOWED_LABELS
+// ═══════════════════════════════════════════════════════════════
+
+describe('ALLOWED_LABELS', () => {
+  test('is a Set with 26 entries', () => {
+    expect(ALLOWED_LABELS).toBeInstanceOf(Set);
+    expect(ALLOWED_LABELS.size).toBe(26);
+  });
+
+  test('contains expected label values', () => {
+    expect(ALLOWED_LABELS.has('First Strike')).toBe(true);
+    expect(ALLOWED_LABELS.has('Burnished')).toBe(true);
+    expect(ALLOWED_LABELS.has('Reverse Proof')).toBe(true);
+    expect(ALLOWED_LABELS.has('Type 2')).toBe(true);
+  });
+
+  test('rejects unlisted labels', () => {
+    expect(ALLOWED_LABELS.has('Random Label')).toBe(false);
+    expect(ALLOWED_LABELS.has('')).toBe(false);
+    expect(ALLOWED_LABELS.has('first strike')).toBe(false); // case-sensitive
   });
 });

@@ -11,6 +11,7 @@ const {
   normalizeGrade,
   buildQuery,
   REQUIRED_SHEET,
+  PARSE_TIMEOUT_MS,
 } = require('../src/utils/excelMapper');
 
 const ExcelJS = require('exceljs');
@@ -430,4 +431,75 @@ describe('POST /api/import/excel', () => {
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/\.xlsx/);
   });
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  Security & resilience tests (PR #30 items)
+// ═══════════════════════════════════════════════════════════════
+
+describe('magic-byte validation', () => {
+  let app;
+  beforeAll(() => {
+    const express = require('express');
+    app = express();
+    app.use('/api/import/excel', require('../src/routes/excelImportRoute'));
+  });
+
+  test('rejects OLE/CFB (.xls) files', async () => {
+    // OLE/CFB magic bytes: 0xD0 0xCF 0x11 0xE0
+    const oleBuf = Buffer.alloc(512);
+    oleBuf[0] = 0xD0; oleBuf[1] = 0xCF; oleBuf[2] = 0x11; oleBuf[3] = 0xE0;
+    const request = require('supertest');
+    const res = await request(app)
+      .post('/api/import/excel')
+      .attach('file', oleBuf, 'legacy.xlsx');
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/valid .xlsx/i);
+  });
+
+  test('rejects random binary data', async () => {
+    const randomBuf = Buffer.from([0xFF, 0xFE, 0x00, 0x01, 0x02, 0x03]);
+    const request = require('supertest');
+    const res = await request(app)
+      .post('/api/import/excel')
+      .attach('file', randomBuf, 'garbage.xlsx');
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/valid .xlsx/i);
+  });
+});
+
+describe('parse timeout', () => {
+  test('PARSE_TIMEOUT_MS is exported and is a positive number', () => {
+    expect(typeof PARSE_TIMEOUT_MS).toBe('number');
+    expect(PARSE_TIMEOUT_MS).toBeGreaterThan(0);
+    expect(PARSE_TIMEOUT_MS).toBeLessThanOrEqual(30_000); // sanity cap
+  });
+
+  test('rejects when xlsx.load exceeds timeout', async () => {
+    // Create a buffer that looks like a valid ZIP but contains garbage
+    // so ExcelJS will attempt to parse it and fail/hang.
+    // We override the timeout to a short value for this test.
+    const originalTimeout = require('../src/utils/excelMapper').PARSE_TIMEOUT_MS;
+
+    // Temporarily reduce timeout by re-requiring with a patched constant
+    // Instead, we verify the mechanism works by providing a never-resolving load.
+    // Use jest.spyOn on the workbook instance via a module-level mock:
+    const ExcelJS = require('exceljs');
+    const realLoad = ExcelJS.Workbook.prototype.xlsx.load;
+
+    // Use Object.defineProperty to override the getter temporarily
+    const origDescriptor = Object.getOwnPropertyDescriptor(ExcelJS.Workbook.prototype, 'xlsx');
+    Object.defineProperty(ExcelJS.Workbook.prototype, 'xlsx', {
+      configurable: true,
+      get() {
+        return { load: () => new Promise(() => {}) }; // never resolves
+      },
+    });
+
+    try {
+      await expect(mapExcelToBackup(Buffer.alloc(100))).rejects.toThrow(/timeout/i);
+    } finally {
+      Object.defineProperty(ExcelJS.Workbook.prototype, 'xlsx', origDescriptor);
+    }
+  }, 15_000);
 });

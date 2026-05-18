@@ -6,13 +6,13 @@ require('dotenv').config();
 // ── Process crash handlers (#202) ────────────────────────────
 process.on('unhandledRejection', (reason, promise) => {
   console.error('[FATAL] Unhandled rejection:', reason);
-  // Give logger time to flush, then exit
-  setTimeout(() => process.exit(1), 500);
+  // Brief delay to allow log flush, then hard exit
+  setTimeout(() => process.exit(1), 100);
 });
 
 process.on('uncaughtException', (err) => {
   console.error('[FATAL] Uncaught exception:', err);
-  setTimeout(() => process.exit(1), 500);
+  setTimeout(() => process.exit(1), 100);
 });
 
 const crypto = require('crypto');

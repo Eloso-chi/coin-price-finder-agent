@@ -198,9 +198,14 @@ const REQUIRED_SHEET = 'Collectors';
  * @param {Buffer} buffer - Raw .xlsx file bytes
  * @returns {Promise<{ payload: object, summary: object }>}
  */
+const PARSE_TIMEOUT_MS = 10_000; // 10s safety net for pathological files
+
 async function mapExcelToBackup(buffer) {
   const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.load(buffer);
+  const timeout = new Promise((_, reject) =>
+    setTimeout(() => reject(new Error('Excel parse timeout exceeded')), PARSE_TIMEOUT_MS)
+  );
+  await Promise.race([workbook.xlsx.load(buffer), timeout]);
 
   // Require "Collectors" sheet (case-insensitive)
   let sheet = null;
@@ -213,23 +218,23 @@ async function mapExcelToBackup(buffer) {
 
   // Convert sheet to array of row objects (like xlsx sheet_to_json)
   const rawRows = [];
-  const headers = [];
+  const headers = new Map(); // colNumber -> headerName (avoids sparse array)
   sheet.eachRow((row, rowNumber) => {
     if (rowNumber === 1) {
       // Header row
       row.eachCell((cell, colNumber) => {
-        headers[colNumber] = cell.value != null ? String(cell.value) : '';
+        if (cell.value != null) headers.set(colNumber, String(cell.value));
       });
       return;
     }
     const obj = {};
     row.eachCell((cell, colNumber) => {
-      const hdr = headers[colNumber];
+      const hdr = headers.get(colNumber);
       if (hdr) obj[hdr] = cell.value != null ? cell.value : null;
     });
     // Fill nulls for missing columns
-    for (const h of headers) {
-      if (h && !(h in obj)) obj[h] = null;
+    for (const h of headers.values()) {
+      if (!(h in obj)) obj[h] = null;
     }
     rawRows.push(obj);
   });
@@ -373,4 +378,5 @@ module.exports = {
   buildQuery,
   MAX_ROWS,
   REQUIRED_SHEET,
+  PARSE_TIMEOUT_MS,
 };

@@ -288,9 +288,12 @@ describe('Terapeak data integrity — raw CSV vs FMV pipeline', () => {
         const storedCount = lookupResult.comps.length;
         // At minimum 10% of raw rows should survive import (deny filters may remove some)
         expect(storedCount).toBeGreaterThanOrEqual(Math.floor(rawPrices.length * 0.1));
-        // Multi-CSV merge from deep pagination can add comps beyond a single file's row count.
-        // Allow up to 2x the raw row count to accommodate merged datasets.
-        expect(storedCount).toBeLessThanOrEqual(rawPrices.length * 2);
+        // Deep pagination merges multiple CSV files for the same search term.
+        // Count total rows across ALL CSVs sharing this search term for a fair upper bound.
+        const allForTerm = allDatasets.filter(d => d.searchTerm === searchTerm);
+        const totalRawRows = allForTerm.reduce((sum, d) => sum + parseRawCSVPrices(d.file).length, 0);
+        // Allow stored count up to 2x total raw rows (some duplication from overlapping pages)
+        expect(storedCount).toBeLessThanOrEqual(totalRawRows * 2);
       });
 
       test('FMV is within tolerance of raw CSV median', () => {
