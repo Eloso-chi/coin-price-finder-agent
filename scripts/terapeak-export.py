@@ -1128,21 +1128,35 @@ def do_export_run(args):
             sys.exit(1)
         with open(backlog_path) as f:
             report = _json.load(f)
-        # Extract keys that need refresh-page1 or have no data at all
-        # Skip dormant datasets (noDataCount >= 2 and last attempt < 60 days ago)
+        # Only include priority tiers P0-P2 by default (viable markets).
+        # P3 (thin-market monitor) is excluded unless --include-thin is passed.
+        allowed_priorities = {"P0", "P1", "P2"}
+        if getattr(args, "include_thin", False):
+            allowed_priorities.add("P3")
         backlog_keys = set()
         backlog_search_terms = {}
         dormant_count = 0
+        thin_skipped = 0
         for item in report.get("datasets", []):
             actions = item.get("actions", [])
+            priority = item.get("priority")
             if "dormant" in actions:
                 dormant_count += 1
                 continue
-            if "refresh-page1" in actions or "needs-data" in actions:
+            # New taxonomy: filter by priority tier
+            if priority and priority in allowed_priorities:
                 backlog_keys.add(item["key"])
                 backlog_search_terms[item["key"]] = item.get("searchTerm", item["key"])
+            # Legacy fallback: old action names (no priority field)
+            elif priority is None and any(a in actions for a in ("refresh-page1", "needs-data")):
+                backlog_keys.add(item["key"])
+                backlog_search_terms[item["key"]] = item.get("searchTerm", item["key"])
+            elif priority == "P3":
+                thin_skipped += 1
         if dormant_count:
             print(f"Skipping {dormant_count} dormant datasets (no Terapeak results on prior attempts)")
+        if thin_skipped:
+            print(f"Skipping {thin_skipped} thin-market datasets (P3 monitor cadence, use --include-thin to include)")
         # Filter existing terms to backlog keys
         existing_keys = {t["term"] for t in terms}
         before = len(terms)
@@ -1493,6 +1507,7 @@ Examples:
     parser.add_argument("--no-shuffle", action="store_false", dest="shuffle", help="Disable shuffle (preserve alphabetical order)")
     parser.add_argument("--batch", type=int, metavar="N", help="Run N coins then stop (use with cron/scheduler)")
     parser.add_argument("--backlog", type=str, metavar="FILE", help="Read freshness-report.json and use its refresh-page1 items as work queue")
+    parser.add_argument("--include-thin", action="store_true", help="Include P3 thin-market datasets in backlog mode (default: P0-P2 only)")
 
     args = parser.parse_args()
 
