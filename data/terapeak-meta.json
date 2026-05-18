@@ -200,34 +200,34 @@
     "compCount": 92
   },
   "1826 capped bust half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-29T08:06:24.670Z",
+    "deepAt": "2026-05-17T23:21:29.307Z",
+    "page1At": "2026-05-18T01:37:37.997135",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-28",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-16",
     "oldestSaleDate": "2026-04-05",
-    "compCount": 44
+    "compCount": 80
   },
   "1827 capped bust half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-29T21:36:06.489Z",
+    "deepAt": "2026-05-17T23:21:29.309Z",
+    "page1At": "2026-05-18T01:39:02.645006",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-28",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2026-04-10",
-    "compCount": 48
+    "compCount": 95
   },
   "1828 capped bust half dollar": {
     "deepAt": "2026-05-17T23:42:46.635442",
-    "page1At": "2026-04-29T08:05:00.208Z",
+    "page1At": "2026-05-18T01:40:26.371267",
     "maxPageReached": 2,
     "lastRefreshAt": null,
-    "refreshCount": 1,
+    "refreshCount": 2,
     "newestSaleDate": "2026-05-13",
     "oldestSaleDate": "2025-10-31",
-    "compCount": 69
+    "compCount": 96
   },
   "1829 capped bust half dollar": {
     "deepAt": "2026-05-17T01:32:19.464Z",
@@ -240,54 +240,54 @@
     "compCount": 84
   },
   "1830 capped bust half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-29T05:58:30.769Z",
+    "deepAt": "2026-05-17T23:21:29.316Z",
+    "page1At": "2026-05-18T01:41:52.511659",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-28",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2026-04-10",
-    "compCount": 45
+    "compCount": 76
   },
   "1831 capped bust half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-29T23:49:45.197Z",
+    "deepAt": "2026-05-17T23:21:29.318Z",
+    "page1At": "2026-05-18T01:43:16.632851",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-28",
-    "oldestSaleDate": "2026-04-12",
-    "compCount": 44
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-07",
+    "oldestSaleDate": "2025-11-25",
+    "compCount": 90
   },
   "1832 capped bust half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-30T14:44:53.535Z",
+    "deepAt": "2026-05-17T23:21:29.320Z",
+    "page1At": "2026-05-18T01:44:50.286932",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-28",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-03",
     "oldestSaleDate": "2025-11-02",
-    "compCount": 43
+    "compCount": 74
   },
   "1833 capped bust half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-29T05:40:29.466Z",
+    "deepAt": "2026-05-17T23:21:29.321Z",
+    "page1At": "2026-05-18T01:46:22.295697",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-28",
-    "oldestSaleDate": "2026-04-05",
-    "compCount": 46
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-04",
+    "oldestSaleDate": "2025-11-22",
+    "compCount": 90
   },
   "1834 capped bust half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-29T07:09:56.342Z",
+    "deepAt": "2026-05-17T23:21:29.322Z",
+    "page1At": "2026-05-18T01:47:47.780172",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-28",
-    "oldestSaleDate": "2026-04-14",
-    "compCount": 47
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-10",
+    "oldestSaleDate": "2025-11-29",
+    "compCount": 90
   },
   "1835 capped bust half dollar": {
     "deepAt": null,
@@ -300,14 +300,14 @@
     "compCount": 45
   },
   "1836 capped bust half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-29T21:26:42.659Z",
+    "deepAt": "2026-05-17T23:21:29.326Z",
+    "page1At": "2026-05-18T01:49:10.392139",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-28",
-    "oldestSaleDate": "2026-04-09",
-    "compCount": 45
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-07",
+    "oldestSaleDate": "2025-11-21",
+    "compCount": 91
   },
   "1837 capped bust half dollar": {
     "deepAt": null,
@@ -320,14 +320,14 @@
     "compCount": 41
   },
   "1838 capped bust half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-29T23:29:25.239Z",
+    "deepAt": "2026-05-17T23:21:29.331Z",
+    "page1At": "2026-05-18T01:50:33.297238",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-29",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-10-31",
-    "compCount": 48
+    "compCount": 90
   },
   "1839 o seated liberty half dollar": {
     "deepAt": null,
@@ -370,34 +370,34 @@
     "compCount": 46
   },
   "1844 seated liberty dime": {
-    "deepAt": null,
-    "page1At": "2026-04-29T05:38:18.671Z",
+    "deepAt": "2026-05-17T23:21:29.337Z",
+    "page1At": "2026-05-18T01:51:57.678605",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-28",
-    "oldestSaleDate": "2026-01-15",
-    "compCount": 49
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-16",
+    "oldestSaleDate": "2025-11-19",
+    "compCount": 74
   },
   "1846 o seated liberty dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-29T21:29:38.472Z",
+    "deepAt": "2026-05-17T23:21:29.339Z",
+    "page1At": "2026-05-18T01:53:23.731143",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-28",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-14",
     "oldestSaleDate": "2025-10-31",
-    "compCount": 47
+    "compCount": 92
   },
   "1846 o seated liberty half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-29T08:02:21.596Z",
+    "deepAt": "2026-05-17T23:21:29.340Z",
+    "page1At": "2026-05-18T01:54:48.643863",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
+    "refreshCount": 2,
     "newestSaleDate": "2026-04-28",
     "oldestSaleDate": "2025-10-31",
-    "compCount": 48
+    "compCount": 70
   },
   "1846 seated liberty dime": {
     "deepAt": null,
@@ -470,24 +470,24 @@
     "compCount": 4
   },
   "1853 o seated liberty half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-29T03:54:20.582Z",
+    "deepAt": "2026-05-17T23:21:29.346Z",
+    "page1At": "2026-05-18T01:56:33.188927",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-28",
-    "oldestSaleDate": "2025-11-13",
-    "compCount": 44
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-16",
+    "oldestSaleDate": "2025-11-05",
+    "compCount": 72
   },
   "1854 o seated liberty quarter": {
-    "deepAt": null,
-    "page1At": "2026-04-29T20:15:01.103Z",
+    "deepAt": "2026-05-17T23:21:29.348Z",
+    "page1At": "2026-05-18T01:57:54.523432",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-28",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-13",
     "oldestSaleDate": "2026-02-27",
-    "compCount": 43
+    "compCount": 55
   },
   "1854 seated liberty dollar": {
     "deepAt": null,
@@ -511,33 +511,33 @@
   },
   "1855 s seated liberty quarter": {
     "deepAt": null,
-    "page1At": "2026-05-12T04:45:11.432Z",
+    "page1At": "2026-05-18T01:59:26.146987",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
+    "refreshCount": 2,
     "newestSaleDate": "2026-04-25",
     "oldestSaleDate": "2025-11-23",
     "compCount": 19
   },
   "1855 seated liberty dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-30T00:03:14.275Z",
+    "deepAt": "2026-05-17T23:21:29.352Z",
+    "page1At": "2026-05-18T02:00:45.974366",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-29",
-    "oldestSaleDate": "2026-04-08",
-    "compCount": 43
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
+    "oldestSaleDate": "2025-11-19",
+    "compCount": 86
   },
   "1859 s seated liberty dime": {
     "deepAt": null,
-    "page1At": "2026-05-12T04:47:57.908Z",
+    "page1At": "2026-05-18T02:01:38.615148",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-22",
-    "oldestSaleDate": "2025-12-04",
-    "compCount": 10
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-15",
+    "oldestSaleDate": "2025-11-16",
+    "compCount": 16
   },
   "1859 s seated liberty dollar": {
     "deepAt": null,
@@ -560,24 +560,24 @@
     "compCount": 82
   },
   "1860 o seated liberty dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-29T05:04:54.175Z",
+    "deepAt": "2026-05-17T23:21:29.357Z",
+    "page1At": "2026-05-18T02:03:03.039287",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-16",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-11-01",
-    "compCount": 41
+    "compCount": 83
   },
   "1860 s seated liberty dime": {
     "deepAt": null,
-    "page1At": "2026-04-30T01:05:18.895Z",
+    "page1At": "2026-05-18T02:04:22.953904",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-13",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-09",
     "oldestSaleDate": "2025-11-08",
-    "compCount": 10
+    "compCount": 12
   },
   "1860 s seated liberty quarter": {
     "deepAt": null,
@@ -600,14 +600,14 @@
     "compCount": 45
   },
   "1861 o seated liberty half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-29T03:45:42.165Z",
+    "deepAt": "2026-05-17T23:21:29.360Z",
+    "page1At": "2026-05-18T02:05:45.595038",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-23",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-10-31",
-    "compCount": 43
+    "compCount": 113
   },
   "1861 indian head cent": {
     "deepAt": null,
@@ -621,23 +621,23 @@
   },
   "1863 s seated liberty dime": {
     "deepAt": null,
-    "page1At": "2026-04-30T14:31:45.250Z",
+    "page1At": "2026-05-18T02:07:12.294391",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-27",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-16",
     "oldestSaleDate": "2025-11-09",
-    "compCount": 29
+    "compCount": 47
   },
   "1864 s seated liberty dime": {
     "deepAt": null,
-    "page1At": "2026-04-29T19:55:53.077Z",
+    "page1At": "2026-05-18T02:08:42.624302",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-26",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-12",
     "oldestSaleDate": "2025-11-02",
-    "compCount": 40
+    "compCount": 43
   },
   "1864 indian head cent": {
     "deepAt": null,
@@ -650,34 +650,34 @@
     "compCount": 47
   },
   "1866 s seated liberty half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-29T04:13:20.811Z",
+    "deepAt": "2026-05-17T23:21:29.366Z",
+    "page1At": "2026-05-18T02:11:35.178788",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-28",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-15",
     "oldestSaleDate": "2025-11-02",
-    "compCount": 49
+    "compCount": 86
   },
   "1866 indian head cent": {
-    "deepAt": null,
-    "page1At": "2026-05-12T08:01:39.473Z",
+    "deepAt": "2026-05-17T23:21:29.368Z",
+    "page1At": "2026-05-18T02:10:09.827882",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-05-02",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-16",
     "oldestSaleDate": "2025-11-17",
-    "compCount": 47
+    "compCount": 73
   },
   "1866 seated liberty dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-29T22:36:48.859Z",
+    "deepAt": "2026-05-17T23:21:29.369Z",
+    "page1At": "2026-05-18T02:13:00.257599",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-28",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-16",
     "oldestSaleDate": "2026-02-17",
-    "compCount": 46
+    "compCount": 65
   },
   "1866 shield nickel": {
     "deepAt": null,
@@ -700,14 +700,14 @@
     "compCount": 46
   },
   "1867 shield nickel": {
-    "deepAt": null,
-    "page1At": "2026-04-30T00:31:32.506Z",
+    "deepAt": "2026-05-17T23:21:29.374Z",
+    "page1At": "2026-05-18T02:14:33.315098",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-29",
-    "oldestSaleDate": "2026-04-22",
-    "compCount": 44
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-06",
+    "oldestSaleDate": "2025-11-20",
+    "compCount": 91
   },
   "1868 indian head cent": {
     "deepAt": null,
@@ -750,24 +750,24 @@
     "compCount": 21
   },
   "1870 cc seated liberty dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-29T06:11:50.000Z",
+    "deepAt": "2026-05-17T23:21:29.390Z",
+    "page1At": "2026-05-18T02:16:00.699566",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-26",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-16",
     "oldestSaleDate": "2025-11-08",
-    "compCount": 31
+    "compCount": 56
   },
   "1870 s seated liberty dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-29T06:36:55.941Z",
+    "deepAt": "2026-05-17T23:21:29.391Z",
+    "page1At": "2026-05-18T02:17:26.826263",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-27",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-15",
     "oldestSaleDate": "2025-11-03",
-    "compCount": 44
+    "compCount": 64
   },
   "1870 indian head cent": {
     "deepAt": null,
@@ -780,14 +780,14 @@
     "compCount": 48
   },
   "1870 shield nickel": {
-    "deepAt": null,
-    "page1At": "2026-04-30T16:33:34.956Z",
+    "deepAt": "2026-05-17T23:21:29.394Z",
+    "page1At": "2026-05-18T02:18:56.669168",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-29",
-    "oldestSaleDate": "2026-03-16",
-    "compCount": 45
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
+    "oldestSaleDate": "2025-11-19",
+    "compCount": 84
   },
   "1871 cc seated liberty dime": {
     "deepAt": null,
@@ -811,13 +811,13 @@
   },
   "1871 cc seated liberty half dollar": {
     "deepAt": null,
-    "page1At": "2026-04-29T19:34:33.898Z",
+    "page1At": "2026-05-18T02:20:25.236272",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-26",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-03",
     "oldestSaleDate": "2025-11-05",
-    "compCount": 18
+    "compCount": 20
   },
   "1871 indian head cent": {
     "deepAt": "2026-05-17T02:37:46.609Z",
@@ -850,24 +850,24 @@
     "compCount": 3
   },
   "1872 cc seated liberty dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-29T07:07:19.240Z",
+    "deepAt": "2026-05-17T23:21:29.402Z",
+    "page1At": "2026-05-18T02:21:52.000776",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-28",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-14",
     "oldestSaleDate": "2025-11-15",
-    "compCount": 38
+    "compCount": 52
   },
   "1872 cc seated liberty half dollar": {
     "deepAt": null,
-    "page1At": "2026-04-29T04:10:29.613Z",
+    "page1At": "2026-05-18T02:23:19.223029",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-22",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-14",
     "oldestSaleDate": "2025-11-15",
-    "compCount": 28
+    "compCount": 40
   },
   "1872 cc seated liberty quarter": {
     "deepAt": null,
@@ -890,14 +890,14 @@
     "compCount": 46
   },
   "1872 shield nickel": {
-    "deepAt": null,
-    "page1At": "2026-04-29T20:22:13.991Z",
+    "deepAt": "2026-05-17T23:21:29.407Z",
+    "page1At": "2026-05-18T02:24:49.307405",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-28",
-    "oldestSaleDate": "2026-03-26",
-    "compCount": 45
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-12",
+    "oldestSaleDate": "2026-02-09",
+    "compCount": 60
   },
   "1873 cc seated liberty dime": {
     "deepAt": null,
@@ -910,24 +910,24 @@
     "compCount": 3
   },
   "1873 cc seated liberty dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-08T22:32:47.229Z",
+    "deepAt": "2026-05-17T23:21:29.409Z",
+    "page1At": "2026-05-18T02:26:19.020601",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-04",
-    "oldestSaleDate": "2026-03-08",
-    "compCount": 16
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
+    "oldestSaleDate": "2025-11-27",
+    "compCount": 55
   },
   "1873 cc seated liberty half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-29T21:32:15.635Z",
+    "deepAt": "2026-05-17T23:21:29.411Z",
+    "page1At": "2026-05-18T02:27:45.427005",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-29",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-10-31",
-    "compCount": 45
+    "compCount": 75
   },
   "1873 cc seated liberty quarter": {
     "deepAt": null,
@@ -941,13 +941,13 @@
   },
   "1873 cc trade dollar": {
     "deepAt": null,
-    "page1At": "2026-05-12T08:17:29.639Z",
+    "page1At": "2026-05-18T02:29:19.359805",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
+    "refreshCount": 2,
     "newestSaleDate": "2026-05-02",
     "oldestSaleDate": "2025-12-02",
-    "compCount": 19
+    "compCount": 27
   },
   "1873 s trade dollar": {
     "deepAt": null,
@@ -981,13 +981,13 @@
   },
   "1874 cc seated liberty half dollar": {
     "deepAt": null,
-    "page1At": "2026-04-29T21:28:15.907Z",
+    "page1At": "2026-05-18T02:30:47.069147",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
+    "refreshCount": 2,
     "newestSaleDate": "2026-04-16",
     "oldestSaleDate": "2025-11-02",
-    "compCount": 11
+    "compCount": 17
   },
   "1874 cc trade dollar": {
     "deepAt": null,
@@ -1020,14 +1020,14 @@
     "compCount": 40
   },
   "1874 shield nickel": {
-    "deepAt": null,
-    "page1At": "2026-04-30T15:11:23.562Z",
+    "deepAt": "2026-05-17T23:21:29.421Z",
+    "page1At": "2026-05-18T02:32:32.385676",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-29",
-    "oldestSaleDate": "2026-02-28",
-    "compCount": 42
+    "refreshCount": 2,
+    "newestSaleDate": "2026-04-30",
+    "oldestSaleDate": "2025-11-20",
+    "compCount": 75
   },
   "1874 trade dollar": {
     "deepAt": null,
@@ -1070,24 +1070,24 @@
     "compCount": 37
   },
   "1875 shield nickel": {
-    "deepAt": null,
-    "page1At": "2026-04-29T23:17:51.214Z",
+    "deepAt": "2026-05-17T23:21:29.427Z",
+    "page1At": "2026-05-18T02:33:53.237164",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-28",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2026-02-09",
-    "compCount": 41
+    "compCount": 63
   },
   "1875 trade dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-29T23:35:35.830Z",
+    "deepAt": "2026-05-17T23:21:29.428Z",
+    "page1At": "2026-05-18T02:35:19.833178",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-29",
-    "oldestSaleDate": "2026-04-03",
-    "compCount": 43
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-16",
+    "oldestSaleDate": "2025-12-02",
+    "compCount": 78
   },
   "1876 cc trade dollar": {
     "deepAt": null,
@@ -1100,14 +1100,14 @@
     "compCount": 30
   },
   "1876 s trade dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-29T07:14:55.478Z",
+    "deepAt": "2026-05-17T23:21:29.430Z",
+    "page1At": "2026-05-18T02:36:47.813826",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-21",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-11-16",
-    "compCount": 42
+    "compCount": 69
   },
   "1876 indian head cent": {
     "deepAt": null,
@@ -1120,24 +1120,24 @@
     "compCount": 49
   },
   "1876 shield nickel": {
-    "deepAt": null,
-    "page1At": "2026-04-29T06:39:46.487Z",
+    "deepAt": "2026-05-17T23:21:29.433Z",
+    "page1At": "2026-05-18T02:38:10.470923",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-28",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2026-03-07",
-    "compCount": 46
+    "compCount": 59
   },
   "1876 trade dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-29T03:58:32.870Z",
+    "deepAt": "2026-05-17T23:21:29.434Z",
+    "page1At": "2026-05-18T02:39:44.910782",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-28",
-    "oldestSaleDate": "2026-04-02",
-    "compCount": 43
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-03",
+    "oldestSaleDate": "2025-11-20",
+    "compCount": 75
   },
   "1877 cc trade dollar": {
     "deepAt": null,
@@ -1150,14 +1150,14 @@
     "compCount": 9
   },
   "1877 s trade dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-29T21:50:03.977Z",
+    "deepAt": "2026-05-17T23:21:29.437Z",
+    "page1At": "2026-05-18T02:41:11.188833",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-19",
-    "oldestSaleDate": "2025-11-06",
-    "compCount": 41
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
+    "oldestSaleDate": "2025-11-02",
+    "compCount": 105
   },
   "1877 indian head cent": {
     "deepAt": "2026-05-17T01:39:07.537Z",
@@ -1180,14 +1180,14 @@
     "compCount": 8
   },
   "1877 trade dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-29T21:03:20.563Z",
+    "deepAt": "2026-05-17T23:21:29.442Z",
+    "page1At": "2026-05-18T02:42:40.264157",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-29",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2026-04-15",
-    "compCount": 42
+    "compCount": 83
   },
   "1878 cc morgan silver dollar": {
     "deepAt": "2026-05-04T22:46:40.023Z",
@@ -1231,13 +1231,13 @@
   },
   "1878 cc seated liberty half dollar": {
     "deepAt": null,
-    "page1At": "2026-04-29T20:29:50.028Z",
+    "page1At": "2026-05-18T02:43:59.379046",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-19",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-11",
     "oldestSaleDate": "2025-11-02",
-    "compCount": 24
+    "compCount": 35
   },
   "1878 cc trade dollar": {
     "deepAt": null,
@@ -1290,14 +1290,14 @@
     "compCount": 45
   },
   "1878 indian head cent": {
-    "deepAt": null,
-    "page1At": "2026-04-26T04:07:36.697Z",
+    "deepAt": "2026-05-17T23:21:29.488Z",
+    "page1At": "2026-05-18T02:45:21.476466",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2026-04-16",
-    "compCount": 49
+    "compCount": 95
   },
   "1878 morgan silver dollar": {
     "deepAt": "2026-05-16T17:00:04.907Z",
@@ -1331,43 +1331,43 @@
   },
   "1878 morgan silver dollar ms65": {
     "deepAt": "2026-05-04T22:42:30.621Z",
-    "page1At": "2026-05-04T22:42:30.621Z",
+    "page1At": "2026-05-18T02:46:49.120161",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-13",
     "oldestSaleDate": "2025-11-06",
-    "compCount": 83
+    "compCount": 110
   },
   "1878 shield nickel": {
     "deepAt": null,
-    "page1At": "2026-04-29T05:06:23.429Z",
+    "page1At": "2026-05-18T02:48:11.456942",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-13",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-15",
     "oldestSaleDate": "2025-11-13",
-    "compCount": 12
+    "compCount": 17
   },
   "1878 trade dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-30T13:57:55.017Z",
+    "deepAt": "2026-05-17T23:21:29.503Z",
+    "page1At": "2026-05-18T02:49:37.414049",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-30",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2026-04-15",
-    "compCount": 38
+    "compCount": 70
   },
   "1879 cc morgan silver dollar": {
     "deepAt": "2026-05-16T17:00:05.662Z",
-    "page1At": "2026-05-16T17:00:05.662Z",
+    "page1At": "2026-05-18T02:51:01.519008",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-27",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-10-11",
-    "compCount": 163
+    "compCount": 171
   },
   "1879 cc morgan silver dollar ms63": {
     "deepAt": null,
@@ -1470,14 +1470,14 @@
     "compCount": 49
   },
   "1879 indian head cent": {
-    "deepAt": null,
-    "page1At": "2026-04-26T14:40:05.119Z",
+    "deepAt": "2026-05-17T23:21:29.530Z",
+    "page1At": "2026-05-18T02:52:30.718002",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-26",
-    "oldestSaleDate": "2026-04-18",
-    "compCount": 43
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
+    "oldestSaleDate": "2025-11-25",
+    "compCount": 86
   },
   "1879 morgan silver dollar": {
     "deepAt": "2026-05-04T21:17:43.106Z",
@@ -1491,13 +1491,13 @@
   },
   "1879 morgan silver dollar ms63": {
     "deepAt": "2026-05-04T22:38:16.929Z",
-    "page1At": "2026-05-04T22:38:16.929Z",
+    "page1At": "2026-05-18T02:53:55.256029",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-29",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-12",
     "oldestSaleDate": "2025-10-26",
-    "compCount": 64
+    "compCount": 100
   },
   "1879 morgan silver dollar ms64": {
     "deepAt": "2026-05-17T02:32:02.889Z",
@@ -1521,23 +1521,23 @@
   },
   "1879 shield nickel": {
     "deepAt": null,
-    "page1At": "2026-04-30T15:29:04.818Z",
+    "page1At": "2026-05-18T02:55:25.438584",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-29",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-16",
     "oldestSaleDate": "2025-11-05",
-    "compCount": 20
+    "compCount": 23
   },
   "1879 trade dollar": {
     "deepAt": null,
-    "page1At": "2026-04-30T00:58:20.353Z",
+    "page1At": "2026-05-18T02:56:47.299962",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
+    "refreshCount": 2,
     "newestSaleDate": "2026-04-26",
     "oldestSaleDate": "2025-12-06",
-    "compCount": 20
+    "compCount": 27
   },
   "1880 cc morgan silver dollar": {
     "deepAt": "2026-05-04T21:38:37.620Z",
@@ -1561,13 +1561,13 @@
   },
   "1880 cc morgan silver dollar ms64": {
     "deepAt": "2026-05-04T21:06:13.700Z",
-    "page1At": "2026-05-04T21:06:13.700Z",
+    "page1At": "2026-05-18T02:58:14.559409",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-05-02",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-10-23",
-    "compCount": 63
+    "compCount": 95
   },
   "1880 cc morgan silver dollar ms65": {
     "deepAt": null,
@@ -1641,13 +1641,13 @@
   },
   "1880 s morgan silver dollar ms64": {
     "deepAt": "2026-05-04T21:42:42.188Z",
-    "page1At": "2026-05-04T21:42:42.188Z",
+    "page1At": "2026-05-18T03:02:42.914346",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-05-02",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-07",
     "oldestSaleDate": "2025-11-05",
-    "compCount": 97
+    "compCount": 120
   },
   "1880 s morgan silver dollar ms65": {
     "deepAt": null,
@@ -1661,13 +1661,13 @@
   },
   "1880 indian head cent": {
     "deepAt": null,
-    "page1At": "2026-04-26T04:03:24.193Z",
+    "page1At": "2026-05-18T02:59:44.593162",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-11-05",
-    "compCount": 38
+    "compCount": 43
   },
   "1880 morgan silver dollar": {
     "deepAt": "2026-05-04T19:51:43.763Z",
@@ -1690,14 +1690,14 @@
     "compCount": 46
   },
   "1880 morgan silver dollar ms64": {
-    "deepAt": null,
-    "page1At": "2026-05-07T23:41:26.742Z",
+    "deepAt": "2026-05-17T23:21:29.627Z",
+    "page1At": "2026-05-18T03:01:14.536034",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
+    "refreshCount": 2,
     "newestSaleDate": "2026-04-26",
     "oldestSaleDate": "2025-11-11",
-    "compCount": 49
+    "compCount": 80
   },
   "1880 morgan silver dollar ms65": {
     "deepAt": null,
@@ -1711,23 +1711,23 @@
   },
   "1880 shield nickel": {
     "deepAt": null,
-    "page1At": "2026-04-29T05:41:56.501Z",
+    "page1At": "2026-05-18T03:04:11.980483",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-28",
-    "oldestSaleDate": "2025-11-09",
-    "compCount": 27
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-15",
+    "oldestSaleDate": "2025-11-03",
+    "compCount": 41
   },
   "1880 trade dollar": {
     "deepAt": null,
-    "page1At": "2026-04-29T07:32:52.839Z",
+    "page1At": "2026-05-18T03:05:35.398776",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-16",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-13",
     "oldestSaleDate": "2025-11-04",
-    "compCount": 12
+    "compCount": 18
   },
   "1881 cc morgan silver dollar": {
     "deepAt": "2026-05-04T21:55:04.085Z",
@@ -1741,23 +1741,23 @@
   },
   "1881 cc morgan silver dollar ms63": {
     "deepAt": "2026-05-04T19:41:26.073Z",
-    "page1At": "2026-05-04T19:41:26.073Z",
+    "page1At": "2026-05-18T03:06:58.189482",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-05-02",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-15",
     "oldestSaleDate": "2025-10-22",
-    "compCount": 60
+    "compCount": 100
   },
   "1881 cc morgan silver dollar ms64": {
     "deepAt": "2026-05-04T20:35:26.333Z",
-    "page1At": "2026-05-04T20:35:26.333Z",
+    "page1At": "2026-05-18T03:08:28.374348",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-26",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-15",
     "oldestSaleDate": "2025-10-25",
-    "compCount": 57
+    "compCount": 88
   },
   "1881 cc morgan silver dollar ms65": {
     "deepAt": "2026-05-17T01:26:03.927Z",
@@ -1801,13 +1801,13 @@
   },
   "1881 o morgan silver dollar ms65": {
     "deepAt": null,
-    "page1At": "2026-05-07T23:48:22.273Z",
+    "page1At": "2026-05-18T03:12:50.047915",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-05-01",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-11-09",
-    "compCount": 11
+    "compCount": 17
   },
   "1881 s morgan silver dollar": {
     "deepAt": "2026-05-16T17:00:04.959Z",
@@ -1821,43 +1821,43 @@
   },
   "1881 s morgan silver dollar ms63": {
     "deepAt": "2026-05-04T20:54:38.878Z",
-    "page1At": "2026-05-04T20:54:38.878Z",
+    "page1At": "2026-05-18T03:14:09.857484",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-28",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-11-03",
-    "compCount": 53
+    "compCount": 128
   },
   "1881 s morgan silver dollar ms64": {
     "deepAt": "2026-05-18T00:27:36.703163",
-    "page1At": "2026-05-07T23:51:18.294Z",
+    "page1At": "2026-05-18T03:15:34.601231",
     "maxPageReached": 2,
     "lastRefreshAt": null,
-    "refreshCount": 1,
+    "refreshCount": 2,
     "newestSaleDate": "2026-05-15",
     "oldestSaleDate": "2025-11-09",
-    "compCount": 54
+    "compCount": 88
   },
   "1881 s morgan silver dollar ms65": {
     "deepAt": "2026-05-04T21:19:53.975Z",
-    "page1At": "2026-05-04T21:19:53.975Z",
+    "page1At": "2026-05-18T03:16:56.495982",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-20",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-10",
     "oldestSaleDate": "2025-11-05",
-    "compCount": 94
+    "compCount": 128
   },
   "1881 indian head cent": {
-    "deepAt": null,
-    "page1At": "2026-04-26T14:34:54.698Z",
+    "deepAt": "2026-05-17T23:21:29.687Z",
+    "page1At": "2026-05-18T03:09:52.929864",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-26",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-10-30",
-    "compCount": 44
+    "compCount": 92
   },
   "1881 morgan silver dollar": {
     "deepAt": "2026-05-04T21:22:07.009Z",
@@ -1881,13 +1881,13 @@
   },
   "1881 morgan silver dollar ms64": {
     "deepAt": "2026-05-04T20:52:31.865Z",
-    "page1At": "2026-05-04T20:52:31.865Z",
+    "page1At": "2026-05-18T03:11:21.730886",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-05-02",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-10-28",
-    "compCount": 61
+    "compCount": 96
   },
   "1881 morgan silver dollar ms65": {
     "deepAt": "2026-05-04T20:38:38.115Z",
@@ -1900,24 +1900,24 @@
     "compCount": 96
   },
   "1881 shield nickel": {
-    "deepAt": null,
-    "page1At": "2026-04-29T21:25:16.133Z",
+    "deepAt": "2026-05-17T23:21:29.713Z",
+    "page1At": "2026-05-18T03:18:13.119243",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-29",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-13",
     "oldestSaleDate": "2025-11-02",
-    "compCount": 42
+    "compCount": 71
   },
   "1881 trade dollar": {
     "deepAt": null,
-    "page1At": "2026-04-29T21:59:52.627Z",
+    "page1At": "2026-05-18T03:19:40.880184",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-29",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-06",
     "oldestSaleDate": "2025-11-12",
-    "compCount": 18
+    "compCount": 23
   },
   "1882 cc morgan silver dollar": {
     "deepAt": "2026-05-04T22:02:44.216Z",
@@ -1941,13 +1941,13 @@
   },
   "1882 cc morgan silver dollar ms64": {
     "deepAt": "2026-05-18T00:16:04.416816",
-    "page1At": "2026-05-07T23:54:13.750Z",
+    "page1At": "2026-05-18T03:21:09.125149",
     "maxPageReached": 2,
     "lastRefreshAt": null,
-    "refreshCount": 1,
+    "refreshCount": 2,
     "newestSaleDate": "2026-05-10",
     "oldestSaleDate": "2025-11-11",
-    "compCount": 83
+    "compCount": 110
   },
   "1882 cc morgan silver dollar ms65": {
     "deepAt": "2026-05-04T22:32:51.683Z",
@@ -2001,13 +2001,13 @@
   },
   "1882 s morgan silver dollar": {
     "deepAt": "2026-05-04T20:18:51.053Z",
-    "page1At": "2026-05-04T20:18:51.053Z",
+    "page1At": "2026-05-18T03:23:59.359940",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-27",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-10-20",
-    "compCount": 316
+    "compCount": 417
   },
   "1882 s morgan silver dollar ms63": {
     "deepAt": null,
@@ -2060,14 +2060,14 @@
     "compCount": 257
   },
   "1882 morgan silver dollar ms63": {
-    "deepAt": null,
-    "page1At": "2026-05-08T00:01:36.863Z",
+    "deepAt": "2026-05-17T23:21:29.796Z",
+    "page1At": "2026-05-18T03:22:37.959234",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-10",
     "oldestSaleDate": "2025-11-12",
-    "compCount": 49
+    "compCount": 79
   },
   "1882 morgan silver dollar ms64": {
     "deepAt": "2026-05-18T00:14:03.644785",
@@ -2090,24 +2090,24 @@
     "compCount": 50
   },
   "1882 shield nickel": {
-    "deepAt": null,
-    "page1At": "2026-04-29T06:03:50.939Z",
+    "deepAt": "2026-05-17T23:21:29.801Z",
+    "page1At": "2026-05-18T03:26:01.111503",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-28",
-    "oldestSaleDate": "2026-04-15",
-    "compCount": 40
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-14",
+    "oldestSaleDate": "2026-03-06",
+    "compCount": 52
   },
   "1882 trade dollar": {
     "deepAt": null,
-    "page1At": "2026-04-29T21:08:41.396Z",
+    "page1At": "2026-05-18T03:27:27.643100",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-20",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-12",
     "oldestSaleDate": "2025-11-18",
-    "compCount": 16
+    "compCount": 19
   },
   "1883 cc morgan silver dollar": {
     "deepAt": "2026-05-16T17:00:05.244Z",
@@ -2191,13 +2191,13 @@
   },
   "1883 s morgan silver dollar": {
     "deepAt": "2026-05-16T17:00:05.404Z",
-    "page1At": "2026-05-16T17:00:05.404Z",
+    "page1At": "2026-05-18T03:30:05.682239",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-21",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-10-19",
-    "compCount": 193
+    "compCount": 233
   },
   "1883 s morgan silver dollar ms63": {
     "deepAt": null,
@@ -2230,14 +2230,14 @@
     "compCount": 2
   },
   "1883 indian head cent": {
-    "deepAt": null,
-    "page1At": "2026-04-26T14:33:53.698Z",
+    "deepAt": "2026-05-17T23:21:29.841Z",
+    "page1At": "2026-05-18T03:28:47.350177",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
-    "oldestSaleDate": "2026-04-19",
-    "compCount": 37
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
+    "oldestSaleDate": "2025-12-11",
+    "compCount": 67
   },
   "1883 liberty nickel no cents": {
     "deepAt": null,
@@ -2301,20 +2301,20 @@
   },
   "1883 shield nickel": {
     "deepAt": null,
-    "page1At": "2026-04-30T15:48:30.524Z",
+    "page1At": "2026-05-18T03:31:43.662149",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-29",
-    "oldestSaleDate": "2026-04-14",
-    "compCount": 35
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-14",
+    "oldestSaleDate": "2026-02-25",
+    "compCount": 46
   },
   "1883 trade dollar": {
     "deepAt": null,
-    "page1At": "2026-04-29T05:44:29.493Z",
+    "page1At": "2026-05-18T03:33:06.689956",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
+    "refreshCount": 2,
     "newestSaleDate": "2026-04-20",
     "oldestSaleDate": "2026-01-24",
     "compCount": 12
@@ -2391,33 +2391,33 @@
   },
   "1884 o morgan silver dollar ms65": {
     "deepAt": "2026-05-04T20:50:24.465Z",
-    "page1At": "2026-05-04T20:50:24.465Z",
+    "page1At": "2026-05-18T03:35:53.158922",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-05-02",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-11-09",
-    "compCount": 88
+    "compCount": 122
   },
   "1884 s morgan silver dollar": {
     "deepAt": "2026-05-04T19:37:07.903Z",
-    "page1At": "2026-05-04T19:37:07.903Z",
+    "page1At": "2026-05-18T03:37:12.991296",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-05-02",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-10-17",
-    "compCount": 172
+    "compCount": 310
   },
   "1884 s morgan silver dollar ms63": {
-    "deepAt": null,
-    "page1At": "2026-05-08T00:23:28.995Z",
+    "deepAt": "2026-05-17T23:21:29.904Z",
+    "page1At": "2026-05-18T03:38:39.431410",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-05-02",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-11-12",
-    "compCount": 40
+    "compCount": 72
   },
   "1884 s morgan silver dollar ms64": {
     "deepAt": "2026-05-04T22:00:43.923Z",
@@ -2440,14 +2440,14 @@
     "compCount": 8
   },
   "1884 indian head cent": {
-    "deepAt": null,
-    "page1At": "2026-04-26T04:02:20.997Z",
+    "deepAt": "2026-05-17T23:21:29.907Z",
+    "page1At": "2026-05-18T03:34:30.621488",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-11-06",
-    "compCount": 36
+    "compCount": 94
   },
   "1884 liberty nickel": {
     "deepAt": null,
@@ -2620,14 +2620,14 @@
     "compCount": 4
   },
   "1885 indian head cent": {
-    "deepAt": null,
-    "page1At": "2026-04-26T14:29:38.985Z",
+    "deepAt": "2026-05-17T23:21:29.965Z",
+    "page1At": "2026-05-18T03:40:04.392706",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-21",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-11-02",
-    "compCount": 46
+    "compCount": 108
   },
   "1885 liberty nickel": {
     "deepAt": null,
@@ -2670,14 +2670,14 @@
     "compCount": 88
   },
   "1885 morgan silver dollar ms65": {
-    "deepAt": null,
-    "page1At": "2026-05-08T00:42:19.324Z",
+    "deepAt": "2026-05-17T23:21:29.984Z",
+    "page1At": "2026-05-18T03:41:28.656499",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-26",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-11-12",
-    "compCount": 49
+    "compCount": 74
   },
   "1886 o morgan silver dollar": {
     "deepAt": "2026-05-04T20:33:18.491Z",
@@ -2701,10 +2701,10 @@
   },
   "1886 o morgan silver dollar ms64": {
     "deepAt": null,
-    "page1At": "2026-05-08T00:43:42.411Z",
+    "page1At": "2026-05-18T03:44:20.221562",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
+    "refreshCount": 2,
     "newestSaleDate": "2026-03-31",
     "oldestSaleDate": "2025-12-07",
     "compCount": 14
@@ -2720,14 +2720,14 @@
     "compCount": 238
   },
   "1886 s morgan silver dollar ms63": {
-    "deepAt": null,
-    "page1At": "2026-05-08T00:46:17.566Z",
+    "deepAt": "2026-05-17T23:21:30.010Z",
+    "page1At": "2026-05-18T03:45:46.041088",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-26",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-10",
     "oldestSaleDate": "2025-11-09",
-    "compCount": 32
+    "compCount": 54
   },
   "1886 s morgan silver dollar ms64": {
     "deepAt": null,
@@ -2750,14 +2750,14 @@
     "compCount": 5
   },
   "1886 indian head cent": {
-    "deepAt": null,
-    "page1At": "2026-04-26T04:10:59.357Z",
+    "deepAt": "2026-05-17T23:21:30.012Z",
+    "page1At": "2026-05-18T03:42:58.509331",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2026-04-20",
-    "compCount": 40
+    "compCount": 71
   },
   "1886 liberty nickel": {
     "deepAt": null,
@@ -2820,14 +2820,14 @@
     "compCount": 233
   },
   "1887 o morgan silver dollar ms63": {
-    "deepAt": null,
-    "page1At": "2026-05-08T00:54:58.247Z",
+    "deepAt": "2026-05-17T23:21:30.038Z",
+    "page1At": "2026-05-18T03:51:23.080735",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-27",
-    "oldestSaleDate": "2025-11-14",
-    "compCount": 42
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-15",
+    "oldestSaleDate": "2025-11-12",
+    "compCount": 70
   },
   "1887 o morgan silver dollar ms64": {
     "deepAt": null,
@@ -2881,23 +2881,23 @@
   },
   "1887 s morgan silver dollar ms65": {
     "deepAt": null,
-    "page1At": "2026-05-08T00:59:24.078Z",
+    "page1At": "2026-05-18T03:52:45.160329",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
+    "refreshCount": 2,
     "newestSaleDate": "2026-04-30",
     "oldestSaleDate": "2025-11-23",
-    "compCount": 10
+    "compCount": 12
   },
   "1887 indian head cent": {
-    "deepAt": null,
-    "page1At": "2026-04-26T04:06:33.822Z",
+    "deepAt": "2026-05-17T23:21:30.052Z",
+    "page1At": "2026-05-18T03:47:07.866170",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-24",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-11-07",
-    "compCount": 39
+    "compCount": 98
   },
   "1887 liberty nickel": {
     "deepAt": null,
@@ -2920,24 +2920,24 @@
     "compCount": 277
   },
   "1887 morgan silver dollar ms63": {
-    "deepAt": null,
-    "page1At": "2026-05-08T01:00:48.324Z",
+    "deepAt": "2026-05-17T23:21:30.073Z",
+    "page1At": "2026-05-18T03:48:34.598856",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
+    "refreshCount": 2,
     "newestSaleDate": "2026-04-25",
     "oldestSaleDate": "2025-11-11",
-    "compCount": 49
+    "compCount": 83
   },
   "1887 morgan silver dollar ms64": {
-    "deepAt": null,
-    "page1At": "2026-05-08T01:02:18.183Z",
+    "deepAt": "2026-05-17T23:21:30.074Z",
+    "page1At": "2026-05-18T03:49:54.755583",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-30",
-    "oldestSaleDate": "2025-11-23",
-    "compCount": 39
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
+    "oldestSaleDate": "2025-11-10",
+    "compCount": 111
   },
   "1887 morgan silver dollar ms65": {
     "deepAt": "2026-05-04T22:26:42.649Z",
@@ -3001,13 +3001,13 @@
   },
   "1888 s morgan silver dollar ms63": {
     "deepAt": null,
-    "page1At": "2026-05-08T01:10:12.005Z",
+    "page1At": "2026-05-18T03:54:08.813360",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-28",
-    "oldestSaleDate": "2025-12-27",
-    "compCount": 31
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-16",
+    "oldestSaleDate": "2025-12-14",
+    "compCount": 41
   },
   "1888 s morgan silver dollar ms64": {
     "deepAt": null,
@@ -3111,23 +3111,23 @@
   },
   "1889 o morgan silver dollar ms63": {
     "deepAt": null,
-    "page1At": "2026-05-08T01:22:31.407Z",
+    "page1At": "2026-05-18T04:00:24.807008",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-27",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-14",
     "oldestSaleDate": "2025-11-12",
-    "compCount": 14
+    "compCount": 24
   },
   "1889 o morgan silver dollar ms64": {
     "deepAt": null,
-    "page1At": "2026-05-08T01:23:59.262Z",
+    "page1At": "2026-05-18T04:01:50.223368",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
+    "refreshCount": 2,
     "newestSaleDate": "2026-04-25",
     "oldestSaleDate": "2025-11-13",
-    "compCount": 11
+    "compCount": 18
   },
   "1889 s morgan silver dollar": {
     "deepAt": "2026-05-04T19:55:48.576Z",
@@ -3141,33 +3141,33 @@
   },
   "1889 s morgan silver dollar ms63": {
     "deepAt": null,
-    "page1At": "2026-05-08T01:26:31.426Z",
+    "page1At": "2026-05-18T04:03:16.264005",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-05-02",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-08",
     "oldestSaleDate": "2025-11-09",
-    "compCount": 26
+    "compCount": 46
   },
   "1889 s morgan silver dollar ms64": {
     "deepAt": null,
-    "page1At": "2026-05-08T01:27:59.566Z",
+    "page1At": "2026-05-18T04:04:41.489762",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-05-02",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-11-09",
-    "compCount": 23
+    "compCount": 24
   },
   "1889 indian head cent": {
-    "deepAt": null,
-    "page1At": "2026-04-26T03:55:59.487Z",
+    "deepAt": "2026-05-17T23:21:30.235Z",
+    "page1At": "2026-05-18T03:55:27.470844",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
-    "oldestSaleDate": "2025-11-07",
-    "compCount": 31
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
+    "oldestSaleDate": "2025-10-30",
+    "compCount": 84
   },
   "1889 liberty nickel": {
     "deepAt": null,
@@ -3191,23 +3191,23 @@
   },
   "1889 morgan silver dollar ms63": {
     "deepAt": null,
-    "page1At": "2026-05-08T01:30:45.998Z",
+    "page1At": "2026-05-18T03:56:51.852761",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
+    "refreshCount": 2,
     "newestSaleDate": "2026-05-02",
     "oldestSaleDate": "2025-11-12",
     "compCount": 43
   },
   "1889 morgan silver dollar ms64": {
-    "deepAt": null,
-    "page1At": "2026-05-08T01:32:06.240Z",
+    "deepAt": "2026-05-17T23:21:30.250Z",
+    "page1At": "2026-05-18T03:58:20.065713",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-05-02",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-11-14",
-    "compCount": 49
+    "compCount": 122
   },
   "1889 morgan silver dollar ms65": {
     "deepAt": "2026-05-16T20:05:05.263658",
@@ -3231,13 +3231,13 @@
   },
   "1890 cc morgan silver dollar ms63": {
     "deepAt": null,
-    "page1At": "2026-05-08T01:35:07.522Z",
+    "page1At": "2026-05-18T04:06:02.698464",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-05-01",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-12-18",
-    "compCount": 16
+    "compCount": 25
   },
   "1890 cc morgan silver dollar ms64": {
     "deepAt": null,
@@ -3271,13 +3271,13 @@
   },
   "1890 o morgan silver dollar ms64": {
     "deepAt": null,
-    "page1At": "2026-05-08T01:39:11.957Z",
+    "page1At": "2026-05-18T04:09:59.288543",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-05-01",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-09",
     "oldestSaleDate": "2025-11-16",
-    "compCount": 38
+    "compCount": 39
   },
   "1890 o morgan silver dollar ms65": {
     "deepAt": null,
@@ -3311,13 +3311,13 @@
   },
   "1890 s morgan silver dollar ms64": {
     "deepAt": null,
-    "page1At": "2026-05-08T01:44:13.608Z",
+    "page1At": "2026-05-18T04:11:21.162863",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-28",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-09",
     "oldestSaleDate": "2025-11-09",
-    "compCount": 23
+    "compCount": 37
   },
   "1890 s morgan silver dollar ms65": {
     "deepAt": null,
@@ -3330,14 +3330,14 @@
     "compCount": 4
   },
   "1890 indian head cent": {
-    "deepAt": null,
-    "page1At": "2026-04-26T03:44:10.473Z",
+    "deepAt": "2026-05-17T23:21:30.328Z",
+    "page1At": "2026-05-18T04:07:24.027177",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-11-08",
-    "compCount": 46
+    "compCount": 87
   },
   "1890 liberty nickel": {
     "deepAt": null,
@@ -3381,13 +3381,13 @@
   },
   "1890 morgan silver dollar ms65": {
     "deepAt": null,
-    "page1At": "2026-05-08T01:51:32.277Z",
+    "page1At": "2026-05-18T04:08:43.339272",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-05-02",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-15",
     "oldestSaleDate": "2025-11-23",
-    "compCount": 18
+    "compCount": 28
   },
   "1891 cc morgan silver dollar": {
     "deepAt": "2026-05-16T17:00:05.454Z",
@@ -3431,13 +3431,13 @@
   },
   "1891 o morgan silver dollar ms63": {
     "deepAt": null,
-    "page1At": "2026-05-08T01:58:43.230Z",
+    "page1At": "2026-05-18T04:14:18.868866",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-05-01",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-11-15",
-    "compCount": 15
+    "compCount": 17
   },
   "1891 o morgan silver dollar ms64": {
     "deepAt": null,
@@ -3461,23 +3461,23 @@
   },
   "1891 s morgan silver dollar": {
     "deepAt": "2026-05-16T17:00:05.204Z",
-    "page1At": "2026-05-16T17:00:05.204Z",
+    "page1At": "2026-05-18T04:15:45.162172",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-05-02",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-15",
     "oldestSaleDate": "2025-10-13",
-    "compCount": 208
+    "compCount": 213
   },
   "1891 s morgan silver dollar ms63": {
     "deepAt": null,
-    "page1At": "2026-05-08T02:05:04.117Z",
+    "page1At": "2026-05-18T04:17:09.789986",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-10",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-07",
     "oldestSaleDate": "2025-11-18",
-    "compCount": 17
+    "compCount": 27
   },
   "1891 s morgan silver dollar ms64": {
     "deepAt": null,
@@ -3500,14 +3500,14 @@
     "compCount": 7
   },
   "1891 indian head cent": {
-    "deepAt": null,
-    "page1At": "2026-04-26T14:32:49.197Z",
+    "deepAt": "2026-05-17T23:21:30.365Z",
+    "page1At": "2026-05-18T04:12:48.119451",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-23",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-04-29",
     "oldestSaleDate": "2025-11-08",
-    "compCount": 47
+    "compCount": 81
   },
   "1891 liberty nickel": {
     "deepAt": null,
@@ -3560,34 +3560,34 @@
     "compCount": 9
   },
   "1892 o barber dime": {
-    "deepAt": null,
-    "page1At": "2026-04-25T21:55:01.273Z",
+    "deepAt": "2026-05-17T23:21:30.376Z",
+    "page1At": "2026-05-18T04:24:12.264319",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-07",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-16",
     "oldestSaleDate": "2025-10-27",
-    "compCount": 36
+    "compCount": 102
   },
   "1892 o barber half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-30T13:43:45.500Z",
+    "deepAt": "2026-05-17T23:21:30.378Z",
+    "page1At": "2026-05-18T04:25:37.631389",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-26",
-    "oldestSaleDate": "2026-03-10",
-    "compCount": 43
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
+    "oldestSaleDate": "2025-11-19",
+    "compCount": 80
   },
   "1892 o barber quarter": {
-    "deepAt": null,
-    "page1At": "2026-04-25T23:33:01.008Z",
+    "deepAt": "2026-05-17T23:21:30.379Z",
+    "page1At": "2026-05-18T04:27:10.895411",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-24",
-    "oldestSaleDate": "2025-11-04",
-    "compCount": 42
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-15",
+    "oldestSaleDate": "2025-11-02",
+    "compCount": 71
   },
   "1892 o morgan silver dollar": {
     "deepAt": "2026-05-16T17:00:05.694Z",
@@ -3630,34 +3630,34 @@
     "compCount": 1
   },
   "1892 s barber dime": {
-    "deepAt": null,
-    "page1At": "2026-04-25T21:32:14.350Z",
+    "deepAt": "2026-05-17T23:21:30.389Z",
+    "page1At": "2026-05-18T04:28:39.425208",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-24",
-    "oldestSaleDate": "2026-03-17",
-    "compCount": 36
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-16",
+    "oldestSaleDate": "2026-01-25",
+    "compCount": 52
   },
   "1892 s barber half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-26T00:58:59.953Z",
+    "deepAt": "2026-05-17T23:21:30.390Z",
+    "page1At": "2026-05-18T04:29:53.437246",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-23",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-16",
     "oldestSaleDate": "2025-10-28",
-    "compCount": 34
+    "compCount": 94
   },
   "1892 s barber quarter": {
-    "deepAt": null,
-    "page1At": "2026-04-25T23:37:03.902Z",
+    "deepAt": "2026-05-17T23:21:30.392Z",
+    "page1At": "2026-05-18T04:31:16.496988",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-16",
     "oldestSaleDate": "2026-03-06",
-    "compCount": 46
+    "compCount": 66
   },
   "1892 s morgan silver dollar": {
     "deepAt": "2026-05-04T22:10:18.633Z",
@@ -3680,44 +3680,44 @@
     "compCount": 1
   },
   "1892 barber dime": {
-    "deepAt": null,
-    "page1At": "2026-04-25T22:30:57.162Z",
+    "deepAt": "2026-05-17T23:21:30.409Z",
+    "page1At": "2026-05-18T04:18:39.871682",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-22",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-10-27",
-    "compCount": 26
+    "compCount": 54
   },
   "1892 barber half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-26T00:00:42.409Z",
+    "deepAt": "2026-05-17T23:21:30.410Z",
+    "page1At": "2026-05-18T04:20:02.812843",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2026-04-13",
-    "compCount": 33
+    "compCount": 65
   },
   "1892 barber quarter": {
     "deepAt": null,
-    "page1At": "2026-04-25T23:41:19.306Z",
+    "page1At": "2026-05-18T04:21:29.454132",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-15",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-15",
     "oldestSaleDate": "2025-11-14",
-    "compCount": 31
+    "compCount": 42
   },
   "1892 indian head cent": {
-    "deepAt": null,
-    "page1At": "2026-04-26T14:41:00.692Z",
+    "deepAt": "2026-05-17T23:21:30.413Z",
+    "page1At": "2026-05-18T04:22:48.591577",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-26",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2026-04-17",
-    "compCount": 44
+    "compCount": 88
   },
   "1892 liberty nickel": {
     "deepAt": null,
@@ -3771,23 +3771,23 @@
   },
   "1893 cc morgan silver dollar": {
     "deepAt": "2026-05-04T19:31:40.358Z",
-    "page1At": "2026-05-04T19:31:40.358Z",
+    "page1At": "2026-05-18T04:37:06.479977",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-05-01",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-10-15",
-    "compCount": 247
+    "compCount": 401
   },
   "1893 o barber dime": {
     "deepAt": null,
-    "page1At": "2026-04-25T22:23:42.074Z",
+    "page1At": "2026-05-18T04:39:54.757824",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-23",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-10",
     "oldestSaleDate": "2025-10-30",
-    "compCount": 36
+    "compCount": 40
   },
   "1893 o barber half dollar": {
     "deepAt": "2026-05-16T19:44:32.362010",
@@ -3800,14 +3800,14 @@
     "compCount": 50
   },
   "1893 o barber quarter": {
-    "deepAt": null,
-    "page1At": "2026-04-25T22:52:42.899Z",
+    "deepAt": "2026-05-17T23:21:30.477Z",
+    "page1At": "2026-05-18T04:41:19.159610",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
-    "oldestSaleDate": "2026-03-10",
-    "compCount": 44
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-16",
+    "oldestSaleDate": "2025-11-23",
+    "compCount": 82
   },
   "1893 o morgan silver dollar": {
     "deepAt": "2026-05-04T19:29:27.183Z",
@@ -3820,34 +3820,34 @@
     "compCount": 207
   },
   "1893 s barber dime": {
-    "deepAt": null,
-    "page1At": "2026-04-25T22:13:14.854Z",
+    "deepAt": "2026-05-17T23:21:30.496Z",
+    "page1At": "2026-05-18T04:42:44.958830",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2026-03-05",
-    "compCount": 38
+    "compCount": 74
   },
   "1893 s barber half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-26T00:15:32.778Z",
+    "deepAt": "2026-05-17T23:21:30.497Z",
+    "page1At": "2026-05-18T04:44:10.555939",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-24",
-    "oldestSaleDate": "2025-11-16",
-    "compCount": 41
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-06",
+    "oldestSaleDate": "2025-11-14",
+    "compCount": 71
   },
   "1893 s barber quarter": {
-    "deepAt": null,
-    "page1At": "2026-05-14T15:00:25.074Z",
+    "deepAt": "2026-05-17T23:21:30.499Z",
+    "page1At": "2026-05-18T04:45:37.100784",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
+    "refreshCount": 2,
     "newestSaleDate": "2026-05-02",
     "oldestSaleDate": "2025-11-15",
-    "compCount": 42
+    "compCount": 67
   },
   "1893 s morgan silver dollar": {
     "deepAt": "2026-05-16T17:00:05.062Z",
@@ -3860,44 +3860,44 @@
     "compCount": 229
   },
   "1893 barber dime": {
-    "deepAt": null,
-    "page1At": "2026-04-25T21:30:15.154Z",
+    "deepAt": "2026-05-17T23:21:30.520Z",
+    "page1At": "2026-05-18T04:32:42.675370",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-20",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-10-30",
-    "compCount": 49
+    "compCount": 88
   },
   "1893 barber half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-26T00:03:48.963Z",
+    "deepAt": "2026-05-17T23:21:30.522Z",
+    "page1At": "2026-05-18T04:34:11.116275",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
-    "oldestSaleDate": "2026-04-03",
-    "compCount": 44
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-06",
+    "oldestSaleDate": "2025-11-19",
+    "compCount": 87
   },
   "1893 barber quarter": {
-    "deepAt": null,
-    "page1At": "2026-04-25T23:49:42.978Z",
+    "deepAt": "2026-05-17T23:21:30.524Z",
+    "page1At": "2026-05-18T04:35:37.356542",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-03",
     "oldestSaleDate": "2025-11-06",
-    "compCount": 49
+    "compCount": 81
   },
   "1893 indian head cent": {
     "deepAt": "2026-05-17T23:51:06.817184",
-    "page1At": "2026-04-26T03:49:38.266Z",
+    "page1At": "2026-05-18T04:38:27.288791",
     "maxPageReached": 2,
     "lastRefreshAt": null,
-    "refreshCount": 1,
+    "refreshCount": 2,
     "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-10-29",
-    "compCount": 92
+    "compCount": 122
   },
   "1893 liberty nickel": {
     "deepAt": null,
@@ -3920,34 +3920,34 @@
     "compCount": 199
   },
   "1894 o barber dime": {
-    "deepAt": null,
-    "page1At": "2026-04-25T21:40:38.553Z",
+    "deepAt": "2026-05-17T23:21:30.544Z",
+    "page1At": "2026-05-18T04:53:07.808738",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-09",
     "oldestSaleDate": "2025-10-29",
-    "compCount": 41
+    "compCount": 55
   },
   "1894 o barber half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-26T01:17:57.357Z",
+    "deepAt": "2026-05-17T23:21:30.550Z",
+    "page1At": "2026-05-18T04:54:30.463931",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-15",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-10-29",
-    "compCount": 42
+    "compCount": 102
   },
   "1894 o barber quarter": {
-    "deepAt": null,
-    "page1At": "2026-04-25T23:15:07.786Z",
+    "deepAt": "2026-05-17T23:21:30.557Z",
+    "page1At": "2026-05-18T04:55:50.485795",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-20",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-13",
     "oldestSaleDate": "2025-10-30",
-    "compCount": 44
+    "compCount": 99
   },
   "1894 o morgan silver dollar": {
     "deepAt": "2026-05-16T16:13:43.426Z",
@@ -3980,24 +3980,24 @@
     "compCount": 2
   },
   "1894 s barber half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-26T00:22:19.380Z",
+    "deepAt": "2026-05-17T23:21:30.582Z",
+    "page1At": "2026-05-18T04:57:16.002444",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-11-03",
-    "compCount": 44
+    "compCount": 107
   },
   "1894 s barber quarter": {
-    "deepAt": null,
-    "page1At": "2026-04-25T23:43:25.581Z",
+    "deepAt": "2026-05-17T23:21:30.586Z",
+    "page1At": "2026-05-18T04:58:39.811177",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-24",
-    "oldestSaleDate": "2026-03-02",
-    "compCount": 43
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-11",
+    "oldestSaleDate": "2025-11-20",
+    "compCount": 84
   },
   "1894 s morgan silver dollar": {
     "deepAt": "2026-05-16T16:13:43.428Z",
@@ -4030,44 +4030,44 @@
     "compCount": 1
   },
   "1894 barber dime": {
-    "deepAt": null,
-    "page1At": "2026-04-25T21:36:38.117Z",
+    "deepAt": "2026-05-17T23:21:30.614Z",
+    "page1At": "2026-05-18T04:47:17.483188",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-21",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-10-29",
-    "compCount": 45
+    "compCount": 74
   },
   "1894 barber half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-25T23:59:40.982Z",
+    "deepAt": "2026-05-17T23:21:30.616Z",
+    "page1At": "2026-05-18T04:48:41.172376",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-06",
     "oldestSaleDate": "2025-10-27",
-    "compCount": 49
+    "compCount": 87
   },
   "1894 barber quarter": {
-    "deepAt": null,
-    "page1At": "2026-04-25T22:46:13.920Z",
+    "deepAt": "2026-05-17T23:21:30.618Z",
+    "page1At": "2026-05-18T04:50:08.042188",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-20",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-11",
     "oldestSaleDate": "2025-10-30",
-    "compCount": 43
+    "compCount": 79
   },
   "1894 indian head cent": {
-    "deepAt": null,
-    "page1At": "2026-04-26T14:28:30.679Z",
+    "deepAt": "2026-05-17T23:21:30.620Z",
+    "page1At": "2026-05-18T04:51:40.058342",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-26",
-    "oldestSaleDate": "2026-04-18",
-    "compCount": 43
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-16",
+    "oldestSaleDate": "2025-11-21",
+    "compCount": 86
   },
   "1894 liberty nickel": {
     "deepAt": null,
@@ -4110,34 +4110,34 @@
     "compCount": 2
   },
   "1895 o barber dime": {
-    "deepAt": null,
-    "page1At": "2026-04-08T22:32:47.281Z",
+    "deepAt": "2026-05-17T23:21:30.652Z",
+    "page1At": "2026-05-18T05:05:31.758978",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-05",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2026-03-06",
-    "compCount": 21
+    "compCount": 52
   },
   "1895 o barber half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-26T00:05:49.485Z",
+    "deepAt": "2026-05-17T23:21:30.660Z",
+    "page1At": "2026-05-18T05:06:51.339213",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-24",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2026-03-07",
-    "compCount": 42
+    "compCount": 65
   },
   "1895 o barber quarter": {
-    "deepAt": null,
-    "page1At": "2026-04-25T23:54:21.140Z",
+    "deepAt": "2026-05-17T23:21:30.668Z",
+    "page1At": "2026-05-18T05:08:19.571847",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-22",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-11-01",
-    "compCount": 41
+    "compCount": 70
   },
   "1895 o morgan silver dollar": {
     "deepAt": "2026-05-16T16:13:43.428Z",
@@ -4151,33 +4151,33 @@
   },
   "1895 s barber dime": {
     "deepAt": null,
-    "page1At": "2026-04-25T22:24:43.598Z",
+    "page1At": "2026-05-18T05:09:47.791986",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-09",
     "oldestSaleDate": "2025-10-27",
-    "compCount": 41
+    "compCount": 47
   },
   "1895 s barber half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-26T00:40:50.111Z",
+    "deepAt": "2026-05-17T23:21:30.719Z",
+    "page1At": "2026-05-18T05:11:13.770948",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-24",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-10-29",
-    "compCount": 41
+    "compCount": 104
   },
   "1895 s barber quarter": {
-    "deepAt": null,
-    "page1At": "2026-04-25T23:19:23.505Z",
+    "deepAt": "2026-05-17T23:21:30.726Z",
+    "page1At": "2026-05-18T05:12:38.241880",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-19",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-13",
     "oldestSaleDate": "2025-10-28",
-    "compCount": 40
+    "compCount": 72
   },
   "1895 s morgan silver dollar": {
     "deepAt": "2026-05-04T20:12:35.066Z",
@@ -4210,44 +4210,44 @@
     "compCount": 2
   },
   "1895 barber dime": {
-    "deepAt": null,
-    "page1At": "2026-04-25T21:28:10.818Z",
+    "deepAt": "2026-05-17T23:21:30.779Z",
+    "page1At": "2026-05-18T05:00:02.459379",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2026-04-09",
-    "compCount": 43
+    "compCount": 86
   },
   "1895 barber half dollar": {
     "deepAt": "2026-05-18T00:31:37.425572",
-    "page1At": "2026-04-26T01:16:49.967Z",
+    "page1At": "2026-05-18T05:01:21.863991",
     "maxPageReached": 2,
     "lastRefreshAt": null,
-    "refreshCount": 1,
+    "refreshCount": 2,
     "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-10-29",
-    "compCount": 97
+    "compCount": 124
   },
   "1895 barber quarter": {
-    "deepAt": null,
-    "page1At": "2026-04-25T23:46:38.491Z",
+    "deepAt": "2026-05-17T23:21:30.782Z",
+    "page1At": "2026-05-18T05:02:46.397669",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-11-03",
-    "compCount": 47
+    "compCount": 114
   },
   "1895 indian head cent": {
     "deepAt": "2026-05-17T23:26:15.735590",
-    "page1At": "2026-04-26T04:08:46.849Z",
+    "page1At": "2026-05-18T05:04:06.121031",
     "maxPageReached": 2,
     "lastRefreshAt": null,
-    "refreshCount": 1,
+    "refreshCount": 2,
     "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-10-28",
-    "compCount": 71
+    "compCount": 137
   },
   "1895 liberty nickel": {
     "deepAt": null,
@@ -4270,34 +4270,34 @@
     "compCount": 7
   },
   "1896 o barber dime": {
-    "deepAt": null,
-    "page1At": "2026-04-25T22:33:04.062Z",
+    "deepAt": "2026-05-17T23:21:30.788Z",
+    "page1At": "2026-05-18T05:19:34.658094",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-24",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-16",
     "oldestSaleDate": "2026-02-22",
-    "compCount": 49
+    "compCount": 69
   },
   "1896 o barber half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-26T00:56:51.666Z",
+    "deepAt": "2026-05-17T23:21:30.789Z",
+    "page1At": "2026-05-18T05:20:59.307269",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
-    "oldestSaleDate": "2026-03-06",
-    "compCount": 46
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
+    "oldestSaleDate": "2025-11-20",
+    "compCount": 81
   },
   "1896 o barber quarter": {
-    "deepAt": null,
-    "page1At": "2026-04-25T22:57:02.521Z",
+    "deepAt": "2026-05-17T23:21:30.791Z",
+    "page1At": "2026-05-18T05:22:26.790635",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
-    "oldestSaleDate": "2026-03-21",
-    "compCount": 49
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-13",
+    "oldestSaleDate": "2025-11-22",
+    "compCount": 89
   },
   "1896 o morgan silver dollar": {
     "deepAt": "2026-05-04T21:57:06.755Z",
@@ -4371,13 +4371,13 @@
   },
   "1896 s morgan silver dollar ms63": {
     "deepAt": null,
-    "page1At": "2026-05-10T21:32:39.292Z",
+    "page1At": "2026-05-18T05:24:18.782983",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-27",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-10",
     "oldestSaleDate": "2025-11-16",
-    "compCount": 16
+    "compCount": 17
   },
   "1896 s morgan silver dollar ms64": {
     "deepAt": null,
@@ -4390,14 +4390,14 @@
     "compCount": 24
   },
   "1896 barber dime": {
-    "deepAt": null,
-    "page1At": "2026-04-25T21:59:13.795Z",
+    "deepAt": "2026-05-17T23:21:30.826Z",
+    "page1At": "2026-05-18T05:14:05.563317",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
-    "oldestSaleDate": "2026-04-07",
-    "compCount": 40
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
+    "oldestSaleDate": "2025-11-26",
+    "compCount": 81
   },
   "1896 barber half dollar": {
     "deepAt": null,
@@ -4410,14 +4410,14 @@
     "compCount": 49
   },
   "1896 barber quarter": {
-    "deepAt": null,
-    "page1At": "2026-04-25T23:26:58.053Z",
+    "deepAt": "2026-05-17T23:21:30.830Z",
+    "page1At": "2026-05-18T05:15:27.773239",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-21",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-10-27",
-    "compCount": 46
+    "compCount": 113
   },
   "1896 indian head cent": {
     "deepAt": "2026-05-17T23:53:09.552221",
@@ -4450,24 +4450,24 @@
     "compCount": 195
   },
   "1896 morgan silver dollar ms63": {
-    "deepAt": null,
-    "page1At": "2026-05-10T21:57:21.683Z",
+    "deepAt": "2026-05-17T23:21:30.846Z",
+    "page1At": "2026-05-18T05:16:52.345384",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-22",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-11-16",
-    "compCount": 48
+    "compCount": 115
   },
   "1896 morgan silver dollar ms64": {
     "deepAt": "2026-05-17T23:59:19.385791",
-    "page1At": "2026-05-10T20:38:51.672Z",
+    "page1At": "2026-05-18T05:18:11.080289",
     "maxPageReached": 2,
     "lastRefreshAt": null,
-    "refreshCount": 1,
+    "refreshCount": 2,
     "newestSaleDate": "2026-05-16",
     "oldestSaleDate": "2025-11-15",
-    "compCount": 96
+    "compCount": 126
   },
   "1896 morgan silver dollar ms65": {
     "deepAt": null,
@@ -4480,44 +4480,44 @@
     "compCount": 49
   },
   "1897 o barber dime": {
-    "deepAt": null,
-    "page1At": "2026-04-25T22:14:15.953Z",
+    "deepAt": "2026-05-17T23:21:30.850Z",
+    "page1At": "2026-05-18T05:34:12.055259",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-23",
-    "oldestSaleDate": "2026-03-15",
-    "compCount": 34
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
+    "oldestSaleDate": "2026-01-26",
+    "compCount": 56
   },
   "1897 o barber half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-26T00:38:42.036Z",
+    "deepAt": "2026-05-17T23:21:30.852Z",
+    "page1At": "2026-05-18T05:35:33.956211",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-21",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2026-03-10",
-    "compCount": 46
+    "compCount": 64
   },
   "1897 o barber quarter": {
-    "deepAt": null,
-    "page1At": "2026-04-25T22:53:45.508Z",
+    "deepAt": "2026-05-17T23:21:30.854Z",
+    "page1At": "2026-05-18T05:36:53.864900",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-24",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-14",
     "oldestSaleDate": "2026-03-07",
-    "compCount": 45
+    "compCount": 64
   },
   "1897 o morgan silver dollar": {
     "deepAt": "2026-05-04T21:48:53.712Z",
-    "page1At": "2026-05-04T21:48:53.712Z",
+    "page1At": "2026-05-18T05:38:23.890098",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-05-02",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-10-16",
-    "compCount": 192
+    "compCount": 304
   },
   "1897 o morgan silver dollar ms63": {
     "deepAt": null,
@@ -4530,24 +4530,24 @@
     "compCount": 2
   },
   "1897 s barber dime": {
-    "deepAt": null,
-    "page1At": "2026-04-25T22:38:45.728Z",
+    "deepAt": "2026-05-17T23:21:30.866Z",
+    "page1At": "2026-05-18T05:39:45.943204",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-14",
     "oldestSaleDate": "2025-11-02",
-    "compCount": 41
+    "compCount": 69
   },
   "1897 s barber half": {
-    "deepAt": null,
-    "page1At": "2026-04-08T22:32:47.287Z",
+    "deepAt": "2026-05-17T23:21:30.867Z",
+    "page1At": "2026-05-18T05:41:15.836949",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-04",
-    "oldestSaleDate": "2026-03-06",
-    "compCount": 32
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-09",
+    "oldestSaleDate": "2026-01-24",
+    "compCount": 54
   },
   "1897 s barber half dollar": {
     "deepAt": null,
@@ -4560,24 +4560,24 @@
     "compCount": 43
   },
   "1897 s barber quarter": {
-    "deepAt": null,
-    "page1At": "2026-04-25T23:09:20.432Z",
+    "deepAt": "2026-05-17T23:21:30.870Z",
+    "page1At": "2026-05-18T05:42:36.061939",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-16",
     "oldestSaleDate": "2026-03-21",
-    "compCount": 46
+    "compCount": 68
   },
   "1897 s morgan silver dollar": {
     "deepAt": "2026-05-16T16:13:43.428Z",
-    "page1At": "2026-05-16T16:13:43.428Z",
+    "page1At": "2026-05-18T05:43:57.844395",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
+    "refreshCount": 2,
     "newestSaleDate": "2026-04-30",
     "oldestSaleDate": "2025-10-10",
-    "compCount": 152
+    "compCount": 153
   },
   "1897 s morgan silver dollar ms63": {
     "deepAt": null,
@@ -4591,10 +4591,10 @@
   },
   "1897 s morgan silver dollar ms64": {
     "deepAt": null,
-    "page1At": "2026-05-10T23:05:55.183Z",
+    "page1At": "2026-05-18T05:45:18.013780",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
+    "refreshCount": 2,
     "newestSaleDate": "2026-04-18",
     "oldestSaleDate": "2025-11-12",
     "compCount": 40
@@ -4610,44 +4610,44 @@
     "compCount": 12
   },
   "1897 barber dime": {
-    "deepAt": null,
-    "page1At": "2026-04-25T21:56:07.139Z",
+    "deepAt": "2026-05-17T23:21:30.880Z",
+    "page1At": "2026-05-18T05:25:47.595702",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
-    "oldestSaleDate": "2026-04-10",
-    "compCount": 40
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
+    "oldestSaleDate": "2025-11-23",
+    "compCount": 89
   },
   "1897 barber half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-26T00:21:06.022Z",
+    "deepAt": "2026-05-17T23:21:30.882Z",
+    "page1At": "2026-05-18T05:27:08.716006",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2026-04-07",
-    "compCount": 49
+    "compCount": 95
   },
   "1897 barber quarter": {
-    "deepAt": null,
-    "page1At": "2026-04-25T23:42:18.186Z",
+    "deepAt": "2026-05-17T23:21:30.884Z",
+    "page1At": "2026-05-18T05:28:32.791795",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-20",
-    "oldestSaleDate": "2025-10-31",
-    "compCount": 37
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-16",
+    "oldestSaleDate": "2025-10-30",
+    "compCount": 97
   },
   "1897 indian head cent": {
-    "deepAt": null,
-    "page1At": "2026-04-26T14:35:54.716Z",
+    "deepAt": "2026-05-17T23:21:30.886Z",
+    "page1At": "2026-05-18T05:29:54.119590",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2026-04-19",
-    "compCount": 41
+    "compCount": 78
   },
   "1897 liberty nickel": {
     "deepAt": null,
@@ -4671,23 +4671,23 @@
   },
   "1897 morgan silver dollar ms63": {
     "deepAt": "2026-05-17T23:49:01.924499",
-    "page1At": "2026-05-10T21:58:47.036Z",
+    "page1At": "2026-05-18T05:31:17.400545",
     "maxPageReached": 2,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-05-14",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-11-16",
-    "compCount": 63
+    "compCount": 127
   },
   "1897 morgan silver dollar ms64": {
     "deepAt": "2026-05-04T22:06:08.709Z",
-    "page1At": "2026-05-04T22:06:08.709Z",
+    "page1At": "2026-05-18T05:32:44.297606",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-23",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-11-14",
-    "compCount": 53
+    "compCount": 108
   },
   "1897 morgan silver dollar ms65": {
     "deepAt": null,
@@ -4701,33 +4701,33 @@
   },
   "1898 o barber dime": {
     "deepAt": null,
-    "page1At": "2026-05-13T05:18:21.293Z",
+    "page1At": "2026-05-18T05:55:27.164351",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-05-01",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-11-17",
-    "compCount": 20
+    "compCount": 40
   },
   "1898 o barber half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-26T00:39:45.464Z",
+    "deepAt": "2026-05-17T23:21:30.934Z",
+    "page1At": "2026-05-18T05:56:54.719486",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-24",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-10",
     "oldestSaleDate": "2025-11-03",
-    "compCount": 44
+    "compCount": 72
   },
   "1898 o barber quarter": {
-    "deepAt": null,
-    "page1At": "2026-04-25T23:31:55.143Z",
+    "deepAt": "2026-05-17T23:21:30.936Z",
+    "page1At": "2026-05-18T05:58:18.837646",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-24",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-16",
     "oldestSaleDate": "2025-11-06",
-    "compCount": 39
+    "compCount": 96
   },
   "1898 o morgan silver dollar": {
     "deepAt": "2026-05-16T16:13:43.428Z",
@@ -4740,14 +4740,14 @@
     "compCount": 211
   },
   "1898 o morgan silver dollar ms63": {
-    "deepAt": null,
-    "page1At": "2026-05-10T21:16:08.682Z",
+    "deepAt": "2026-05-17T23:21:30.947Z",
+    "page1At": "2026-05-18T05:59:48.840319",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-29",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-13",
     "oldestSaleDate": "2025-11-20",
-    "compCount": 48
+    "compCount": 81
   },
   "1898 o morgan silver dollar ms64": {
     "deepAt": "2026-05-04T21:30:14.907Z",
@@ -4771,13 +4771,13 @@
   },
   "1898 s barber dime": {
     "deepAt": null,
-    "page1At": "2026-04-25T22:39:56.911Z",
+    "page1At": "2026-05-18T06:01:15.847006",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-19",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-10-27",
-    "compCount": 23
+    "compCount": 25
   },
   "1898 s barber half dollar": {
     "deepAt": null,
@@ -4790,14 +4790,14 @@
     "compCount": 35
   },
   "1898 s barber quarter": {
-    "deepAt": null,
-    "page1At": "2026-04-25T23:21:27.669Z",
+    "deepAt": "2026-05-17T23:21:30.954Z",
+    "page1At": "2026-05-18T06:02:43.975980",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-19",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-16",
     "oldestSaleDate": "2025-10-27",
-    "compCount": 41
+    "compCount": 99
   },
   "1898 s morgan silver dollar": {
     "deepAt": "2026-05-04T20:20:52.828Z",
@@ -4840,44 +4840,44 @@
     "compCount": 9
   },
   "1898 barber dime": {
-    "deepAt": null,
-    "page1At": "2026-04-25T22:01:10.642Z",
+    "deepAt": "2026-05-17T23:21:30.970Z",
+    "page1At": "2026-05-18T05:46:47.327419",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
-    "oldestSaleDate": "2026-04-13",
-    "compCount": 42
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
+    "oldestSaleDate": "2025-11-20",
+    "compCount": 87
   },
   "1898 barber half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-26T00:13:32.462Z",
+    "deepAt": "2026-05-17T23:21:30.974Z",
+    "page1At": "2026-05-18T05:48:14.338153",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
-    "oldestSaleDate": "2026-04-09",
-    "compCount": 46
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-10",
+    "oldestSaleDate": "2025-11-22",
+    "compCount": 77
   },
   "1898 barber quarter": {
-    "deepAt": null,
-    "page1At": "2026-04-25T23:02:40.210Z",
+    "deepAt": "2026-05-17T23:21:30.975Z",
+    "page1At": "2026-05-18T05:49:41.209610",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-21",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-05",
     "oldestSaleDate": "2025-10-29",
-    "compCount": 49
+    "compCount": 88
   },
   "1898 indian head cent": {
-    "deepAt": null,
-    "page1At": "2026-04-26T04:09:55.179Z",
+    "deepAt": "2026-05-17T23:21:30.977Z",
+    "page1At": "2026-05-18T05:51:09.887245",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2026-04-19",
-    "compCount": 37
+    "compCount": 81
   },
   "1898 liberty nickel": {
     "deepAt": null,
@@ -4911,53 +4911,53 @@
   },
   "1898 morgan silver dollar ms64": {
     "deepAt": "2026-05-04T23:09:58.760Z",
-    "page1At": "2026-05-04T23:09:58.760Z",
+    "page1At": "2026-05-18T05:52:41.885413",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-30",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-12",
     "oldestSaleDate": "2025-10-24",
-    "compCount": 61
+    "compCount": 91
   },
   "1898 morgan silver dollar ms65": {
     "deepAt": "2026-05-04T20:48:14.579Z",
-    "page1At": "2026-05-04T20:48:14.579Z",
+    "page1At": "2026-05-18T05:54:05.760599",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-27",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2026-02-28",
-    "compCount": 57
+    "compCount": 69
   },
   "1899 o barber dime": {
-    "deepAt": null,
-    "page1At": "2026-04-25T22:21:39.651Z",
+    "deepAt": "2026-05-17T23:21:30.998Z",
+    "page1At": "2026-05-18T06:11:09.640472",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-24",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-10-27",
-    "compCount": 45
+    "compCount": 54
   },
   "1899 o barber half dollar": {
     "deepAt": null,
-    "page1At": "2026-04-26T00:19:01.457Z",
+    "page1At": "2026-05-18T06:12:41.051856",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-19",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-16",
     "oldestSaleDate": "2025-10-28",
-    "compCount": 40
+    "compCount": 42
   },
   "1899 o barber quarter": {
-    "deepAt": null,
-    "page1At": "2026-04-25T23:03:47.139Z",
+    "deepAt": "2026-05-17T23:21:31.001Z",
+    "page1At": "2026-05-18T06:14:10.129052",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-24",
-    "oldestSaleDate": "2025-11-29",
-    "compCount": 35
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-15",
+    "oldestSaleDate": "2025-11-18",
+    "compCount": 87
   },
   "1899 o morgan silver dollar": {
     "deepAt": "2026-05-04T22:12:20.950Z",
@@ -4971,13 +4971,13 @@
   },
   "1899 o morgan silver dollar ms63": {
     "deepAt": "2026-05-04T22:36:10.928Z",
-    "page1At": "2026-05-04T22:36:10.928Z",
+    "page1At": "2026-05-18T06:15:36.262529",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-28",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-10-31",
-    "compCount": 58
+    "compCount": 120
   },
   "1899 o morgan silver dollar ms64": {
     "deepAt": null,
@@ -4991,43 +4991,43 @@
   },
   "1899 o morgan silver dollar ms65": {
     "deepAt": "2026-05-04T22:16:26.629Z",
-    "page1At": "2026-05-04T22:16:26.629Z",
+    "page1At": "2026-05-18T06:17:00.510205",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-05-02",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-13",
     "oldestSaleDate": "2026-01-04",
-    "compCount": 69
+    "compCount": 76
   },
   "1899 s barber dime": {
-    "deepAt": null,
-    "page1At": "2026-04-25T21:41:45.032Z",
+    "deepAt": "2026-05-17T23:21:31.039Z",
+    "page1At": "2026-05-18T06:18:26.175334",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-23",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-10-30",
-    "compCount": 39
+    "compCount": 53
   },
   "1899 s barber half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-26T00:11:26.480Z",
+    "deepAt": "2026-05-17T23:21:31.045Z",
+    "page1At": "2026-05-18T06:20:28.270892",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-16",
     "oldestSaleDate": "2026-03-09",
-    "compCount": 42
+    "compCount": 52
   },
   "1899 s barber quarter": {
-    "deepAt": null,
-    "page1At": "2026-04-25T23:11:34.707Z",
+    "deepAt": "2026-05-17T23:21:31.047Z",
+    "page1At": "2026-05-18T06:21:57.408785",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
-    "oldestSaleDate": "2026-03-01",
-    "compCount": 40
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-13",
+    "oldestSaleDate": "2025-11-23",
+    "compCount": 76
   },
   "1899 s morgan silver dollar": {
     "deepAt": "2026-05-16T16:13:43.435Z",
@@ -5070,14 +5070,14 @@
     "compCount": 2
   },
   "1899 barber dime": {
-    "deepAt": null,
-    "page1At": "2026-04-25T22:12:13.208Z",
+    "deepAt": "2026-05-17T23:21:31.062Z",
+    "page1At": "2026-05-18T06:04:08.747797",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2026-04-14",
-    "compCount": 39
+    "compCount": 81
   },
   "1899 barber half dollar": {
     "deepAt": null,
@@ -5090,24 +5090,24 @@
     "compCount": 44
   },
   "1899 barber quarter": {
-    "deepAt": null,
-    "page1At": "2026-04-25T23:29:49.261Z",
+    "deepAt": "2026-05-17T23:21:31.065Z",
+    "page1At": "2026-05-18T06:05:33.896222",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2026-04-14",
-    "compCount": 43
+    "compCount": 88
   },
   "1899 indian head cent": {
-    "deepAt": null,
-    "page1At": "2026-04-26T03:53:49.251Z",
+    "deepAt": "2026-05-17T23:21:31.066Z",
+    "page1At": "2026-05-18T06:06:57.741507",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
-    "oldestSaleDate": "2026-04-23",
-    "compCount": 34
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-16",
+    "oldestSaleDate": "2025-11-29",
+    "compCount": 71
   },
   "1899 liberty nickel": {
     "deepAt": null,
@@ -5121,13 +5121,13 @@
   },
   "1899 morgan silver dollar": {
     "deepAt": "2026-05-04T22:08:06.269Z",
-    "page1At": "2026-05-04T22:08:06.269Z",
+    "page1At": "2026-05-18T06:08:15.657019",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-05-02",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-10-11",
-    "compCount": 255
+    "compCount": 432
   },
   "1899 morgan silver dollar ms63": {
     "deepAt": null,
@@ -5150,24 +5150,24 @@
     "compCount": 46
   },
   "1899 morgan silver dollar ms65": {
-    "deepAt": null,
-    "page1At": "2026-05-10T22:29:36.161Z",
+    "deepAt": "2026-05-17T23:21:31.098Z",
+    "page1At": "2026-05-18T06:09:40.806272",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-22",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-16",
     "oldestSaleDate": "2025-11-12",
-    "compCount": 49
+    "compCount": 98
   },
   "1900 o barber dime": {
     "deepAt": null,
-    "page1At": "2026-04-25T22:07:48.143Z",
+    "page1At": "2026-05-18T06:27:39.835742",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-17",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-11-05",
-    "compCount": 30
+    "compCount": 34
   },
   "1900 o barber half dollar": {
     "deepAt": null,
@@ -5180,14 +5180,14 @@
     "compCount": 40
   },
   "1900 o barber quarter": {
-    "deepAt": null,
-    "page1At": "2026-04-25T22:42:58.350Z",
+    "deepAt": "2026-05-17T23:21:31.101Z",
+    "page1At": "2026-05-18T06:29:13.731575",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
-    "oldestSaleDate": "2026-02-27",
-    "compCount": 40
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-09",
+    "oldestSaleDate": "2025-11-28",
+    "compCount": 78
   },
   "1900 o morgan silver dollar": {
     "deepAt": "2026-05-16T16:13:43.435Z",
@@ -5230,34 +5230,34 @@
     "compCount": 48
   },
   "1900 s barber dime": {
-    "deepAt": null,
-    "page1At": "2026-04-25T21:44:52.927Z",
+    "deepAt": "2026-05-17T23:21:31.115Z",
+    "page1At": "2026-05-18T06:30:38.537440",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-24",
-    "oldestSaleDate": "2026-03-21",
-    "compCount": 36
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-16",
+    "oldestSaleDate": "2025-11-23",
+    "compCount": 68
   },
   "1900 s barber half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-26T00:06:54.641Z",
+    "deepAt": "2026-05-17T23:21:31.118Z",
+    "page1At": "2026-05-18T06:31:54.318962",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-24",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-10-30",
-    "compCount": 47
+    "compCount": 124
   },
   "1900 s barber quarter": {
-    "deepAt": null,
-    "page1At": "2026-04-25T22:54:50.214Z",
+    "deepAt": "2026-05-17T23:21:31.120Z",
+    "page1At": "2026-05-18T06:33:20.630692",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
-    "oldestSaleDate": "2026-03-17",
-    "compCount": 48
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
+    "oldestSaleDate": "2025-11-23",
+    "compCount": 87
   },
   "1900 s morgan silver dollar": {
     "deepAt": "2026-05-16T16:13:43.435Z",
@@ -5280,14 +5280,14 @@
     "compCount": 20
   },
   "1900 s morgan silver dollar ms64": {
-    "deepAt": null,
-    "page1At": "2026-05-10T21:51:47.063Z",
+    "deepAt": "2026-05-17T23:21:31.131Z",
+    "page1At": "2026-05-18T06:34:41.463333",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-19",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-14",
     "oldestSaleDate": "2025-11-12",
-    "compCount": 37
+    "compCount": 65
   },
   "1900 s morgan silver dollar ms65": {
     "deepAt": null,
@@ -5310,34 +5310,34 @@
     "compCount": 40
   },
   "1900 barber half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-26T01:02:18.586Z",
+    "deepAt": "2026-05-17T23:21:31.134Z",
+    "page1At": "2026-05-18T06:23:21.058732",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2026-04-16",
-    "compCount": 43
+    "compCount": 86
   },
   "1900 barber quarter": {
-    "deepAt": null,
-    "page1At": "2026-04-25T23:36:05.520Z",
+    "deepAt": "2026-05-17T23:21:31.135Z",
+    "page1At": "2026-05-18T06:24:43.949601",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2026-04-13",
-    "compCount": 46
+    "compCount": 93
   },
   "1900 indian head cent": {
-    "deepAt": null,
-    "page1At": "2026-04-26T14:31:40.061Z",
+    "deepAt": "2026-05-17T23:21:31.136Z",
+    "page1At": "2026-05-18T06:26:12.307154",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-26",
-    "oldestSaleDate": "2026-04-23",
-    "compCount": 32
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
+    "oldestSaleDate": "2025-11-27",
+    "compCount": 59
   },
   "1900 liberty nickel": {
     "deepAt": null,
@@ -5391,43 +5391,43 @@
   },
   "1901 o barber dime": {
     "deepAt": null,
-    "page1At": "2026-04-25T22:05:36.475Z",
+    "page1At": "2026-05-18T06:41:43.494476",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-19",
-    "oldestSaleDate": "2025-11-15",
-    "compCount": 17
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-09",
+    "oldestSaleDate": "2025-10-27",
+    "compCount": 43
   },
   "1901 o barber half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-26T00:45:25.071Z",
+    "deepAt": "2026-05-17T23:21:31.167Z",
+    "page1At": "2026-05-18T06:43:02.355040",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-12",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-11-08",
-    "compCount": 39
+    "compCount": 78
   },
   "1901 o barber quarter": {
-    "deepAt": null,
-    "page1At": "2026-04-25T22:59:14.441Z",
+    "deepAt": "2026-05-17T23:21:31.170Z",
+    "page1At": "2026-05-18T06:44:29.859177",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-24",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-11-04",
-    "compCount": 48
+    "compCount": 70
   },
   "1901 o morgan silver dollar": {
     "deepAt": "2026-05-16T16:13:43.436Z",
-    "page1At": "2026-05-16T16:13:43.436Z",
+    "page1At": "2026-05-18T06:45:54.631328",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-18",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-10-11",
-    "compCount": 159
+    "compCount": 208
   },
   "1901 o morgan silver dollar ms63": {
     "deepAt": "2026-05-04T20:44:01.896Z",
@@ -5441,13 +5441,13 @@
   },
   "1901 o morgan silver dollar ms64": {
     "deepAt": "2026-05-04T22:40:19.987Z",
-    "page1At": "2026-05-04T22:40:19.987Z",
+    "page1At": "2026-05-18T06:47:18.837360",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-28",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-16",
     "oldestSaleDate": "2025-10-27",
-    "compCount": 59
+    "compCount": 89
   },
   "1901 o morgan silver dollar ms65": {
     "deepAt": "2026-05-18T00:23:31.709097",
@@ -5460,24 +5460,24 @@
     "compCount": 79
   },
   "1901 s barber dime": {
-    "deepAt": null,
-    "page1At": "2026-04-08T22:32:47.293Z",
+    "deepAt": "2026-05-17T23:21:31.182Z",
+    "page1At": "2026-05-18T06:48:42.664114",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-05",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-15",
     "oldestSaleDate": "2026-03-06",
-    "compCount": 20
+    "compCount": 57
   },
   "1901 s barber half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-26T00:04:54.850Z",
+    "deepAt": "2026-05-17T23:21:31.184Z",
+    "page1At": "2026-05-18T06:50:06.801355",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-10",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-10-28",
-    "compCount": 45
+    "compCount": 52
   },
   "1901 s barber quarter": {
     "deepAt": null,
@@ -5530,14 +5530,14 @@
     "compCount": 38
   },
   "1901 barber half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-26T00:54:56.651Z",
+    "deepAt": "2026-05-17T23:21:31.201Z",
+    "page1At": "2026-05-18T06:36:07.275670",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
-    "oldestSaleDate": "2026-04-06",
-    "compCount": 46
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-07",
+    "oldestSaleDate": "2025-11-19",
+    "compCount": 94
   },
   "1901 barber quarter": {
     "deepAt": null,
@@ -5550,14 +5550,14 @@
     "compCount": 46
   },
   "1901 indian head cent": {
-    "deepAt": null,
-    "page1At": "2026-04-26T14:49:30.266Z",
+    "deepAt": "2026-05-17T23:21:31.207Z",
+    "page1At": "2026-05-18T06:37:29.559790",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-26",
-    "oldestSaleDate": "2025-11-10",
-    "compCount": 43
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
+    "oldestSaleDate": "2025-11-08",
+    "compCount": 93
   },
   "1901 liberty nickel": {
     "deepAt": null,
@@ -5571,13 +5571,13 @@
   },
   "1901 morgan silver dollar": {
     "deepAt": "2026-05-16T16:13:43.436Z",
-    "page1At": "2026-05-16T16:13:43.436Z",
+    "page1At": "2026-05-18T06:38:52.905302",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-18",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-10-19",
-    "compCount": 222
+    "compCount": 229
   },
   "1901 morgan silver dollar ms63": {
     "deepAt": "2026-05-04T20:39:50.679Z",
@@ -5601,43 +5601,43 @@
   },
   "1901 morgan silver dollar ms65": {
     "deepAt": "2026-05-04T19:25:54.340Z",
-    "page1At": "2026-05-04T19:25:54.340Z",
+    "page1At": "2026-05-18T06:40:12.501501",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-20",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-15",
     "oldestSaleDate": "2025-12-01",
-    "compCount": 51
+    "compCount": 55
   },
   "1902 o barber dime": {
     "deepAt": null,
-    "page1At": "2026-04-25T21:47:00.758Z",
+    "page1At": "2026-05-18T06:59:17.418614",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-24",
-    "oldestSaleDate": "2026-03-23",
-    "compCount": 24
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-16",
+    "oldestSaleDate": "2025-11-24",
+    "compCount": 49
   },
   "1902 o barber half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-26T00:32:18.498Z",
+    "deepAt": "2026-05-17T23:21:31.231Z",
+    "page1At": "2026-05-18T07:00:43.321625",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-22",
-    "oldestSaleDate": "2026-03-04",
-    "compCount": 39
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
+    "oldestSaleDate": "2025-11-27",
+    "compCount": 82
   },
   "1902 o barber quarter": {
-    "deepAt": null,
-    "page1At": "2026-04-25T22:44:05.317Z",
+    "deepAt": "2026-05-17T23:21:31.233Z",
+    "page1At": "2026-05-18T07:02:06.732194",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-24",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-01",
     "oldestSaleDate": "2025-11-02",
-    "compCount": 46
+    "compCount": 55
   },
   "1902 o morgan silver dollar": {
     "deepAt": "2026-05-16T16:13:43.436Z",
@@ -5680,34 +5680,34 @@
     "compCount": 70
   },
   "1902 s barber dime": {
-    "deepAt": null,
-    "page1At": "2026-04-25T22:00:06.053Z",
+    "deepAt": "2026-05-17T23:21:31.254Z",
+    "page1At": "2026-05-18T07:03:33.545148",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-20",
-    "oldestSaleDate": "2026-03-13",
-    "compCount": 36
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
+    "oldestSaleDate": "2025-11-19",
+    "compCount": 73
   },
   "1902 s barber half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-26T00:48:28.279Z",
+    "deepAt": "2026-05-17T23:21:31.257Z",
+    "page1At": "2026-05-18T07:04:58.975946",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-22",
-    "oldestSaleDate": "2026-03-07",
-    "compCount": 30
+    "refreshCount": 2,
+    "newestSaleDate": "2026-04-26",
+    "oldestSaleDate": "2025-11-23",
+    "compCount": 71
   },
   "1902 s barber quarter": {
-    "deepAt": null,
-    "page1At": "2026-04-25T23:17:08.062Z",
+    "deepAt": "2026-05-17T23:21:31.259Z",
+    "page1At": "2026-05-18T07:06:23.683485",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
-    "oldestSaleDate": "2026-02-27",
-    "compCount": 44
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-05",
+    "oldestSaleDate": "2025-11-20",
+    "compCount": 79
   },
   "1902 s morgan silver dollar": {
     "deepAt": "2026-05-16T16:13:43.436Z",
@@ -5721,13 +5721,13 @@
   },
   "1902 s morgan silver dollar ms63": {
     "deepAt": null,
-    "page1At": "2026-05-10T20:24:52.871Z",
+    "page1At": "2026-05-18T07:07:43.211440",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-22",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-11-23",
-    "compCount": 15
+    "compCount": 27
   },
   "1902 s morgan silver dollar ms64": {
     "deepAt": null,
@@ -5751,43 +5751,43 @@
   },
   "1902 barber dime": {
     "deepAt": null,
-    "page1At": "2026-04-25T22:03:20.966Z",
+    "page1At": "2026-05-18T06:51:31.213847",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-24",
-    "oldestSaleDate": "2026-04-12",
-    "compCount": 36
-  },
-  "1902 barber half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-26T00:31:16.475Z",
-    "maxPageReached": null,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-21",
-    "oldestSaleDate": "2025-10-29",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
+    "oldestSaleDate": "2026-02-19",
     "compCount": 46
   },
-  "1902 barber quarter": {
-    "deepAt": null,
-    "page1At": "2026-04-25T23:44:30.101Z",
+  "1902 barber half dollar": {
+    "deepAt": "2026-05-17T23:21:31.281Z",
+    "page1At": "2026-05-18T06:52:58.557601",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-17",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
+    "oldestSaleDate": "2025-10-29",
+    "compCount": 111
+  },
+  "1902 barber quarter": {
+    "deepAt": "2026-05-17T23:21:31.283Z",
+    "page1At": "2026-05-18T06:54:57.810447",
+    "maxPageReached": null,
+    "lastRefreshAt": null,
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-11-05",
-    "compCount": 40
+    "compCount": 108
   },
   "1902 indian head cent": {
-    "deepAt": null,
-    "page1At": "2026-04-26T14:42:14.069Z",
+    "deepAt": "2026-05-17T23:21:31.284Z",
+    "page1At": "2026-05-18T06:56:22.807411",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-13",
     "oldestSaleDate": "2025-11-05",
-    "compCount": 41
+    "compCount": 59
   },
   "1902 liberty nickel": {
     "deepAt": null,
@@ -5811,13 +5811,13 @@
   },
   "1902 morgan silver dollar ms63": {
     "deepAt": "2026-05-04T21:11:29.703Z",
-    "page1At": "2026-05-04T21:11:29.703Z",
+    "page1At": "2026-05-18T06:57:45.428429",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-30",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-08",
     "oldestSaleDate": "2025-10-22",
-    "compCount": 61
+    "compCount": 99
   },
   "1902 morgan silver dollar ms64": {
     "deepAt": null,
@@ -5840,34 +5840,34 @@
     "compCount": 64
   },
   "1903 o barber dime": {
-    "deepAt": null,
-    "page1At": "2026-04-25T21:34:22.222Z",
+    "deepAt": "2026-05-17T23:21:31.309Z",
+    "page1At": "2026-05-18T07:14:47.213543",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-24",
-    "oldestSaleDate": "2026-04-04",
-    "compCount": 30
+    "refreshCount": 2,
+    "newestSaleDate": "2026-04-26",
+    "oldestSaleDate": "2025-11-24",
+    "compCount": 52
   },
   "1903 o barber half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-26T00:17:53.036Z",
+    "deepAt": "2026-05-17T23:21:31.312Z",
+    "page1At": "2026-05-18T07:16:13.010022",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-11",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-12",
     "oldestSaleDate": "2025-10-30",
-    "compCount": 46
+    "compCount": 85
   },
   "1903 o barber quarter": {
-    "deepAt": null,
-    "page1At": "2026-04-25T23:22:34.084Z",
+    "deepAt": "2026-05-17T23:21:31.316Z",
+    "page1At": "2026-05-18T07:17:36.190954",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-19",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-11-01",
-    "compCount": 39
+    "compCount": 104
   },
   "1903 o morgan silver dollar": {
     "deepAt": "2026-05-04T20:22:59.051Z",
@@ -5901,13 +5901,13 @@
   },
   "1903 o morgan silver dollar ms65": {
     "deepAt": null,
-    "page1At": "2026-05-10T23:11:40.807Z",
+    "page1At": "2026-05-18T07:19:03.248256",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-15",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-10",
     "oldestSaleDate": "2025-11-12",
-    "compCount": 19
+    "compCount": 29
   },
   "1903 s barber dime": {
     "deepAt": null,
@@ -5920,34 +5920,34 @@
     "compCount": 32
   },
   "1903 s barber half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-26T00:30:03.404Z",
+    "deepAt": "2026-05-17T23:21:31.359Z",
+    "page1At": "2026-05-18T07:20:32.861791",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-24",
-    "oldestSaleDate": "2026-03-02",
-    "compCount": 43
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-13",
+    "oldestSaleDate": "2025-11-23",
+    "compCount": 80
   },
   "1903 s barber quarter": {
-    "deepAt": null,
-    "page1At": "2026-04-25T23:16:09.578Z",
+    "deepAt": "2026-05-17T23:21:31.360Z",
+    "page1At": "2026-05-18T07:21:54.235747",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-23",
-    "oldestSaleDate": "2026-02-27",
-    "compCount": 43
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-07",
+    "oldestSaleDate": "2025-11-19",
+    "compCount": 73
   },
   "1903 s morgan silver dollar": {
     "deepAt": "2026-05-04T21:46:50.010Z",
-    "page1At": "2026-05-04T21:46:50.010Z",
+    "page1At": "2026-05-18T07:23:19.319542",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-05-02",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-10-16",
-    "compCount": 200
+    "compCount": 353
   },
   "1903 s morgan silver dollar ms63": {
     "deepAt": null,
@@ -5970,14 +5970,14 @@
     "compCount": 2
   },
   "1903 barber dime": {
-    "deepAt": null,
-    "page1At": "2026-04-25T22:17:27.340Z",
+    "deepAt": "2026-05-17T23:21:31.377Z",
+    "page1At": "2026-05-18T07:09:08.390080",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
-    "oldestSaleDate": "2026-04-12",
-    "compCount": 34
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-11",
+    "oldestSaleDate": "2025-11-24",
+    "compCount": 77
   },
   "1903 barber half dollar": {
     "deepAt": null,
@@ -5990,24 +5990,24 @@
     "compCount": 44
   },
   "1903 barber quarter": {
-    "deepAt": null,
-    "page1At": "2026-04-25T23:58:39.746Z",
+    "deepAt": "2026-05-17T23:21:31.380Z",
+    "page1At": "2026-05-18T07:10:31.892478",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
-    "oldestSaleDate": "2026-04-09",
-    "compCount": 42
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
+    "oldestSaleDate": "2025-11-19",
+    "compCount": 86
   },
   "1903 indian head cent": {
-    "deepAt": null,
-    "page1At": "2026-04-26T14:39:08.836Z",
+    "deepAt": "2026-05-17T23:21:31.381Z",
+    "page1At": "2026-05-18T07:11:54.075528",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2026-04-22",
-    "compCount": 36
+    "compCount": 72
   },
   "1903 liberty nickel": {
     "deepAt": null,
@@ -6031,13 +6031,13 @@
   },
   "1903 morgan silver dollar ms63": {
     "deepAt": "2026-05-04T22:04:50.363Z",
-    "page1At": "2026-05-04T22:04:50.363Z",
+    "page1At": "2026-05-18T07:13:19.502816",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-26",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-14",
     "oldestSaleDate": "2025-10-24",
-    "compCount": 53
+    "compCount": 101
   },
   "1903 morgan silver dollar ms64": {
     "deepAt": "2026-05-04T22:48:44.869Z",
@@ -6060,24 +6060,24 @@
     "compCount": 50
   },
   "1904 o barber half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-26T01:13:30.576Z",
+    "deepAt": "2026-05-17T23:21:31.400Z",
+    "page1At": "2026-05-18T07:30:41.406304",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-16",
     "oldestSaleDate": "2026-03-03",
-    "compCount": 41
+    "compCount": 60
   },
   "1904 o barber quarter": {
-    "deepAt": null,
-    "page1At": "2026-04-25T23:28:43.009Z",
+    "deepAt": "2026-05-17T23:21:31.401Z",
+    "page1At": "2026-05-18T07:32:02.803121",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-23",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-07",
     "oldestSaleDate": "2025-11-27",
-    "compCount": 40
+    "compCount": 62
   },
   "1904 o morgan silver dollar": {
     "deepAt": "2026-05-04T21:44:45.588Z",
@@ -6100,14 +6100,14 @@
     "compCount": 49
   },
   "1904 o morgan silver dollar ms64": {
-    "deepAt": null,
-    "page1At": "2026-05-10T20:16:18.574Z",
+    "deepAt": "2026-05-17T23:21:31.418Z",
+    "page1At": "2026-05-18T07:33:32.690654",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-05-02",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-13",
     "oldestSaleDate": "2025-11-23",
-    "compCount": 48
+    "compCount": 64
   },
   "1904 o morgan silver dollar ms65": {
     "deepAt": null,
@@ -6130,34 +6130,34 @@
     "compCount": 49
   },
   "1904 s barber half": {
-    "deepAt": null,
-    "page1At": "2026-04-08T22:32:47.298Z",
+    "deepAt": "2026-05-17T23:21:31.432Z",
+    "page1At": "2026-05-18T07:35:02.328135",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-03",
-    "oldestSaleDate": "2026-03-06",
-    "compCount": 46
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-16",
+    "oldestSaleDate": "2025-11-23",
+    "compCount": 92
   },
   "1904 s barber half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-26T00:23:22.621Z",
+    "deepAt": "2026-05-17T23:21:31.434Z",
+    "page1At": "2026-05-18T07:36:21.166500",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-24",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-16",
     "oldestSaleDate": "2026-03-20",
-    "compCount": 44
+    "compCount": 70
   },
   "1904 s morgan silver dollar": {
     "deepAt": "2026-05-04T21:53:02.241Z",
-    "page1At": "2026-05-04T21:53:02.241Z",
+    "page1At": "2026-05-18T07:37:52.471554",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-24",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-06",
     "oldestSaleDate": "2025-10-17",
-    "compCount": 167
+    "compCount": 236
   },
   "1904 s morgan silver dollar ms63": {
     "deepAt": null,
@@ -6171,13 +6171,13 @@
   },
   "1904 s morgan silver dollar ms64": {
     "deepAt": "2026-05-04T20:29:08.365Z",
-    "page1At": "2026-05-04T20:29:08.365Z",
+    "page1At": "2026-05-18T07:39:14.946415",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-19",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-14",
     "oldestSaleDate": "2025-10-22",
-    "compCount": 65
+    "compCount": 75
   },
   "1904 s morgan silver dollar ms65": {
     "deepAt": null,
@@ -6190,44 +6190,44 @@
     "compCount": 2
   },
   "1904 barber dime": {
-    "deepAt": null,
-    "page1At": "2026-04-25T22:28:58.201Z",
+    "deepAt": "2026-05-17T23:21:31.450Z",
+    "page1At": "2026-05-18T07:24:46.767795",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-21",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-11",
     "oldestSaleDate": "2025-10-27",
-    "compCount": 48
+    "compCount": 84
   },
   "1904 barber half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-26T00:36:22.862Z",
+    "deepAt": "2026-05-17T23:21:31.451Z",
+    "page1At": "2026-05-18T07:26:19.270158",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
-    "oldestSaleDate": "2026-04-11",
-    "compCount": 37
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-16",
+    "oldestSaleDate": "2025-11-19",
+    "compCount": 82
   },
   "1904 barber quarter": {
-    "deepAt": null,
-    "page1At": "2026-04-25T23:12:47.444Z",
+    "deepAt": "2026-05-17T23:21:31.452Z",
+    "page1At": "2026-05-18T07:27:47.781599",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-20",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-15",
     "oldestSaleDate": "2025-11-26",
-    "compCount": 36
+    "compCount": 65
   },
   "1904 indian head cent": {
     "deepAt": null,
-    "page1At": "2026-04-26T03:54:55.068Z",
+    "page1At": "2026-05-18T07:29:11.206713",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-04-28",
     "oldestSaleDate": "2025-10-29",
-    "compCount": 34
+    "compCount": 47
   },
   "1904 liberty nickel": {
     "deepAt": null,
@@ -6281,73 +6281,73 @@
   },
   "1905 o barber dime": {
     "deepAt": null,
-    "page1At": "2026-04-25T22:32:07.961Z",
+    "page1At": "2026-05-18T07:45:13.144666",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-22",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-07",
     "oldestSaleDate": "2025-10-27",
-    "compCount": 27
+    "compCount": 44
   },
   "1905 o barber half dollar": {
     "deepAt": null,
-    "page1At": "2026-04-26T00:34:12.516Z",
+    "page1At": "2026-05-18T07:46:41.813452",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-23",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-14",
     "oldestSaleDate": "2026-02-28",
-    "compCount": 40
-  },
-  "1905 o barber quarter": {
-    "deepAt": null,
-    "page1At": "2026-04-25T23:55:26.522Z",
-    "maxPageReached": null,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
-    "oldestSaleDate": "2025-11-08",
-    "compCount": 40
-  },
-  "1905 s barber dime": {
-    "deepAt": null,
-    "page1At": "2026-04-25T22:25:55.718Z",
-    "maxPageReached": null,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-06",
-    "oldestSaleDate": "2025-10-27",
-    "compCount": 25
-  },
-  "1905 s barber half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-26T00:53:49.568Z",
-    "maxPageReached": null,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
-    "oldestSaleDate": "2026-03-14",
-    "compCount": 39
-  },
-  "1905 s barber quarter": {
-    "deepAt": null,
-    "page1At": "2026-04-25T23:57:39.363Z",
-    "maxPageReached": null,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
-    "oldestSaleDate": "2026-03-07",
     "compCount": 46
   },
-  "1905 barber dime": {
-    "deepAt": null,
-    "page1At": "2026-04-25T21:52:47.626Z",
+  "1905 o barber quarter": {
+    "deepAt": "2026-05-17T23:21:31.473Z",
+    "page1At": "2026-05-18T07:48:08.744848",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
-    "oldestSaleDate": "2026-04-18",
-    "compCount": 44
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-13",
+    "oldestSaleDate": "2025-11-08",
+    "compCount": 62
+  },
+  "1905 s barber dime": {
+    "deepAt": "2026-05-17T23:21:31.474Z",
+    "page1At": "2026-05-18T07:49:31.298586",
+    "maxPageReached": null,
+    "lastRefreshAt": null,
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
+    "oldestSaleDate": "2025-10-27",
+    "compCount": 86
+  },
+  "1905 s barber half dollar": {
+    "deepAt": "2026-05-17T23:21:31.476Z",
+    "page1At": "2026-05-18T07:51:13.008749",
+    "maxPageReached": null,
+    "lastRefreshAt": null,
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
+    "oldestSaleDate": "2026-03-14",
+    "compCount": 80
+  },
+  "1905 s barber quarter": {
+    "deepAt": "2026-05-17T23:21:31.477Z",
+    "page1At": "2026-05-18T07:52:41.959034",
+    "maxPageReached": null,
+    "lastRefreshAt": null,
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-09",
+    "oldestSaleDate": "2025-11-19",
+    "compCount": 84
+  },
+  "1905 barber dime": {
+    "deepAt": "2026-05-17T23:21:31.479Z",
+    "page1At": "2026-05-18T07:40:46.239290",
+    "maxPageReached": null,
+    "lastRefreshAt": null,
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-15",
+    "oldestSaleDate": "2025-11-23",
+    "compCount": 86
   },
   "1905 barber half dollar": {
     "deepAt": null,
@@ -6360,24 +6360,24 @@
     "compCount": 42
   },
   "1905 barber quarter": {
-    "deepAt": null,
-    "page1At": "2026-04-25T23:45:30.795Z",
+    "deepAt": "2026-05-17T23:21:31.482Z",
+    "page1At": "2026-05-18T07:42:16.682389",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-19",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-07",
     "oldestSaleDate": "2025-10-30",
-    "compCount": 49
+    "compCount": 82
   },
   "1905 indian head cent": {
-    "deepAt": null,
-    "page1At": "2026-04-26T14:38:04.845Z",
+    "deepAt": "2026-05-17T23:21:31.483Z",
+    "page1At": "2026-05-18T07:43:45.087924",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-26",
-    "oldestSaleDate": "2026-04-22",
-    "compCount": 35
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-16",
+    "oldestSaleDate": "2026-02-03",
+    "compCount": 59
   },
   "1905 liberty nickel": {
     "deepAt": null,
@@ -6391,123 +6391,123 @@
   },
   "1906 d barber dime": {
     "deepAt": null,
-    "page1At": "2026-04-25T22:19:30.157Z",
+    "page1At": "2026-05-18T07:58:24.591976",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
+    "refreshCount": 2,
     "newestSaleDate": "2026-04-24",
     "oldestSaleDate": "2025-10-29",
-    "compCount": 19
+    "compCount": 33
   },
   "1906 d barber half dollar": {
-    "deepAt": null,
-    "page1At": "2026-05-13T05:18:21.295Z",
+    "deepAt": "2026-05-17T23:21:31.487Z",
+    "page1At": "2026-05-18T07:59:45.063839",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-26",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-11-19",
-    "compCount": 49
+    "compCount": 130
   },
   "1906 d barber quarter": {
-    "deepAt": null,
-    "page1At": "2026-04-25T23:24:48.547Z",
+    "deepAt": "2026-05-17T23:21:31.489Z",
+    "page1At": "2026-05-18T08:01:14.756662",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-23",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-03",
     "oldestSaleDate": "2025-11-01",
-    "compCount": 42
+    "compCount": 66
   },
   "1906 o barber dime": {
     "deepAt": null,
-    "page1At": "2026-04-25T21:38:35.247Z",
+    "page1At": "2026-05-18T08:04:07.420292",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-23",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2026-03-30",
-    "compCount": 24
+    "compCount": 41
   },
   "1906 o barber half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-26T00:02:49.034Z",
+    "deepAt": "2026-05-17T23:21:31.491Z",
+    "page1At": "2026-05-18T08:05:35.737681",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
-    "oldestSaleDate": "2026-03-09",
-    "compCount": 42
+    "refreshCount": 2,
+    "newestSaleDate": "2026-04-29",
+    "oldestSaleDate": "2025-11-25",
+    "compCount": 86
   },
   "1906 o barber quarter": {
-    "deepAt": null,
-    "page1At": "2026-04-25T23:10:26.999Z",
+    "deepAt": "2026-05-17T23:21:31.493Z",
+    "page1At": "2026-05-18T08:06:58.293716",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-24",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-16",
     "oldestSaleDate": "2025-11-10",
-    "compCount": 46
+    "compCount": 91
   },
   "1906 s barber dime": {
     "deepAt": null,
-    "page1At": "2026-04-25T21:29:15.529Z",
+    "page1At": "2026-05-18T08:08:30.874264",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-22",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-12",
     "oldestSaleDate": "2025-10-30",
-    "compCount": 22
+    "compCount": 39
   },
   "1906 s barber half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-26T00:37:41.420Z",
+    "deepAt": "2026-05-17T23:21:31.496Z",
+    "page1At": "2026-05-18T08:09:54.155447",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-20",
-    "oldestSaleDate": "2025-11-02",
-    "compCount": 38
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
+    "oldestSaleDate": "2025-11-01",
+    "compCount": 97
   },
   "1906 barber dime": {
-    "deepAt": null,
-    "page1At": "2026-04-25T22:37:38.472Z",
+    "deepAt": "2026-05-17T23:21:31.498Z",
+    "page1At": "2026-05-18T07:54:04.375017",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2026-04-15",
-    "compCount": 37
+    "compCount": 72
   },
   "1906 barber half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-26T00:50:32.426Z",
+    "deepAt": "2026-05-17T23:21:31.499Z",
+    "page1At": "2026-05-18T07:55:35.840780",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-20",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-13",
     "oldestSaleDate": "2025-11-03",
-    "compCount": 46
+    "compCount": 77
   },
   "1906 barber quarter": {
-    "deepAt": null,
-    "page1At": "2026-04-25T22:56:04.066Z",
+    "deepAt": "2026-05-17T23:21:31.500Z",
+    "page1At": "2026-05-18T07:57:00.522177",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-24",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-03",
     "oldestSaleDate": "2025-11-09",
-    "compCount": 46
+    "compCount": 69
   },
   "1906 indian head cent": {
-    "deepAt": null,
-    "page1At": "2026-04-26T14:43:17.627Z",
+    "deepAt": "2026-05-17T23:21:31.502Z",
+    "page1At": "2026-05-18T08:02:41.160402",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-26",
-    "oldestSaleDate": "2026-04-23",
-    "compCount": 37
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-14",
+    "oldestSaleDate": "2025-11-21",
+    "compCount": 63
   },
   "1906 liberty nickel": {
     "deepAt": null,
@@ -6530,104 +6530,104 @@
     "compCount": 40
   },
   "1907 d barber half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-26T00:49:24.179Z",
+    "deepAt": "2026-05-17T23:21:31.505Z",
+    "page1At": "2026-05-18T08:14:09.707650",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
+    "refreshCount": 2,
     "newestSaleDate": "2026-04-25",
-    "oldestSaleDate": "2026-04-06",
-    "compCount": 45
+    "oldestSaleDate": "2025-11-22",
+    "compCount": 83
   },
   "1907 d barber quarter": {
-    "deepAt": null,
-    "page1At": "2026-04-25T23:05:55.359Z",
+    "deepAt": "2026-05-17T23:21:31.506Z",
+    "page1At": "2026-05-18T08:15:33.758928",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-21",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-13",
     "oldestSaleDate": "2025-11-06",
-    "compCount": 44
+    "compCount": 93
   },
   "1907 o barber dime": {
-    "deepAt": null,
-    "page1At": "2026-04-25T22:02:20.539Z",
+    "deepAt": "2026-05-17T23:21:31.508Z",
+    "page1At": "2026-05-18T08:18:22.483731",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-22",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-06",
     "oldestSaleDate": "2025-10-27",
-    "compCount": 47
+    "compCount": 73
   },
   "1907 o barber half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-26T01:05:17.806Z",
+    "deepAt": "2026-05-17T23:21:31.509Z",
+    "page1At": "2026-05-18T08:19:52.125541",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
-    "oldestSaleDate": "2026-03-29",
-    "compCount": 44
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
+    "oldestSaleDate": "2025-11-19",
+    "compCount": 86
   },
   "1907 o barber quarter": {
-    "deepAt": null,
-    "page1At": "2026-04-25T23:48:37.336Z",
+    "deepAt": "2026-05-17T23:21:31.510Z",
+    "page1At": "2026-05-18T08:21:15.506891",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-16",
     "oldestSaleDate": "2026-03-13",
-    "compCount": 41
+    "compCount": 58
   },
   "1907 s barber dime": {
-    "deepAt": null,
-    "page1At": "2026-05-13T06:12:21.850Z",
+    "deepAt": "2026-05-17T23:21:31.511Z",
+    "page1At": "2026-05-18T08:22:42.510996",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-28",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-02",
     "oldestSaleDate": "2025-11-15",
-    "compCount": 39
+    "compCount": 66
   },
   "1907 s barber half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-26T00:47:26.585Z",
+    "deepAt": "2026-05-17T23:21:31.512Z",
+    "page1At": "2026-05-18T08:24:11.841179",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
-    "oldestSaleDate": "2026-03-20",
-    "compCount": 40
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-09",
+    "oldestSaleDate": "2025-11-27",
+    "compCount": 76
   },
   "1907 s barber quarter": {
-    "deepAt": null,
-    "page1At": "2026-04-25T23:33:59.806Z",
+    "deepAt": "2026-05-17T23:21:31.514Z",
+    "page1At": "2026-05-18T08:25:31.952024",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-21",
-    "oldestSaleDate": "2026-02-15",
-    "compCount": 47
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-11",
+    "oldestSaleDate": "2025-11-21",
+    "compCount": 81
   },
   "1907 barber dime": {
-    "deepAt": null,
-    "page1At": "2026-04-25T22:06:39.805Z",
+    "deepAt": "2026-05-17T23:21:31.515Z",
+    "page1At": "2026-05-18T08:11:20.809861",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-20",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-10-27",
-    "compCount": 43
+    "compCount": 72
   },
   "1907 barber half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-26T01:09:08.974Z",
+    "deepAt": "2026-05-17T23:21:31.516Z",
+    "page1At": "2026-05-18T08:12:41.769109",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
-    "oldestSaleDate": "2026-04-19",
-    "compCount": 42
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-09",
+    "oldestSaleDate": "2025-11-29",
+    "compCount": 89
   },
   "1907 barber quarter": {
     "deepAt": "2026-05-17T02:01:31.681Z",
@@ -6640,14 +6640,14 @@
     "compCount": 87
   },
   "1907 indian head cent": {
-    "deepAt": null,
-    "page1At": "2026-04-26T04:01:21.252Z",
+    "deepAt": "2026-05-17T23:21:31.520Z",
+    "page1At": "2026-05-18T08:16:56.073419",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
-    "oldestSaleDate": "2026-04-23",
-    "compCount": 36
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-09",
+    "oldestSaleDate": "2025-11-25",
+    "compCount": 78
   },
   "1907 indian head eagle": {
     "deepAt": null,
@@ -6681,43 +6681,43 @@
   },
   "1908 d barber dime": {
     "deepAt": null,
-    "page1At": "2026-05-13T05:18:21.295Z",
+    "page1At": "2026-05-18T08:31:15.441778",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
+    "refreshCount": 2,
     "newestSaleDate": "2026-05-01",
     "oldestSaleDate": "2025-11-15",
-    "compCount": 30
-  },
-  "1908 d barber half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-26T01:14:39.251Z",
-    "maxPageReached": null,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-05",
-    "oldestSaleDate": "2025-10-30",
     "compCount": 42
   },
-  "1908 d barber quarter": {
-    "deepAt": null,
-    "page1At": "2026-04-25T23:56:35.372Z",
+  "1908 d barber half dollar": {
+    "deepAt": "2026-05-17T23:21:31.529Z",
+    "page1At": "2026-05-18T08:32:44.180633",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-24",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-04-05",
+    "oldestSaleDate": "2025-10-30",
+    "compCount": 69
+  },
+  "1908 d barber quarter": {
+    "deepAt": "2026-05-17T23:21:31.531Z",
+    "page1At": "2026-05-18T08:34:06.281716",
+    "maxPageReached": null,
+    "lastRefreshAt": null,
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2026-03-27",
-    "compCount": 44
+    "compCount": 81
   },
   "1908 o barber dime": {
     "deepAt": null,
-    "page1At": "2026-04-25T21:25:07.833Z",
+    "page1At": "2026-05-18T08:36:59.389914",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-23",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-16",
     "oldestSaleDate": "2025-10-29",
-    "compCount": 15
+    "compCount": 49
   },
   "1908 o barber half dollar": {
     "deepAt": null,
@@ -6730,94 +6730,94 @@
     "compCount": 44
   },
   "1908 o barber quarter": {
-    "deepAt": null,
-    "page1At": "2026-04-25T23:40:16.441Z",
+    "deepAt": "2026-05-17T23:21:31.535Z",
+    "page1At": "2026-05-18T08:38:27.632510",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-11-16",
-    "compCount": 40
+    "compCount": 104
   },
   "1908 s barber dime": {
     "deepAt": null,
-    "page1At": "2026-05-13T05:18:21.296Z",
+    "page1At": "2026-05-18T08:39:56.183539",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-28",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-11-14",
-    "compCount": 25
+    "compCount": 26
   },
   "1908 s barber half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-26T00:01:45.130Z",
+    "deepAt": "2026-05-17T23:21:31.541Z",
+    "page1At": "2026-05-18T08:41:18.343968",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-23",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-10-31",
-    "compCount": 29
+    "compCount": 91
   },
   "1908 s barber quarter": {
-    "deepAt": null,
-    "page1At": "2026-04-25T23:01:33.541Z",
+    "deepAt": "2026-05-17T23:21:31.543Z",
+    "page1At": "2026-05-18T08:42:42.057413",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-14",
     "oldestSaleDate": "2025-10-30",
-    "compCount": 36
+    "compCount": 93
   },
   "1908 s indian head cent": {
-    "deepAt": null,
-    "page1At": "2026-04-26T14:47:17.222Z",
+    "deepAt": "2026-05-17T23:21:31.544Z",
+    "page1At": "2026-05-18T08:44:05.728389",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-24",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-11-05",
-    "compCount": 43
+    "compCount": 109
   },
   "1908 barber dime": {
-    "deepAt": null,
-    "page1At": "2026-04-25T22:16:26.544Z",
+    "deepAt": "2026-05-17T23:21:31.546Z",
+    "page1At": "2026-05-18T08:27:05.466535",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-23",
-    "oldestSaleDate": "2025-10-29",
-    "compCount": 35
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
+    "oldestSaleDate": "2025-10-27",
+    "compCount": 60
   },
   "1908 barber half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-26T00:42:03.260Z",
+    "deepAt": "2026-05-17T23:21:31.548Z",
+    "page1At": "2026-05-18T08:28:30.917195",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
-    "oldestSaleDate": "2026-04-19",
-    "compCount": 45
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-15",
+    "oldestSaleDate": "2025-11-22",
+    "compCount": 90
   },
   "1908 barber quarter": {
-    "deepAt": null,
-    "page1At": "2026-04-25T22:41:54.495Z",
+    "deepAt": "2026-05-17T23:21:31.550Z",
+    "page1At": "2026-05-18T08:29:51.121644",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2026-04-16",
-    "compCount": 47
+    "compCount": 93
   },
   "1908 indian head cent": {
-    "deepAt": null,
-    "page1At": "2026-04-26T03:58:03.707Z",
+    "deepAt": "2026-05-17T23:21:31.551Z",
+    "page1At": "2026-05-18T08:35:38.130523",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-04",
     "oldestSaleDate": "2025-11-16",
-    "compCount": 38
+    "compCount": 58
   },
   "1908 liberty nickel": {
     "deepAt": null,
@@ -6841,33 +6841,33 @@
   },
   "1909 d barber dime": {
     "deepAt": null,
-    "page1At": "2026-04-25T21:49:37.043Z",
+    "page1At": "2026-05-18T08:50:05.789650",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-15",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-12",
     "oldestSaleDate": "2025-10-30",
-    "compCount": 21
+    "compCount": 25
   },
   "1909 d barber quarter": {
-    "deepAt": null,
-    "page1At": "2026-04-25T23:51:52.538Z",
+    "deepAt": "2026-05-17T23:21:31.556Z",
+    "page1At": "2026-05-18T08:51:26.867318",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-19",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-10-29",
-    "compCount": 46
+    "compCount": 98
   },
   "1909 o barber dime": {
-    "deepAt": null,
-    "page1At": "2026-04-25T21:57:08.868Z",
+    "deepAt": "2026-05-17T23:21:31.557Z",
+    "page1At": "2026-05-18T08:55:40.789930",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-13",
     "oldestSaleDate": "2025-10-27",
-    "compCount": 33
+    "compCount": 75
   },
   "1909 o barber half dollar": {
     "deepAt": null,
@@ -6890,104 +6890,104 @@
     "compCount": 46
   },
   "1909 s barber dime": {
-    "deepAt": null,
-    "page1At": "2026-04-25T22:26:57.845Z",
+    "deepAt": "2026-05-17T23:21:31.561Z",
+    "page1At": "2026-05-18T08:57:05.908589",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-20",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-04",
     "oldestSaleDate": "2025-10-30",
-    "compCount": 30
+    "compCount": 55
   },
   "1909 s barber half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-26T01:06:25.253Z",
+    "deepAt": "2026-05-17T23:21:31.562Z",
+    "page1At": "2026-05-18T08:58:28.723844",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-17",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-02",
     "oldestSaleDate": "2025-10-30",
-    "compCount": 45
+    "compCount": 84
   },
   "1909 s barber quarter": {
-    "deepAt": null,
-    "page1At": "2026-04-25T23:39:11.496Z",
+    "deepAt": "2026-05-17T23:21:31.564Z",
+    "page1At": "2026-05-18T08:59:59.495264",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-24",
-    "oldestSaleDate": "2026-03-08",
-    "compCount": 45
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-16",
+    "oldestSaleDate": "2025-11-26",
+    "compCount": 79
   },
   "1909 s indian head cent": {
-    "deepAt": null,
-    "page1At": "2026-04-26T03:48:32.359Z",
+    "deepAt": "2026-05-17T23:21:31.566Z",
+    "page1At": "2026-05-18T09:01:26.615841",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-11-01",
-    "compCount": 38
+    "compCount": 98
   },
   "1909 s lincoln wheat cent": {
-    "deepAt": null,
-    "page1At": "2026-04-29T06:05:23.095Z",
+    "deepAt": "2026-05-17T23:21:31.567Z",
+    "page1At": "2026-05-18T09:02:54.595029",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-28",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-09",
     "oldestSaleDate": "2025-11-26",
-    "compCount": 48
+    "compCount": 70
   },
   "1909 s lincoln wheat cent vdb": {
-    "deepAt": null,
-    "page1At": "2026-04-29T05:25:56.391Z",
+    "deepAt": "2026-05-17T23:21:31.569Z",
+    "page1At": "2026-05-18T09:04:19.122378",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
+    "refreshCount": 2,
     "newestSaleDate": "2026-04-28",
     "oldestSaleDate": "2025-11-08",
-    "compCount": 48
+    "compCount": 75
   },
   "1909 barber dime": {
-    "deepAt": null,
-    "page1At": "2026-04-25T22:35:22.795Z",
+    "deepAt": "2026-05-17T23:21:31.570Z",
+    "page1At": "2026-05-18T08:45:31.413340",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-23",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-10-27",
-    "compCount": 46
+    "compCount": 83
   },
   "1909 barber half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-26T00:24:30.949Z",
+    "deepAt": "2026-05-17T23:21:31.571Z",
+    "page1At": "2026-05-18T08:46:51.420743",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-13",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-10-30",
-    "compCount": 42
+    "compCount": 110
   },
   "1909 barber quarter": {
-    "deepAt": null,
-    "page1At": "2026-04-25T23:08:16.981Z",
+    "deepAt": "2026-05-17T23:21:31.574Z",
+    "page1At": "2026-05-18T08:48:36.798555",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
-    "oldestSaleDate": "2026-04-16",
-    "compCount": 49
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-09",
+    "oldestSaleDate": "2025-11-29",
+    "compCount": 94
   },
   "1909 indian head cent": {
     "deepAt": null,
-    "page1At": "2026-04-26T03:42:00.679Z",
+    "page1At": "2026-05-18T08:52:54.687950",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-18",
     "oldestSaleDate": "2025-11-13",
-    "compCount": 30
+    "compCount": 46
   },
   "1909 liberty nickel": {
     "deepAt": null,
@@ -7000,84 +7000,84 @@
     "compCount": 41
   },
   "1909 lincoln wheat cent vdb": {
-    "deepAt": null,
-    "page1At": "2026-04-30T16:32:08.551Z",
+    "deepAt": "2026-05-17T23:21:31.577Z",
+    "page1At": "2026-05-18T08:54:16.570604",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-30",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-11-15",
-    "compCount": 47
+    "compCount": 71
   },
   "1910 d barber dime": {
     "deepAt": null,
-    "page1At": "2026-04-25T22:40:55.954Z",
+    "page1At": "2026-05-18T09:08:32.430163",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-24",
-    "oldestSaleDate": "2026-03-27",
-    "compCount": 18
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-15",
+    "oldestSaleDate": "2025-12-01",
+    "compCount": 40
   },
   "1910 d barber quarter": {
-    "deepAt": null,
-    "page1At": "2026-04-25T23:30:48.564Z",
+    "deepAt": "2026-05-17T23:21:31.581Z",
+    "page1At": "2026-05-18T09:09:59.655437",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-22",
-    "oldestSaleDate": "2026-02-24",
-    "compCount": 43
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-10",
+    "oldestSaleDate": "2025-11-20",
+    "compCount": 80
   },
   "1910 s barber dime": {
     "deepAt": null,
-    "page1At": "2026-04-25T22:20:37.655Z",
+    "page1At": "2026-05-18T09:11:30.396708",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-22",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-16",
     "oldestSaleDate": "2025-10-27",
-    "compCount": 25
+    "compCount": 42
   },
   "1910 s barber half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-26T00:25:38.332Z",
+    "deepAt": "2026-05-17T23:21:31.584Z",
+    "page1At": "2026-05-18T09:13:00.849022",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
-    "oldestSaleDate": "2026-03-11",
-    "compCount": 46
+    "refreshCount": 2,
+    "newestSaleDate": "2026-04-26",
+    "oldestSaleDate": "2025-11-21",
+    "compCount": 92
   },
   "1910 s lincoln wheat cent": {
-    "deepAt": null,
-    "page1At": "2026-04-29T04:56:28.107Z",
+    "deepAt": "2026-05-17T23:21:31.586Z",
+    "page1At": "2026-05-18T09:14:20.914034",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-28",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2026-04-25",
-    "compCount": 43
+    "compCount": 83
   },
   "1910 barber dime": {
-    "deepAt": null,
-    "page1At": "2026-04-25T22:11:01.881Z",
+    "deepAt": "2026-05-17T23:21:31.588Z",
+    "page1At": "2026-05-18T09:05:44.464534",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-24",
-    "oldestSaleDate": "2026-04-12",
-    "compCount": 36
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-15",
+    "oldestSaleDate": "2025-11-24",
+    "compCount": 81
   },
   "1910 barber half dollar": {
-    "deepAt": null,
-    "page1At": "2026-05-13T05:18:21.296Z",
+    "deepAt": "2026-05-17T23:21:31.590Z",
+    "page1At": "2026-05-18T09:07:08.009206",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-26",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-14",
     "oldestSaleDate": "2025-11-15",
-    "compCount": 36
+    "compCount": 75
   },
   "1910 barber quarter": {
     "deepAt": null,
@@ -7100,34 +7100,34 @@
     "compCount": 36
   },
   "1911 d barber dime": {
-    "deepAt": null,
-    "page1At": "2026-04-25T21:24:01.785Z",
+    "deepAt": "2026-05-17T23:21:31.596Z",
+    "page1At": "2026-05-18T09:18:50.971556",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-23",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-10-31",
-    "compCount": 40
+    "compCount": 80
   },
   "1911 d barber half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-26T01:15:48.218Z",
+    "deepAt": "2026-05-17T23:21:31.598Z",
+    "page1At": "2026-05-18T09:20:17.585692",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-19",
-    "oldestSaleDate": "2025-11-16",
-    "compCount": 28
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
+    "oldestSaleDate": "2025-10-29",
+    "compCount": 65
   },
   "1911 d barber quarter": {
-    "deepAt": null,
-    "page1At": "2026-04-25T23:04:48.191Z",
+    "deepAt": "2026-05-17T23:21:31.601Z",
+    "page1At": "2026-05-18T09:21:37.754982",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-21",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-11-02",
-    "compCount": 40
+    "compCount": 100
   },
   "1911 d indian head eagle": {
     "deepAt": null,
@@ -7150,24 +7150,24 @@
     "compCount": 7
   },
   "1911 d lincoln wheat cent": {
-    "deepAt": null,
-    "page1At": "2026-04-29T23:04:27.317Z",
+    "deepAt": "2026-05-17T23:21:31.603Z",
+    "page1At": "2026-05-18T09:23:02.602249",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-29",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-15",
     "oldestSaleDate": "2025-11-14",
-    "compCount": 45
+    "compCount": 64
   },
   "1911 s barber dime": {
-    "deepAt": null,
-    "page1At": "2026-04-25T22:29:56.979Z",
+    "deepAt": "2026-05-17T23:21:31.604Z",
+    "page1At": "2026-05-18T09:24:32.988042",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-23",
-    "oldestSaleDate": "2026-03-09",
-    "compCount": 42
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-09",
+    "oldestSaleDate": "2025-11-20",
+    "compCount": 79
   },
   "1911 s barber half dollar": {
     "deepAt": null,
@@ -7180,34 +7180,34 @@
     "compCount": 18
   },
   "1911 s barber quarter": {
-    "deepAt": null,
-    "page1At": "2026-04-25T23:18:19.179Z",
+    "deepAt": "2026-05-17T23:21:31.607Z",
+    "page1At": "2026-05-18T09:25:56.539497",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
-    "oldestSaleDate": "2025-11-15",
-    "compCount": 34
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-16",
+    "oldestSaleDate": "2025-10-30",
+    "compCount": 90
   },
   "1911 s lincoln wheat cent": {
-    "deepAt": null,
-    "page1At": "2026-04-29T05:00:55.363Z",
+    "deepAt": "2026-05-17T23:21:31.608Z",
+    "page1At": "2026-05-18T09:27:19.865650",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-22",
-    "oldestSaleDate": "2025-12-05",
-    "compCount": 36
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
+    "oldestSaleDate": "2025-10-31",
+    "compCount": 102
   },
   "1911 barber dime": {
-    "deepAt": null,
-    "page1At": "2026-04-25T21:42:47.106Z",
+    "deepAt": "2026-05-17T23:21:31.609Z",
+    "page1At": "2026-05-18T09:15:49.263653",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2026-04-18",
-    "compCount": 36
+    "compCount": 81
   },
   "1911 barber half dollar": {
     "deepAt": null,
@@ -7220,14 +7220,14 @@
     "compCount": 43
   },
   "1911 barber quarter": {
-    "deepAt": null,
-    "page1At": "2026-04-25T23:00:23.133Z",
+    "deepAt": "2026-05-17T23:21:31.613Z",
+    "page1At": "2026-05-18T09:17:25.355832",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-16",
     "oldestSaleDate": "2025-11-02",
-    "compCount": 40
+    "compCount": 52
   },
   "1911 liberty nickel": {
     "deepAt": null,
@@ -7240,14 +7240,14 @@
     "compCount": 34
   },
   "1912 d barber dime": {
-    "deepAt": null,
-    "page1At": "2026-04-25T21:35:31.752Z",
+    "deepAt": "2026-05-17T23:21:31.616Z",
+    "page1At": "2026-05-18T09:31:22.912681",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2026-04-05",
-    "compCount": 46
+    "compCount": 88
   },
   "1912 d barber half dollar": {
     "deepAt": null,
@@ -7260,14 +7260,14 @@
     "compCount": 43
   },
   "1912 d lincoln wheat cent": {
-    "deepAt": null,
-    "page1At": "2026-04-30T14:27:40.022Z",
+    "deepAt": "2026-05-17T23:21:31.619Z",
+    "page1At": "2026-05-18T09:32:47.745976",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-30",
-    "oldestSaleDate": "2026-04-25",
-    "compCount": 43
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
+    "oldestSaleDate": "2025-11-22",
+    "compCount": 87
   },
   "1912 s barber dime": {
     "deepAt": null,
@@ -7291,33 +7291,33 @@
   },
   "1912 s barber quarter": {
     "deepAt": "2026-05-18T00:12:00.350497",
-    "page1At": "2026-04-25T22:48:22.564Z",
+    "page1At": "2026-05-18T09:34:37.235438",
     "maxPageReached": 2,
     "lastRefreshAt": null,
-    "refreshCount": 1,
+    "refreshCount": 2,
     "newestSaleDate": "2026-05-14",
     "oldestSaleDate": "2025-10-29",
-    "compCount": 68
+    "compCount": 96
   },
   "1912 s lincoln wheat cent": {
-    "deepAt": null,
-    "page1At": "2026-04-29T08:13:15.257Z",
+    "deepAt": "2026-05-17T23:21:31.625Z",
+    "page1At": "2026-05-18T09:35:59.112015",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-28",
-    "oldestSaleDate": "2026-04-24",
-    "compCount": 45
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
+    "oldestSaleDate": "2025-11-23",
+    "compCount": 89
   },
   "1912 barber dime": {
-    "deepAt": null,
-    "page1At": "2026-04-25T22:15:22.406Z",
+    "deepAt": "2026-05-17T23:21:31.626Z",
+    "page1At": "2026-05-18T09:28:39.081670",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2026-04-18",
-    "compCount": 42
+    "compCount": 86
   },
   "1912 barber half dollar": {
     "deepAt": null,
@@ -7330,14 +7330,14 @@
     "compCount": 46
   },
   "1912 barber quarter": {
-    "deepAt": null,
-    "page1At": "2026-04-25T23:25:50.423Z",
+    "deepAt": "2026-05-17T23:21:31.629Z",
+    "page1At": "2026-05-18T09:30:01.628997",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2026-04-10",
-    "compCount": 43
+    "compCount": 86
   },
   "1912 liberty nickel": {
     "deepAt": null,
@@ -7351,43 +7351,43 @@
   },
   "1913 d barber half dollar": {
     "deepAt": "2026-05-18T00:29:37.793231",
-    "page1At": "2026-04-26T00:12:30.434Z",
+    "page1At": "2026-05-18T09:44:38.060400",
     "maxPageReached": 2,
     "lastRefreshAt": null,
-    "refreshCount": 1,
+    "refreshCount": 2,
     "newestSaleDate": "2026-05-07",
     "oldestSaleDate": "2025-10-31",
-    "compCount": 74
+    "compCount": 102
   },
   "1913 d barber quarter": {
-    "deepAt": null,
-    "page1At": "2026-04-25T23:38:10.229Z",
+    "deepAt": "2026-05-17T23:21:31.634Z",
+    "page1At": "2026-05-18T09:46:03.449672",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-19",
-    "oldestSaleDate": "2026-03-05",
-    "compCount": 42
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-14",
+    "oldestSaleDate": "2025-11-20",
+    "compCount": 79
   },
   "1913 d buffalo nickel": {
-    "deepAt": null,
-    "page1At": "2026-04-26T03:14:46.015Z",
+    "deepAt": "2026-05-17T23:21:31.635Z",
+    "page1At": "2026-05-18T09:47:23.209311",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-10-28",
-    "compCount": 38
+    "compCount": 96
   },
   "1913 s barber dime": {
-    "deepAt": null,
-    "page1At": "2026-04-25T21:53:48.712Z",
+    "deepAt": "2026-05-17T23:21:31.636Z",
+    "page1At": "2026-05-18T09:48:41.280364",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-19",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-05",
     "oldestSaleDate": "2025-10-27",
-    "compCount": 44
+    "compCount": 74
   },
   "1913 s barber half dollar": {
     "deepAt": null,
@@ -7410,134 +7410,134 @@
     "compCount": 53
   },
   "1913 s buffalo nickel": {
-    "deepAt": null,
-    "page1At": "2026-04-26T02:49:41.479Z",
+    "deepAt": "2026-05-17T23:21:31.643Z",
+    "page1At": "2026-05-18T09:50:14.857863",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2026-04-17",
-    "compCount": 46
+    "compCount": 83
   },
   "1913 s lincoln wheat cent": {
-    "deepAt": null,
-    "page1At": "2026-04-29T20:12:26.972Z",
+    "deepAt": "2026-05-17T23:21:31.644Z",
+    "page1At": "2026-05-18T09:51:41.978967",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-27",
-    "oldestSaleDate": "2025-11-09",
-    "compCount": 38
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
+    "oldestSaleDate": "2025-11-03",
+    "compCount": 100
   },
   "1913 barber dime": {
-    "deepAt": null,
-    "page1At": "2026-04-25T21:27:12.068Z",
+    "deepAt": "2026-05-17T23:21:31.646Z",
+    "page1At": "2026-05-18T09:37:20.734335",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2026-04-17",
-    "compCount": 38
+    "compCount": 77
   },
   "1913 barber half": {
-    "deepAt": null,
-    "page1At": "2026-04-08T22:32:47.300Z",
+    "deepAt": "2026-05-17T23:21:31.647Z",
+    "page1At": "2026-05-18T09:38:51.641663",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-04",
-    "oldestSaleDate": "2026-03-06",
-    "compCount": 44
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-16",
+    "oldestSaleDate": "2025-11-22",
+    "compCount": 85
   },
   "1913 barber half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-26T00:27:50.696Z",
+    "deepAt": "2026-05-17T23:21:31.649Z",
+    "page1At": "2026-05-18T09:40:28.550731",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
-    "oldestSaleDate": "2026-04-15",
-    "compCount": 44
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-16",
+    "oldestSaleDate": "2025-11-22",
+    "compCount": 85
   },
   "1913 barber quarter": {
-    "deepAt": null,
-    "page1At": "2026-04-25T23:07:19.419Z",
+    "deepAt": "2026-05-17T23:21:31.651Z",
+    "page1At": "2026-05-18T09:41:49.606452",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-22",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-16",
     "oldestSaleDate": "2025-11-02",
-    "compCount": 38
+    "compCount": 65
   },
   "1913 buffalo nickel": {
-    "deepAt": null,
-    "page1At": "2026-04-26T03:27:43.012Z",
+    "deepAt": "2026-05-17T23:21:31.652Z",
+    "page1At": "2026-05-18T09:43:11.436367",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-18",
     "oldestSaleDate": "2026-04-24",
-    "compCount": 39
+    "compCount": 68
   },
   "1914 d barber dime": {
-    "deepAt": null,
-    "page1At": "2026-04-25T21:51:44.127Z",
+    "deepAt": "2026-05-17T23:21:31.654Z",
+    "page1At": "2026-05-18T09:59:12.049616",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
-    "oldestSaleDate": "2026-04-10",
-    "compCount": 42
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-03",
+    "oldestSaleDate": "2025-11-23",
+    "compCount": 91
   },
   "1914 d barber quarter": {
-    "deepAt": null,
-    "page1At": "2026-04-25T23:50:49.128Z",
+    "deepAt": "2026-05-17T23:21:31.656Z",
+    "page1At": "2026-05-18T10:00:34.119230",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-23",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-18",
     "oldestSaleDate": "2025-10-27",
-    "compCount": 42
+    "compCount": 98
   },
   "1914 d buffalo nickel": {
-    "deepAt": null,
-    "page1At": "2026-04-26T03:32:08.653Z",
+    "deepAt": "2026-05-17T23:21:31.657Z",
+    "page1At": "2026-05-18T10:01:56.505622",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-24",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-10-30",
-    "compCount": 41
+    "compCount": 107
   },
   "1914 d lincoln wheat cent": {
-    "deepAt": null,
-    "page1At": "2026-04-29T08:11:48.197Z",
+    "deepAt": "2026-05-17T23:21:31.659Z",
+    "page1At": "2026-05-18T10:03:17.119479",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-28",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-18",
     "oldestSaleDate": "2025-11-08",
-    "compCount": 49
+    "compCount": 114
   },
   "1914 s barber dime": {
-    "deepAt": null,
-    "page1At": "2026-04-25T21:43:47.699Z",
+    "deepAt": "2026-05-17T23:21:31.661Z",
+    "page1At": "2026-05-18T10:05:06.786933",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-10-31",
-    "compCount": 35
+    "compCount": 89
   },
   "1914 s barber half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-26T00:10:21.653Z",
+    "deepAt": "2026-05-17T23:21:31.669Z",
+    "page1At": "2026-05-18T10:06:30.731483",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2026-03-25",
-    "compCount": 43
+    "compCount": 88
   },
   "1914 s barber quarter": {
     "deepAt": null,
@@ -7560,34 +7560,34 @@
     "compCount": 49
   },
   "1914 s lincoln wheat cent": {
-    "deepAt": null,
-    "page1At": "2026-04-29T21:40:47.956Z",
+    "deepAt": "2026-05-17T23:21:31.672Z",
+    "page1At": "2026-05-18T10:07:52.494661",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-29",
-    "oldestSaleDate": "2026-04-24",
-    "compCount": 45
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-16",
+    "oldestSaleDate": "2025-11-23",
+    "compCount": 90
   },
   "1914 barber dime": {
-    "deepAt": null,
-    "page1At": "2026-04-25T22:18:27.114Z",
+    "deepAt": "2026-05-17T23:21:31.673Z",
+    "page1At": "2026-05-18T09:53:16.682247",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
-    "oldestSaleDate": "2026-04-19",
-    "compCount": 40
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-16",
+    "oldestSaleDate": "2025-11-30",
+    "compCount": 87
   },
   "1914 barber half": {
-    "deepAt": null,
-    "page1At": "2026-04-08T22:32:47.301Z",
+    "deepAt": "2026-05-17T23:21:31.674Z",
+    "page1At": "2026-05-18T09:54:44.896115",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-04",
-    "oldestSaleDate": "2026-03-06",
-    "compCount": 47
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-06",
+    "oldestSaleDate": "2025-11-23",
+    "compCount": 89
   },
   "1914 barber half dollar": {
     "deepAt": null,
@@ -7600,34 +7600,34 @@
     "compCount": 44
   },
   "1914 barber quarter": {
-    "deepAt": null,
-    "page1At": "2026-04-25T23:23:33.680Z",
+    "deepAt": "2026-05-17T23:21:31.677Z",
+    "page1At": "2026-05-18T09:56:17.935516",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
-    "oldestSaleDate": "2026-04-16",
-    "compCount": 44
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-10",
+    "oldestSaleDate": "2025-11-22",
+    "compCount": 87
   },
   "1914 buffalo nickel": {
-    "deepAt": null,
-    "page1At": "2026-04-26T03:16:56.176Z",
+    "deepAt": "2026-05-17T23:21:31.678Z",
+    "page1At": "2026-05-18T09:57:44.249886",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-24",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-13",
     "oldestSaleDate": "2025-10-30",
-    "compCount": 36
+    "compCount": 66
   },
   "1915 d barber half dollar": {
-    "deepAt": null,
-    "page1At": "2026-04-26T01:07:27.304Z",
+    "deepAt": "2026-05-17T23:21:31.680Z",
+    "page1At": "2026-05-18T10:13:29.908197",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2026-03-30",
-    "compCount": 47
+    "compCount": 91
   },
   "1915 d barber quarter": {
     "deepAt": "2026-05-17T01:26:06.550Z",
@@ -7640,24 +7640,24 @@
     "compCount": 48
   },
   "1915 d buffalo nickel": {
-    "deepAt": null,
-    "page1At": "2026-04-26T03:24:31.624Z",
+    "deepAt": "2026-05-17T23:21:31.682Z",
+    "page1At": "2026-05-18T10:14:52.030502",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
-    "oldestSaleDate": "2026-04-12",
-    "compCount": 45
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-15",
+    "oldestSaleDate": "2025-11-19",
+    "compCount": 85
   },
   "1915 s barber dime": {
-    "deepAt": null,
-    "page1At": "2026-04-25T21:31:19.237Z",
+    "deepAt": "2026-05-17T23:21:31.683Z",
+    "page1At": "2026-05-18T10:16:21.816830",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-23",
-    "oldestSaleDate": "2026-03-19",
-    "compCount": 41
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-18",
+    "oldestSaleDate": "2025-11-27",
+    "compCount": 83
   },
   "1915 s barber half dollar": {
     "deepAt": null,
@@ -7671,53 +7671,53 @@
   },
   "1915 s barber quarter": {
     "deepAt": "2026-05-18T00:09:55.800595",
-    "page1At": "2026-04-25T22:47:17.884Z",
+    "page1At": "2026-05-18T10:17:50.134522",
     "maxPageReached": 2,
     "lastRefreshAt": null,
-    "refreshCount": 1,
+    "refreshCount": 2,
     "newestSaleDate": "2026-05-12",
     "oldestSaleDate": "2025-10-31",
-    "compCount": 80
+    "compCount": 106
   },
   "1915 s buffalo nickel": {
-    "deepAt": null,
-    "page1At": "2026-04-26T03:29:58.574Z",
+    "deepAt": "2026-05-17T23:21:31.687Z",
+    "page1At": "2026-05-18T10:19:18.419929",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
+    "refreshCount": 2,
     "newestSaleDate": "2026-04-25",
-    "oldestSaleDate": "2025-11-12",
-    "compCount": 27
+    "oldestSaleDate": "2025-10-30",
+    "compCount": 57
   },
   "1915 s lincoln wheat cent": {
-    "deepAt": null,
-    "page1At": "2026-04-29T20:54:12.803Z",
+    "deepAt": "2026-05-17T23:21:31.687Z",
+    "page1At": "2026-05-18T10:20:49.393929",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-19",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-08",
     "oldestSaleDate": "2025-11-07",
-    "compCount": 45
+    "compCount": 74
   },
   "1915 barber dime": {
-    "deepAt": null,
-    "page1At": "2026-04-25T21:58:12.349Z",
+    "deepAt": "2026-05-17T23:21:31.688Z",
+    "page1At": "2026-05-18T10:09:20.454438",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-15",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-16",
     "oldestSaleDate": "2025-10-27",
-    "compCount": 45
+    "compCount": 57
   },
   "1915 barber half": {
-    "deepAt": null,
-    "page1At": "2026-04-08T22:32:47.302Z",
+    "deepAt": "2026-05-17T23:21:31.689Z",
+    "page1At": "2026-05-18T10:10:42.798540",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-05",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-18",
     "oldestSaleDate": "2026-03-06",
-    "compCount": 38
+    "compCount": 74
   },
   "1915 barber half dollar": {
     "deepAt": null,
@@ -7740,44 +7740,44 @@
     "compCount": 24
   },
   "1915 buffalo nickel": {
-    "deepAt": null,
-    "page1At": "2026-04-26T02:43:10.888Z",
+    "deepAt": "2026-05-17T23:21:31.693Z",
+    "page1At": "2026-05-18T10:12:06.371782",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-11-03",
-    "compCount": 44
+    "compCount": 113
   },
   "1916 d barber quarter": {
-    "deepAt": null,
-    "page1At": "2026-04-25T22:51:33.805Z",
+    "deepAt": "2026-05-17T23:21:31.694Z",
+    "page1At": "2026-05-18T10:25:03.285674",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2026-04-12",
-    "compCount": 42
+    "compCount": 83
   },
   "1916 d buffalo nickel": {
-    "deepAt": null,
-    "page1At": "2026-04-26T02:47:47.298Z",
+    "deepAt": "2026-05-17T23:21:31.695Z",
+    "page1At": "2026-05-18T10:26:24.826211",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-12-08",
-    "compCount": 34
+    "compCount": 80
   },
   "1916 d mercury dime": {
-    "deepAt": null,
-    "page1At": "2026-05-16T17:00:09.605Z",
+    "deepAt": "2026-05-17T23:21:31.697Z",
+    "page1At": "2026-05-18T10:27:45.485867",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-05",
-    "oldestSaleDate": "2026-03-07",
-    "compCount": 36
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
+    "oldestSaleDate": "2025-11-20",
+    "compCount": 72
   },
   "1916 d walking liberty half dollar": {
     "deepAt": null,
@@ -7790,44 +7790,44 @@
     "compCount": 45
   },
   "1916 s barber dime": {
-    "deepAt": null,
-    "page1At": "2026-04-25T21:26:11.592Z",
+    "deepAt": "2026-05-17T23:21:31.702Z",
+    "page1At": "2026-05-18T10:29:15.328953",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-10",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-13",
     "oldestSaleDate": "2025-11-01",
-    "compCount": 49
+    "compCount": 92
   },
   "1916 s buffalo nickel": {
-    "deepAt": null,
-    "page1At": "2026-04-26T02:59:39.270Z",
+    "deepAt": "2026-05-17T23:21:31.703Z",
+    "page1At": "2026-05-18T10:30:37.470187",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-10-30",
-    "compCount": 48
+    "compCount": 120
   },
   "1916 s mercury dime": {
-    "deepAt": null,
-    "page1At": "2026-04-26T02:29:21.506Z",
+    "deepAt": "2026-05-17T23:21:31.704Z",
+    "page1At": "2026-05-18T10:31:56.212203",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-10-30",
-    "compCount": 39
+    "compCount": 94
   },
   "1916 s walking liberty half": {
-    "deepAt": null,
-    "page1At": "2026-04-08T22:32:47.302Z",
+    "deepAt": "2026-05-17T23:21:31.708Z",
+    "page1At": "2026-05-18T10:33:22.104157",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-05",
-    "oldestSaleDate": "2026-03-07",
-    "compCount": 36
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-04",
+    "oldestSaleDate": "2025-11-22",
+    "compCount": 74
   },
   "1916 barber dime": {
     "deepAt": null,
@@ -7840,24 +7840,24 @@
     "compCount": 23
   },
   "1916 barber quarter": {
-    "deepAt": null,
-    "page1At": "2026-04-25T22:45:06.752Z",
+    "deepAt": "2026-05-17T23:21:31.710Z",
+    "page1At": "2026-05-18T10:22:15.639307",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-13",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-02",
     "oldestSaleDate": "2025-10-30",
-    "compCount": 29
+    "compCount": 59
   },
   "1916 buffalo nickel": {
-    "deepAt": null,
-    "page1At": "2026-04-26T02:42:07.014Z",
+    "deepAt": "2026-05-17T23:21:31.712Z",
+    "page1At": "2026-05-18T10:23:34.581483",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-18",
     "oldestSaleDate": "2026-04-21",
-    "compCount": 45
+    "compCount": 90
   },
   "1916 mercury dime": {
     "deepAt": null,
@@ -7871,23 +7871,23 @@
   },
   "1916 standing liberty quarter": {
     "deepAt": null,
-    "page1At": "2026-05-16T17:00:06.780Z",
+    "page1At": "2026-05-18T10:34:52.109133",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-04",
-    "oldestSaleDate": "2026-03-11",
-    "compCount": 20
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
+    "oldestSaleDate": "2025-11-29",
+    "compCount": 37
   },
   "1916 walking liberty half": {
     "deepAt": null,
-    "page1At": "2026-05-16T17:00:09.524Z",
+    "page1At": "2026-05-18T10:36:14.054269",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-05",
-    "oldestSaleDate": "2026-03-14",
-    "compCount": 27
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
+    "oldestSaleDate": "2026-01-14",
+    "compCount": 39
   },
   "1916 walking liberty half ms64": {
     "deepAt": null,
@@ -7900,34 +7900,34 @@
     "compCount": 3
   },
   "1917 d buffalo nickel": {
-    "deepAt": null,
-    "page1At": "2026-04-26T02:57:05.008Z",
+    "deepAt": "2026-05-17T23:21:31.719Z",
+    "page1At": "2026-05-18T10:39:10.892777",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
-    "oldestSaleDate": "2026-04-13",
-    "compCount": 47
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-12",
+    "oldestSaleDate": "2025-11-20",
+    "compCount": 89
   },
   "1917 d mercury dime": {
-    "deepAt": null,
-    "page1At": "2026-04-26T01:57:40.130Z",
+    "deepAt": "2026-05-17T23:21:31.720Z",
+    "page1At": "2026-05-18T10:40:33.880227",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-16",
-    "oldestSaleDate": "2025-11-19",
-    "compCount": 12
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
+    "oldestSaleDate": "2025-11-01",
+    "compCount": 66
   },
   "1917 d standing liberty quarter": {
-    "deepAt": null,
-    "page1At": "2026-04-26T16:47:12.021Z",
+    "deepAt": "2026-05-17T23:21:31.722Z",
+    "page1At": "2026-05-18T10:41:59.429403",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-26",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2026-04-09",
-    "compCount": 48
+    "compCount": 95
   },
   "1917 d walking liberty half dollar": {
     "deepAt": null,
@@ -7940,24 +7940,24 @@
     "compCount": 29
   },
   "1917 s buffalo nickel": {
-    "deepAt": null,
-    "page1At": "2026-04-26T03:34:20.117Z",
+    "deepAt": "2026-05-17T23:21:31.725Z",
+    "page1At": "2026-05-18T10:44:49.403488",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-23",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-04",
     "oldestSaleDate": "2025-10-30",
-    "compCount": 45
+    "compCount": 69
   },
   "1917 s mercury dime": {
-    "deepAt": null,
-    "page1At": "2026-04-26T02:17:10.945Z",
+    "deepAt": "2026-05-17T23:21:31.727Z",
+    "page1At": "2026-05-18T10:46:14.161994",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-16",
     "oldestSaleDate": "2026-04-13",
-    "compCount": 43
+    "compCount": 85
   },
   "1917 s standing liberty quarter": {
     "deepAt": null,
@@ -7990,24 +7990,24 @@
     "compCount": 12
   },
   "1917 buffalo nickel": {
-    "deepAt": null,
-    "page1At": "2026-04-26T03:01:48.747Z",
+    "deepAt": "2026-05-17T23:21:31.733Z",
+    "page1At": "2026-05-18T10:37:43.394361",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
-    "oldestSaleDate": "2026-04-22",
-    "compCount": 46
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-11",
+    "oldestSaleDate": "2025-11-22",
+    "compCount": 90
   },
   "1917 mercury dime": {
-    "deepAt": null,
-    "page1At": "2026-04-26T01:27:56.753Z",
+    "deepAt": "2026-05-17T23:21:31.734Z",
+    "page1At": "2026-05-18T10:43:23.423025",
     "maxPageReached": null,
     "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-25",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-11-10",
-    "compCount": 40
+    "compCount": 83
   },
   "1917 standing liberty quarter": {
     "deepAt": "2026-05-18T00:03:29.973804",
