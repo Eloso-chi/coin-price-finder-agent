@@ -238,52 +238,13 @@ The narrower time window produces a different comp pool (fewer comps, different 
 
 ---
 
-### #182. Proof Coin FMV Accuracy -- Slabbed Proof Classification Fix [HIGH]
+## Scraper Performance
 
-**Problem:** `classifyGradeType()` returns `'graded'` for all `conditionId=2000` comps, including slabbed proofs (e.g., PCGS PR69 DCAM). Slabbed proofs land in the graded pool with BU slabs, depleting the proof pool and mixing unlike comps.
+### ~~#200. Sort-Skip Optimization in Terapeak Scrapers [DONE]~~
 
-**Fix:** When `conditionId=2000`, also check title for proof regex. Slabbed proofs classified as `'proof'` instead of `'graded'`.
+Both `terapeak-export.py` and `sales-aggregator.py` now skip re-sorting when the "Date sold" column is already confirmed descending. A module-level `_sort_confirmed` flag persists across pages; validated by date-order check after CSV write. Resets on browser recycle, bot-block, or crash recovery.
 
-**Files:** `ebayService.js` (`classifyGradeType`)
-
----
-
-### #183. Designation-Aware Comp Scoring (DCAM/CAM) [HIGH]
-
-**Problem:** DCAM vs CAM vs no-designation comps are mixed in the same pool. DCAM coins are worth 10-40%+ more than CAM on modern proofs. Designation is parsed and injected into eBay keywords but NOT used in scoring or filtering.
-
-**Fix:** Add +10 match score for designation match, -15 for designation mismatch on proof coins. Soft scoring (not a hard filter) to avoid thin-pool problems.
-
-**Files:** `ebayService.js` (`scoreMatch`)
-
----
-
-### #184. Block Proof-to-BU Fallback in Pool Selection [HIGH]
-
-**Problem:** When <3 proof comps exist, valuation falls back to ALL comps (including BU). BU and proof are fundamentally different products; mixing produces a wrong FMV, not an approximate one.
-
-**Fix:** For proof queries: use proof pool regardless of count. 1-2 comps = flag `lowData` + reduce confidence. 0 comps = null FMV with explanation. Never mix BU comps into proof FMV.
-
-**Depends on:** #182 (ensures slabbed proofs land in proof pool first)
-
-**Files:** `valuationService.js` (`computeValuation` pool selection)
-
----
-
-### #185. World Proof Greysheet Type Map Expansion [MEDIUM -- BLOCKED]
-
-**Problem:** Missing proof-specific GSIDs for major world bullion proofs (Krugerrand, Kookaburra, Philharmonic, Gold Maple Leaf). Proof queries fall back to MS wholesale price in the Greysheet blend.
-
-**Fix:** Add proof-specific GSIDs to `TYPE_GSID_MAP` (requires Greysheet catalog lookup for correct IDs). Data-only change, no code logic.
-
-**Blocked:** `cpgpublicapi2.greysheet.com` DNS not resolvable from GitHub Codespaces (Azure network). Must query from deployed server or local machine. Missing entries:
-- `krugerrand|1|gold|proof`
-- `kookaburra|1|proof`
-- `philharmonic|1|silver|proof`
-- `philharmonic|1|gold|proof`
-- `maple leaf|1|gold|proof`
-
-**Files:** `greysheetTypeMap.js`
+**Merged:** `d08f63a` (May 18)
 
 ---
 
@@ -400,6 +361,7 @@ Added `npm audit --audit-level=high` step to CI (xlsx excluded -- unmaintained, 
 | 182 | Slabbed proof classification fix | May 2026 -- `classifyGradeType()` proof check |
 | 183 | DCAM/CAM designation scoring | May 2026 -- `scoreMatch()` +10/-15 |
 | 184 | Block proof-to-BU fallback | May 2026 -- proof pool unconditional |
+| 200 | Sort-skip optimization in Terapeak scrapers | `d08f63a` -- `_sort_confirmed` flag skips re-sort |
 | 21 | Batch pricing in My Coins | `my-coins.js` `_fetchPricing` (chunks of 25) |
 | 22 | Event delegation | `my-coins.js` `_setupDelegation()` |
 | 23 | Client-side spot cache | `my-coins.js` 5-min `SPOT_CACHE_TTL` |
