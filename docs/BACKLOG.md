@@ -221,26 +221,28 @@ The narrower time window produces a different comp pool (fewer comps, different 
 
 ---
 
-### #185. World Proof Greysheet Pricing Fallback [MEDIUM]
+### #185. World Proof Greysheet Pricing Fallback [MEDIUM -- PARTIAL]
 
 **Problem:** Missing proof-specific pricing for major world bullion proofs (Krugerrand, Kookaburra, Philharmonic, Gold Maple Leaf). Proof queries fall back to MS wholesale price in the Greysheet blend.
 
-**Root cause (May 18 investigation):** Greysheet catalog does NOT have "Type" (yearless aggregate) entries for proof versions of these series. Only individual year-specific proof entries exist (e.g. GSID 373716 = "2022 Rand 1oz Silver PR DCAM", IsType: false). DNS blocker is resolved -- API is reachable from Codespaces now.
+**Root cause (May 18 investigation):** Greysheet catalog does NOT have "Type" (yearless aggregate) entries for proof versions of most world series. The PCGS +90,000 offset convention does NOT work with Greysheet API (Type entries have no PcgsNumber; offset queries return no data). DNS is resolved -- API is reachable.
 
-**Fix (revised):** When `fetchTypePrice()` detects a proof finish but no proof GSID is mapped for the series, and the query includes a year:
-1. Look up the year-specific proof GSID via `GetCollectibleRequest` or `GetPricingRequest`
+**Partial fix applied (May 18):** Found GSID 373710 = "South Africa Rand 1oz Silver PR DCAM [Type]" (IsType: true, CPG pricing populated at $115/PR65-PR66). Added `krugerrand|1|silver|proof` to `greysheetTypeMap.js`. Silver KR Proof queries now resolve correctly.
+
+**Remaining gap -- no proof Type entries exist for:**
+- Gold Krugerrand (all weights) -- no proof Type, no year-specific proofs found
+- Kookaburra -- no proof entries at all in Greysheet catalog
+- Philharmonic (silver & gold) -- no proof entries at all
+- Gold Maple Leaf -- no proof Type (Silver Maple Leaf Proof exists at 396685)
+
+**Remaining fix (year-specific fallback):** When `fetchTypePrice()` detects a proof finish but no proof GSID is mapped, and the query includes a year:
+1. Look up the year-specific proof GSID via `GetPricingRequest`
 2. If found, use year-specific proof pricing instead of falling through to MS Type
 3. If no year provided, use the MS Type entry (current behavior) with a warning flag
 
-**Trade-offs:** Requires year in query for proof pricing; yearless proof queries remain imprecise. Per-year lookups add 1 API call but results are cached 24h.
+**Trade-offs:** Requires year in query for proof pricing; yearless proof queries remain imprecise. Some series (Kookaburra, Philharmonic) may never have proof data in Greysheet.
 
-**Affected series (no proof Type entries in catalog):**
-- Krugerrand (all weights) -- year-specific proofs exist
-- Kookaburra -- year-specific proofs exist
-- Philharmonic (silver & gold) -- year-specific proofs exist
-- Gold Maple Leaf -- year-specific proofs exist
-
-**Files:** `greysheetService.js` (`fetchTypePrice`), `greysheetTypeMap.js` (add comments documenting absence)
+**Files:** `greysheetService.js` (`fetchTypePrice`), `greysheetTypeMap.js`
 
 ---
 

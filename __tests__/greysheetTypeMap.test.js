@@ -356,8 +356,15 @@ describe('greysheetTypeMap', () => {
       expect(lookupTypeGsid('British Gold Britannia 1 oz')).toBeNull();
     });
 
-    it('returns null for Silver Krugerrand (not in catalog)', () => {
+    it('returns null for Silver Krugerrand MS (no MS entry in catalog)', () => {
       expect(lookupTypeGsid('Silver Krugerrand 1 oz')).toBeNull();
+    });
+
+    it('resolves Silver Krugerrand 1 oz Proof', () => {
+      const r = lookupTypeGsid('Silver Krugerrand 1 oz Proof');
+      expect(r).not.toBeNull();
+      expect(r.gsid).toBe(373710);
+      expect(r.lookupKey).toBe('krugerrand|1|silver|proof');
     });
   });
 

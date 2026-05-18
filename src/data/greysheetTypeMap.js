@@ -65,10 +65,11 @@ const TYPE_GSID_MAP = {
 
   // ── South Africa ───────────────────────────────────────────
   'krugerrand|1|gold':     373711,  // Gold KR 1 Ounce MS [Type]
+  'krugerrand|1|silver|proof': 373710, // Silver Rand 1oz PR DCAM [Type] (CpgVal populated)
   'krugerrand|0.5|gold':   395941,  // Gold KR 1/2 Ounce MS [Type]
   'krugerrand|0.25|gold':  395932,  // Gold KR 1/4 Ounce MS [Type]
   'krugerrand|0.1|gold':   396050,  // Gold KR 1/10 Ounce MS [Type]
-  // Note: Silver Krugerrand and Gold KR 1/20 oz have no Type entries.
+  // Note: Gold KR proof (all weights) and Silver KR MS have no Type entries.
 
   // ── China ──────────────────────────────────────────────────
   'panda|1|gold':                395439,  // Panda Gold G100Y 1982-2016 1oz MS [Type]
@@ -129,9 +130,13 @@ const TYPE_GSID_MAP = {
   // The following Generic series have NO Greysheet [Type] entries:
   // - Canadian Silver Polar Bear (all weights)
   // - Canadian Gold Maple Leaf 1/20 oz
-  // - Silver Krugerrand 1 oz
+  // - Canadian Gold Maple Leaf Proof (all weights)
+  // - Gold Krugerrand Proof (all weights)
+  // - Silver Krugerrand MS 1 oz (only Proof Type exists)
   // - Gold Krugerrand 1/20 oz
+  // - Austrian Philharmonic Proof (silver + gold)
   // - Austrian Gold Philharmonic fractional (Euro-era)
+  // - Australian Kookaburra Proof
   // - Australian Gold Kangaroo (weight-specific)
   // - Australian Gold/Silver Lunar 2oz, 1/4oz (gold)
   // - Gold Buffalo Proof, Palladium Eagle Proof
