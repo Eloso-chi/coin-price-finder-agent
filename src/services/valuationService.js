@@ -340,6 +340,22 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
   const premium = +(medForSell * (premiumMult + ctxAdj.sellAdj)).toFixed(2);
   const offerFloor = +Math.min(p25 * (1 + ctxAdj.sellAdj), medForSell * (0.92 + ctxAdj.sellAdj)).toFixed(2);
 
+  // #195: RRV (Retail Replacement Value) — insurance appraisal mode.
+  // Uses Greysheet CPG retail when available; otherwise applies a markup to FMV
+  // derived from the wholesale-to-retail spread or a default 20%.
+  let rrv = null;
+  if (fmv > 0) {
+    if (gsData?.cpgVal > 0) {
+      rrv = +gsData.cpgVal.toFixed(2);
+    } else if (gsSpreadPct != null && gsSpreadPct > 0) {
+      // Derive markup from known spread percentage
+      rrv = +(fmv * (1 + gsSpreadPct / 100)).toFixed(2);
+    } else {
+      // Default 20% retail markup when no spread data
+      rrv = +(fmv * 1.20).toFixed(2);
+    }
+  }
+
   return {
     valuation: {
       fmvCore: fmv,
@@ -385,7 +401,8 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
         spotPrice: +spotPrice.toFixed(2),
         premiumPct: 0,
         ebayMedian: null,
-      } : null
+      } : null,
+      rrv,
     },
     decisions: {
       buy: {
