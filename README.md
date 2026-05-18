@@ -109,7 +109,7 @@ Both coin and bar results pull through to all other tabs:
 
 ### Prerequisites
 
-- **Node.js** 22+ (CommonJS)
+- **Node.js** 24+ (CommonJS)
 - **eBay Developer** account — [developer.ebay.com](https://developer.ebay.com/)
 - **PCGS Public API** key — [pcgs.com/publicapi/documentation](https://www.pcgs.com/publicapi/documentation)
 - *(Optional)* Gold API or Metals API key for live spot prices
@@ -488,7 +488,7 @@ The **Test Monitor** system records per-run metrics (timestamp, branch, commit, 
 
 A Copilot agent persona (`.github/agents/test-monitor.agent.md`) can be invoked to diagnose failures, quarantine flaky tests, and suggest fixes. See [docs/testing/test-monitor.md](docs/testing/test-monitor.md) for full usage.
 
-Runs **Jest** across 60 test suites:
+Runs **Jest** across 71 test suites:
 
 | Suite | What it covers |
 |---|---|
@@ -634,7 +634,7 @@ public/
 samples/
   test-collection.xlsx             Sample Excel import fixture
   no-collectors-sheet.xlsx         Error-case fixture (missing sheet)
-__tests__/                         56 Jest test suites (see Tests section)
+__tests__/                         71 Jest test suites (see Tests section)
   fixtures/
     golden_coins.json              Curated golden set coins (14 deterministic test coins)
   helpers/
@@ -695,6 +695,9 @@ scripts/
 
 ### Pricing Accuracy (P1 Fixes)
 
+- **Slabbed proof classification fix (#182)** -- `classifyGradeType()` now checks `conditionId=2000` comps for proof regex in title before classifying as `'graded'`. Slabbed proofs (e.g. PCGS PR69 DCAM) correctly land in the proof pool instead of being mixed with BU slabs.
+- **Designation-aware comp scoring (#183)** -- `scoreMatch()` applies +10 for DCAM/CAM designation match and -15 for mismatch on proof coins. Soft scoring preserves thin pools while preventing designation-mismatched comps from dominating.
+- **Block proof-to-BU fallback (#184)** -- When `wantsProof=true`, the proof pool is used unconditionally regardless of comp count. 1-2 comps flags `lowData` + reduced confidence. 0 comps returns null FMV with explanation. BU comps never contaminate proof FMV.
 - **Platinum/palladium metal detection (#184)** -- `coinMetalProfile.js` now supports all four precious metals. Previously only silver and gold were in the `METAL_RE` dictionary and bullion inference regex, so "Platinum Eagle" and "Palladium Eagle" were misidentified as silver. Added platinum and palladium regex patterns to `METAL_RE`, platinum/palladium inference checks in the bullion series section, and explicit keyword detection for all four metals.
 - **Metal priority fix (#184)** -- `pricingBatchRoute.js` and `bulkEvaluateService.js` had `detectedMetal || parsed.metal`, which meant the wrong silver value (truthy) from `getCoinMetalProfile` prevented the parsed platinum/palladium from being used. Fixed to `parsed.metal || detectedMetal`.
 - **Seated Liberty key dates (#170)** -- Added 1870-CC Half Dollar (both "Liberty Seated Half Dollar" and "Seated Liberty Half Dollar" series name variants), 1878-CC Half Dollar (semi-key), and 1870-CC Quarter to `keyDates.js`. Fixed empty CSV stub for 1870-CC (was 0 bytes, now has proper header).
@@ -715,7 +718,7 @@ scripts/
 
 - **Mint guard fix (#167)** -- previously, when no user mint mark was specified, the system could over-filter comps by inferring a mint from the dataset name. Now only an explicitly user-specified mint mark drives filtering; absent mint marks no longer trigger `mintMismatch` removal. Also raised `usMinComps` from 3 to 8, matching the documented default.
 - **Exclusion operator support** -- `parseDescription()` now honors eBay-style exclusion operators (`-proof`, `-gold`, `-W`, `-burnished`, etc.) in keyword strings. Exclusion tokens are stripped from the parsed fields and passed through as negative keywords to eBay queries, preventing unwanted variants from contaminating comps. Also stripped at entry of `terapeakService.lookupComps()`, `normalizeSearchKey()`, and `coinMetalProfile.getCoinMetalProfile()` to prevent `-gold` from triggering gold metal detection or gold chart overlays on silver coins (#171).
-- **Grade-type pool split** -- `classifyGradeType()` in `ebayService.js` and `terapeakService.js` classifies comps into three pools: `graded` (slabbed/certified), `proof` (unslabbed proof coins), or `raw` (BU/circulated). The valuation engine selects the appropriate pool: proof if grade is "Proof"/"PF"/"PR", graded if any other grade is specified, raw otherwise. Falls back to all comps if the preferred pool has fewer than 3 entries. Proof detection uses `/\bproof\b(?![\s-]*like)/i` to avoid misclassifying "proof-like" (PL) coins. The `gradePool` response field now includes `wantsProof`, `proofCount`, and the 3-way `usedPool` label.
+- **Grade-type pool split** -- `classifyGradeType()` in `ebayService.js` and `terapeakService.js` classifies comps into three pools: `graded` (slabbed/certified), `proof` (slabbed or unslabbed proof coins), or `raw` (BU/circulated). `classifyGradeType()` checks `conditionId=2000` comps for proof regex in title, so slabbed proofs (PCGS PR69 DCAM) correctly land in the proof pool instead of graded (#182). The valuation engine selects the appropriate pool: proof if grade is "Proof"/"PF"/"PR", graded if any other grade is specified, raw otherwise. For proof queries, the proof pool is used unconditionally regardless of count (1-2 comps flags `lowData` + reduced confidence; never falls back to BU comps -- #184). Non-proof pools fall back to all comps if the preferred pool has fewer than 3 entries. Proof detection uses `/\bproof\b(?![\s-]*like)/i` to avoid misclassifying "proof-like" (PL) coins. The `gradePool` response field now includes `wantsProof`, `proofCount`, and the 3-way `usedPool` label.
 - **Grade-number mismatch penalty** -- `scoreMatch()` now extracts numeric grades from comp titles (e.g. MS63, PF69) and penalizes comps whose grade differs from the search target (-20 to -40 points based on distance). Previously an MS63 comp could score 95 ("exact") against an MS65 search.
 - **Grade-number hard filter** -- `applyFilters()` drops comps whose title explicitly states a different grade number than the expected grade. Comps with no grade stated are kept (benefit of the doubt).
 - **Browse fallback restriction** -- Browse API active listings now only trigger when there are zero sold comps. Previously, partial Terapeak sold data (e.g. 5 of 8 needed) would be discarded in favor of active listings.
@@ -827,7 +830,7 @@ Four new test suites targeting previously untested history and route modules:
 | `coinHistoryRoute.test.js` | 15 | GET /api/coin-history parameter validation, filtering, grade type, metal overlay, greysheet overlay |
 | `metalsRoute.test.js` | 10 | GET /api/metals multi-metal, single metal, currency, validation, error handling (502/500) |
 
-Total test count: 2,736 tests across 60 suites.
+Total test count: 2,897 tests across 71 suites.
 
 ### UX & Accessibility (S1--S4 Review)
 
@@ -862,6 +865,16 @@ A comprehensive UX and accessibility review produced 36 findings across four sev
 - Notes column shows full text on hover via `title` attribute
 - Melt calculator quantity minimum changed from 0 to 1
 - "About (read me)" tab renamed to "About" for brevity
+
+### Scraper Performance
+
+- **Sort-skip optimization (#200)** -- both `terapeak-export.py` and `sales-aggregator.py` now skip re-clicking the "Date sold" column sort when already confirmed descending. A module-level `_sort_confirmed` flag persists across pages within a browser session; validated by parsing dates from CSV output and checking first >= last (descending order). The flag resets on browser recycle, bot-block detection, or crash recovery. Eliminates redundant sort clicks + wait time on pages 2+ of deep pagination.
+
+### Dependency Updates (May 2026)
+
+- **axios 1.16.1** -- patch bump (security/bug fixes)
+- **eslint 10.4.0** -- minor bump (new rules, no breaking changes)
+- **express-rate-limit 8.5.2** -- patch bump (bug fixes)
 
 ### Aggregator Refresh Mode
 

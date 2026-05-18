@@ -115,7 +115,7 @@ server.js                              Express entry point (port 3000)
 │   ├─ generate-freshness-report.js    Freshness triage report (5-state decision tree: Fresh/Stale/LowSignal/Missing/Dormant)
 │   └─ test-metrics/                   Jest metrics capture + summary reporter
 │
-└─ __tests__/                          68 Jest test suites
+└─ __tests__/                          71 Jest test suites
     ├─ fixtures/
     │   └─ golden_coins.json           Curated golden set (14 deterministic test coins)
     └─ helpers/
@@ -566,7 +566,7 @@ The cascade maximizes data quality while handling API limitations. Terapeak loca
 
 **Throttling:** A global 1,100 ms minimum gap between any eBay API call prevents rate-limit issues.
 
-**Grade-type pool split:** After comps are collected, `classifyGradeType()` classifies each comp into one of three pools: `graded` (PCGS/NGC slabbed or formal grade in title), `proof` (unslabbed proof coins -- title contains "proof" but not "proof-like"), or `raw` (everything else). The valuation engine selects the appropriate pool based on user intent: graded if a grade is specified, proof if grade is "Proof"/"PF"/"PR", raw otherwise. Falls back to all comps if the preferred pool has fewer than 3 entries. This prevents proof coin prices (typically 2-5x BU) from contaminating raw coin valuations.
+**Grade-type pool split:** After comps are collected, `classifyGradeType()` classifies each comp into one of three pools: `graded` (PCGS/NGC slabbed or formal grade in title), `proof` (slabbed or unslabbed proof coins -- title contains "proof" but not "proof-like"; slabbed proofs with `conditionId=2000` are detected via proof regex in title -- #182), or `raw` (everything else). The valuation engine selects the appropriate pool based on user intent: graded if a grade is specified, proof if grade is "Proof"/"PF"/"PR", raw otherwise. For proof queries, the proof pool is used unconditionally regardless of count (1-2 comps flags `lowData`; 0 comps returns null FMV -- #184). Non-proof pools fall back to all comps if fewer than 3 entries. Designation-aware scoring (#183): `scoreMatch()` applies +10 for DCAM/CAM match, -15 for mismatch on proof coins. This prevents proof coin prices (typically 2-5x BU) from contaminating raw coin valuations.
 
 **Scoring:** Each comp is scored via `scoreMatch(item, expected)`:
 - **+10** per matching attribute (year, mint, series, grade, metal, zodiac)
@@ -648,6 +648,8 @@ Automates Terapeak CSV downloads from eBay Seller Hub Research:
 ```
 
 Key flags: `--batch N` (coin count), `--priority` (thin-data-first), `--resume` (continue after crash), `--refresh` (re-collect stale CSVs by file age), `--max-age DAYS` (staleness threshold, default 14).
+
+**Sort-skip optimization (#200):** Both scripts use a module-level `_sort_confirmed` flag to skip redundant "Date sold" column sort clicks. On first page load the script clicks the sort column and waits for re-render; after CSV write, it validates date order (first >= last = descending). If confirmed, subsequent pages skip the sort step entirely. The flag resets on browser recycle (every 40/80 coins), bot-block detection, or crash recovery via `reset_sort_state()`.
 
 **Active Listings Guard (S0):** Two-layer protection against ingesting unsold asking prices when Terapeak falls back to the Active Listings tab: (1) DOM tab check detects active-tab selectors after results load, (2) date validation rejects pages where <20% of rows have parseable sold dates.
 
