@@ -70,7 +70,7 @@ async function _priceOne(item) {
     const isBullion = BULLION_1OZ_DEFAULT.some(b => (series || '').toLowerCase().includes(b));
     const { metal: detectedMetal } = getCoinMetalProfile(query);
     const METAL_SYM = { silver: 'XAG', gold: 'XAU', platinum: 'XPT', palladium: 'XPD' };
-    const metalKey = parsed.metal || detectedMetal || null;
+    const metalKey = parsed.metal || detectedMetal || coinData.metal || null;
 
     // #162: World bullion BU fix — null out BU-expanded grade for bullion coins.
     // "BU" expands to gradeNum 60 (MS60) but for bullion it means raw mint-sealed.
@@ -205,12 +205,13 @@ async function _priceOne(item) {
       }
     }
 
-    // Fetch eBay comps -- parity with priceRoute (#155): 180d, 3 pages, 8 min comps
-    const ebay = await ebayService.fetchSoldComps(keywords, {
+    // Fetch eBay comps -- parity with priceRoute (#155/#181): 180d, 3 pages, 8 min comps
+    const ebayOpts = {
       timeWindowDays: 180,
       maxPages: 3,
-      usMinComps: 8,
-    }, expected);
+      usMinComps: isRoll ? 3 : 8,
+    };
+    const ebay = await ebayService.fetchSoldComps(keywords, ebayOpts, expected);
 
     // PCGS (cached lookup, no extra API calls if not cached)
     let pcgs = { verified: false };

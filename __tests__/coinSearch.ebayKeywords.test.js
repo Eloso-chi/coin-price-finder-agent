@@ -178,3 +178,48 @@ describe('Semiquincentennial keyword handling', () => {
     expect(containsNone(kw, tokens.negative)).toBe(true);
   });
 });
+
+/* ═══════════════════════════════════════════════════════════════
+ *  5. Metal exclusion keywords (#184)
+ * ═══════════════════════════════════════════════════════════════ */
+describe('buildKeywords — metal exclusion (#184)', () => {
+
+  test('gold series adds -silver exclusion', () => {
+    const kw = buildKeywords({ series: 'American Gold Eagle', year: 2024 }, '', 1);
+    expect(kw).toContain('-silver');
+    expect(kw).not.toContain('-gold');
+  });
+
+  test('silver series adds -gold exclusion', () => {
+    const kw = buildKeywords({ series: 'American Silver Eagle', year: 2025 }, '', 1);
+    expect(kw).toContain('-gold');
+    expect(kw).not.toContain('-silver');
+  });
+
+  test('platinum series adds -silver and -gold exclusions', () => {
+    const kw = buildKeywords({ series: 'American Platinum Eagle', year: 2024 }, '', 1);
+    expect(kw).toContain('-silver');
+    expect(kw).toContain('-gold');
+    expect(kw).not.toContain('-platinum');
+  });
+
+  test('palladium series adds -silver and -gold exclusions', () => {
+    const kw = buildKeywords({ series: 'American Palladium Eagle', year: 2024 }, '', 1);
+    expect(kw).toContain('-silver');
+    expect(kw).toContain('-gold');
+    expect(kw).not.toContain('-palladium');
+  });
+
+  test('no metal in query adds no exclusions', () => {
+    const kw = buildKeywords({ series: 'Morgan Silver Dollar', year: 1921 }, '', null);
+    // "Silver" is present but so is "Dollar" (not gold) — should add -gold
+    expect(kw).toContain('-gold');
+  });
+
+  test('mixed metal keywords do not add exclusions', () => {
+    // Edge case: both gold and silver mentioned
+    const kw = buildKeywords({ series: 'Gold Silver Test' }, '', 1);
+    expect(kw).not.toContain('-silver');
+    expect(kw).not.toContain('-gold');
+  });
+});

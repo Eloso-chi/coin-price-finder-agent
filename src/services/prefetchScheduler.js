@@ -11,6 +11,7 @@ const fs = require('fs');
 
 const pcgsQuota = require('./pcgsQuotaService');
 const auctionPrice = require('./auctionPriceService');
+const alertService = require('./alertService');
 const { CACHE_DIR } = require('../utils/cachePath');
 
 // ── Configuration ───────────────────────────────────────────
@@ -248,14 +249,18 @@ async function executePrefetchRun() {
   } catch (err) {
     console.error('[prefetch] Fatal error:', err.message);
     const prevStatus = loadStatus();
+    const failures = (prevStatus.consecutiveFailures || 0) + 1;
     saveStatus({
       lastRun: new Date().toISOString(),
       status: 'failed',
       error: err.message,
       callsMade,
-      consecutiveFailures: (prevStatus.consecutiveFailures || 0) + 1,
+      consecutiveFailures: failures,
       nextScheduled: getNextRunTime().toISOString()
     });
+    if (failures >= 2) {
+      alertService.alertPrefetchFailure(failures, err.message);
+    }
   } finally {
     _running = false;
     _todayCompleted = true;
@@ -311,12 +316,12 @@ function scheduleNext() {
     // Should run now (e.g., server just started and we're past the hour)
     console.log('[prefetch] Past scheduled time, checking if already ran today...');
     if (_todayDate !== todayPacific() || !_todayCompleted) {
-      executePrefetchRun().then(scheduleNext);
+      executePrefetchRun().then(scheduleNext).catch(_handleScheduleError);
     } else {
       // Already ran today, schedule for tomorrow
       _timer = setTimeout(() => {
         _todayCompleted = false;
-        executePrefetchRun().then(scheduleNext);
+        executePrefetchRun().then(scheduleNext).catch(_handleScheduleError);
       }, 24 * 60 * 60 * 1000);
     }
     return;
@@ -325,8 +330,16 @@ function scheduleNext() {
   console.log(`[prefetch] Next run scheduled: ${nextRun.toISOString()} (in ${(delay / 3600000).toFixed(1)}h)`);
   _timer = setTimeout(() => {
     _todayCompleted = false;
-    executePrefetchRun().then(scheduleNext);
+    executePrefetchRun().then(scheduleNext).catch(_handleScheduleError);
   }, delay);
+}
+
+// #194: Catch handler for schedule chain — prevents scheduler from dying silently
+function _handleScheduleError(err) {
+  console.error('[prefetch] Schedule chain error:', err.message);
+  alertService.alertPrefetchFailure(1, `Schedule chain broken: ${err.message}`);
+  // Re-schedule despite error so the scheduler doesn't die permanently
+  setTimeout(scheduleNext, 60 * 60 * 1000); // retry in 1 hour
 }
 
 /**
@@ -353,7 +366,7 @@ function init() {
     // We're past the trigger time and haven't run today -- run now (delayed 30s for startup)
     console.log(`[prefetch] Missed today's run (hour=${currentHour} >= ${PREFETCH_HOUR_PT}), executing in 30s...`);
     setTimeout(() => {
-      executePrefetchRun().then(scheduleNext);
+      executePrefetchRun().then(scheduleNext).catch(_handleScheduleError);
     }, 30000);
   } else {
     scheduleNext();
