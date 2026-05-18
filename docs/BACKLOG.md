@@ -238,6 +238,55 @@ The narrower time window produces a different comp pool (fewer comps, different 
 
 ---
 
+### #182. Proof Coin FMV Accuracy -- Slabbed Proof Classification Fix [HIGH]
+
+**Problem:** `classifyGradeType()` returns `'graded'` for all `conditionId=2000` comps, including slabbed proofs (e.g., PCGS PR69 DCAM). Slabbed proofs land in the graded pool with BU slabs, depleting the proof pool and mixing unlike comps.
+
+**Fix:** When `conditionId=2000`, also check title for proof regex. Slabbed proofs classified as `'proof'` instead of `'graded'`.
+
+**Files:** `ebayService.js` (`classifyGradeType`)
+
+---
+
+### #183. Designation-Aware Comp Scoring (DCAM/CAM) [HIGH]
+
+**Problem:** DCAM vs CAM vs no-designation comps are mixed in the same pool. DCAM coins are worth 10-40%+ more than CAM on modern proofs. Designation is parsed and injected into eBay keywords but NOT used in scoring or filtering.
+
+**Fix:** Add +10 match score for designation match, -15 for designation mismatch on proof coins. Soft scoring (not a hard filter) to avoid thin-pool problems.
+
+**Files:** `ebayService.js` (`scoreMatch`)
+
+---
+
+### #184. Block Proof-to-BU Fallback in Pool Selection [HIGH]
+
+**Problem:** When <3 proof comps exist, valuation falls back to ALL comps (including BU). BU and proof are fundamentally different products; mixing produces a wrong FMV, not an approximate one.
+
+**Fix:** For proof queries: use proof pool regardless of count. 1-2 comps = flag `lowData` + reduce confidence. 0 comps = null FMV with explanation. Never mix BU comps into proof FMV.
+
+**Depends on:** #182 (ensures slabbed proofs land in proof pool first)
+
+**Files:** `valuationService.js` (`computeValuation` pool selection)
+
+---
+
+### #185. World Proof Greysheet Type Map Expansion [MEDIUM -- BLOCKED]
+
+**Problem:** Missing proof-specific GSIDs for major world bullion proofs (Krugerrand, Kookaburra, Philharmonic, Gold Maple Leaf). Proof queries fall back to MS wholesale price in the Greysheet blend.
+
+**Fix:** Add proof-specific GSIDs to `TYPE_GSID_MAP` (requires Greysheet catalog lookup for correct IDs). Data-only change, no code logic.
+
+**Blocked:** `cpgpublicapi2.greysheet.com` DNS not resolvable from GitHub Codespaces (Azure network). Must query from deployed server or local machine. Missing entries:
+- `krugerrand|1|gold|proof`
+- `kookaburra|1|proof`
+- `philharmonic|1|silver|proof`
+- `philharmonic|1|gold|proof`
+- `maple leaf|1|gold|proof`
+
+**Files:** `greysheetTypeMap.js`
+
+---
+
 ## Infrastructure & Automation
 
 ### 114. Cookie Blob Persistence [MEDIUM]
