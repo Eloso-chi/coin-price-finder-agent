@@ -19,7 +19,7 @@ const upload = multer({
   },
 });
 
-router.post('/', upload.single('file'), (req, res) => {
+router.post('/', upload.single('file'), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'No file uploaded. Attach a .xlsx file as field "file".' });
   }
@@ -33,7 +33,7 @@ router.post('/', upload.single('file'), (req, res) => {
   }
 
   try {
-    const result = mapExcelToBackup(req.file.buffer);
+    const result = await mapExcelToBackup(req.file.buffer);
 
     // Missing sheet error
     if (result.error) {

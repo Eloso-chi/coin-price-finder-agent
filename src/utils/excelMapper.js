@@ -1,6 +1,6 @@
 'use strict';
 
-const XLSX = require('xlsx');
+const ExcelJS = require('exceljs');
 
 // ── Header normalization map ────────────────────────────────
 const HEADER_ALIASES = {
@@ -196,21 +196,43 @@ const REQUIRED_SHEET = 'Collectors';
  * to the coin-price-agent backup JSON format.
  *
  * @param {Buffer} buffer - Raw .xlsx file bytes
- * @returns {{ payload: object, summary: object }}
+ * @returns {Promise<{ payload: object, summary: object }>}
  */
-function mapExcelToBackup(buffer) {
-  const workbook = XLSX.read(buffer, { type: 'buffer', cellFormula: false, cellHTML: false });
+async function mapExcelToBackup(buffer) {
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(buffer);
 
   // Require "Collectors" sheet (case-insensitive)
-  const sheetName = workbook.SheetNames.find(
-    n => n.toLowerCase() === REQUIRED_SHEET.toLowerCase()
-  );
-  if (!sheetName) {
+  let sheet = null;
+  workbook.eachSheet(ws => {
+    if (ws.name.toLowerCase() === REQUIRED_SHEET.toLowerCase()) sheet = ws;
+  });
+  if (!sheet) {
     return { error: 'Missing required worksheet: Collectors' };
   }
 
-  const sheet = workbook.Sheets[sheetName];
-  const rawRows = XLSX.utils.sheet_to_json(sheet, { defval: null });
+  // Convert sheet to array of row objects (like xlsx sheet_to_json)
+  const rawRows = [];
+  const headers = [];
+  sheet.eachRow((row, rowNumber) => {
+    if (rowNumber === 1) {
+      // Header row
+      row.eachCell((cell, colNumber) => {
+        headers[colNumber] = cell.value != null ? String(cell.value) : '';
+      });
+      return;
+    }
+    const obj = {};
+    row.eachCell((cell, colNumber) => {
+      const hdr = headers[colNumber];
+      if (hdr) obj[hdr] = cell.value != null ? cell.value : null;
+    });
+    // Fill nulls for missing columns
+    for (const h of headers) {
+      if (h && !(h in obj)) obj[h] = null;
+    }
+    rawRows.push(obj);
+  });
 
   // Map headers for first row to detect column names
   if (rawRows.length === 0) {

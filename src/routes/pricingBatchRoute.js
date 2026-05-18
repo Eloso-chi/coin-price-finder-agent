@@ -13,24 +13,10 @@ const { computeValuation } = require('../services/valuationService');
 const { getMetalsSpotPrice } = require('../services/metalsSpotPrice');
 const { getCoinMetalProfile } = require('../utils/coinMetalProfile');
 const { lookupKeyDate } = require('../data/keyDates');
-const { zodiacForYear, perthLunarSeries, getRollQuantity } = require('../data/constants');
+const { zodiacForYear, perthLunarSeries, getRollQuantity, BULLION_1OZ_DEFAULT, ALLOWED_LABELS } = require('../data/constants');
 const { detectDenomination } = require('../utils/filters');
 
 const MAX_ITEMS = 25;
-const BULLION_1OZ_DEFAULT = [
-  'libertad', 'silver eagle', 'gold eagle', 'maple leaf', 'britannia',
-  'philharmonic', 'krugerrand', 'kangaroo', 'kookaburra', 'panda',
-  'gold buffalo', 'platinum eagle', 'palladium eagle', 'lunar', 'polar bear'
-];
-const ALLOWED_LABELS = new Set([
-  'First Strike', 'Early Releases', 'First Releases', 'First Day of Issue',
-  'Burnished', 'Reverse Proof', 'Enhanced Reverse Proof',
-  'Satin Finish', 'Antiqued', 'High Relief', 'Prooflike',
-  'Colorized', 'Privy', 'Type 1', 'Type 2',
-  'Gilded', 'Ruthenium', 'Hologram', 'Gold Plated',
-  'Flag Label', 'Brown Label', 'Blue Label', 'Black Label',
-  'Mercanti Signed', 'Moy Signed', 'Reagan Signed',
-]);
 
 router.post('/', async (req, res) => {
   try {

@@ -3,6 +3,18 @@
 
 require('dotenv').config();
 
+// ── Process crash handlers (#202) ────────────────────────────
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[FATAL] Unhandled rejection:', reason);
+  // Give logger time to flush, then exit
+  setTimeout(() => process.exit(1), 500);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('[FATAL] Uncaught exception:', err);
+  setTimeout(() => process.exit(1), 500);
+});
+
 const crypto = require('crypto');
 const express = require('express');
 const path = require('path');
@@ -106,12 +118,12 @@ app.use('/api/coins', coinRoute);
 app.use('/api/price', apiLimiter, priceRoute);
 app.use('/api/metals', metalsRoute);
 app.use('/api/bar-price', apiLimiter, barPriceRoute);
-app.use('/api/coin-variant', coinVariantRoute);
+app.use('/api/coin-variant', apiLimiter, coinVariantRoute);
 app.use('/api/market/ebay', apiLimiter, marketRoute);
 app.use('/api/terapeak', terapeakRoute);
 app.use('/api/pricing-batch', apiLimiter, pricingBatchRoute);
 app.use('/api/image-proxy', apiLimiter, imageProxyRoute);
-app.use('/api/coin-history', coinHistoryRoute);
+app.use('/api/coin-history', apiLimiter, coinHistoryRoute);
 app.use('/api/import/excel', uploadLimiter, excelImportRoute);
 app.use('/api/bulk-evaluate', apiLimiter, bulkEvaluateRoute);
 app.use('/api/admin', requireAdmin, adminRoute);

@@ -13,23 +13,23 @@ const {
   REQUIRED_SHEET,
 } = require('../src/utils/excelMapper');
 
-const XLSX = require('xlsx');
+const ExcelJS = require('exceljs');
 
 // ── Helper: build an in-memory .xlsx buffer from an array of arrays ──
-function makeXlsx(sheetName, aoa) {
-  const wb = XLSX.utils.book_new();
-  const ws = XLSX.utils.aoa_to_sheet(aoa);
-  XLSX.utils.book_append_sheet(wb, ws, sheetName);
-  return XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+async function makeXlsx(sheetName, aoa) {
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet(sheetName);
+  for (const row of aoa) ws.addRow(row);
+  return wb.xlsx.writeBuffer();
 }
 
-function makeMultiSheetXlsx(sheets) {
-  const wb = XLSX.utils.book_new();
+async function makeMultiSheetXlsx(sheets) {
+  const wb = new ExcelJS.Workbook();
   for (const [name, aoa] of Object.entries(sheets)) {
-    const ws = XLSX.utils.aoa_to_sheet(aoa);
-    XLSX.utils.book_append_sheet(wb, ws, name);
+    const ws = wb.addWorksheet(name);
+    for (const row of aoa) ws.addRow(row);
   }
-  return XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+  return wb.xlsx.writeBuffer();
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -37,43 +37,43 @@ function makeMultiSheetXlsx(sheets) {
 // ═══════════════════════════════════════════════════════════════
 
 describe('normalizeHeader', () => {
-  test('maps exact headers', () => {
+  test('maps exact headers', async () => {
     expect(normalizeHeader('Coin')).toBe('coin');
     expect(normalizeHeader('count')).toBe('count');
     expect(normalizeHeader('grade')).toBe('grade');
     expect(normalizeHeader('COA')).toBe('coa');
   });
 
-  test('handles "finess" typo', () => {
+  test('handles "finess" typo', async () => {
     expect(normalizeHeader('finess')).toBe('fineness');
     expect(normalizeHeader('Finess')).toBe('fineness');
     expect(normalizeHeader('FINESS')).toBe('fineness');
   });
 
-  test('handles "fineness" correct spelling', () => {
+  test('handles "fineness" correct spelling', async () => {
     expect(normalizeHeader('fineness')).toBe('fineness');
   });
 
-  test('handles spacing and case variations', () => {
+  test('handles spacing and case variations', async () => {
     expect(normalizeHeader('Base Metal')).toBe('base_metal');
     expect(normalizeHeader('BASE METAL')).toBe('base_metal');
     expect(normalizeHeader('base_metal')).toBe('base_metal');
     expect(normalizeHeader('  base  metal  ')).toBe('base_metal');
   });
 
-  test('handles "total toz" variants', () => {
+  test('handles "total toz" variants', async () => {
     expect(normalizeHeader('total toz')).toBe('total_toz');
     expect(normalizeHeader('Total Toz')).toBe('total_toz');
     expect(normalizeHeader('total_toz')).toBe('total_toz');
   });
 
-  test('handles "troy oz" variants', () => {
+  test('handles "troy oz" variants', async () => {
     expect(normalizeHeader('troy oz')).toBe('troy_oz');
     expect(normalizeHeader('Troy Oz')).toBe('troy_oz');
     expect(normalizeHeader('troy_oz')).toBe('troy_oz');
   });
 
-  test('returns null for unknown headers', () => {
+  test('returns null for unknown headers', async () => {
     expect(normalizeHeader('random')).toBeNull();
     expect(normalizeHeader('')).toBeNull();
     expect(normalizeHeader(null)).toBeNull();
@@ -85,13 +85,13 @@ describe('normalizeHeader', () => {
 // ═══════════════════════════════════════════════════════════════
 
 describe('parseMoney', () => {
-  test('parses dollar amounts', () => {
+  test('parses dollar amounts', async () => {
     expect(parseMoney('$85.00')).toBe(85);
     expect(parseMoney('$2,150.00')).toBe(2150);
     expect(parseMoney('85')).toBe(85);
   });
 
-  test('returns null for invalid', () => {
+  test('returns null for invalid', async () => {
     expect(parseMoney(null)).toBeNull();
     expect(parseMoney('')).toBeNull();
     expect(parseMoney('abc')).toBeNull();
@@ -103,35 +103,35 @@ describe('parseMoney', () => {
 // ═══════════════════════════════════════════════════════════════
 
 describe('parseCoinString', () => {
-  test('extracts year and mint from "1921 Morgan Dollar S"', () => {
+  test('extracts year and mint from "1921 Morgan Dollar S"', async () => {
     const r = parseCoinString('1921 Morgan Dollar S');
     expect(r.year).toBe('1921');
     expect(r.mint).toBe('S');
     expect(r.series).toBe('Morgan Dollar');
   });
 
-  test('handles "1923 Peace Dollar" (no mint)', () => {
+  test('handles "1923 Peace Dollar" (no mint)', async () => {
     const r = parseCoinString('1923 Peace Dollar');
     expect(r.year).toBe('1923');
     expect(r.mint).toBeNull();
     expect(r.series).toBe('Peace Dollar');
   });
 
-  test('handles "American Silver Eagle 2024 W"', () => {
+  test('handles "American Silver Eagle 2024 W"', async () => {
     const r = parseCoinString('American Silver Eagle 2024 W');
     expect(r.year).toBe('2024');
     expect(r.mint).toBe('W');
     expect(r.series).toBe('American Silver Eagle');
   });
 
-  test('handles no year or mint', () => {
+  test('handles no year or mint', async () => {
     const r = parseCoinString('Gold Buffalo');
     expect(r.year).toBeNull();
     expect(r.mint).toBeNull();
     expect(r.series).toBe('Gold Buffalo');
   });
 
-  test('returns all null for empty string', () => {
+  test('returns all null for empty string', async () => {
     const r = parseCoinString('');
     expect(r.year).toBeNull();
     expect(r.mint).toBeNull();
@@ -144,23 +144,23 @@ describe('parseCoinString', () => {
 // ═══════════════════════════════════════════════════════════════
 
 describe('normalizeGrade', () => {
-  test('numeric grade -> "MS-##"', () => {
+  test('numeric grade -> "MS-##"', async () => {
     expect(normalizeGrade('65')).toBe('MS-65');
     expect(normalizeGrade('70')).toBe('MS-70');
     expect(normalizeGrade('1')).toBe('MS-1');
   });
 
-  test('text grade preserved as-is', () => {
+  test('text grade preserved as-is', async () => {
     expect(normalizeGrade('VF-30')).toBe('VF-30');
     expect(normalizeGrade('PR-69')).toBe('PR-69');
   });
 
-  test('null/empty returns null', () => {
+  test('null/empty returns null', async () => {
     expect(normalizeGrade(null)).toBeNull();
     expect(normalizeGrade('')).toBeNull();
   });
 
-  test('numeric 0 or > 70 treated as text', () => {
+  test('numeric 0 or > 70 treated as text', async () => {
     expect(normalizeGrade('0')).toBe('0');
     expect(normalizeGrade('71')).toBe('71');
   });
@@ -171,40 +171,40 @@ describe('normalizeGrade', () => {
 // ═══════════════════════════════════════════════════════════════
 
 describe('costPer calculation', () => {
-  test('total cost / count', () => {
-    const buf = makeXlsx('Collectors', [
+  test('total cost / count', async () => {
+    const buf = await makeXlsx('Collectors', [
       ['Coin', 'count', 'cost'],
       ['Test Coin', 4, '$100.00'],
     ]);
-    const { payload } = mapExcelToBackup(buf);
+    const { payload } = await mapExcelToBackup(buf);
     expect(payload.coins[0].costPer).toBe(25);
   });
 
-  test('defaults count to 1 when missing', () => {
-    const buf = makeXlsx('Collectors', [
+  test('defaults count to 1 when missing', async () => {
+    const buf = await makeXlsx('Collectors', [
       ['Coin', 'cost'],
       ['Test Coin', '$50.00'],
     ]);
-    const { payload } = mapExcelToBackup(buf);
+    const { payload } = await mapExcelToBackup(buf);
     expect(payload.coins[0].costPer).toBe(50);
     expect(payload.coins[0].count).toBe(1);
   });
 
-  test('null costPer when cost is missing', () => {
-    const buf = makeXlsx('Collectors', [
+  test('null costPer when cost is missing', async () => {
+    const buf = await makeXlsx('Collectors', [
       ['Coin', 'count'],
       ['Test Coin', 3],
     ]);
-    const { payload } = mapExcelToBackup(buf);
+    const { payload } = await mapExcelToBackup(buf);
     expect(payload.coins[0].costPer).toBeNull();
   });
 
-  test('rounds costPer to 2 decimals', () => {
-    const buf = makeXlsx('Collectors', [
+  test('rounds costPer to 2 decimals', async () => {
+    const buf = await makeXlsx('Collectors', [
       ['Coin', 'count', 'cost'],
       ['Test Coin', 3, '$100'],
     ]);
-    const { payload } = mapExcelToBackup(buf);
+    const { payload } = await mapExcelToBackup(buf);
     expect(payload.coins[0].costPer).toBe(33.33);
   });
 });
@@ -214,30 +214,30 @@ describe('costPer calculation', () => {
 // ═══════════════════════════════════════════════════════════════
 
 describe('weight calculation', () => {
-  test('uses troy oz directly when present', () => {
-    const buf = makeXlsx('Collectors', [
+  test('uses troy oz directly when present', async () => {
+    const buf = await makeXlsx('Collectors', [
       ['Coin', 'troy oz', 'count', 'total toz'],
       ['Test Coin', '0.7734', 2, '1.5468'],
     ]);
-    const { payload } = mapExcelToBackup(buf);
+    const { payload } = await mapExcelToBackup(buf);
     expect(payload.coins[0].weight).toBe('0.7734');
   });
 
-  test('computes from total_toz / count when troy oz missing', () => {
-    const buf = makeXlsx('Collectors', [
+  test('computes from total_toz / count when troy oz missing', async () => {
+    const buf = await makeXlsx('Collectors', [
       ['Coin', 'count', 'total toz'],
       ['Test Coin', 10, '10'],
     ]);
-    const { payload } = mapExcelToBackup(buf);
+    const { payload } = await mapExcelToBackup(buf);
     expect(payload.coins[0].weight).toBe('1');
   });
 
-  test('null weight when both missing', () => {
-    const buf = makeXlsx('Collectors', [
+  test('null weight when both missing', async () => {
+    const buf = await makeXlsx('Collectors', [
       ['Coin'],
       ['Test Coin'],
     ]);
-    const { payload } = mapExcelToBackup(buf);
+    const { payload } = await mapExcelToBackup(buf);
     expect(payload.coins[0].weight).toBeNull();
   });
 });
@@ -247,27 +247,27 @@ describe('weight calculation', () => {
 // ═══════════════════════════════════════════════════════════════
 
 describe('sheet selection', () => {
-  test('reads only "Collectors" sheet', () => {
-    const buf = makeMultiSheetXlsx({
+  test('reads only "Collectors" sheet', async () => {
+    const buf = await makeMultiSheetXlsx({
       Other: [['foo'], ['bar']],
       Collectors: [['Coin'], ['Test Coin']],
       More: [['a'], [1]],
     });
-    const { payload, summary } = mapExcelToBackup(buf);
+    const { payload, summary } = await mapExcelToBackup(buf);
     expect(payload.coins).toHaveLength(1);
     expect(payload.coins[0].query).toContain('Test Coin');
     expect(summary.receivedRows).toBe(1);
   });
 
-  test('returns error when "Collectors" sheet is missing', () => {
-    const buf = makeXlsx('Sheet1', [['Coin'], ['Test']]);
-    const result = mapExcelToBackup(buf);
+  test('returns error when "Collectors" sheet is missing', async () => {
+    const buf = await makeXlsx('Sheet1', [['Coin'], ['Test']]);
+    const result = await mapExcelToBackup(buf);
     expect(result.error).toBe('Missing required worksheet: Collectors');
   });
 
-  test('sheet name is case-insensitive', () => {
-    const buf = makeXlsx('collectors', [['Coin'], ['Test']]);
-    const result = mapExcelToBackup(buf);
+  test('sheet name is case-insensitive', async () => {
+    const buf = await makeXlsx('collectors', [['Coin'], ['Test']]);
+    const result = await mapExcelToBackup(buf);
     expect(result.error).toBeUndefined();
     expect(result.payload).toBeDefined();
   });
@@ -278,13 +278,13 @@ describe('sheet selection', () => {
 // ═══════════════════════════════════════════════════════════════
 
 describe('row validation', () => {
-  test('empty Coin column fails the row', () => {
-    const buf = makeXlsx('Collectors', [
+  test('empty Coin column fails the row', async () => {
+    const buf = await makeXlsx('Collectors', [
       ['Coin', 'count'],
       ['', 1],
       ['Good Coin', 1],
     ]);
-    const { payload, summary } = mapExcelToBackup(buf);
+    const { payload, summary } = await mapExcelToBackup(buf);
     expect(payload.coins).toHaveLength(1);
     expect(summary.failedRows).toBe(1);
     expect(summary.failures[0].row).toBe(2);
@@ -297,21 +297,21 @@ describe('row validation', () => {
 // ═══════════════════════════════════════════════════════════════
 
 describe('backup format compliance', () => {
-  test('output has correct format field', () => {
-    const buf = makeXlsx('Collectors', [['Coin'], ['Test']]);
-    const { payload } = mapExcelToBackup(buf);
+  test('output has correct format field', async () => {
+    const buf = await makeXlsx('Collectors', [['Coin'], ['Test']]);
+    const { payload } = await mapExcelToBackup(buf);
     expect(payload.format).toBe('coin-price-agent-backup-v1');
     expect(payload.exportedAt).toBeDefined();
     expect(typeof payload.count).toBe('number');
     expect(Array.isArray(payload.coins)).toBe(true);
   });
 
-  test('coin objects have all required fields', () => {
-    const buf = makeXlsx('Collectors', [
+  test('coin objects have all required fields', async () => {
+    const buf = await makeXlsx('Collectors', [
       ['Coin', 'grade', 'count', 'cost', 'troy oz'],
       ['1921 Morgan Dollar S', '65', 2, '$85', '0.7734'],
     ]);
-    const { payload } = mapExcelToBackup(buf);
+    const { payload } = await mapExcelToBackup(buf);
     const coin = payload.coins[0];
     expect(coin).toHaveProperty('series');
     expect(coin).toHaveProperty('year');
@@ -332,9 +332,9 @@ describe('backup format compliance', () => {
 describe('integration: sample workbook', () => {
   const samplePath = path.join(__dirname, '..', 'samples', 'test-collection.xlsx');
 
-  test('sample workbook parses correctly', () => {
+  test('sample workbook parses correctly', async () => {
     const buf = fs.readFileSync(samplePath);
-    const result = mapExcelToBackup(buf);
+    const result = await mapExcelToBackup(buf);
     expect(result.error).toBeUndefined();
 
     const { payload, summary } = result;
@@ -345,9 +345,9 @@ describe('integration: sample workbook', () => {
     expect(summary.failedRows).toBe(1);
   });
 
-  test('Morgan Dollar row has correct mapping', () => {
+  test('Morgan Dollar row has correct mapping', async () => {
     const buf = fs.readFileSync(samplePath);
-    const { payload } = mapExcelToBackup(buf);
+    const { payload } = await mapExcelToBackup(buf);
     // First row: "1921 Morgan Dollar S"
     const morgan = payload.coins[0];
     expect(morgan.year).toBe('1921');
@@ -360,9 +360,9 @@ describe('integration: sample workbook', () => {
     expect(morgan.query).toContain('1921 Morgan Dollar S');
   });
 
-  test('Peace Dollar row', () => {
+  test('Peace Dollar row', async () => {
     const buf = fs.readFileSync(samplePath);
-    const { payload } = mapExcelToBackup(buf);
+    const { payload } = await mapExcelToBackup(buf);
     const peace = payload.coins[1];
     expect(peace.year).toBe('1923');
     expect(peace.grade).toBe('VF-30');
@@ -370,10 +370,10 @@ describe('integration: sample workbook', () => {
     expect(peace.count).toBe(1);
   });
 
-  test('no-collectors workbook returns error', () => {
+  test('no-collectors workbook returns error', async () => {
     const noCollPath = path.join(__dirname, '..', 'samples', 'no-collectors-sheet.xlsx');
     const buf = fs.readFileSync(noCollPath);
-    const result = mapExcelToBackup(buf);
+    const result = await mapExcelToBackup(buf);
     expect(result.error).toBe('Missing required worksheet: Collectors');
   });
 });

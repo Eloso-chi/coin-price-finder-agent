@@ -34,12 +34,12 @@
     "bcryptjs": "^3.0.3",
     "csv-parse": "^6.1.0",
     "dotenv": "^17.4.2",
+    "exceljs": "^4.4.0",
     "express": "^5.2.1",
     "express-rate-limit": "^8.2.1",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.3",
-    "multer": "^2.0.2",
-    "xlsx": "^0.18.5"
+    "multer": "^2.0.2"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
