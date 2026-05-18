@@ -783,11 +783,26 @@ def is_logged_in(page):
         return False
 
 
+## ── Sort state tracking (#200) ─────────────────────────────
+# eBay Terapeak persists the sort preference within a session.
+# After the first sort-by-date, subsequent searches keep the same order.
+# We skip the 2 sort clicks + 2 networkidle waits for subsequent coins,
+# saving ~6s per coin.  Reset on browser recycle.
+_sort_confirmed = False
+
+
+def reset_sort_state():
+    """Call after browser recycle to force re-sort on next search."""
+    global _sort_confirmed
+    _sort_confirmed = False
+
+
 def do_search_and_export(page, search_term, download_dir):
     """
     Perform a Terapeak search and trigger CSV export.
     Returns the path to the downloaded CSV, or None on failure.
     """
+    global _sort_confirmed
     # Navigate to Research page
     page.goto(EBAY_RESEARCH_URL, wait_until="domcontentloaded")
     rand_delay(DELAY_PAGE_LOAD)
@@ -910,25 +925,15 @@ def do_search_and_export(page, search_term, download_dir):
     # Default sort is Best Match.  Clicking the column header once sorts
     # ascending (oldest first); clicking again sorts descending (newest first).
     # We want descending so page 1 captures the most recent sales.
-    try:
-        date_header = page.query_selector(
-            'th:has-text("Date last sold"), '
-            'th:has-text("Date Last Sold"), '
-            'button:has-text("Date last sold")'
-        )
-        if date_header:
-            rand_delay(DELAY_BEFORE_CLICK)
-            human_click(page, date_header)
-            time.sleep(random.uniform(1.5, 3.0))
-            try:
-                page.wait_for_load_state("networkidle", timeout=10000)
-            except PlaywrightTimeout:
-                pass
-            # Check sort direction via JS (handles both th and button inside th)
-            sort_dir = date_header.evaluate(
-                "el => (el.getAttribute('aria-sort') || el.closest('th')?.getAttribute('aria-sort') || '')"
+    # Optimization (#200): eBay persists sort within session -- skip after first.
+    if not _sort_confirmed:
+        try:
+            date_header = page.query_selector(
+                'th:has-text("Date last sold"), '
+                'th:has-text("Date Last Sold"), '
+                'button:has-text("Date last sold")'
             )
-            if sort_dir == "ascending":
+            if date_header:
                 rand_delay(DELAY_BEFORE_CLICK)
                 human_click(page, date_header)
                 time.sleep(random.uniform(1.5, 3.0))
@@ -936,12 +941,25 @@ def do_search_and_export(page, search_term, download_dir):
                     page.wait_for_load_state("networkidle", timeout=10000)
                 except PlaywrightTimeout:
                     pass
-            # Re-scroll after sort reloads
-            for _ in range(random.randint(2, 4)):
-                human_scroll(page, "down", random.randint(200, 500))
-                time.sleep(random.uniform(0.3, 0.7))
-    except Exception as e:
-        print(f"    (sort by date skipped: {e})")
+                # Check sort direction via JS (handles both th and button inside th)
+                sort_dir = date_header.evaluate(
+                    "el => (el.getAttribute('aria-sort') || el.closest('th')?.getAttribute('aria-sort') || '')"
+                )
+                if sort_dir == "ascending":
+                    rand_delay(DELAY_BEFORE_CLICK)
+                    human_click(page, date_header)
+                    time.sleep(random.uniform(1.5, 3.0))
+                    try:
+                        page.wait_for_load_state("networkidle", timeout=10000)
+                    except PlaywrightTimeout:
+                        pass
+                _sort_confirmed = True
+                # Re-scroll after sort reloads
+                for _ in range(random.randint(2, 4)):
+                    human_scroll(page, "down", random.randint(200, 500))
+                    time.sleep(random.uniform(0.3, 0.7))
+        except Exception as e:
+            print(f"    (sort by date skipped: {e})")
 
     # Debug: viewport-only screenshot (full_page=True can OOM on heavy pages)
     page.screenshot(path=str(download_dir / f"_debug_after_search_{search_term[:30]}.png"))
@@ -1096,6 +1114,25 @@ def do_search_and_export(page, search_term, download_dir):
                          "Shipping", "Condition", "Seller", "Format", "Item URL",
                          "Quantity Sold"])
         writer.writerows(csv_rows)
+
+    # ── Validate date sort order (#200) ────────────────────────
+    # If dates are NOT descending, the sort preference was lost (e.g. eBay
+    # reset after a redirect).  Clear the flag so next search re-sorts.
+    dates_parsed = []
+    for r in csv_rows:
+        d = r[2]  # Sold Date column
+        if d:
+            try:
+                dates_parsed.append(datetime.strptime(d[:10], "%Y-%m-%d"))
+            except (ValueError, IndexError):
+                try:
+                    dates_parsed.append(datetime.strptime(d[:10], "%m/%d/%Y"))
+                except (ValueError, IndexError):
+                    pass
+    if len(dates_parsed) >= 3:
+        # Check if first date >= last date (descending order)
+        if dates_parsed[0] < dates_parsed[-1]:
+            _sort_confirmed = False  # will re-sort on next search
 
     return csv_path
 
@@ -1336,6 +1373,7 @@ def do_export_run(args):
             print(f"  ... recycling browser (memory management) ...")
             try:
                 page = launch_browser()
+                reset_sort_state()
                 consecutive_crashes = 0
             except Exception as e:
                 print(f"  FATAL: Browser restart failed: {e}")
@@ -1362,6 +1400,7 @@ def do_export_run(args):
                 # Recycle browser to get fresh fingerprint
                 try:
                     page = launch_browser()
+                    reset_sort_state()
                 except Exception:
                     pass
                 failed += 1
