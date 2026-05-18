@@ -19,21 +19,20 @@ const upload = multer({
   },
 });
 
-router.post('/', upload.single('file'), (req, res) => {
+router.post('/', upload.single('file'), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'No file uploaded. Attach a .xlsx file as field "file".' });
   }
 
-  // Magic-byte check: .xlsx = ZIP (PK 0x50 0x4B), .xls/encrypted = OLE/CFB (0xD0 0xCF 0x11 0xE0)
+  // Magic-byte check: .xlsx must be ZIP format (PK 0x50 0x4B)
   const buf = req.file.buffer;
-  const isPK  = buf.length >= 4 && buf[0] === 0x50 && buf[1] === 0x4B && buf[2] === 0x03 && buf[3] === 0x04;
-  const isCFB = buf.length >= 4 && buf[0] === 0xD0 && buf[1] === 0xCF && buf[2] === 0x11 && buf[3] === 0xE0;
-  if (!isPK && !isCFB) {
+  const isPK = buf.length >= 4 && buf[0] === 0x50 && buf[1] === 0x4B && buf[2] === 0x03 && buf[3] === 0x04;
+  if (!isPK) {
     return res.status(400).json({ error: 'File does not appear to be a valid .xlsx file.' });
   }
 
   try {
-    const result = mapExcelToBackup(req.file.buffer);
+    const result = await mapExcelToBackup(req.file.buffer);
 
     // Missing sheet error
     if (result.error) {

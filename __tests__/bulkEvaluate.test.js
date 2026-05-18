@@ -55,13 +55,14 @@ jest.mock('../src/utils/coinMetalProfile', () => ({
 }));
 
 jest.mock('../src/data/constants', () => ({
+  ...jest.requireActual('../src/data/constants'),
   zodiacForYear: jest.fn(() => null),
   perthLunarSeries: jest.fn(() => null),
   getRollQuantity: jest.fn(() => 20),
 }));
 
 jest.mock('../src/utils/excelMapper', () => ({
-  mapExcelToBackup: jest.fn(() => ({
+  mapExcelToBackup: jest.fn(async () => ({
     payload: { coins: [{ name: '1921 Morgan Dollar', count: 1, grade: 'MS-65' }] },
   })),
   parseCoinString: jest.fn(() => ({})),

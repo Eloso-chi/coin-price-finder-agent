@@ -15,23 +15,12 @@ const { lookupKeyDate } = require('../data/keyDates');
 const { lookupMintage } = require('../data/mintages');
 const { buildLunarComparison } = require('../data/lunarReference');
 const { resolveCoinVariant } = require('../data/halfDollarSeries');
-const { zodiacForYear, perthLunarSeries, getRollQuantity } = require('../data/constants');
+const { zodiacForYear, perthLunarSeries, getRollQuantity, ALLOWED_LABELS, BULLION_1OZ_DEFAULT } = require('../data/constants');
 const { validateSeriesIntegrity, validateNumericSanity } = require('../utils/responseValidator');
 const { hasSeriesConflict, detectDenomination } = require('../utils/filters');
 const { getCoinMetalProfile } = require('../utils/coinMetalProfile');
 const terapeakService = require('../services/terapeakService');
 const stats = require('../utils/stats');
-
-// ── Allowed graded-slab label values (must match frontend <select> options) ──
-const ALLOWED_LABELS = new Set([
-  'First Strike', 'Early Releases', 'First Releases', 'First Day of Issue',
-  'Burnished', 'Reverse Proof', 'Enhanced Reverse Proof',
-  'Satin Finish', 'Antiqued', 'High Relief', 'Prooflike',
-  'Colorized', 'Privy', 'Type 1', 'Type 2',
-  'Gilded', 'Ruthenium', 'Hologram', 'Gold Plated',
-  'Flag Label', 'Brown Label', 'Blue Label', 'Black Label',
-  'Mercanti Signed', 'Moy Signed', 'Reagan Signed',
-]);
 
 // ── #41: Adjacent-year context ──
 // When exact coin has few/no comps, look up Terapeak data for same series +/- 2 years.
@@ -67,14 +56,7 @@ const SEMI250_DENOM_MAP = {
   'semiquincentennial cent':        'Lincoln Cent',
 };
 
-// ── Bullion series that default to 1 oz when no weight is specified ──
-// Also used to detect bullion coins for steeper recency decay in valuation.
-const BULLION_1OZ_DEFAULT = [
-  'libertad', 'silver eagle', 'gold eagle', 'maple leaf', 'britannia',
-  'philharmonic', 'krugerrand', 'kangaroo', 'kookaburra', 'panda',
-  'gold buffalo', 'platinum eagle', 'palladium eagle', 'lunar',
-  'polar bear'
-];
+// BULLION_1OZ_DEFAULT + ALLOWED_LABELS imported from data/constants.js above
 
 /**
  * For semiquincentennial circulating coins, resolve to canonical series

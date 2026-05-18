@@ -10,13 +10,9 @@ const greysheetService = require('./greysheetService');
 const { computeValuation } = require('./valuationService');
 const { getMetalsSpotPrice } = require('./metalsSpotPrice');
 const { getCoinMetalProfile } = require('../utils/coinMetalProfile');
-const { zodiacForYear, perthLunarSeries, getRollQuantity } = require('../data/constants');
+const { zodiacForYear, perthLunarSeries, getRollQuantity, BULLION_1OZ_DEFAULT } = require('../data/constants');
 
-const BULLION_SERIES = [
-  'libertad', 'silver eagle', 'gold eagle', 'maple leaf', 'britannia',
-  'philharmonic', 'krugerrand', 'kangaroo', 'kookaburra', 'panda',
-  'gold buffalo', 'platinum eagle', 'palladium eagle', 'lunar', 'polar bear',
-];
+const BULLION_SERIES = BULLION_1OZ_DEFAULT;
 
 // ── Concurrency control ──────────────────────────────────────
 const MAX_COINS = 500;

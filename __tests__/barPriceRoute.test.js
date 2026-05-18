@@ -8,6 +8,7 @@ jest.mock('../src/services/valuationService', () => ({
   computeValuation: jest.fn(),
 }));
 jest.mock('../src/data/constants', () => ({
+  ...jest.requireActual('../src/data/constants'),
   zodiacForYear: jest.fn(() => 'Dragon'),
   perthLunarSeries: jest.fn(() => ({ num: 'III' })),
   getRollQuantity: jest.fn(() => 20),
