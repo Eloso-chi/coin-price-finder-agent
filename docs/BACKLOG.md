@@ -250,6 +250,23 @@ Both `terapeak-export.py` and `sales-aggregator.py` now skip re-sorting when the
 
 ## Infrastructure & Automation
 
+### #201. Admin User Role System [MEDIUM]
+
+**Problem:** Admin access is purely API-key based (shared secret via `ADMIN_API_KEY` env var). No per-user admin distinction, no audit trail by userId, no granular permissions. The API key is all-or-nothing and cannot identify which user performed an admin action.
+
+**Fix:**
+1. Add `role` field to user accounts in `authService.js` (default `'user'`, option `'admin'`)
+2. Add `requireAdminRole` middleware that accepts either `x-api-key` OR a valid JWT with `role=admin` (hybrid -- backwards compatible)
+3. Seed a master admin account on first startup (or via CLI/env var: `ADMIN_USERNAME` + `ADMIN_PASSWORD`)
+4. Admin tab supports both unlock methods: API key entry OR login with an admin-role account
+5. Audit log admin actions with `userId` when JWT-based auth is used
+
+**Trade-offs:** Hybrid approach keeps existing API-key flow working (CLI scripts, CI) while adding per-user admin auth for the browser UI. Migration: existing accounts default to `role='user'`; promote via CLI or env seed.
+
+**Files:** `authService.js`, `server.js` (middleware), `authRoute.js` (optional promote endpoint), `public/index.html` (admin tab login option)
+
+---
+
 ### 114. Cookie Blob Persistence [MEDIUM]
 
 **Problem:** eBay cookies expire when codespace restarts. Manual CAPTCHA solve required every session.
