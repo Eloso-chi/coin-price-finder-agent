@@ -1632,13 +1632,22 @@ function buildKeywords(pcgsData, rawQuery, weight, label) {
   // Append graded slab label (e.g. "First Strike", "Early Releases")
   if (label) parts.push(label);
 
-  // #171: Metal exclusion keywords — when the query is explicitly gold/silver/platinum,
-  // add a negation for the opposite common metal so eBay doesn't return mixed-metal
+  // #171/#184: Metal exclusion keywords — when the query is explicitly one metal,
+  // add negations for other common metals so eBay doesn't return mixed-metal
   // results (e.g. silver Libertads in a gold Libertad search).
   const joinedLower = parts.join(' ').toLowerCase();
-  if (/\bgold\b/.test(joinedLower) && !/\bsilver\b/.test(joinedLower)) {
+  const hasGold = /\bgold\b/.test(joinedLower);
+  const hasSilver = /\bsilver\b/.test(joinedLower);
+  const hasPlatinum = /\bplatinum\b/.test(joinedLower);
+  const hasPalladium = /\bpalladium\b/.test(joinedLower);
+
+  if (hasPlatinum || hasPalladium) {
+    // Platinum/palladium: exclude both silver and gold
+    if (!hasSilver) parts.push('-silver');
+    if (!hasGold) parts.push('-gold');
+  } else if (hasGold && !hasSilver) {
     parts.push('-silver');
-  } else if (/\bsilver\b/.test(joinedLower) && !/\bgold\b/.test(joinedLower)) {
+  } else if (hasSilver && !hasGold) {
     parts.push('-gold');
   }
 

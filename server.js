@@ -3,16 +3,20 @@
 
 require('dotenv').config();
 
-// ── Process crash handlers (#202) ────────────────────────────
+// ── Process crash handlers (#202/#194) ───────────────────────
+const alertService = require('./src/services/alertService');
+
 process.on('unhandledRejection', (reason, promise) => {
   console.error('[FATAL] Unhandled rejection:', reason);
-  // Brief delay to allow log flush, then hard exit
-  setTimeout(() => process.exit(1), 100);
+  alertService.alertServerCrash('unhandledRejection', String(reason));
+  // Brief delay to allow log flush + alert send, then hard exit
+  setTimeout(() => process.exit(1), 500);
 });
 
 process.on('uncaughtException', (err) => {
   console.error('[FATAL] Uncaught exception:', err);
-  setTimeout(() => process.exit(1), 100);
+  alertService.alertServerCrash('uncaughtException', err.message || String(err));
+  setTimeout(() => process.exit(1), 500);
 });
 
 const crypto = require('crypto');
@@ -275,17 +279,23 @@ app.listen(PORT, '0.0.0.0', async () => {
   // Evict metals history entries older than 400 days on startup
   metalsHistory.evictOld(400);
 
+  let _metalsConsecFailures = 0;
   async function refreshMetalsPrices() {
     try {
       const result = await metals.getMetalsSpotPrices(['XAU', 'XAG', 'XPT', 'XPD']);
       const sources = [...new Set(Object.values(result).map(r => r.source))];
       console.log(`  [metals] Background refresh ok — sources: ${sources.join(', ')}`);
+      _metalsConsecFailures = 0;
       // Record daily history snapshot for charting
       for (const [sym, data] of Object.entries(result)) {
         if (data.price) metalsHistory.recordDaily(sym, data.price, data.timestamp);
       }
     } catch (err) {
-      console.warn(`  [metals] Background refresh failed: ${err.message}`);
+      _metalsConsecFailures++;
+      console.warn(`  [metals] Background refresh failed (${_metalsConsecFailures}x): ${err.message}`);
+      if (_metalsConsecFailures >= 3) {
+        alertService.alertMetalsFailure(_metalsConsecFailures, err.message);
+      }
     }
   }
 
@@ -321,6 +331,7 @@ app.listen(PORT, '0.0.0.0', async () => {
       console.log(`  [greysheet] Refresh complete: ${result.totalSnapshots} snapshots, ${result.coinsTracked} coins tracked`);
     } catch (err) {
       console.warn(`  [greysheet] Refresh failed: ${err.message}`);
+      alertService.alertGreysheetFailure(err.message);
     }
   }
 
@@ -344,17 +355,23 @@ app.listen(PORT, '0.0.0.0', async () => {
   // ── Periodic blob re-import (every 30 min) ──────────────────
   // Picks up new CSVs uploaded directly to blob by scraping scripts (#107)
   const BLOB_REIMPORT_MS = parseInt(process.env.BLOB_REIMPORT_MS, 10) || 30 * 60 * 1000;
+  let _blobConsecFailures = 0;
   if (blobClient.isEnabled()) {
     setInterval(async () => {
       try {
         const result = await terapeakService.autoImportFromBlob();
+        _blobConsecFailures = 0;
         if (result.imported > 0) {
           console.log(`  [terapeak] Blob re-import: ${result.imported} new file(s)`);
           const ebayService = require('./src/services/ebayService');
           ebayService.clearCache();
         }
       } catch (err) {
-        console.warn(`  [terapeak] Blob re-import failed: ${err.message}`);
+        _blobConsecFailures++;
+        console.warn(`  [terapeak] Blob re-import failed (${_blobConsecFailures}x): ${err.message}`);
+        if (_blobConsecFailures >= 3) {
+          alertService.alertBlobImportFailure(_blobConsecFailures, err.message);
+        }
       }
     }, BLOB_REIMPORT_MS);
     console.log(`  Terapeak blob re-import: polling every ${BLOB_REIMPORT_MS / 60000} min`);
