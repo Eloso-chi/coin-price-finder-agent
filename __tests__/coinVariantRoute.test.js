@@ -104,5 +104,6 @@ describe('GET /api/coin-variant', () => {
 
     // Express returns 404 for unmatched method on this route
     expect(res.status).toBeGreaterThanOrEqual(400);
+    expect(resolveCoinVariant).not.toHaveBeenCalled();
   });
 });

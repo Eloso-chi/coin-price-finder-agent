@@ -37,11 +37,12 @@ describe('cachePath', () => {
     process.env.CACHE_DIR = customDir;
     jest.resetModules();
 
-    const { CACHE_DIR } = require('../src/utils/cachePath');
-    expect(CACHE_DIR).toBe(customDir);
-
-    // Clean up created directory
-    if (fs.existsSync(customDir)) fs.rmSync(customDir, { recursive: true });
+    try {
+      const { CACHE_DIR } = require('../src/utils/cachePath');
+      expect(CACHE_DIR).toBe(customDir);
+    } finally {
+      if (fs.existsSync(customDir)) fs.rmSync(customDir, { recursive: true });
+    }
   });
 
   test('creates the cache directory if it does not exist', () => {
@@ -51,11 +52,12 @@ describe('cachePath', () => {
     process.env.CACHE_DIR = customDir;
     jest.resetModules();
 
-    require('../src/utils/cachePath');
-    expect(fs.existsSync(customDir)).toBe(true);
-
-    // Clean up
-    fs.rmSync(customDir, { recursive: true });
+    try {
+      require('../src/utils/cachePath');
+      expect(fs.existsSync(customDir)).toBe(true);
+    } finally {
+      if (fs.existsSync(customDir)) fs.rmSync(customDir, { recursive: true });
+    }
   });
 
   test('does not throw if directory already exists', () => {
@@ -65,10 +67,11 @@ describe('cachePath', () => {
     process.env.CACHE_DIR = customDir;
     jest.resetModules();
 
-    expect(() => require('../src/utils/cachePath')).not.toThrow();
-
-    // Clean up
-    fs.rmSync(customDir, { recursive: true });
+    try {
+      expect(() => require('../src/utils/cachePath')).not.toThrow();
+    } finally {
+      if (fs.existsSync(customDir)) fs.rmSync(customDir, { recursive: true });
+    }
   });
 
   test('CACHE_DIR is an absolute path', () => {
