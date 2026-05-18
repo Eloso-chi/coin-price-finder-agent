@@ -17,3 +17,7 @@ iisnode/
 scripts/__pycache__/
 scripts/cache.cookies.json
 src/.vscode/
+tests/__pycache__/
+test-parse.js
+test_output.log
+scripts/run-multi-phase.sh
