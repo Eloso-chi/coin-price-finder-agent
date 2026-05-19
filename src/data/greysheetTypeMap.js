@@ -173,6 +173,14 @@ const SERIES_PATTERNS = [
   { re: /\blunar\b/i,              series: 'lunar',            metal: null     },
   { re: /\bphilharmonic\b/i,       series: 'philharmonic',     metal: null     },
   { re: /\bkrugerrand\b/i,         series: 'krugerrand',       metal: 'gold',      defaultWeight: 1 },
+  // RCM series (no Greysheet Type entries exist)
+  { re: /\bwildlife\b/i,           series: 'wildlife',         metal: 'silver',    defaultWeight: 1 },
+  { re: /\bbirds?\s*of\s*prey\b/i, series: 'birds of prey',    metal: 'silver',    defaultWeight: 1 },
+  { re: /\bpredator\b/i,           series: 'predator',         metal: 'silver',    defaultWeight: 1 },
+  { re: /\bcreatures?\s*of\s*the\s*north\b/i, series: 'creatures of the north', metal: 'silver', defaultWeight: 2 },
+  { re: /\bkraken\b/i,             series: 'creatures of the north', metal: 'silver', defaultWeight: 2 },
+  { re: /\bwerewolf\b/i,           series: 'creatures of the north', metal: 'silver', defaultWeight: 2 },
+  { re: /\bmothman\b/i,            series: 'creatures of the north', metal: 'silver', defaultWeight: 2 },
   { re: /\bpanda\b/i,              series: 'panda',            metal: null,        defaultWeight: 1 },
   { re: /\blibertad\b/i,           series: 'libertad',         metal: null,        defaultWeight: 1 },
   // US Classics

@@ -468,6 +468,10 @@ function parseDescription(text) {
     'chinese myths and legends', 'dragon and phoenix', 'tiger and dragon',
     'silver krugerrand', 'gold krugerrand', 'krugerrand',
     'canadian silver polar bear', 'silver polar bear', 'polar bear',
+    'canadian wildlife', 'wildlife series',
+    'canadian birds of prey', 'birds of prey',
+    'canadian predator', 'predator series',
+    'creatures of the north', 'kraken', 'werewolf', 'mothman',
     // US bullion & classic
     'american gold buffalo', 'gold buffalo',
     'american silver eagle', 'american gold eagle',
