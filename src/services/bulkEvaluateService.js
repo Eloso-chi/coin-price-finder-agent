@@ -151,7 +151,8 @@ async function evaluateOneCoin(coin) {
 
     // Metal / bullion
     const { isMetalBased, metal: detectedMetal } = getCoinMetalProfile(query);
-    const isBullion = BULLION_SERIES.some(b => (series || query).toLowerCase().includes(b));
+    const isBar = isMetalBased && /\bbar\b/i.test(query);
+    const isBullion = isBar || BULLION_SERIES.some(b => (series || query).toLowerCase().includes(b));
 
     // #162: World bullion BU fix — "BU" for bullion means raw mint-sealed,
     // not a PCGS-graded slab. Null out BU-expanded grade so valuation uses

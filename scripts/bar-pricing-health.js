@@ -15,21 +15,57 @@ const API_KEY = process.env.ADMIN_API_KEY || 'terapeak-1775345508';
 
 // ── Test cases: [query, expectedMetal, minFmv, maxFmv, sizeGrams] ──
 const CASES = [
-  // Gold bars -- small
+  // ── Generic (no brand) ────────────────────────────────────
+  // Gold -- small
   { query: '.5g gold geiger', metal: 'gold', sizeG: 0.5, minFmv: 30, maxFmv: 300 },
   { query: '0.5 gram gold geiger', metal: 'gold', sizeG: 0.5, minFmv: 30, maxFmv: 300 },
   { query: '1g gold bar', metal: 'gold', sizeG: 1, minFmv: 60, maxFmv: 400 },
   { query: '2.5 gram gold bar', metal: 'gold', sizeG: 2.5, minFmv: 150, maxFmv: 600 },
   { query: '5 gram gold bar', metal: 'gold', sizeG: 5, minFmv: 300, maxFmv: 1200 },
   { query: '10 gram gold bar', metal: 'gold', sizeG: 10, minFmv: 500, maxFmv: 2000 },
-  // Gold bars -- large
+  // Gold -- large
   { query: '1 oz gold bar', metal: 'gold', sizeG: 31.1035, minFmv: 2000, maxFmv: 6000 },
-  // Silver bars
+  // Silver
   { query: '1 oz silver bar', metal: 'silver', sizeG: 31.1035, minFmv: 25, maxFmv: 150 },
   { query: '10 oz silver bar', metal: 'silver', sizeG: 311.035, minFmv: 250, maxFmv: 900 },
-  // Branded
+
+  // ── PAMP Suisse ───────────────────────────────────────────
   { query: '1g gold pamp fortuna', metal: 'gold', sizeG: 1, minFmv: 60, maxFmv: 500 },
+  { query: '5g gold pamp fortuna', metal: 'gold', sizeG: 5, minFmv: 300, maxFmv: 1300 },
+  { query: '1 oz gold pamp fortuna', metal: 'gold', sizeG: 31.1035, minFmv: 2000, maxFmv: 6500 },
+  { query: '1g gold pamp rosa', metal: 'gold', sizeG: 1, minFmv: 60, maxFmv: 500 },
+  { query: '1g gold pamp lunar', metal: 'gold', sizeG: 1, minFmv: 60, maxFmv: 500 },
+  { query: '2.5g gold pamp suisse', metal: 'gold', sizeG: 2.5, minFmv: 150, maxFmv: 700 },
+
+  // ── Geiger Edelmetalle ────────────────────────────────────
   { query: '1 oz silver geiger edelmetalle', metal: 'silver', sizeG: 31.1035, minFmv: 30, maxFmv: 120 },
+  { query: '1g gold geiger edelmetalle', metal: 'gold', sizeG: 1, minFmv: 60, maxFmv: 400 },
+  { query: '10g gold geiger square', metal: 'gold', sizeG: 10, minFmv: 500, maxFmv: 2200 },
+  { query: '1 oz silver geiger square', metal: 'silver', sizeG: 31.1035, minFmv: 30, maxFmv: 150 },
+
+  // ── Scottsdale ────────────────────────────────────────────
+  { query: '1 oz silver scottsdale stacker', metal: 'silver', sizeG: 31.1035, minFmv: 25, maxFmv: 150 },
+  { query: '10 oz silver scottsdale stacker', metal: 'silver', sizeG: 311.035, minFmv: 250, maxFmv: 1000 },
+  { query: '1 oz gold scottsdale', metal: 'gold', sizeG: 31.1035, minFmv: 2000, maxFmv: 6500 },
+
+  // ── Valcambi ──────────────────────────────────────────────
+  { query: '1g gold valcambi', metal: 'gold', sizeG: 1, minFmv: 60, maxFmv: 400 },
+  { query: '1 oz gold valcambi combibar', metal: 'gold', sizeG: 31.1035, minFmv: 2000, maxFmv: 6500 },
+  { query: '1 oz silver valcambi', metal: 'silver', sizeG: 31.1035, minFmv: 25, maxFmv: 150 },
+
+  // ── Heraeus ───────────────────────────────────────────────
+  { query: '1g gold heraeus', metal: 'gold', sizeG: 1, minFmv: 60, maxFmv: 400 },
+  { query: '1 oz gold heraeus kinebar', metal: 'gold', sizeG: 31.1035, minFmv: 2000, maxFmv: 6500 },
+  { query: '1 oz silver heraeus', metal: 'silver', sizeG: 31.1035, minFmv: 25, maxFmv: 150 },
+
+  // ── Credit Suisse ─────────────────────────────────────────
+  { query: '1 oz gold credit suisse', metal: 'gold', sizeG: 31.1035, minFmv: 2000, maxFmv: 6500 },
+  { query: '10g gold credit suisse', metal: 'gold', sizeG: 10, minFmv: 500, maxFmv: 2200 },
+
+  // ── Perth Mint ────────────────────────────────────────────
+  { query: '1 oz gold perth mint bar', metal: 'gold', sizeG: 31.1035, minFmv: 2000, maxFmv: 6500 },
+  { query: '10 oz silver perth mint bar', metal: 'silver', sizeG: 311.035, minFmv: 250, maxFmv: 1000 },
+  { query: '1 oz silver perth mint kangaroo bar', metal: 'silver', sizeG: 31.1035, minFmv: 25, maxFmv: 150 },
 ];
 
 // ── Assertions ──────────────────────────────────────────────

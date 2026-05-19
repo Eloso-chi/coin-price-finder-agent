@@ -7,6 +7,7 @@ const router = express.Router();
 
 const ebayService = require('../services/ebayService');
 const { computeValuation } = require('../services/valuationService');
+const { getMetalsSpotPrice } = require('../services/metalsSpotPrice');
 const { zodiacForYear, perthLunarSeries } = require('../data/constants');
 const { BAR_SERIES, detectBarSeries } = require('../data/barSeries');
 
@@ -128,12 +129,27 @@ router.post('/', async (req, res) => {
       designation: null
     };
 
+    // ── Fetch spot price for bullion valuation ──
+    const METAL_SYM = { gold: 'XAU', silver: 'XAG', platinum: 'XPT', palladium: 'XPD' };
+    const sym = METAL_SYM[metal.toLowerCase()];
+    let spotPrice = null;
+    if (sym) {
+      try {
+        const spot = await getMetalsSpotPrice(sym, 'USD');
+        spotPrice = spot.price;
+      } catch (_) { /* non-fatal -- valuation falls back to raw comps */ }
+    }
+
     // ── Fetch eBay comps ──
     const ebay = await ebayService.fetchSoldComps(keywords, opts, expected);
 
     // ── Compute valuation (no PCGS data, mark as bar) ──
     const pcgsStub = { verified: false, _isBar: true };
-    const { valuation, decisions } = computeValuation(pcgsStub, ebay, askingPrice || null, null);
+    const barWeightForSpot = parseBarWeight(size) || 1;
+    const { valuation, decisions } = computeValuation(pcgsStub, ebay, askingPrice || null, null, {
+      isBullion: true,
+      spotPrice: spotPrice ? spotPrice * barWeightForSpot : null,
+    });
 
     // ── Melt value calculation ──
     const sizeMap = {
