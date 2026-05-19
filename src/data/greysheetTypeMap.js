@@ -59,6 +59,7 @@ const TYPE_GSID_MAP = {
   'lunar|1|gold':                393627,  // Lunar G$100 Gold, 1996- MS [Type]
   // Note: AU Gold Kangaroo weights, Gold Lunar 1/10 and 1/20 have no separate Type entries.
   // Note: No Kookaburra or Kangaroo Proof Type entries exist in Greysheet (verified 2025-01-27).
+  // Note: AU Koala, Swan, Emu, Wedge-Tailed Eagle, Quokka, Super Pit have no Greysheet Type entries.
 
   // ── Austria ────────────────────────────────────────────────
   'philharmonic|1|silver': 374302,  // Vienna Philharmonic Silver 1 Ounce MS [Type]
@@ -163,6 +164,12 @@ const SERIES_PATTERNS = [
   { re: /\bmaple\s*leaf\b/i,       series: 'maple leaf',       metal: null     },  // need metal from context
   { re: /\bkookaburra\b/i,         series: 'kookaburra',       metal: 'silver',    defaultWeight: 1 },
   { re: /\bkangaroo\b/i,           series: 'kangaroo',         metal: null     },
+  { re: /\bkoala\b/i,              series: 'koala',            metal: 'silver',    defaultWeight: 1 },
+  { re: /\bswan\b/i,               series: 'swan',             metal: null     },
+  { re: /\bemu\b/i,                series: 'emu',              metal: null     },
+  { re: /\bwedge.?tail/i,          series: 'wedge-tailed eagle', metal: 'silver', defaultWeight: 1 },
+  { re: /\bquokka\b/i,             series: 'quokka',           metal: 'silver',    defaultWeight: 1 },
+  { re: /\bsuper\s*pit\b/i,        series: 'super pit',        metal: null     },
   { re: /\blunar\b/i,              series: 'lunar',            metal: null     },
   { re: /\bphilharmonic\b/i,       series: 'philharmonic',     metal: null     },
   { re: /\bkrugerrand\b/i,         series: 'krugerrand',       metal: 'gold',      defaultWeight: 1 },
