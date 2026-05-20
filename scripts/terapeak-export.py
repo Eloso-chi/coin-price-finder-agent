@@ -27,6 +27,9 @@ Usage:
   python3 scripts/terapeak-export.py --run --refresh --max-age 14
   python3 scripts/terapeak-export.py --run --refresh --max-age 30 --filter "Morgan"
 
+  # Exclude low-signal datasets (fewer than N comps in terapeak-meta.json):
+  python3 scripts/terapeak-export.py --run --refresh --max-age 15 --min-comps 10
+
   # Dry run -- show what would be exported:
   python3 scripts/terapeak-export.py --dry-run
 
@@ -343,6 +346,19 @@ def save_progress(progress):
 
 
 # ── Search Terms ────────────────────────────────────────────
+# Negative keywords appended to proof searches to exclude graded/slabbed results.
+# These items are captured by their own graded-specific search terms instead.
+PROOF_NEGATIVE_KEYWORDS = " -NGC -PCGS -graded -slab -certified"
+
+# Pattern to detect proof search terms that are NOT already grade-specific.
+# A term like "1986 Mexico 1oz Silver Libertad Proof" is raw-proof.
+# A term like "1986 Morgan Silver Dollar MS65" is already grade-specific.
+# Exclude "Proof Set" which are sealed government sets, not individual coins.
+import re as _re
+_GRADE_SUFFIX_RE = _re.compile(r'\b(MS|PR|PF|SP|AU|XF|EF|VF|VG|AG|FR|PO)\s*\d{1,2}\+?\s*$', _re.IGNORECASE)
+_PROOF_COIN_RE = _re.compile(r'\bproof\b(?!\s*set)', _re.IGNORECASE)
+
+
 def get_search_terms():
     """Get search terms from existing CSV filenames in data/terapeak/."""
     terms = []
@@ -352,7 +368,14 @@ def get_search_terms():
             term = meta.read_text().strip()
         else:
             term = f.stem.replace("_", " ")
-        terms.append({"term": term, "filename": f.name})
+
+        # Build search query: append negative keywords for raw proof coin searches
+        # (not proof sets, not already-graded searches)
+        search_query = term
+        if _PROOF_COIN_RE.search(term) and not _GRADE_SUFFIX_RE.search(term):
+            search_query = term + PROOF_NEGATIVE_KEYWORDS
+
+        terms.append({"term": term, "filename": f.name, "search_query": search_query})
     return terms
 
 
@@ -1243,6 +1266,30 @@ def do_export_run(args):
         terms = stale_terms
         print(f"Refresh mode (max-age {args.max_age}d): {len(terms)} stale, skipping {before - len(terms)} fresh")
 
+    # Apply --min-comps filter: skip low-signal datasets using terapeak-meta.json
+    if args.min_comps > 0:
+        meta_path = PROJECT_DIR / "data" / "terapeak-meta.json"
+        if meta_path.exists():
+            import json as _json
+            with open(meta_path) as f:
+                _meta = _json.load(f)
+            before = len(terms)
+            low_signal_skipped = 0
+            filtered_terms = []
+            for t in terms:
+                # Look up comp count by search term (key in meta is lowercased)
+                term_key = t['term'].lower() if 'term' in t else t.get('search_term', '').lower()
+                entry = _meta.get(term_key) or _meta.get(t.get('term', ''))
+                comp_count = (entry.get('compCount', 0) or 0) if entry else 0
+                if comp_count >= args.min_comps:
+                    filtered_terms.append(t)
+                else:
+                    low_signal_skipped += 1
+            terms = filtered_terms
+            print(f"Min-comps filter ({args.min_comps}): skipped {low_signal_skipped} low-signal datasets")
+        else:
+            print(f"WARNING: --min-comps specified but {meta_path} not found, skipping filter")
+
     # Priority sort: thin-data CSVs first (fewest existing rows)
     if args.priority:
         def _csv_rows(t):
@@ -1366,6 +1413,7 @@ def do_export_run(args):
 
     for i, entry in enumerate(terms):
         term = entry["term"]
+        search_query = entry.get("search_query", term)
         pct = round((i + 1) / len(terms) * 100)
 
         # Recycle browser every N coins to prevent OOM
@@ -1382,7 +1430,7 @@ def do_export_run(args):
         print(f"  [{pct:3d}%] {term}...", end=" ", flush=True)
 
         try:
-            csv_path = do_search_and_export(page, term, DOWNLOAD_DIR)
+            csv_path = do_search_and_export(page, search_query, DOWNLOAD_DIR)
 
             # Bot detection abort
             if csv_path == "BOT_BLOCKED":
@@ -1539,6 +1587,7 @@ Examples:
     parser.add_argument("--resume", action="store_true", help="Skip already-completed coins")
     parser.add_argument("--refresh", action="store_true", help="Refresh mode: only process coins whose CSV is older than --max-age days")
     parser.add_argument("--max-age", type=int, default=14, metavar="DAYS", help="Max CSV age in days for --refresh mode (default: 14)")
+    parser.add_argument("--min-comps", type=int, default=0, metavar="N", help="Skip datasets with fewer than N comps in terapeak-meta.json (excludes low-signal coins, e.g. --min-comps 10)")
     parser.add_argument("--filter", type=str, help="Only export terms matching this regex")
     parser.add_argument("--limit", type=int, help="Max number of coins to export")
     parser.add_argument("--priority", action="store_true", help="Sort by data quality: thin-data coins first")
