@@ -912,7 +912,8 @@ function applyFilters(comps, options, expected) {
     kept = kept.filter(c => {
       const detW = detectWeightFromTitle(c.title);
       if (detW === null) return true; // no weight stated — benefit of doubt
-      if (Math.abs(detW - expected.weight) < 0.01) return true; // matches
+      const wtRatio = Math.abs(detW - expected.weight) / Math.max(detW, expected.weight);
+      if (wtRatio < 0.05) return true; // within 5% relative tolerance (handles 30g≈1oz)
       removed.weightMismatch++;
       return false;
     });
