@@ -886,6 +886,17 @@ function applyFilters(comps, options, expected) {
       // If comp has no detected metal, keep it (benefit of the doubt)
       if (!compMetal) return true;
       if (compMetal !== wantMetal) { removed.metalMismatch++; return false; }
+      // Secondary check: catch "gold plated silver" or "silver with gold" where
+      // detectMetalFromTitle picks the wrong metal from ambiguous titles.
+      // If searching for gold but title has strong silver indicators, reject.
+      // If searching for silver but title has strong gold indicators, reject.
+      const t = (c.title || '').toLowerCase();
+      if (wantMetal === 'gold' && /\.999\s*silver|\bsilver\s+(coin|panda|eagle|bullion)\b|\b\d+\s*yuan\b.*silver/i.test(t)) {
+        removed.metalMismatch++; return false;
+      }
+      if (wantMetal === 'silver' && /\.999\s*gold|\bgold\s+(coin|panda|eagle|bullion)\b|\b\d+\s*yuan\b.*\bgold\b/i.test(t)) {
+        removed.metalMismatch++; return false;
+      }
       return true;
     });
   }
