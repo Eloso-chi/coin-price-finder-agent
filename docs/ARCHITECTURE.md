@@ -112,8 +112,32 @@ server.js                              Express entry point (port 3000)
 │   ├─ pricing-health-full.js          Pricing health check runner (--full, --filter, --limit, --concurrency, --out)
 │   ├─ reclassify-comps.js             Batch comp reclassification (weight mismatch detection + reroute)
 │   ├─ build-evidence-index.js         Historical evidence index builder
-│   ├─ generate-freshness-report.js    Freshness triage report (5-state decision tree: Fresh/Stale/LowSignal/Missing/Dormant)
+│   ├─ generate-freshness-report.js    Freshness triage report (5-state decision tree: Fresh/Stale/LowSignal/Missing/Dormant + recently-confirmed-stale split)
 │   └─ test-metrics/                   Jest metrics capture + summary reporter
+│
+├─ .github/
+│   ├─ agents/
+│   │   ├─ freshness-triage.agent.md              Dataset freshness triage + refresh prioritization
+│   │   ├─ pre-commit-reviewer.agent.md           Quick pre-commit safety check
+│   │   ├─ code-reviewer.approval-gated.agent.md  Conductor for multi-agent code review
+│   │   ├─ implementer.approval-only.agent.md     Applies approved review findings
+│   │   ├─ performance-review.sub.agent.md        Performance-focused sub-reviewer
+│   │   ├─ security-review.sub.agent.md           OWASP-focused security sub-reviewer
+│   │   ├─ ux-reviewer.agent.md                   Accessibility and UX review
+│   │   ├─ pricing-health.agent.md                Pricing accuracy diagnostics
+│   │   ├─ numismatic-audit.agent.md              Audit classification against numismatic terminology
+│   │   ├─ sales-aggregator.agent.md              Sales data aggregation assistant
+│   │   ├─ test-coverage.agent.md                 Test coverage gap analysis + generation
+│   │   ├─ test-monitor.agent.md                  Test health monitoring and diagnostics
+│   │   └─ onboard.agent.md                       Project onboarding assistant
+│   ├─ prompts/
+│   │   ├─ pre-commit.prompt.md                   /pre-commit slash command
+│   │   ├─ review-deep.prompt.md                  /review-deep slash command
+│   │   ├─ apply-approved.prompt.md               /apply-approved slash command
+│   │   ├─ pricing-health.prompt.md               /pricing-health slash command
+│   │   ├─ test-coverage.prompt.md                /test-coverage slash command
+│   │   └─ onboard.prompt.md                      /onboard slash command
+│   └─ copilot-instructions.md                    Workspace-wide Copilot rules
 │
 └─ __tests__/                          71 Jest test suites
     ├─ fixtures/
