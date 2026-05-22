@@ -195,4 +195,93 @@ describe('generate-freshness-report.js', () => {
       fs.unlinkSync(batchFile);
     }
   });
+
+  // ── Dry-refresh backoff ──────────────────────────────────
+  test('dry-refresh-backoff skips stale coin after 2 consecutive dry refreshes within 30d', () => {
+    const meta = {
+      '2020 american silver eagle': {
+        compCount: 80,
+        newestSaleDate: daysAgo(20), // stale
+        lastRefreshAt: daysAgo(16),  // refreshed 16 days ago (past 14d recently-confirmed, within 30d tier1)
+        refreshCount: 4,
+        consecutiveDryRefreshes: 2,  // 2 dry refreshes in a row
+        lastRefreshNewComps: 0,
+      },
+    };
+    const report = runReport(meta);
+    const ds = report.datasets[0];
+    expect(ds.actions).toContain('dry-refresh-backoff');
+    expect(ds.priority).toBeNull();
+  });
+
+  test('dry-refresh tier 2 (>=4 dry) extends cadence to 60d', () => {
+    const meta = {
+      '2019 american gold eagle': {
+        compCount: 60,
+        newestSaleDate: daysAgo(35), // very-stale
+        lastRefreshAt: daysAgo(35),  // refreshed 35d ago (past tier1 30d, within tier2 60d)
+        refreshCount: 6,
+        consecutiveDryRefreshes: 4,
+        lastRefreshNewComps: 0,
+      },
+    };
+    const report = runReport(meta);
+    const ds = report.datasets[0];
+    expect(ds.actions).toContain('dry-refresh-backoff');
+    expect(ds.priority).toBeNull();
+  });
+
+  test('dry-refresh backoff allows refresh when cadence expires', () => {
+    const meta = {
+      '2018 american silver eagle': {
+        compCount: 80,
+        newestSaleDate: daysAgo(20),
+        lastRefreshAt: daysAgo(35),  // 35d ago -- past the 30d tier1 cadence
+        refreshCount: 4,
+        consecutiveDryRefreshes: 2,
+        lastRefreshNewComps: 0,
+      },
+    };
+    const report = runReport(meta);
+    const ds = report.datasets[0];
+    expect(ds.actions).toContain('refresh');
+    expect(ds.priority).toBe('P1');
+  });
+
+  test('no backoff when consecutiveDryRefreshes is 0', () => {
+    const meta = {
+      '2021 morgan silver dollar': {
+        compCount: 100,
+        newestSaleDate: daysAgo(18),
+        lastRefreshAt: daysAgo(16),
+        refreshCount: 3,
+        consecutiveDryRefreshes: 0,
+        lastRefreshNewComps: 5,
+      },
+    };
+    const report = runReport(meta);
+    const ds = report.datasets[0];
+    expect(ds.actions).toContain('refresh');
+    expect(ds.priority).toBe('P1');
+  });
+
+  test('summary includes dryRefreshBackoff count', () => {
+    const meta = {
+      'backed off coin': {
+        compCount: 80,
+        newestSaleDate: daysAgo(20),
+        lastRefreshAt: daysAgo(16),
+        refreshCount: 4,
+        consecutiveDryRefreshes: 3,
+        lastRefreshNewComps: 0,
+      },
+      'normal stale coin': {
+        compCount: 80,
+        newestSaleDate: daysAgo(20),
+        refreshCount: 2,
+      },
+    };
+    const report = runReport(meta);
+    expect(report.summary.priorityCounts.dryRefreshBackoff).toBe(1);
+  });
 });
