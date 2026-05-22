@@ -163,8 +163,8 @@ const SERIES_PATTERNS = [
   { re: /\blunar\b/i,              series: 'lunar',            metal: null     },
   { re: /\bphilharmonic\b/i,       series: 'philharmonic',     metal: null     },
   { re: /\bkrugerrand\b/i,         series: 'krugerrand',       metal: 'gold',      defaultWeight: 1 },
-  { re: /\bpanda\b/i,              series: 'panda',            metal: null     },
-  { re: /\blibertad\b/i,           series: 'libertad',         metal: null     },
+  { re: /\bpanda\b/i,              series: 'panda',            metal: null,        defaultWeight: 1 },
+  { re: /\blibertad\b/i,           series: 'libertad',         metal: null,        defaultWeight: 1 },
   // US Classics
   { re: /\bmorgan\b/i,             series: 'morgan',           metal: 'silver' },
   { re: /\bpeace\b/i,              series: 'peace',            metal: 'silver' },
@@ -244,7 +244,10 @@ function lookupTypeGsid(queryText, hints = {}) {
   if (!matched) return null;
 
   const metal  = hints.metal || _detectMetal(text) || matched.metal;
-  const weight = hints.weight || _detectWeight(text) || matched.defaultWeight || null;
+  const rawWeight = hints.weight || _detectWeight(text) || matched.defaultWeight || null;
+  // Normalize near-1oz weights (e.g. 30g = 0.964oz) to 1 for key matching.
+  // Also handles 31.1g (exact troy oz) and minor rounding variance.
+  const weight = (rawWeight && rawWeight >= 0.9 && rawWeight <= 1.05) ? 1 : rawWeight;
   const rawFinish = hints.finish || _detectFinish(text);
   const finish = rawFinish ? rawFinish.toLowerCase() : null;
 

@@ -111,11 +111,16 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
 
   // ── Gather Greysheet wholesale ──
   const gsData = opts.greysheet || null;
-  // #188: Discard Greysheet values that are clearly nominal (< 1% of spot) for bullion.
-  // Some Greysheet type entries return face value ($2-$6) for gold coins worth $3000+.
+  // #188: Discard Greysheet values that are clearly nominal or mismatched for bullion.
+  // Guard 1: face value < 1% of spot (catches gold coins returning $2-$6 denom values).
+  // Guard 2: GS < 5% of eBay median (catches wrong-coin PCGS number matches on silver).
   const rawGreysheetVal = gsData?.greyVal || null;
-  const greysheetVal = (isBullion && spotPrice > 0 && rawGreysheetVal != null && rawGreysheetVal < spotPrice * 0.01)
-    ? null : rawGreysheetVal;
+  const greysheetVal = (() => {
+    if (rawGreysheetVal == null) return null;
+    if (isBullion && spotPrice > 0 && rawGreysheetVal < spotPrice * 0.01) return null;
+    if (isBullion && ebayMedian > 0 && rawGreysheetVal < ebayMedian * 0.05) return null;
+    return rawGreysheetVal;
+  })();
 
   // #54: Greysheet wholesale-to-retail spread as liquidity signal
   // Narrow spread = liquid (easy to buy/sell), wide = illiquid (hard to sell)
@@ -147,10 +152,16 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
       + `(eBay median $${ebayMedian.toFixed(2)} used to derive premium.)`
     );
 
-    // If Greysheet is available, blend it in at 15% weight for a reality check
+    // If Greysheet is available, blend with adaptive weight based on comp count.
+    // High-comp coins (20+) need minimal GS anchoring (5%); thin markets lean on GS more.
     if (greysheetVal != null) {
-      fmv = fmv * 0.85 + greysheetVal * 0.15;
-      explanation.push(`Greysheet blend: 85% spot-premium + 15% wholesale ($${greysheetVal.toFixed(2)}).`);
+      const compCount = usPrices.length;
+      const gsWeight = compCount >= 20 ? 0.05
+        : compCount >= 10 ? 0.10
+        : compCount >= 5 ? 0.15
+        : 0.20;
+      fmv = fmv * (1 - gsWeight) + greysheetVal * gsWeight;
+      explanation.push(`Greysheet blend: ${((1 - gsWeight) * 100).toFixed(0)}% spot-premium + ${(gsWeight * 100).toFixed(0)}% wholesale ($${greysheetVal.toFixed(2)}, ${compCount} comps).`);
     }
   }
 
