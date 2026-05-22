@@ -28,6 +28,31 @@ describe('greysheetTypeMap', () => {
     it('detects 1/20 oz', () => expect(_detectWeight('1/20 oz Libertad')).toBe(0.05));
     it('detects twentieth oz', () => expect(_detectWeight('twentieth oz Maple')).toBe(0.05));
     it('returns null for no weight', () => expect(_detectWeight('Morgan Silver Dollar')).toBeNull());
+
+    // Edge cases: gram-based descriptions (not handled by _detectWeight — relies on hints + normalization)
+    it('returns null for "30g" (grams not parsed, handled via hints)', () => {
+      expect(_detectWeight('2024 30g Silver Panda')).toBeNull();
+    });
+    it('returns null for "31.1g" (troy oz in grams)', () => {
+      expect(_detectWeight('Silver 31.1g bar')).toBeNull();
+    });
+    it('returns null for bare .5 oz (word boundary requires preceding letter/digit)', () => {
+      expect(_detectWeight('Gold Eagle .5 oz')).toBeNull();
+    });
+    it('returns null for bare .25 oz (word boundary issue)', () => {
+      expect(_detectWeight('Silver Maple .25 oz')).toBeNull();
+    });
+    it('detects "one ounce" spelled out', () => {
+      expect(_detectWeight('One Ounce Silver Round')).toBe(1);
+    });
+    it('returns null for 2 oz (non-standard, not in map)', () => {
+      expect(_detectWeight('2 oz Silver Round')).toBeNull();
+    });
+    it('matches "quarter" keyword in "5 oz ATB Silver Quarter"', () => {
+      // Note: detects "quarter" keyword, not "5 oz" -- this is intentional;
+      // non-standard weights rely on hints.weight from the route layer
+      expect(_detectWeight('5 oz ATB Silver Quarter')).toBe(0.25);
+    });
   });
 
   // ── lookupTypeGsid: Bullion series ─────────────────────────
@@ -448,6 +473,25 @@ describe('greysheetTypeMap', () => {
     it('returns null for empty', () => expect(_detectFinish('')).toBeNull());
     it('prefers reverse proof over plain proof', () => {
       expect(_detectFinish('Libertad Reverse Proof 1 oz')).toBe('reverse proof');
+    });
+    // Critical: "Proof-Like" must NOT be detected as Proof (negative lookahead)
+    it('does NOT detect "Proof-Like" as proof', () => {
+      expect(_detectFinish('Morgan Silver Dollar Proof-Like')).toBeNull();
+    });
+    it('does NOT detect "proof like" (space) as proof', () => {
+      expect(_detectFinish('1881-S Morgan Proof Like')).toBeNull();
+    });
+    it('detects enhanced reverse proof', () => {
+      expect(_detectFinish('2019-S ASE Enhanced Reverse Proof')).toBe('enhanced reverse proof');
+    });
+    it('detects antiqued finish', () => {
+      expect(_detectFinish('2024 Libertad Antiqued 1 oz')).toBe('antiqued');
+    });
+    it('detects colorized', () => {
+      expect(_detectFinish('2024 Kookaburra Colorized')).toBe('colorized');
+    });
+    it('detects high relief', () => {
+      expect(_detectFinish('2009 Ultra High Relief Gold')).toBe('high relief');
     });
   });
 

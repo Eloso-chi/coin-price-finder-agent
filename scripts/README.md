@@ -38,11 +38,13 @@ Operational scripts for data collection, migration, and maintenance. Most script
 | Script | Purpose | Usage |
 |---|---|---|
 | `pricing-health-full.js` | Full-dataset pricing health audit | `node scripts/pricing-health-full.js --full` |
+| `generate-freshness-report.js` | Dataset freshness triage (5-state + recently-confirmed-stale split) | `node scripts/generate-freshness-report.js [--summary] [--batch N]` |
 | `greysheet-refresh.js` | Bulk Greysheet price snapshot collector | `node scripts/greysheet-refresh.js` |
 | `upload-csvs-to-blob.js` | Upload local Terapeak CSVs to Azure Blob | `node scripts/upload-csvs-to-blob.js [folderPath]` |
 | `migrate-to-cosmos.js` | One-time migration of history data to Cosmos DB | `node scripts/migrate-to-cosmos.js` |
 | `clean-csvs.js` | One-time CSV cleaner (applies DENY_PATTERNS) | `node scripts/clean-csvs.js` |
 | `backfill-sale-dates.js` | Backfill newestSaleDate/oldestSaleDate/compCount into meta sidecar | `node scripts/backfill-sale-dates.js [--dry-run]` |
+| `reclassify-comps.js` | Batch comp reclassification (weight mismatch rerouting) | `node scripts/reclassify-comps.js [--apply]` |
 
 ### Utilities
 
@@ -84,4 +86,14 @@ python3 scripts/sales-aggregator.py
 node scripts/pricing-health-full.js --full --out health-report.json
 # Or filter to specific series:
 node scripts/pricing-health-full.js --filter "morgan" --concurrency 4
+```
+
+### Freshness triage report
+
+```bash
+node scripts/generate-freshness-report.js              # Full report to cache/freshness-report.json
+node scripts/generate-freshness-report.js --summary    # Print summary only (no file write)
+node scripts/generate-freshness-report.js --batch 100  # Write top-100 priority batch file
+node scripts/generate-freshness-report.js --metal gold # Filter to gold-metal datasets only
+node scripts/generate-freshness-report.js --stale 15   # Override stale threshold (default 15 days)
 ```

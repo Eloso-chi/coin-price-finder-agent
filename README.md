@@ -546,7 +546,7 @@ Runs **Jest** across 71 test suites:
 | `barSeries.test.js` | Bar series detection: brand/series matching, aliases, regex patterns |
 | `coinMetalProfile.test.js` | Metal profile detection: silver/gold/platinum/palladium, bullion inference, exclusion operators, detectWeightFromTitle, weightToKeyToken |
 | `reclassification.test.js` | Comp reclassification: weight detection, key token mapping, import-time rerouting, metal mismatch handling |
-| `freshnessReport.test.js` | Freshness report: 4-state decision tree, summary stats, batch mode |
+| `freshnessReport.test.js` | Freshness report: 5-state decision tree, recently-confirmed-stale split, summary stats, batch mode |
 | `holdoutValidation.test.js` | Holdout validation: 80/20 split on real Terapeak data, FMV within IQR of held-out set (10 coins, seeded PRNG) |
 | `normalizationRegression.test.js` | Normalization regression: series/year/mint parsing edge cases |
 | `terapeakDataIntegrity.test.js` | Terapeak data integrity: CSV structure, header validation, duplicate detection |
@@ -649,7 +649,9 @@ docs/
   pull_request_template.md         PR template enforcing backlog references
   agents/
     code-reviewer.approval-gated.agent.md  Conductor for multi-agent code review
+    freshness-triage.agent.md              Dataset freshness triage + refresh prioritization
     implementer.approval-only.agent.md     Applies approved review findings
+    numismatic-audit.agent.md              Audit classification/filters against numismatic terminology
     onboard.agent.md                       Project onboarding assistant
     performance-review.sub.agent.md        Performance-focused sub-reviewer
     pre-commit-reviewer.agent.md           Quick pre-commit safety check
@@ -663,6 +665,7 @@ docs/
     apply-approved.prompt.md               /apply-approved slash command
     onboard.prompt.md                      /onboard slash command
     pre-commit.prompt.md                   /pre-commit slash command
+    pricing-health.prompt.md               /pricing-health slash command
     review-deep.prompt.md                  /review-deep slash command
     test-coverage.prompt.md                /test-coverage slash command
   copilot-instructions.md          Workspace-wide Copilot rules (testing, safety, conventions)
@@ -676,7 +679,7 @@ scripts/
   pricing-health-full.js           Pricing health check runner (--full, --filter, --limit, --concurrency, --out)
   reclassify-comps.js              Batch comp reclassification (weight mismatch detection + reroute to correct dataset)
   build-evidence-index.js          Historical evidence index builder (scans logs + CSVs)
-  generate-freshness-report.js     Freshness triage report (4-state: Missing/LowSignal/Stale/Fresh)
+  generate-freshness-report.js     Freshness triage report (5-state: Fresh/Stale/LowSignal/Missing/Dormant + recently-confirmed-stale split)
   clean-csvs.js                    CSV junk cleaner (deny-pattern purge across all CSVs)
   greysheet-refresh.js             Bulk Greysheet price snapshot collector (runs automatically every 3 days)
   migrate-to-cosmos.js             One-time migration of history data to Azure Cosmos DB
@@ -917,6 +920,49 @@ A comprehensive UX and accessibility review produced 36 findings across four sev
 - **Seed logging** -- every run logs the active seed and selected coin IDs. Set `COIN_TEST_SEED=<value>` to reproduce any failure deterministically.
 - **Coverage safeguards** -- missing golden coins produce warnings (not failures), but zero golden coverage throws an error (corrupt fixture guard).
 - **Updated test suites** -- `pricingPipeline.test.js` and `crossRouteConsistency.test.js` now use `selectCoins()` instead of hardcoded `pickRandom()` calls, gaining guaranteed golden coin coverage plus random rotation on every run.
+
+### Freshness Report P0 Reclassification (PR #35)
+
+- **Recently-confirmed-stale split** -- `generate-freshness-report.js` now has a `RECENTLY_REFRESHED_DAYS = 14` constant. Datasets classified as Stale or Very Stale that were scraped within the last 14 days (by `lastRefreshAt`) are assigned `action='recently-confirmed-stale'` with `priority=null` instead of P0/P1. This prevents freshly-scraped thin markets from being incorrectly queued for re-export.
+- **P0 reduction** -- P0 count dropped from 264 to 174, P1 from 528 to 220, with 394 datasets moved to the skip bucket. Remaining P0 items are genuinely stale and worth refreshing.
+- **5-state + split model** -- The freshness report now uses a 5-state decision tree (Fresh, Stale, LowSignal, Missing, Dormant) with the recently-confirmed-stale split as a 6th action that overlays the Stale/VeryStale states.
+
+### Export Script Filename Sanitization
+
+- **Slash bug fix** -- `terapeak-export.py` filename construction now uses `re.sub(r'[^\w\s\-]', '', st).replace(' ', '_')[:80] + ".csv"` to sanitize search terms containing filesystem-unsafe characters. Previously, fractional oz search terms like "1/10 oz Gold Panda" produced paths with embedded slashes, creating invalid directory structures on CSV write. Matches the download-side sanitization logic.
+
+### Copilot Agents & Prompts
+
+The project includes 13 custom Copilot agents and 6 prompt commands in `.github/agents/` and `.github/prompts/`:
+
+**Agents:**
+
+| Agent | Purpose |
+|-------|---------|
+| `freshness-triage` | Dataset freshness triage + refresh prioritization |
+| `pre-commit-reviewer` | Quick pre-commit safety check |
+| `code-reviewer.approval-gated` | Conductor for multi-agent code review (orchestrates sub-agents) |
+| `implementer.approval-only` | Applies approved review findings only |
+| `performance-review.sub` | Performance-focused sub-reviewer (invoked by code-reviewer) |
+| `security-review.sub` | OWASP-focused security sub-reviewer (invoked by code-reviewer) |
+| `ux-reviewer` | Accessibility and UX review |
+| `pricing-health` | Pricing accuracy diagnostics (runs golden set through pipeline) |
+| `numismatic-audit` | Audit classification/filters against numismatic terminology |
+| `sales-aggregator` | Sales data aggregation assistant |
+| `test-coverage` | Test coverage gap analysis + generation |
+| `test-monitor` | Test health monitoring and failure diagnostics |
+| `onboard` | Project onboarding assistant |
+
+**Prompt Commands:**
+
+| Command | Description |
+|---------|-------------|
+| `/pre-commit` | Run pre-commit safety check on staged changes |
+| `/review-deep` | Multi-agent deep code review |
+| `/apply-approved` | Apply approved review findings |
+| `/pricing-health` | End-to-end pricing health check |
+| `/test-coverage` | Analyze test coverage gaps and generate tests |
+| `/onboard` | Guided project onboarding walkthrough |
 
 ---
 
