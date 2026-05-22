@@ -1216,7 +1216,7 @@ def do_export_run(args):
             else:
                 # Genuinely new -- use the searchTerm from report as eBay query
                 st = backlog_search_terms.get(key, key)
-                filename = st.replace(" ", "_") + ".csv"
+                filename = re.sub(r'[^\w\s\-]', '', st).replace(' ', '_')[:80] + ".csv"
                 terms.append({"term": st, "filename": filename})
         print(f"Backlog mode: {len(terms)} from report ({len(missing_keys)} new, {len(terms) - len(missing_keys)} existing), skipping {before - (len(terms) - len(missing_keys))} not in backlog")
 
