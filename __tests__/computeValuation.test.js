@@ -738,11 +738,11 @@ describe('computeValuation — bullion spot+premium (#53)', () => {
     expect(result.valuation.method).not.toBe('bullion-spot-premium');
   });
 
-  test('blends Greysheet at 15% when available', () => {
+  test('blends Greysheet adaptively when available (few comps → higher weight)', () => {
     const greysheet = { greyVal: 32, cpgVal: 36 };
     const result = computeValuation(
       mockPcgs(),
-      mockEbay({ usComps: silverComps }),
+      mockEbay({ usComps: silverComps }), // 5 comps → 15% GS weight
       null, null,
       { isBullion: true, spotPrice: silverSpot, greysheet }
     );
@@ -756,6 +756,71 @@ describe('computeValuation — bullion spot+premium (#53)', () => {
     );
     // With greysheet < spot+premium FMV, should pull down slightly
     expect(result.valuation.fmvCore).not.toEqual(withoutGs.valuation.fmvCore);
+  });
+
+  test('adaptive GS weight decreases with more comps (20+ → 5%)', () => {
+    const greysheet = { greyVal: 25, cpgVal: 28 }; // GS well below market
+    const manyComps = makeComps(Array.from({ length: 25 }, () => 35)); // 25 comps
+    const fewComps = makeComps([33, 34, 35, 36]); // 4 comps
+
+    const resultMany = computeValuation(
+      mockPcgs(),
+      mockEbay({ usComps: manyComps }),
+      null, null,
+      { isBullion: true, spotPrice: silverSpot, greysheet }
+    );
+    const resultFew = computeValuation(
+      mockPcgs(),
+      mockEbay({ usComps: fewComps }),
+      null, null,
+      { isBullion: true, spotPrice: silverSpot, greysheet }
+    );
+    // With many comps (5% GS), FMV should be closer to eBay median
+    // With few comps (20% GS), FMV should be pulled further toward GS
+    // Since GS < eBay, more GS influence means lower FMV
+    expect(resultFew.valuation.fmvCore).toBeLessThan(resultMany.valuation.fmvCore);
+  });
+
+  test('discards GS when rawGS < ebayMedian * 0.05 (P1 nominal guard)', () => {
+    // Simulate cross-metal mismatch: GS=$4 for a silver coin worth ~$110
+    // Real example: 2000 ASE matching "1987-W Gold Eagle" at $4
+    const greysheet = { greyVal: 4, cpgVal: 5 };
+    const expensiveComps = makeComps([105, 108, 110, 112, 115]); // median ~$110
+    const result = computeValuation(
+      mockPcgs(),
+      mockEbay({ usComps: expensiveComps }),
+      null, null,
+      { isBullion: true, spotPrice: silverSpot, greysheet }
+    );
+    // GS=$4 < $110 * 0.05 = $5.50 → GS discarded
+    const withoutGs = computeValuation(
+      mockPcgs(),
+      mockEbay({ usComps: expensiveComps }),
+      null, null,
+      { isBullion: true, spotPrice: silverSpot }
+    );
+    // FMV should be identical to no-GS case (GS was discarded)
+    expect(result.valuation.fmvCore).toEqual(withoutGs.valuation.fmvCore);
+  });
+
+  test('discards GS when rawGS < spotPrice * 0.01 (existing 1% guard)', () => {
+    // Gold coin: spot $2000, GS=$4 (obvious mismatch)
+    const goldComps = makeComps([2100, 2150, 2200, 2250, 2300]);
+    const greysheet = { greyVal: 4, cpgVal: 5 };
+    const result = computeValuation(
+      mockPcgs(),
+      mockEbay({ usComps: goldComps }),
+      null, null,
+      { isBullion: true, spotPrice: 2000, greysheet }
+    );
+    const withoutGs = computeValuation(
+      mockPcgs(),
+      mockEbay({ usComps: goldComps }),
+      null, null,
+      { isBullion: true, spotPrice: 2000 }
+    );
+    // GS=$4 < $2000 * 0.01 = $20 → GS discarded
+    expect(result.valuation.fmvCore).toEqual(withoutGs.valuation.fmvCore);
   });
 
   test('includes bullionSpot metadata in response', () => {
