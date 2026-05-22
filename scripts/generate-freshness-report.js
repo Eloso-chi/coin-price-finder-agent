@@ -47,6 +47,7 @@ const LOW_COMP_THRESHOLD = 100;
 const THIN_MARKET_THRESHOLD = 10;     // <10 comps = thin market
 const CONFIRMED_THIN_REFRESHES = 3;   // After N refreshes still thin = confirmed-thin
 const THIN_MARKET_CADENCE_DAYS = 60;  // Thin-market datasets only refresh every 60d
+const RECENTLY_REFRESHED_DAYS = 14;  // If scraped within this window and still stale, don't re-queue
 
 // Low-signal threshold (backward compat): datasets with comps > 0 but < this value.
 const lowSigIdx = args.indexOf('--low-signal');
@@ -246,11 +247,22 @@ for (const [key, entry] of Object.entries(meta)) {
     actions.push('dormant');
     priority = null;
   } else if (freshness === 'very-stale' && marketDepth === 'viable') {
-    actions.push('refresh');
-    priority = 'P0';
+    if (lastRefreshDays !== null && lastRefreshDays < RECENTLY_REFRESHED_DAYS) {
+      // Recently scraped but market has no new sales -- don't re-queue
+      actions.push('recently-confirmed-stale');
+      priority = null;
+    } else {
+      actions.push('refresh');
+      priority = 'P0';
+    }
   } else if (freshness === 'stale' && marketDepth === 'viable') {
-    actions.push('refresh');
-    priority = 'P1';
+    if (lastRefreshDays !== null && lastRefreshDays < RECENTLY_REFRESHED_DAYS) {
+      actions.push('recently-confirmed-stale');
+      priority = null;
+    } else {
+      actions.push('refresh');
+      priority = 'P1';
+    }
   } else if (freshness === 'fresh' && marketDepth === 'viable') {
     actions.push('ok');
     priority = null;
@@ -355,12 +367,14 @@ const lowSignal = datasets.filter(d => d.freshnessStatus === 'LowSignalMarketDat
 const lowComps = datasets.filter(d => d.compCount > 0 && d.compCount < LOW_COMP_THRESHOLD).length;
 
 // New: priority-based counts
+const recentlyConfirmedStale = datasets.filter(d => d.actions && d.actions.includes('recently-confirmed-stale')).length;
 const priorityCounts = {
   P0: datasets.filter(d => d.priority === 'P0').length,
   P1: datasets.filter(d => d.priority === 'P1').length,
   P2: datasets.filter(d => d.priority === 'P2').length,
   P3: datasets.filter(d => d.priority === 'P3').length,
   skip: datasets.filter(d => d.priority === null).length,
+  recentlyConfirmedStale,
 };
 const depthCounts = {
   viable: datasets.filter(d => d.marketDepth === 'viable').length,
@@ -411,6 +425,7 @@ console.log(`    P2 initial-fetch:   ${priorityCounts.P2}`);
 console.log(`    P3 monitor:         ${priorityCounts.P3}`);
 console.log(`    Skip (ok/dormant):  ${priorityCounts.skip}`);
 console.log(`    Actionable total:   ${priorityCounts.P0 + priorityCounts.P1 + priorityCounts.P2 + priorityCounts.P3}`);
+console.log(`    Recently-confirmed-stale (scraped <${RECENTLY_REFRESHED_DAYS}d, no new sales): ${recentlyConfirmedStale}`);
 console.log('');
 console.log('  Market depth:');
 console.log(`    Viable (>=10):      ${depthCounts.viable}`);
