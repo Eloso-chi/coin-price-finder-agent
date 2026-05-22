@@ -245,6 +245,30 @@ describe('greysheetTypeMap', () => {
       expect(r).not.toBeNull();
       expect(r.gsid).toBe(373776);
     });
+
+    // P0: Weight normalization — 30g (0.964oz) should round to 1
+    it('resolves Silver Panda with hints.weight ~0.964 (30g → 1oz normalization)', () => {
+      const r = lookupTypeGsid('2024 30g Silver Chinese Panda', { weight: 0.9645, metal: 'silver' });
+      expect(r).not.toBeNull();
+      expect(r.gsid).toBe(373776); // panda|1|silver
+    });
+
+    it('resolves Gold Panda with hints.weight ~0.964 (30g → 1oz normalization)', () => {
+      const r = lookupTypeGsid('2024 30g Gold Chinese Panda', { weight: 0.9645, metal: 'gold' });
+      expect(r).not.toBeNull();
+      expect(r.gsid).toBe(395439); // panda|1|gold
+    });
+
+    it('does NOT normalize weight 0.5 to 1 (outside 0.9-1.05 range)', () => {
+      const r = lookupTypeGsid('Silver Eagle', { weight: 0.5, metal: 'silver' });
+      // Should look for silver eagle|0.5 or fall through — NOT silver eagle|1
+      if (r) expect(r.lookupKey).not.toContain('|1|');
+    });
+
+    it('normalizes weight 1.0 (exact) without issue', () => {
+      const r = lookupTypeGsid('Silver Libertad 1 oz', { weight: 1.0, metal: 'silver' });
+      expect(r).not.toBeNull();
+    });
   });
 
   // ── lookupTypeGsid: US Classics ────────────────────────────
