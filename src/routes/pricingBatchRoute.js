@@ -237,9 +237,8 @@ async function _priceOne(item) {
     // ── Enrich pcgs.auction with cached APR data (richer than CoinFacts AuctionList) ──
     if (pcgsNo && gradeNum) {
       const aprData = auctionPriceService.getHistory(pcgsNo, gradeNum);
-      if (aprData.records.length > (pcgs.auction?.count || 0)) {
-        pcgs.auction = aprData.stats;
-        pcgs.auction.trend = auctionPriceService.computeTrend(aprData.records);
+      if (aprData.stats.count > (pcgs.auction?.count || 0)) {
+        pcgs.auction = { ...aprData.stats, trend: auctionPriceService.computeTrend(aprData.records) };
       }
     }
 
