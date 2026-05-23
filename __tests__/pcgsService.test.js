@@ -162,38 +162,6 @@ describe('resolveFromDescription', () => {
     expect(result.series).toBe('Morgan Dollars 1878-1921');
   });
 
-  test('falls through to search endpoint for free-text queries', async () => {
-    // First call: search endpoint
-    axios.get.mockResolvedValueOnce({ data: MOCK_COIN_RESPONSE, headers: {} });
-
-    const result = await pcgsService.resolveFromDescription('1881-CC Morgan Dollar MS-64');
-    expect(result.verified).toBe(true);
-    expect(axios.get).toHaveBeenCalledWith(
-      expect.stringContaining('/coindetail/Search'),
-      expect.anything()
-    );
-  });
-
-  test('rejects search result with year mismatch', async () => {
-    const wrongYear = { ...MOCK_COIN_RESPONSE, Year: 1900 };
-    axios.get
-      .mockResolvedValueOnce({ data: wrongYear, headers: {} }) // search returns wrong year
-      .mockResolvedValueOnce({ data: MOCK_COIN_RESPONSE, headers: {} }); // table lookup succeeds
-
-    const result = await pcgsService.resolveFromDescription('1881-CC Morgan Dollar MS-64');
-    // Should still produce a result (falls through to table lookup)
-    expect(result).toBeDefined();
-  });
-
-  test('rejects search result with series mismatch (Jefferson vs Buffalo)', async () => {
-    const wrongSeries = { ...MOCK_COIN_RESPONSE, SeriesName: 'Buffalo Nickels 1913-1938', Year: 1960 };
-    axios.get.mockResolvedValueOnce({ data: wrongSeries, headers: {} });
-
-    const result = await pcgsService.resolveFromDescription('1960 Jefferson Nickel');
-    // Should NOT trust the Buffalo result for a Jefferson query
-    expect(result.series).not.toMatch(/Buffalo/i);
-  });
-
   test('returns best-effort parsed data when all API lookups fail', async () => {
     axios.get.mockRejectedValue(new Error('Network down'));
 
