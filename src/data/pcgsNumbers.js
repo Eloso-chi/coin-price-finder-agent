@@ -429,10 +429,82 @@ const AMERICAN_PALLADIUM_EAGLE = {
 };
 
 // ══════════════════════════════════════════════════════════════
+// WORLD BULLION — Mexico Silver Libertad 1 oz (1982–present)
+// Source: PCGS Population Report, category 5434 (Onza 1982 to Date)
+// Designation: MS (Business Strike)
+// ══════════════════════════════════════════════════════════════
+const MEXICO_SILVER_LIBERTAD = {
+  1982: { P: 526437 }, 1983: { P: 526438 }, 1984: { P: 526440 },
+  1985: { P: 526441 }, 1986: { P: 526442 }, 1987: { P: 526444 },
+  1988: { P: 526447 }, 1989: { P: 526449 }, 1990: { P: 672005 },
+  1991: { P: 717199 }, 1992: { P: 168771 }, 1993: { P: 170552 },
+  1994: { P: 168772 }, 1995: { P: 168773 }, 1996: { P: 526460 },
+  1997: { P: 262212 }, 1998: { P: 170553 }, 1999: { P: 672002 },
+  2000: { P: 166958 }, 2001: { P: 164750 }, 2002: { P: 173653 },
+  2003: { P: 166100 }, 2004: { P: 147351 }, 2005: { P: 172389 },
+  2006: { P: 144455 }, 2007: { P: 396536 }, 2008: { P: 397688 },
+  2009: { P: 414938 }, 2010: { P: 504659 }, 2011: { P: 507455 },
+  2012: { P: 273989 }, 2013: { P: 517283 }, 2014: { P: 531807 },
+  2015: { P: 542498 }, 2016: { P: 599354 }, 2017: { P: 627482 },
+  2018: { P: 672198 }, 2019: { P: 706023 }, 2020: { P: 837363 },
+  2021: { P: 882049 }, 2022: { P: 907266 }, 2023: { P: 930769 },
+  2024: { P: 961667 }, 2025: { P: 974626 },
+};
+
+// ══════════════════════════════════════════════════════════════
+// WORLD BULLION — Mexico Silver Libertad Proof 1 oz (1983–present)
+// Source: PCGS Population Report, category 5434 (PR tab)
+// Designation: PRDCAM (Proof Deep Cameo)
+// ══════════════════════════════════════════════════════════════
+const MEXICO_SILVER_LIBERTAD_PROOF = {
+  1983: { P: 402567 }, 1986: { P: 389203 }, 1987: { P: 412468 },
+  1988: { P: 389398 }, 1989: { P: 416451 }, 1990: { P: 399868 },
+  1991: { P: 500846 }, 1992: { P: 416452 }, 1993: { P: 147450 },
+  1994: { P: 416457 }, 1995: { P: 262241 }, 1996: { P: 849137 },
+  1997: { P: 849138 }, 1998: { P: 849139 }, 1999: { P: 145066 },
+  2000: { P: 717976 }, 2001: { P: 749909 }, 2002: { P: 419418 },
+  2003: { P: 400024 }, 2004: { P: 147349 }, 2005: { P: 417034 },
+  2006: { P: 506552 }, 2007: { P: 417035 }, 2008: { P: 408208 },
+  2009: { P: 500847 }, 2010: { P: 418731 }, 2011: { P: 508203 },
+  2012: { P: 273990 }, 2013: { P: 517280 }, 2014: { P: 533532 },
+  2015: { P: 545927 }, 2016: { P: 609294 }, 2017: { P: 640877 },
+  2018: { P: 678995 }, 2019: { P: 722074 }, 2020: { P: 843510 },
+  2021: { P: 888464 }, 2022: { P: 911420 }, 2023: { P: 934644 },
+  2024: { P: 961683 }, 2025: { P: 997701 },
+};
+
+// ══════════════════════════════════════════════════════════════
+// WORLD BULLION — Australia Kookaburra 1 oz Silver (1992–present)
+// Source: PCGS Population Report, category 5113 (1 Dollar 1992 to Date)
+// Designation: MS (Business Strike) — base coin only (no privy marks)
+// ══════════════════════════════════════════════════════════════
+const AUSTRALIA_KOOKABURRA_SILVER = {
+  1992: { P: 114425 }, 1993: { P: 114429 }, 1994: { P: 114424 },
+  1995: { P: 114432 }, 1996: { P: 114433 }, 1997: { P: 114430 },
+  1998: { P: 114431 }, 1999: { P: 114450 }, 2000: { P: 114452 },
+  2001: { P: 166131 }, 2002: { P: 166132 }, 2003: { P: 166712 },
+  2004: { P: 172060 }, 2005: { P: 163216 },
+  // TODO: 2006-2025 numbers from pop report page 2
+};
+
+// ══════════════════════════════════════════════════════════════
 // Series name → table mapping
 // ══════════════════════════════════════════════════════════════
 const SERIES_MAP = [
   // Order matters: more specific patterns first
+
+  // ── World Bullion (before US coins to avoid "dollar" fallback conflicts) ──
+  { re: /\blibertad\b.*\bproof\b|\bproof\b.*\blibertad\b/i, table: MEXICO_SILVER_LIBERTAD_PROOF },
+  { re: /\blibertad\b|\bonza\b/i,                           table: MEXICO_SILVER_LIBERTAD },
+  { re: /\bkookaburra\b/i,                                  table: AUSTRALIA_KOOKABURRA_SILVER },
+  // TODO: Add tables when numbers are extracted from Pop Report
+  // { re: /\bmaple\s*leaf\b/i,                             table: CANADA_SILVER_MAPLE_LEAF },
+  // { re: /\bkrugerrand\b/i,                               table: SOUTH_AFRICA_KRUGERRAND_GOLD },
+  // { re: /\bbritannia\b/i,                                table: GREAT_BRITAIN_BRITANNIA_SILVER },
+  // { re: /\bkangaroo\b|\bnugget\b/i,                      table: AUSTRALIA_KANGAROO_SILVER },
+  // { re: /\bphilharmonic\b/i,                             table: AUSTRIA_PHILHARMONIC_SILVER },
+  // { re: /\bpanda\b/i,                                    table: CHINA_PANDA_SILVER },
+  // { re: /\blunar\b/i,                                    table: AUSTRALIA_LUNAR_SILVER },
 
   // ── US Bullion (before generic "eagle" / "buffalo" / "dollar") ──
   { re: /\bamerican\s*silver\s*eagle\b|\bsilver\s*eagle\b|\base\b|\bsae\b/i, table: AMERICAN_SILVER_EAGLE },

@@ -158,67 +158,9 @@ async function resolveFromDescription(text) {
     if (result.verified) return result;
   }
 
-  // Try PCGS search endpoint
-  try {
-    const cacheKey = `pcgs:desc:${text.toLowerCase().trim()}`;
-    if (cache.has(cacheKey)) return cache.get(cacheKey);
-
-    const data = await pcgsGet(`/coindetail/Search?query=${encodeURIComponent(text)}`);
-    if (data && (Array.isArray(data) ? data.length : data.PCGSNo)) {
-      const coin = Array.isArray(data) ? data[0] : data;
-      const result = _mapResponse(coin);
-
-      // ── Sanity-check: reject API results that contradict the parsed query ──
-      // The PCGS Search endpoint occasionally returns the wrong coin
-      // (e.g. "Buffalo" when the user asked for "Jefferson").
-      const apiYear = result.year;
-      const apiSeries = (result.series || '').toLowerCase();
-      let trustResult = true;
-
-      // Year mismatch: if the parsed year exists and API returned a different year, reject.
-      if (parsed.year && apiYear && parsed.year !== apiYear) {
-        console.warn(`[pcgs] Search result year mismatch: parsed ${parsed.year}, API returned ${apiYear} — falling through to local table`);
-        trustResult = false;
-      }
-
-      // Mint mismatch: if the parsed mint exists and API returned a different mint, reject.
-      const apiMint = (result.mint || '').toUpperCase();
-      if (trustResult && parsed.mint && apiMint && parsed.mint.toUpperCase() !== apiMint) {
-        console.warn(`[pcgs] Search result mint mismatch: parsed "${parsed.mint}", API returned "${apiMint}" — falling through to local table`);
-        trustResult = false;
-      }
-
-      // Series mismatch: if we know the series from parsing (e.g. "Jefferson")
-      // and the API returned a clearly different series (e.g. "Buffalo"),
-      // reject the result.  Compare key tokens from the parsed series.
-      if (trustResult && parsed.series) {
-        const parsedSeriesLow = parsed.series.toLowerCase();
-        const CONFLICTING_PAIRS = [
-          ['jefferson', 'buffalo'], ['kennedy', 'franklin'], ['kennedy', 'walking liberty'],
-          ['franklin', 'walking liberty'], ['washington', 'standing liberty'],
-          ['roosevelt', 'mercury'], ['roosevelt', 'barber'], ['mercury', 'barber'],
-          ['morgan', 'peace'], ['lincoln', 'indian head'], ['lincoln', 'indian'],
-        ];
-        for (const [a, b] of CONFLICTING_PAIRS) {
-          const parsedHasA = parsedSeriesLow.includes(a);
-          const parsedHasB = parsedSeriesLow.includes(b);
-          const apiHasA = apiSeries.includes(a);
-          const apiHasB = apiSeries.includes(b);
-          if ((parsedHasA && apiHasB && !apiHasA) || (parsedHasB && apiHasA && !apiHasB)) {
-            console.warn(`[pcgs] Search result series mismatch: parsed "${parsed.series}", API returned "${result.series}" — falling through to local table`);
-            trustResult = false;
-            break;
-          }
-        }
-      }
-
-      if (trustResult) {
-        cache.set(cacheKey, result);
-        return result;
-      }
-      // Otherwise fall through to local PCGS table lookup
-    }
-  } catch (_) { /* fall through */ }
+  // NOTE: The /coindetail/Search endpoint was removed -- it returns 404 and
+  // was never part of the official PCGS Public API. Resolution now relies
+  // entirely on the local PCGS number table + GetCoinFactsByGrade.
 
   // ── Try static PCGS coin number table ──
   const pcgsNo = lookupPCGSNumber(
