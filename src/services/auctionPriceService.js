@@ -332,11 +332,58 @@ function updateRunStatus(status, details = {}) {
   saveManifest();
 }
 
+/**
+ * Compute price trend from auction records.
+ * Compares median of recent 12 months vs prior 12 months.
+ * @param {object[]} records - sorted descending by date
+ * @returns {{ direction: string, pct: number|null }} direction: 'rising'|'falling'|'stable'|null
+ */
+function computeTrend(records) {
+  if (!records || records.length < 4) return { direction: null, pct: null };
+
+  const now = new Date();
+  const oneYearAgo = new Date(now);
+  oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+  const twoYearsAgo = new Date(now);
+  twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
+
+  const recent = [];
+  const older = [];
+
+  for (const r of records) {
+    if (!r.Date || !r.Price) continue;
+    const [monthStr, yearStr] = r.Date.split('-');
+    const recordDate = new Date(parseInt(yearStr, 10), parseInt(monthStr, 10) - 1);
+    if (recordDate >= oneYearAgo) {
+      recent.push(r.Price);
+    } else if (recordDate >= twoYearsAgo) {
+      older.push(r.Price);
+    }
+  }
+
+  if (recent.length < 2 || older.length < 2) return { direction: null, pct: null };
+
+  recent.sort((a, b) => a - b);
+  older.sort((a, b) => a - b);
+  const recentMedian = recent[Math.floor(recent.length / 2)];
+  const olderMedian = older[Math.floor(older.length / 2)];
+
+  if (olderMedian === 0) return { direction: null, pct: null };
+  const pct = +((recentMedian - olderMedian) / olderMedian * 100).toFixed(1);
+
+  let direction = 'stable';
+  if (pct >= 15) direction = 'rising';
+  else if (pct <= -15) direction = 'falling';
+
+  return { direction, pct };
+}
+
 module.exports = {
   fetchByGrade,
   fetchByCertNo,
   getHistory,
   computeStats,
+  computeTrend,
   getManifest,
   getStaleEntries,
   needsRefresh,
