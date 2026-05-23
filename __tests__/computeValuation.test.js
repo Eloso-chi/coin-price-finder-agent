@@ -1281,3 +1281,41 @@ describe('computeValuation — Greysheet spread output (#54)', () => {
     expect(result.valuation.greysheetSpread).toBeNull();
   });
 });
+
+// ═══════════════════════════════════════════════════════════════
+//  Auction Data in response
+// ═══════════════════════════════════════════════════════════════
+
+describe('computeValuation — auctionData response field', () => {
+  test('includes auctionData when auction median is present', () => {
+    const comps = makeComps([100, 100, 100, 100, 100]);
+    const pcgs = mockPcgs({
+      verified: true,
+      priceGuide: { valueUsd: 120 },
+      auction: { medianUsd: 110, count: 34, trend: { direction: 'stable', pct: 2.1 } },
+    });
+    const result = computeValuation(pcgs, mockEbay({ usComps: comps }));
+    expect(result.valuation.auctionData).not.toBeNull();
+    expect(result.valuation.auctionData.medianUsd).toBe(110);
+    expect(result.valuation.auctionData.count).toBe(34);
+    expect(result.valuation.auctionData.trend.direction).toBe('stable');
+  });
+
+  test('auctionData is null when no auction data available', () => {
+    const comps = makeComps([100, 100, 100, 100, 100]);
+    const pcgs = mockPcgs({ auction: null });
+    const result = computeValuation(pcgs, mockEbay({ usComps: comps }));
+    expect(result.valuation.auctionData).toBeNull();
+  });
+
+  test('auctionData reflects trend from APR enrichment', () => {
+    const comps = makeComps([100, 100, 100, 100, 100]);
+    const pcgs = mockPcgs({
+      verified: true,
+      auction: { medianUsd: 150, count: 74, trend: { direction: 'rising', pct: 22.5 } },
+    });
+    const result = computeValuation(pcgs, mockEbay({ usComps: comps }));
+    expect(result.valuation.auctionData.trend.direction).toBe('rising');
+    expect(result.valuation.auctionData.trend.pct).toBe(22.5);
+  });
+});

@@ -404,6 +404,11 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
         wholesale: gsData.greyVal,
         retail: gsData.cpgVal
       } : null,
+      auctionData: auctionMedian != null ? {
+        medianUsd: auctionMedian,
+        count: pcgs?.auction?.count || null,
+        trend: pcgs?.auction?.trend || null,
+      } : null,
       bullionSpot: method === 'bullion-spot-premium' ? {
         spotPrice: +spotPrice.toFixed(2),
         premiumPct: +((fmv / spotPrice - 1) * 100).toFixed(1),

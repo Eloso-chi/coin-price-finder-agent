@@ -221,4 +221,74 @@ describe('auctionPriceService', () => {
       expect(auctionPrice.DATE_WINDOW_YEARS).toBe(3);
     });
   });
+
+  describe('computeTrend', () => {
+    function makeRecords(recentPrices, olderPrices) {
+      const now = new Date();
+      const records = [];
+      // Recent records: within last 12 months
+      for (const price of recentPrices) {
+        const d = new Date(now);
+        d.setMonth(d.getMonth() - Math.floor(Math.random() * 6));
+        records.push({ Price: price, Date: `${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`, Auctioneer: 'Test' });
+      }
+      // Older records: 12-24 months ago
+      for (const price of olderPrices) {
+        const d = new Date(now);
+        d.setMonth(d.getMonth() - 12 - Math.floor(Math.random() * 6));
+        records.push({ Price: price, Date: `${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`, Auctioneer: 'Test' });
+      }
+      return records;
+    }
+
+    it('returns null for fewer than 4 records', () => {
+      const result = auctionPrice.computeTrend([{ Price: 100, Date: '01-2025' }]);
+      expect(result.direction).toBeNull();
+      expect(result.pct).toBeNull();
+    });
+
+    it('returns null for empty input', () => {
+      const result = auctionPrice.computeTrend([]);
+      expect(result.direction).toBeNull();
+    });
+
+    it('returns null for null input', () => {
+      const result = auctionPrice.computeTrend(null);
+      expect(result.direction).toBeNull();
+    });
+
+    it('detects rising trend (>= +15%)', () => {
+      const records = makeRecords([150, 155, 160, 145], [100, 105, 110, 95]);
+      const result = auctionPrice.computeTrend(records);
+      expect(result.direction).toBe('rising');
+      expect(result.pct).toBeGreaterThanOrEqual(15);
+    });
+
+    it('detects falling trend (<= -15%)', () => {
+      const records = makeRecords([80, 85, 75, 82], [120, 115, 125, 118]);
+      const result = auctionPrice.computeTrend(records);
+      expect(result.direction).toBe('falling');
+      expect(result.pct).toBeLessThanOrEqual(-15);
+    });
+
+    it('detects stable trend (within +/-15%)', () => {
+      const records = makeRecords([100, 105, 102, 98], [100, 95, 103, 97]);
+      const result = auctionPrice.computeTrend(records);
+      expect(result.direction).toBe('stable');
+      expect(Math.abs(result.pct)).toBeLessThan(15);
+    });
+
+    it('returns null when not enough data in one window', () => {
+      // Only recent data, no older
+      const now = new Date();
+      const records = [
+        { Price: 100, Date: `${String(now.getMonth() + 1).padStart(2, '0')}-${now.getFullYear()}`, Auctioneer: 'Test' },
+        { Price: 105, Date: `${String(now.getMonth() + 1).padStart(2, '0')}-${now.getFullYear()}`, Auctioneer: 'Test' },
+        { Price: 110, Date: `${String(now.getMonth() + 1).padStart(2, '0')}-${now.getFullYear()}`, Auctioneer: 'Test' },
+        { Price: 115, Date: `${String(now.getMonth() + 1).padStart(2, '0')}-${now.getFullYear()}`, Auctioneer: 'Test' },
+      ];
+      const result = auctionPrice.computeTrend(records);
+      expect(result.direction).toBeNull();
+    });
+  });
 });

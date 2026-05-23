@@ -8,6 +8,7 @@ const pcgsService = require('../services/pcgsService');
 const ebayService = require('../services/ebayService');
 const greysheetService = require('../services/greysheetService');
 const greysheetHistory = require('../services/greysheetHistoryService');
+const auctionPriceService = require('../services/auctionPriceService');
 const { computeValuation } = require('../services/valuationService');
 const { getMetalsSpotPrice } = require('../services/metalsSpotPrice');
 const numistaService = require('../services/numistaService');
@@ -370,6 +371,15 @@ router.post('/', async (req, res) => {
         gradeNum
       );
       greysheetHistory.recordSnapshot(gsHistKey, greysheet.greyVal, greysheet.cpgVal);
+    }
+
+    // ── Enrich pcgs.auction with cached APR data (richer than CoinFacts AuctionList) ──
+    if (pcgsNo && gradeNum) {
+      const aprData = auctionPriceService.getHistory(pcgsNo, gradeNum);
+      if (aprData.records.length > (pcgs.auction?.count || 0)) {
+        pcgs.auction = aprData.stats;
+        pcgs.auction.trend = auctionPriceService.computeTrend(aprData.records);
+      }
     }
 
     // #156: Auto-derive COA/Box appeal multiplier when not explicitly set by user

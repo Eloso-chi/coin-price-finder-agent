@@ -9,6 +9,7 @@ const router  = express.Router();
 const pcgsService  = require('../services/pcgsService');
 const ebayService  = require('../services/ebayService');
 const greysheetService = require('../services/greysheetService');
+const auctionPriceService = require('../services/auctionPriceService');
 const { computeValuation } = require('../services/valuationService');
 const { getMetalsSpotPrice } = require('../services/metalsSpotPrice');
 const { getCoinMetalProfile } = require('../utils/coinMetalProfile');
@@ -231,6 +232,15 @@ async function _priceOne(item) {
         weight,
         finish: isProof ? 'Proof' : (parsed.finish || null),
       });
+    }
+
+    // ── Enrich pcgs.auction with cached APR data (richer than CoinFacts AuctionList) ──
+    if (pcgsNo && gradeNum) {
+      const aprData = auctionPriceService.getHistory(pcgsNo, gradeNum);
+      if (aprData.records.length > (pcgs.auction?.count || 0)) {
+        pcgs.auction = aprData.stats;
+        pcgs.auction.trend = auctionPriceService.computeTrend(aprData.records);
+      }
     }
 
     // #156: Auto-derive COA/Box appeal multiplier
