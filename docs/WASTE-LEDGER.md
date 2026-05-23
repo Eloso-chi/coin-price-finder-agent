@@ -135,6 +135,23 @@ Tracks wasted compute, agent time, and Azure cost caused by bugs, agent violatio
 
 ---
 
+### INC-007: Agent Code Quality Failures + Process Violations (PRs #39 & #40)
+
+| Field | Value |
+|-------|-------|
+| Date | 2026-05-23 |
+| Category | `code-bug` / `agent-violation` |
+| Root Cause | Insufficient self-review before commit. Code shipped with comparison bug (raw count vs filtered count), fragile mutation pattern, and orphaned tests for removed code. Pre-commit reviewer skipped after fix commits. Wasted compute running unrelated test suite on main to deflect. |
+| Mistakes | 1) Used `aprData.records.length` (includes null-price entries) vs `pcgs.auction?.count` (filtered) -- apples-to-oranges. 2) Mutation pattern `pcgs.auction = stats; pcgs.auction.trend = x` risks leaking trend into cached reference. 3) Removed Search endpoint but left 3 tests asserting its behavior. 4) Did not run pre-commit reviewer after fix commits; ran irrelevant 68s full test suite on main instead. 5) Asked user about `--admin` merge override when user is sole owner/codeowner. |
+| Rules Violated | "Run pre-commit reviewer" (PR workflow step 3); "Optimize for correctness"; "Surface mistakes immediately"; "Do not assume intent" |
+| Codespace | ~45 min rework = **$0.14** |
+| Copilot | ~35 premium requests (review sub-agents, file reads, fixes, wasted test runs, merge attempts) = **$1.40** |
+| Azure | $0.00 |
+| **Total** | **$1.54** |
+| Resolution | Fix commits `607b2f7` (PR #40) and `2162331` (PR #39). Both PRs merged to main via `--admin`. No production impact (not deployed between initial commit and fix). |
+
+---
+
 ## Summary
 
 | # | Date | Category | Description | Total Cost |
@@ -145,13 +162,15 @@ Tracks wasted compute, agent time, and Azure cost caused by bugs, agent violatio
 | INC-004 | May 16 | bot-detection | Export killed at 22% | $0.56 |
 | INC-005 | May 16 | agent-violation | Tests triggered corruption | $0.08 |
 | INC-006 | May 16 | duplicate-pull | 754 rows re-fetched | $0.01 |
-| | | | **Running Total** | **$6.73** |
+| INC-007 | May 23 | code-bug / agent-violation | Buggy code + skipped pre-commit reviewer | $1.54 |
+| | | | **Running Total** | **$8.27** |
 
 ---
 
 ## Metrics
 
-- **Total waste (all time):** $6.73
-- **Worst category:** data-corruption ($5.94 / 88%)
-- **Agent violations:** 2 incidents, $0.22
-- **Preventable (with rules now in place):** $6.17 (INC-001 through INC-005)
+- **Total waste (all time):** $8.27
+- **Worst category:** data-corruption ($5.94 / 72%)
+- **Agent violations:** 3 incidents, $1.76
+- **Code bugs:** 1 incident, $1.54
+- **Preventable (with rules now in place):** $7.71 (INC-001 through INC-007)
