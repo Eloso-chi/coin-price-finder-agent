@@ -483,8 +483,61 @@ const AUSTRALIA_KOOKABURRA_SILVER = {
   1995: { P: 114432 }, 1996: { P: 114433 }, 1997: { P: 114430 },
   1998: { P: 114431 }, 1999: { P: 114450 }, 2000: { P: 114452 },
   2001: { P: 166131 }, 2002: { P: 166132 }, 2003: { P: 166712 },
-  2004: { P: 172060 }, 2005: { P: 163216 },
-  // TODO: 2006-2025 numbers from pop report page 2
+  2004: { P: 172060 }, 2005: { P: 163216 }, 2006: { P: 140647 },
+  2007: { P: 147318 }, 2008: { P: 395465 }, 2009: { P: 404880 },
+  2010: { P: 413593 }, 2011: { P: 502666 }, 2012: { P: 509332 },
+  2013: { P: 515366 }, 2014: { P: 520997 }, 2015: { P: 532443 },
+  2016: { P: 592328 }, 2017: { P: 616186 }, 2018: { P: 654945 },
+  2019: { P: 685336 }, 2020: { P: 802717 }, 2021: { P: 837522 },
+  2022: { P: 891925 }, 2023: { P: 914354 }, 2024: { P: 938231 },
+  2025: { P: 975807 }, 2026: { P: 1006659 },
+};
+
+// ══════════════════════════════════════════════════════════════
+// WORLD BULLION — South Africa Krugerrand 1 oz Gold (1967–present)
+// Source: PCGS Population Report, category 5230 (1 Krugerrand 1967 to Date)
+// Designation: MS (Business Strike) — gold only (excludes silver/PL variants)
+// Note: Some years missing from pop report (1986, 1992, 1996, 1997, 2001, 2003, 2006)
+// ══════════════════════════════════════════════════════════════
+const SOUTH_AFRICA_KRUGERRAND_GOLD = {
+  1967: { P: 564601 }, 1968: { P: 564605 }, 1969: { P: 163977 },
+  1970: { P: 163978 }, 1971: { P: 145578 }, 1972: { P: 159350 },
+  1973: { P: 564614 }, 1974: { P: 170680 }, 1975: { P: 564618 },
+  1976: { P: 160227 }, 1977: { P: 564024 }, 1978: { P: 564626 },
+  1979: { P: 167091 }, 1980: { P: 564630 }, 1981: { P: 167515 },
+  1982: { P: 564634 }, 1983: { P: 174066 }, 1984: { P: 564638 },
+  1985: { P: 218753 }, 1987: { P: 216220 }, 1988: { P: 216223 },
+  1989: { P: 216226 }, 1990: { P: 167901 }, 1991: { P: 564656 },
+  1993: { P: 117661 }, 1994: { P: 117663 }, 1995: { P: 117665 },
+  1998: { P: 117671 }, 1999: { P: 117672 }, 2000: { P: 167540 },
+  2002: { P: 163644 }, 2004: { P: 590295 }, 2005: { P: 140009 },
+  2007: { P: 590297 }, 2008: { P: 404901 }, 2009: { P: 410566 },
+  2010: { P: 590292 }, 2011: { P: 117235 }, 2012: { P: 223717 },
+  2013: { P: 522489 }, 2014: { P: 537240 }, 2015: { P: 540077 },
+  2016: { P: 595326 }, 2017: { P: 623521 }, 2018: { P: 682732 },
+  2019: { P: 698323 }, 2020: { P: 812299 }, 2021: { P: 843481 },
+  2022: { P: 898778 }, 2023: { P: 917368 }, 2024: { P: 940880 },
+  2025: { P: 999771 }, 2026: { P: 1008074 },
+};
+
+// ══════════════════════════════════════════════════════════════
+// WORLD BULLION — Australia Kangaroo/Nugget 1 oz Silver (1993–present)
+// Source: PCGS Population Report, category 219568 (1 Dollar Silver 1993-2023)
+// Designation: MS (Business Strike) — base coin only (no privy/gilt/colorized)
+// Note: 2012 and 2014 not in pop report for base silver coin
+// ══════════════════════════════════════════════════════════════
+const AUSTRALIA_KANGAROO_SILVER = {
+  1993: { P: 143219 }, 1994: { P: 143220 }, 1995: { P: 143221 },
+  1996: { P: 143222 }, 1997: { P: 143223 }, 1998: { P: 161633 },
+  1999: { P: 162645 }, 2000: { P: 114455 }, 2001: { P: 161634 },
+  2002: { P: 161635 }, 2003: { P: 168240 }, 2004: { P: 169995 },
+  2005: { P: 140471 }, 2006: { P: 143224 }, 2007: { P: 887880 },
+  2008: { P: 590164 }, 2009: { P: 407184 }, 2010: { P: 507667 },
+  2011: { P: 507980 }, 2013: { P: 515661 }, 2015: { P: 625122 },
+  2016: { P: 568475 }, 2017: { P: 618268 }, 2018: { P: 656514 },
+  2019: { P: 687481 }, 2020: { P: 802719 }, 2021: { P: 841759 },
+  2022: { P: 893322 }, 2023: { P: 918241 }, 2024: { P: 939526 },
+  2025: { P: 977924 }, 2026: { P: 1006176 },
 };
 
 // ══════════════════════════════════════════════════════════════
@@ -497,11 +550,11 @@ const SERIES_MAP = [
   { re: /\blibertad\b.*\bproof\b|\bproof\b.*\blibertad\b/i, table: MEXICO_SILVER_LIBERTAD_PROOF },
   { re: /\blibertad\b|\bonza\b/i,                           table: MEXICO_SILVER_LIBERTAD },
   { re: /\bkookaburra\b/i,                                  table: AUSTRALIA_KOOKABURRA_SILVER },
+  { re: /\bkrugerrand\b/i,                                  table: SOUTH_AFRICA_KRUGERRAND_GOLD },
+  { re: /\bkangaroo\b|\bnugget\b/i,                         table: AUSTRALIA_KANGAROO_SILVER },
   // TODO: Add tables when numbers are extracted from Pop Report
   // { re: /\bmaple\s*leaf\b/i,                             table: CANADA_SILVER_MAPLE_LEAF },
-  // { re: /\bkrugerrand\b/i,                               table: SOUTH_AFRICA_KRUGERRAND_GOLD },
   // { re: /\bbritannia\b/i,                                table: GREAT_BRITAIN_BRITANNIA_SILVER },
-  // { re: /\bkangaroo\b|\bnugget\b/i,                      table: AUSTRALIA_KANGAROO_SILVER },
   // { re: /\bphilharmonic\b/i,                             table: AUSTRIA_PHILHARMONIC_SILVER },
   // { re: /\bpanda\b/i,                                    table: CHINA_PANDA_SILVER },
   // { re: /\blunar\b/i,                                    table: AUSTRALIA_LUNAR_SILVER },
