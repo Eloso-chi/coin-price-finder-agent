@@ -642,9 +642,10 @@ const SERIES_MAP = [
   { re: /\bmaple\s*leaf\b/i,                                table: CANADA_SILVER_MAPLE_LEAF },
   { re: /\bbritannia\b/i,                                   table: GREAT_BRITAIN_BRITANNIA_SILVER },
   { re: /\bpanda\b/i,                                       table: CHINA_PANDA_SILVER },
-  { re: /\blunar\b/i,                                       table: CHINA_LUNAR_SILVER },
+  { re: /\b(?:china|chinese|prc)\b.*\blunar\b|\blunar\b.*\b(?:china|chinese|prc)\b/i, table: CHINA_LUNAR_SILVER },
   // TODO: Add tables when Pop Report category IDs are found (JS-rendered nav blocks scraping)
   // { re: /\bphilharmonic\b/i,                             table: AUSTRIA_PHILHARMONIC_SILVER },
+  // { re: /\b(?:perth|austral)\b.*\blunar\b|\blunar\b.*\b(?:perth|austral)\b/i, table: AUSTRALIA_LUNAR_SILVER },
 
   // ── US Bullion (before generic "eagle" / "buffalo" / "dollar") ──
   { re: /\bamerican\s*silver\s*eagle\b|\bsilver\s*eagle\b|\base\b|\bsae\b/i, table: AMERICAN_SILVER_EAGLE },

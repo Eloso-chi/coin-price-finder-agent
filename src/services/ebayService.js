@@ -614,7 +614,7 @@ function scoreMatch(comp, expected) {
   // When the query doesn't ask for a specialty variant, penalise comps whose
   // title explicitly advertises one — these carry heavy premiums over BU.
   const VARIANT_TOKENS = ['golden', 'gilded', 'guilded', 'gold plated', 'gold-plated',
-    'colorized', 'coloured', 'colorised', 'colour', 'enameled',
+    'colorized', 'coloured', 'colorised', 'colour', 'enameled', 'purple',
     'reverse proof', 'burnished', 'enhanced reverse proof',
     'satin finish', 'first strike', 'first day', 'first release',
     'first releases', 'antiqued', 'high relief', 'piedfort', 'privy',
@@ -1013,7 +1013,7 @@ function applyFilters(comps, options, expected) {
   // These carry heavy premiums that distort FMV for regular BU coins.
   {
     const VARIANT_TOKENS = ['golden', 'gilded', 'guilded', 'gold plated', 'gold-plated',
-      'colorized', 'coloured', 'colorised', 'enameled',
+      'colorized', 'coloured', 'colorised', 'enameled', 'purple',
       'reverse proof', 'burnished', 'enhanced reverse proof',
       'satin finish', 'antiqued', 'high relief', 'piedfort', 'privy',
       'prooflike', 'ruthenium', 'hologram',
