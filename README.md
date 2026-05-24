@@ -1,6 +1,6 @@
 # Coin Price Discovery Agent
 
-A dealer-oriented pricing tool that calculates **Fair Market Value (FMV)** for US coins and bullion bars by combining PCGS catalog data, eBay sold-comp analysis, and Terapeak market data. It produces buy/sell recommendations with confidence scores — designed for quick, data-backed decisions at a coin show or behind a counter.
+A dealer-oriented pricing tool that calculates **Fair Market Value (FMV)** for US coins, world bullion, and bullion bars by combining PCGS catalog data, eBay sold-comp analysis, and Terapeak market data. It produces buy/sell recommendations with confidence scores -- designed for quick, data-backed decisions at a coin show or behind a counter.
 
 ## What It Does
 
@@ -18,7 +18,7 @@ A dealer-oriented pricing tool that calculates **Fair Market Value (FMV)** for U
 11. **Market matrix** — year × mint grid of median completed prices and cheapest BIN listings, enriched with Numista rarity data.
 12. **Azure infrastructure** -- secrets in Key Vault (managed identity), dual-mode Cosmos DB write-through for persistent data, Blob Storage for Terapeak CSVs, Azure Files for cache persistence. Git-tracked meta sidecar provides zero-infra persistence fallback when Cosmos is unavailable.
 
-Also supports **bullion bars** (any metal, any size), **proof/mint sets**, **rolls**, and **lunar series** with dedicated input flows and eBay keyword strategies.
+Also supports **bullion bars** (any metal, any size), **proof/mint sets** (with silver/clad differentiation), **rolls**, **world bullion** (7 series with static PCGS number tables + auction price history), and **lunar series** (Perth Mint, Royal Mint, China PRC) with dedicated input flows and eBay keyword strategies.
 
 ---
 
@@ -30,7 +30,7 @@ The browser UI is a single-page app served from `public/index.html` with a dark 
 
 | Tab | Description |
 |-----|-------------|
-| **Price Discovery** | Main search -- two sub-modes: Coin (structured or quick-search entry) and Bar/Bullion. Bar mode has a dynamic series dropdown (populated from `GET /api/bar-price/options`) that filters by selected brand -- 7 brands with 40+ series (Geiger Edelmetalle, PAMP Fortuna, Coca-Cola, 12 Zodiac signs, Perth Lunar, Scottsdale, Valcambi, Heraeus, Credit Suisse). Submits to `/api/price` or `/api/bar-price`. Renders FMV hero card with image gallery, confidence score, buy/sell decisions, metadata chips, eBay stats, comp list, cross-tab quick links, and raw JSON. |
+| **Price Discovery** | Main search -- two sub-modes: Coin (structured or quick-search entry) and Bar/Bullion. Coin mode shows a conditional "Silver" checkbox for post-1992 proof denominations (Kennedy, Washington, Roosevelt, etc.) to differentiate silver vs clad proofs. Bar mode has a dynamic series dropdown (populated from `GET /api/bar-price/options`) that filters by selected brand -- 7 brands with 40+ series (Geiger Edelmetalle, PAMP Fortuna, Coca-Cola, 12 Zodiac signs, Perth Lunar, Scottsdale, Valcambi, Heraeus, Credit Suisse). Submits to `/api/price` or `/api/bar-price`. Renders FMV hero card with image gallery, confidence score, buy/sell decisions, metadata chips, eBay stats, comp list, cross-tab quick links, and raw JSON. |
 | **Melt Calculator** | Offline calculator for 80+ US coin types and 20 bar sizes. Auto-fetches spot prices from `/api/metals` and polls every 5 minutes. Shows per-coin, per-roll, and total melt values at spot and spot+premium. Quantity minimum enforced at 1. |
 | **Live eBay Tracker** | Market matrix from `/api/market/ebay`. Three display modes: Year × Mint (numismatic coins), Year × Grade (bullion), and Brand table (bars). Cells show median sold price, cheapest BIN link, key date badge, and Numista rarity. Color-coded legend. |
 | **Lot Evaluator** | Bulk collection pricing tool. Accepts a text list (one coin per line, pipe-delimited fields), JSON array, or Excel upload. Submits to `POST /api/bulk-evaluate`, then streams results via SSE. Shows per-coin FMV table with progress bar, lot summary card (total FMV, melt, avg confidence, bullion %), and three buy tiers (cherry-pick, fair lot, full retail). Applies lot-level discounts for size, low confidence, and concentration risk. Export results as CSV or JSON. |

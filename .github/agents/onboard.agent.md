@@ -87,27 +87,28 @@ Read the first 50 lines of each to understand the module interface (80 lines for
 **Data + Utils:**
 24. `src/data/greysheetTypeMap.js` -- series-to-GSID mapping + finish detection
 25. `src/data/constants.js` -- zodiac cycle, Perth Lunar helpers, roll quantities
-26. `src/utils/filters.js` -- deny lists, denomination detection, series conflicts
+26. `src/utils/filters.js` -- deny lists, denomination detection, series conflicts, two-way composition mismatch (silver/clad)
 27. `src/utils/cosmosClient.js` -- Cosmos DB client singleton
 28. `src/utils/blobClient.js` -- Blob Storage client
 29. `src/utils/cachePath.js` -- cache directory config
 30. `src/utils/coinMetalProfile.js` -- metal detection, weight detection (detectWeightFromTitle, weightToKeyToken), bullion classification
+31. `src/data/pcgsNumbers.js` -- static PCGS number tables (10 US series + 7 world bullion) + SERIES_MAP routing
 
 **Entry point + scripts:**
-31. `server.js` -- Express entry, middleware, route mounting, background timers
-32. `scripts/chain-aggregate.sh` -- chained aggregation batches with anti-bot monitoring (first 30 lines)
-33. `scripts/refresh-stale.sh` -- one-command stale data refresh with --refresh --max-age (first 30 lines)
-34. `scripts/greysheet-refresh.js` -- bulk Greysheet snapshot collector (first 30 lines)
-35. `scripts/clean-csvs.js` -- CSV junk cleaner (first 20 lines)
-36. `scripts/create-grade-datasets.js` -- grade-suffixed CSV stub generator (first 20 lines)
-37. `scripts/pricing-health-full.js` -- full-dataset pricing health audit (first 20 lines)
-38. `scripts/reclassify-comps.js` -- batch comp reclassification: weight mismatch detection + reroute (first 20 lines)
-39. `scripts/build-evidence-index.js` -- historical evidence index builder (first 20 lines)
-40. `scripts/generate-freshness-report.js` -- freshness triage report (first 20 lines)
+32. `server.js` -- Express entry, middleware, route mounting, background timers
+33. `scripts/chain-aggregate.sh` -- chained aggregation batches with anti-bot monitoring (first 30 lines)
+34. `scripts/refresh-stale.sh` -- one-command stale data refresh with --refresh --max-age (first 30 lines)
+35. `scripts/greysheet-refresh.js` -- bulk Greysheet snapshot collector (first 30 lines)
+36. `scripts/clean-csvs.js` -- CSV junk cleaner (first 20 lines)
+37. `scripts/create-grade-datasets.js` -- grade-suffixed CSV stub generator (first 20 lines)
+38. `scripts/pricing-health-full.js` -- full-dataset pricing health audit (first 20 lines)
+39. `scripts/reclassify-comps.js` -- batch comp reclassification: weight mismatch detection + reroute (first 20 lines)
+40. `scripts/build-evidence-index.js` -- historical evidence index builder (first 20 lines)
+41. `scripts/generate-freshness-report.js` -- freshness triage report (first 20 lines)
 
 **Test infrastructure:**
-41. `__tests__/helpers/coinTestConstants.js` -- shared test helpers, golden set loader, selectCoins()
-42. `__tests__/fixtures/golden_coins.json` -- 14 curated deterministic test coins
+42. `__tests__/helpers/coinTestConstants.js` -- shared test helpers, golden set loader, selectCoins()
+43. `__tests__/fixtures/golden_coins.json` -- 14 curated deterministic test coins
 
 ### Phase 4: Verification
 

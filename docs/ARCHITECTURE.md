@@ -46,7 +46,7 @@ server.js                              Express entry point (port 3000)
 │   └─ coinStorageService.js           Server-side coin CRUD (dual-mode Cosmos + local JSON)
 │
 ├─ src/data/
-│   ├─ pcgsNumbers.js                  Static PCGS coin number lookup (10 US series)
+│   ├─ pcgsNumbers.js                  Static PCGS coin number lookup (10 US series + 7 world bullion: Kookaburra, Krugerrand, Kangaroo, Maple Leaf, Britannia, China Panda, China Lunar)
 │   ├─ keyDates.js                     Key date / semi-key detection tables
 │   ├─ mintages.js                     Mintage reference data by series/year/mint
 │   ├─ halfDollarSeries.js             Half Dollar design eras + year-based resolver
@@ -57,7 +57,7 @@ server.js                              Express entry point (port 3000)
 ├─ src/utils/
 │   ├─ cache.js                        TTLCache class (in-memory + optional file persistence)
 │   ├─ stats.js                        Statistical functions (median, MAD, weighted median, etc.)
-│   ├─ filters.js                      Deny-list filtering, denomination & series checks
+│   ├─ filters.js                      Deny-list filtering, denomination & series checks, two-way composition mismatch (silver/clad)
 │   ├─ coinMetalProfile.js             Metal detection + weight detection (detectWeightFromTitle, weightToKeyToken) for bullion
 │   ├─ responseValidator.js            /api/price response schema & sanity validation
 │   ├─ excelMapper.js                  Excel-to-backup converter (header aliases, series normalization)
