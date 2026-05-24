@@ -74,6 +74,14 @@
       mask-image: linear-gradient(to right, transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%);
       -webkit-mask-image: linear-gradient(to right, transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%);
     }
+    .tab-bar::after {
+      content: '\203A'; position: sticky; right: 0; top: 0;
+      display: flex; align-items: center; justify-content: center;
+      min-width: 28px; color: var(--text-muted); font-size: 1.2rem;
+      background: linear-gradient(to right, transparent, var(--bg) 40%);
+      pointer-events: none; flex-shrink: 0;
+    }
+    .tab-bar.scrolled-end::after { display: none; }
     .tab-btn {
       background: none; border: none; color: var(--text-secondary);
       padding: 12px 20px; font-size: 0.9rem; font-weight: 600;
@@ -112,7 +120,7 @@
       box-shadow: 0 0 0 3px var(--accent-subtle);
     }
     input::placeholder { color: var(--text-muted); }
-    #query { flex: 1; min-width: 280px; }
+    #query { flex: 1; min-width: 0; }
     #askingPrice { width: 130px; }
     .weight-select { width: 100px; }
     #setType { display: none; }
@@ -918,6 +926,13 @@
       .mycoins-col-hide { display: none; }
       /* #127: Compact tab padding on small screens */
       .tab-btn { padding: 10px 12px; font-size: 0.82rem; }
+      /* Mobile touch targets: ensure all interactive elements meet 44px minimum */
+      .btn, .btn-sm, .btn-sm-accent, .btn-primary, .btn-secondary,
+      .add-coin-qty-btn, .tp-quota-actions button,
+      .advanced-toggle, .comps-show-all,
+      .pd-mode-toggle button, .tracker-mode-toggle button,
+      .confidence-key-icon { min-height: 44px; min-width: 44px; }
+      .mycoins-row-check, .mycoins-select-all { width: 24px; height: 24px; }
     }
     .mycoins-summary {
       display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;
@@ -2635,6 +2650,20 @@ Silver Libertad 1 oz Proof"></textarea>
   })();
 
   /* ═══════════════════════════════════════════════════════════
+   *  TAB BAR SCROLL INDICATOR — hides arrow when scrolled to end
+   * ═══════════════════════════════════════════════════════════ */
+  (function initTabBarScroll() {
+    const bar = document.querySelector('.tab-bar');
+    if (!bar) return;
+    function checkScroll() {
+      const atEnd = bar.scrollLeft + bar.clientWidth >= bar.scrollWidth - 4;
+      bar.classList.toggle('scrolled-end', atEnd);
+    }
+    bar.addEventListener('scroll', checkScroll, { passive: true });
+    checkScroll();
+  })();
+
+  /* ═══════════════════════════════════════════════════════════
    *  ADVANCED OPTIONS TOGGLE
    * ═══════════════════════════════════════════════════════════ */
   (function initAdvanced() {
@@ -3487,7 +3516,7 @@ Silver Libertad 1 oz Proof"></textarea>
         });
         html += '<details class="card pcgs-details" open>';
         html += '<summary>US Comps (' + sortedComps.length + ')</summary>';
-        html += '<table><thead><tr><th>#</th><th>Title</th><th>Total</th><th>Source</th><th>Type</th><th>Match</th><th>Date</th></tr></thead><tbody>';
+        html += '<div style="overflow-x:auto"><table><thead><tr><th>#</th><th>Title</th><th>Total</th><th>Source</th><th>Type</th><th>Match</th><th>Date</th></tr></thead><tbody>';
         sortedComps.forEach(function(c, i) {
           const mq = c.matchQuality || 'loose';
           const mqTag = '<span class="match-tag match-' + mq + '">' + mq + '</span>';
@@ -3526,7 +3555,7 @@ Silver Libertad 1 oz Proof"></textarea>
           html += '<td>' + mqTag + '</td>';
           html += '<td>' + (c.soldDate ? c.soldDate.substring(0, 10) : (isActive ? 'Active' : '\u2014')) + '</td></tr>';
         });
-        html += '</tbody></table>';
+        html += '</tbody></table></div>';
         if (sortedComps.length > 30) {
           html += '<button class="comps-show-all" style="display:block;margin:8px auto;padding:6px 16px;font-size:0.82rem;cursor:pointer;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);color:var(--accent)">Show all ' + sortedComps.length + ' comps</button>';
         }
@@ -4044,7 +4073,7 @@ Silver Libertad 1 oz Proof"></textarea>
       html += '</div>';
       html += '<div class="fmv-gallery-thumbs">';
       galleryImages.slice(0, 4).forEach(function(url, i) {
-        html += '<img src="' + _escUrl(url.replace(/s-l500\./, 's-l96.')) + '" data-idx="' + i + '" class="' + (i === 0 ? 'active' : '') + '" role="button" tabindex="0" aria-label="View image ' + (i + 1) + '" onclick="gallerySelect(\'' + gid + '\',' + i + ')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();gallerySelect(\'' + gid + '\',' + i + ')}">';
+        html += '<img loading="lazy" src="' + _escUrl(url.replace(/s-l500\./, 's-l96.')) + '" data-idx="' + i + '" class="' + (i === 0 ? 'active' : '') + '" role="button" tabindex="0" aria-label="View image ' + (i + 1) + '" onclick="gallerySelect(\'' + gid + '\',' + i + ')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();gallerySelect(\'' + gid + '\',' + i + ')}">';
       });
       html += '</div>';
       if (galleryImages.length > 4) html += '<div class="fmv-gallery-count">' + galleryImages.length + ' photos</div>';
@@ -4435,7 +4464,7 @@ Silver Libertad 1 oz Proof"></textarea>
       html += '<summary>US Comps — ' + poolLabel + ' (' + displayComps.length + ')';
       if (excludedCount > 0) html += ' <small style="opacity:.6">(' + excludedCount + ' ' + (poolType === 'graded' ? 'raw' : 'graded') + ' excluded)</small>';
       html += '</summary>';
-      html += '<table><thead><tr><th>#</th><th>Title</th><th>Total</th><th>Type</th><th>Match</th><th>Date</th></tr></thead><tbody>';
+      html += '<div style="overflow-x:auto"><table><thead><tr><th>#</th><th>Title</th><th>Total</th><th>Type</th><th>Match</th><th>Date</th></tr></thead><tbody>';
       displayComps.forEach(function(c, i) {
         const mq = c.matchQuality || 'loose';
         const mqTag = '<span class="match-tag match-' + mq + '">' + mq + '</span>';
@@ -4448,7 +4477,7 @@ Silver Libertad 1 oz Proof"></textarea>
         html += '<td>' + mqTag + '</td>';
         html += '<td>' + (c.soldDate ? c.soldDate.substring(0, 10) : '\u2014') + '</td></tr>';
       });
-      html += '</tbody></table>';
+      html += '</tbody></table></div>';
       if (displayComps.length > 30) {
         html += '<button class="comps-show-all" style="display:block;margin:8px auto;padding:6px 16px;font-size:0.82rem;cursor:pointer;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);color:var(--accent)">Show all ' + displayComps.length + ' comps</button>';
       }
