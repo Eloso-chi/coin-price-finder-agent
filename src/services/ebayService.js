@@ -1,6 +1,7 @@
 // src/services/ebayService.js — eBay comps via multiple APIs
-// Priority: Terapeak (sold) → Finding API (sold) → Browse API (active, fallback)
+// Priority: Terapeak (sold) → Finding API (sold, disabled by default) → Browse API (active, fallback)
 // Marketplace Insights API: commented out (no access)
+// Finding API: gated behind EBAY_FINDING_ENABLED env var (default false — deprecated Feb 2025)
 // Includes request throttling, aggressive caching, exponential backoff
 // CommonJS
 
@@ -22,6 +23,7 @@ const TIMEOUT            = parseInt(process.env.EBAY_TIMEOUT_MS || '10000', 10);
 const CACHE_TTL          = parseInt(process.env.EBAY_CACHE_TTL_MS || '3600000', 10); // 1 hour default
 const US_MIN_COMPS       = parseInt(process.env.EBAY_US_MIN_COMPS || '8', 10);
 const THROTTLE_MS        = parseInt(process.env.EBAY_THROTTLE_MS || '1100', 10);     // min ms between API calls
+const FINDING_ENABLED    = (process.env.EBAY_FINDING_ENABLED || 'false').toLowerCase() === 'true';
 
 // ── Circuit breaker: skip APIs that have failed recently ────
 const _circuitBreaker = {};
@@ -624,7 +626,8 @@ function scoreMatch(comp, expected) {
     'mercanti', 'moy signed', 'reagan'];
   const queryLower = (expected._rawQuery || '').toLowerCase();
   const labelLower = (expected.label || '').toLowerCase();
-  const hasVariantInQuery = VARIANT_TOKENS.some(t => queryLower.includes(t))
+  const queryVariantTokens = VARIANT_TOKENS.filter(t => queryLower.includes(t));
+  const hasVariantInQuery = queryVariantTokens.length > 0
     || (expected.finish && expected.finish !== 'Uncirculated')
     || !!labelLower;
   if (!hasVariantInQuery) {
@@ -638,6 +641,16 @@ function scoreMatch(comp, expected) {
       score += 10; notes.push('label-match');
     } else {
       score -= 20; notes.push('label-mismatch');
+    }
+  } else if (queryVariantTokens.length > 0) {
+    // Query asks for a specific variant (e.g. "purple") -- penalize comps that
+    // have a DIFFERENT variant token but NOT the one the query wants.
+    const titleVariantTokens = VARIANT_TOKENS.filter(t => tLow.includes(t));
+    const hasRequestedVariant = queryVariantTokens.some(t => tLow.includes(t));
+    if (titleVariantTokens.length > 0 && !hasRequestedVariant) {
+      score -= 30; notes.push('variant-wrong-color');
+    } else if (hasRequestedVariant) {
+      score += 5; notes.push('variant-match');
     }
   }
 
@@ -1023,7 +1036,8 @@ function applyFilters(comps, options, expected) {
       'mercanti', 'moy signed', 'reagan'];
     const qLow = (expected._rawQuery || '').toLowerCase();
     const labelLow = (expected.label || '').toLowerCase();
-    const queryWantsVariant = VARIANT_TOKENS.some(t => qLow.includes(t))
+    const queryVariantTokensHF = VARIANT_TOKENS.filter(t => qLow.includes(t));
+    const queryWantsVariant = queryVariantTokensHF.length > 0
       || (expected.finish && expected.finish !== 'Uncirculated')
       || !!labelLow;
     if (!queryWantsVariant) {
@@ -1033,6 +1047,20 @@ function applyFilters(comps, options, expected) {
         const hasVariant = VARIANT_TOKENS.some(t => tLow.includes(t));
         if (hasVariant) { removed.variantMismatch++; return false; }
         return true;
+      });
+    } else if (queryVariantTokensHF.length > 0) {
+      // Query asks for a specific variant -- keep comps that either:
+      // (a) match the requested variant, or (b) are plain BU (no variant tokens).
+      // Reject comps with a DIFFERENT variant.
+      removed.variantWrongColor = 0;
+      kept = kept.filter(c => {
+        const tLow = (c.title || '').toLowerCase();
+        const titleHasAnyVariant = VARIANT_TOKENS.some(t => tLow.includes(t));
+        if (!titleHasAnyVariant) return true; // plain BU -- keep
+        const matchesRequested = queryVariantTokensHF.some(t => tLow.includes(t));
+        if (matchesRequested) return true; // matches the requested variant
+        removed.variantWrongColor++;
+        return false;
       });
     }
   }
@@ -1403,7 +1431,8 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
 
     // ── Attempt 2: Finding API ──
     // US tier: only if we don't have enough sold comps yet
-    if ((!usResult || usResult.comps.length < opts.usMinComps) && !circuitTripped('finding')) {
+    // Gated behind EBAY_FINDING_ENABLED (default: false) — API has been unreliable since Feb 2025 deprecation.
+    if (FINDING_ENABLED && (!usResult || usResult.comps.length < opts.usMinComps) && !circuitTripped('finding')) {
       try {
         const rawUS = await fetchFindingTier(keywords, tierDays, opts.maxPages, 'US');
 
@@ -1503,7 +1532,7 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
   }
 
   // Global tier: always attempt so global is independent from US
-  if (!globalResult && !circuitTripped('finding')) {
+  if (FINDING_ENABLED && !globalResult && !circuitTripped('finding')) {
     try {
       const rawGlobal = await fetchFindingTier(keywords, actualDays, opts.maxPages, null);
 

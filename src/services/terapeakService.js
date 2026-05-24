@@ -1379,7 +1379,7 @@ function autoImportFolder(folderPath, opts = {}) {
   for (const file of files) {
     try {
       // Per-file freshness: skip if this file's dataset was imported recently
-      // AND the CSV hasn't been modified since
+      // AND the CSV hasn't been modified since AND the file hasn't grown significantly
       if (!force) {
         const store = loadStore();
         const searchTerm = deriveSearchTerm(absPath, file);
@@ -1389,9 +1389,16 @@ function autoImportFolder(folderPath, opts = {}) {
           const lastImportMs = new Date(existing.lastImport).getTime();
           const csvStat = fs.statSync(path.join(absPath, file));
           if ((Date.now() - lastImportMs) < maxAgeMs && csvStat.mtimeMs <= lastImportMs) {
-            freshSkipped++;
-            skipped++;
-            continue;
+            // Safety valve: if the file grew >10% since last import, re-import.
+            // Catches cases where aggregation extends a CSV without updating mtime
+            // (e.g. git checkout restores old mtime) or mtime races.
+            const grewSignificantly = existing.lastImportFileSize &&
+              csvStat.size > existing.lastImportFileSize * 1.1;
+            if (!grewSignificantly) {
+              freshSkipped++;
+              skipped++;
+              continue;
+            }
           }
         }
       }
@@ -1414,6 +1421,9 @@ function autoImportFolder(folderPath, opts = {}) {
         aggMeta.deepAt = fileMtime;
       }
       importMeta.aggregationMeta = aggMeta;
+
+      // Track file size so the freshness check can detect significant growth
+      importMeta.lastImportFileSize = csvStat2.size;
 
       const result = importComps(searchTerm, comps, importMeta);
       if (result.newComps > 0) {
