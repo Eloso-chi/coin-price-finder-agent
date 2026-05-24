@@ -605,6 +605,28 @@ const CHINA_PANDA_SILVER = {
   2025: { P: 968835 }, 2026: { P: 1000705 },
 };
 
+// ── China PRC Precious Metal Lunars, Silver 10 Yuan (1 oz, 1997-2011) ───
+// Category 3765: CHINA / PEOPLE'S REPUBLIC OF CHINA / PRECIOUS METAL LUNARS / SILVER
+// P = Round (standard), F = Fan-shaped
+// 2009-2011: Only fan-shaped exist with MS designation on PCGS
+const CHINA_LUNAR_SILVER = {
+  1997: { P: 131288 },             // Year of the Ox 40mm
+  1998: { P: 151915 },             // Year of the Tiger 40mm
+  1999: { P: 506458 },             // Year of the Rabbit 40mm
+  2000: { P: 722730, F: 393855 },  // Year of the Dragon
+  2001: { P: 508200, F: 403248 },  // Year of the Snake
+  2002: { P: 392670, F: 506455 },  // Year of the Horse
+  2003: { P: 393398, F: 506454 },  // Year of the Goat
+  2004: { P: 393399, F: 403249 },  // Year of the Monkey
+  2005: { P: 836409, F: 501764 },  // Year of the Rooster
+  2006: { P: 410683, F: 501765 },  // Year of the Dog
+  2007: { P: 506843, F: 505622 },  // Year of the Pig
+  2008: { P: 399433, F: 501767 },  // Year of the Rat
+  2009: { F: 501768 },             // Year of the Ox (fan-shaped only in MS)
+  2010: { F: 505623 },             // Year of the Tiger (fan-shaped only in MS)
+  2011: { F: 876440 },             // Year of the Rabbit (fan-shaped only in MS)
+};
+
 // ══════════════════════════════════════════════════════════════
 // Series name → table mapping
 // ══════════════════════════════════════════════════════════════
@@ -620,9 +642,9 @@ const SERIES_MAP = [
   { re: /\bmaple\s*leaf\b/i,                                table: CANADA_SILVER_MAPLE_LEAF },
   { re: /\bbritannia\b/i,                                   table: GREAT_BRITAIN_BRITANNIA_SILVER },
   { re: /\bpanda\b/i,                                       table: CHINA_PANDA_SILVER },
+  { re: /\blunar\b/i,                                       table: CHINA_LUNAR_SILVER },
   // TODO: Add tables when Pop Report category IDs are found (JS-rendered nav blocks scraping)
   // { re: /\bphilharmonic\b/i,                             table: AUSTRIA_PHILHARMONIC_SILVER },
-  // { re: /\blunar\b/i,                                    table: AUSTRALIA_LUNAR_SILVER },
 
   // ── US Bullion (before generic "eagle" / "buffalo" / "dollar") ──
   { re: /\bamerican\s*silver\s*eagle\b|\bsilver\s*eagle\b|\base\b|\bsae\b/i, table: AMERICAN_SILVER_EAGLE },
