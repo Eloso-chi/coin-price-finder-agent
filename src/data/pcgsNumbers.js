@@ -582,6 +582,30 @@ const GREAT_BRITAIN_BRITANNIA_SILVER = {
 };
 
 // ══════════════════════════════════════════════════════════════
+// WORLD BULLION — China Panda 1 oz Silver 10 Yuan (1989–present)
+// Source: PCGS Population Report, category 3784 (10 Yuan 1983-Date)
+// Designation: MS (Business Strike) — base bullion coin only
+// Note: Many years have Large/Small Date variants from different mints;
+//       the "generic" or highest-pop base entry is used.
+//       Weight changed from 1 oz (31.1g) to 30g in 2016.
+// ══════════════════════════════════════════════════════════════
+const CHINA_PANDA_SILVER = {
+  1989: { P: 131204 }, 1990: { P: 131205 }, 1991: { P: 131206 },
+  1992: { P: 131259 }, 1993: { P: 131208 }, 1994: { P: 131258 },
+  1995: { P: 131213 }, 1996: { P: 131257 }, 1997: { P: 131216 },
+  1998: { P: 131217 }, 1999: { P: 131256 }, 2000: { P: 131248 },
+  2001: { P: 131284 }, 2002: { P: 169041 }, 2003: { P: 169350 },
+  2004: { P: 164493 }, 2005: { P: 174033 }, 2006: { P: 141065 },
+  2007: { P: 147135 }, 2008: { P: 393915 }, 2009: { P: 405072 },
+  2010: { P: 415773 }, 2011: { P: 505029 }, 2012: { P: 509673 },
+  2013: { P: 516255 }, 2014: { P: 521727 }, 2015: { P: 535683 },
+  2016: { P: 592036 }, 2017: { P: 616406 }, 2018: { P: 656026 },
+  2019: { P: 687038 }, 2020: { P: 806305 }, 2021: { P: 837285 },
+  2022: { P: 891060 }, 2023: { P: 912363 }, 2024: { P: 932535 },
+  2025: { P: 968835 }, 2026: { P: 1000705 },
+};
+
+// ══════════════════════════════════════════════════════════════
 // Series name → table mapping
 // ══════════════════════════════════════════════════════════════
 const SERIES_MAP = [
@@ -595,9 +619,9 @@ const SERIES_MAP = [
   { re: /\bkangaroo\b|\bnugget\b/i,                         table: AUSTRALIA_KANGAROO_SILVER },
   { re: /\bmaple\s*leaf\b/i,                                table: CANADA_SILVER_MAPLE_LEAF },
   { re: /\bbritannia\b/i,                                   table: GREAT_BRITAIN_BRITANNIA_SILVER },
+  { re: /\bpanda\b/i,                                       table: CHINA_PANDA_SILVER },
   // TODO: Add tables when Pop Report category IDs are found (JS-rendered nav blocks scraping)
   // { re: /\bphilharmonic\b/i,                             table: AUSTRIA_PHILHARMONIC_SILVER },
-  // { re: /\bpanda\b/i,                                    table: CHINA_PANDA_SILVER },
   // { re: /\blunar\b/i,                                    table: AUSTRALIA_LUNAR_SILVER },
 
   // ── US Bullion (before generic "eagle" / "buffalo" / "dollar") ──
