@@ -141,7 +141,11 @@ function isCompositionMismatch(compTitle, expected) {
     // CLAD era coin — reject comps with silver indicators
     // Exception: user explicitly asked for silver (e.g. "1976 S silver quarter proof")
     const queryLow = (expected._rawQuery || '').toLowerCase();
-    if (silverTokens.some(t => queryLow.includes(t))) return false;
+    if (silverTokens.some(t => queryLow.includes(t))) {
+      // User wants SILVER — reject comps that DON'T mention silver
+      // (these are the clad versions of the same denomination)
+      return !silverTokens.some(t => tLow.includes(t));
+    }
     return silverTokens.some(t => tLow.includes(t));
   }
 
