@@ -483,8 +483,148 @@ const AUSTRALIA_KOOKABURRA_SILVER = {
   1995: { P: 114432 }, 1996: { P: 114433 }, 1997: { P: 114430 },
   1998: { P: 114431 }, 1999: { P: 114450 }, 2000: { P: 114452 },
   2001: { P: 166131 }, 2002: { P: 166132 }, 2003: { P: 166712 },
-  2004: { P: 172060 }, 2005: { P: 163216 },
-  // TODO: 2006-2025 numbers from pop report page 2
+  2004: { P: 172060 }, 2005: { P: 163216 }, 2006: { P: 140647 },
+  2007: { P: 147318 }, 2008: { P: 395465 }, 2009: { P: 404880 },
+  2010: { P: 413593 }, 2011: { P: 502666 }, 2012: { P: 509332 },
+  2013: { P: 515366 }, 2014: { P: 520997 }, 2015: { P: 532443 },
+  2016: { P: 592328 }, 2017: { P: 616186 }, 2018: { P: 654945 },
+  2019: { P: 685336 }, 2020: { P: 802717 }, 2021: { P: 837522 },
+  2022: { P: 891925 }, 2023: { P: 914354 }, 2024: { P: 938231 },
+  2025: { P: 975807 }, 2026: { P: 1006659 },
+};
+
+// ══════════════════════════════════════════════════════════════
+// WORLD BULLION — South Africa Krugerrand 1 oz Gold (1967–present)
+// Source: PCGS Population Report, category 5230 (1 Krugerrand 1967 to Date)
+// Designation: MS (Business Strike) — gold only (excludes silver/PL variants)
+// Note: Some years missing from pop report (1986, 1992, 1996, 1997, 2001, 2003, 2006)
+// ══════════════════════════════════════════════════════════════
+const SOUTH_AFRICA_KRUGERRAND_GOLD = {
+  1967: { P: 564601 }, 1968: { P: 564605 }, 1969: { P: 163977 },
+  1970: { P: 163978 }, 1971: { P: 145578 }, 1972: { P: 159350 },
+  1973: { P: 564614 }, 1974: { P: 170680 }, 1975: { P: 564618 },
+  1976: { P: 160227 }, 1977: { P: 564024 }, 1978: { P: 564626 },
+  1979: { P: 167091 }, 1980: { P: 564630 }, 1981: { P: 167515 },
+  1982: { P: 564634 }, 1983: { P: 174066 }, 1984: { P: 564638 },
+  1985: { P: 218753 }, 1987: { P: 216220 }, 1988: { P: 216223 },
+  1989: { P: 216226 }, 1990: { P: 167901 }, 1991: { P: 564656 },
+  1993: { P: 117661 }, 1994: { P: 117663 }, 1995: { P: 117665 },
+  1998: { P: 117671 }, 1999: { P: 117672 }, 2000: { P: 167540 },
+  2002: { P: 163644 }, 2004: { P: 590295 }, 2005: { P: 140009 },
+  2007: { P: 590297 }, 2008: { P: 404901 }, 2009: { P: 410566 },
+  2010: { P: 590292 }, 2011: { P: 117235 }, 2012: { P: 223717 },
+  2013: { P: 522489 }, 2014: { P: 537240 }, 2015: { P: 540077 },
+  2016: { P: 595326 }, 2017: { P: 623521 }, 2018: { P: 682732 },
+  2019: { P: 698323 }, 2020: { P: 812299 }, 2021: { P: 843481 },
+  2022: { P: 898778 }, 2023: { P: 917368 }, 2024: { P: 940880 },
+  2025: { P: 999771 }, 2026: { P: 1008074 },
+};
+
+// ══════════════════════════════════════════════════════════════
+// WORLD BULLION — Australia Kangaroo/Nugget 1 oz Silver (1993–present)
+// Source: PCGS Population Report, category 219568 (1 Dollar Silver 1993-2023)
+// Designation: MS (Business Strike) — base coin only (no privy/gilt/colorized)
+// Note: 2012 and 2014 not in pop report for base silver coin
+// ══════════════════════════════════════════════════════════════
+const AUSTRALIA_KANGAROO_SILVER = {
+  1993: { P: 143219 }, 1994: { P: 143220 }, 1995: { P: 143221 },
+  1996: { P: 143222 }, 1997: { P: 143223 }, 1998: { P: 161633 },
+  1999: { P: 162645 }, 2000: { P: 114455 }, 2001: { P: 161634 },
+  2002: { P: 161635 }, 2003: { P: 168240 }, 2004: { P: 169995 },
+  2005: { P: 140471 }, 2006: { P: 143224 }, 2007: { P: 887880 },
+  2008: { P: 590164 }, 2009: { P: 407184 }, 2010: { P: 507667 },
+  2011: { P: 507980 }, 2013: { P: 515661 }, 2015: { P: 625122 },
+  2016: { P: 568475 }, 2017: { P: 618268 }, 2018: { P: 656514 },
+  2019: { P: 687481 }, 2020: { P: 802719 }, 2021: { P: 841759 },
+  2022: { P: 893322 }, 2023: { P: 918241 }, 2024: { P: 939526 },
+  2025: { P: 977924 }, 2026: { P: 1006176 },
+};
+
+// ══════════════════════════════════════════════════════════════
+// WORLD BULLION — Canada Silver Maple Leaf 1 oz (1988–present)
+// Source: PCGS Population Report, category 4470 (5 Dollars 1988-Date)
+// Designation: MS (Business Strike) — base coin only (no privy/plated)
+// ══════════════════════════════════════════════════════════════
+const CANADA_SILVER_MAPLE_LEAF = {
+  1988: { P: 32496 }, 1989: { P: 32494 }, 1990: { P: 169285 },
+  1991: { P: 169286 }, 1992: { P: 169287 }, 1993: { P: 32498 },
+  1994: { P: 169288 }, 1995: { P: 169289 }, 1996: { P: 169290 },
+  1997: { P: 34029 }, 1998: { P: 34184 }, 1999: { P: 34238 },
+  2000: { P: 34239 }, 2001: { P: 169291 }, 2002: { P: 167109 },
+  2003: { P: 162567 }, 2004: { P: 164690 }, 2005: { P: 172385 },
+  2006: { P: 142943 }, 2007: { P: 148210 }, 2008: { P: 395768 },
+  2009: { P: 405182 }, 2010: { P: 413940 }, 2011: { P: 507891 },
+  2012: { P: 510060 }, 2013: { P: 518074 }, 2014: { P: 523444 },
+  2015: { P: 536154 }, 2016: { P: 593567 }, 2017: { P: 621124 },
+  2018: { P: 659274 }, 2019: { P: 694577 }, 2020: { P: 811020 },
+  2021: { P: 865488 }, 2022: { P: 897884 }, 2023: { P: 916565 },
+  2024: { P: 940873 }, 2025: { P: 970247 }, 2026: { P: 1004509 },
+};
+
+// ══════════════════════════════════════════════════════════════
+// WORLD BULLION — Great Britain Britannia 1 oz Silver (1998–present)
+// Source: PCGS Population Report, category 4052 (Silver, 2 Pounds)
+// Designation: MS (Business Strike) — base coin only (no privy/oriental/mule)
+// Note: Design varied (standard 1998-2014, textured 2015-2017,
+//       radial sunburst 2018-2020, standard 2021+)
+// ══════════════════════════════════════════════════════════════
+const GREAT_BRITAIN_BRITANNIA_SILVER = {
+  1998: { P: 619022 }, 1999: { P: 619030 }, 2000: { P: 170824 },
+  2001: { P: 169038 }, 2002: { P: 167201 }, 2003: { P: 166101 },
+  2004: { P: 172013 }, 2005: { P: 163346 }, 2006: { P: 141773 },
+  2007: { P: 149375 }, 2008: { P: 395466 }, 2009: { P: 407365 },
+  2010: { P: 417009 }, 2011: { P: 650564 }, 2012: { P: 650284 },
+  2013: { P: 516193 }, 2014: { P: 522942 }, 2015: { P: 540049 },
+  2016: { P: 570933 }, 2017: { P: 618342 }, 2018: { P: 658369 },
+  2019: { P: 706206 }, 2020: { P: 811560 }, 2021: { P: 838458 },
+  2022: { P: 891483 }, 2023: { P: 916994 }, 2024: { P: 932627 },
+  2025: { P: 969311 }, 2026: { P: 1001434 },
+};
+
+// ══════════════════════════════════════════════════════════════
+// WORLD BULLION — China Panda 1 oz Silver 10 Yuan (1989–present)
+// Source: PCGS Population Report, category 3784 (10 Yuan 1983-Date)
+// Designation: MS (Business Strike) — base bullion coin only
+// Note: Many years have Large/Small Date variants from different mints;
+//       the "generic" or highest-pop base entry is used.
+//       Weight changed from 1 oz (31.1g) to 30g in 2016.
+// ══════════════════════════════════════════════════════════════
+const CHINA_PANDA_SILVER = {
+  1989: { P: 131204 }, 1990: { P: 131205 }, 1991: { P: 131206 },
+  1992: { P: 131259 }, 1993: { P: 131208 }, 1994: { P: 131258 },
+  1995: { P: 131213 }, 1996: { P: 131257 }, 1997: { P: 131216 },
+  1998: { P: 131217 }, 1999: { P: 131256 }, 2000: { P: 131248 },
+  2001: { P: 131284 }, 2002: { P: 169041 }, 2003: { P: 169350 },
+  2004: { P: 164493 }, 2005: { P: 174033 }, 2006: { P: 141065 },
+  2007: { P: 147135 }, 2008: { P: 393915 }, 2009: { P: 405072 },
+  2010: { P: 415773 }, 2011: { P: 505029 }, 2012: { P: 509673 },
+  2013: { P: 516255 }, 2014: { P: 521727 }, 2015: { P: 535683 },
+  2016: { P: 592036 }, 2017: { P: 616406 }, 2018: { P: 656026 },
+  2019: { P: 687038 }, 2020: { P: 806305 }, 2021: { P: 837285 },
+  2022: { P: 891060 }, 2023: { P: 912363 }, 2024: { P: 932535 },
+  2025: { P: 968835 }, 2026: { P: 1000705 },
+};
+
+// ── China PRC Precious Metal Lunars, Silver 10 Yuan (1 oz, 1997-2011) ───
+// Category 3765: CHINA / PEOPLE'S REPUBLIC OF CHINA / PRECIOUS METAL LUNARS / SILVER
+// P = Round (standard), F = Fan-shaped
+// 2009-2011: Only fan-shaped exist with MS designation on PCGS
+const CHINA_LUNAR_SILVER = {
+  1997: { P: 131288 },             // Year of the Ox 40mm
+  1998: { P: 151915 },             // Year of the Tiger 40mm
+  1999: { P: 506458 },             // Year of the Rabbit 40mm
+  2000: { P: 722730, F: 393855 },  // Year of the Dragon
+  2001: { P: 508200, F: 403248 },  // Year of the Snake
+  2002: { P: 392670, F: 506455 },  // Year of the Horse
+  2003: { P: 393398, F: 506454 },  // Year of the Goat
+  2004: { P: 393399, F: 403249 },  // Year of the Monkey
+  2005: { P: 836409, F: 501764 },  // Year of the Rooster
+  2006: { P: 410683, F: 501765 },  // Year of the Dog
+  2007: { P: 506843, F: 505622 },  // Year of the Pig
+  2008: { P: 399433, F: 501767 },  // Year of the Rat
+  2009: { F: 501768 },             // Year of the Ox (fan-shaped only in MS)
+  2010: { F: 505623 },             // Year of the Tiger (fan-shaped only in MS)
+  2011: { F: 876440 },             // Year of the Rabbit (fan-shaped only in MS)
 };
 
 // ══════════════════════════════════════════════════════════════
@@ -497,14 +637,14 @@ const SERIES_MAP = [
   { re: /\blibertad\b.*\bproof\b|\bproof\b.*\blibertad\b/i, table: MEXICO_SILVER_LIBERTAD_PROOF },
   { re: /\blibertad\b|\bonza\b/i,                           table: MEXICO_SILVER_LIBERTAD },
   { re: /\bkookaburra\b/i,                                  table: AUSTRALIA_KOOKABURRA_SILVER },
-  // TODO: Add tables when numbers are extracted from Pop Report
-  // { re: /\bmaple\s*leaf\b/i,                             table: CANADA_SILVER_MAPLE_LEAF },
-  // { re: /\bkrugerrand\b/i,                               table: SOUTH_AFRICA_KRUGERRAND_GOLD },
-  // { re: /\bbritannia\b/i,                                table: GREAT_BRITAIN_BRITANNIA_SILVER },
-  // { re: /\bkangaroo\b|\bnugget\b/i,                      table: AUSTRALIA_KANGAROO_SILVER },
+  { re: /\bkrugerrand\b/i,                                  table: SOUTH_AFRICA_KRUGERRAND_GOLD },
+  { re: /\bkangaroo\b|\bnugget\b/i,                         table: AUSTRALIA_KANGAROO_SILVER },
+  { re: /\bmaple\s*leaf\b/i,                                table: CANADA_SILVER_MAPLE_LEAF },
+  { re: /\bbritannia\b/i,                                   table: GREAT_BRITAIN_BRITANNIA_SILVER },
+  { re: /\bpanda\b/i,                                       table: CHINA_PANDA_SILVER },
+  { re: /\blunar\b/i,                                       table: CHINA_LUNAR_SILVER },
+  // TODO: Add tables when Pop Report category IDs are found (JS-rendered nav blocks scraping)
   // { re: /\bphilharmonic\b/i,                             table: AUSTRIA_PHILHARMONIC_SILVER },
-  // { re: /\bpanda\b/i,                                    table: CHINA_PANDA_SILVER },
-  // { re: /\blunar\b/i,                                    table: AUSTRALIA_LUNAR_SILVER },
 
   // ── US Bullion (before generic "eagle" / "buffalo" / "dollar") ──
   { re: /\bamerican\s*silver\s*eagle\b|\bsilver\s*eagle\b|\base\b|\bsae\b/i, table: AMERICAN_SILVER_EAGLE },
