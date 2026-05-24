@@ -614,7 +614,8 @@ function scoreMatch(comp, expected) {
   // When the query doesn't ask for a specialty variant, penalise comps whose
   // title explicitly advertises one — these carry heavy premiums over BU.
   const VARIANT_TOKENS = ['golden', 'gilded', 'guilded', 'gold plated', 'gold-plated',
-    'colorized', 'coloured', 'colorised', 'colour', 'enameled', 'purple',
+    'colorized', 'coloured', 'colorised', 'colour', 'color', 'enameled', 'purple',
+    'yellow', 'lilac', 'teal',
     'reverse proof', 'burnished', 'enhanced reverse proof',
     'satin finish', 'first strike', 'first day', 'first release',
     'first releases', 'antiqued', 'high relief', 'piedfort', 'privy',
@@ -1013,7 +1014,8 @@ function applyFilters(comps, options, expected) {
   // These carry heavy premiums that distort FMV for regular BU coins.
   {
     const VARIANT_TOKENS = ['golden', 'gilded', 'guilded', 'gold plated', 'gold-plated',
-      'colorized', 'coloured', 'colorised', 'enameled', 'purple',
+      'colorized', 'coloured', 'colorised', 'color', 'enameled', 'purple',
+      'yellow', 'lilac', 'teal',
       'reverse proof', 'burnished', 'enhanced reverse proof',
       'satin finish', 'antiqued', 'high relief', 'piedfort', 'privy',
       'prooflike', 'ruthenium', 'hologram',
@@ -1441,9 +1443,9 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
         // retry with those terms stripped.  eBay's Finding API sometimes
         // returns 500 for "Proof" in the query while returning valid results
         // without it.  applyFilters will remove non-proof comps.
-        // Also strip country names that can trigger eBay 500 errors.
+        // Also strip country/mint names that can trigger eBay 500 errors.
         const proofTermRe = /\b(Proof|Reverse Proof|Enhanced Reverse Proof|Burnished|Satin Finish|Antiqued)\b/i;
-        const countryRe = /\b(Mexico|Mexican|Canada|Canadian|Australia|Australian|Austria|Austrian|Great Britain|British|China|Chinese)\b/gi;
+        const countryRe = /\b(Mexico|Mexican|Canada|Canadian|Australia|Australian|Austria|Austrian|Great Britain|British|China|Chinese|Perth Mint|Perth|Royal Mint|Royal Canadian)\b/gi;
         const hasStrippable = proofTermRe.test(keywords) || countryRe.test(keywords);
         if (hasStrippable) {
           const strippedKw = keywords.replace(proofTermRe, '').replace(countryRe, '').replace(/\s{2,}/g, ' ').trim();
