@@ -541,6 +541,47 @@ const AUSTRALIA_KANGAROO_SILVER = {
 };
 
 // ══════════════════════════════════════════════════════════════
+// WORLD BULLION — Canada Silver Maple Leaf 1 oz (1988–present)
+// Source: PCGS Population Report, category 4470 (5 Dollars 1988-Date)
+// Designation: MS (Business Strike) — base coin only (no privy/plated)
+// ══════════════════════════════════════════════════════════════
+const CANADA_SILVER_MAPLE_LEAF = {
+  1988: { P: 32496 }, 1989: { P: 32494 }, 1990: { P: 169285 },
+  1991: { P: 169286 }, 1992: { P: 169287 }, 1993: { P: 32498 },
+  1994: { P: 169288 }, 1995: { P: 169289 }, 1996: { P: 169290 },
+  1997: { P: 34029 }, 1998: { P: 34184 }, 1999: { P: 34238 },
+  2000: { P: 34239 }, 2001: { P: 169291 }, 2002: { P: 167109 },
+  2003: { P: 162567 }, 2004: { P: 164690 }, 2005: { P: 172385 },
+  2006: { P: 142943 }, 2007: { P: 148210 }, 2008: { P: 395768 },
+  2009: { P: 405182 }, 2010: { P: 413940 }, 2011: { P: 507891 },
+  2012: { P: 510060 }, 2013: { P: 518074 }, 2014: { P: 523444 },
+  2015: { P: 536154 }, 2016: { P: 593567 }, 2017: { P: 621124 },
+  2018: { P: 659274 }, 2019: { P: 694577 }, 2020: { P: 811020 },
+  2021: { P: 865488 }, 2022: { P: 897884 }, 2023: { P: 916565 },
+  2024: { P: 940873 }, 2025: { P: 970247 }, 2026: { P: 1004509 },
+};
+
+// ══════════════════════════════════════════════════════════════
+// WORLD BULLION — Great Britain Britannia 1 oz Silver (1998–present)
+// Source: PCGS Population Report, category 4052 (Silver, 2 Pounds)
+// Designation: MS (Business Strike) — base coin only (no privy/oriental/mule)
+// Note: Design varied (standard 1998-2014, textured 2015-2017,
+//       radial sunburst 2018-2020, standard 2021+)
+// ══════════════════════════════════════════════════════════════
+const GREAT_BRITAIN_BRITANNIA_SILVER = {
+  1998: { P: 619022 }, 1999: { P: 619030 }, 2000: { P: 170824 },
+  2001: { P: 169038 }, 2002: { P: 167201 }, 2003: { P: 166101 },
+  2004: { P: 172013 }, 2005: { P: 163346 }, 2006: { P: 141773 },
+  2007: { P: 149375 }, 2008: { P: 395466 }, 2009: { P: 407365 },
+  2010: { P: 417009 }, 2011: { P: 650564 }, 2012: { P: 650284 },
+  2013: { P: 516193 }, 2014: { P: 522942 }, 2015: { P: 540049 },
+  2016: { P: 570933 }, 2017: { P: 618342 }, 2018: { P: 658369 },
+  2019: { P: 706206 }, 2020: { P: 811560 }, 2021: { P: 838458 },
+  2022: { P: 891483 }, 2023: { P: 916994 }, 2024: { P: 932627 },
+  2025: { P: 969311 }, 2026: { P: 1001434 },
+};
+
+// ══════════════════════════════════════════════════════════════
 // Series name → table mapping
 // ══════════════════════════════════════════════════════════════
 const SERIES_MAP = [
@@ -552,9 +593,9 @@ const SERIES_MAP = [
   { re: /\bkookaburra\b/i,                                  table: AUSTRALIA_KOOKABURRA_SILVER },
   { re: /\bkrugerrand\b/i,                                  table: SOUTH_AFRICA_KRUGERRAND_GOLD },
   { re: /\bkangaroo\b|\bnugget\b/i,                         table: AUSTRALIA_KANGAROO_SILVER },
-  // TODO: Add tables when numbers are extracted from Pop Report
-  // { re: /\bmaple\s*leaf\b/i,                             table: CANADA_SILVER_MAPLE_LEAF },
-  // { re: /\bbritannia\b/i,                                table: GREAT_BRITAIN_BRITANNIA_SILVER },
+  { re: /\bmaple\s*leaf\b/i,                                table: CANADA_SILVER_MAPLE_LEAF },
+  { re: /\bbritannia\b/i,                                   table: GREAT_BRITAIN_BRITANNIA_SILVER },
+  // TODO: Add tables when Pop Report category IDs are found (JS-rendered nav blocks scraping)
   // { re: /\bphilharmonic\b/i,                             table: AUSTRIA_PHILHARMONIC_SILVER },
   // { re: /\bpanda\b/i,                                    table: CHINA_PANDA_SILVER },
   // { re: /\blunar\b/i,                                    table: AUSTRALIA_LUNAR_SILVER },
