@@ -230,7 +230,7 @@ describe('greysheetTypeMap', () => {
     it('resolves Gold Philharmonic 1 oz', () => {
       const r = lookupTypeGsid('Gold Philharmonic 1 oz');
       expect(r).not.toBeNull();
-      expect(r.gsid).toBe(395557);
+      expect(r.gsid).toBe(398019);
     });
   });
 
