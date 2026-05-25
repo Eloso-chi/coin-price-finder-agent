@@ -133,7 +133,8 @@ describe('success', () => {
       expect.objectContaining({ _isBar: true }),
       MOCK_EBAY,
       2100,
-      null
+      null,
+      expect.objectContaining({ isBullion: true })
     );
   });
 

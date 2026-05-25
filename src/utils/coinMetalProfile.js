@@ -11,7 +11,9 @@ const BULLION_SERIES = [
   'libertad', 'silver eagle', 'gold eagle', 'maple leaf', 'britannia',
   'philharmonic', 'krugerrand', 'kangaroo', 'kookaburra', 'panda',
   'gold buffalo', 'platinum eagle', 'palladium eagle', 'lunar',
-  'polar bear',
+  'polar bear', 'koala', 'swan', 'emu', 'wedge-tailed eagle',
+  'wedge tailed eagle', 'quokka', 'super pit',
+  'wildlife', 'birds of prey', 'predator', 'creatures of the north',
 ];
 
 /**

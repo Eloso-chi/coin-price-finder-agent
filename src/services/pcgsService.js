@@ -388,7 +388,7 @@ function parseDescription(text) {
     result.weightRaw = weightMatch[0];
   }
 
-  // Gram-based weight: "30g", "30 gram", "31.1 grams", ".5g", "half gram", etc.
+   // Gram-based weight: "30g", "30 gram", "31.1 grams", ".5g", "half gram", etc.
   // Convert grams to troy ounces (1 troy oz = 31.1035 g).
   if (!result.weight) {
     // Leading-dot gram format FIRST: ".5g", ".5 gram" (no leading zero)
@@ -459,8 +459,19 @@ function parseDescription(text) {
     'silver panda', 'gold panda', 'panda',
     'silver kookaburra', 'kookaburra',
     'gold kangaroo', 'kangaroo', 'nugget',
+    'silver koala', 'koala',
+    'silver swan', 'australian swan', 'swan',
+    'silver emu', 'australian emu', 'emu',
+    'wedge-tailed eagle', 'wedge tailed eagle', 'wedge tail eagle',
+    'silver quokka', 'quokka',
+    'super pit',
+    'chinese myths and legends', 'dragon and phoenix', 'tiger and dragon',
     'silver krugerrand', 'gold krugerrand', 'krugerrand',
     'canadian silver polar bear', 'silver polar bear', 'polar bear',
+    'canadian wildlife', 'wildlife series',
+    'canadian birds of prey', 'birds of prey',
+    'canadian predator', 'predator series',
+    'creatures of the north', 'kraken', 'werewolf', 'mothman',
     // US bullion & classic
     'american gold buffalo', 'gold buffalo',
     'american silver eagle', 'american gold eagle',

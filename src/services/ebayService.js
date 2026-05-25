@@ -70,7 +70,9 @@ const METAL_PATTERNS = [
 
 // Decorative/plating patterns where "gold" does NOT indicate the primary metal.
 // E.g. "24k Gold Gilded 1 oz Silver Coin" is silver, not gold.
-const DECORATIVE_GOLD_RE = /\bgold[\s-]*(gild|plat|finish|color|dust|marble|rutil|rhodium)/i;
+const DECORATIVE_GOLD_RE = /\bgold[\s-]*(gild|plat|finish|color|dust|marble|rutil|rhodium|ton(?:e[ds]?|ing))/i;
+// Brand names containing "gold" that do NOT indicate the metal
+const BRAND_GOLD_RE = /\bgold[\s-]*(?:spartan|back|creek|hill)\b/i;
 // Multi-metal decorative indicator: "Multi-Metal Gold", "Black Platinum & Gold"
 const MULTI_METAL_RE = /\bmulti[\s-]*metal\b/i;
 
@@ -94,8 +96,11 @@ function detectMetalFromTitle(title) {
     if (weightSilver && !weightGold) return 'silver';
     if (weightGold && !weightSilver) return 'gold';
 
-    // Check for decorative gold patterns (gilded, plated, finish, etc.)
+    // Check for decorative gold patterns (gilded, plated, finish, toning, etc.)
     if (DECORATIVE_GOLD_RE.test(title)) return 'silver';
+
+    // Check for brand names containing "gold" (Gold Spartan, etc.)
+    if (BRAND_GOLD_RE.test(title)) return 'silver';
 
     // Multi-metal / bi-metal decorative editions are typically silver base
     if (MULTI_METAL_RE.test(t)) return 'silver';
@@ -103,8 +108,8 @@ function detectMetalFromTitle(title) {
     // "X & Gold" / "Gold &" with other plating metals = decorative gold on silver
     if (/\b(?:ruthenium|rhodium|black)\b/i.test(t)) return 'silver';
 
-    // ".999 silver" / ".999 fine silver" = silver coin with decorative gold
-    if (/\.999\d*\s*(?:fine\s+)?silver\b/.test(t)) return 'silver';
+    // ".999 silver" / ".999 fine silver" / "999+ silver" = silver coin with decorative gold
+    if (/\.?999\+?\s*(?:fine\s+)?silver\b/.test(t)) return 'silver';
 
     // "fine silver" without weight-adjacent gold = silver base
     if (/\bfine\s+silver\b/.test(t)) return 'silver';
