@@ -23,6 +23,7 @@ process.env.EBAY_CLIENT_SECRET = 'test-secret';
 process.env.EBAY_THROTTLE_MS = '0';        // disable throttle in tests
 process.env.EBAY_US_MIN_COMPS = '3';       // low threshold for tests
 process.env.EBAY_CACHE_TTL_MS = '1000';
+process.env.EBAY_FINDING_ENABLED = 'true'; // enable Finding API for these tests
 
 const ebayService = require('../src/services/ebayService');
 
