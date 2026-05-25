@@ -109,7 +109,7 @@ Both coin and bar results pull through to all other tabs:
 
 ### Prerequisites
 
-- **Node.js** 24+ (CommonJS)
+- **Node.js** 22+ (CommonJS)
 - **eBay Developer** account — [developer.ebay.com](https://developer.ebay.com/)
 - **PCGS Public API** key — [pcgs.com/publicapi/documentation](https://www.pcgs.com/publicapi/documentation)
 - *(Optional)* Gold API or Metals API key for live spot prices
@@ -165,6 +165,16 @@ Optional variables:
 | `METALS_CACHE_TTL_MS` | Metals spot price cache lifetime | `2700000` (45 min) |
 | `METALS_POLL_MS` | Background metals polling interval | `1800000` (30 min) |
 | `GS_REFRESH_INTERVAL_DAYS` | Days between automatic Greysheet price refreshes | `3` |
+| `TERAPEAK_DATA_DIR` | Local Terapeak CSV directory override | `data/terapeak` |
+| `PCGS_PREFETCH_ENABLED` | Enable nightly PCGS prefetch scheduler | `true` |
+| `PREFETCH_HOUR_PT` | Nightly prefetch trigger hour (Pacific time) | `23` |
+| `PREFETCH_THROTTLE_MS` | Delay between prefetch API calls | `1000` |
+| `PREFETCH_RESERVE` | PCGS quota calls reserved from prefetching | `10` |
+| `APR_DATE_WINDOW_YEARS` | Auction history lookback window | `3` |
+| `APR_FRESHNESS_DAYS` | Auction history recrawl freshness threshold | `30` |
+| `SENDGRID_API_KEY` | SendGrid API key for crash/ops email alerts | *(none)* |
+| `ALERT_EMAIL_TO` | Destination email for server alerts | *(none)* |
+| `ALERT_FROM_EMAIL` | Sender email for alert notifications | `alerts@coinpricefinder.app` |
 
 ### Run
 
@@ -355,6 +365,7 @@ If an asking price is provided:
 | `GET` | `/api/coins/export` | Export collection as backup JSON |
 | `POST` | `/api/coins/import` | Import coins from backup |
 | `POST` | `/api/coins/bulk-delete` | Delete multiple coins by hash |
+| `POST` | `/api/coins/get` | Get a specific coin by identifying fields |
 | `GET` | `/api/coins/count` | Get coin count |
 
 All `/api/coins/*` endpoints require `Authorization: Bearer <jwt>` header.
@@ -381,6 +392,8 @@ All `/api/coins/*` endpoints require `Authorization: Bearer <jwt>` header.
 | `POST` | `/api/terapeak/purge-stale-csvs` | Delete CSV files older than N days 🔒 |
 | `POST` | `/api/terapeak/reimport` | Trigger manual blob re-import (supports `force=true`) 🔒 |
 | `GET` | `/api/terapeak/aggregation-status` | Dataset aggregation depth summary + filtered lists 🔒 |
+| `GET` | `/api/terapeak/scrape-status` | Backward-compatible alias of aggregation status 🔒 |
+| `POST` | `/api/terapeak/report-no-data` | Increment dormant/no-data tracking counters 🔒 |
 | `POST` | `/api/terapeak/backfill-aggregation-meta` | One-time backfill of aggregationMeta from logs 🔒 |
 
 ### Terapeak Quota
@@ -402,6 +415,11 @@ All `/api/coins/*` endpoints require `Authorization: Bearer <jwt>` header.
 | `GET` | `/api/admin/dashboard` | System overview: uptime, user count, dataset count, Terapeak quota 🔒 |
 | `GET` | `/api/admin/stale-datasets` | List datasets older than N days (default 30) 🔒 |
 | `GET` | `/api/admin/data-health` | Total files, empty files, oldest/newest file dates 🔒 |
+| `GET` | `/api/admin/prefetch-status` | Nightly PCGS prefetch scheduler status 🔒 |
+| `POST` | `/api/admin/prefetch-trigger` | Trigger a manual prefetch run 🔒 |
+| `GET` | `/api/admin/pcgs-quota` | Current PCGS quota usage/status 🔒 |
+| `GET` | `/api/admin/auction-history` | Retrieve stored auction history for a PCGS number/grade 🔒 |
+| `POST` | `/api/admin/auction-fetch` | Force a live auction refresh for a PCGS number/grade 🔒 |
 
 🔒 = requires `ADMIN_API_KEY` via `x-api-key` header.
 
@@ -488,7 +506,7 @@ The **Test Monitor** system records per-run metrics (timestamp, branch, commit, 
 
 A Copilot agent persona (`.github/agents/test-monitor.agent.md`) can be invoked to diagnose failures, quarantine flaky tests, and suggest fixes. See [docs/testing/test-monitor.md](docs/testing/test-monitor.md) for full usage.
 
-Runs **Jest** across 71 test suites:
+Runs **Jest** across 73 test suites:
 
 | Suite | What it covers |
 |---|---|
@@ -634,7 +652,7 @@ public/
 samples/
   test-collection.xlsx             Sample Excel import fixture
   no-collectors-sheet.xlsx         Error-case fixture (missing sheet)
-__tests__/                         71 Jest test suites (see Tests section)
+__tests__/                         73 Jest test suites (see Tests section)
   fixtures/
     golden_coins.json              Curated golden set coins (14 deterministic test coins)
   helpers/

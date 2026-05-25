@@ -13,8 +13,12 @@ Bootstrap full project understanding at the start of a new conversation. After r
 Before reading anything, scan for files that may have been added since this agent was last updated:
 
 1. List `/memories/repo/` -- read any files not explicitly listed in Phase 1.
-2. Run: `find . -name "*.md" -not -path "./node_modules/*" -not -path "./cache/*" -not -path "./.git/*" | sort` -- note any docs not covered by Phases 1-2.
-3. Run: `ls .github/agents/ .github/prompts/ .github/skills/` -- note the full agent/prompt/skill inventory.
+2. Run (Unix/macOS): `find . -name "*.md" -not -path "./node_modules/*" -not -path "./cache/*" -not -path "./.git/*" | sort`
+	Run (PowerShell): `Get-ChildItem -Recurse -File -Filter *.md | Where-Object { $_.FullName -notmatch 'node_modules|\\cache\\|\\.git\\' } | Sort-Object FullName | ForEach-Object FullName`
+	Note any docs not covered by Phases 1-2.
+3. Run (Unix/macOS): `ls .github/agents/ .github/prompts/ .github/skills/`
+	Run (PowerShell): `Get-ChildItem .github/agents, .github/prompts, .github/skills`
+	Note the full agent/prompt/skill inventory.
 
 If new files are discovered, read them and include their contents in the Readiness Report under a "New/Undocumented Files" section.
 
@@ -52,27 +56,33 @@ Read these project docs:
 7. `data/terapeak/README.md` -- data authenticity, CSV format docs, import instructions
 8. `.github/skills/code-review/SKILL.md` -- shared review framework (severity, finding schema)
 9. `.github/skills/numismatics/SKILL.md` -- domain knowledge: classification decision tree, finish detection, audit checklist
+10. `.github/skills/testing/TESTING-PLAN.md` -- testing strategy and expectations
 
 ### Phase 3: Key Source Files (scan exports/structure only)
 
 Read the first 50 lines of each to understand the module interface (80 lines for priceRoute):
 
-**Services (all 16):**
+**Services (all 20):**
 1. `src/services/ebayService.js` -- 3-tier comp cascade, scoring, filtering
 2. `src/services/valuationService.js` -- FMV blend, confidence, buy/sell decisions
 3. `src/services/terapeakService.js` -- CSV import, fuzzy lookup, eviction
 4. `src/services/greysheetService.js` -- Greysheet CDN API V2
-5. `src/services/bulkEvaluateService.js` -- lot evaluator engine
-6. `src/services/pcgsService.js` -- PCGS CoinFacts API, parseDescription
-7. `src/services/metalsSpotPrice.js` -- multi-provider spot price round-robin
-8. `src/services/numistaService.js` -- Numista API, rarity classification
-9. `src/services/marketAggregator.js` -- year x mint/grade matrix builder
-10. `src/services/authService.js` -- bcrypt + JWT auth
-11. `src/services/coinStorageService.js` -- coin CRUD, dual-mode Cosmos
-12. `src/services/metalsHistoryService.js` -- daily spot snapshots
-13. `src/services/greysheetHistoryService.js` -- daily Greysheet snapshots
-14. `src/services/terapeakQuotaService.js` -- daily query quota tracker
-15. `src/services/adminService.js` -- admin dashboard stats, stale detection, data health
+5. `src/services/alertService.js` -- crash/ops alert notifications
+6. `src/services/auctionPriceService.js` -- PCGS auction history fetch + cache
+7. `src/services/bulkEvaluateService.js` -- lot evaluator engine
+8. `src/services/pcgsService.js` -- PCGS CoinFacts API, parseDescription
+9. `src/services/metalsSpotPrice.js` -- multi-provider spot price round-robin
+10. `src/services/numistaService.js` -- Numista API, rarity classification
+11. `src/services/marketAggregator.js` -- year x mint/grade matrix builder
+12. `src/services/authService.js` -- bcrypt + JWT auth
+13. `src/services/coinStorageService.js` -- coin CRUD, dual-mode Cosmos
+14. `src/services/metalsHistoryService.js` -- daily spot snapshots
+15. `src/services/greysheetHistoryService.js` -- daily Greysheet snapshots
+16. `src/services/terapeakQuotaService.js` -- daily query quota tracker
+17. `src/services/adminService.js` -- admin dashboard stats, stale detection, data health
+18. `src/services/pcgsQuotaService.js` -- PCGS quota accounting
+19. `src/services/prefetchScheduler.js` -- nightly prefetch orchestration
+20. `src/services/MetalsSpotPriceError.js` -- custom metals provider error type
 
 **Routes (key subset):**
 16. `src/routes/priceRoute.js` -- main pricing endpoint (first 80 lines)
@@ -100,15 +110,14 @@ Read the first 50 lines of each to understand the module interface (80 lines for
 34. `scripts/refresh-stale.sh` -- one-command stale data refresh with --refresh --max-age (first 30 lines)
 35. `scripts/greysheet-refresh.js` -- bulk Greysheet snapshot collector (first 30 lines)
 36. `scripts/clean-csvs.js` -- CSV junk cleaner (first 20 lines)
-37. `scripts/create-grade-datasets.js` -- grade-suffixed CSV stub generator (first 20 lines)
-38. `scripts/pricing-health-full.js` -- full-dataset pricing health audit (first 20 lines)
-39. `scripts/reclassify-comps.js` -- batch comp reclassification: weight mismatch detection + reroute (first 20 lines)
-40. `scripts/build-evidence-index.js` -- historical evidence index builder (first 20 lines)
-41. `scripts/generate-freshness-report.js` -- freshness triage report (first 20 lines)
+37. `scripts/pricing-health-full.js` -- full-dataset pricing health audit (first 20 lines)
+38. `scripts/reclassify-comps.js` -- batch comp reclassification: weight mismatch detection + reroute (first 20 lines)
+39. `scripts/build-evidence-index.js` -- historical evidence index builder (first 20 lines)
+40. `scripts/generate-freshness-report.js` -- freshness triage report (first 20 lines)
 
 **Test infrastructure:**
-42. `__tests__/helpers/coinTestConstants.js` -- shared test helpers, golden set loader, selectCoins()
-43. `__tests__/fixtures/golden_coins.json` -- 14 curated deterministic test coins
+41. `__tests__/helpers/coinTestConstants.js` -- shared test helpers, golden set loader, selectCoins()
+42. `__tests__/fixtures/golden_coins.json` -- 14 curated deterministic test coins
 
 ### Phase 4: Verification
 
@@ -121,7 +130,9 @@ After reading, produce a **Readiness Report** with:
 - [1-2 sentence overview]
 
 ### Key Numbers
-- Test suites: N | Tests: N (run `npm test -- --silent 2>&1 | tail -5` for exact counts)
+- Test suites: N | Tests: N
+	Run (Unix/macOS): `npm test -- --silent 2>&1 | tail -5`
+	Run (PowerShell): `npm test -- --silent` (or parse Jest summary JSON)
 - Services: N | Routes: N
 - Terapeak datasets: ~N | Comps: ~N
 - Backlog items: N open / N done
@@ -154,5 +165,7 @@ After reading, produce a **Readiness Report** with:
 - **No shortcuts.** Read every file listed. Do not summarize from memory or prior conversations.
 - **Be honest.** If a file is missing or unreadable, say so in the report.
 - **Track progress.** Use the todo list to show Phase 0/1/2/3/4 progress.
-- Run `npm test -- --silent 2>&1 | tail -5` and `git log --oneline -5` for accurate numbers.
+- Run test counts and recent commits using commands appropriate for your shell.
+	Unix/macOS: `npm test -- --silent 2>&1 | tail -5` and `git log --oneline -5`
+	PowerShell: `npm test -- --silent` and `git log --oneline -5`
 - If the codebase has grown beyond what's documented, note the gaps in the report.

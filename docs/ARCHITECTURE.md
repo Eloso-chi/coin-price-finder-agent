@@ -31,12 +31,16 @@ server.js                              Express entry point (port 3000)
 │   ├─ ebayService.js                  eBay sold comps (3-tier API cascade + grade-type pool split)
 │   ├─ valuationService.js             FMV blend + buy/sell decision engine
 │   ├─ greysheetService.js             Greysheet CDN Public API V2 (wholesale pricing)
+│   ├─ alertService.js                 Crash/ops alert notifications (SendGrid)
+│   ├─ auctionPriceService.js          PCGS auction history fetch + local history cache
 │   ├─ bulkEvaluateService.js           Bulk lot evaluator engine (per-coin FMV + lot summary)
 │   ├─ metalsSpotPrice.js              Multi-provider spot price (round-robin)
 │   ├─ MetalsSpotPriceError.js         Custom error class
 │   ├─ metalsHistoryService.js         Daily spot price history snapshots + getSpotOnDate()
 │   ├─ marketAggregator.js             Year x mint market matrix builder + caching
 │   ├─ numistaService.js               Numista API -- search, mintages, rarity
+│   ├─ pcgsQuotaService.js             PCGS API quota tracking service
+│   ├─ prefetchScheduler.js            Nightly PCGS prefetch scheduler
 │   ├─ terapeakService.js              Terapeak CSV import, fuzzy lookup, eviction, auto-import, aggregationMeta tracking (Cosmos write-through + hydration + git-tracked sidecar)
 │   ├─ terapeakQuotaService.js         Daily Terapeak query quota tracker
 │   ├─ adminService.js                 Admin dashboard aggregation (stats, stale detection, data health)
@@ -65,7 +69,7 @@ server.js                              Express entry point (port 3000)
 │   ├─ cosmosClient.js                 Azure Cosmos DB client singleton (env-var gated)
 │   └─ blobClient.js                   Azure Blob Storage client (managed identity)
 │
-├─ src/greysheet/
+├─ src/data/
 │   └─ greysheetTypeMap.js             Series-to-GSID mapping (55 MS + 18 Proof) + finish detection
 │
 ├─ public/
@@ -139,7 +143,7 @@ server.js                              Express entry point (port 3000)
 │   │   └─ onboard.prompt.md                      /onboard slash command
 │   └─ copilot-instructions.md                    Workspace-wide Copilot rules
 │
-└─ __tests__/                          71 Jest test suites
+└─ __tests__/                          73 Jest test suites
     ├─ fixtures/
     │   └─ golden_coins.json           Curated golden set (14 deterministic test coins)
     └─ helpers/
@@ -949,12 +953,20 @@ This ensures unslabbed proof coins (e.g. Proof Libertads in OGP) don't inflate r
 | `TERAPEAK_BLOB_ACCOUNT` | No | -- | Azure Blob Storage account name |
 | `TERAPEAK_BLOB_CONTAINER` | No | -- | Azure Blob Storage container name |
 | `TERAPEAK_DATA_DIR` | No | `data/terapeak` | Local directory for Terapeak CSV files |
-| `METALS_POLL_MS` | No | `300000` | Metals spot-price polling interval (ms) |
+| `METALS_POLL_MS` | No | `1800000` | Metals spot-price polling interval (ms) |
 | `EBAY_DEFAULT_LOOKBACK_DAYS` | No | `180` | Default sold-comp lookback window (auto-extends to 365 if thin) |
 | `BLOB_REIMPORT_MS` | No | `1800000` | Periodic blob re-import interval (ms; 30 min default) |
-| `GS_REFRESH_DAY` | No | `0` (Sunday) | Day of week for Greysheet bulk refresh (0=Sun, 1=Mon, ..., 6=Sat) |
 | `GS_REFRESH_INTERVAL_DAYS` | No | `3` | Days between automatic Greysheet background refreshes |
 | `NUMISTA_API_KEY` | No | -- | Numista API key for rarity/mintage lookups |
+| `PCGS_PREFETCH_ENABLED` | No | `true` | Enable/disable nightly PCGS prefetch scheduler |
+| `PREFETCH_HOUR_PT` | No | `23` | Prefetch run hour in Pacific time |
+| `PREFETCH_THROTTLE_MS` | No | `1000` | Delay between prefetch PCGS calls (ms) |
+| `PREFETCH_RESERVE` | No | `10` | Quota calls reserved from prefetching |
+| `APR_DATE_WINDOW_YEARS` | No | `3` | Auction history lookback window in years |
+| `APR_FRESHNESS_DAYS` | No | `30` | Auction history recrawl freshness threshold in days |
+| `SENDGRID_API_KEY` | No | -- | SendGrid key for crash/ops alerts |
+| `ALERT_EMAIL_TO` | No | -- | Destination email for alerts |
+| `ALERT_FROM_EMAIL` | No | `alerts@coinpricefinder.app` | Sender email for alerts |
 
 ---
 
@@ -965,7 +977,7 @@ The server starts several background tasks on boot:
 | Timer | Interval | Purpose |
 |-------|----------|---------|
 | Metals spot price | 30 min (`METALS_POLL_MS`) | Round-robin fetch from goldapi.io / metals-api.com; persists to `metals_spot.json` |
-| Greysheet history refresh | `GS_REFRESH_INTERVAL_DAYS` days (default 3) | Runs `scripts/greysheet-refresh.js` to snapshot wholesale prices for all tracked coins. Checks `greysheetHistoryService.getLastRefreshDate()` on startup and every 12 hours; skips if interval not elapsed. |
+| Greysheet history refresh | `GS_REFRESH_INTERVAL_DAYS` days (default 3) | Runs `scripts/greysheet-refresh.js` to snapshot wholesale prices for all tracked coins. Checks `greysheetHistoryService.getLastRefreshDate()` on startup and every hour; skips if interval not elapsed. |
 | Blob re-import | 30 min (`BLOB_REIMPORT_MS`) | Polls Azure Blob Storage for new Terapeak CSV uploads; clears eBay cache on new data |
 | Greysheet history eviction | Startup only | Evicts history entries older than 400 days |
 | Terapeak meta sidecar | Startup only | Loads `data/terapeak-meta.json` (aggregation markers + sale date bounds); auto-seeds file on first run |
