@@ -49,6 +49,12 @@ const CONFIRMED_THIN_REFRESHES = 3;   // After N refreshes still thin = confirme
 const THIN_MARKET_CADENCE_DAYS = 60;  // Thin-market datasets only refresh every 60d
 const RECENTLY_REFRESHED_DAYS = 14;  // If scraped within this window and still stale, don't re-queue
 
+// Dry-refresh backoff: when refreshes consistently yield 0 new comps, extend cadence
+const DRY_REFRESH_TIER1 = 2;          // After 2 consecutive dry refreshes -> 30d cadence
+const DRY_REFRESH_TIER2 = 4;          // After 4 consecutive dry refreshes -> 60d cadence
+const DRY_REFRESH_TIER1_DAYS = 30;    // Extended cadence for tier 1
+const DRY_REFRESH_TIER2_DAYS = 60;    // Extended cadence for tier 2
+
 // Low-signal threshold (backward compat): datasets with comps > 0 but < this value.
 const lowSigIdx = args.indexOf('--low-signal');
 const LOW_SIGNAL_THRESHOLD = lowSigIdx >= 0 ? parseInt(args[lowSigIdx + 1]) || 10 : THIN_MARKET_THRESHOLD;
@@ -198,6 +204,10 @@ for (const [key, entry] of Object.entries(meta)) {
   const noDataAgeDays = noDataAt ? Math.floor((today - new Date(noDataAt)) / 86400000) : null;
   const isDormant = noDataCount >= 2 && noDataAgeDays !== null && noDataAgeDays < 60;
 
+  // Dry-refresh backoff: consecutive refreshes that yielded 0 new comps
+  const consecutiveDryRefreshes = entry.consecutiveDryRefreshes || 0;
+  const lastRefreshNewComps = entry.lastRefreshNewComps ?? null;
+
   // ── Backward-compat: derive legacy freshnessStatus ─────────
   let freshnessStatus;
   let freshnessReason;
@@ -251,6 +261,12 @@ for (const [key, entry] of Object.entries(meta)) {
       // Recently scraped but market has no new sales -- don't re-queue
       actions.push('recently-confirmed-stale');
       priority = null;
+    } else if (consecutiveDryRefreshes >= DRY_REFRESH_TIER2 && lastRefreshDays !== null && lastRefreshDays < DRY_REFRESH_TIER2_DAYS) {
+      actions.push('dry-refresh-backoff');
+      priority = null;
+    } else if (consecutiveDryRefreshes >= DRY_REFRESH_TIER1 && lastRefreshDays !== null && lastRefreshDays < DRY_REFRESH_TIER1_DAYS) {
+      actions.push('dry-refresh-backoff');
+      priority = null;
     } else {
       actions.push('refresh');
       priority = 'P0';
@@ -258,6 +274,12 @@ for (const [key, entry] of Object.entries(meta)) {
   } else if (freshness === 'stale' && marketDepth === 'viable') {
     if (lastRefreshDays !== null && lastRefreshDays < RECENTLY_REFRESHED_DAYS) {
       actions.push('recently-confirmed-stale');
+      priority = null;
+    } else if (consecutiveDryRefreshes >= DRY_REFRESH_TIER2 && lastRefreshDays !== null && lastRefreshDays < DRY_REFRESH_TIER2_DAYS) {
+      actions.push('dry-refresh-backoff');
+      priority = null;
+    } else if (consecutiveDryRefreshes >= DRY_REFRESH_TIER1 && lastRefreshDays !== null && lastRefreshDays < DRY_REFRESH_TIER1_DAYS) {
+      actions.push('dry-refresh-backoff');
       priority = null;
     } else {
       actions.push('refresh');
@@ -319,6 +341,7 @@ for (const [key, entry] of Object.entries(meta)) {
     actions,
     identifiers,
     ...(noDataCount > 0 ? { noDataCount, noDataAt } : {}),
+    ...(consecutiveDryRefreshes > 0 ? { consecutiveDryRefreshes, lastRefreshNewComps } : {}),
   };
   datasets.push(record);
 
@@ -368,6 +391,7 @@ const lowComps = datasets.filter(d => d.compCount > 0 && d.compCount < LOW_COMP_
 
 // New: priority-based counts
 const recentlyConfirmedStale = datasets.filter(d => d.actions && d.actions.includes('recently-confirmed-stale')).length;
+const dryRefreshBackoff = datasets.filter(d => d.actions && d.actions.includes('dry-refresh-backoff')).length;
 const priorityCounts = {
   P0: datasets.filter(d => d.priority === 'P0').length,
   P1: datasets.filter(d => d.priority === 'P1').length,
@@ -375,6 +399,7 @@ const priorityCounts = {
   P3: datasets.filter(d => d.priority === 'P3').length,
   skip: datasets.filter(d => d.priority === null).length,
   recentlyConfirmedStale,
+  dryRefreshBackoff,
 };
 const depthCounts = {
   viable: datasets.filter(d => d.marketDepth === 'viable').length,

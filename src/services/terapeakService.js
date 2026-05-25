@@ -100,6 +100,11 @@ function saveMetaSidecar() {
             existing.noDataAt = existing.noDataAt && existing.noDataAt > am.noDataAt ? existing.noDataAt : am.noDataAt;
             existing.noDataCount = Math.max(existing.noDataCount || 0, am.noDataCount || 0);
           }
+          // Dry-refresh backoff: propagate to sidecar
+          if (am.consecutiveDryRefreshes != null) {
+            existing.consecutiveDryRefreshes = Math.max(existing.consecutiveDryRefreshes || 0, am.consecutiveDryRefreshes);
+            existing.lastRefreshNewComps = am.lastRefreshNewComps ?? existing.lastRefreshNewComps ?? null;
+          }
         } else {
           meta[key] = {
             deepAt: am.deepAt || null,
@@ -111,6 +116,7 @@ function saveMetaSidecar() {
             oldestSaleDate: am.oldestSaleDate || null,
             compCount: am.compCount || null,
             ...(am.noDataAt ? { noDataAt: am.noDataAt, noDataCount: am.noDataCount || 0 } : {}),
+            ...(am.consecutiveDryRefreshes ? { consecutiveDryRefreshes: am.consecutiveDryRefreshes, lastRefreshNewComps: am.lastRefreshNewComps ?? null } : {}),
           };
         }
       }
@@ -671,6 +677,21 @@ function importComps(searchTerm, comps, meta = {}, _reclassifying = false) {
     // refreshCount: increment on each page-1 import
     refreshCount: (prevMeta.refreshCount || 0) + (incomingMeta.page1At ? 1 : 0),
   };
+  // Track refresh yield: how many NEW comps this refresh found
+  // (only stamp when this is a page-1 refresh, not a deep-pagination import)
+  if (incomingMeta.page1At || incomingMeta.lastRefreshAt) {
+    mergedAggregationMeta.lastRefreshNewComps = newCount;
+    if (newCount === 0) {
+      mergedAggregationMeta.consecutiveDryRefreshes = (prevMeta.consecutiveDryRefreshes || 0) + 1;
+    } else {
+      mergedAggregationMeta.consecutiveDryRefreshes = 0;
+    }
+  } else {
+    // Preserve existing values for deep-pagination imports
+    mergedAggregationMeta.lastRefreshNewComps = prevMeta.lastRefreshNewComps ?? null;
+    mergedAggregationMeta.consecutiveDryRefreshes = prevMeta.consecutiveDryRefreshes || 0;
+  }
+
   // Successful import with comps resets dormant tracking (self-healing)
   if (comps.length > 0 && prevMeta.noDataCount) {
     mergedAggregationMeta.noDataAt = null;

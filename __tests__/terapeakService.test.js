@@ -531,3 +531,67 @@ describe('clearAll + listDatasets', () => {
     expect(ds.lastImport).toBeTruthy();
   });
 });
+
+// ═══════════════════════════════════════════════════════════════
+//  Dry-refresh backoff tracking
+// ═══════════════════════════════════════════════════════════════
+describe('dry-refresh backoff (consecutiveDryRefreshes)', () => {
+  test('stamps lastRefreshNewComps on page-1 import with new comps', () => {
+    const result = importComps('Backoff Test A', [
+      { itemId: 'BA1', title: 'Coin A', totalUsd: 50, soldDate: '2025-06-01' },
+    ], { aggregationMeta: { page1At: new Date().toISOString() } });
+    expect(result.newComps).toBe(1);
+    const ds = listDatasets().find(d => d.key === result.key);
+    expect(ds.aggregationMeta.lastRefreshNewComps).toBe(1);
+    expect(ds.aggregationMeta.consecutiveDryRefreshes).toBe(0);
+  });
+
+  test('increments consecutiveDryRefreshes when refresh yields 0 new comps', () => {
+    const comps = [{ itemId: 'BB1', title: 'Coin B', totalUsd: 50, soldDate: '2025-06-01' }];
+    importComps('Backoff Test B', comps, { aggregationMeta: { page1At: '2025-05-01T00:00:00Z' } });
+    // Re-import same comps (all dupes) with a new page1At (refresh)
+    const result = importComps('Backoff Test B', comps, { aggregationMeta: { page1At: '2025-05-10T00:00:00Z' } });
+    expect(result.newComps).toBe(0);
+    const ds = listDatasets().find(d => d.key === result.key);
+    expect(ds.aggregationMeta.lastRefreshNewComps).toBe(0);
+    expect(ds.aggregationMeta.consecutiveDryRefreshes).toBe(1);
+  });
+
+  test('consecutiveDryRefreshes accumulates across multiple dry refreshes', () => {
+    const comps = [{ itemId: 'BC1', title: 'Coin C', totalUsd: 50, soldDate: '2025-06-01' }];
+    importComps('Backoff Test C', comps, { aggregationMeta: { page1At: '2025-05-01T00:00:00Z' } });
+    importComps('Backoff Test C', comps, { aggregationMeta: { page1At: '2025-05-10T00:00:00Z' } });
+    importComps('Backoff Test C', comps, { aggregationMeta: { page1At: '2025-05-20T00:00:00Z' } });
+    const result = importComps('Backoff Test C', comps, { aggregationMeta: { page1At: '2025-05-30T00:00:00Z' } });
+    const ds = listDatasets().find(d => d.key === result.key);
+    expect(ds.aggregationMeta.consecutiveDryRefreshes).toBe(3);
+  });
+
+  test('resets consecutiveDryRefreshes when a refresh finds new comps', () => {
+    const comps = [{ itemId: 'BD1', title: 'Coin D', totalUsd: 50, soldDate: '2025-06-01' }];
+    importComps('Backoff Test D', comps, { aggregationMeta: { page1At: '2025-05-01T00:00:00Z' } });
+    // Two dry refreshes
+    importComps('Backoff Test D', comps, { aggregationMeta: { page1At: '2025-05-10T00:00:00Z' } });
+    importComps('Backoff Test D', comps, { aggregationMeta: { page1At: '2025-05-20T00:00:00Z' } });
+    // Now a productive refresh
+    const newComps = [{ itemId: 'BD2', title: 'Coin D New', totalUsd: 60, soldDate: '2025-06-10' }];
+    const result = importComps('Backoff Test D', newComps, { aggregationMeta: { page1At: '2025-05-30T00:00:00Z' } });
+    expect(result.newComps).toBe(1);
+    const ds = listDatasets().find(d => d.key === result.key);
+    expect(ds.aggregationMeta.consecutiveDryRefreshes).toBe(0);
+    expect(ds.aggregationMeta.lastRefreshNewComps).toBe(1);
+  });
+
+  test('does not stamp dry-refresh fields on deep-pagination import (no page1At)', () => {
+    const comps = [{ itemId: 'BE1', title: 'Coin E', totalUsd: 50, soldDate: '2025-06-01' }];
+    // Initial import with page1At
+    importComps('Backoff Test E', comps, { aggregationMeta: { page1At: '2025-05-01T00:00:00Z' } });
+    // Deep-pagination import (no page1At, no lastRefreshAt in incoming meta)
+    const deepComps = [{ itemId: 'BE2', title: 'Coin E Deep', totalUsd: 70, soldDate: '2025-06-05' }];
+    importComps('Backoff Test E', deepComps, { aggregationMeta: { deepAt: '2025-05-15T00:00:00Z' } });
+    const ds = listDatasets().find(d => d.key === normalizeSearchKey('Backoff Test E'));
+    // Should preserve the value from the page1At import (0), not increment
+    expect(ds.aggregationMeta.consecutiveDryRefreshes).toBe(0);
+    expect(ds.aggregationMeta.lastRefreshNewComps).toBe(1); // from original import
+  });
+});
