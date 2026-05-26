@@ -222,11 +222,18 @@ describe('prefetchScheduler — getSchedulerStatus', () => {
 
 describe('prefetchScheduler — triggerManual', () => {
 
-  test('returns ok:true and status on success', async () => {
+  test('returns the triggerManual response contract', () => {
     pcgsQuota.getAvailableForPrefetch.mockReturnValue(2);
-    const result = await scheduler.triggerManual();
-    expect(result.ok).toBe(true);
-    expect(result.status).toBeDefined();
-    expect(result.status.status).toBe('completed');
+    const result = scheduler.triggerManual();
+    expect(result).toHaveProperty('started');
+    expect(typeof result.started).toBe('boolean');
+    expect(result).toHaveProperty('reason');
+
+    if (result.started) {
+      expect(result.reason).toContain('background');
+      expect(result.nextStatus).toContain('/api/admin/prefetch-status');
+    } else {
+      expect(result.reason).toMatch(/Already completed today|Run already in progress/);
+    }
   });
 });

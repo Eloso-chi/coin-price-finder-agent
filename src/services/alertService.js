@@ -1,4 +1,4 @@
-// src/services/alertService.js — Email alert notifications via SendGrid v3 API
+// src/services/alertService.js — Email alert notifications via Azure Communication Services Email
 // Sends failure alerts for background processes. No-op if not configured.
 // CommonJS
 
@@ -6,16 +6,17 @@
 
 const path = require('path');
 const fs = require('fs');
-const axios = require('axios');
+const { EmailClient } = require('@azure/communication-email');
 const { CACHE_DIR } = require('../utils/cachePath');
 
 // ── Configuration ───────────────────────────────────────────
-const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY || '';
+const COMMUNICATION_CONNECTION_STRING = process.env.COMMUNICATION_CONNECTION_STRING || '';
 const ALERT_EMAIL_TO = process.env.ALERT_EMAIL_TO || '';
-const ALERT_FROM_EMAIL = process.env.ALERT_FROM_EMAIL || 'alerts@coinpricefinder.app';
+const ALERT_FROM_EMAIL = process.env.ALERT_FROM_EMAIL || '';
 const RATE_LIMIT_MS = 60 * 60 * 1000; // 1 hour per topic
 
 const LOG_PATH = path.join(CACHE_DIR, 'alert_log.json');
+let _emailClient = null;
 
 // ── Rate limiter (per-topic, 1 alert per hour) ──────────────
 const _lastSent = new Map(); // topic -> timestamp
@@ -51,9 +52,15 @@ function logToFile(topic, message, error) {
 
 // ── Core send function ──────────────────────────────────────
 
+function getEmailClient() {
+  if (_emailClient) return _emailClient;
+  _emailClient = new EmailClient(COMMUNICATION_CONNECTION_STRING);
+  return _emailClient;
+}
+
 /**
- * Send an alert email via SendGrid v3 API.
- * No-op if SENDGRID_API_KEY or ALERT_EMAIL_TO is not configured.
+ * Send an alert email via Azure Communication Services Email.
+ * No-op if COMMUNICATION_CONNECTION_STRING or alert addresses are not configured.
  * Rate-limited: max 1 email per topic per hour.
  *
  * @param {string} topic - Alert category (e.g. 'metals-refresh', 'prefetch-failed')
@@ -63,7 +70,7 @@ function logToFile(topic, message, error) {
  */
 async function sendAlert(topic, subject, body) {
   // No-op if not configured
-  if (!SENDGRID_API_KEY || !ALERT_EMAIL_TO) {
+  if (!COMMUNICATION_CONNECTION_STRING || !ALERT_EMAIL_TO || !ALERT_FROM_EMAIL) {
     logToFile(topic, `${subject}: ${body}`, 'not-configured');
     return { sent: false, reason: 'not-configured' };
   }
@@ -74,29 +81,34 @@ async function sendAlert(topic, subject, body) {
   }
 
   try {
-    await axios.post('https://api.sendgrid.com/v3/mail/send', {
-      personalizations: [{ to: [{ email: ALERT_EMAIL_TO }] }],
-      from: { email: ALERT_FROM_EMAIL, name: 'CoinPriceFinder Alerts' },
-      subject: `[CoinPriceFinder] ${subject}`,
-      content: [{
-        type: 'text/plain',
-        value: `${body}\n\n---\nTimestamp: ${new Date().toISOString()}\nTopic: ${topic}`,
-      }],
-    }, {
-      headers: {
-        Authorization: `Bearer ${SENDGRID_API_KEY}`,
-        'Content-Type': 'application/json',
+    const client = getEmailClient();
+    const poller = await client.beginSend({
+      senderAddress: ALERT_FROM_EMAIL,
+      recipients: {
+        to: [{ address: ALERT_EMAIL_TO }],
       },
-      timeout: 10000,
+      content: {
+        subject: `[CoinPriceFinder] ${subject}`,
+        plainText: `${body}\n\n---\nTimestamp: ${new Date().toISOString()}\nTopic: ${topic}`,
+      },
     });
+
+    const result = await poller.pollUntilDone();
+    if (result.status && result.status !== 'Succeeded') {
+      const reason = `email-send-${String(result.status).toLowerCase()}`;
+      console.error(`[alert] ACS email failed for topic "${topic}": ${reason}`);
+      logToFile(topic, `${subject}: ${body}`, reason);
+      markSent(topic); // Still rate-limit to avoid hammering a broken mail provider
+      return { sent: false, reason };
+    }
 
     markSent(topic);
     return { sent: true };
   } catch (err) {
-    const errMsg = err.response?.data?.errors?.[0]?.message || err.message;
-    console.error(`[alert] SendGrid failed for topic "${topic}": ${errMsg}`);
+    const errMsg = err.details?.message || err.message || 'unknown-error';
+    console.error(`[alert] ACS email failed for topic "${topic}": ${errMsg}`);
     logToFile(topic, `${subject}: ${body}`, errMsg);
-    markSent(topic); // Still rate-limit to avoid hammering a broken SendGrid
+    markSent(topic); // Still rate-limit to avoid hammering a broken mail provider
     return { sent: false, reason: errMsg };
   }
 }
