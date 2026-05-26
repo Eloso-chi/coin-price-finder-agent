@@ -47,19 +47,71 @@ jobs:
           BODY=$(echo "$RESPONSE" | head -n -1)
           echo "Trigger response: HTTP $HTTP_CODE"
           echo "$BODY" | python3 -m json.tool 2>/dev/null || echo "$BODY"
-          if [ "$HTTP_CODE" -ge 400 ]; then
+          # 202 Accepted is expected (fire-and-forget)
+          if [ "$HTTP_CODE" != "202" ] && [ "$HTTP_CODE" != "200" ]; then
             echo "::error::Prefetch trigger failed with HTTP $HTTP_CODE"
             exit 1
           fi
+          # Store the trigger response for later steps
+          echo "$BODY" > /tmp/trigger_response.json
 
-      - name: Check prefetch status
+      - name: Poll prefetch status until completion
         env:
           ADMIN_API_KEY: ${{ secrets.ADMIN_API_KEY }}
         run: |
-          # Wait 15s for the run to start (30s startup delay in scheduler)
-          sleep 15
-          RESPONSE=$(curl -s \
-            -H "x-api-key: ${ADMIN_API_KEY}" \
-            "https://coinpricefinder-h3a3b5g0dmdydna4.azurewebsites.net/api/admin/prefetch-status")
-          echo "Prefetch status:"
+          echo "Waiting for prefetch to complete..."
+          MAX_POLLS=180  # 30 minutes with 10s intervals
+          POLL_INTERVAL=10
+          COMPLETED=false
+          
+          for i in $(seq 1 $MAX_POLLS); do
+            sleep $POLL_INTERVAL
+            RESPONSE=$(curl -s \
+              -H "x-api-key: ${ADMIN_API_KEY}" \
+              "https://coinpricefinder-h3a3b5g0dmdydna4.azurewebsites.net/api/admin/prefetch-status")
+            
+            # Extract todayCompleted field
+            COMPLETED=$(echo "$RESPONSE" | python3 -c "import sys, json; data=json.load(sys.stdin); print(data.get('todayCompleted', False))" 2>/dev/null)
+            
+            if [ "$COMPLETED" = "True" ]; then
+              echo "✓ Prefetch completed successfully"
+              echo "Status:"
+              echo "$RESPONSE" | python3 -m json.tool 2>/dev/null
+              echo "$RESPONSE" > /tmp/prefetch_final_status.json
+              exit 0
+            fi
+            
+            # Show progress every 30 seconds
+            if [ $((i % 3)) -eq 0 ]; then
+              echo "Poll $i/$MAX_POLLS: Still running..."
+            fi
+          done
+          
+          # Timeout: show last status and warn (don't fail)
+          echo "::warning::Prefetch polling timed out after 30 minutes"
+          echo "Last status:"
           echo "$RESPONSE" | python3 -m json.tool 2>/dev/null || echo "$RESPONSE"
+          # Don't exit with error — prefetch may still be running
+          exit 0
+
+      - name: Report prefetch results
+        if: always()
+        run: |
+          if [ -f /tmp/prefetch_final_status.json ]; then
+            echo "## ✓ Nightly APR Prefetch Completed" >> $GITHUB_STEP_SUMMARY
+            python3 -c "
+            import json
+            with open('/tmp/prefetch_final_status.json') as f:
+              data = json.load(f)
+            print(f'| Metric | Value |')
+            print(f'|--------|-------|')
+            print(f'| API calls made | {data.get(\"lastCallsMade\", 0)} |')
+            print(f'| New records | {data.get(\"lastNewRecords\", 0)} |')
+            print(f'| Duration | {data.get(\"lastDuration\", \"unknown\")} |')
+            print(f'| Status | {data.get(\"lastStatus\", \"unknown\")} |')
+            print(f'| Quota remaining | {data.get(\"quota\", {}).get(\"remaining\", \"unknown\")} |')
+            " >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## ⚠ Prefetch Status Unknown" >> $GITHUB_STEP_SUMMARY
+            echo "Could not confirm prefetch completion. Check /api/admin/prefetch-status manually." >> $GITHUB_STEP_SUMMARY
+          fi

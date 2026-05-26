@@ -77,11 +77,12 @@ router.get('/prefetch-status', (_req, res) => {
 /**
  * POST /api/admin/prefetch-trigger
  * Manually trigger a prefetch run (for testing/admin).
+ * Returns 202 Accepted — prefetch runs in background, check /prefetch-status for progress.
  */
-router.post('/prefetch-trigger', async (_req, res) => {
+router.post('/prefetch-trigger', (_req, res) => {
   try {
-    const result = await prefetchScheduler.triggerManual();
-    res.json(result);
+    const result = prefetchScheduler.triggerManual();
+    res.status(202).json(result);
   } catch (err) {
     console.error('[admin] Prefetch trigger error:', err.message);
     res.status(500).json({ error: err.message });
