@@ -628,6 +628,133 @@ const CHINA_LUNAR_SILVER = {
 };
 
 // ══════════════════════════════════════════════════════════════
+// WORLD BULLION — Australia Perth Mint Lunar 1/2 oz Silver (1999–present)
+// Source: PCGS Population Report, category 5096 (50 Cents 1999-Date)
+// Path: AUSTRALIA / LUNAR COINAGE / SILVER
+// Designation: MS — base coin only (no colorized/gilt/privy variants)
+// ══════════════════════════════════════════════════════════════
+const AUSTRALIA_LUNAR_HALF_OZ = {
+  1999: { P: 170456 }, 2000: { P: 170457 }, 2001: { P: 170458 },
+  2002: { P: 170459 }, 2003: { P: 170460 }, 2004: { P: 170461 },
+  2005: { P: 389828 }, 2006: { P: 655046 }, 2007: { P: 390730 },
+  2008: { P: 391576 }, 2009: { P: 404373 }, 2010: { P: 416017 },
+  2011: { P: 505637 }, 2012: { P: 650758 }, 2013: { P: 515364 },
+  2014: { P: 522249 }, 2015: { P: 543941 }, 2016: { P: 569860 },
+  2017: { P: 615837 }, 2018: { P: 700688 }, 2019: { P: 685706 },
+  2020: { P: 905145 }, 2021: { P: 881826 }, 2022: { P: 898200 },
+  2023: { P: 926932 }, 2024: { P: 946492 }, 2025: { P: 973993 },
+  2026: { P: 1001920 },
+};
+
+// ══════════════════════════════════════════════════════════════
+// WORLD BULLION — Australia Perth Mint Lunar 1 oz Silver (1999–present)
+// Source: PCGS Population Report, category 5097 (1 Dollar 1999-Date)
+// Path: AUSTRALIA / LUNAR COINAGE / SILVER
+// Designation: MS — base coin only (no colorized/gilt/privy variants)
+// ══════════════════════════════════════════════════════════════
+const AUSTRALIA_LUNAR_SILVER = {
+  1999: { P: 172063 }, 2000: { P: 161969 }, 2001: { P: 172062 },
+  2002: { P: 168936 }, 2003: { P: 171453 }, 2004: { P: 172061 },
+  2005: { P: 172350 }, 2006: { P: 142722 }, 2007: { P: 146284 },
+  2008: { P: 395910 }, 2009: { P: 411349 }, 2010: { P: 413479 },
+  2011: { P: 502242 }, 2012: { P: 508919 }, 2013: { P: 515352 },
+  2014: { P: 519345 }, 2015: { P: 532406 }, 2016: { P: 570215 },
+  2017: { P: 615495 }, 2018: { P: 653825 }, 2019: { P: 683849 },
+  2020: { P: 891799 }, 2021: { P: 862205 }, 2022: { P: 891089 },
+  2023: { P: 912676 }, 2024: { P: 933715 }, 2025: { P: 967157 },
+  2026: { P: 999284 },
+};
+
+// ══════════════════════════════════════════════════════════════
+// WORLD BULLION — Australia Perth Mint Lunar 2 oz Silver (1999–present)
+// Source: PCGS Population Report, category 5098 (2 Dollars 1999-Date)
+// Path: AUSTRALIA / LUNAR COINAGE / SILVER
+// Designation: MS — base coin only (no colorized/gilt/antique variants)
+// ══════════════════════════════════════════════════════════════
+const AUSTRALIA_LUNAR_TWO_OZ = {
+  1999: { P: 218559 }, 2000: { P: 508689 }, 2001: { P: 222097 },
+  2002: { P: 209793 }, 2003: { P: 513295 }, 2004: { P: 447285 },
+  2005: { P: 513297 }, 2006: { P: 513296 }, 2007: { P: 513288 },
+  2008: { P: 513300 }, 2009: { P: 319841 }, 2010: { P: 653945 },
+  2011: { P: 514250 }, 2012: { P: 509339 }, 2013: { P: 521016 },
+  2014: { P: 527226 }, 2015: { P: 535711 }, 2016: { P: 615358 },
+  2017: { P: 616123 }, 2018: { P: 653826 }, 2019: { P: 684753 },
+  2020: { P: 803445 }, 2021: { P: 862205 }, 2022: { P: 891089 },
+  2023: { P: 912676 }, 2024: { P: 933715 }, 2025: { P: 967157 },
+  2026: { P: 999284 },
+};
+
+// ══════════════════════════════════════════════════════════════
+// WORLD BULLION — Australia Wedge-Tailed Eagle 1 oz Silver (2008–present)
+// Source: PCGS Population Report, category 219889 (WTE 1 Dollar Silver 2008-2023)
+// Path: AUSTRALIA / WEDGE-TAILED EAGLE
+// Designation: MS — base coin only (no high relief/colorized/gilt variants)
+// ══════════════════════════════════════════════════════════════
+const AUSTRALIA_WTE_SILVER = {
+  2008: { P: 901243 }, 2014: { P: 529230 }, 2015: { P: 539875 },
+  2016: { P: 594428 }, 2017: { P: 619766 }, 2018: { P: 672505 },
+  2019: { P: 700368 }, 2020: { P: 812560 }, 2021: { P: 861681 },
+  2022: { P: 902281 }, 2023: { P: 918653 }, 2024: { P: 942156 },
+  2025: { P: 978621 }, 2026: { P: 1011336 },
+};
+
+// ══════════════════════════════════════════════════════════════
+// WORLD BULLION — Australia Wedge-Tailed Eagle 2 oz Silver (2015–present)
+// Source: PCGS Population Report, category 219890 (WTE 2 Dollars Silver 2015-2021)
+// Path: AUSTRALIA / WEDGE-TAILED EAGLE
+// Designation: MS — very limited MS population (most are proofs)
+// ══════════════════════════════════════════════════════════════
+const AUSTRALIA_WTE_TWO_OZ = {
+  2015: { P: 568836 },
+};
+
+// ══════════════════════════════════════════════════════════════
+// WORLD BULLION — Australia Wedge-Tailed Eagle 1/10 oz Gold (2016–present)
+// Source: PCGS Population Report, category 219892 (WTE 15 Dollars Gold 2016)
+// Path: AUSTRALIA / WEDGE-TAILED EAGLE
+// Designation: MS
+// ══════════════════════════════════════════════════════════════
+const AUSTRALIA_WTE_GOLD = {
+  2016: { P: 615541 }, 2017: { P: 911127 }, 2018: { P: 1009733 },
+};
+
+// ══════════════════════════════════════════════════════════════
+// WORLD BULLION — Australia Koala 1 oz Silver (2010–present)
+// Source: PCGS Population Report, category 219911 (1 Dollar Silver 2007-2023)
+// Path: AUSTRALIA / KOALA BULLION
+// Designation: MS — base coin only (no colorized/gilt/privy variants)
+// Note: 2007-2009 were classified as SP (Specimen), not MS
+// ══════════════════════════════════════════════════════════════
+const AUSTRALIA_KOALA_SILVER = {
+  2010: { P: 413594 }, 2011: { P: 502719 }, 2012: { P: 611825 },
+  2013: { P: 516186 }, 2014: { P: 523151 }, 2015: { P: 535712 },
+  2016: { P: 594429 }, 2017: { P: 620662 }, 2018: { P: 667909 },
+  2019: { P: 696238 }, 2020: { P: 811477 }, 2021: { P: 865690 },
+  2022: { P: 898472 }, 2024: { P: 946667 }, 2025: { P: 986453 },
+};
+
+// ══════════════════════════════════════════════════════════════
+// WORLD BULLION — Australia Koala 1/2 oz Silver (limited MS population)
+// Source: PCGS Population Report, category 302030 (50 Cents Silver)
+// Path: AUSTRALIA / KOALA BULLION
+// ══════════════════════════════════════════════════════════════
+const AUSTRALIA_KOALA_HALF_OZ = {
+  2014: { P: 523218 },
+};
+
+// ══════════════════════════════════════════════════════════════
+// WORLD BULLION — Australia Koala 1/20 oz Platinum (1989–2000)
+// Source: PCGS Population Report, category 5135 (5 Dollars 1989-Date)
+// Path: AUSTRALIA / KOALA BULLION
+// Designation: MS — very low populations
+// ══════════════════════════════════════════════════════════════
+const AUSTRALIA_KOALA_PLATINUM = {
+  1990: { P: 777768 }, 1991: { P: 499139 }, 1992: { P: 499149 },
+  1993: { P: 499157 }, 1994: { P: 499183 }, 1995: { P: 484806 },
+  1996: { P: 484812 }, 1997: { P: 124074 }, 2000: { P: 124165 },
+};
+
+// ══════════════════════════════════════════════════════════════
 // Series name → table mapping
 // ══════════════════════════════════════════════════════════════
 const SERIES_MAP = [
@@ -636,6 +763,8 @@ const SERIES_MAP = [
   // ── World Bullion (before US coins to avoid "dollar" fallback conflicts) ──
   { re: /\blibertad\b.*\bproof\b|\bproof\b.*\blibertad\b/i, table: MEXICO_SILVER_LIBERTAD_PROOF },
   { re: /\blibertad\b|\bonza\b/i,                           table: MEXICO_SILVER_LIBERTAD },
+  { re: /\bwedge[\s-]*tail\w*\b|\bwte\b/i,                  tables: [AUSTRALIA_WTE_SILVER, AUSTRALIA_WTE_TWO_OZ, AUSTRALIA_WTE_GOLD] },
+  { re: /\bkoala\b/i,                                       tables: [AUSTRALIA_KOALA_SILVER, AUSTRALIA_KOALA_HALF_OZ, AUSTRALIA_KOALA_PLATINUM] },
   { re: /\bkookaburra\b/i,                                  table: AUSTRALIA_KOOKABURRA_SILVER },
   { re: /\bkrugerrand\b/i,                                  table: SOUTH_AFRICA_KRUGERRAND_GOLD },
   { re: /\bkangaroo\b|\bnugget\b/i,                         table: AUSTRALIA_KANGAROO_SILVER },
@@ -643,9 +772,7 @@ const SERIES_MAP = [
   { re: /\bbritannia\b/i,                                   table: GREAT_BRITAIN_BRITANNIA_SILVER },
   { re: /\bpanda\b/i,                                       table: CHINA_PANDA_SILVER },
   { re: /\b(?:china|chinese|prc)\b.*\blunar\b|\blunar\b.*\b(?:china|chinese|prc)\b/i, table: CHINA_LUNAR_SILVER },
-  // TODO: Add tables when Pop Report category IDs are found (JS-rendered nav blocks scraping)
-  // { re: /\bphilharmonic\b/i,                             table: AUSTRIA_PHILHARMONIC_SILVER },
-  // { re: /\b(?:perth|austral)\b.*\blunar\b|\blunar\b.*\b(?:perth|austral)\b/i, table: AUSTRALIA_LUNAR_SILVER },
+  { re: /\b(?:perth|australia[n]?)\b.*\blunar\b|\blunar\b.*\b(?:perth|australia[n]?)\b/i, tables: [AUSTRALIA_LUNAR_SILVER, AUSTRALIA_LUNAR_HALF_OZ, AUSTRALIA_LUNAR_TWO_OZ] },
 
   // ── US Bullion (before generic "eagle" / "buffalo" / "dollar") ──
   { re: /\bamerican\s*silver\s*eagle\b|\bsilver\s*eagle\b|\base\b|\bsae\b/i, table: AMERICAN_SILVER_EAGLE },

@@ -274,6 +274,10 @@ function todayPacific() {
   return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
 }
 
+function toPacificDate(isoString) {
+  return new Date(isoString).toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
+}
+
 function getCurrentPacificHour() {
   return parseInt(new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles', hour: 'numeric', hour12: false }), 10);
 }
@@ -358,7 +362,7 @@ function init() {
 
   // Check if we missed today's run (server restart after scheduled time)
   const status = loadStatus();
-  const lastRunDate = status.lastRun ? status.lastRun.slice(0, 10) : null;
+  const lastRunDate = status.lastRun ? toPacificDate(status.lastRun) : null;
   const today = todayPacific();
   const currentHour = getCurrentPacificHour();
 
