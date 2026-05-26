@@ -221,6 +221,40 @@ The narrower time window produces a different comp pool (fewer comps, different 
 
 ---
 
+### #202. Investigate Lot Evaluator Batch: Silver Libertad 1 oz (1985-2024) [MEDIUM -- PROPOSED]
+
+**Problem:** A specific Silver Libertad batch submitted to Lot Evaluator needs investigation for pricing consistency, comp utilization, and potential attrition/filtering anomalies.
+
+**Batch under investigation (13 coins):**
+- Silver Libertad 1 oz	1985
+- Silver Libertad 1 oz	1993
+- Silver Libertad 1 oz	1993
+- Silver Libertad 1 oz	2004
+- Silver Libertad 1 oz	2004
+- Silver Libertad 1 oz	2009
+- Silver Libertad 1 oz	2009
+- Silver Libertad 1 oz	2011
+- Silver Libertad 1 oz	2014
+- Silver Libertad 1 oz	2014
+- Silver Libertad 1 oz	2016
+- Silver Libertad 1 oz	2020
+- Silver Libertad 1 oz	2024
+
+**Investigation scope:**
+1. Re-run this exact batch through `/api/bulk-evaluate` and capture per-row FMV, confidence, and comp counts.
+2. Compare each year against single-coin `/api/price` output using equivalent inputs.
+3. Review filter attrition breakdown (`metalMismatch`, `lowRelevance`, `meltFloor`, etc.) for years with thin comps or large FMV deltas.
+4. Confirm duplicate years (1993, 2004, 2009, 2014) return stable per-coin outputs and only differ by lot-level discounting logic.
+
+**Expected outcome:**
+- Document whether divergence is route config drift, data freshness/thinness, or a regression in batch path normalization/filtering.
+
+**Files:** `src/services/bulkEvaluateService.js`, `src/routes/bulkEvaluateRoute.js`, `src/services/ebayService.js`, `src/services/valuationService.js`
+
+**Status notes:** Added May 26, 2026 per user-reported Lot Evaluator batch.
+
+---
+
 ### #185. World Proof Greysheet Pricing Fallback [MEDIUM -- PARTIAL]
 
 **Problem:** Missing proof-specific pricing for major world bullion proofs (Krugerrand, Kookaburra, Philharmonic, Gold Maple Leaf). Proof queries fall back to MS wholesale price in the Greysheet blend.
