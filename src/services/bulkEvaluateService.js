@@ -10,7 +10,7 @@ const greysheetService = require('./greysheetService');
 const { computeValuation } = require('./valuationService');
 const { getMetalsSpotPrice } = require('./metalsSpotPrice');
 const { getCoinMetalProfile } = require('../utils/coinMetalProfile');
-const { zodiacForYear, perthLunarSeries, getRollQuantity, BULLION_1OZ_DEFAULT } = require('../data/constants');
+const { zodiacForYear, perthLunarSeries, getRollQuantity, ALLOWED_LABELS, BULLION_1OZ_DEFAULT } = require('../data/constants');
 
 const BULLION_SERIES = BULLION_1OZ_DEFAULT;
 
@@ -180,6 +180,9 @@ async function evaluateOneCoin(coin) {
     // Spot price for bullion
     const METAL_SYM = { silver: 'XAG', gold: 'XAU', platinum: 'XPT', palladium: 'XPD' };
     const metalKey = parsed.metal || detectedMetal || null;
+    if (metalKey) {
+      expected.metal = metalKey;
+    }
     let meltPerOz = null;
     if (metalKey && weight) {
       const sym = METAL_SYM[metalKey];
@@ -192,9 +195,21 @@ async function evaluateOneCoin(coin) {
       }
     }
 
-    // eBay comps (1 page, 90-day window -- medium weight)
+    const rawLabel = coin.label || parsed.label || null;
+    const validLabel = (rawLabel && ALLOWED_LABELS.has(rawLabel)) ? rawLabel : null;
+
+    // Keep bulk keyword construction close to price discovery.
+    const keywordSeed = {
+      year,
+      mint,
+      series,
+      finish: parsed.finish || null,
+      grade: effectiveGrade || null,
+      designation: parsed.designation || null,
+    };
+
     let keywords = ebayService.buildKeywords
-      ? ebayService.buildKeywords({ series }, query, weight)
+      ? ebayService.buildKeywords(keywordSeed, query, weight, validLabel)
       : query;
 
     // Roll/tube keyword override
@@ -204,9 +219,9 @@ async function evaluateOneCoin(coin) {
     }
 
     const ebay = await ebayService.fetchSoldComps(keywords, {
-      timeWindowDays: 90,
-      maxPages: 1,
-      usMinComps: 3,
+      timeWindowDays: 180,
+      maxPages: 3,
+      usMinComps: isRoll ? 3 : 8,
     }, expected);
 
     // PCGS
