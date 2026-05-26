@@ -409,16 +409,68 @@ function getSchedulerStatus() {
 
 /**
  * Manually trigger a prefetch run (for admin/testing).
+ * Returns immediately (202 Accepted) and runs async in background.
+ * Idempotent: won't run twice in the same calendar day (Pacific Time).
  */
-async function triggerManual() {
-  if (_running) return { ok: false, reason: 'Already running' };
-  await executePrefetchRun();
-  return { ok: true, status: loadStatus() };
+function triggerManual() {
+  const today = todayPacific();
+  
+  // Already ran today
+  if (_todayCompleted && _todayDate === today) {
+    const status = loadStatus();
+    return { 
+      started: false, 
+      reason: 'Already completed today',
+      lastRun: status.lastRun,
+      callsMade: status.callsMade,
+      newRecords: status.newRecords
+    };
+  }
+  
+  // Already in progress
+  if (_running) {
+    return { 
+      started: false, 
+      reason: 'Run already in progress',
+      lastRun: loadStatus().lastRun
+    };
+  }
+  
+  // Fire and forget (no await) — runs in background
+  executePrefetchRun().then(_handleRunComplete).catch(_handleRunError);
+  
+  return { 
+    started: true, 
+    reason: 'Prefetch run triggered, executing in background',
+    nextStatus: 'Check /api/admin/prefetch-status for progress'
+  };
+}
+
+/**
+ * Handle successful completion of background prefetch.
+ */
+function _handleRunComplete() {
+  const status = loadStatus();
+  console.log(`[prefetch] Run completed: ${status.callsMade} calls, ${status.newRecords} new records`);
+}
+
+/**
+ * Handle error in background prefetch.
+ */
+function _handleRunError(err) {
+  console.error('[prefetch] Background run failed:', err.message);
+  const status = loadStatus();
+  const failures = (status.consecutiveFailures || 0) + 1;
+  if (failures >= 2) {
+    alertService.alertPrefetchFailure(failures, err.message);
+  }
 }
 
 module.exports = {
   init,
   getSchedulerStatus,
   triggerManual,
-  executePrefetchRun
+  executePrefetchRun,
+  // Export for workflow status checks
+  todayPacific
 };
