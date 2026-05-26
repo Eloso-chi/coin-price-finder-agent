@@ -1,0 +1,65 @@
+# Nightly PCGS APR Prefetch -- Safety Net
+# Pokes production to ensure the in-process scheduler fires.
+# Runs at 11:05 PM PT (covers both PDT=06:05 UTC and PST=07:05 UTC).
+# Harmless if the scheduler already ran -- quota check prevents double-burn.
+
+name: Nightly Prefetch Trigger
+
+on:
+  schedule:
+    # 6:05 AM UTC = 11:05 PM PDT (summer)
+    # 7:05 AM UTC = 11:05 PM PST (winter)
+    - cron: '5 6,7 * * *'
+  workflow_dispatch: # Allow manual trigger from GitHub UI
+
+jobs:
+  trigger-prefetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Wake up App Service (health check)
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            "https://coinpricefinder-h3a3b5g0dmdydna4.azurewebsites.net/api/health")
+          echo "Health check: HTTP $STATUS"
+          if [ "$STATUS" != "200" ]; then
+            echo "::warning::App Service health check returned $STATUS"
+            # Retry once after 10s (cold start)
+            sleep 10
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+              "https://coinpricefinder-h3a3b5g0dmdydna4.azurewebsites.net/api/health")
+            echo "Retry health check: HTTP $STATUS"
+            if [ "$STATUS" != "200" ]; then
+              echo "::error::App Service is down"
+              exit 1
+            fi
+          fi
+
+      - name: Trigger prefetch run
+        env:
+          ADMIN_API_KEY: ${{ secrets.ADMIN_API_KEY }}
+        run: |
+          RESPONSE=$(curl -s -w "\n%{http_code}" \
+            -X POST \
+            -H "x-api-key: ${ADMIN_API_KEY}" \
+            "https://coinpricefinder-h3a3b5g0dmdydna4.azurewebsites.net/api/admin/prefetch-trigger")
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+          BODY=$(echo "$RESPONSE" | head -n -1)
+          echo "Trigger response: HTTP $HTTP_CODE"
+          echo "$BODY" | python3 -m json.tool 2>/dev/null || echo "$BODY"
+          if [ "$HTTP_CODE" -ge 400 ]; then
+            echo "::error::Prefetch trigger failed with HTTP $HTTP_CODE"
+            exit 1
+          fi
+
+      - name: Check prefetch status
+        env:
+          ADMIN_API_KEY: ${{ secrets.ADMIN_API_KEY }}
+        run: |
+          # Wait 15s for the run to start (30s startup delay in scheduler)
+          sleep 15
+          RESPONSE=$(curl -s \
+            -H "x-api-key: ${ADMIN_API_KEY}" \
+            "https://coinpricefinder-h3a3b5g0dmdydna4.azurewebsites.net/api/admin/prefetch-status")
+          echo "Prefetch status:"
+          echo "$RESPONSE" | python3 -m json.tool 2>/dev/null || echo "$RESPONSE"
