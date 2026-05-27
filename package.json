@@ -12,7 +12,8 @@
     "test": "jest --verbose",
     "lint": "eslint .",
     "test:metrics": "node scripts/test-metrics/run-with-metrics.cjs",
-    "test:summary": "node scripts/test-metrics/summarize.cjs"
+    "test:summary": "node scripts/test-metrics/summarize.cjs",
+    "health:lot-estimator": "node scripts/lot-estimator-health.js"
   },
   "repository": {
     "type": "git",
