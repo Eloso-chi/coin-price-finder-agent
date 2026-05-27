@@ -52,6 +52,9 @@
     "jest": "^30.4.2",
     "supertest": "^7.1.0"
   },
+  "overrides": {
+    "tmp": "^0.2.6"
+  },
   "jest": {
     "testPathIgnorePatterns": [
       "/node_modules/",
