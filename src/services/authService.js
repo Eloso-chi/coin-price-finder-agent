@@ -15,6 +15,9 @@ const cosmos = require('../utils/cosmosClient');
 
 const STORE_PATH = path.join(CACHE_DIR, 'users.json');
 const BCRYPT_ROUNDS = 12;
+// Admin accounts must use a stronger password than the 6-char floor used
+// historically for regular users. CLI/bootstrap reset paths enforce this.
+const ADMIN_MIN_PASSWORD_LEN = 12;
 
 // ── JWT secret ──────────────────────────────────────────────
 // In production, JWT_SECRET MUST be set via environment variable.
@@ -65,7 +68,9 @@ async function signup(username, password) {
 
   const userId = crypto.randomUUID();
   const hash = await bcrypt.hash(password, BCRYPT_ROUNDS);
-  const acct = { userId, hash, createdAt: new Date().toISOString() };
+  // tokenVersion lets us invalidate all outstanding JWTs for a user by
+  // bumping the number (used on revoke-admin, password reset, etc.).
+  const acct = { userId, hash, createdAt: new Date().toISOString(), tokenVersion: 0 };
 
   if (cosmos.isEnabled()) {
     const cont = cosmos.container('users');
@@ -91,7 +96,7 @@ async function signup(username, password) {
     saveStore();
   }
 
-  const token = _signToken(userId, username);
+  const token = _signToken(userId, username, { isAdmin: false, tokenVersion: 0 });
   return { userId, token, username };
 }
 
@@ -126,8 +131,16 @@ async function login(username, password) {
   const valid = await bcrypt.compare(password, acct.hash);
   if (!valid) throw new Error('Incorrect password');
 
-  const token = _signToken(acct.userId, username);
-  return { userId: acct.userId, token, username };
+  const token = _signToken(acct.userId, username, {
+    isAdmin: acct.isAdmin === true,
+    tokenVersion: typeof acct.tokenVersion === 'number' ? acct.tokenVersion : 0,
+  });
+  return {
+    userId: acct.userId,
+    token,
+    username,
+    isAdmin: acct.isAdmin === true,
+  };
 }
 
 /**
@@ -166,6 +179,8 @@ async function changePassword(username, currentPassword, newPassword) {
   const valid = await bcrypt.compare(currentPassword, doc.hash);
   if (!valid) throw new Error('Current password is incorrect');
   doc.hash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+  // Bump tokenVersion so any other outstanding JWTs are invalidated.
+  doc.tokenVersion = (typeof doc.tokenVersion === 'number' ? doc.tokenVersion : 0) + 1;
 
   if (source === 'cosmos') {
     await cosmos.container('users').item(username, username).replace(doc);
@@ -248,15 +263,190 @@ async function deleteUser(username) {
 
 // ── Internal ────────────────────────────────────────────────
 
-function _signToken(userId, username) {
-  return jwt.sign({ userId, username }, JWT_SECRET, { expiresIn: JWT_EXPIRY });
+function _signToken(userId, username, extras) {
+  const payload = {
+    userId,
+    username,
+    isAdmin: extras && extras.isAdmin === true,
+    tokenVersion: extras && typeof extras.tokenVersion === 'number' ? extras.tokenVersion : 0,
+  };
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRY });
 }
 
 // ── Admin helpers ───────────────────────────────────────────
 
 /**
+ * Read a user record from whichever store has it.
+ * Returns null if not found. Includes the bcrypt hash -- callers MUST NOT
+ * return the raw record over the wire.
+ * @param {string} username
+ * @returns {Promise<object|null>}
+ */
+async function getUser(username) {
+  const key = (username || '').trim().toLowerCase();
+  if (cosmos.isEnabled()) {
+    try {
+      const { resource } = await cosmos.container('users').item(key, key).read();
+      if (resource) return resource;
+    } catch (err) {
+      if (err.code !== 404) throw err;
+    }
+  }
+  const store = loadStore();
+  return store[key] || null;
+}
+
+/**
+ * Write a user record. For Cosmos-enabled deployments we always upsert to
+ * Cosmos; for admin records (current OR newly-removed) we additionally
+ * mirror to the file store so the admin role transitions can never diverge
+ * between the two stores. Strips Cosmos system fields (`_rid`, `_self`,
+ * `_etag`, `_attachments`, `_ts`) before persisting to either store.
+ * Internal helper -- callers pass the already-mutated record.
+ * @param {string} username
+ * @param {object} doc
+ * @returns {Promise<void>}
+ */
+async function _saveUser(username, doc) {
+  const key = (username || '').trim().toLowerCase();
+
+  // Strip Cosmos system fields so we don't echo them into the file store
+  // or back into Cosmos with stale values.
+  const clean = {};
+  for (const k of Object.keys(doc || {})) {
+    if (k.startsWith('_')) continue;
+    if (k === 'id') continue;
+    clean[k] = doc[k];
+  }
+
+  if (cosmos.isEnabled()) {
+    const cont = cosmos.container('users');
+    await cont.items.upsert({ id: key, username: key, ...clean });
+  }
+
+  // Mirror to file when:
+  //  - Cosmos is off (file is the only store), OR
+  //  - the record is or was an admin record -- so revokes / token-version
+  //    bumps applied to an admin can never get out of sync between stores.
+  const wasOrIsAdmin = clean.isAdmin === true
+    || clean.adminGrantedAt
+    || clean.adminRevokedAt;
+  if (!cosmos.isEnabled() || wasOrIsAdmin) {
+    _store = loadStore();
+    _store[key] = clean;
+    saveStore();
+  }
+}
+
+/**
+ * Grant the admin role to an existing user. Idempotent.
+ * Does NOT bump tokenVersion (a fresh admin's existing tokens are upgraded
+ * on next sign-in; existing sessions stay valid as non-admin until then).
+ * @param {string} username
+ * @returns {Promise<{ username: string, userId: string, isAdmin: true }>}
+ */
+async function grantAdmin(username) {
+  const key = (username || '').trim().toLowerCase();
+  const doc = await getUser(key);
+  if (!doc) throw new Error('Account not found');
+  if (typeof doc.tokenVersion !== 'number') doc.tokenVersion = 0;
+  doc.isAdmin = true;
+  doc.adminGrantedAt = new Date().toISOString();
+  await _saveUser(key, doc);
+  return { username: key, userId: doc.userId, isAdmin: true };
+}
+
+/**
+ * Revoke the admin role. Bumps tokenVersion so any outstanding admin
+ * JWT is rejected on the next request.
+ * @param {string} username
+ * @returns {Promise<{ username: string, userId: string, isAdmin: false }>}
+ */
+async function revokeAdmin(username) {
+  const key = (username || '').trim().toLowerCase();
+  const doc = await getUser(key);
+  if (!doc) throw new Error('Account not found');
+  doc.isAdmin = false;
+  doc.adminRevokedAt = new Date().toISOString();
+  doc.tokenVersion = (typeof doc.tokenVersion === 'number' ? doc.tokenVersion : 0) + 1;
+  await _saveUser(key, doc);
+  return { username: key, userId: doc.userId, isAdmin: false };
+}
+
+/**
+ * Reset a user's password (admin-only -- bypasses the current-password check).
+ * Used by the grant-admin CLI and emergency recovery. Bumps tokenVersion.
+ * Enforces ADMIN_MIN_PASSWORD_LEN when the user is an admin.
+ * @param {string} username
+ * @param {string} newPassword
+ * @returns {Promise<void>}
+ */
+async function resetPassword(username, newPassword) {
+  const key = (username || '').trim().toLowerCase();
+  const doc = await getUser(key);
+  if (!doc) throw new Error('Account not found');
+  if (!newPassword || typeof newPassword !== 'string') {
+    throw new Error('New password is required');
+  }
+  const isAdmin = doc.isAdmin === true;
+  const minLen = isAdmin ? ADMIN_MIN_PASSWORD_LEN : 6;
+  if (newPassword.length < minLen) {
+    throw new Error(`Password must be at least ${minLen} characters`);
+  }
+  doc.hash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+  doc.tokenVersion = (typeof doc.tokenVersion === 'number' ? doc.tokenVersion : 0) + 1;
+  doc.passwordResetAt = new Date().toISOString();
+  await _saveUser(key, doc);
+}
+
+/**
+ * Return the list of admin usernames. Reads file store only (admin records
+ * are mirrored there by design).
+ * @returns {Promise<{ username: string, userId: string, adminGrantedAt?: string }[]>}
+ */
+async function listAdmins() {
+  const out = [];
+  const store = loadStore();
+  for (const [username, doc] of Object.entries(store)) {
+    if (doc && doc.isAdmin === true) {
+      out.push({
+        username,
+        userId: doc.userId,
+        adminGrantedAt: doc.adminGrantedAt || null,
+      });
+    }
+  }
+  return out;
+}
+
+/**
+ * Verify a JWT AND re-check the user's current tokenVersion + admin status.
+ * Use this for any request that should be invalidated on revoke or password
+ * reset. Returns the freshly-read user payload.
+ * @param {string} token
+ * @returns {Promise<{ userId: string, username: string, isAdmin: boolean, tokenVersion: number }>}
+ * @throws if token is invalid, expired, or tokenVersion is stale
+ */
+async function verifyTokenStrict(token) {
+  const payload = jwt.verify(token, JWT_SECRET);
+  const doc = await getUser(payload.username);
+  if (!doc) throw new Error('Account no longer exists');
+  const currentVersion = typeof doc.tokenVersion === 'number' ? doc.tokenVersion : 0;
+  const tokenVersion = typeof payload.tokenVersion === 'number' ? payload.tokenVersion : 0;
+  if (tokenVersion !== currentVersion) {
+    throw new Error('Token has been revoked');
+  }
+  return {
+    userId: doc.userId,
+    username: payload.username,
+    isAdmin: doc.isAdmin === true,
+    tokenVersion: currentVersion,
+  };
+}
+
+/**
  * List all users (admin-only). Returns sanitized records -- no hashes.
- * @returns {{ username: string, userId: string, createdAt: string }[]}
+ * @returns {{ username: string, userId: string, createdAt: string, isAdmin?: boolean }[]}
  */
 function listUsers() {
   const store = loadStore();
@@ -264,6 +454,7 @@ function listUsers() {
     username,
     userId: data.userId,
     createdAt: data.createdAt || null,
+    isAdmin: data.isAdmin === true,
   }));
 }
 
@@ -279,9 +470,16 @@ module.exports = {
   login,
   changePassword,
   verifyToken,
+  verifyTokenStrict,
   userExists,
   userExistsAsync,
   deleteUser,
   listUsers,
+  getUser,
+  grantAdmin,
+  revokeAdmin,
+  resetPassword,
+  listAdmins,
+  ADMIN_MIN_PASSWORD_LEN,
   _resetStore,
 };

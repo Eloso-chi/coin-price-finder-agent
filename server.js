@@ -19,7 +19,6 @@ process.on('uncaughtException', (err) => {
   setTimeout(() => process.exit(1), 500);
 });
 
-const crypto = require('crypto');
 const express = require('express');
 const path = require('path');
 const helmet = require('helmet');
@@ -28,23 +27,18 @@ const rateLimit = require('express-rate-limit');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// ── Admin API-key guard for destructive endpoints ───────────
-const ADMIN_API_KEY = process.env.ADMIN_API_KEY || '';
-function requireAdmin(req, res, next) {
-  if (!ADMIN_API_KEY) {
-    // No key configured — reject all admin calls so the endpoints
-    // are locked-down by default on a fresh deploy.
-    return res.status(403).json({ error: 'Admin API key not configured on server' });
-  }
-  const provided = req.headers['x-api-key'] || '';
-  if (provided.length !== ADMIN_API_KEY.length ||
-      !crypto.timingSafeEqual(Buffer.from(provided), Buffer.from(ADMIN_API_KEY))) {
-    console.warn(`[admin] AUTH FAILED: ${req.method} ${req.path} from ${req.ip} at ${new Date().toISOString()}`);
-    return res.status(401).json({ error: 'Invalid or missing API key' });
-  }
-  console.log(`[admin] ${req.method} ${req.path} from ${req.ip} at ${new Date().toISOString()}`);
-  next();
-}
+// Behind Azure App Service / proxies, trust the first hop so `req.ip` and
+// `X-Forwarded-For` reflect the real client. Without this:
+//   - `express-rate-limit` keys by the proxy IP -> one shared bucket for
+//     all users (login limiter would lock everyone out together).
+//   - Audit logs record the proxy IP instead of the originating client.
+// `1` = trust exactly one proxy hop, which matches App Service's topology.
+app.set('trust proxy', 1);
+
+// ── Admin authorization (JWT-with-isAdmin OR ADMIN_API_KEY break-glass) ──
+// All admin routes use this shared middleware so audit logging, JWT support,
+// and the key fallback are consistent.
+const requireAdmin = require('./src/middleware/requireAdminOrKey');
 
 // ── Middleware ───────────────────────────────────────────────
 app.use(helmet({
@@ -197,6 +191,36 @@ app.listen(PORT, '0.0.0.0', async () => {
   } else {
     console.log(`  [seed] testcollector account already exists`);
   }
+
+  // ── Bootstrap admin (one-shot, idempotent) ────────────────
+  // When ADMIN_BOOTSTRAP_USERNAME is set, the named account is granted the
+  // admin role on first startup that finds it. Existing admins are not
+  // re-granted (idempotent). This is the supported way to escape the
+  // chicken-and-egg of "the CLI needs an existing admin to grant another".
+  const bootstrapUser = (process.env.ADMIN_BOOTSTRAP_USERNAME || '').trim().toLowerCase();
+  if (bootstrapUser) {
+    try {
+      const existing = await authService.getUser(bootstrapUser);
+      if (!existing) {
+        console.warn(`  [bootstrap-admin] user '${bootstrapUser}' does not exist -- skipping`);
+      } else if (existing.isAdmin === true) {
+        console.log(`  [bootstrap-admin] '${bootstrapUser}' is already an admin -- no-op`);
+      } else {
+        await authService.grantAdmin(bootstrapUser);
+        const auditService = require('./src/services/auditService');
+        await auditService.audit({
+          action: 'bootstrap-admin',
+          actor: { userId: 'bootstrap', username: 'bootstrap' },
+          target: bootstrapUser,
+          meta: { source: 'env:ADMIN_BOOTSTRAP_USERNAME' },
+        });
+        console.log(`  [bootstrap-admin] granted admin to '${bootstrapUser}'`);
+      }
+    } catch (err) {
+      console.warn(`  [bootstrap-admin] failed: ${err.message}`);
+    }
+  }
+
   // ── Startup: auto-import Terapeak CSVs from data/terapeak/ folder ──
   const terapeakService = require('./src/services/terapeakService');
   const TERAPEAK_DATA_DIR = process.env.TERAPEAK_DATA_DIR || 'data/terapeak';

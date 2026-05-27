@@ -2454,6 +2454,34 @@ Silver Libertad 1 oz Proof"></textarea>
   }
 
   /**
+   * Build admin-authorized headers. Prefers an isAdmin JWT (from CoinAuth)
+   * and falls back to the legacy x-api-key in sessionStorage. Returning both
+   * is safe -- the server checks Bearer first and only consults x-api-key
+   * if the token is missing/invalid.
+   * @param {object} [extra] additional headers to merge.
+   * @returns {object}
+   */
+  function _adminAuthHeaders(extra) {
+    const h = Object.assign({}, extra || {});
+    try {
+      const u = (typeof CoinAuth !== 'undefined') ? CoinAuth.currentUser() : null;
+      if (u && u.isAdmin && u.token) h['Authorization'] = 'Bearer ' + u.token;
+    } catch { /* ignore */ }
+    const k = (function() {
+      try { return sessionStorage.getItem('adminApiKey') || ''; } catch { return ''; }
+    })();
+    if (k) h['x-api-key'] = k;
+    return h;
+  }
+  function _hasAdminAuth() {
+    try {
+      const u = (typeof CoinAuth !== 'undefined') ? CoinAuth.currentUser() : null;
+      if (u && u.isAdmin && u.token) return true;
+    } catch { /* ignore */ }
+    try { return !!sessionStorage.getItem('adminApiKey'); } catch { return false; }
+  }
+
+  /**
    * Reusable button loading state helpers.
    * _btnLoading(btn, text) -- disable + show loading text.
    * _btnReset(btn, text)   -- re-enable + restore original text.
@@ -5548,15 +5576,14 @@ Silver Libertad 1 oz Proof"></textarea>
     },
 
     async _loadDatasets() {
-      // Sold Data is admin-only. Without an admin key, render a sign-in nudge
-      // instead of pinging the (now-gated) endpoint.
-      const apiKey = sessionStorage.getItem('adminApiKey') || '';
-      if (!apiKey) {
+      // Sold Data is admin-only. Without admin credentials render a sign-in
+      // nudge instead of pinging the (now-gated) endpoint.
+      if (!_hasAdminAuth()) {
         this.els.list.innerHTML = '<p style="color:var(--text-muted);font-size:0.82rem">Sign in via the <a href="#admin" style="color:var(--accent)">Admin tab</a> to view imported datasets.</p>';
         return;
       }
       try {
-        const resp = await fetch('/api/terapeak/datasets', { headers: { 'x-api-key': apiKey } });
+        const resp = await fetch('/api/terapeak/datasets', { headers: _adminAuthHeaders() });
         if (resp.status === 401) {
           this.els.list.innerHTML = '<p style="color:var(--text-muted);font-size:0.82rem">Admin session expired. Sign in via the <a href="#admin" style="color:var(--accent)">Admin tab</a>.</p>';
           return;
@@ -5590,11 +5617,10 @@ Silver Libertad 1 oz Proof"></textarea>
 
     async _deleteDataset(key) {
       if (!(await _darkConfirm('Delete "' + key + '" terapeak data?'))) return;
-      const apiKey = sessionStorage.getItem('adminApiKey') || '';
       try {
         await fetch('/api/terapeak/datasets/' + encodeURIComponent(key), {
           method: 'DELETE',
-          headers: apiKey ? { 'x-api-key': apiKey } : {}
+          headers: _adminAuthHeaders()
         });
         this._loadDatasets();
       } catch (err) {
@@ -5635,12 +5661,11 @@ Silver Libertad 1 oz Proof"></textarea>
     },
 
     async refresh() {
-      // Quota is admin-only. Silently skip when no admin key is present so
-      // non-admin loads don't churn the (gated) endpoint.
-      const apiKey = sessionStorage.getItem('adminApiKey') || '';
-      if (!apiKey) return;
+      // Quota is admin-only. Silently skip when no admin creds are present
+      // so non-admin loads don't churn the (gated) endpoint.
+      if (!_hasAdminAuth()) return;
       try {
-        const resp = await fetch('/api/terapeak/quota', { headers: { 'x-api-key': apiKey } });
+        const resp = await fetch('/api/terapeak/quota', { headers: _adminAuthHeaders() });
         if (resp.status === 401) return;
         const data = await resp.json();
         this._render(data);
@@ -5698,7 +5723,7 @@ Silver Libertad 1 oz Proof"></textarea>
       try {
         const resp = await fetch('/api/terapeak/quota/record', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-api-key': sessionStorage.getItem('adminApiKey') || '' },
+          headers: _adminAuthHeaders({ 'Content-Type': 'application/json' }),
           body: JSON.stringify({ count, note })
         });
         const data = await resp.json();
@@ -5718,7 +5743,7 @@ Silver Libertad 1 oz Proof"></textarea>
       try {
         await fetch('/api/terapeak/quota/reset', {
           method: 'POST',
-          headers: { 'x-api-key': sessionStorage.getItem('adminApiKey') || '' }
+          headers: _adminAuthHeaders()
         });
         this.refresh();
       } catch (err) {
@@ -7021,28 +7046,92 @@ Silver Libertad 1 oz Proof"></textarea>
     if (!tabBtn || !gate) return;
 
     function _apiKey() { return sessionStorage.getItem(KEY_STORAGE) || ''; }
-    function _headers() { return { 'Content-Type': 'application/json', 'x-api-key': _apiKey() }; }
+    // Admin role via JWT: the user signed in to an account with isAdmin === true.
+    function _jwtAdmin() {
+      try {
+        var u = (typeof CoinAuth !== 'undefined') ? CoinAuth.currentUser() : null;
+        return !!(u && u.isAdmin && u.token);
+      } catch { return false; }
+    }
+    function _jwtToken() {
+      try {
+        var u = (typeof CoinAuth !== 'undefined') ? CoinAuth.currentUser() : null;
+        return (u && u.isAdmin && u.token) ? u.token : '';
+      } catch { return ''; }
+    }
+    function _hasAdminAuth() { return _jwtAdmin() || !!_apiKey(); }
+    function _headers() {
+      // Prefer JWT (per-user, revocable). Fall back to legacy x-api-key.
+      var h = { 'Content-Type': 'application/json' };
+      var tok = _jwtToken();
+      if (tok) h['Authorization'] = 'Bearer ' + tok;
+      var k = _apiKey();
+      if (k) h['x-api-key'] = k;
+      return h;
+    }
 
     function _esc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-    // Show / hide the admin + sold-data tab buttons based on whether a key is stored
+    // Show / hide the admin + sold-data tab buttons based on whether the user
+    // has admin credentials (either an isAdmin JWT or a stored x-api-key).
     function _syncTabVisibility() {
-      if (_apiKey()) {
+      if (_hasAdminAuth()) {
         tabBtn.style.display = '';
         if (teakTabBtn) teakTabBtn.style.display = '';
         gate.style.display = 'none';
         content.style.display = '';
+        _showAdminChip(true);
       } else {
+        tabBtn.style.display = 'none';
         if (teakTabBtn) teakTabBtn.style.display = 'none';
         gate.style.display = '';
         content.style.display = 'none';
+        _showAdminChip(false);
       }
     }
 
+    // Render a small "Admin mode" chip in the header so the operator always
+    // knows when admin chrome is exposed. Idempotent + safe to call repeatedly.
+    function _showAdminChip(on) {
+      var id = 'admin-mode-chip';
+      var existing = document.getElementById(id);
+      if (!on) { if (existing) existing.remove(); return; }
+      if (existing) return;
+      var chip = document.createElement('span');
+      chip.id = id;
+      chip.textContent = 'Admin mode';
+      chip.title = _jwtAdmin() ? 'Signed in as an admin user' : 'Admin API key in session';
+      chip.style.cssText = [
+        'display:inline-block', 'margin-left:8px', 'padding:2px 8px',
+        'border-radius:10px', 'background:#b91c1c', 'color:#fff',
+        'font-size:11px', 'font-weight:600', 'letter-spacing:0.03em',
+        'vertical-align:middle',
+      ].join(';');
+      // Insert next to the auth badge if available, else top of header.
+      var anchor = document.getElementById('auth-badge') || document.querySelector('header');
+      if (anchor && anchor.parentNode) {
+        anchor.parentNode.insertBefore(chip, anchor.nextSibling);
+      } else {
+        document.body.insertBefore(chip, document.body.firstChild);
+      }
+    }
+
+    // React to login / logout in the main auth dialog.
+    window.addEventListener('coinauth:change', function() {
+      _syncTabVisibility();
+      // If a fresh admin just signed in, eagerly load their dashboards.
+      if (_jwtAdmin()) {
+        try { _loadAll(); } catch { /* ignore */ }
+        try { if (typeof TerapeakImporter !== 'undefined') TerapeakImporter._loadDatasets(); } catch { /* ignore */ }
+        try { if (typeof TerapeakQuota !== 'undefined') TerapeakQuota.refresh(); } catch { /* ignore */ }
+      }
+    });
+
     // If a key was stored from a previous page load in this session, show tabs
-    if (_apiKey()) {
+    if (_hasAdminAuth()) {
       tabBtn.style.display = '';
       if (teakTabBtn) teakTabBtn.style.display = '';
+      _showAdminChip(true);
     }
 
     // Allow navigating to #admin to reveal the tab (for initial access)

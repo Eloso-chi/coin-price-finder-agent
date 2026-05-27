@@ -1,27 +1,13 @@
 // src/routes/terapeakRoute.js — Terapeak CSV import API
 // CommonJS
 
-const crypto = require('crypto');
 const express = require('express');
 const multer = require('multer');
 const router = express.Router();
 
 const terapeakService = require('../services/terapeakService');
 const quotaService = require('../services/terapeakQuotaService');
-
-// ── Admin API-key guard (shared with server.js) ───────────
-const ADMIN_API_KEY = process.env.ADMIN_API_KEY || '';
-function requireAdmin(req, res, next) {
-  if (!ADMIN_API_KEY) {
-    return res.status(403).json({ error: 'Admin API key not configured on server' });
-  }
-  const provided = req.headers['x-api-key'] || '';
-  if (provided.length !== ADMIN_API_KEY.length ||
-      !crypto.timingSafeEqual(Buffer.from(provided), Buffer.from(ADMIN_API_KEY))) {
-    return res.status(401).json({ error: 'Invalid or missing API key' });
-  }
-  next();
-}
+const requireAdmin = require('../middleware/requireAdminOrKey');
 
 // ── Multer: accept CSV uploads up to 10 MB ──────────────────
 const upload = multer({
