@@ -79,4 +79,68 @@ describe('authService admin primitives', () => {
     await authService.changePassword('alice', 'password123', 'newpassword456');
     await expect(authService.verifyTokenStrict(token)).rejects.toThrow(/revoked/);
   });
+
+  test('deleteUser + recreate invalidates old JWT even though new tokenVersion matches', async () => {
+    await authService.signup('alice', 'password123');
+    const { token } = await authService.login('alice', 'password123');
+    // Pre-delete: token works.
+    await expect(authService.verifyTokenStrict(token)).resolves.toMatchObject({ username: 'alice' });
+
+    await authService.deleteUser('alice');
+    // After delete, the account is gone -- strict verify rejects.
+    await expect(authService.verifyTokenStrict(token)).rejects.toThrow(/no longer exists/);
+
+    // Recreate the same username -> fresh userId + tokenVersion 0. The old JWT
+    // should still be rejected because the userId no longer matches.
+    await authService.signup('alice', 'password123');
+    await expect(authService.verifyTokenStrict(token)).rejects.toThrow(/revoked/);
+  });
+
+  test('grantAdmin clears a previous adminRevokedAt marker', async () => {
+    await authService.signup('alice', 'password123');
+    await authService.grantAdmin('alice');
+    await authService.revokeAdmin('alice');
+    let u = await authService.getUser('alice');
+    expect(u.adminRevokedAt).toBeTruthy();
+
+    await authService.grantAdmin('alice');
+    u = await authService.getUser('alice');
+    expect(u.isAdmin).toBe(true);
+    expect(u.adminRevokedAt).toBeUndefined();
+  });
+
+  test('resetPassword on a non-admin user persists durably (file mirror updated)', async () => {
+    // This test only covers the file-store path (no Cosmos), but documents
+    // the invariant: after _saveUser returns, the persisted record reflects
+    // the new hash and tokenVersion -- no half-writes.
+    await authService.signup('bob', 'password123');
+    const before = { ...(await authService.getUser('bob')) };
+    await authService.resetPassword('bob', 'completely-new-password');
+    const after = await authService.getUser('bob');
+    expect(after.hash).not.toBe(before.hash);
+    expect(after.tokenVersion).toBe(before.tokenVersion + 1);
+    expect(after.passwordResetAt).toBeTruthy();
+  });
+
+  test('_saveUser strips Cosmos system fields', async () => {
+    // Simulate a record that came out of Cosmos with `_rid`, `_etag`, etc.
+    await authService.signup('alice', 'password123');
+    const doc = await authService.getUser('alice');
+    doc._rid = 'rid-xxx';
+    doc._self = 'self-xxx';
+    doc._etag = 'etag-xxx';
+    doc._ts = 1234567890;
+    doc._attachments = 'att-xxx';
+    doc.isAdmin = true;
+    doc.adminGrantedAt = new Date().toISOString();
+    // grantAdmin re-reads the record via getUser, so we go through _saveUser
+    // by calling it via the public primitive.
+    await authService.grantAdmin('alice');
+    const fresh = await authService.getUser('alice');
+    expect(fresh._rid).toBeUndefined();
+    expect(fresh._self).toBeUndefined();
+    expect(fresh._etag).toBeUndefined();
+    expect(fresh._ts).toBeUndefined();
+    expect(fresh._attachments).toBeUndefined();
+  });
 });

@@ -45,6 +45,7 @@ function _timingSafeKeyMatch(provided, expected) {
 async function requireAdminOrKey(req, res, next) {
   // 1. Try Bearer JWT first.
   const token = _extractBearer(req);
+  let tokenInvalid = false;
   if (token) {
     try {
       const claims = await authService.verifyTokenStrict(token);
@@ -63,11 +64,11 @@ async function requireAdminOrKey(req, res, next) {
         req,
       });
       return res.status(403).json({ error: 'Admin role required' });
-    } catch (err) {
+    } catch {
       // Token invalid/expired/revoked -- fall through to key path.
-      // Audit silently; do not leak token-failure detail to client.
-      // eslint-disable-next-line no-unused-vars
-      const _ = err;
+      // We surface this in the audit log below so an operator can see
+      // "invalid JWT presented + valid api-key used" patterns.
+      tokenInvalid = true;
     }
   }
 
@@ -78,7 +79,14 @@ async function requireAdminOrKey(req, res, next) {
       actor: { userId: 'admin-key', username: 'admin-key' },
       via: 'api-key',
     };
-    // Audit every key use -- this is the break-glass path.
+    if (tokenInvalid) {
+      auditService.audit({
+        action: 'token-invalid',
+        actor: req.admin.actor,
+        meta: { method: req.method, path: req.path, note: 'invalid-jwt-with-valid-key' },
+        req,
+      }).catch(() => { /* audit must not block */ });
+    }
     auditService.audit({
       action: 'admin-key-use',
       actor: req.admin.actor,
@@ -88,17 +96,21 @@ async function requireAdminOrKey(req, res, next) {
     return next();
   }
 
-  // 3. Deny.
+  // 3. Deny. Always return 401 to clients; the "key not configured" detail
+  // stays in the server logs only (was previously a 403 leaking server config).
   auditService.audit({
     action: 'admin-denied',
     actor: { userId: 'anonymous', username: 'anonymous' },
-    meta: { reason: token ? 'token-invalid' : 'no-credentials',
-            method: req.method, path: req.path },
+    meta: {
+      reason: tokenInvalid ? 'token-invalid' : (token ? 'token-invalid' : 'no-credentials'),
+      method: req.method, path: req.path,
+      adminKeyConfigured: !!ADMIN_API_KEY,
+    },
     req,
   }).catch(() => { /* audit must not block */ });
 
   if (!ADMIN_API_KEY && !token) {
-    return res.status(403).json({ error: 'Admin API key not configured on server' });
+    console.warn('[admin] denying request: ADMIN_API_KEY is not set and no JWT was presented');
   }
   return res.status(401).json({ error: 'Invalid or missing admin credentials' });
 }

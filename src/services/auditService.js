@@ -24,6 +24,10 @@ const cosmos = require('../utils/cosmosClient');
 
 const CONTAINER = 'admin-audit';
 
+// Once-per-process flag so we don't spam logs when the audit container hasn't
+// been provisioned yet on a fresh deployment.
+let _cosmosWriteWarned = false;
+
 /**
  * Emit an audit event.
  * @param {object} ev
@@ -62,22 +66,27 @@ async function audit(ev) {
     // ignore -- console should not throw
   }
 
-  // Write to Cosmos best-effort. Never throw to caller.
+  // Write to Cosmos best-effort. Never throw to caller. To avoid log spam on
+  // deployments that haven't provisioned the `admin-audit` container yet, we
+  // only emit the warning once per process.
   if (cosmos.isEnabled()) {
     try {
       await cosmos.container(CONTAINER).items.create(record);
     } catch (err) {
-      // Container may not exist yet on first run -- log once and continue.
-      console.warn(`[admin-audit] cosmos write failed: ${err.code || err.message}`);
+      if (!_cosmosWriteWarned) {
+        _cosmosWriteWarned = true;
+        console.warn(`[admin-audit] cosmos write failed (will not warn again this process): ${err.code || err.message}`);
+      }
     }
   }
 }
 
 function _extractIp(req) {
   if (!req) return null;
-  // Prefer X-Forwarded-For (App Service / proxies), fall back to req.ip.
-  const xff = req.headers && req.headers['x-forwarded-for'];
-  if (xff) return String(xff).split(',')[0].trim();
+  // Trust Express's resolution. `app.set('trust proxy', 1)` in server.js
+  // makes req.ip the originating client behind App Service's proxy. Reading
+  // X-Forwarded-For directly here would let any client spoof the audit-log
+  // source IP via a forged header.
   return req.ip || null;
 }
 

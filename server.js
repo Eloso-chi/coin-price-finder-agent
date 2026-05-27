@@ -192,29 +192,49 @@ app.listen(PORT, '0.0.0.0', async () => {
     console.log(`  [seed] testcollector account already exists`);
   }
 
-  // ── Bootstrap admin (one-shot, idempotent) ────────────────
-  // When ADMIN_BOOTSTRAP_USERNAME is set, the named account is granted the
-  // admin role on first startup that finds it. Existing admins are not
-  // re-granted (idempotent). This is the supported way to escape the
-  // chicken-and-egg of "the CLI needs an existing admin to grant another".
+  // ── Bootstrap admin (one-shot, idempotent, revoke-safe) ──────────
+  // When ADMIN_BOOTSTRAP_USERNAME is set the named account is granted the
+  // admin role the FIRST time the server sees it as a non-admin. Once granted,
+  // admin status is persisted to BOTH Cosmos and the file mirror, so it
+  // survives every restart without needing the env var. If an operator later
+  // revokes admin via the CLI, the `adminRevokedAt` marker on the record
+  // makes bootstrap a no-op even if the env var is still set -- so revokes
+  // are durable across restarts.
+  //
+  // Operator workflow:
+  //   1. Sign up `alice` via the normal /signup flow.
+  //   2. Set ADMIN_BOOTSTRAP_USERNAME=alice in App Service settings; restart.
+  //   3. After the first successful grant you can remove the env var, but
+  //      leaving it set is safe -- it will not re-grant a previously revoked
+  //      admin, and it will not flip a current admin.
   const bootstrapUser = (process.env.ADMIN_BOOTSTRAP_USERNAME || '').trim().toLowerCase();
   if (bootstrapUser) {
     try {
       const existing = await authService.getUser(bootstrapUser);
+      const auditService = require('./src/services/auditService');
       if (!existing) {
-        console.warn(`  [bootstrap-admin] user '${bootstrapUser}' does not exist -- skipping`);
+        console.warn(`  [bootstrap-admin] user '${bootstrapUser}' does not exist -- sign up the account first, then restart.`);
       } else if (existing.isAdmin === true) {
-        console.log(`  [bootstrap-admin] '${bootstrapUser}' is already an admin -- no-op`);
+        console.log(`  [bootstrap-admin] '${bootstrapUser}' is already an admin -- no-op (admin status persists across restarts).`);
+      } else if (existing.adminRevokedAt) {
+        // Sticky revoke: an operator deliberately removed admin from this
+        // account. Re-bootstrapping would silently undo that decision.
+        console.warn(`  [bootstrap-admin] '${bootstrapUser}' was previously revoked at ${existing.adminRevokedAt} -- skipping. Unset ADMIN_BOOTSTRAP_USERNAME, or run 'node scripts/grant-admin.js ${bootstrapUser}' to re-grant explicitly.`);
+        await auditService.audit({
+          action: 'bootstrap-skipped',
+          actor: { userId: 'bootstrap', username: 'bootstrap' },
+          target: bootstrapUser,
+          meta: { reason: 'previously-revoked', adminRevokedAt: existing.adminRevokedAt },
+        });
       } else {
         await authService.grantAdmin(bootstrapUser);
-        const auditService = require('./src/services/auditService');
         await auditService.audit({
           action: 'bootstrap-admin',
           actor: { userId: 'bootstrap', username: 'bootstrap' },
           target: bootstrapUser,
           meta: { source: 'env:ADMIN_BOOTSTRAP_USERNAME' },
         });
-        console.log(`  [bootstrap-admin] granted admin to '${bootstrapUser}'`);
+        console.log(`  [bootstrap-admin] granted admin to '${bootstrapUser}' (persisted -- you do not need to run this again).`);
       }
     } catch (err) {
       console.warn(`  [bootstrap-admin] failed: ${err.message}`);

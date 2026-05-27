@@ -144,7 +144,9 @@ async function login(username, password) {
 }
 
 /**
- * Change password for a user.
+ * Change password for a user. Bumps tokenVersion to invalidate outstanding JWTs.
+ * Persists via `_saveUser` so the file-store mirror policy and Cosmos system-field
+ * stripping are applied consistently with grant/revoke/reset.
  * @param {string} username
  * @param {string} currentPassword
  * @param {string} newPassword
@@ -154,26 +156,7 @@ async function changePassword(username, currentPassword, newPassword) {
   username = (username || '').trim().toLowerCase();
   if (!newPassword || newPassword.length < 6) throw new Error('New password must be at least 6 characters');
 
-  let doc;
-  let source = 'file'; // track where the account was found
-
-  if (cosmos.isEnabled()) {
-    try {
-      const { resource } = await cosmos.container('users').item(username, username).read();
-      if (resource) { doc = resource; source = 'cosmos'; }
-    } catch (err) {
-      if (err.code !== 404) throw err;
-      // Not in Cosmos -- fall through to file store
-    }
-  }
-
-  // Fall back to file store (handles pre-Cosmos accounts)
-  if (!doc) {
-    const store = loadStore();
-    doc = store[username];
-    source = 'file';
-  }
-
+  const doc = await getUser(username);
   if (!doc) throw new Error('Account not found');
 
   const valid = await bcrypt.compare(currentPassword, doc.hash);
@@ -181,14 +164,8 @@ async function changePassword(username, currentPassword, newPassword) {
   doc.hash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
   // Bump tokenVersion so any other outstanding JWTs are invalidated.
   doc.tokenVersion = (typeof doc.tokenVersion === 'number' ? doc.tokenVersion : 0) + 1;
-
-  if (source === 'cosmos') {
-    await cosmos.container('users').item(username, username).replace(doc);
-  } else {
-    _store = loadStore();
-    _store[username] = doc;
-    saveStore();
-  }
+  doc.passwordChangedAt = new Date().toISOString();
+  await _saveUser(username, doc);
 }
 
 /**
@@ -324,18 +301,14 @@ async function _saveUser(username, doc) {
     await cont.items.upsert({ id: key, username: key, ...clean });
   }
 
-  // Mirror to file when:
-  //  - Cosmos is off (file is the only store), OR
-  //  - the record is or was an admin record -- so revokes / token-version
-  //    bumps applied to an admin can never get out of sync between stores.
-  const wasOrIsAdmin = clean.isAdmin === true
-    || clean.adminGrantedAt
-    || clean.adminRevokedAt;
-  if (!cosmos.isEnabled() || wasOrIsAdmin) {
-    _store = loadStore();
-    _store[key] = clean;
-    saveStore();
-  }
+  // Mirror to the file store on EVERY write. The file mirror is the durable
+  // fallback for `login()` when Cosmos returns 404 -- if any write only lands
+  // in Cosmos, a transient Cosmos miss could authenticate against the stale
+  // file copy (defeating password changes, revocations, etc.). The store is
+  // small (one row per user) so the cost is negligible.
+  _store = loadStore();
+  _store[key] = clean;
+  saveStore();
 }
 
 /**
@@ -352,6 +325,9 @@ async function grantAdmin(username) {
   if (typeof doc.tokenVersion !== 'number') doc.tokenVersion = 0;
   doc.isAdmin = true;
   doc.adminGrantedAt = new Date().toISOString();
+  // Explicit re-grant via the CLI clears the sticky revoke marker so the
+  // bootstrap path will treat the account as a normal admin going forward.
+  delete doc.adminRevokedAt;
   await _saveUser(key, doc);
   return { username: key, userId: doc.userId, isAdmin: true };
 }
@@ -431,6 +407,12 @@ async function verifyTokenStrict(token) {
   const payload = jwt.verify(token, JWT_SECRET);
   const doc = await getUser(payload.username);
   if (!doc) throw new Error('Account no longer exists');
+  // If the username was deleted and recreated, the new account has a fresh
+  // userId. Reject the old JWT even though its tokenVersion happens to match
+  // the new (zero) version.
+  if (payload.userId && doc.userId && payload.userId !== doc.userId) {
+    throw new Error('Token has been revoked');
+  }
   const currentVersion = typeof doc.tokenVersion === 'number' ? doc.tokenVersion : 0;
   const tokenVersion = typeof payload.tokenVersion === 'number' ? payload.tokenVersion : 0;
   if (tokenVersion !== currentVersion) {
