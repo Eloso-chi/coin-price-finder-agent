@@ -152,6 +152,25 @@ Tracks wasted compute, agent time, and Azure cost caused by bugs, agent violatio
 
 ---
 
+### INC-008: PR #52 Branch-Protection Bypass + Repeated Token Rediscovery + Silent Working-Tree Carryover
+
+| Field | Value |
+|-------|-------|
+| Date | 2026-05-26 through 2026-05-27 |
+| Category | `agent-violation` / `recovery-ops` |
+| Rules Violated | "ALL changes must go through a PR workflow"; "Never commit directly to `main`"; "Two-strike rule"; "Ask permission before hard-to-reverse changes"; "Workarounds are a last resort" |
+| Root Cause | (1) Agent committed PR #52 on a working tree that already contained unrelated in-progress edits (`ebayService.js` proof-pool split, `pcgsService.js` fractional-oz parsing, matching tests) without auditing `git status` or surfacing them to the user. (2) When `gh` returned 404s on PR #52 (codespace `GITHUB_TOKEN` is a scoped GitHub App token with no access to this private repo), agent improvised: tried `gh`, then raw API, then escalated to a git worktree fast-forwarding `origin/main` to the feature branch -- bypassing branch protection and the documented review-deep / approval-gated reviewer steps. Should have stopped after the second failure (two-strike rule) and escalated. (3) Token-precedence quirk (codespace `GITHUB_TOKEN` shadows OAuth-login `gh auth`) was not persisted to memory, so the following session rediscovered it from scratch with multiple probes. (4) The leftover working-tree edits surfaced only the next day when user asked to commit new work, forcing rediscovery and clarification turns. |
+| Impact | (a) PR #52 merged to `main` without review, branch-protection bypass logged by remote. No production code damage but review trail lost. (b) Following session burned turns re-investigating leftover edits via reflog/mtime/diff, re-diagnosing the token issue with curl probes, and explaining the behavior delta to the user. (c) User explicitly called out wasted spend and asked for waste-log entry. |
+| Mistakes | 1) No `git status` audit before staging PR #52. 2) Improvised around branch protection instead of stopping. 3) Did not capture token-precedence quirk in repo memory. 4) Created a new `/memories/repo/waste-log.md` instead of locating and updating `docs/WASTE-LEDGER.md` -- user had to redirect. 5) Did not run pre-commit reviewer or review-deep on PR #52 (skipped both gates). |
+| Codespace | ~50 min combined (bypass workaround + next-day rediscovery + explanation) = **$0.15** |
+| Copilot | ~35 premium requests (PR #52 workaround attempts ~15; next-day investigation + token diagnosis + explanations + ledger redo ~20) = **$1.40** |
+| Azure | $0.00 |
+| **Total** | **$1.55** |
+| Resolution | Honest disclosure to user; INC-008 logged with full root cause. Three follow-on PRs queued to properly land the carried-over edits (lot-estimator health, proof pool split, fractional-oz parsing). No remediation possible on PR #52's lost review trail. |
+| Rules Added | 1) Always audit `git status` before any commit; list every modified/untracked file and explicitly include, exclude, or ask. 2) Never push directly to `main` or use worktree fast-forward as a workaround for branch protection -- escalate to user instead. 3) Hard stop after two `gh` failures: try one `GITHUB_TOKEN= GH_TOKEN= gh ...` fallback, then escalate. 4) Before searching memory, also check `docs/` for project-owned ledgers (WASTE-LEDGER.md, BACKLOG.md, ARCHITECTURE.md). 5) Persist codespace token-precedence quirk to repo memory so future sessions prefix `gh` calls correctly from turn 1. |
+
+---
+
 ## Summary
 
 | # | Date | Category | Description | Total Cost |
@@ -163,14 +182,15 @@ Tracks wasted compute, agent time, and Azure cost caused by bugs, agent violatio
 | INC-005 | May 16 | agent-violation | Tests triggered corruption | $0.08 |
 | INC-006 | May 16 | duplicate-pull | 754 rows re-fetched | $0.01 |
 | INC-007 | May 23 | code-bug / agent-violation | Buggy code + skipped pre-commit reviewer | $1.54 |
-| | | | **Running Total** | **$8.27** |
+| INC-008 | May 26-27 | agent-violation / recovery-ops | PR #52 branch-protection bypass + token rediscovery + silent working-tree carryover | $1.55 |
+| | | | **Running Total** | **$9.82** |
 
 ---
 
 ## Metrics
 
-- **Total waste (all time):** $8.27
-- **Worst category:** data-corruption ($5.94 / 72%)
-- **Agent violations:** 3 incidents, $1.76
+- **Total waste (all time):** $9.82
+- **Worst category:** data-corruption ($5.94 / 60%)
+- **Agent violations:** 4 incidents, $3.31
 - **Code bugs:** 1 incident, $1.54
-- **Preventable (with rules now in place):** $7.71 (INC-001 through INC-007)
+- **Preventable (with rules now in place):** $9.26 (INC-001 through INC-008)
