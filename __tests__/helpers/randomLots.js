@@ -1,5 +1,7 @@
 'use strict';
 
+// Mulberry32 PRNG -- public domain, by Tommy Ettinger.
+// https://gist.github.com/tommyettinger/46a3c5d3e10cae7be4f7
 function mulberry32(seed) {
   let s = seed | 0;
   return function rand() {

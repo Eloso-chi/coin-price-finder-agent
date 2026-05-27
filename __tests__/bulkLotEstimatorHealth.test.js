@@ -308,8 +308,18 @@ describe('bulk lot estimator parity and consistency', () => {
       }
     }
 
-    // Assert seed used so failures are reproducible.
-    expect(seed).toBe(18652);
+    // Reproducibility: regenerating with the same seed must yield an
+    // identical structure, so test failures are bit-for-bit reproducible.
+    const replay = generateRandomLots({
+      pool,
+      lotCount: 7,
+      minLotSize: 4,
+      maxLotSize: 8,
+      maxQty: 3,
+      seed: 18652,
+    });
+    expect(replay.seed).toBe(seed);
+    expect(replay.lots.map((l) => l.items)).toEqual(lots.map((l) => l.items));
   });
 
   test('same lot is stable across repeated bulk runs', async () => {
@@ -340,5 +350,81 @@ describe('bulk lot estimator parity and consistency', () => {
     expect(totals[2]).toBe(totals[0]);
     expect(snapshots[1]).toEqual(snapshots[0]);
     expect(snapshots[2]).toEqual(snapshots[0]);
+  });
+
+  test('multi-instance same-coin lot prices duplicates identically and sums by qty', async () => {
+    // Lot with the same coin appearing twice with different qty, plus a
+    // different coin. Mirrors real-world lots like "three 2024 Libertads,
+    // one 2011, one 2014".
+    const X = '2024 Silver Libertad 1 oz';
+    const Y = '1986 American Silver Eagle';
+    const items = [
+      { query: X, qty: 3 },
+      { query: X, qty: 2 },
+      { query: Y, qty: 1 },
+    ];
+
+    const submit = await request(app).post('/api/bulk-evaluate').send({ items });
+    expect(submit.status).toBe(202);
+    const state = await waitForBulkResult(submit.body.jobId);
+
+    expect(state.results).toHaveLength(3);
+    const [r0, r1, r2] = state.results;
+
+    // Both X entries must price identically (same query => same fmv).
+    expect(r0.query).toBe(X);
+    expect(r1.query).toBe(X);
+    expect(r2.query).toBe(Y);
+    expect(typeof r0.fmv).toBe('number');
+    expect(r1.fmv).toBe(r0.fmv);
+
+    // Per-entry totalFmv reflects qty.
+    expect(r0.totalFmv).toBeCloseTo(r0.fmv * 3, 2);
+    expect(r1.totalFmv).toBeCloseTo(r0.fmv * 2, 2);
+    expect(r2.totalFmv).toBeCloseTo(r2.fmv * 1, 2);
+
+    // Lot total = 5 * fmv_X + 1 * fmv_Y, within rounding.
+    const expectedTotal = +(r0.fmv * 5 + r2.fmv * 1).toFixed(2);
+    expect(Math.abs((state.lotSummary.totalFmv || 0) - expectedTotal)).toBeLessThanOrEqual(0.01);
+    expect(state.lotSummary.coinCount).toBe(3);
+  });
+
+  test('mixed graded, raw, and proof coins in one lot each match isolated price call', async () => {
+    // User requirement: lot estimator must accept a mix of graded and raw
+    // (and proof) coins in the same submission.
+    const GRADED = '1921 Morgan Silver Dollar MS63';
+    const RAW    = '1923 Peace Dollar';
+    const PROOF  = '2024 American Silver Eagle Proof';
+    const items = [
+      { query: GRADED, qty: 1 },
+      { query: RAW,    qty: 2 },
+      { query: PROOF,  qty: 1 },
+    ];
+
+    // Isolated /api/price calls -- ground truth for FMV per query.
+    const isolated = {};
+    for (const it of items) {
+      const r = await request(app).post('/api/price').send({ query: it.query });
+      expect(r.status).toBe(200);
+      isolated[it.query] = r.body.valuation?.fmvCore;
+      expect(typeof isolated[it.query]).toBe('number');
+    }
+
+    mockFetchCalls.length = 0;
+    const submit = await request(app).post('/api/bulk-evaluate').send({ items });
+    expect(submit.status).toBe(202);
+    const state = await waitForBulkResult(submit.body.jobId);
+
+    expect(state.results).toHaveLength(3);
+    for (const result of state.results) {
+      expect(result.fmv).toBe(isolated[result.query]);
+    }
+
+    // Verify the bulk path actually carried distinct intent per coin
+    // (graded vs raw vs proof) into the eBay layer.
+    const callsByQ = new Map(mockFetchCalls.map((c) => [c.expected?._rawQuery, c]));
+    expect(callsByQ.get(GRADED)?.expected?.grade).toBeTruthy();
+    expect(callsByQ.get(RAW)?.expected?.grade).toBeFalsy();
+    expect(callsByQ.get(PROOF)?.expected?.finish || callsByQ.get(PROOF)?.expected?.isProof).toBeTruthy();
   });
 });

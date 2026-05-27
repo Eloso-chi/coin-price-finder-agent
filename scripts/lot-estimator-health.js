@@ -6,7 +6,14 @@ const path = require('path');
 
 const DEFAULT_BASE_URL = 'http://localhost:3000';
 const DEFAULT_OUT = 'cache/lot-estimator-health.json';
+const DEFAULT_BULK_TIMEOUT_MS = 120000;
 
+// NOTE: COIN_POOL intentionally contains repeated coins of the same
+// design (e.g. multiple Silver Libertad years, two American Silver
+// Eagle entries). This mirrors real-world lot composition where the
+// same coin commonly appears multiple times in a single estimate.
+// The randomized lot generator also picks the same query multiple
+// times by design -- duplicates must price identically.
 const COIN_POOL = [
   '1964 Kennedy Half Dollar',
   '1921 Morgan Silver Dollar MS63',
@@ -121,7 +128,7 @@ async function httpJson(baseUrl, method, route, body) {
   return json;
 }
 
-async function waitForBulk(baseUrl, jobId, timeoutMs = 120000) {
+async function waitForBulk(baseUrl, jobId, timeoutMs = DEFAULT_BULK_TIMEOUT_MS) {
   const started = Date.now();
   while (Date.now() - started < timeoutMs) {
     const state = await httpJson(baseUrl, 'GET', `/api/bulk-evaluate/${jobId}`);
@@ -160,6 +167,7 @@ async function run() {
   const repeat = toInt(getArg('repeat', 2), 2);
   const perCoinConcurrency = toInt(getArg('coin-concurrency', 4), 4);
   const outFile = getArg('out', DEFAULT_OUT);
+  const bulkTimeoutMs = toInt(getArg('timeout-ms', DEFAULT_BULK_TIMEOUT_MS), DEFAULT_BULK_TIMEOUT_MS);
 
   try {
     await httpJson(baseUrl, 'GET', '/api/health');
@@ -206,7 +214,7 @@ async function run() {
     const runStates = [];
     for (let i = 0; i < repeat; i++) {
       const submit = await httpJson(baseUrl, 'POST', '/api/bulk-evaluate', { items: lot.items });
-      const state = await waitForBulk(baseUrl, submit.jobId);
+      const state = await waitForBulk(baseUrl, submit.jobId, bulkTimeoutMs);
       runStates.push(state);
     }
 
