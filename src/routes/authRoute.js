@@ -5,8 +5,20 @@
 'use strict';
 
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 const router = express.Router();
 const authService = require('../services/authService');
+const auditService = require('../services/auditService');
+
+// Stricter limit on /login to slow credential-stuffing attacks.
+// Window + cap apply per source IP; standardHeaders so clients can back off.
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: process.env.NODE_ENV === 'production' ? 5 : 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many login attempts, please try again later' },
+});
 
 /**
  * POST /api/auth/signup
@@ -27,14 +39,26 @@ router.post('/signup', async (req, res) => {
 /**
  * POST /api/auth/login
  * Body: { username, password }
- * Returns: { userId, username, token }
+ * Returns: { userId, username, token, isAdmin }
  */
-router.post('/login', async (req, res) => {
+router.post('/login', loginLimiter, async (req, res) => {
+  const { username, password } = req.body || {};
   try {
-    const { username, password } = req.body || {};
     const result = await authService.login(username, password);
+    auditService.audit({
+      action: 'signin',
+      actor: { userId: result.userId, username: result.username },
+      meta: { isAdmin: result.isAdmin === true },
+      req,
+    }).catch(() => {});
     res.json(result);
   } catch (err) {
+    auditService.audit({
+      action: 'signin-failed',
+      actor: { username: (username || '').trim().toLowerCase() || 'anonymous' },
+      meta: { reason: err.message },
+      req,
+    }).catch(() => {});
     const status = err.message.includes('not found') ? 404
       : err.message.includes('Incorrect') ? 401
       : 400;
@@ -45,14 +69,20 @@ router.post('/login', async (req, res) => {
 /**
  * GET /api/auth/me
  * Header: Authorization: Bearer <token>
- * Returns: { userId, username }
+ * Returns: { userId, username, isAdmin }
+ * Uses verifyTokenStrict so revoked admins / bumped tokenVersions
+ * are rejected immediately.
  */
-router.get('/me', (req, res) => {
+router.get('/me', async (req, res) => {
   const token = _extractToken(req);
   if (!token) return res.status(401).json({ error: 'Not authenticated' });
   try {
-    const payload = authService.verifyToken(token);
-    res.json({ userId: payload.userId, username: payload.username });
+    const claims = await authService.verifyTokenStrict(token);
+    res.json({
+      userId: claims.userId,
+      username: claims.username,
+      isAdmin: claims.isAdmin === true,
+    });
   } catch {
     res.status(401).json({ error: 'Invalid or expired token' });
   }

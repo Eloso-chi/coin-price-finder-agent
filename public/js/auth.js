@@ -6,7 +6,17 @@
 
 const CoinAuth = (() => {
   // In-memory session state (lost on page reload — user must re-login)
-  let _session = null; // { username, userId, token }
+  let _session = null; // { username, userId, token, isAdmin }
+
+  // Dispatch a window event whenever auth state changes so other UI modules
+  // (notably the admin panel) can show/hide admin chrome without polling.
+  function _fireChange() {
+    try {
+      window.dispatchEvent(new CustomEvent('coinauth:change', {
+        detail: _session ? { username: _session.username, userId: _session.userId, isAdmin: !!_session.isAdmin } : null,
+      }));
+    } catch { /* ignore */ }
+  }
 
   // ── Internal helpers ─────────────────────────────────────
 
@@ -32,7 +42,8 @@ const CoinAuth = (() => {
     });
     const data = await resp.json();
     if (!resp.ok) throw new Error(data.error || 'Signup failed');
-    _session = { username: data.username, userId: data.userId, token: data.token };
+    _session = { username: data.username, userId: data.userId, token: data.token, isAdmin: data.isAdmin === true };
+    _fireChange();
     return { username: data.username, userId: data.userId };
   }
 
@@ -50,7 +61,8 @@ const CoinAuth = (() => {
     });
     const data = await resp.json();
     if (!resp.ok) throw new Error(data.error || 'Login failed');
-    _session = { username: data.username, userId: data.userId, token: data.token };
+    _session = { username: data.username, userId: data.userId, token: data.token, isAdmin: data.isAdmin === true };
+    _fireChange();
     return { username: data.username, userId: data.userId };
   }
 
@@ -59,6 +71,7 @@ const CoinAuth = (() => {
    */
   function logout() {
     _session = null;
+    _fireChange();
   }
 
   /**

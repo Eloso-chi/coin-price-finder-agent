@@ -19,7 +19,6 @@ process.on('uncaughtException', (err) => {
   setTimeout(() => process.exit(1), 500);
 });
 
-const crypto = require('crypto');
 const express = require('express');
 const path = require('path');
 const helmet = require('helmet');
@@ -28,23 +27,18 @@ const rateLimit = require('express-rate-limit');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// ── Admin API-key guard for destructive endpoints ───────────
-const ADMIN_API_KEY = process.env.ADMIN_API_KEY || '';
-function requireAdmin(req, res, next) {
-  if (!ADMIN_API_KEY) {
-    // No key configured — reject all admin calls so the endpoints
-    // are locked-down by default on a fresh deploy.
-    return res.status(403).json({ error: 'Admin API key not configured on server' });
-  }
-  const provided = req.headers['x-api-key'] || '';
-  if (provided.length !== ADMIN_API_KEY.length ||
-      !crypto.timingSafeEqual(Buffer.from(provided), Buffer.from(ADMIN_API_KEY))) {
-    console.warn(`[admin] AUTH FAILED: ${req.method} ${req.path} from ${req.ip} at ${new Date().toISOString()}`);
-    return res.status(401).json({ error: 'Invalid or missing API key' });
-  }
-  console.log(`[admin] ${req.method} ${req.path} from ${req.ip} at ${new Date().toISOString()}`);
-  next();
-}
+// Behind Azure App Service / proxies, trust the first hop so `req.ip` and
+// `X-Forwarded-For` reflect the real client. Without this:
+//   - `express-rate-limit` keys by the proxy IP -> one shared bucket for
+//     all users (login limiter would lock everyone out together).
+//   - Audit logs record the proxy IP instead of the originating client.
+// `1` = trust exactly one proxy hop, which matches App Service's topology.
+app.set('trust proxy', 1);
+
+// ── Admin authorization (JWT-with-isAdmin OR ADMIN_API_KEY break-glass) ──
+// All admin routes use this shared middleware so audit logging, JWT support,
+// and the key fallback are consistent.
+const requireAdmin = require('./src/middleware/requireAdminOrKey');
 
 // ── Middleware ───────────────────────────────────────────────
 app.use(helmet({
@@ -197,6 +191,56 @@ app.listen(PORT, '0.0.0.0', async () => {
   } else {
     console.log(`  [seed] testcollector account already exists`);
   }
+
+  // ── Bootstrap admin (one-shot, idempotent, revoke-safe) ──────────
+  // When ADMIN_BOOTSTRAP_USERNAME is set the named account is granted the
+  // admin role the FIRST time the server sees it as a non-admin. Once granted,
+  // admin status is persisted to BOTH Cosmos and the file mirror, so it
+  // survives every restart without needing the env var. If an operator later
+  // revokes admin via the CLI, the `adminRevokedAt` marker on the record
+  // makes bootstrap a no-op even if the env var is still set -- so revokes
+  // are durable across restarts.
+  //
+  // Operator workflow:
+  //   1. Sign up `alice` via the normal /signup flow.
+  //   2. Set ADMIN_BOOTSTRAP_USERNAME=alice in App Service settings; restart.
+  //   3. After the first successful grant you can remove the env var, but
+  //      leaving it set is safe -- it will not re-grant a previously revoked
+  //      admin, and it will not flip a current admin.
+  const bootstrapUser = (process.env.ADMIN_BOOTSTRAP_USERNAME || '').trim().toLowerCase();
+  if (bootstrapUser) {
+    try {
+      const existing = await authService.getUser(bootstrapUser);
+      const auditService = require('./src/services/auditService');
+      if (!existing) {
+        console.warn(`  [bootstrap-admin] user '${bootstrapUser}' does not exist -- sign up the account first, then restart.`);
+      } else if (existing.isAdmin === true) {
+        console.log(`  [bootstrap-admin] '${bootstrapUser}' is already an admin -- no-op (admin status persists across restarts).`);
+      } else if (existing.adminRevokedAt) {
+        // Sticky revoke: an operator deliberately removed admin from this
+        // account. Re-bootstrapping would silently undo that decision.
+        console.warn(`  [bootstrap-admin] '${bootstrapUser}' was previously revoked at ${existing.adminRevokedAt} -- skipping. Unset ADMIN_BOOTSTRAP_USERNAME, or run 'node scripts/grant-admin.js ${bootstrapUser}' to re-grant explicitly.`);
+        await auditService.audit({
+          action: 'bootstrap-skipped',
+          actor: { userId: 'bootstrap', username: 'bootstrap' },
+          target: bootstrapUser,
+          meta: { reason: 'previously-revoked', adminRevokedAt: existing.adminRevokedAt },
+        });
+      } else {
+        await authService.grantAdmin(bootstrapUser);
+        await auditService.audit({
+          action: 'bootstrap-admin',
+          actor: { userId: 'bootstrap', username: 'bootstrap' },
+          target: bootstrapUser,
+          meta: { source: 'env:ADMIN_BOOTSTRAP_USERNAME' },
+        });
+        console.log(`  [bootstrap-admin] granted admin to '${bootstrapUser}' (persisted -- you do not need to run this again).`);
+      }
+    } catch (err) {
+      console.warn(`  [bootstrap-admin] failed: ${err.message}`);
+    }
+  }
+
   // ── Startup: auto-import Terapeak CSVs from data/terapeak/ folder ──
   const terapeakService = require('./src/services/terapeakService');
   const TERAPEAK_DATA_DIR = process.env.TERAPEAK_DATA_DIR || 'data/terapeak';

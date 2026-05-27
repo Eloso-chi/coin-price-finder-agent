@@ -116,10 +116,10 @@ describe('POST /api/auth/login', () => {
 // ════════════════════════════════════════════════════════════
 describe('GET /api/auth/me', () => {
   test('returns user info for valid token', async () => {
-    authService.verifyToken.mockReturnValue({ userId: '1', username: 'alice' });
+    authService.verifyTokenStrict.mockResolvedValue({ userId: '1', username: 'alice', isAdmin: false, tokenVersion: 0 });
     const res = await req('GET', '/api/auth/me', null, { Authorization: 'Bearer validtok' });
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ userId: '1', username: 'alice' });
+    expect(res.body).toEqual({ userId: '1', username: 'alice', isAdmin: false });
   });
 
   test('401 when no Authorization header', async () => {
@@ -129,7 +129,7 @@ describe('GET /api/auth/me', () => {
   });
 
   test('401 when token is invalid', async () => {
-    authService.verifyToken.mockImplementation(() => { throw new Error('invalid'); });
+    authService.verifyTokenStrict.mockRejectedValue(new Error('invalid'));
     const res = await req('GET', '/api/auth/me', null, { Authorization: 'Bearer badtok' });
     expect(res.status).toBe(401);
     expect(res.body.error).toMatch(/Invalid or expired/);
