@@ -196,6 +196,36 @@ describe('parseDescription - fractional word weights', () => {
     const parsed = pcgsService.parseDescription('1964 Kennedy half dollar');
     expect(parsed.weight).toBeUndefined();
   });
+
+  test('does not treat quarter dollar as a weight', () => {
+    const parsed = pcgsService.parseDescription('1932 Washington quarter dollar');
+    expect(parsed.weight).toBeUndefined();
+  });
+
+  test('does not treat dime as a weight', () => {
+    const parsed = pcgsService.parseDescription('1916 Mercury dime');
+    expect(parsed.weight).toBeUndefined();
+  });
+
+  test('does not treat nickel as a weight', () => {
+    const parsed = pcgsService.parseDescription('1937 Buffalo nickel');
+    expect(parsed.weight).toBeUndefined();
+  });
+
+  test('parses plural form (half ounces) as 0.5', () => {
+    const parsed = pcgsService.parseDescription('2024 mexico half ounces silver libertad');
+    expect(parsed.weight).toBe(0.5);
+  });
+
+  test('parses troy modifier (half troy oz) as 0.5', () => {
+    const parsed = pcgsService.parseDescription('2024 half troy oz gold');
+    expect(parsed.weight).toBe(0.5);
+  });
+
+  test('parses title case (HALF OZ) as 0.5 case-insensitively', () => {
+    const parsed = pcgsService.parseDescription('2024 HALF OZ GOLD libertad');
+    expect(parsed.weight).toBe(0.5);
+  });
 });
 
 describe('_mapResponse internals (via lookupByCert)', () => {
