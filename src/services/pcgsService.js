@@ -388,6 +388,26 @@ function parseDescription(text) {
     result.weightRaw = weightMatch[0];
   }
 
+  // Word-based fractional ounce forms: "half oz", "quarter ounce",
+  // "tenth oz", "twentieth ounce".
+  // Keep this separate from denomination parsing so "half dollar" is not
+  // interpreted as a weight.
+  if (!result.weight) {
+    const wordWeightPatterns = [
+      { re: /\btwentieth\s*(?:troy\s*)?(?:oz|ounce)s?\b/i, value: 0.05, raw: 'twentieth oz' },
+      { re: /\btenth\s*(?:troy\s*)?(?:oz|ounce)s?\b/i, value: 0.1, raw: 'tenth oz' },
+      { re: /\bquarter\s*(?:troy\s*)?(?:oz|ounce)s?\b/i, value: 0.25, raw: 'quarter oz' },
+      { re: /\bhalf\s*(?:troy\s*)?(?:oz|ounce)s?\b/i, value: 0.5, raw: 'half oz' },
+    ];
+    for (const p of wordWeightPatterns) {
+      if (p.re.test(t)) {
+        result.weight = p.value;
+        result.weightRaw = p.raw;
+        break;
+      }
+    }
+  }
+
    // Gram-based weight: "30g", "30 gram", "31.1 grams", ".5g", "half gram", etc.
   // Convert grams to troy ounces (1 troy oz = 31.1035 g).
   if (!result.weight) {
