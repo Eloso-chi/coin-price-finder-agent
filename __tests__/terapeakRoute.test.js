@@ -137,8 +137,13 @@ describe('/api/terapeak — admin auth', () => {
 //  Public endpoints (no auth)
 // ═══════════════════════════════════════════════════════════════
 describe('/api/terapeak — public endpoints', () => {
-  test('GET /datasets returns dataset list', async () => {
-    const { status, body } = await request('GET', '/api/terapeak/datasets');
+  test('GET /datasets requires admin key (anonymous -> 401)', async () => {
+    const { status } = await request('GET', '/api/terapeak/datasets');
+    expect(status).toBe(401);
+  });
+
+  test('GET /datasets returns dataset list with admin key', async () => {
+    const { status, body } = await request('GET', '/api/terapeak/datasets', null, TEST_ADMIN_KEY);
     expect(status).toBe(200);
     expect(body).toHaveProperty('datasets');
     expect(Array.isArray(body.datasets)).toBe(true);
@@ -163,8 +168,13 @@ describe('/api/terapeak — public endpoints', () => {
     expect(status).toBe(400);
   });
 
-  test('GET /quota returns quota status', async () => {
-    const { status, body } = await request('GET', '/api/terapeak/quota');
+  test('GET /quota requires admin key (anonymous -> 401)', async () => {
+    const { status } = await request('GET', '/api/terapeak/quota');
+    expect(status).toBe(401);
+  });
+
+  test('GET /quota returns quota status with admin key', async () => {
+    const { status, body } = await request('GET', '/api/terapeak/quota', null, TEST_ADMIN_KEY);
     expect(status).toBe(200);
     expect(body).toHaveProperty('used');
     expect(body).toHaveProperty('remaining');

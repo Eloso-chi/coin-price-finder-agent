@@ -35,15 +35,20 @@ const CONCURRENCY = args.includes('--concurrency')
   : (isFullRun ? 10 : 5);
 
 // -- HTTP helper --
+// Sends x-api-key automatically so admin-gated routes (e.g. /api/terapeak/datasets)
+// work when ADMIN_API_KEY is set in the environment. Non-gated routes ignore it.
+const ADMIN_API_KEY = process.env.ADMIN_API_KEY || '';
 function httpRequest(method, urlPath, body) {
   return new Promise((resolve, reject) => {
     const url = new URL(urlPath, BASE);
+    const headers = { 'Content-Type': 'application/json' };
+    if (ADMIN_API_KEY) headers['x-api-key'] = ADMIN_API_KEY;
     const opts = {
       hostname: url.hostname,
       port: url.port,
       path: url.pathname + url.search,
       method,
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       timeout: 30000
     };
     const req = http.request(opts, (res) => {

@@ -165,8 +165,9 @@ router.post('/import-text', requireAdmin, express.json(), (req, res) => {
 /**
  * GET /api/terapeak/datasets
  * List all imported Terapeak datasets.
+ * Admin-only: dataset list reveals operator research backlog and import cadence.
  */
-router.get('/datasets', (_req, res) => {
+router.get('/datasets', requireAdmin, (_req, res) => {
   const datasets = terapeakService.listDatasets();
   res.json({ datasets });
 });
@@ -220,8 +221,10 @@ router.delete('/datasets', requireAdmin, (_req, res) => {
 /**
  * GET /api/terapeak/quota
  * Get current daily quota status.
+ * Admin-only: exposes internal operational state (today's usage, daily limit,
+ * previous-day stats). Not useful to end users.
  */
-router.get('/quota', (_req, res) => {
+router.get('/quota', requireAdmin, (_req, res) => {
   res.json(quotaService.getStatus());
 });
 
