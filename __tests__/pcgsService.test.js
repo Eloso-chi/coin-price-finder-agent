@@ -173,6 +173,31 @@ describe('resolveFromDescription', () => {
   });
 });
 
+describe('parseDescription - fractional word weights', () => {
+  test('parses half oz as 0.5', () => {
+    const parsed = pcgsService.parseDescription('2022 mexico half oz gold libertad');
+    expect(parsed.weight).toBe(0.5);
+    expect(parsed.weightRaw).toBe('half oz');
+  });
+
+  test('parses tenth oz as 0.1', () => {
+    const parsed = pcgsService.parseDescription('2020 mexico tenth oz silver libertad proof');
+    expect(parsed.weight).toBe(0.1);
+    expect(parsed.weightRaw).toBe('tenth oz');
+  });
+
+  test('parses twentieth oz as 0.05', () => {
+    const parsed = pcgsService.parseDescription('2023 mexico twentieth oz gold libertad');
+    expect(parsed.weight).toBe(0.05);
+    expect(parsed.weightRaw).toBe('twentieth oz');
+  });
+
+  test('does not treat half dollar as a weight', () => {
+    const parsed = pcgsService.parseDescription('1964 Kennedy half dollar');
+    expect(parsed.weight).toBeUndefined();
+  });
+});
+
 describe('_mapResponse internals (via lookupByCert)', () => {
   test('handles empty/null PCGS response', async () => {
     axios.get.mockResolvedValueOnce({ data: null, headers: {} });
