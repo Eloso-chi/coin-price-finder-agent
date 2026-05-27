@@ -175,6 +175,67 @@ describe('fetchSoldComps — Terapeak tier', () => {
     expect(axios.get).not.toHaveBeenCalled();
     expect(axios.post).not.toHaveBeenCalled();
   });
+
+  test('rejects raw and graded non-proof comps when isProof=true (strike split)', async () => {
+    // Mix: 2 raw BU + 2 graded MS70 (non-proof) + 3 proof comps.
+    // Note: classifyGradeType falls through to title regex when no conditionId
+    // is present, so titles are what tag a comp as 'proof' here.
+    terapeakService.lookupComps.mockReturnValue({
+      searchTerm: '2024 American Silver Eagle Proof',
+      lastImport: '2026-05-26',
+      comps: [
+        { title: '2024 American Silver Eagle BU',           totalUsd: 32,  soldDate: '2026-05-01', conditionId: '4000', _source: 'terapeak' },
+        { title: '2024 American Silver Eagle 1oz BU',       totalUsd: 33,  soldDate: '2026-05-02', conditionId: '4000', _source: 'terapeak' },
+        { title: '2024 American Silver Eagle PCGS MS70',    totalUsd: 95,  soldDate: '2026-05-03', conditionId: '2000', _source: 'terapeak' },
+        { title: '2024 American Silver Eagle NGC MS70',     totalUsd: 92,  soldDate: '2026-05-04', conditionId: '2000', _source: 'terapeak' },
+        { title: '2024 American Silver Eagle Proof',        totalUsd: 70,  soldDate: '2026-05-05', conditionId: '4000', _source: 'terapeak' },
+        { title: '2024 American Silver Eagle Proof OGP',    totalUsd: 72,  soldDate: '2026-05-06', conditionId: '3000', _source: 'terapeak' },
+        { title: '2024 American Silver Eagle Proof PCGS PF70',  totalUsd: 110, soldDate: '2026-05-07', conditionId: '2000', _source: 'terapeak' },
+      ]
+    });
+
+    const result = await ebayService.fetchSoldComps('2024 American Silver Eagle Proof', {}, {
+      year: 2024,
+      series: 'American Silver Eagle',
+      isProof: true,
+    });
+
+    expect(result.apiUsed).toBe('terapeak');
+    expect(result.us.comps.length).toBe(3);
+    expect(result.us.comps.every(c => /\bproof\b/i.test(c.title))).toBe(true);
+    expect(result.us.comps.some(c => /\bBU\b/.test(c.title))).toBe(false);
+    expect(result.us.comps.some(c => /MS70/.test(c.title))).toBe(false);
+  });
+
+  test('strike split beats grade split when both isProof and grade are set', async () => {
+    // expected: { isProof: true, grade: 'MS65' } -- proof wins; MS65 graded
+    // non-proof comps must be excluded.
+    terapeakService.lookupComps.mockReturnValue({
+      searchTerm: '2024 American Silver Eagle Proof MS65',
+      lastImport: '2026-05-26',
+      comps: [
+        { title: '2024 American Silver Eagle PCGS MS65',       totalUsd: 60, soldDate: '2026-05-01', conditionId: '2000', _source: 'terapeak' },
+        { title: '2024 American Silver Eagle NGC MS65',        totalUsd: 62, soldDate: '2026-05-02', conditionId: '2000', _source: 'terapeak' },
+        { title: '2024 American Silver Eagle BU',              totalUsd: 30, soldDate: '2026-05-03', conditionId: '4000', _source: 'terapeak' },
+        { title: '2024 American Silver Eagle Proof PCGS PR69', totalUsd: 95, soldDate: '2026-05-04', conditionId: '2000', _source: 'terapeak' },
+        { title: '2024 American Silver Eagle Proof NGC PF70',  totalUsd: 110, soldDate: '2026-05-05', conditionId: '2000', _source: 'terapeak' },
+        { title: '2024 American Silver Eagle Proof OGP',       totalUsd: 80, soldDate: '2026-05-06', conditionId: '3000', _source: 'terapeak' },
+        { title: '2024 American Silver Eagle Proof',           totalUsd: 78, soldDate: '2026-05-07', conditionId: '4000', _source: 'terapeak' },
+        { title: '2024 American Silver Eagle Proof Mint Box',  totalUsd: 82, soldDate: '2026-05-08', conditionId: '4000', _source: 'terapeak' },
+      ]
+    });
+
+    const result = await ebayService.fetchSoldComps('2024 American Silver Eagle Proof MS65', {}, {
+      year: 2024,
+      series: 'American Silver Eagle',
+      isProof: true,
+      grade: 'MS65',
+    });
+
+    expect(result.apiUsed).toBe('terapeak');
+    expect(result.us.comps.every(c => /\bproof\b/i.test(c.title))).toBe(true);
+    expect(result.us.comps.some(c => /MS65/.test(c.title) && !/proof/i.test(c.title))).toBe(false);
+  });
 });
 
 // ═════════════════════════════════════════════════════════════

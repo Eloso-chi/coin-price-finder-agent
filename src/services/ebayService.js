@@ -1340,7 +1340,7 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
   if (terapeakData && terapeakData.comps && terapeakData.comps.length > 0) {
     let tpComps = terapeakData.comps;
 
-    // ── Grade-type pool split: use only the matching pool ──
+    // ── Strike & grade-type pool split: use only the matching pool ──
     // Split by user intent in this order:
     //  1) Strike type (proof vs non-proof), then
     //  2) Certification (graded vs raw)
