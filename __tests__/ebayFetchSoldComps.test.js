@@ -149,6 +149,32 @@ describe('fetchSoldComps — Terapeak tier', () => {
     expect(result.apiUsed).toContain('finding');
     expect(result.us.comps.length).toBeGreaterThanOrEqual(1);
   });
+
+  test('uses proof pool when proof intent is set without explicit grade', async () => {
+    terapeakService.lookupComps.mockReturnValue({
+      searchTerm: '2023 Reverse Proof Morgan Silver Dollar',
+      lastImport: '2026-05-26',
+      comps: [
+        { title: '2023 Reverse Proof Morgan Silver Dollar', totalUsd: 190, soldDate: '2026-05-01', conditionId: '4000', _source: 'terapeak' },
+        { title: '2023 Reverse Proof Morgan Silver Dollar OGP', totalUsd: 185, soldDate: '2026-05-02', conditionId: '3000', _source: 'terapeak' },
+        { title: '2023 Reverse Proof Morgan Silver Dollar NGC PF70', totalUsd: 235, soldDate: '2026-05-03', conditionId: '2000', _source: 'terapeak' },
+        { title: '2023 Morgan Silver Dollar BU', totalUsd: 95, soldDate: '2026-05-04', conditionId: '4000', _source: 'terapeak' },
+        { title: '2023 Morgan Silver Dollar PCGS MS70', totalUsd: 140, soldDate: '2026-05-05', conditionId: '2000', _source: 'terapeak' },
+      ]
+    });
+
+    const result = await ebayService.fetchSoldComps('2023 Reverse Proof Morgan Silver Dollar', {}, {
+      year: 2023,
+      series: 'Morgan Silver Dollar',
+      isProof: true,
+    });
+
+    expect(result.apiUsed).toBe('terapeak');
+    expect(result.us.comps.length).toBeGreaterThanOrEqual(3);
+    expect(result.us.comps.every(c => /\bproof\b/i.test(c.title))).toBe(true);
+    expect(axios.get).not.toHaveBeenCalled();
+    expect(axios.post).not.toHaveBeenCalled();
+  });
 });
 
 // ═════════════════════════════════════════════════════════════

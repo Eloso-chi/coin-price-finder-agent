@@ -1341,19 +1341,23 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
     let tpComps = terapeakData.comps;
 
     // ── Grade-type pool split: use only the matching pool ──
-    // Graded coins (PCGS MS65, NGC AU58) sell for very different prices than
-    // raw coins.  Mixing them distorts FMV.  Split into separate pools and
-    // use only the pool that matches the user's query.
+    // Split by user intent in this order:
+    //  1) Strike type (proof vs non-proof), then
+    //  2) Certification (graded vs raw)
+    // This avoids dropping proof comps when the user asked for proof but did
+    // not specify a slab grade.
     // Always re-classify: stored gradeType may be stale (pre-proof-split imports).
+    const wantsProof = !!expected.isProof;
     const wantsGraded = !!expected.grade;
+    const targetPool = wantsProof ? 'proof' : (wantsGraded ? 'graded' : 'raw');
     const beforeSplit = tpComps.length;
     tpComps = tpComps.filter(c => {
       const gt = classifyGradeType(c);
       c.gradeType = gt; // update stored value for downstream consumers
-      return wantsGraded ? gt === 'graded' : gt === 'raw';
+      return gt === targetPool;
     });
     if (tpComps.length !== beforeSplit) {
-      console.log(`[ebay] Terapeak grade-split: ${beforeSplit} → ${tpComps.length} (${wantsGraded ? 'graded' : 'raw'} only)`);
+      console.log(`[ebay] Terapeak grade-split: ${beforeSplit} → ${tpComps.length} (${targetPool} only)`);
     }
 
     // Filter by time window if soldDate available
