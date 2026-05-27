@@ -1133,7 +1133,7 @@
     <button class="tab-btn" role="tab" id="tab-price" aria-controls="panel-price" aria-selected="true" tabindex="0">Price Discovery</button>
     <button class="tab-btn" role="tab" id="tab-melt" aria-controls="panel-melt" aria-selected="false" tabindex="-1">Melt Calculator</button>
     <button class="tab-btn" role="tab" id="tab-tracker" aria-controls="panel-tracker" aria-selected="false" tabindex="-1">Live eBay Tracker</button>
-    <button class="tab-btn" role="tab" id="tab-terapeak" aria-controls="panel-terapeak" aria-selected="false" tabindex="-1">Sold Data</button>
+    <button class="tab-btn" role="tab" id="tab-terapeak" aria-controls="panel-terapeak" aria-selected="false" tabindex="-1" style="display:none">Sold Data</button>
     <button class="tab-btn" role="tab" id="tab-mycoins" aria-controls="panel-mycoins" aria-selected="false" tabindex="-1">My Coins</button>
     <button class="tab-btn" role="tab" id="tab-history" aria-controls="panel-history" aria-selected="false" tabindex="-1">Price History</button>
     <button class="tab-btn" role="tab" id="tab-bulk" aria-controls="panel-bulk" aria-selected="false" tabindex="-1">Lot Evaluator</button>
@@ -5548,8 +5548,19 @@ Silver Libertad 1 oz Proof"></textarea>
     },
 
     async _loadDatasets() {
+      // Sold Data is admin-only. Without an admin key, render a sign-in nudge
+      // instead of pinging the (now-gated) endpoint.
+      const apiKey = sessionStorage.getItem('adminApiKey') || '';
+      if (!apiKey) {
+        this.els.list.innerHTML = '<p style="color:var(--text-muted);font-size:0.82rem">Sign in via the <a href="#admin" style="color:var(--accent)">Admin tab</a> to view imported datasets.</p>';
+        return;
+      }
       try {
-        const resp = await fetch('/api/terapeak/datasets');
+        const resp = await fetch('/api/terapeak/datasets', { headers: { 'x-api-key': apiKey } });
+        if (resp.status === 401) {
+          this.els.list.innerHTML = '<p style="color:var(--text-muted);font-size:0.82rem">Admin session expired. Sign in via the <a href="#admin" style="color:var(--accent)">Admin tab</a>.</p>';
+          return;
+        }
         const data = await resp.json();
         const datasets = data.datasets || [];
 
@@ -5579,8 +5590,12 @@ Silver Libertad 1 oz Proof"></textarea>
 
     async _deleteDataset(key) {
       if (!(await _darkConfirm('Delete "' + key + '" terapeak data?'))) return;
+      const apiKey = sessionStorage.getItem('adminApiKey') || '';
       try {
-        await fetch('/api/terapeak/datasets/' + encodeURIComponent(key), { method: 'DELETE' });
+        await fetch('/api/terapeak/datasets/' + encodeURIComponent(key), {
+          method: 'DELETE',
+          headers: apiKey ? { 'x-api-key': apiKey } : {}
+        });
         this._loadDatasets();
       } catch (err) {
         _darkAlert('Delete failed: ' + err.message);
@@ -5620,8 +5635,13 @@ Silver Libertad 1 oz Proof"></textarea>
     },
 
     async refresh() {
+      // Quota is admin-only. Silently skip when no admin key is present so
+      // non-admin loads don't churn the (gated) endpoint.
+      const apiKey = sessionStorage.getItem('adminApiKey') || '';
+      if (!apiKey) return;
       try {
-        const resp = await fetch('/api/terapeak/quota');
+        const resp = await fetch('/api/terapeak/quota', { headers: { 'x-api-key': apiKey } });
+        if (resp.status === 401) return;
         const data = await resp.json();
         this._render(data);
       } catch (err) {
@@ -5678,7 +5698,7 @@ Silver Libertad 1 oz Proof"></textarea>
       try {
         const resp = await fetch('/api/terapeak/quota/record', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'x-api-key': sessionStorage.getItem('adminApiKey') || '' },
           body: JSON.stringify({ count, note })
         });
         const data = await resp.json();
@@ -5696,7 +5716,10 @@ Silver Libertad 1 oz Proof"></textarea>
     async _resetCounter() {
       if (!(await _darkConfirm('Reset today\'s Terapeak query counter to 0?'))) return;
       try {
-        await fetch('/api/terapeak/quota/reset', { method: 'POST' });
+        await fetch('/api/terapeak/quota/reset', {
+          method: 'POST',
+          headers: { 'x-api-key': sessionStorage.getItem('adminApiKey') || '' }
+        });
         this.refresh();
       } catch (err) {
         _darkAlert('Reset failed: ' + err.message);
@@ -6978,6 +7001,7 @@ Silver Libertad 1 oz Proof"></textarea>
   (function initAdminPanel() {
     var KEY_STORAGE = 'adminApiKey';
     var tabBtn     = document.getElementById('tab-admin');
+    var teakTabBtn = document.getElementById('tab-terapeak');
     var gate       = document.getElementById('admin-key-gate');
     var content    = document.getElementById('admin-content');
     var userInput  = document.getElementById('admin-user-input');
@@ -7001,21 +7025,24 @@ Silver Libertad 1 oz Proof"></textarea>
 
     function _esc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-    // Show / hide the admin tab button based on whether a key is stored
+    // Show / hide the admin + sold-data tab buttons based on whether a key is stored
     function _syncTabVisibility() {
       if (_apiKey()) {
         tabBtn.style.display = '';
+        if (teakTabBtn) teakTabBtn.style.display = '';
         gate.style.display = 'none';
         content.style.display = '';
       } else {
+        if (teakTabBtn) teakTabBtn.style.display = 'none';
         gate.style.display = '';
         content.style.display = 'none';
       }
     }
 
-    // If a key was stored from a previous page load in this session, show tab
+    // If a key was stored from a previous page load in this session, show tabs
     if (_apiKey()) {
       tabBtn.style.display = '';
+      if (teakTabBtn) teakTabBtn.style.display = '';
     }
 
     // Allow navigating to #admin to reveal the tab (for initial access)
@@ -7045,6 +7072,9 @@ Silver Libertad 1 oz Proof"></textarea>
         keyInput.value = '';
         _syncTabVisibility();
         _loadAll();
+        // Refresh Sold Data tab now that we have an admin key
+        if (typeof TerapeakImporter !== 'undefined') TerapeakImporter._loadDatasets();
+        if (typeof TerapeakQuota !== 'undefined') TerapeakQuota.refresh();
       } catch (err) {
         keyError.textContent = 'Invalid credentials.';
         keyError.style.display = 'block';
@@ -7059,6 +7089,7 @@ Silver Libertad 1 oz Proof"></textarea>
     lockBtn.addEventListener('click', function() {
       sessionStorage.removeItem(KEY_STORAGE);
       tabBtn.style.display = 'none';
+      if (teakTabBtn) teakTabBtn.style.display = 'none';
       gate.style.display = '';
       content.style.display = 'none';
       // Switch away from admin tab

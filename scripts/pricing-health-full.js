@@ -35,15 +35,37 @@ const CONCURRENCY = args.includes('--concurrency')
   : (isFullRun ? 10 : 5);
 
 // -- HTTP helper --
+// Sends x-api-key ONLY to admin-gated paths so the credential is not broadcast
+// to non-admin endpoints, reverse proxies, or log aggregators.
+const ADMIN_API_KEY = process.env.ADMIN_API_KEY || '';
+// Paths (prefix match) that require the admin key. Keep tight.
+const ADMIN_PATH_PREFIXES = [
+  '/api/terapeak/datasets',
+  '/api/terapeak/quota',
+  '/api/terapeak/aggregation-status',
+  '/api/terapeak/scrape-status',
+  '/api/terapeak/purge-stale-csvs',
+  '/api/terapeak/reimport',
+  '/api/terapeak/backfill-aggregation-meta',
+  '/api/terapeak/import',
+  '/api/terapeak/report-no-data',
+  '/api/admin',
+  '/api/clear-cache'
+];
+function isAdminPath(pathname) {
+  return ADMIN_PATH_PREFIXES.some(p => pathname === p || pathname.startsWith(p + '/') || pathname.startsWith(p + '?'));
+}
 function httpRequest(method, urlPath, body) {
   return new Promise((resolve, reject) => {
     const url = new URL(urlPath, BASE);
+    const headers = { 'Content-Type': 'application/json' };
+    if (ADMIN_API_KEY && isAdminPath(url.pathname)) headers['x-api-key'] = ADMIN_API_KEY;
     const opts = {
       hostname: url.hostname,
       port: url.port,
       path: url.pathname + url.search,
       method,
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       timeout: 30000
     };
     const req = http.request(opts, (res) => {
