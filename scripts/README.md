@@ -38,6 +38,7 @@ Operational scripts for data collection, migration, and maintenance. Most script
 | Script | Purpose | Usage |
 |---|---|---|
 | `pricing-health-full.js` | Full-dataset pricing health audit | `node scripts/pricing-health-full.js --full` |
+| `lot-estimator-health.js` | Randomized lot parity + consistency health audit (bulk vs individual) | `node scripts/lot-estimator-health.js --lots 8 --seed 18652` |
 | `generate-freshness-report.js` | Dataset freshness triage (5-state + recently-confirmed-stale split) | `node scripts/generate-freshness-report.js [--summary] [--batch N]` |
 | `greysheet-refresh.js` | Bulk Greysheet price snapshot collector | `node scripts/greysheet-refresh.js` |
 | `upload-csvs-to-blob.js` | Upload local Terapeak CSVs to Azure Blob | `node scripts/upload-csvs-to-blob.js [folderPath]` |
@@ -86,6 +87,16 @@ python3 scripts/sales-aggregator.py
 node scripts/pricing-health-full.js --full --out health-report.json
 # Or filter to specific series:
 node scripts/pricing-health-full.js --filter "morgan" --concurrency 4
+```
+
+### Lot estimator health
+
+```bash
+# Randomized bulk-vs-individual lot parity checks
+node scripts/lot-estimator-health.js --lots 8 --min-size 5 --max-size 10 --seed 18652
+
+# Write report to a custom file and run extra repeat checks
+node scripts/lot-estimator-health.js --lots 12 --repeat 3 --out cache/lot-health.json
 ```
 
 ### Freshness triage report
