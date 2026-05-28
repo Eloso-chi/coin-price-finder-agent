@@ -23,10 +23,28 @@ const crypto = require('crypto');
 const cosmos = require('../utils/cosmosClient');
 
 const CONTAINER = 'admin-audit';
+const PARTITION_KEY_PATH = '/actorUsername';
 
 // Once-per-process flag so we don't spam logs when the audit container hasn't
 // been provisioned yet on a fresh deployment.
 let _cosmosWriteWarned = false;
+
+// One-time async container provisioning. We kick this off lazily on the first
+// audit() call so module load stays synchronous and harmless when Cosmos is
+// disabled. Subsequent audits await the same promise -- so we never race
+// container creation against the first .items.create() call.
+let _ensurePromise = null;
+function _ensureContainer() {
+  if (!cosmos.isEnabled()) return Promise.resolve();
+  if (_ensurePromise) return _ensurePromise;
+  _ensurePromise = cosmos.ensureContainer(CONTAINER, PARTITION_KEY_PATH)
+    .catch((err) => {
+      // Reset so a transient failure can be retried by the next caller.
+      _ensurePromise = null;
+      throw err;
+    });
+  return _ensurePromise;
+}
 
 /**
  * Emit an audit event.
@@ -66,11 +84,12 @@ async function audit(ev) {
     // ignore -- console should not throw
   }
 
-  // Write to Cosmos best-effort. Never throw to caller. To avoid log spam on
-  // deployments that haven't provisioned the `admin-audit` container yet, we
-  // only emit the warning once per process.
+  // Write to Cosmos best-effort. Never throw to caller. We lazily provision
+  // the container on first use so a fresh deployment doesn't require any
+  // portal click. If provisioning or write still fails, warn once and move on.
   if (cosmos.isEnabled()) {
     try {
+      await _ensureContainer();
       await cosmos.container(CONTAINER).items.create(record);
     } catch (err) {
       if (!_cosmosWriteWarned) {

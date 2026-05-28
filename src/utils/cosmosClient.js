@@ -33,4 +33,21 @@ function container(name) {
   return _db.container(name);
 }
 
-module.exports = { isEnabled, container };
+/**
+ * Idempotently create a container. Safe to call on every process start --
+ * Cosmos returns the existing container if it already exists. Returns null
+ * (no-op) when Cosmos is not configured so callers do not need to gate.
+ * @param {string} id
+ * @param {string} partitionKeyPath  e.g. '/actorUsername'
+ * @returns {Promise<void>}
+ */
+async function ensureContainer(id, partitionKeyPath) {
+  if (!_enabled && !_client) init();
+  if (!_db) return;
+  await _db.containers.createIfNotExists({
+    id,
+    partitionKey: { paths: [partitionKeyPath] },
+  });
+}
+
+module.exports = { isEnabled, container, ensureContainer };
