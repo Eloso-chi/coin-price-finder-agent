@@ -23,11 +23,25 @@ const crypto = require('crypto');
 const cosmos = require('../utils/cosmosClient');
 
 const CONTAINER = 'admin-audit';
+// Partition key choice trade-off:
+//   `/actorUsername` makes "all actions by user X" a single-partition query,
+//   which is the common admin/forensics read pattern. The buckets
+//   `'admin-key'` and `'anonymous'` absorb shared-key and failed-signin
+//   events respectively -- both are bounded by admin event volume and a
+//   container-level TTL (configure separately) keeps logical partitions
+//   well under Cosmos's 20 GB cap. Time-range queries are cross-partition,
+//   which is fine at this write rate.
 const PARTITION_KEY_PATH = '/actorUsername';
 
 // Once-per-process flag so we don't spam logs when the audit container hasn't
 // been provisioned yet on a fresh deployment.
 let _cosmosWriteWarned = false;
+
+// HTTP status codes that indicate a permanent misconfiguration (RBAC, bad
+// account, missing parent database, partition-key conflict). Treat as a hard
+// stop -- no value in re-attempting provisioning every audit forever.
+const _PERMANENT_COSMOS_ERRORS = new Set([401, 403, 404, 409]);
+let _provisioningDisabled = false;
 
 // One-time async container provisioning. We kick this off lazily on the first
 // audit() call so module load stays synchronous and harmless when Cosmos is
@@ -35,11 +49,18 @@ let _cosmosWriteWarned = false;
 // container creation against the first .items.create() call.
 let _ensurePromise = null;
 function _ensureContainer() {
-  if (!cosmos.isEnabled()) return Promise.resolve();
+  if (!cosmos.isEnabled() || _provisioningDisabled) return Promise.resolve();
   if (_ensurePromise) return _ensurePromise;
   _ensurePromise = cosmos.ensureContainer(CONTAINER, PARTITION_KEY_PATH)
     .catch((err) => {
-      // Reset so a transient failure can be retried by the next caller.
+      // Permanent errors latch the disabled flag so subsequent audits
+      // short-circuit both the provisioning round-trip and the items.create.
+      // Transient errors (429/503/network) clear the promise so the next
+      // caller retries -- with a small risk of a thundering-herd burst,
+      // which is bounded by admin write rate.
+      if (_PERMANENT_COSMOS_ERRORS.has(err && err.code)) {
+        _provisioningDisabled = true;
+      }
       _ensurePromise = null;
       throw err;
     });
@@ -87,11 +108,14 @@ async function audit(ev) {
   // Write to Cosmos best-effort. Never throw to caller. We lazily provision
   // the container on first use so a fresh deployment doesn't require any
   // portal click. If provisioning or write still fails, warn once and move on.
-  if (cosmos.isEnabled()) {
+  if (cosmos.isEnabled() && !_provisioningDisabled) {
     try {
       await _ensureContainer();
       await cosmos.container(CONTAINER).items.create(record);
     } catch (err) {
+      if (_PERMANENT_COSMOS_ERRORS.has(err && err.code)) {
+        _provisioningDisabled = true;
+      }
       if (!_cosmosWriteWarned) {
         _cosmosWriteWarned = true;
         console.warn(`[admin-audit] cosmos write failed (will not warn again this process): ${err.code || err.message}`);
@@ -109,4 +133,12 @@ function _extractIp(req) {
   return req.ip || null;
 }
 
-module.exports = { audit };
+// Test helper: reset module-scoped state so each test starts from a clean
+// slate. Not part of the public API -- exposed under a leading underscore.
+function _resetForTests() {
+  _cosmosWriteWarned = false;
+  _provisioningDisabled = false;
+  _ensurePromise = null;
+}
+
+module.exports = { audit, _resetForTests };
