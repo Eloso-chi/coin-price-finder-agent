@@ -223,6 +223,53 @@ def human_idle(page):
         time.sleep(random.uniform(0.3, 0.8))
 
 
+# ── Smart render waits (#198) ───────────────────────────────
+# Replace blanket `time.sleep(3)` after page transitions with a selector-bounded
+# wait. We wait up to `timeout_ms` for the relevant DOM element to appear; if it
+# arrives early we proceed immediately, otherwise we fall back to the original
+# fixed sleep so behavior is never worse than before. Net effect: faster on the
+# common case (selector appears in <1s), identical worst-case on bot-throttled
+# or slow-loading runs.
+
+# Terapeak results table marker (set in EXTRACT_TABLE_JS); also covers the
+# "no results" empty state so we don't sleep needlessly when a query returns 0.
+_RESULTS_READY_SELECTOR = (
+    'tr.research-table-header, '
+    '[data-testid="no-results"], '
+    'div.research-no-results, '
+    '[class*="no-results"]'
+)
+
+# Research-page UI marker for post-goto session verification.
+_RESEARCH_PAGE_SELECTOR = (
+    'input[placeholder*="keyword"], '
+    'input[placeholder*="MPN"], '
+    '#researchKeywords'
+)
+
+
+def wait_for_results_render(page, timeout_ms=3000, fallback_seconds=3.0):
+    """Wait for the Terapeak results table (or no-results state) to render.
+    Returns True if the selector appeared; False if we fell back to sleep."""
+    try:
+        page.wait_for_selector(_RESULTS_READY_SELECTOR, timeout=timeout_ms, state="attached")
+        return True
+    except Exception:
+        time.sleep(fallback_seconds)
+        return False
+
+
+def wait_for_research_page(page, timeout_ms=3000, fallback_seconds=3.0):
+    """Wait for the Terapeak Research page UI (search input) to render after
+    a navigation. Used for post-goto session verification waits."""
+    try:
+        page.wait_for_selector(_RESEARCH_PAGE_SELECTOR, timeout=timeout_ms, state="attached")
+        return True
+    except Exception:
+        time.sleep(fallback_seconds)
+        return False
+
+
 # Characters near each key on a QWERTY keyboard for realistic typos
 _NEARBY_KEYS = {
     'a': 'sqwz', 'b': 'vghn', 'c': 'xdfv', 'd': 'sfecx', 'e': 'wrsdf',
@@ -660,7 +707,7 @@ def do_login():
         # Verify we're logged in by checking for the Research page
         print("Verifying login by navigating to Research tab...")
         page.goto(EBAY_RESEARCH_URL, wait_until="domcontentloaded")
-        time.sleep(3)
+        wait_for_research_page(page)  # #198: selector-bounded, sleep(3) fallback
 
         # Check if we landed on the research page or got redirected to login
         current_url = page.url
@@ -908,8 +955,8 @@ def do_search_and_export(page, search_term, download_dir):
     except PlaywrightTimeout:
         pass  # Continue anyway -- networkidle can be flaky
 
-    # Extra wait for Terapeak SPA to render results
-    time.sleep(3)
+    # Extra wait for Terapeak SPA to render results (#198: selector-bounded)
+    wait_for_results_render(page)
 
     # ── S0: Active Listings Guard (tab check) ──────────────────
     # When Terapeak has no sold results, eBay may auto-switch to
@@ -1411,7 +1458,7 @@ def do_export_run(args):
     page = launch_browser()
     print("Verifying session...")
     page.goto(EBAY_RESEARCH_URL, wait_until="domcontentloaded")
-    time.sleep(3)
+    wait_for_research_page(page)  # #198: selector-bounded, sleep(3) fallback
     verify_url = page.url
     print(f"  Verification URL: {verify_url}")
     DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True)

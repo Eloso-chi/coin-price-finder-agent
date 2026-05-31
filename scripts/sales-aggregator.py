@@ -97,6 +97,8 @@ get_search_terms = _mod.get_search_terms
 upload_csv = _mod.upload_csv
 upload_csv_async = _mod.upload_csv_async
 drain_upload = _mod.drain_upload
+wait_for_results_render = _mod.wait_for_results_render  # #198
+wait_for_research_page = _mod.wait_for_research_page    # #198
 
 # Browser recycle interval
 BROWSER_RECYCLE_EVERY = 80
@@ -164,6 +166,31 @@ _BARBER_NONHALF_RE = re.compile(r'\bbarber\b(?!.*\bhalf\b)', re.IGNORECASE)
 def is_barber_nonhalf_term(search_term):
     """Return True if the search term is a Barber quarter/dime/dollar (not half)."""
     return bool(_BARBER_NONHALF_RE.search(search_term))
+
+# ── Proof search-quality (#24) ──────────────────────────────
+# Raw-proof terms (e.g. "1986 Mexico 1oz Silver Libertad Proof") pull in too
+# many graded/slabbed listings, which dilutes the median price. Graded coins
+# are captured by their own grade-specific search terms instead, so we exclude
+# them from raw-proof queries.
+#
+# Mirrors PROOF_NEGATIVE_KEYWORDS in scripts/terapeak-export.py (kept in sync
+# so both the bulk export and the deep-paginated re-fetch behave the same).
+PROOF_NEGATIVE_KEYWORDS = " -NGC -PCGS -graded -slab -certified"
+_GRADE_SUFFIX_RE = re.compile(
+    r'\b(MS|PR|PF|SP|AU|XF|EF|VF|VG|AG|FR|PO)\s*\d{1,2}\+?\s*$',
+    re.IGNORECASE,
+)
+_PROOF_COIN_RE = re.compile(r'\bproof\b(?!\s*set)', re.IGNORECASE)
+
+
+def build_search_query(term):
+    """Augment a candidate term with proof-negative keywords when applicable.
+    Returns the original term unchanged for non-proof or already-graded terms,
+    and "Proof Set" (sealed government sets) is intentionally excluded."""
+    if _PROOF_COIN_RE.search(term) and not _GRADE_SUFFIX_RE.search(term):
+        return term + PROOF_NEGATIVE_KEYWORDS
+    return term
+
 
 # Default exclusions for deep-pagination candidate queries (S2a).
 # Drops datasets we already know aren't worth deep-paginating:
@@ -388,7 +415,7 @@ def ensure_environment():
         load_cookies(ctx)
         page = ctx.new_page()
         page.goto(EBAY_RESEARCH_URL, wait_until="domcontentloaded")
-        time.sleep(3)
+        wait_for_research_page(page)  # #198: selector-bounded, sleep(3) fallback
 
         if is_logged_in(page):
             print("  Session valid!")
@@ -623,7 +650,7 @@ def do_search_and_collect(page, search_term, download_dir, max_pages=2):
     except PlaywrightTimeout:
         pass
 
-    time.sleep(3)
+    wait_for_results_render(page)  # #198: selector-bounded, sleep(3) fallback
 
     # ── S0: Active Listings Guard (tab check) ──────────────────
     # When Terapeak has no sold results, eBay may auto-switch to
@@ -760,7 +787,7 @@ def do_search_and_collect(page, search_term, download_dir, max_pages=2):
         except PlaywrightTimeout:
             pass
 
-        time.sleep(3)
+        wait_for_results_render(page)  # #198: selector-bounded, sleep(3) fallback
 
         # Scroll to reveal results
         for _ in range(random.randint(2, 3)):
@@ -1060,7 +1087,7 @@ def do_page2_run(args):
     # Launch and verify session
     page = launch_browser()
     page.goto(EBAY_RESEARCH_URL, wait_until="domcontentloaded")
-    time.sleep(3)
+    wait_for_research_page(page)  # #198: selector-bounded, sleep(3) fallback
     page.screenshot(path=str(DOWNLOAD_DIR / "_debug_p2_verify.png"))
 
     print("Session valid. Starting page 2 enrichment...\n")
@@ -1102,8 +1129,12 @@ def do_page2_run(args):
         else:
             effective_max_pages = 2
 
+        # #24: For raw-proof terms, append negative keywords to exclude
+        # graded/slabbed listings (which are captured by their own searches).
+        search_query = build_search_query(term)
+
         try:
-            result = do_search_and_collect(page, term, DOWNLOAD_DIR, max_pages=effective_max_pages)
+            result = do_search_and_collect(page, search_query, DOWNLOAD_DIR, max_pages=effective_max_pages)
 
             # Bot detection
             if result == "BOT_BLOCKED":
