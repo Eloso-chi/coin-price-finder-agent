@@ -212,7 +212,7 @@ Fixed: `evaluateOneCoin()` in `bulkEvaluateService.js` now matches price discove
 
 ---
 
-### #202. Investigate Lot Evaluator Batch: Silver Libertad 1 oz (1985-2024) [MEDIUM -- PROPOSED]
+### ~~#202. Investigate Lot Evaluator Batch: Silver Libertad 1 oz (1985-2024) [DIAGNOSTIC SCRIPT SHIPPED]~~
 
 **Problem:** A specific Silver Libertad batch submitted to Lot Evaluator needs investigation for pricing consistency, comp utilization, and potential attrition/filtering anomalies.
 
@@ -242,7 +242,7 @@ Fixed: `evaluateOneCoin()` in `bulkEvaluateService.js` now matches price discove
 
 **Files:** `src/services/bulkEvaluateService.js`, `src/routes/bulkEvaluateRoute.js`, `src/services/ebayService.js`, `src/services/valuationService.js`
 
-**Status notes:** Added May 26, 2026 per user-reported Lot Evaluator batch.
+**Status notes:** Added May 26, 2026 per user-reported Lot Evaluator batch. Diagnostic script shipped at `scripts/investigate-libertad-batch.js` — re-runs the 13-coin batch via `/api/price`, cross-checks each row against the dealer-premium band from #196, surfaces low-data/thin-comp/high-attrition rows, and flags duplicate-query FMV instability (>5% spread). Run with the server up: `node scripts/investigate-libertad-batch.js [--out cache/libertad-202.json]`. Findings will be appended when the script is executed against a live server.
 
 ---
 
@@ -776,11 +776,9 @@ Current repo state: 63 total PRs, **0 open**. Item was stale-imported; root caus
 
 ---
 
-### 218. verifyTokenStrict TTL Cache [P3]
+### ~~218. verifyTokenStrict TTL Cache [DONE]~~
 
-**Problem:** Strict admin verification hits Cosmos on every admin request.
-
-**Fix:** Small in-memory LRU keyed by username with ~5s TTL. Must invalidate on grant/revoke/changePassword/resetPassword/deleteUser. Gate behind perf observation first.
+**Resolution:** Added module-level `_strictCache` (Map keyed by username) with default 5s TTL, env-tunable via `STRICT_TOKEN_CACHE_TTL_MS` (set 0 to disable). Fast-path lookup in `verifyTokenStrict` skips the Cosmos/file-store `getUser` round-trip when the cached `(userId, tokenVersion, isAdmin)` matches the JWT. Cache is invalidated on every `_saveUser` (covers grantAdmin/revokeAdmin/changePassword/resetPassword) and on `deleteUser`. Tested in `__tests__/authServiceStrictCache.test.js` (9 tests covering population, all invalidation hooks, userId-mismatch rejection, TTL=0 disable, and TTL expiry re-population).
 
 **Source:** PR #60 deferred S3#5
 
