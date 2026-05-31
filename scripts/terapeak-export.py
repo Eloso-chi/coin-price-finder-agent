@@ -1266,53 +1266,50 @@ def do_export_run(args):
         terms = stale_terms
         print(f"Refresh mode (max-age {args.max_age}d): {len(terms)} stale, skipping {before - len(terms)} fresh")
 
-    # Apply --min-comps filter: skip low-signal datasets using terapeak-meta.json
-    if args.min_comps > 0:
+    # Apply terapeak-meta.json based filters (--min-comps, --exclude-low-volume).
+    # Both filters read the same sidecar; load it once and share the lookup helper.
+    if args.min_comps > 0 or args.exclude_low_volume:
         meta_path = PROJECT_DIR / "data" / "terapeak-meta.json"
         if meta_path.exists():
             import json as _json
             with open(meta_path) as f:
                 _meta = _json.load(f)
-            before = len(terms)
-            low_signal_skipped = 0
-            filtered_terms = []
-            for t in terms:
-                # Look up comp count by search term (key in meta is lowercased)
-                term_key = t['term'].lower() if 'term' in t else t.get('search_term', '').lower()
-                entry = _meta.get(term_key) or _meta.get(t.get('term', ''))
-                comp_count = (entry.get('compCount', 0) or 0) if entry else 0
-                if comp_count >= args.min_comps:
-                    filtered_terms.append(t)
-                else:
-                    low_signal_skipped += 1
-            terms = filtered_terms
-            print(f"Min-comps filter ({args.min_comps}): skipped {low_signal_skipped} low-signal datasets")
-        else:
-            print(f"WARNING: --min-comps specified but {meta_path} not found, skipping filter")
 
-    # Apply --exclude-low-volume filter: skip datasets stamped by build-evidence-index.js
-    # as is_low_volume_candidate (durable historical tag, independent of compCount snapshot).
-    if args.exclude_low_volume:
-        meta_path = PROJECT_DIR / "data" / "terapeak-meta.json"
-        if meta_path.exists():
-            import json as _json
-            with open(meta_path) as f:
-                _meta = _json.load(f)
-            before = len(terms)
-            low_volume_skipped = 0
-            filtered_terms = []
-            for t in terms:
-                term_key = t['term'].lower() if 'term' in t else t.get('search_term', '').lower()
-                entry = _meta.get(term_key) or _meta.get(t.get('term', ''))
-                ident = (entry or {}).get('identifiers') or {}
-                if ident.get('is_low_volume_candidate'):
-                    low_volume_skipped += 1
-                else:
-                    filtered_terms.append(t)
-            terms = filtered_terms
-            print(f"Exclude-low-volume filter: skipped {low_volume_skipped} low-volume datasets (durable identifiers)")
+            def _meta_entry(t):
+                # Keys in terapeak-meta.json are lowercased search terms.
+                term = t.get('term') or t.get('search_term', '')
+                return _meta.get(term.lower()) or _meta.get(term)
+
+            def _apply_meta_filter(terms, predicate, label):
+                """Drop terms where predicate(entry) returns True. Logs skip count."""
+                kept = []
+                skipped = 0
+                for t in terms:
+                    if predicate(_meta_entry(t)):
+                        skipped += 1
+                    else:
+                        kept.append(t)
+                print(f"{label}: skipped {skipped} datasets")
+                return kept
+
+            if args.min_comps > 0:
+                terms = _apply_meta_filter(
+                    terms,
+                    lambda entry: ((entry or {}).get('compCount') or 0) < args.min_comps,
+                    f"Min-comps filter ({args.min_comps})",
+                )
+
+            if args.exclude_low_volume:
+                terms = _apply_meta_filter(
+                    terms,
+                    lambda entry: bool(((entry or {}).get('identifiers') or {}).get('is_low_volume_candidate')),
+                    "Exclude-low-volume filter (durable identifiers)",
+                )
         else:
-            print(f"WARNING: --exclude-low-volume specified but {meta_path} not found, skipping filter")
+            if args.min_comps > 0:
+                print(f"WARNING: --min-comps specified but {meta_path} not found, skipping filter")
+            if args.exclude_low_volume:
+                print(f"WARNING: --exclude-low-volume specified but {meta_path} not found, skipping filter")
 
     # Priority sort: thin-data CSVs first (fewest existing rows)
     if args.priority:
