@@ -1290,6 +1290,30 @@ def do_export_run(args):
         else:
             print(f"WARNING: --min-comps specified but {meta_path} not found, skipping filter")
 
+    # Apply --exclude-low-volume filter: skip datasets stamped by build-evidence-index.js
+    # as is_low_volume_candidate (durable historical tag, independent of compCount snapshot).
+    if args.exclude_low_volume:
+        meta_path = PROJECT_DIR / "data" / "terapeak-meta.json"
+        if meta_path.exists():
+            import json as _json
+            with open(meta_path) as f:
+                _meta = _json.load(f)
+            before = len(terms)
+            low_volume_skipped = 0
+            filtered_terms = []
+            for t in terms:
+                term_key = t['term'].lower() if 'term' in t else t.get('search_term', '').lower()
+                entry = _meta.get(term_key) or _meta.get(t.get('term', ''))
+                ident = (entry or {}).get('identifiers') or {}
+                if ident.get('is_low_volume_candidate'):
+                    low_volume_skipped += 1
+                else:
+                    filtered_terms.append(t)
+            terms = filtered_terms
+            print(f"Exclude-low-volume filter: skipped {low_volume_skipped} low-volume datasets (durable identifiers)")
+        else:
+            print(f"WARNING: --exclude-low-volume specified but {meta_path} not found, skipping filter")
+
     # Priority sort: thin-data CSVs first (fewest existing rows)
     if args.priority:
         def _csv_rows(t):
@@ -1588,6 +1612,7 @@ Examples:
     parser.add_argument("--refresh", action="store_true", help="Refresh mode: only process coins whose CSV is older than --max-age days")
     parser.add_argument("--max-age", type=int, default=14, metavar="DAYS", help="Max CSV age in days for --refresh mode (default: 14)")
     parser.add_argument("--min-comps", type=int, default=0, metavar="N", help="Skip datasets with fewer than N comps in terapeak-meta.json (excludes low-signal coins, e.g. --min-comps 10)")
+    parser.add_argument("--exclude-low-volume", action="store_true", help="Skip datasets tagged identifiers.is_low_volume_candidate in terapeak-meta.json (durable tag from build-evidence-index.js)")
     parser.add_argument("--filter", type=str, help="Only export terms matching this regex")
     parser.add_argument("--limit", type=int, help="Max number of coins to export")
     parser.add_argument("--priority", action="store_true", help="Sort by data quality: thin-data coins first")
