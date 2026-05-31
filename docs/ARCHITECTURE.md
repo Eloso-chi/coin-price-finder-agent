@@ -56,6 +56,7 @@ server.js                              Express entry point (port 3000)
 │   ├─ halfDollarSeries.js             Half Dollar design eras + year-based resolver
 │   ├─ constants.js                    Zodiac cycle + Perth Lunar series helpers
 │   ├─ barSeries.js                    Bar brand/series data (7 brands, 40+ series) + detection helpers
+│   ├─ dealerPremiums.js               Dealer premium benchmark ranges by bullion series (#196) -- lookupPremiumRange, classifyPremium, computePremium
 │   └─ lunarReference.js               Perth / Royal / RAMint lunar comparison
 │
 ├─ src/utils/
@@ -117,6 +118,8 @@ server.js                              Express entry point (port 3000)
 │   ├─ reclassify-comps.js             Batch comp reclassification (weight mismatch detection + reroute)
 │   ├─ build-evidence-index.js         Historical evidence index builder
 │   ├─ generate-freshness-report.js    Freshness triage report (5-state decision tree: Fresh/Stale/LowSignal/Missing/Dormant + recently-confirmed-stale split)
+│   ├─ fmv-drift-monitor.js            FMV drift monitor (#196) -- runs bullion catalog through /api/price, flags rows outside dealer-premium band
+│   ├─ investigate-libertad-batch.js   Libertad lot-evaluator diagnostic (#202) -- re-runs 13-coin batch, flags thin comps + duplicate FMV instability
 │   └─ test-metrics/                   Jest metrics capture + summary reporter
 │
 ├─ .github/
@@ -967,6 +970,8 @@ This ensures unslabbed proof coins (e.g. Proof Libertads in OGP) don't inflate r
 | `SENDGRID_API_KEY` | No | -- | SendGrid key for crash/ops alerts |
 | `ALERT_EMAIL_TO` | No | -- | Destination email for alerts |
 | `ALERT_FROM_EMAIL` | No | `alerts@coinpricefinder.app` | Sender email for alerts |
+| `STRICT_TOKEN_CACHE_TTL_MS` | No | `5000` | TTL (ms) for `verifyTokenStrict` username cache. `0` disables. Invalidated on every `_saveUser` / `deleteUser`. (#218) |
+| `BROWSER_RECYCLE_EVERY` | No | `80` / `120` | Playwright browser-recycle interval override. Defaults: `terapeak-export.py` 80, `sales-aggregator.py` 120. (#199) |
 
 ---
 

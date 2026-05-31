@@ -175,6 +175,8 @@ Optional variables:
 | `SENDGRID_API_KEY` | SendGrid API key for crash/ops email alerts | *(none)* |
 | `ALERT_EMAIL_TO` | Destination email for server alerts | *(none)* |
 | `ALERT_FROM_EMAIL` | Sender email for alert notifications | `alerts@coinpricefinder.app` |
+| `STRICT_TOKEN_CACHE_TTL_MS` | TTL for the `verifyTokenStrict` admin-verification cache. Set `0` to disable. (#218) | `5000` |
+| `BROWSER_RECYCLE_EVERY` | Override for the Playwright browser-recycle interval in `terapeak-export.py` (default `80`) and `sales-aggregator.py` (default `120`). Lower if memory pressure returns. (#199) | *(per-script default)* |
 
 ### Run
 
@@ -713,6 +715,14 @@ scripts/
 ---
 
 ## Recent Changes
+
+### Auth Performance & Diagnostics (May 31, 2026)
+
+- **verifyTokenStrict TTL cache (#218)** -- Module-level `_strictCache` (Map keyed by username) with default 5s TTL, env-tunable via `STRICT_TOKEN_CACHE_TTL_MS` (set `0` to disable). Fast-path lookup in `verifyTokenStrict` skips the Cosmos/file-store `getUser` round-trip when the cached `(userId, tokenVersion, isAdmin)` matches the verified JWT. Cache is invalidated on every `_saveUser` (covers grantAdmin/revokeAdmin/changePassword/resetPassword) and on `deleteUser`; cleared on `_resetStore`. 9 new tests in `__tests__/authServiceStrictCache.test.js`.
+- **FMV drift monitor + dealer-premium benchmarks (#196)** -- New `src/data/dealerPremiums.js` exports `lookupPremiumRange(profile)`, `classifyPremium(premium, range)`, and `computePremium(fmv, melt)` covering ASEs, Krugerrand, Maple Leaf, Britannia, Libertad, Pandas, Lunars, Eagles, Buffalo, and generic bullion bars (gold + silver) with green/yellow/red bands. `scripts/fmv-drift-monitor.js` runs the bullion catalog through `/api/price`, fetches live spot, and flags rows outside the dealer-premium band.
+- **Libertad lot-evaluator diagnostic (#202)** -- `scripts/investigate-libertad-batch.js` re-runs the 13-coin Silver Libertad batch (1985-2024 with duplicates) through `/api/price`, cross-checks each row against the #196 dealer-premium band, surfaces thin-comp / high-attrition / low-data rows, and flags duplicate-query FMV instability (>5% spread). JSON output via `--json` / `--out` for archival.
+- **Scraper browser-recycle interval env-tunable (#199)** -- `BROWSER_RECYCLE_EVERY` now controls both Playwright scrapers. Defaults bumped: `terapeak-export.py` 40 -> 80, `sales-aggregator.py` 80 -> 120. Override per-run: `BROWSER_RECYCLE_EVERY=40 python scripts/terapeak-export.py ...`.
+- **#198 closed** -- Smart selector-bounded render wait (`wait_for_results_render` / `wait_for_research_page`) already shipped in PR #67; both scraper flows use it.
 
 ### Pricing Accuracy (P1 Fixes)
 
