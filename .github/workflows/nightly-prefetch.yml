@@ -99,18 +99,16 @@ jobs:
         run: |
           if [ -f /tmp/prefetch_final_status.json ]; then
             echo "## ✓ Nightly APR Prefetch Completed" >> $GITHUB_STEP_SUMMARY
-            python3 -c "
-            import json
-            with open('/tmp/prefetch_final_status.json') as f:
-              data = json.load(f)
-            print(f'| Metric | Value |')
-            print(f'|--------|-------|')
-            print(f'| API calls made | {data.get(\"lastCallsMade\", 0)} |')
-            print(f'| New records | {data.get(\"lastNewRecords\", 0)} |')
-            print(f'| Duration | {data.get(\"lastDuration\", \"unknown\")} |')
-            print(f'| Status | {data.get(\"lastStatus\", \"unknown\")} |')
-            print(f'| Quota remaining | {data.get(\"quota\", {}).get(\"remaining\", \"unknown\")} |')
-            " >> $GITHUB_STEP_SUMMARY
+            {
+              echo "| Metric | Value |"
+              echo "|--------|-------|"
+              echo "| API calls made | $(jq -r '.lastCallsMade // 0' /tmp/prefetch_final_status.json) |"
+              echo "| New records | $(jq -r '.lastNewRecords // 0' /tmp/prefetch_final_status.json) |"
+              echo "| Duration | $(jq -r '.lastDuration // "unknown"' /tmp/prefetch_final_status.json) |"
+              echo "| Status | $(jq -r '.lastStatus // "unknown"' /tmp/prefetch_final_status.json) |"
+              echo "| Quota remaining | $(jq -r '.quota.remaining // "unknown"' /tmp/prefetch_final_status.json) |"
+              echo "| Queue remaining | $(jq -r '.queueRemaining // 0' /tmp/prefetch_final_status.json) |"
+            } >> $GITHUB_STEP_SUMMARY
           else
             echo "## ⚠ Prefetch Status Unknown" >> $GITHUB_STEP_SUMMARY
             echo "Could not confirm prefetch completion. Check /api/admin/prefetch-status manually." >> $GITHUB_STEP_SUMMARY
