@@ -312,12 +312,24 @@ router.post('/reimport', requireAdmin, express.json(), async (req, res) => {
  *   - needs=page1 -- only datasets missing page1At
  *   - needs=refresh&maxAge=14 -- datasets not refreshed in N days
  *   - minComps=50 -- only datasets with at least N comps (candidates for deep)
+ *   - excludeLowVolume=1 -- drop datasets flagged is_low_volume_candidate (S7)
+ *   - excludeBarberNonHalf=1 -- drop Barber quarter/dime/dollar datasets (S8)
+ *   - excludeNoData=1 -- drop datasets with noDataAt stamped (Terapeak empty)
  */
 router.get('/aggregation-status', requireAdmin, (req, res) => {
   const datasets = terapeakService.listDatasets();
-  const { needs, maxAge, minComps } = req.query;
+  const {
+    needs,
+    maxAge,
+    minComps,
+    excludeLowVolume,
+    excludeBarberNonHalf,
+    excludeNoData,
+  } = req.query;
   const maxAgeDays = parseInt(maxAge) || 14;
   const minCompCount = parseInt(minComps) || 0;
+  const truthy = (v) => v === '1' || v === 'true' || v === 'yes';
+  const BARBER_NONHALF_RE = /\bbarber\b(?!.*\bhalf\b)/i;
 
   let filtered = datasets;
 
@@ -341,13 +353,33 @@ router.get('/aggregation-status', requireAdmin, (req, res) => {
     });
   }
 
+  // Low-signal exclusions (S2a) -- mirror the dashboard filters so the
+  // deep-needed candidate list isn't inflated by datasets we already know
+  // aren't worth deep-paginating.
+  const excluded = { lowVolume: 0, barberNonHalf: 0, noData: 0 };
+  if (truthy(excludeLowVolume)) {
+    const before = filtered.length;
+    filtered = filtered.filter(d => !(d.identifiers && d.identifiers.is_low_volume_candidate));
+    excluded.lowVolume = before - filtered.length;
+  }
+  if (truthy(excludeBarberNonHalf)) {
+    const before = filtered.length;
+    filtered = filtered.filter(d => !BARBER_NONHALF_RE.test(d.searchTerm || ''));
+    excluded.barberNonHalf = before - filtered.length;
+  }
+  if (truthy(excludeNoData)) {
+    const before = filtered.length;
+    filtered = filtered.filter(d => !d.aggregationMeta?.noDataAt);
+    excluded.noData = before - filtered.length;
+  }
+
   // Summary stats
   const total = datasets.length;
   const withPage1 = datasets.filter(d => d.aggregationMeta?.page1At).length;
   const withDeep = datasets.filter(d => d.aggregationMeta?.deepAt).length;
 
   res.json({
-    summary: { total, withPage1, withDeep, needsDeep: total - withDeep },
+    summary: { total, withPage1, withDeep, needsDeep: total - withDeep, excluded },
     datasets: filtered.map(d => ({
       key: d.key,
       searchTerm: d.searchTerm,

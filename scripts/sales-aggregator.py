@@ -165,6 +165,17 @@ def is_barber_nonhalf_term(search_term):
     """Return True if the search term is a Barber quarter/dime/dollar (not half)."""
     return bool(_BARBER_NONHALF_RE.search(search_term))
 
+# Default exclusions for deep-pagination candidate queries (S2a).
+# Drops datasets we already know aren't worth deep-paginating:
+#  - low-volume (S7 evidence index)
+#  - Barber non-half (S8)
+#  - empirically no Terapeak data (noDataAt stamped)
+DEEP_NEEDED_EXCLUDE_PARAMS = {
+    "excludeLowVolume": "1",
+    "excludeBarberNonHalf": "1",
+    "excludeNoData": "1",
+}
+
 
 def get_completed_terms_from_log(log_path):
     """Parse a page2 log file and return a set of search terms already processed (OK or NO PAGE 2)."""
@@ -404,7 +415,7 @@ def get_candidates_from_server(min_rows=50, filter_pattern=None):
     try:
         r = requests.get(
             f"{APP_URL}/api/terapeak/aggregation-status",
-            params={"needs": "deep", "minComps": str(min_rows)},
+            params={"needs": "deep", "minComps": str(min_rows), **DEEP_NEEDED_EXCLUDE_PARAMS},
             headers=headers,
             timeout=10,
         )
@@ -1313,7 +1324,7 @@ def headless_dashboard(args):
 
     try:
         r = requests.get(f"{APP_URL}/api/terapeak/aggregation-status",
-                         params={"needs": "deep", "minComps": "50"}, headers=headers, timeout=10)
+                         params={"needs": "deep", "minComps": "50", **DEEP_NEEDED_EXCLUDE_PARAMS}, headers=headers, timeout=10)
         r.raise_for_status()
         categories["deep"] = r.json().get("datasets", [])
     except Exception:
@@ -1689,7 +1700,7 @@ def dashboard(args):
     # 1. Needs deep pagination (page1 done, comps >= 50, no deep yet)
     try:
         r = requests.get(f"{APP_URL}/api/terapeak/aggregation-status",
-                         params={"needs": "deep", "minComps": "50"}, headers=headers, timeout=10)
+                         params={"needs": "deep", "minComps": "50", **DEEP_NEEDED_EXCLUDE_PARAMS}, headers=headers, timeout=10)
         r.raise_for_status()
         categories["deep"] = r.json().get("datasets", [])
     except Exception:
