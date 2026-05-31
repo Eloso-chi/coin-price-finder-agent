@@ -15,17 +15,24 @@ Both `terapeak-export.py` and `sales-aggregator.py` now guard against active lis
 
 ---
 
-### S2. Page 2+ Deep Pagination [HIGH -- IN PROGRESS]
+### ~~S2a. Apply Low-Signal Exclusions to Deep-Needed Candidate List [DONE]~~
 
-**Problem:** High-volume coins have only 50 rows (page 1 limit). Deep pagination (pages 2-6) expands bullion to 300 rows.
+Added three opt-in query params to `GET /api/terapeak/aggregation-status`:
+- `excludeLowVolume=1` -- drops datasets flagged `identifiers.is_low_volume_candidate` (S7)
+- `excludeBarberNonHalf=1` -- drops Barber quarter/dime/dollar datasets (S8)
+- `excludeNoData=1` -- drops datasets with `aggregationMeta.noDataAt` stamped (Terapeak empirically empty)
 
-**Status:** 243 datasets deep-aggregated. 165 high-volume datasets remaining (50+ comps, no `deepAt` in aggregationMeta). Batch 3 interrupted at 58%.
+Response `summary.excluded` now reports per-filter drop counts. `scripts/sales-aggregator.py` defines `DEEP_NEEDED_EXCLUDE_PARAMS` and passes all three on every `needs=deep` query (candidate fetch + both dashboard variants). All 294 terapeak tests still pass.
 
-**Check remaining:** `GET /api/terapeak/aggregation-status?needs=deep&minComps=50`
+**Files:** `src/routes/terapeakRoute.js`, `scripts/sales-aggregator.py`
 
-**Command:** `python3 scripts/sales-aggregator.py --run --limit N`
+---
 
-**Files:** `scripts/sales-aggregator.py`
+### ~~S2b. Page 2+ Deep Pagination [DONE]~~
+
+After S2a went in and the candidate list was re-measured (2026-05-31), only **1 dataset** remained: `2011 china tenth oz gold panda` (50 comps, bullion, not low-volume). 1308 datasets are deep-aggregated; the historical "165 remaining" figure was stale. Treating S2b as effectively complete -- the single straggler can be picked up in a normal stale-refresh pass.
+
+**Verification:** `curl -H "x-api-key: $KEY" "http://localhost:3000/api/terapeak/aggregation-status?needs=deep&minComps=50&excludeLowVolume=1&excludeBarberNonHalf=1&excludeNoData=1"` -> 1 dataset.
 
 ---
 
@@ -52,7 +59,7 @@ Both `terapeak-export.py` and `sales-aggregator.py` now guard against active lis
 
 **Problem:** Gold Libertad, Gold Panda, and Gold Eagle all lack year-specific datasets. Gold queries hit mixed-metal generic datasets causing 95-99% attrition.
 
-**Status (May 2026):** Stubs created and partially populated. 89 empty stubs remain (84 Gold Eagle fractional, 4 Gold Libertad, 1 Gold Panda). Populated: 50 Gold Libertad, 59 Gold Panda, 43+ Gold Eagle 1oz, 79-80 each fractional.
+**Status (May 2026):** Stubs created and partially populated. 89 empty stubs remain (84 Gold Eagle fractional, 4 Gold Libertad, 1 Gold Panda). Populated: 50 Gold Libertad, 59 Gold Panda, 43+ Gold Eagle 1oz, 79-80 each fractional. Re-verified May 31, 2026 -- some year-specific files exist (e.g., `2024_Mexican_Gold_Libertad_1oz.csv`) but full coverage incomplete.
 
 **Next:** Run `python3 scripts/terapeak-export.py --run --filter "Gold Eagle"` (requires VNC + cookies).
 
@@ -197,27 +204,11 @@ Fixed: Proof pool used regardless of comp count. 0 comps = null FMV with explana
 
 ---
 
-### #186. Bulk Lot Evaluator FMV Divergence from Price Discovery [MEDIUM]
+### ~~#186. Bulk Lot Evaluator FMV Divergence from Price Discovery [DONE]~~
 
-**Problem:** The bulk lot evaluator produces different FMV than the individual price discovery route for the same coin (e.g. "mexican silver libertad 2004 1oz"). No grade, no COA/box -- purely bullion raw coin -- yet numbers differ.
+Fixed: `evaluateOneCoin()` in `bulkEvaluateService.js` now matches price discovery config -- `timeWindowDays: 180`, `maxPages: 3`, `usMinComps: 8` (3 for rolls). `expected.metal` is set explicitly from `parsed.metal || detectedMetal` before the `fetchSoldComps` call. All four divergences from the original table are resolved.
 
-**Root cause:** `evaluateOneCoin()` in `bulkEvaluateService.js` calls `fetchSoldComps` with a lighter config than the price route:
-
-| Parameter | Price Discovery | Bulk Evaluator |
-|---|---|---|
-| `timeWindowDays` | 180 | 90 |
-| `maxPages` | 3 | 1 |
-| `usMinComps` | 8 | 3 |
-| `expected.metal` | Set explicitly | Missing (auto-detect only) |
-
-The narrower time window produces a different comp pool (fewer comps, different median). The lower `usMinComps` means Terapeak satisfies sooner with fewer data points instead of extending lookback. Missing `expected.metal` can affect Terapeak dataset matching and metal-mismatch scoring.
-
-**Fix:**
-1. Align `timeWindowDays` to 180, `maxPages` to 2 (compromise), `usMinComps` to 6
-2. Set `expected.metal` from `parsed.metal || detectedMetal`
-3. Trade-off: ~1.5-2x slower bulk evaluations (more Terapeak/API work per coin)
-
-**Files:** `bulkEvaluateService.js` (`evaluateOneCoin`, lines 209-212)
+**Files:** `src/services/bulkEvaluateService.js` (`evaluateOneCoin`)
 
 ---
 
@@ -255,28 +246,20 @@ The narrower time window produces a different comp pool (fewer comps, different 
 
 ---
 
-### #185. World Proof Greysheet Pricing Fallback [MEDIUM -- PARTIAL]
+### #185. World Proof Greysheet Year-Specific Fallback [LOW]
 
-**Problem:** Missing proof-specific pricing for major world bullion proofs (Krugerrand, Kookaburra, Philharmonic, Gold Maple Leaf). Proof queries fall back to MS wholesale price in the Greysheet blend.
+**Problem:** When a proof query has no mapped Type GSID, the Greysheet blend falls through to the MS Type entry, producing MS wholesale instead of proof pricing.
 
-**Root cause (May 18 investigation):** Greysheet catalog does NOT have "Type" (yearless aggregate) entries for proof versions of most world series. The PCGS +90,000 offset convention does NOT work with Greysheet API (Type entries have no PcgsNumber; offset queries return no data). DNS is resolved -- API is reachable.
+**Background:** Catalog walks (verified 2025-01-27 and 2026-04-19, recorded in `greysheetTypeMap.js`) confirm Greysheet has **no proof Type entries** for: Gold Krugerrand (all weights), Kookaburra, Philharmonic (silver + gold), Gold Maple Leaf. These cannot be fixed by adding map entries -- the upstream data does not exist. Silver Krugerrand Proof (GSID 373710) is already mapped.
 
-**Partial fix applied (May 18):** Found GSID 373710 = "South Africa Rand 1oz Silver PR DCAM [Type]" (IsType: true, CPG pricing populated at $115/PR65-PR66). Added `krugerrand|1|silver|proof` to `greysheetTypeMap.js`. Silver KR Proof queries now resolve correctly.
-
-**Remaining gap -- no proof Type entries exist for:**
-- Gold Krugerrand (all weights) -- no proof Type, no year-specific proofs found
-- Kookaburra -- no proof entries at all in Greysheet catalog
-- Philharmonic (silver & gold) -- no proof entries at all
-- Gold Maple Leaf -- no proof Type (Silver Maple Leaf Proof exists at 396685)
-
-**Remaining fix (year-specific fallback):** When `fetchTypePrice()` detects a proof finish but no proof GSID is mapped, and the query includes a year:
+**Remaining work:** Year-specific proof fallback in `fetchTypePrice()`. When a proof finish is detected, no proof GSID is mapped, and the query includes a year:
 1. Look up the year-specific proof GSID via `GetPricingRequest`
-2. If found, use year-specific proof pricing instead of falling through to MS Type
-3. If no year provided, use the MS Type entry (current behavior) with a warning flag
+2. If found, use year-specific proof pricing instead of MS Type
+3. If no year, keep MS Type behavior but flag as imprecise
 
-**Trade-offs:** Requires year in query for proof pricing; yearless proof queries remain imprecise. Some series (Kookaburra, Philharmonic) may never have proof data in Greysheet.
+**Trade-offs:** Helps only when (a) a year is present and (b) Greysheet has the specific year's proof. Kookaburra / Philharmonic may yield nothing even with a year. Low expected hit-rate -- consider closing as WONTFIX if proof-blend coverage becomes adequate from eBay/Terapeak comps alone.
 
-**Files:** `greysheetService.js` (`fetchTypePrice`), `greysheetTypeMap.js`
+**Files:** `src/services/greysheetService.js` (`fetchTypePrice`)
 
 ---
 
@@ -292,20 +275,11 @@ Both `terapeak-export.py` and `sales-aggregator.py` now skip re-sorting when the
 
 ## Infrastructure & Automation
 
-### #201. Admin User Role System [MEDIUM]
+### ~~#201. Admin User Role System [DONE]~~
 
-**Problem:** Admin access is purely API-key based (shared secret via `ADMIN_API_KEY` env var). No per-user admin distinction, no audit trail by userId, no granular permissions. The API key is all-or-nothing and cannot identify which user performed an admin action.
+Delivered in PR #60 (`774f136 feat(auth): admin role + audit log + login hardening`) plus PR #61 (`4f5341b feat(audit): auto-provision Cosmos admin-audit container`). `authService.js` exposes `grantAdmin`/`revokeAdmin`/`listAdmins`, `isAdmin` flag on accounts and tokens, `middleware/requireAdminOrKey.js` accepts JWT-with-admin or `x-api-key`, `server.js` L195-209 bootstraps from env, `scripts/grant-admin.js` CLI, audit log writes username/userId for JWT path. Tests in `__tests__/authServiceAdmin.test.js`.
 
-**Fix:**
-1. Add `role` field to user accounts in `authService.js` (default `'user'`, option `'admin'`)
-2. Add `requireAdminRole` middleware that accepts either `x-api-key` OR a valid JWT with `role=admin` (hybrid -- backwards compatible)
-3. Seed a master admin account on first startup (or via CLI/env var: `ADMIN_USERNAME` + `ADMIN_PASSWORD`)
-4. Admin tab supports both unlock methods: API key entry OR login with an admin-role account
-5. Audit log admin actions with `userId` when JWT-based auth is used
-
-**Trade-offs:** Hybrid approach keeps existing API-key flow working (CLI scripts, CI) while adding per-user admin auth for the browser UI. Migration: existing accounts default to `role='user'`; promote via CLI or env seed.
-
-**Files:** `authService.js`, `server.js` (middleware), `authRoute.js` (optional promote endpoint), `public/index.html` (admin tab login option)
+**Deferred follow-ups tracked separately:** #216 (self-service UI), #218-224 (S3/S4 review findings).
 
 ---
 
@@ -396,6 +370,466 @@ Added `npm audit --audit-level=high` step to CI (xlsx excluded -- unmaintained, 
 
 ---
 
+## Numismatic Data Gaps
+
+Items below were tracked only in repo memory until now. Imported May 31, 2026 during backlog reconciliation. Numbers preserved from memory unless noted.
+
+### 43. Clad Kennedy Half Dollars (1971-2024) [P2]
+
+**Problem:** Zero Terapeak coverage for clad Kennedys. Only 1964 (90% silver) and 1970-D (40% silver) have data.
+
+**Fix:** Scrape generic clad Kennedy file plus key dates (1972 no FG, 1976 bicentennial, proof-only years).
+
+---
+
+### ~~44. 40% Silver Kennedy D-Mints (1968-D, 1969-D) [DONE]~~
+
+Both `data/terapeak/1968-D_Kennedy_Half_Dollar_40_Silver.csv` and `data/terapeak/1969-D_Kennedy_Half_Dollar_40_Silver.csv` exist. Verified May 31, 2026.
+
+---
+
+### 45. Walking Liberty Common Dates [P3]
+
+**Problem:** Key dates covered (1916, 1916-S, 1919-D, 1921 all mints, 1938-D). Many common dates (1917-1939) lack year-specific files. Generic file only 27 rows.
+
+**Fix:** Scrape common-date year-specific files; refresh generic with broader terms.
+
+---
+
+### ~~46. Franklin Half Dollar D/S-Mint Gaps [DONE]~~
+
+`data/terapeak/` now has 1948-D through 1952-D (and beyond), plus 1948-S, 1950-S, 1951-S, 1952-S files. Coverage gap closed. Verified May 31, 2026.
+
+---
+
+### 47. Barber Half/Quarter/Dime Generics [P3]
+
+**Problem:** Generic files nearly empty (2-5 rows).
+
+**Fix:** Fresh scrapes for Barber Half, Quarter, and Dime generics with refined search terms.
+
+---
+
+### 48. Mercury Dime Generics [P3]
+
+**Problem:** Generic file only 34 rows. Common dates lack year-specific files.
+
+**Fix:** Generic refresh + common date year-specifics (covered by #72 done for some years).
+
+---
+
+### 49. Washington Quarter Silver Generics [P3]
+
+**Problem:** Generic file only 27 rows. Only key dates (1932-D, 1932-S) have dedicated files.
+
+**Fix:** Generic refresh + common-date files (partially covered by #73).
+
+---
+
+### 83. Gold Page 2 Enrichment for Existing 50-Row CSVs [P2]
+
+**Problem:** 8 gold coins qualify for page-2 deep pagination now: 1986 AGE 1oz, 2024 AGE 1/10oz, 2025 AGE 1oz/1/10oz, AGE Generic 1oz/1/10oz, Gold Libertad Generic 1oz/1/2oz.
+
+**Fix:** `python3 scripts/terapeak-page2.py --run --filter "Gold"`.
+
+---
+
+### 84. Gold Page 2 for New CSVs from S5 [P3]
+
+**Problem:** Any year-specific gold CSV from S5 (Gold Libertad/Panda/Eagle) that crosses 50 rows needs page-2 follow-up.
+
+**Fix:** Run after S5 page-1 scrapes complete.
+
+**Depends on:** S5
+
+---
+
+### 226. Gold Libertad Year-Specific Re-Scrape -- Thin Comp Data [P2]
+
+> Originally memory #185 -- renumbered to avoid collision with backlog #185 (World Proof Greysheet Fallback).
+
+**Problem:** Gold Libertad year-specific datasets have <10 gold comps surviving after metal/weight filtering. 2019 hits 100% attrition; most others 93-96%. Pipeline-leak + browseOnly for worst cases.
+
+**Evidence:** pricing-health Libertad run May 9, 2026. RED: 2024 (95.5%), 2023, 2022, 2019, 2016 (95.7%), 1992 (93.8%).
+
+**Fix:** Re-scrape with gold-specific search terms (e.g., "2024 Gold Libertad 1 oz" instead of "2024 Libertad 1 oz"). Target 20-50 gold-only comps per year.
+
+**Scope:** ~45 year-specific CSVs.
+
+**Related:** S5 (gold year-specific stubs), #178 (gold attrition -- DONE)
+
+---
+
+### 227. Silver Libertad Proof Year-Specific Re-Scrape -- Thin Comp Data [P2]
+
+> Originally memory #186 -- renumbered to avoid collision with backlog #186 (Bulk Evaluator FMV Divergence -- DONE).
+
+**Problem:** Silver Libertad Proof datasets mix BU and Proof comps; variant filter removes BU leaving 3-4 proof comps. Pipeline-leak + browseOnly for worst cases.
+
+**Evidence:** pricing-health Libertad run May 9, 2026. RED: 2013 (90.3%), 2022, 2010, 2009, 2011 (91.7%). 13 more YELLOW.
+
+**Fix:** Re-scrape with proof-specific terms (e.g., "2013 Silver Libertad 1 oz Proof"). Target 15-40 proof-only comps per year.
+
+**Scope:** ~25 proof year CSVs.
+
+**Related:** #109 (Greysheet proof support -- DONE), #24 (proof Libertad search term quality)
+
+---
+
+## Pricing Accuracy -- Additional Open Items
+
+### ~~168. ASE Type 1 -- 97% yearMismatch Attrition [DONE]~~
+
+`data/terapeak/2021_American_Silver_Eagle_Type_1.csv` exists -- Type 1 / Type 2 disambiguation dataset is in place. Combined with #165 (yearMismatch relaxation) and #180 (Type variant detection), root cause closed. Verified May 31, 2026.
+
+---
+
+### ~~170. 1870-CC Seated Liberty Half -- Suspect $29 FMV [DONE -- data gap closed]~~
+
+Dedicated `data/terapeak/1870-CC_Seated_Liberty_Half_Dollar.csv` exists; `src/data/keyDates.js` L131 has `{ series: 'seated liberty half dollar', year: 1870, mint: 'CC', tier: 'key' }` ensuring key-date weighting. Verified May 31, 2026.
+
+**Note:** If a $29 FMV symptom reappears post-data, file as a new pricing item (likely filter regression, not data).
+
+---
+
+### ~~#184. American Platinum Eagle 1oz Cross-Route FMV Divergence [DONE]~~
+
+Platinum metal detection wired through the shared pipeline: `coinMetalProfile.js` recognizes Platinum Eagle (verified by `__tests__/coinMetalProfile.test.js`), `applyFilters.test.js` L579 confirms `detectMetalFromTitle('2024 American Platinum Eagle 1 oz') === 'platinum'`, and `buildKeywords` adds `-silver -gold` exclusions for platinum series (`__tests__/coinSearch.ebayKeywords.test.js` L199). Both routes now share the same metal detection path.
+
+**Follow-up (optional):** Add an explicit Platinum Eagle row to `crossRouteConsistency.test.js`. Track as a separate item if regression risk warrants.
+
+---
+
+### ~~225. Normalize "Suisse" Out of PAMP Brand Before Tokenization [DONE]~~
+
+`src/data/barSeries.js` L95: `const key = brand.toLowerCase().replace(/\s+suisse$/i, '');` -- trailing "Suisse" stripped before lookup/tokenization. Verified May 31, 2026.
+
+---
+
+## Scraper Performance -- Additional Open Items
+
+### 198. Smart SPA Render Wait Instead of 3s Hard Pause [P3]
+
+**Problem:** Both scraper flows use a fixed `time.sleep(3)` after `networkidle`.
+
+**Fix:** Wait for the result-table selector with bounded timeout; keep the sleep as fallback.
+
+**Files:** `scripts/terapeak-export.py`, `scripts/sales-aggregator.py`
+
+**Acceptance:** Measurable per-page latency reduction, no increase in extraction failures.
+
+---
+
+### 199. Increase Browser Recycle Interval From 40/80 to 120 [P3]
+
+**Problem:** Current recycle thresholds (40 in terapeak-export, 80 in sales-aggregator) trigger restart overhead more often than memory pressure requires.
+
+**Fix:** Profile RSS during long runs; raise to 120 only if stability holds.
+
+**Files:** `scripts/terapeak-export.py`, `scripts/sales-aggregator.py`
+
+---
+
+### 228. Page 1 Refresh Run -- Libertads, ASEs, Perth Lunars [P1]
+
+> Originally memory #183 -- renumbered to avoid collision with backlog #183 (Designation-Aware Comp Scoring -- DONE).
+
+**Problem:** Three highest-volume bullion series age quickly. New sold listings appear daily and aren't in current page-1 data.
+
+**Fix:** Run aggregator in page-1 mode (no `--min-rows`, no deep pagination) for:
+- Libertads (~131 datasets, ~12.4K comps)
+- American Silver Eagles (~51 datasets, ~7.5K comps)
+- Perth Lunars (~173 datasets, ~8.5K comps)
+
+**Execution:** `python3 scripts/sales-aggregator.py --filter "Libertad"` then repeat for ASE / Lunar.
+
+**Scope:** ~355 datasets, ~4-5 hours total.
+
+**Status notes:** Commit `567dc17` (May 30) refreshed 122 datasets as part of a general loop run, NOT the targeted 355-dataset sweep this item requires. Still open.
+
+---
+
+## Tooling & Observability
+
+### ~~177. Holdout Validation Test -- FMV vs Actual Sales [DONE]~~
+
+Implemented as `__tests__/holdoutValidation.test.js` with `holdoutSplit` + IQR comparison. Verified May 31, 2026.
+
+---
+
+### ~~187. Bar Pricing Health Check Script [DONE]~~
+
+`scripts/bar-pricing-health.js` exists with 50+ test cases and melt-floor assertions. Verified May 31, 2026.
+
+---
+
+### ~~190. Classification Audit Agent [DONE]~~
+
+`.github/agents/numismatic-audit.agent.md` exists. Verified May 31, 2026.
+
+---
+
+### ~~191. Pricing Regression Audit Tool [DONE]~~
+
+`scripts/pricing-regression.js` exists with golden coin set, drift checking, and baseline comparison. Verified May 31, 2026.
+
+---
+
+### ~~192. Filter Correctness Audit Tool [DONE]~~
+
+`scripts/classification-audit.js` exists. Verified May 31, 2026.
+
+---
+
+### 193. Historical FMV Drift Monitor [P3]
+
+**Problem:** No automated detection of unexpected FMV drift on stable coins.
+
+**Fix:** Maintain `cache/fmv-snapshots.json` with weekly FMV for 20 benchmark coins. Weekly cron re-prices all 20; flags bullion drift >5% beyond spot movement, numismatic drift >15% with no data change. Distinguish "expected drift" (spot moved) from "suspicious drift" (code/data change).
+
+**File:** `scripts/fmv-drift-monitor.js`
+
+**Related:** #177, #191
+
+---
+
+### ~~195. RRV (Retail Replacement Value) Calculation Mode [DONE]~~
+
+`src/services/valuationService.js` L354-368 computes `rrv` from Greysheet CPG retail when available, falls back to spread-derived markup or default 20%. Returned in valuation payload at L421. Verified May 31, 2026.
+
+---
+
+### 196. Dealer Premium Benchmark Table for Bullion Anomaly Detection [P3]
+
+**Problem:** No reference table of normal dealer premiums by metal/weight to flag abnormal FMV outputs.
+
+**Fix:** Add benchmark table; pricing-health / regression diagnostics use it to explain premium outliers.
+
+**Files:** new data constants/reference table, pricing health scripts.
+
+---
+
+## PCGS World Coin Number Extraction
+
+Tracked from May 2026 audit. All depend on Pop Report extraction; some pages use JS-rendered links requiring Playwright or backward-search workarounds.
+
+### ~~206. Kookaburra 2006-2025 PCGS Numbers [DONE]~~
+
+Full 1992-2026 series populated in `src/data/pcgsNumbers.js` (`AUSTRALIA_KOOKABURRA_SILVER`, lines 477-494). Verified May 31, 2026.
+
+---
+
+### ~~207. Krugerrand 1oz Gold PCGS Numbers [DONE]~~
+
+1967-2026 populated in `SOUTH_AFRICA_KRUGERRAND_GOLD` (lines 497-522). Some years (1986, 1992, 1996, 1997, 2001, 2003, 2006) intentionally missing -- not in PCGS pop report.
+
+---
+
+### ~~208. Kangaroo 1oz Silver PCGS Numbers [DONE]~~
+
+1993-2026 populated in `AUSTRALIA_KANGAROO_SILVER` (lines 524-542). 2012 and 2014 intentionally absent -- not in pop report for base silver coin.
+
+---
+
+### ~~209. Maple Leaf Silver PCGS Numbers [DONE]~~
+
+1988-2026 populated in `CANADA_SILVER_MAPLE_LEAF` (lines 544-563).
+
+---
+
+### ~~210. Britannia Silver PCGS Numbers [DONE]~~
+
+1998-2026 populated in `GREAT_BRITAIN_BRITANNIA_SILVER` (lines 565-582).
+
+---
+
+### ~~211. Philharmonic Silver PCGS Numbers [WONTFIX]~~
+
+**Resolution (May 31, 2026):** PCGS does not appear to maintain a pop-report category for Vienna Philharmonic Silver -- no portal entry, no reverse-lookup path from cert numbers yielded a series. Closed as WONTFIX; revisit if PCGS adds tracking. Other world bullion proceeds without this entry.
+
+---
+
+### ~~212. Panda Silver PCGS Numbers [DONE]~~
+
+1989-2026 populated in `CHINA_PANDA_SILVER` (lines 585-606). Weight changed from 1 oz to 30g in 2016 -- noted in source comment.
+
+---
+
+### ~~213. Lunar Silver (Perth) PCGS Numbers [DONE]~~
+
+All three Perth Lunar series populated:
+- `AUSTRALIA_LUNAR_HALF_OZ` 1999-2026 (lines 631-647)
+- `AUSTRALIA_LUNAR_SILVER` 1oz 1999-2026 (lines 650-666)
+- 2oz series also present in same file
+
+Also includes `CHINA_LUNAR_SILVER` (1997-2011) for completeness.
+
+---
+
+### ~~214. Enable APR Prefetch for World Coins [DONE]~~
+
+**Root cause:** `extractAllPcgsNumbers()` in `src/services/prefetchScheduler.js` matched `:\s*(\d{3,5})\b` -- a regex that silently skipped every 6-7 digit PCGS number. All world bullion series (Kookaburra 114425, Krugerrand 564601, Maple Leaf 1004509, Britannia 1001434, Panda 1000705, Perth Lunar 170456, etc.) were excluded from the nightly queue even though they were present in `pcgsNumbers.js`.
+
+**Fix (May 31, 2026):** Changed regex to `\d{3,7}` in `src/services/prefetchScheduler.js` lines 113-127. Queue size jumps from 745 → 1243 distinct PCGS numbers (+498 world bullion entries from #206-#210, #212, #213). #211 (Philharmonic) closed WONTFIX; no longer a blocker.
+
+**Test:** `__tests__/prefetchScheduler.test.js` -- new `world bullion extraction (#214)` suite asserts seven sample 6-7 digit PCGS numbers reach the extractor. All 14 tests pass.
+
+**Capacity note:** ~498 new numbers × 11 grades ≈ 5,478 new combos; at ~990 calls/night the full first-pass world bullion sweep completes over ~5-6 nights, then settles into normal refresh cadence.
+
+---
+
+### ~~215. Review/Merge/Close Stale Open PRs [DONE]~~
+
+All four PRs already merged on 2026-05-25, six days before this backlog item was imported. Verified via `gh pr list`:
+- #18 MERGED 2026-05-25 23:20 UTC (`185-world-proof-type-map-wontfix`)
+- #19 MERGED 2026-05-25 23:20 UTC (`184-proof-pool-isolation-tests`)
+- #32 MERGED 2026-05-25 23:48 UTC (`feature/perth-mint-expansion`)
+- #38 MERGED 2026-05-25 23:46 UTC (`feat/dry-refresh-backoff`)
+
+Current repo state: 63 total PRs, **0 open**. Item was stale-imported; root cause tracked in INC-009.
+
+---
+
+## Infrastructure -- Additional Open Items
+
+### 100. Shared Rate Limiting With Azure Cache for Redis [P2]
+
+**Problem:** `express-rate-limit` uses in-memory store -- per-process, lost on restart. Multi-instance App Service would multiply the allowed rate.
+
+**Fix:** Swap to `rate-limit-redis` backed by Azure Cache for Redis (Basic C0, ~$15/mo). Also useful for shared TTLCache (eBay, PCGS) if scaling beyond one instance.
+
+---
+
+### 101. Run Playwright Scraping in Azure Container Instances [P2]
+
+**Problem:** Three scrapers (`terapeak-export.py`, `terapeak-page2.py`, `vnc-login.py`) need headful Chromium + manual CAPTCHA.
+
+**Fix:** Dockerfile with Chromium + Xvfb + websockify + noVNC + Python + Playwright. ACI starts on-demand, browser-accessible for CAPTCHA, auto-stop. ~$0.04/hr running.
+
+---
+
+### 102. Schedule Scraping With Azure Logic Apps [P3]
+
+**Problem:** ACI lifecycle (#101) still needs a scheduler.
+
+**Fix:** Logic App or Azure Functions Timer trigger starts ACI at configured intervals. Manual CAPTCHA still required when cookies expire.
+
+**Depends on:** #101
+
+---
+
+### 103. Alternative -- Azure VM (B1s) for Scraping [P3]
+
+**Problem:** Alternative to #101/#102 for high-frequency scraping.
+
+**Fix:** $7/mo always-on Linux VM with VNC; cron jobs for scheduled scraping. Simpler than ACI lifecycle.
+
+---
+
+### 104. Azure CDN / Front Door for Static Assets [P3]
+
+**Problem:** `public/` served via Express static middleware on every request.
+
+**Fix:** Azure CDN or Front Door for edge caching of static assets; reduces App Service load.
+
+**Why low priority:** Current traffic doesn't warrant it.
+
+---
+
+### ~~182. Sales Aggregator -- Target Azure Directly Instead of Local Server [DONE]~~
+
+`scripts/terapeak-export.py` defines `APP_URL = os.environ.get("APP_URL", "http://localhost:3000")` and `sales-aggregator.py` imports the same via `_mod.APP_URL`. Setting `APP_URL=https://<app-service>` directs all admin API traffic at production Cosmos + Azure Files. Verified May 31, 2026.
+
+---
+
+### 216. Self-Service Admin Management UI [P2]
+
+**Problem:** PR #60 (feat/admin-role) ships with env-var bootstrap + `scripts/grant-admin.js` CLI. CLI is fine for emergency recovery, inconvenient for day-to-day onboarding/offboarding.
+
+**Fix:**
+- Backend: `GET /api/admin/users`, `POST /api/admin/users/:username/grant-admin`, `.../revoke-admin`, `.../reset-password` (one-time temp password). Routes reuse CLI primitives.
+- Self-revoke guard: cannot revoke own admin if last admin.
+- Frontend: "Admin Users" section in Admin tab with list table + actions.
+- Audit log entries (already covered by PR #60 audit infra).
+
+**Out of scope:** invite-by-email, MFA enrolment UI.
+
+**Depends on:** #201 (admin role system)
+
+**Files:** new `src/routes/adminUsersRoute.js`, `authService.js`, `public/index.html`, tests.
+
+---
+
+### 218. verifyTokenStrict TTL Cache [P3]
+
+**Problem:** Strict admin verification hits Cosmos on every admin request.
+
+**Fix:** Small in-memory LRU keyed by username with ~5s TTL. Must invalidate on grant/revoke/changePassword/resetPassword/deleteUser. Gate behind perf observation first.
+
+**Source:** PR #60 deferred S3#5
+
+---
+
+### 219. Audit Debounce / Sample on Chatty Endpoints [P3]
+
+**Problem:** Per-request audit writes could become noisy in prod.
+
+**Fix:** Once we have volume data, sample `admin-key-use` and `admin-denied` (e.g. 1-in-N). NEVER sample `bootstrap-admin`, `grantAdmin`, `revokeAdmin`, `token-invalid`.
+
+**Source:** PR #60 deferred S3#6
+
+---
+
+### 220. listAdmins Cosmos Query [P3]
+
+**Problem:** Today reads file mirror only. If Cosmos is enabled and the file mirror is rebuilt from scratch, listAdmins would miss admins until each is re-saved.
+
+**Fix:** Switch to `SELECT * FROM c WHERE c.isAdmin = true` when `cosmos.isEnabled()`, fall back to file otherwise. Mirror-always (PR #60 S2#1) softens the risk.
+
+**Source:** PR #60 deferred S3#7
+
+---
+
+### 221. Case-Insensitive Bearer Scheme [P4]
+
+**Problem:** RFC 6750 says auth scheme is case-insensitive; we currently match `/^Bearer /`.
+
+**Fix:** Switch to `/^Bearer /i`.
+
+**Source:** PR #60 deferred S4#9
+
+---
+
+### 222. HMAC-Then-timingSafeEqual for ADMIN_API_KEY [P3]
+
+**Problem:** `_timingSafeKeyMatch` bails on length mismatch -- still constant-time within equal-length compare but leaks length.
+
+**Fix:** HMAC-SHA256 over both inputs before compare; cheap defense-in-depth.
+
+**Source:** PR #60 deferred S4#10
+
+---
+
+### 223. Per-Username Login Throttle [P2]
+
+**Problem:** express-rate-limit on `/login` is per-IP only; doesn't defeat low-and-slow password spray across rotating IPs.
+
+**Fix:** Small in-memory LRU per-username bucket + Cosmos write on lockout. Tie into audit log.
+
+**Source:** PR #60 deferred S4#13
+
+---
+
+### 224. Admin Chip Styles to CSS Class [P4]
+
+**Problem:** Frontend Admin chip uses inline styles.
+
+**Fix:** Move to `.admin-chip` class in shared stylesheet.
+
+**Source:** PR #60 deferred S4#15
+
+---
+
 ## Completed (reference)
 
 | # | Item | Commit |
@@ -420,6 +854,9 @@ Added `npm audit --audit-level=high` step to CI (xlsx excluded -- unmaintained, 
 | 182 | Slabbed proof classification fix | May 2026 -- `classifyGradeType()` proof check |
 | 183 | DCAM/CAM designation scoring | May 2026 -- `scoreMatch()` +10/-15 |
 | 184 | Block proof-to-BU fallback | May 2026 -- proof pool unconditional |
+| 186 | Bulk evaluator FMV divergence (config alignment + expected.metal) | May 2026 -- `bulkEvaluateService.js` matches price discovery config |
+| S2a | Low-signal exclusions on deep-needed candidate list | May 2026 -- `excludeLowVolume`/`excludeBarberNonHalf`/`excludeNoData` params |
+| S2b | Page 2+ deep pagination | May 2026 -- 1308 datasets deep, 1 candidate remaining (2011 1/10 oz Gold Panda) |
 | 200 | Sort-skip optimization in Terapeak scrapers | `d08f63a` -- `_sort_confirmed` flag skips re-sort |
 | 21 | Batch pricing in My Coins | `my-coins.js` `_fetchPricing` (chunks of 25) |
 | 22 | Event delegation | `my-coins.js` `_setupDelegation()` |
