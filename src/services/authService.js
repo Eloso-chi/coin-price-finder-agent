@@ -35,6 +35,45 @@ if (!process.env.JWT_SECRET) {
 // ── Store ───────────────────────────────────────────────────
 let _store = null;
 
+// ── verifyTokenStrict TTL cache (backlog #218) ──────────────
+// Small in-process Map keyed by username with a short TTL (default 5s).
+// Caches the (doc.userId, doc.tokenVersion, doc.isAdmin) tuple needed for
+// strict verification so back-to-back admin requests skip the Cosmos read.
+// Disabled when STRICT_TOKEN_CACHE_TTL_MS=0. Invalidation hooks fire on
+// every _saveUser (covers grantAdmin / revokeAdmin / changePassword /
+// resetPassword) and on deleteUser.
+const STRICT_TOKEN_CACHE_TTL_MS = (() => {
+  const raw = process.env.STRICT_TOKEN_CACHE_TTL_MS;
+  if (raw === undefined || raw === '') return 5000;
+  const n = parseInt(raw, 10);
+  return Number.isFinite(n) && n >= 0 ? n : 5000;
+})();
+const _strictCache = new Map(); // username -> { expiresAt, userId, tokenVersion, isAdmin }
+function _strictCacheGet(username) {
+  if (!STRICT_TOKEN_CACHE_TTL_MS) return null;
+  const entry = _strictCache.get(username);
+  if (!entry) return null;
+  if (entry.expiresAt <= Date.now()) {
+    _strictCache.delete(username);
+    return null;
+  }
+  return entry;
+}
+function _strictCacheSet(username, doc) {
+  if (!STRICT_TOKEN_CACHE_TTL_MS) return;
+  _strictCache.set(username, {
+    expiresAt: Date.now() + STRICT_TOKEN_CACHE_TTL_MS,
+    userId: doc.userId,
+    tokenVersion: typeof doc.tokenVersion === 'number' ? doc.tokenVersion : 0,
+    isAdmin: doc.isAdmin === true,
+  });
+}
+function _strictCacheInvalidate(username) {
+  _strictCache.delete((username || '').trim().toLowerCase());
+}
+function _strictCacheClear() { _strictCache.clear(); }
+function _strictCacheSize() { return _strictCache.size; }
+
 function loadStore() {
   if (_store) return _store;
   try {
@@ -224,6 +263,7 @@ async function deleteUser(username) {
   if (cosmos.isEnabled()) {
     try {
       await cosmos.container('users').item(key, key).delete();
+      _strictCacheInvalidate(key);
       return true;
     } catch (err) {
       if (err.code === 404) return false;
@@ -235,6 +275,7 @@ async function deleteUser(username) {
   delete store[key];
   _store = store;
   saveStore();
+  _strictCacheInvalidate(key);
   return true;
 }
 
@@ -309,6 +350,11 @@ async function _saveUser(username, doc) {
   _store = loadStore();
   _store[key] = clean;
   saveStore();
+
+  // Invalidate the strict-verification TTL cache so the next admin request
+  // re-reads the canonical record (catches grant/revoke/changePassword/
+  // resetPassword and any other mutation that flows through _saveUser).
+  _strictCacheInvalidate(key);
 }
 
 /**
@@ -405,7 +451,28 @@ async function listAdmins() {
  */
 async function verifyTokenStrict(token) {
   const payload = jwt.verify(token, JWT_SECRET);
-  const doc = await getUser(payload.username);
+  const username = payload.username;
+
+  // TTL-cached fast path: if we have a recent canonical snapshot of this
+  // user, re-check tokenVersion + userId without a Cosmos round-trip.
+  const cached = _strictCacheGet(username);
+  if (cached) {
+    if (payload.userId && cached.userId && payload.userId !== cached.userId) {
+      throw new Error('Token has been revoked');
+    }
+    const tokenVersion = typeof payload.tokenVersion === 'number' ? payload.tokenVersion : 0;
+    if (tokenVersion !== cached.tokenVersion) {
+      throw new Error('Token has been revoked');
+    }
+    return {
+      userId: cached.userId,
+      username,
+      isAdmin: cached.isAdmin,
+      tokenVersion: cached.tokenVersion,
+    };
+  }
+
+  const doc = await getUser(username);
   if (!doc) throw new Error('Account no longer exists');
   // If the username was deleted and recreated, the new account has a fresh
   // userId. Reject the old JWT even though its tokenVersion happens to match
@@ -418,6 +485,7 @@ async function verifyTokenStrict(token) {
   if (tokenVersion !== currentVersion) {
     throw new Error('Token has been revoked');
   }
+  _strictCacheSet(username, doc);
   return {
     userId: doc.userId,
     username: payload.username,
@@ -445,6 +513,7 @@ function listUsers() {
 function _resetStore() {
   _store = {};
   saveStore();
+  _strictCacheClear();
 }
 
 module.exports = {
@@ -464,4 +533,7 @@ module.exports = {
   listAdmins,
   ADMIN_MIN_PASSWORD_LEN,
   _resetStore,
+  _strictCacheClear,
+  _strictCacheSize,
+  STRICT_TOKEN_CACHE_TTL_MS,
 };
