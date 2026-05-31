@@ -583,15 +583,11 @@ Implemented as `__tests__/holdoutValidation.test.js` with `holdoutSplit` + IQR c
 
 ---
 
-### 193. Historical FMV Drift Monitor [P3]
+### ~~193. Historical FMV Drift Monitor [DONE]~~
 
-**Problem:** No automated detection of unexpected FMV drift on stable coins.
+`scripts/fmv-drift-monitor.js` snapshots FMV for 20 benchmark coins (US + world bullion + bars + numismatic) to `cache/fmv-snapshots.json`. On each run, fetches spot via `/api/metals`, prices each benchmark via `/api/price`, compares against the most recent prior snapshot. Flags bullion drift >5% beyond spot movement and numismatic drift >15% (RED if 2× threshold). Premium-band outliers via #196 table. Keeps last 52 snapshots; exits 2 on RED finding for CI integration. `--no-save` for diagnostic runs, `--json` for machine output.
 
-**Fix:** Maintain `cache/fmv-snapshots.json` with weekly FMV for 20 benchmark coins. Weekly cron re-prices all 20; flags bullion drift >5% beyond spot movement, numismatic drift >15% with no data change. Distinguish "expected drift" (spot moved) from "suspicious drift" (code/data change).
-
-**File:** `scripts/fmv-drift-monitor.js`
-
-**Related:** #177, #191
+**Files:** `scripts/fmv-drift-monitor.js`, `src/data/dealerPremiums.js`
 
 ---
 
@@ -601,13 +597,11 @@ Implemented as `__tests__/holdoutValidation.test.js` with `holdoutSplit` + IQR c
 
 ---
 
-### 196. Dealer Premium Benchmark Table for Bullion Anomaly Detection [P3]
+### ~~196. Dealer Premium Benchmark Table for Bullion Anomaly Detection [DONE]~~
 
-**Problem:** No reference table of normal dealer premiums by metal/weight to flag abnormal FMV outputs.
+`src/data/dealerPremiums.js` exports `PREMIUM_RANGES` (29 rows covering ASE, AGE 1oz + fractional, Gold Buffalo, Maple, Krugerrand, Panda, Libertad, Britannia, Philharmonic, Kookaburra, Lunar, Platinum Eagle, plus generic 1g/small/1oz gold bars and 1oz/10oz/100oz silver bars). Helpers `lookupPremiumRange(parsed)`, `classifyPremium(premium, range)` → `low|normal|high|unknown`, and `computePremium(fmv, melt)`. Consumed by the #193 drift monitor for premium-outlier flags. 17 unit tests in `__tests__/dealerPremiums.test.js`.
 
-**Fix:** Add benchmark table; pricing-health / regression diagnostics use it to explain premium outliers.
-
-**Files:** new data constants/reference table, pricing health scripts.
+**Files:** `src/data/dealerPremiums.js`, `__tests__/dealerPremiums.test.js`, `scripts/fmv-drift-monitor.js`
 
 ---
 
