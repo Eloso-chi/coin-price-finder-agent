@@ -246,7 +246,9 @@ Fixed: `evaluateOneCoin()` in `bulkEvaluateService.js` now matches price discove
 
 ---
 
-### #185. World Proof Greysheet Year-Specific Fallback [LOW]
+### #185. World Proof Greysheet Year-Specific Fallback [LOW -- DEFERRED]
+
+**Status (May 31, 2026):** Considered for the #24/#198/#185 PR batch but deferred -- design work needed to define the year-specific proof lookup API path (no clean way to construct a year-specific proof query without a PCGS number, which `fetchTypePrice()` doesn't have). Tracked here for future spike.
 
 **Problem:** When a proof query has no mapped Type GSID, the Greysheet blend falls through to the MS Type entry, producing MS wholesale instead of proof pricing.
 
@@ -687,6 +689,26 @@ All four PRs already merged on 2026-05-25, six days before this backlog item was
 - #38 MERGED 2026-05-25 23:46 UTC (`feat/dry-refresh-backoff`)
 
 Current repo state: 63 total PRs, **0 open**. Item was stale-imported; root cause tracked in INC-009.
+
+---
+
+### ~~#24. Proof Libertad Search Quality [DONE]~~
+
+**Problem:** `sales-aggregator.py` deep-pagination passed the raw `term` (e.g. `1986 Mexico 1oz Silver Libertad Proof`) to `do_search_and_collect()`, pulling in graded/slabbed eBay listings that diluted the raw-proof median. `terapeak-export.py` already mitigated this via `PROOF_NEGATIVE_KEYWORDS` (` -NGC -PCGS -graded -slab -certified`) appended to the `search_query` field of each candidate (lines 351-378). The deep-pagination path was missing this hop.
+
+**Fix (May 31, 2026):** Added `PROOF_NEGATIVE_KEYWORDS`, `_GRADE_SUFFIX_RE`, `_PROOF_COIN_RE`, and `build_search_query()` to `scripts/sales-aggregator.py` (mirrors the `terapeak-export.py` constants). The deep-pagination loop now calls `do_search_and_collect(page, build_search_query(term), ...)` so raw-proof terms get the same exclusions in both the bulk export and the deep re-fetch. Already-graded terms (`MS65`, `PR70`, etc.) and `Proof Set` are intentionally excluded from augmentation.
+
+**Files:** `scripts/sales-aggregator.py` lines ~170-195 (helpers), ~1112 (call site).
+
+---
+
+### ~~#198. Smart Render Wait (Replace `time.sleep(3)`) [DONE]~~
+
+**Problem:** Both scrapers used blanket `time.sleep(3)` after page navigations and post-search waits (7 sites across the two files). Total scrape walks burned ~21s of fixed sleep per candidate even when the SPA rendered in <500ms.
+
+**Fix (May 31, 2026):** Added two helpers to `scripts/terapeak-export.py` -- `wait_for_results_render()` (selector: `tr.research-table-header, [data-testid="no-results"], div.research-no-results, [class*="no-results"]`) and `wait_for_research_page()` (selector: `input[placeholder*="keyword"], input[placeholder*="MPN"], #researchKeywords`). Both wait up to 3000ms for the relevant DOM element with `state="attached"`, falling back to `time.sleep(3)` on timeout. Net effect: fast-path on healthy responses, identical worst-case on bot-throttled runs. `sales-aggregator.py` imports both helpers via `_mod.` Replaced 7 call sites: 3 in `terapeak-export.py` (post-login verify, post-search render, session verify), 4 in `sales-aggregator.py` (session check, page-1 results, pagination, launch verify).
+
+**Files:** `scripts/terapeak-export.py` lines ~210-265 (helpers), 663, 912, 1414 (call sites); `scripts/sales-aggregator.py` lines 99-100 (imports), 416, 651, 788, 1088 (call sites).
 
 ---
 
