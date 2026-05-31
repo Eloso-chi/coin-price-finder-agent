@@ -225,20 +225,18 @@ def human_idle(page):
 
 # ── Smart render waits (#198) ───────────────────────────────
 # Replace blanket `time.sleep(3)` after page transitions with a selector-bounded
-# wait. We wait up to `timeout_ms` for the relevant DOM element to appear; if it
-# arrives early we proceed immediately, otherwise we fall back to the original
-# fixed sleep so behavior is never worse than before. Net effect: faster on the
-# common case (selector appears in <1s), identical worst-case on bot-throttled
-# or slow-loading runs.
+# wait. We wait up to `total_seconds` for the relevant DOM element to appear;
+# if it arrives early we proceed immediately, otherwise we fall back to a
+# fixed sleep covering the remaining budget. Worst-case wall-clock is exactly
+# `total_seconds` -- identical to the original blanket sleep.
+#
+# Note (PR #67 review finding #2): we intentionally only key on positive-render
+# selectors (results table / search input). Empty-results selectors were dropped
+# because they're speculative and would inflate worst-case waits if they don't
+# match the live DOM.
 
-# Terapeak results table marker (set in EXTRACT_TABLE_JS); also covers the
-# "no results" empty state so we don't sleep needlessly when a query returns 0.
-_RESULTS_READY_SELECTOR = (
-    'tr.research-table-header, '
-    '[data-testid="no-results"], '
-    'div.research-no-results, '
-    '[class*="no-results"]'
-)
+# Terapeak results table marker (set in EXTRACT_TABLE_JS, line 507).
+_RESULTS_READY_SELECTOR = 'tr.research-table-header'
 
 # Research-page UI marker for post-goto session verification.
 _RESEARCH_PAGE_SELECTOR = (
@@ -248,26 +246,31 @@ _RESEARCH_PAGE_SELECTOR = (
 )
 
 
-def wait_for_results_render(page, timeout_ms=3000, fallback_seconds=3.0):
-    """Wait for the Terapeak results table (or no-results state) to render.
-    Returns True if the selector appeared; False if we fell back to sleep."""
+def _wait_for_selector_or_fallback(page, selector, total_seconds):
+    """Wait up to `total_seconds` for `selector`, then sleep any remaining
+    budget. Worst-case wall-clock == total_seconds (matches original blanket
+    sleep). Returns True if the selector appeared, False if we fell back."""
+    start = time.monotonic()
     try:
-        page.wait_for_selector(_RESULTS_READY_SELECTOR, timeout=timeout_ms, state="attached")
+        page.wait_for_selector(selector, timeout=int(total_seconds * 1000), state="attached")
         return True
     except Exception:
-        time.sleep(fallback_seconds)
+        remaining = total_seconds - (time.monotonic() - start)
+        if remaining > 0:
+            time.sleep(remaining)
         return False
 
 
-def wait_for_research_page(page, timeout_ms=3000, fallback_seconds=3.0):
+def wait_for_results_render(page, total_seconds=3.0):
+    """Wait for the Terapeak results table to render after a search/pagination.
+    Worst-case wall-clock == total_seconds. Returns True on selector hit."""
+    return _wait_for_selector_or_fallback(page, _RESULTS_READY_SELECTOR, total_seconds)
+
+
+def wait_for_research_page(page, total_seconds=3.0):
     """Wait for the Terapeak Research page UI (search input) to render after
-    a navigation. Used for post-goto session verification waits."""
-    try:
-        page.wait_for_selector(_RESEARCH_PAGE_SELECTOR, timeout=timeout_ms, state="attached")
-        return True
-    except Exception:
-        time.sleep(fallback_seconds)
-        return False
+    a navigation. Worst-case wall-clock == total_seconds."""
+    return _wait_for_selector_or_fallback(page, _RESEARCH_PAGE_SELECTOR, total_seconds)
 
 
 # Characters near each key on a QWERTY keyboard for realistic typos
@@ -403,7 +406,7 @@ PROOF_NEGATIVE_KEYWORDS = " -NGC -PCGS -graded -slab -certified"
 # Exclude "Proof Set" which are sealed government sets, not individual coins.
 import re as _re
 _GRADE_SUFFIX_RE = _re.compile(r'\b(MS|PR|PF|SP|AU|XF|EF|VF|VG|AG|FR|PO)\s*\d{1,2}\+?\s*$', _re.IGNORECASE)
-_PROOF_COIN_RE = _re.compile(r'\bproof\b(?!\s*set)', _re.IGNORECASE)
+_PROOF_COIN_RE = _re.compile(r'\bproof\b(?![\s\-_/]*set)', _re.IGNORECASE)
 
 
 def get_search_terms():

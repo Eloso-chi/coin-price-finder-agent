@@ -180,7 +180,7 @@ _GRADE_SUFFIX_RE = re.compile(
     r'\b(MS|PR|PF|SP|AU|XF|EF|VF|VG|AG|FR|PO)\s*\d{1,2}\+?\s*$',
     re.IGNORECASE,
 )
-_PROOF_COIN_RE = re.compile(r'\bproof\b(?!\s*set)', re.IGNORECASE)
+_PROOF_COIN_RE = re.compile(r'\bproof\b(?![\s\-_/]*set)', re.IGNORECASE)
 
 
 def build_search_query(term):
