@@ -1412,7 +1412,10 @@ def do_export_run(args):
     # ── Browser lifecycle helpers ─────────────────────────────
     # Chromium leaks memory on long-running SPA navigations.
     # Recycle the browser every BROWSER_RECYCLE_EVERY coins to avoid OOM crashes.
-    BROWSER_RECYCLE_EVERY = 40
+    # #199: Bumped default 40 -> 80 to reduce recycle overhead; env-tunable so
+    # ops can dial back (e.g., to 40) if memory pressure returns, or raise
+    # further (e.g., 120) once stability is confirmed in a long run.
+    BROWSER_RECYCLE_EVERY = int(os.environ.get("BROWSER_RECYCLE_EVERY", "80"))
 
     pw_instance = sync_playwright().start()
     browser = None
