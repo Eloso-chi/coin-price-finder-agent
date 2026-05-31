@@ -100,8 +100,9 @@ drain_upload = _mod.drain_upload
 wait_for_results_render = _mod.wait_for_results_render  # #198
 wait_for_research_page = _mod.wait_for_research_page    # #198
 
-# Browser recycle interval
-BROWSER_RECYCLE_EVERY = 80
+# Browser recycle interval (#199: bumped default 80 -> 120; env-tunable so ops
+# can dial back if memory pressure returns).
+BROWSER_RECYCLE_EVERY = int(os.environ.get("BROWSER_RECYCLE_EVERY", "120"))
 
 # Session-level flag: once RPP is set to 50, skip re-checking
 _rpp_already_set = False

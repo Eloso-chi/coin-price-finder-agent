@@ -510,23 +510,21 @@ Platinum metal detection wired through the shared pipeline: `coinMetalProfile.js
 
 ## Scraper Performance -- Additional Open Items
 
-### 198. Smart SPA Render Wait Instead of 3s Hard Pause [P3]
+### ~~198. Smart SPA Render Wait Instead of 3s Hard Pause [DONE]~~
 
-**Problem:** Both scraper flows use a fixed `time.sleep(3)` after `networkidle`.
-
-**Fix:** Wait for the result-table selector with bounded timeout; keep the sleep as fallback.
+**Resolution:** Shipped in PR #67. Replaced the blanket `time.sleep(3)` after `networkidle` with `wait_for_results_render()` / `wait_for_research_page()` helpers in `scripts/terapeak-export.py` (selector-bounded wait keyed on `tr.research-table-header` for results and the keyword input for the research page). Worst-case wall-clock matches the original 3s sleep (used as fallback); typical case returns immediately on selector hit. `scripts/sales-aggregator.py` re-imports both helpers so both flows benefit.
 
 **Files:** `scripts/terapeak-export.py`, `scripts/sales-aggregator.py`
 
-**Acceptance:** Measurable per-page latency reduction, no increase in extraction failures.
-
 ---
 
-### 199. Increase Browser Recycle Interval From 40/80 to 120 [P3]
+### ~~199. Increase Browser Recycle Interval From 40/80 to 120 [DONE]~~
 
-**Problem:** Current recycle thresholds (40 in terapeak-export, 80 in sales-aggregator) trigger restart overhead more often than memory pressure requires.
+**Resolution:** Recycle threshold is now env-tunable via `BROWSER_RECYCLE_EVERY` in both scrapers. Defaults bumped conservatively:
+- `scripts/terapeak-export.py`: 40 -> 80 (2x; matches the previous aggregator default)
+- `scripts/sales-aggregator.py`: 80 -> 120 (1.5x, the backlog target)
 
-**Fix:** Profile RSS during long runs; raise to 120 only if stability holds.
+Ops can override to any value (e.g., `BROWSER_RECYCLE_EVERY=40 python scripts/terapeak-export.py ...`) without code changes if memory pressure returns. Profile RSS in the next long run; raise both defaults further once stability is confirmed.
 
 **Files:** `scripts/terapeak-export.py`, `scripts/sales-aggregator.py`
 
