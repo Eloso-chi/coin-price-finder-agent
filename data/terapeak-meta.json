@@ -7,7 +7,7 @@
     "refreshCount": 1,
     "newestSaleDate": "2026-04-29",
     "oldestSaleDate": "2025-11-29",
-    "compCount": 65,
+    "compCount": 68,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -31529,9 +31529,9 @@
     "maxPageReached": null,
     "lastRefreshAt": null,
     "refreshCount": 0,
-    "newestSaleDate": "2026-03-24",
+    "newestSaleDate": "2026-05-19",
     "oldestSaleDate": "2026-03-24",
-    "compCount": 1
+    "compCount": 3
   },
   "1981 mexico half oz gold libertad": {
     "deepAt": null,
@@ -31539,19 +31539,19 @@
     "maxPageReached": null,
     "lastRefreshAt": null,
     "refreshCount": 0,
-    "newestSaleDate": "2026-04-10",
+    "newestSaleDate": "2026-05-16",
     "oldestSaleDate": "2026-01-13",
-    "compCount": 6
+    "compCount": 8
   },
   "1981 mexico 1oz gold libertad": {
     "deepAt": null,
-    "page1At": "2026-04-26T19:14:28.639Z",
+    "page1At": "2026-05-31T20:41:54.664901",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
+    "lastRefreshAt": "2026-05-31T20:41:54.664901",
+    "refreshCount": 2,
     "newestSaleDate": "2026-04-26",
     "oldestSaleDate": "2025-10-28",
-    "compCount": 17,
+    "compCount": 27,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -31815,13 +31815,13 @@
   },
   "1982 mexico 1oz gold libertad": {
     "deepAt": null,
-    "page1At": "2026-04-26T18:51:33.902Z",
+    "page1At": "2026-05-31T23:27:24.143039",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-06",
+    "lastRefreshAt": "2026-05-31T23:27:24.143039",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-30",
     "oldestSaleDate": "2025-11-21",
-    "compCount": 8,
+    "compCount": 10,
     "identifiers": {
       "is_low_volume_candidate": true,
       "is_bullion": true,
@@ -31837,13 +31837,13 @@
   },
   "1982 mexico 1oz silver libertad": {
     "deepAt": "2026-05-01T22:11:53.128Z",
-    "page1At": "2026-05-01T22:11:53.128Z",
+    "page1At": "2026-05-31T22:24:46.782576",
     "maxPageReached": 6,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-05-14",
+    "lastRefreshAt": "2026-05-31T22:24:46.782576",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-23",
     "oldestSaleDate": "2025-10-18",
-    "compCount": 307,
+    "compCount": 398,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -32057,13 +32057,13 @@
   },
   "1983 mexico 1oz silver libertad": {
     "deepAt": "2026-05-30T21:25:49.418Z",
-    "page1At": "2026-05-14T13:52:21.340Z",
+    "page1At": "2026-05-31T23:14:58.112597",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "refreshCount": 2,
+    "lastRefreshAt": "2026-05-31T23:14:58.112597",
+    "refreshCount": 3,
     "newestSaleDate": "2026-05-11",
-    "oldestSaleDate": "2025-12-16",
-    "compCount": 74,
+    "oldestSaleDate": "2025-12-05",
+    "compCount": 102,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -32305,13 +32305,13 @@
   },
   "1984 mexico 1oz gold libertad": {
     "deepAt": null,
-    "page1At": "2026-04-26T19:12:22.531Z",
+    "page1At": "2026-05-31T20:44:00.526900",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-19",
+    "lastRefreshAt": "2026-05-31T20:44:00.526900",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-29",
     "oldestSaleDate": "2025-11-18",
-    "compCount": 3,
+    "compCount": 4,
     "identifiers": {
       "is_low_volume_candidate": true,
       "is_bullion": true,
@@ -32337,13 +32337,13 @@
   },
   "1984 mexico 1oz silver libertad": {
     "deepAt": "2026-05-03T04:56:55.933Z",
-    "page1At": "2026-05-03T04:56:55.933Z",
+    "page1At": "2026-05-31T23:25:50.037591",
     "maxPageReached": 6,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-05-18",
+    "lastRefreshAt": "2026-05-31T23:25:50.037591",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-31",
     "oldestSaleDate": "2025-10-14",
-    "compCount": 236
+    "compCount": 345
   },
   "1984 us mint set": {
     "deepAt": "2026-05-20T03:13:59.995748",
@@ -32489,13 +32489,13 @@
   },
   "1985 mexico 1oz gold libertad": {
     "deepAt": null,
-    "page1At": "2026-04-26T19:27:24.911Z",
+    "page1At": "2026-05-31T22:44:10.838830",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-03-24",
+    "lastRefreshAt": "2026-05-31T22:44:10.838830",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-09",
     "oldestSaleDate": "2025-11-30",
-    "compCount": 8,
+    "compCount": 12,
     "identifiers": {
       "is_low_volume_candidate": true,
       "is_bullion": true,
@@ -32807,13 +32807,15 @@
   },
   "1986 mexico 1oz gold libertad": {
     "deepAt": null,
-    "page1At": "2026-05-13T04:44:49.573Z",
+    "page1At": "2026-05-31T23:34:46.799216",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
+    "lastRefreshAt": "2026-05-31T23:34:46.799216",
+    "refreshCount": 2,
     "newestSaleDate": "2026-02-25",
     "oldestSaleDate": "2026-02-25",
     "compCount": 1,
+    "consecutiveDryRefreshes": 1,
+    "lastRefreshNewComps": 0,
     "identifiers": {
       "is_low_volume_candidate": true,
       "is_bullion": true,
@@ -33235,13 +33237,13 @@
   },
   "1987 mexico 1oz silver libertad": {
     "deepAt": "2026-05-25T18:49:49.412Z",
-    "page1At": "2026-05-25T18:49:49.412Z",
+    "page1At": "2026-05-31T21:18:39.722631",
     "maxPageReached": 6,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-05-11",
+    "lastRefreshAt": "2026-05-31T21:18:39.722631",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-13",
     "oldestSaleDate": "2025-10-15",
-    "compCount": 179,
+    "compCount": 185,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -33257,13 +33259,13 @@
   },
   "1987 mexico 1oz silver libertad proof": {
     "deepAt": null,
-    "page1At": "2026-05-25T18:49:49.412Z",
+    "page1At": "2026-05-31T23:33:46.678871",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
+    "lastRefreshAt": "2026-05-31T23:33:46.678871",
+    "refreshCount": 2,
     "newestSaleDate": "2026-05-11",
     "oldestSaleDate": "2025-11-02",
-    "compCount": 44,
+    "compCount": 46,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -33571,13 +33573,13 @@
   },
   "1988 mexico 1oz gold libertad": {
     "deepAt": null,
-    "page1At": "2026-04-26T18:56:40.099Z",
+    "page1At": "2026-05-31T22:13:24.706478",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-03-30",
+    "lastRefreshAt": "2026-05-31T22:13:24.706478",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-04-26",
     "oldestSaleDate": "2025-11-22",
-    "compCount": 4,
+    "compCount": 5,
     "identifiers": {
       "is_low_volume_candidate": true,
       "is_bullion": true,
@@ -33593,13 +33595,13 @@
   },
   "1988 mexico 1oz silver libertad": {
     "deepAt": "2026-05-03T22:14:58.354Z",
-    "page1At": "2026-05-03T22:14:58.354Z",
+    "page1At": "2026-05-31T23:12:53.493164",
     "maxPageReached": 6,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-05-02",
+    "lastRefreshAt": "2026-05-31T23:12:53.493164",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-24",
     "oldestSaleDate": "2025-10-09",
-    "compCount": 130
+    "compCount": 184
   },
   "1988 mexico 1oz silver libertad proof": {
     "deepAt": null,
@@ -33757,13 +33759,13 @@
   },
   "1989 american silver eagle": {
     "deepAt": "2026-05-25T18:49:49.414Z",
-    "page1At": "2026-05-25T18:49:49.414Z",
+    "page1At": "2026-05-31T21:14:27.753131",
     "maxPageReached": 6,
-    "lastRefreshAt": null,
-    "refreshCount": 2,
-    "newestSaleDate": "2026-05-08",
+    "lastRefreshAt": "2026-05-31T21:14:27.753131",
+    "refreshCount": 3,
+    "newestSaleDate": "2026-05-31",
     "oldestSaleDate": "2025-10-10",
-    "compCount": 231,
+    "compCount": 243,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -33779,13 +33781,13 @@
   },
   "1989 american silver eagle ms69": {
     "deepAt": "2026-05-16T19:21:50.383451",
-    "page1At": "2026-05-09T22:23:18.579Z",
+    "page1At": "2026-05-31T23:28:28.237313",
     "maxPageReached": 5,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-05-16",
+    "lastRefreshAt": "2026-05-31T23:28:28.237313",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-30",
     "oldestSaleDate": "2025-11-18",
-    "compCount": 50,
+    "compCount": 74,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -33800,14 +33802,14 @@
     }
   },
   "1989 american silver eagle ms70": {
-    "deepAt": null,
-    "page1At": "2026-05-09T22:08:31.868Z",
+    "deepAt": "2026-05-31T23:02:24.739563",
+    "page1At": "2026-05-31T23:02:24.739563",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-05-08",
+    "lastRefreshAt": "2026-05-31T23:02:24.739563",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-30",
     "oldestSaleDate": "2025-11-25",
-    "compCount": 49,
+    "compCount": 57,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -34245,13 +34247,13 @@
   },
   "1990 american silver eagle": {
     "deepAt": "2026-05-25T18:49:49.415Z",
-    "page1At": "2026-05-25T18:49:49.415Z",
+    "page1At": "2026-05-31T22:06:20.047331",
     "maxPageReached": 6,
-    "lastRefreshAt": null,
-    "refreshCount": 2,
-    "newestSaleDate": "2026-05-07",
+    "lastRefreshAt": "2026-05-31T22:06:20.047331",
+    "refreshCount": 3,
+    "newestSaleDate": "2026-05-13",
     "oldestSaleDate": "2025-10-15",
-    "compCount": 245,
+    "compCount": 255,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -34535,13 +34537,13 @@
   },
   "1990 mexico 1oz gold libertad": {
     "deepAt": null,
-    "page1At": "2026-04-26T18:55:03.963Z",
+    "page1At": "2026-05-31T23:23:43.549090",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-03-20",
+    "lastRefreshAt": "2026-05-31T23:23:43.549090",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-03",
     "oldestSaleDate": "2026-02-24",
-    "compCount": 2,
+    "compCount": 3,
     "identifiers": {
       "is_low_volume_candidate": true,
       "is_bullion": true,
@@ -34557,13 +34559,13 @@
   },
   "1990 mexico 1oz silver libertad": {
     "deepAt": "2026-05-03T03:19:58.185Z",
-    "page1At": "2026-05-03T03:19:58.185Z",
+    "page1At": "2026-05-31T22:01:09.305849",
     "maxPageReached": 6,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-05-13",
+    "lastRefreshAt": "2026-05-31T22:01:09.305849",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-30",
     "oldestSaleDate": "2025-10-14",
-    "compCount": 166
+    "compCount": 247
   },
   "1990 mexico 1oz silver libertad proof": {
     "deepAt": null,
@@ -34933,13 +34935,15 @@
   },
   "1991 mexico 1oz gold libertad": {
     "deepAt": null,
-    "page1At": "2026-04-26T18:49:35.225Z",
+    "page1At": "2026-05-31T23:24:48.029706",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
+    "lastRefreshAt": "2026-05-31T23:24:48.029706",
+    "refreshCount": 2,
     "newestSaleDate": "2026-02-10",
     "oldestSaleDate": "2025-11-26",
     "compCount": 3,
+    "consecutiveDryRefreshes": 1,
+    "lastRefreshNewComps": 0,
     "identifiers": {
       "is_low_volume_candidate": true,
       "is_bullion": true,
@@ -34981,9 +34985,9 @@
     "maxPageReached": null,
     "lastRefreshAt": null,
     "refreshCount": 0,
-    "newestSaleDate": "2026-01-23",
+    "newestSaleDate": "2026-05-20",
     "oldestSaleDate": "2026-01-23",
-    "compCount": 1
+    "compCount": 2
   },
   "1991 mexico twentieth oz silver libertad": {
     "deepAt": null,
@@ -34997,13 +35001,13 @@
   },
   "1991 mexico 1oz silver libertad": {
     "deepAt": "2026-05-03T01:18:29.891Z",
-    "page1At": "2026-05-03T01:18:29.891Z",
+    "page1At": "2026-05-31T23:21:47.714283",
     "maxPageReached": 6,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-05-17",
+    "lastRefreshAt": "2026-05-31T23:21:47.714283",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-28",
     "oldestSaleDate": "2025-10-14",
-    "compCount": 230
+    "compCount": 248
   },
   "1991 mexico 1oz silver libertad proof": {
     "deepAt": null,
@@ -35161,13 +35165,13 @@
   },
   "1992 american silver eagle": {
     "deepAt": "2026-05-25T18:49:49.418Z",
-    "page1At": "2026-05-25T18:49:49.418Z",
+    "page1At": "2026-05-31T21:42:29.376617",
     "maxPageReached": 6,
-    "lastRefreshAt": null,
-    "refreshCount": 2,
-    "newestSaleDate": "2026-05-08",
+    "lastRefreshAt": "2026-05-31T21:42:29.376617",
+    "refreshCount": 3,
+    "newestSaleDate": "2026-05-29",
     "oldestSaleDate": "2025-10-15",
-    "compCount": 228,
+    "compCount": 237,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -35333,19 +35337,21 @@
     "maxPageReached": null,
     "lastRefreshAt": null,
     "refreshCount": 0,
-    "newestSaleDate": "2026-04-25",
+    "newestSaleDate": "2026-05-30",
     "oldestSaleDate": "2025-10-30",
-    "compCount": 19
+    "compCount": 30
   },
   "1992 mexico 1oz gold libertad": {
     "deepAt": null,
-    "page1At": "2026-04-26T19:22:05.413Z",
+    "page1At": "2026-05-31T20:50:11.820911",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
+    "lastRefreshAt": "2026-05-31T20:50:11.820911",
+    "refreshCount": 2,
     "newestSaleDate": "2026-02-23",
     "oldestSaleDate": "2026-02-23",
     "compCount": 1,
+    "consecutiveDryRefreshes": 1,
+    "lastRefreshNewComps": 0,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -35360,14 +35366,14 @@
     }
   },
   "1992 mexico half oz silver libertad": {
-    "deepAt": null,
+    "deepAt": "2026-05-31T20:15:57.642Z",
     "page1At": null,
     "maxPageReached": null,
     "lastRefreshAt": null,
     "refreshCount": 0,
     "newestSaleDate": "2026-04-23",
     "oldestSaleDate": "2025-10-19",
-    "compCount": 27,
+    "compCount": 69,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -35387,9 +35393,9 @@
     "maxPageReached": null,
     "lastRefreshAt": null,
     "refreshCount": 0,
-    "newestSaleDate": "2026-04-16",
+    "newestSaleDate": "2026-05-20",
     "oldestSaleDate": "2025-10-18",
-    "compCount": 34
+    "compCount": 41
   },
   "1992 mexico tenth oz silver libertad": {
     "deepAt": null,
@@ -35397,9 +35403,9 @@
     "maxPageReached": null,
     "lastRefreshAt": null,
     "refreshCount": 0,
-    "newestSaleDate": "2026-05-01",
-    "oldestSaleDate": "2025-10-15",
-    "compCount": 10,
+    "newestSaleDate": "2026-05-05",
+    "oldestSaleDate": "2025-10-13",
+    "compCount": 36,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -35425,13 +35431,13 @@
   },
   "1992 mexico 1oz silver libertad": {
     "deepAt": "2026-05-02T18:02:36.325Z",
-    "page1At": "2026-05-02T18:02:36.325Z",
+    "page1At": "2026-05-31T21:54:31.922080",
     "maxPageReached": 6,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-05-07",
+    "lastRefreshAt": "2026-05-31T21:54:31.922080",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-24",
     "oldestSaleDate": "2025-10-13",
-    "compCount": 164,
+    "compCount": 203,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -35477,13 +35483,13 @@
   },
   "1992 mexico 1oz silver libertad proof": {
     "deepAt": null,
-    "page1At": "2026-05-13T06:27:17.097Z",
+    "page1At": "2026-05-31T20:45:59.130949",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-05-07",
+    "lastRefreshAt": "2026-05-31T20:45:59.130949",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-29",
     "oldestSaleDate": "2025-12-27",
-    "compCount": 12,
+    "compCount": 15,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -35871,13 +35877,15 @@
   },
   "1993 mexico 1oz gold libertad": {
     "deepAt": null,
-    "page1At": "2026-04-26T19:19:53.829Z",
+    "page1At": "2026-05-31T23:42:52.193479",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
+    "lastRefreshAt": "2026-05-31T23:42:52.193479",
+    "refreshCount": 2,
     "newestSaleDate": "2026-03-15",
     "oldestSaleDate": "2026-03-15",
     "compCount": 1,
+    "consecutiveDryRefreshes": 1,
+    "lastRefreshNewComps": 0,
     "identifiers": {
       "is_low_volume_candidate": true,
       "is_bullion": true,
@@ -35919,7 +35927,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-03-08",
     "oldestSaleDate": "2025-12-28",
-    "compCount": 4
+    "compCount": 5
   },
   "1993 mexico twentieth oz silver libertad": {
     "deepAt": null,
@@ -35933,13 +35941,13 @@
   },
   "1993 mexico 1oz silver libertad": {
     "deepAt": "2026-05-02T16:53:05.948Z",
-    "page1At": "2026-05-02T16:53:05.948Z",
+    "page1At": "2026-05-31T23:40:03.183206",
     "maxPageReached": 6,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-05-09",
+    "lastRefreshAt": "2026-05-31T23:40:03.183206",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-22",
     "oldestSaleDate": "2025-10-10",
-    "compCount": 216,
+    "compCount": 333,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -35995,13 +36003,15 @@
   },
   "1993 mexico 1oz silver libertad proof": {
     "deepAt": null,
-    "page1At": "2026-04-29T11:59:31.901Z",
+    "page1At": "2026-05-31T23:30:48.615663",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
+    "lastRefreshAt": "2026-05-31T23:30:48.615663",
+    "refreshCount": 2,
     "newestSaleDate": "2026-04-11",
     "oldestSaleDate": "2026-02-19",
     "compCount": 6,
+    "consecutiveDryRefreshes": 1,
+    "lastRefreshNewComps": 0,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -36366,18 +36376,18 @@
     "lastRefreshAt": null,
     "refreshCount": 0,
     "newestSaleDate": "2026-02-17",
-    "oldestSaleDate": "2026-02-17",
-    "compCount": 1
+    "oldestSaleDate": "2026-01-07",
+    "compCount": 2
   },
   "1994 mexico 1oz gold libertad": {
     "deepAt": null,
-    "page1At": "2026-04-26T19:23:15.067Z",
+    "page1At": "2026-05-31T20:49:02.560147",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
+    "lastRefreshAt": "2026-05-31T20:49:02.560147",
+    "refreshCount": 2,
     "newestSaleDate": "2026-03-02",
     "oldestSaleDate": "2026-01-07",
-    "compCount": 35,
+    "compCount": 43,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -36483,13 +36493,13 @@
   },
   "1994 mexico 1oz silver libertad proof": {
     "deepAt": null,
-    "page1At": "2026-04-29T11:56:34.515Z",
+    "page1At": "2026-05-31T21:27:01.378960",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-09",
+    "lastRefreshAt": "2026-05-31T21:27:01.378960",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-27",
     "oldestSaleDate": "2026-02-18",
-    "compCount": 2,
+    "compCount": 4,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -36881,7 +36891,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-04-30",
     "oldestSaleDate": "2025-12-20",
-    "compCount": 5
+    "compCount": 6
   },
   "1995 mexico twentieth oz silver libertad": {
     "deepAt": null,
@@ -36925,13 +36935,13 @@
   },
   "1995 mexico 1oz silver libertad": {
     "deepAt": "2026-05-03T23:55:09.964Z",
-    "page1At": "2026-05-03T23:55:09.964Z",
+    "page1At": "2026-05-31T23:37:57.577279",
     "maxPageReached": 6,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-05-10",
+    "lastRefreshAt": "2026-05-31T23:37:57.577279",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-28",
     "oldestSaleDate": "2025-10-13",
-    "compCount": 198,
+    "compCount": 308,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -36957,13 +36967,15 @@
   },
   "1995 mexico 1oz silver libertad proof": {
     "deepAt": null,
-    "page1At": "2026-04-29T11:47:44.837Z",
+    "page1At": "2026-05-31T22:26:46.186984",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
+    "lastRefreshAt": "2026-05-31T22:26:46.186984",
+    "refreshCount": 2,
     "newestSaleDate": "2026-04-13",
     "oldestSaleDate": "2025-11-05",
     "compCount": 7,
+    "consecutiveDryRefreshes": 1,
+    "lastRefreshNewComps": 0,
     "identifiers": {
       "is_low_volume_candidate": true,
       "is_bullion": true,
@@ -37367,13 +37379,13 @@
   },
   "1996 mexico 1oz gold libertad": {
     "deepAt": null,
-    "page1At": "2026-04-26T19:30:36.543Z",
+    "page1At": "2026-05-31T21:25:54.122372",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-02-20",
+    "lastRefreshAt": "2026-05-31T21:25:54.122372",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-22",
     "oldestSaleDate": "2026-02-20",
-    "compCount": 1,
+    "compCount": 3,
     "identifiers": {
       "is_low_volume_candidate": true,
       "is_bullion": true,
@@ -37461,13 +37473,13 @@
   },
   "1996 mexico 1oz silver libertad proof": {
     "deepAt": null,
-    "page1At": "2026-04-29T11:55:07.960Z",
+    "page1At": "2026-05-31T20:35:36.592492",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-04",
+    "lastRefreshAt": "2026-05-31T20:35:36.592492",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-15",
     "oldestSaleDate": "2025-12-08",
-    "compCount": 4,
+    "compCount": 7,
     "identifiers": {
       "is_low_volume_candidate": true,
       "is_bullion": true,
@@ -37928,8 +37940,8 @@
     "lastRefreshAt": null,
     "refreshCount": 0,
     "newestSaleDate": "2026-04-16",
-    "oldestSaleDate": "2026-01-14",
-    "compCount": 3
+    "oldestSaleDate": "2026-01-12",
+    "compCount": 4
   },
   "1997 mexico quarter oz silver libertad": {
     "deepAt": null,
@@ -37937,9 +37949,9 @@
     "maxPageReached": null,
     "lastRefreshAt": null,
     "refreshCount": 0,
-    "newestSaleDate": "2026-04-27",
-    "oldestSaleDate": "2025-10-23",
-    "compCount": 10,
+    "newestSaleDate": "2026-05-03",
+    "oldestSaleDate": "2025-10-12",
+    "compCount": 23,
     "identifiers": {
       "is_low_volume_candidate": true,
       "is_bullion": true,
@@ -37979,19 +37991,19 @@
     "maxPageReached": null,
     "lastRefreshAt": null,
     "refreshCount": 0,
-    "newestSaleDate": "2026-03-13",
+    "newestSaleDate": "2026-05-06",
     "oldestSaleDate": "2025-10-22",
-    "compCount": 8
+    "compCount": 9
   },
   "1997 mexico 1oz silver libertad": {
     "deepAt": "2026-05-03T22:19:29.499Z",
-    "page1At": "2026-05-03T22:19:29.499Z",
+    "page1At": "2026-05-31T21:05:24.185501",
     "maxPageReached": 6,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-05-01",
+    "lastRefreshAt": "2026-05-31T21:05:24.185501",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-28",
     "oldestSaleDate": "2025-10-20",
-    "compCount": 122,
+    "compCount": 181,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -38007,13 +38019,15 @@
   },
   "1997 mexico 1oz silver libertad proof": {
     "deepAt": null,
-    "page1At": "2026-04-29T11:49:16.117Z",
+    "page1At": "2026-05-31T21:37:12.873868",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
+    "lastRefreshAt": "2026-05-31T21:37:12.873868",
+    "refreshCount": 2,
     "newestSaleDate": "2026-03-06",
     "oldestSaleDate": "2025-11-06",
     "compCount": 4,
+    "consecutiveDryRefreshes": 1,
+    "lastRefreshNewComps": 0,
     "identifiers": {
       "is_low_volume_candidate": true,
       "is_bullion": true,
@@ -38540,6 +38554,8 @@
     "newestSaleDate": "2026-04-23",
     "oldestSaleDate": "2026-04-23",
     "compCount": 1,
+    "noDataAt": "2026-05-31T23:38:58.205Z",
+    "noDataCount": 1,
     "identifiers": {
       "is_low_volume_candidate": true,
       "is_bullion": true,
@@ -39007,13 +39023,15 @@
   },
   "1999 mexico 1oz gold libertad": {
     "deepAt": null,
-    "page1At": "2026-04-26T18:59:52.792Z",
+    "page1At": "2026-05-31T22:32:57.968321",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
+    "lastRefreshAt": "2026-05-31T22:32:57.968321",
+    "refreshCount": 2,
     "newestSaleDate": "2026-03-01",
     "oldestSaleDate": "2026-03-01",
     "compCount": 1,
+    "consecutiveDryRefreshes": 1,
+    "lastRefreshNewComps": 0,
     "identifiers": {
       "is_low_volume_candidate": true,
       "is_bullion": true,
@@ -39068,6 +39086,8 @@
     "newestSaleDate": "2026-04-24",
     "oldestSaleDate": "2025-11-04",
     "compCount": 3,
+    "noDataAt": "2026-05-31T22:45:23.253Z",
+    "noDataCount": 1,
     "identifiers": {
       "is_low_volume_candidate": true,
       "is_bullion": true,
@@ -39247,13 +39267,13 @@
   },
   "2000 american silver eagle": {
     "deepAt": "2026-05-25T18:49:49.426Z",
-    "page1At": "2026-05-25T18:49:49.426Z",
+    "page1At": "2026-05-31T20:56:38.913077",
     "maxPageReached": 6,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-05-15",
+    "lastRefreshAt": "2026-05-31T20:56:38.913077",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-30",
     "oldestSaleDate": "2025-10-17",
-    "compCount": 230,
+    "compCount": 281,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -39483,7 +39503,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-03-02",
     "oldestSaleDate": "2025-11-16",
-    "compCount": 8
+    "compCount": 9
   },
   "2000 mexico half oz silver libertad": {
     "deepAt": null,
@@ -39491,9 +39511,9 @@
     "maxPageReached": null,
     "lastRefreshAt": null,
     "refreshCount": 0,
-    "newestSaleDate": "2026-03-01",
+    "newestSaleDate": "2026-05-30",
     "oldestSaleDate": "2025-10-30",
-    "compCount": 10,
+    "compCount": 11,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -39529,13 +39549,13 @@
   },
   "2000 mexico 1oz silver libertad": {
     "deepAt": "2026-05-03T01:46:04.316Z",
-    "page1At": "2026-05-03T01:46:04.316Z",
+    "page1At": "2026-05-31T21:49:14.737179",
     "maxPageReached": 6,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-28",
+    "lastRefreshAt": "2026-05-31T21:49:14.737179",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-25",
     "oldestSaleDate": "2025-10-13",
-    "compCount": 184,
+    "compCount": 309,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -39561,13 +39581,13 @@
   },
   "2000 mexico 1oz silver libertad proof": {
     "deepAt": null,
-    "page1At": "2026-04-29T11:52:11.828Z",
+    "page1At": "2026-05-31T22:19:17.816355",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
+    "lastRefreshAt": "2026-05-31T22:19:17.816355",
+    "refreshCount": 2,
     "newestSaleDate": "2026-04-06",
-    "oldestSaleDate": "2025-12-14",
-    "compCount": 3,
+    "oldestSaleDate": "2025-11-04",
+    "compCount": 6,
     "identifiers": {
       "is_low_volume_candidate": true,
       "is_bullion": true,
@@ -40117,13 +40137,15 @@
   },
   "2001 mexico 1oz silver libertad proof": {
     "deepAt": null,
-    "page1At": "2026-04-29T12:06:40.966Z",
+    "page1At": "2026-05-31T21:40:19.491535",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
+    "lastRefreshAt": "2026-05-31T21:40:19.491535",
+    "refreshCount": 2,
     "newestSaleDate": "2026-04-14",
     "oldestSaleDate": "2025-12-19",
     "compCount": 5,
+    "consecutiveDryRefreshes": 1,
+    "lastRefreshNewComps": 0,
     "identifiers": {
       "is_low_volume_candidate": true,
       "is_bullion": true,
@@ -40315,13 +40337,13 @@
   },
   "2002 american silver eagle": {
     "deepAt": "2026-05-25T18:49:49.429Z",
-    "page1At": "2026-05-25T18:49:49.429Z",
+    "page1At": "2026-05-31T20:57:38.402522",
     "maxPageReached": 6,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-05-08",
+    "lastRefreshAt": "2026-05-31T20:57:38.402522",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-24",
     "oldestSaleDate": "2025-10-13",
-    "compCount": 205,
+    "compCount": 220,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -40633,13 +40655,13 @@
   },
   "2002 mexico 1oz silver libertad proof": {
     "deepAt": null,
-    "page1At": "2026-04-29T11:44:50.824Z",
+    "page1At": "2026-05-31T21:22:42.244667",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-26",
+    "lastRefreshAt": "2026-05-31T21:22:42.244667",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-22",
     "oldestSaleDate": "2025-12-02",
-    "compCount": 10,
+    "compCount": 12,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -40809,13 +40831,13 @@
   },
   "2003 american silver eagle": {
     "deepAt": "2026-05-25T18:49:49.430Z",
-    "page1At": "2026-05-25T18:49:49.430Z",
+    "page1At": "2026-05-31T21:31:15.387466",
     "maxPageReached": 6,
-    "lastRefreshAt": null,
-    "refreshCount": 2,
-    "newestSaleDate": "2026-05-12",
+    "lastRefreshAt": "2026-05-31T21:31:15.387466",
+    "refreshCount": 3,
+    "newestSaleDate": "2026-05-27",
     "oldestSaleDate": "2025-10-15",
-    "compCount": 311,
+    "compCount": 315,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -41112,14 +41134,14 @@
     "compCount": 3
   },
   "2003 mexico tenth oz silver libertad": {
-    "deepAt": null,
+    "deepAt": "2026-05-31T20:15:58.482Z",
     "page1At": null,
     "maxPageReached": null,
     "lastRefreshAt": null,
     "refreshCount": 0,
     "newestSaleDate": "2026-03-06",
-    "oldestSaleDate": "2025-11-09",
-    "compCount": 13,
+    "oldestSaleDate": "2025-10-12",
+    "compCount": 66,
     "identifiers": {
       "is_low_volume_candidate": true,
       "is_bullion": true,
@@ -41139,9 +41161,9 @@
     "maxPageReached": null,
     "lastRefreshAt": null,
     "refreshCount": 0,
-    "newestSaleDate": "2026-04-04",
+    "newestSaleDate": "2026-05-21",
     "oldestSaleDate": "2025-10-19",
-    "compCount": 14,
+    "compCount": 15,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -41157,13 +41179,13 @@
   },
   "2003 mexico 1oz silver libertad": {
     "deepAt": "2026-05-02T19:21:50.315Z",
-    "page1At": "2026-05-02T19:21:50.315Z",
+    "page1At": "2026-05-31T23:19:04.457470",
     "maxPageReached": 6,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-05-01",
+    "lastRefreshAt": "2026-05-31T23:19:04.457470",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-21",
     "oldestSaleDate": "2025-10-12",
-    "compCount": 130
+    "compCount": 158
   },
   "2003 mexico tenth oz silver libertad proof": {
     "deepAt": null,
@@ -41172,18 +41194,20 @@
     "lastRefreshAt": null,
     "refreshCount": 0,
     "newestSaleDate": "2026-01-02",
-    "oldestSaleDate": "2025-12-19",
-    "compCount": 2
+    "oldestSaleDate": "2025-11-19",
+    "compCount": 3
   },
   "2003 mexico 1oz silver libertad proof": {
     "deepAt": null,
-    "page1At": "2026-04-29T11:43:28.167Z",
+    "page1At": "2026-05-31T22:42:00.803701",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
+    "lastRefreshAt": "2026-05-31T22:42:00.803701",
+    "refreshCount": 2,
     "newestSaleDate": "2026-04-08",
     "oldestSaleDate": "2025-11-19",
     "compCount": 4,
+    "consecutiveDryRefreshes": 1,
+    "lastRefreshNewComps": 0,
     "identifiers": {
       "is_low_volume_candidate": true,
       "is_bullion": true,
@@ -41353,13 +41377,13 @@
   },
   "2004 american silver eagle": {
     "deepAt": "2026-05-25T18:49:49.431Z",
-    "page1At": "2026-05-25T18:49:49.431Z",
+    "page1At": "2026-05-31T22:22:22.293167",
     "maxPageReached": 6,
-    "lastRefreshAt": null,
-    "refreshCount": 2,
-    "newestSaleDate": "2026-05-13",
+    "lastRefreshAt": "2026-05-31T22:22:22.293167",
+    "refreshCount": 3,
+    "newestSaleDate": "2026-05-30",
     "oldestSaleDate": "2025-10-15",
-    "compCount": 165,
+    "compCount": 180,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -41374,14 +41398,14 @@
     }
   },
   "2004 american silver eagle ms70": {
-    "deepAt": null,
-    "page1At": "2026-05-09T22:31:17.980Z",
+    "deepAt": "2026-05-31T21:20:39.750016",
+    "page1At": "2026-05-31T21:20:39.750016",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-05-06",
+    "lastRefreshAt": "2026-05-31T21:20:39.750016",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-19",
     "oldestSaleDate": "2025-11-11",
-    "compCount": 49,
+    "compCount": 88,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -41635,9 +41659,9 @@
     "maxPageReached": null,
     "lastRefreshAt": null,
     "refreshCount": 0,
-    "newestSaleDate": "2026-04-22",
+    "newestSaleDate": "2026-05-10",
     "oldestSaleDate": "2026-04-22",
-    "compCount": 1
+    "compCount": 3
   },
   "2004 mexico twentieth oz gold libertad": {
     "deepAt": null,
@@ -42098,8 +42122,8 @@
     "lastRefreshAt": null,
     "refreshCount": 0,
     "newestSaleDate": "2026-04-05",
-    "oldestSaleDate": "2026-02-21",
-    "compCount": 3
+    "oldestSaleDate": "2025-12-16",
+    "compCount": 4
   },
   "2005 mexico quarter oz gold libertad": {
     "deepAt": null,
@@ -42107,9 +42131,9 @@
     "maxPageReached": null,
     "lastRefreshAt": null,
     "refreshCount": 0,
-    "newestSaleDate": "2026-04-22",
+    "newestSaleDate": "2026-05-01",
     "oldestSaleDate": "2026-04-22",
-    "compCount": 1
+    "compCount": 2
   },
   "2005 mexico half oz gold libertad": {
     "deepAt": null,
@@ -42117,9 +42141,9 @@
     "maxPageReached": null,
     "lastRefreshAt": null,
     "refreshCount": 0,
-    "newestSaleDate": "2026-04-22",
+    "newestSaleDate": "2026-04-30",
     "oldestSaleDate": "2026-04-22",
-    "compCount": 1
+    "compCount": 2
   },
   "2005 mexico half oz silver libertad": {
     "deepAt": null,
@@ -42603,9 +42627,9 @@
     "maxPageReached": null,
     "lastRefreshAt": null,
     "refreshCount": 0,
-    "newestSaleDate": "2026-04-25",
+    "newestSaleDate": "2026-04-28",
     "oldestSaleDate": "2026-04-21",
-    "compCount": 2
+    "compCount": 3
   },
   "2006 mexico quarter oz silver libertad": {
     "deepAt": null,
@@ -42675,17 +42699,17 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-02-25",
     "oldestSaleDate": "2025-12-19",
-    "compCount": 4
+    "compCount": 5
   },
   "2006 mexico 1oz silver libertad proof": {
     "deepAt": null,
-    "page1At": "2026-04-29T11:58:04.116Z",
+    "page1At": "2026-05-31T20:40:54.472712",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
+    "lastRefreshAt": "2026-05-31T20:40:54.472712",
+    "refreshCount": 2,
     "newestSaleDate": "2026-04-25",
-    "oldestSaleDate": "2026-02-15",
-    "compCount": 3,
+    "oldestSaleDate": "2025-12-19",
+    "compCount": 6,
     "identifiers": {
       "is_low_volume_candidate": true,
       "is_bullion": true,
@@ -43143,13 +43167,13 @@
   },
   "2007 mexico 1oz silver libertad": {
     "deepAt": "2026-05-25T18:49:49.435Z",
-    "page1At": "2026-05-25T18:49:49.435Z",
+    "page1At": "2026-05-31T20:53:30.718444",
     "maxPageReached": 5,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
+    "lastRefreshAt": "2026-05-31T20:53:30.718444",
+    "refreshCount": 2,
     "newestSaleDate": "2026-05-11",
     "oldestSaleDate": "2025-10-11",
-    "compCount": 120,
+    "compCount": 131,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -43804,18 +43828,18 @@
     "lastRefreshAt": null,
     "refreshCount": 0,
     "newestSaleDate": "2026-03-17",
-    "oldestSaleDate": "2025-11-17",
-    "compCount": 6
+    "oldestSaleDate": "2025-10-30",
+    "compCount": 7
   },
   "2008 mexico 1oz gold libertad": {
     "deepAt": null,
-    "page1At": "2026-04-26T19:01:02.968Z",
+    "page1At": "2026-05-31T22:00:10.694330",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-02-15",
-    "oldestSaleDate": "2026-01-27",
-    "compCount": 2,
+    "lastRefreshAt": "2026-05-31T22:00:10.694330",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-04",
+    "oldestSaleDate": "2025-12-08",
+    "compCount": 8,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -44360,8 +44384,8 @@
     "lastRefreshAt": null,
     "refreshCount": 0,
     "newestSaleDate": "2026-02-05",
-    "oldestSaleDate": "2026-02-05",
-    "compCount": 1
+    "oldestSaleDate": "2026-01-02",
+    "compCount": 4
   },
   "2009 mexico half oz gold libertad": {
     "deepAt": null,
@@ -44405,13 +44429,13 @@
   },
   "2009 mexico 1oz silver libertad": {
     "deepAt": "2026-05-04T01:27:47.471Z",
-    "page1At": "2026-05-04T01:27:47.471Z",
+    "page1At": "2026-05-31T22:50:34.759259",
     "maxPageReached": 6,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-05-09",
-    "oldestSaleDate": "2025-10-20",
-    "compCount": 170,
+    "lastRefreshAt": "2026-05-31T22:50:34.759259",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-26",
+    "oldestSaleDate": "2025-10-19",
+    "compCount": 246,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -44437,13 +44461,13 @@
   },
   "2009 mexico 1oz silver libertad proof": {
     "deepAt": null,
-    "page1At": "2026-04-26T20:00:04.493Z",
+    "page1At": "2026-05-31T22:16:21.651781",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-21",
+    "lastRefreshAt": "2026-05-31T22:16:21.651781",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-28",
     "oldestSaleDate": "2025-11-02",
-    "compCount": 30,
+    "compCount": 34,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -44657,13 +44681,13 @@
   },
   "2010 american silver eagle": {
     "deepAt": "2026-05-25T18:49:49.439Z",
-    "page1At": "2026-05-25T18:49:49.439Z",
+    "page1At": "2026-05-31T21:24:45.762253",
     "maxPageReached": 6,
-    "lastRefreshAt": null,
-    "refreshCount": 2,
-    "newestSaleDate": "2026-05-12",
+    "lastRefreshAt": "2026-05-31T21:24:45.762253",
+    "refreshCount": 3,
+    "newestSaleDate": "2026-05-23",
     "oldestSaleDate": "2025-10-15",
-    "compCount": 244,
+    "compCount": 257,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -44957,13 +44981,13 @@
   },
   "2010 mexico 1oz gold libertad": {
     "deepAt": null,
-    "page1At": "2026-04-26T18:42:55.051Z",
+    "page1At": "2026-05-31T21:33:51.776268",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-02-28",
-    "oldestSaleDate": "2025-12-08",
-    "compCount": 5,
+    "lastRefreshAt": "2026-05-31T21:33:51.776268",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-02",
+    "oldestSaleDate": "2025-11-17",
+    "compCount": 8,
     "identifiers": {
       "is_low_volume_candidate": true,
       "is_bullion": true,
@@ -45325,13 +45349,13 @@
   },
   "2011 american silver eagle bu -25th": {
     "deepAt": "2026-05-25T18:49:49.445Z",
-    "page1At": "2026-05-25T18:49:49.445Z",
+    "page1At": "2026-05-31T20:38:47.376975",
     "maxPageReached": 6,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
+    "lastRefreshAt": "2026-05-31T20:38:47.376975",
+    "refreshCount": 2,
     "newestSaleDate": "2026-05-14",
     "oldestSaleDate": "2025-10-13",
-    "compCount": 156,
+    "compCount": 181,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -45635,13 +45659,15 @@
   },
   "2011 mexico 1oz gold libertad": {
     "deepAt": null,
-    "page1At": "2026-04-26T19:31:45.778Z",
+    "page1At": "2026-05-31T21:00:46.548540",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
+    "lastRefreshAt": "2026-05-31T21:00:46.548540",
+    "refreshCount": 2,
     "newestSaleDate": "2026-03-07",
     "oldestSaleDate": "2026-03-07",
     "compCount": 1,
+    "consecutiveDryRefreshes": 1,
+    "lastRefreshNewComps": 0,
     "identifiers": {
       "is_low_volume_candidate": true,
       "is_bullion": true,
@@ -45695,7 +45721,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-03-19",
     "oldestSaleDate": "2025-10-16",
-    "compCount": 15
+    "compCount": 17
   },
   "2011 mexico 2oz silver libertad": {
     "deepAt": null,
@@ -45719,13 +45745,13 @@
   },
   "2011 mexico 1oz silver libertad": {
     "deepAt": "2026-05-04T01:58:19.535Z",
-    "page1At": "2026-05-04T01:58:19.535Z",
+    "page1At": "2026-05-31T21:21:43.358398",
     "maxPageReached": 6,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-05-18",
+    "lastRefreshAt": "2026-05-31T21:21:43.358398",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-25",
     "oldestSaleDate": "2025-10-15",
-    "compCount": 204
+    "compCount": 315
   },
   "2011 mexico twentieth oz silver libertad proof": {
     "deepAt": null,
@@ -46365,13 +46391,15 @@
   },
   "2012 mexico 1oz gold libertad": {
     "deepAt": null,
-    "page1At": "2026-04-26T18:46:03.828Z",
+    "page1At": "2026-05-31T23:32:45.098025",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
+    "lastRefreshAt": "2026-05-31T23:32:45.098025",
+    "refreshCount": 2,
     "newestSaleDate": "2026-03-04",
     "oldestSaleDate": "2026-03-04",
     "compCount": 1,
+    "consecutiveDryRefreshes": 1,
+    "lastRefreshNewComps": 0,
     "identifiers": {
       "is_low_volume_candidate": true,
       "is_bullion": true,
@@ -46396,14 +46424,14 @@
     "compCount": 3
   },
   "2012 mexico half oz silver libertad": {
-    "deepAt": null,
+    "deepAt": "2026-05-31T20:15:59.835Z",
     "page1At": null,
     "maxPageReached": null,
     "lastRefreshAt": null,
     "refreshCount": 0,
     "newestSaleDate": "2026-05-28",
-    "oldestSaleDate": "2025-11-17",
-    "compCount": 2
+    "oldestSaleDate": "2025-10-16",
+    "compCount": 73
   },
   "2012 mexico quarter oz silver libertad": {
     "deepAt": null,
@@ -46427,13 +46455,13 @@
   },
   "2012 mexico 1oz silver libertad": {
     "deepAt": "2026-05-01T20:39:41.176Z",
-    "page1At": "2026-05-01T20:39:41.176Z",
+    "page1At": "2026-05-31T20:32:28.968480",
     "maxPageReached": 6,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-05-17",
+    "lastRefreshAt": "2026-05-31T20:32:28.968480",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-23",
     "oldestSaleDate": "2025-10-16",
-    "compCount": 230,
+    "compCount": 256,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -46985,7 +47013,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-03-15",
     "oldestSaleDate": "2025-11-22",
-    "compCount": 6
+    "compCount": 10
   },
   "2013 mexico twentieth oz silver libertad": {
     "deepAt": null,
@@ -47057,9 +47085,9 @@
     "maxPageReached": null,
     "lastRefreshAt": null,
     "refreshCount": 0,
-    "newestSaleDate": "2026-04-24",
+    "newestSaleDate": "2026-05-29",
     "oldestSaleDate": "2025-12-03",
-    "compCount": 10,
+    "compCount": 12,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -47080,8 +47108,8 @@
     "lastRefreshAt": null,
     "refreshCount": 0,
     "newestSaleDate": "2026-04-14",
-    "oldestSaleDate": "2026-01-26",
-    "compCount": 6
+    "oldestSaleDate": "2026-01-25",
+    "compCount": 9
   },
   "2013 mexico quarter oz silver libertad proof": {
     "deepAt": null,
@@ -47099,19 +47127,19 @@
     "maxPageReached": null,
     "lastRefreshAt": null,
     "refreshCount": 0,
-    "newestSaleDate": "2026-04-28",
+    "newestSaleDate": "2026-05-29",
     "oldestSaleDate": "2025-11-21",
-    "compCount": 9
+    "compCount": 10
   },
   "2013 mexico 1oz silver libertad proof": {
     "deepAt": "2026-05-02T18:12:57.067Z",
-    "page1At": "2026-05-02T18:12:57.067Z",
+    "page1At": "2026-05-31T21:34:55.820174",
     "maxPageReached": 5,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-26",
+    "lastRefreshAt": "2026-05-31T21:34:55.820174",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-24",
     "oldestSaleDate": "2025-10-28",
-    "compCount": 63,
+    "compCount": 102,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -47662,8 +47690,8 @@
     "lastRefreshAt": null,
     "refreshCount": 0,
     "newestSaleDate": "2026-02-14",
-    "oldestSaleDate": "2025-10-30",
-    "compCount": 4
+    "oldestSaleDate": "2025-10-29",
+    "compCount": 5
   },
   "2014 mexico twentieth oz gold libertad": {
     "deepAt": null,
@@ -47682,18 +47710,20 @@
     "lastRefreshAt": null,
     "refreshCount": 0,
     "newestSaleDate": "2026-01-27",
-    "oldestSaleDate": "2026-01-27",
-    "compCount": 1
+    "oldestSaleDate": "2025-11-24",
+    "compCount": 10
   },
   "2014 mexico 1oz gold libertad": {
     "deepAt": null,
-    "page1At": "2026-04-26T19:18:47.861Z",
+    "page1At": "2026-05-31T21:50:15.649906",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
+    "lastRefreshAt": "2026-05-31T21:50:15.649906",
+    "refreshCount": 2,
     "newestSaleDate": "2026-03-17",
     "oldestSaleDate": "2025-11-05",
     "compCount": 10,
+    "consecutiveDryRefreshes": 1,
+    "lastRefreshNewComps": 0,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -47813,13 +47843,13 @@
   },
   "2014 mexico 1oz silver libertad proof": {
     "deepAt": null,
-    "page1At": "2026-04-26T19:56:43.156Z",
+    "page1At": "2026-05-31T22:17:18.304197",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-13",
+    "lastRefreshAt": "2026-05-31T22:17:18.304197",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-12",
     "oldestSaleDate": "2025-11-02",
-    "compCount": 23,
+    "compCount": 31,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -48033,13 +48063,13 @@
   },
   "2015 american silver eagle": {
     "deepAt": "2026-05-25T18:49:49.457Z",
-    "page1At": "2026-05-25T18:49:49.457Z",
+    "page1At": "2026-05-31T23:45:42.194824",
     "maxPageReached": 6,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-05-15",
+    "lastRefreshAt": "2026-05-31T23:45:42.194824",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-30",
     "oldestSaleDate": "2025-10-19",
-    "compCount": 238,
+    "compCount": 258,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -48451,19 +48481,19 @@
     "maxPageReached": null,
     "lastRefreshAt": null,
     "refreshCount": 0,
-    "newestSaleDate": "2026-03-26",
+    "newestSaleDate": "2026-05-06",
     "oldestSaleDate": "2026-03-26",
-    "compCount": 1
+    "compCount": 3
   },
   "2015 mexico 1oz gold libertad": {
     "deepAt": null,
-    "page1At": "2026-04-26T19:06:29.848Z",
+    "page1At": "2026-05-31T21:09:42.437214",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-03-27",
+    "lastRefreshAt": "2026-05-31T21:09:42.437214",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-28",
     "oldestSaleDate": "2025-11-10",
-    "compCount": 12,
+    "compCount": 20,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -48485,7 +48515,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-05-02",
     "oldestSaleDate": "2025-12-08",
-    "compCount": 6
+    "compCount": 20
   },
   "2015 mexico quarter oz silver libertad": {
     "deepAt": null,
@@ -48494,8 +48524,8 @@
     "lastRefreshAt": null,
     "refreshCount": 0,
     "newestSaleDate": "2026-04-15",
-    "oldestSaleDate": "2025-10-28",
-    "compCount": 24
+    "oldestSaleDate": "2025-10-14",
+    "compCount": 34
   },
   "2015 mexico 2oz silver libertad": {
     "deepAt": null,
@@ -48515,7 +48545,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-04-13",
     "oldestSaleDate": "2025-10-15",
-    "compCount": 21,
+    "compCount": 23,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -48537,7 +48567,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-05-08",
     "oldestSaleDate": "2025-10-16",
-    "compCount": 19,
+    "compCount": 27,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -48553,13 +48583,13 @@
   },
   "2015 mexico 1oz silver libertad": {
     "deepAt": "2026-05-03T23:21:13.222Z",
-    "page1At": "2026-05-03T23:21:13.222Z",
+    "page1At": "2026-05-31T20:37:44.464164",
     "maxPageReached": 6,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-05-16",
+    "lastRefreshAt": "2026-05-31T20:37:44.464164",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-30",
     "oldestSaleDate": "2025-10-14",
-    "compCount": 181
+    "compCount": 236
   },
   "2015 mexico tenth oz silver libertad proof": {
     "deepAt": null,
@@ -49107,9 +49137,9 @@
     "maxPageReached": null,
     "lastRefreshAt": null,
     "refreshCount": 0,
-    "newestSaleDate": "2026-03-26",
+    "newestSaleDate": "2026-05-10",
     "oldestSaleDate": "2025-12-08",
-    "compCount": 10
+    "compCount": 11
   },
   "2016 mexico twentieth oz silver libertad": {
     "deepAt": null,
@@ -49119,7 +49149,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-04-29",
     "oldestSaleDate": "2025-11-08",
-    "compCount": 25,
+    "compCount": 28,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -49140,8 +49170,8 @@
     "lastRefreshAt": null,
     "refreshCount": 0,
     "newestSaleDate": "2026-05-10",
-    "oldestSaleDate": "2025-10-27",
-    "compCount": 21,
+    "oldestSaleDate": "2025-10-25",
+    "compCount": 34,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -49163,7 +49193,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-05-19",
     "oldestSaleDate": "2025-12-26",
-    "compCount": 10,
+    "compCount": 15,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -49189,13 +49219,13 @@
   },
   "2016 mexico 1oz silver libertad": {
     "deepAt": "2026-05-03T22:44:02.615Z",
-    "page1At": "2026-05-03T22:44:02.615Z",
+    "page1At": "2026-05-31T21:36:05.259617",
     "maxPageReached": 6,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-05-13",
-    "oldestSaleDate": "2025-10-16",
-    "compCount": 208,
+    "lastRefreshAt": "2026-05-31T21:36:05.259617",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-30",
+    "oldestSaleDate": "2025-10-12",
+    "compCount": 292,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -49215,9 +49245,9 @@
     "maxPageReached": null,
     "lastRefreshAt": null,
     "refreshCount": 0,
-    "newestSaleDate": "2026-04-25",
+    "newestSaleDate": "2026-05-19",
     "oldestSaleDate": "2026-04-13",
-    "compCount": 4
+    "compCount": 6
   },
   "2016 mexico twentieth oz silver libertad proof": {
     "deepAt": null,
@@ -49225,9 +49255,9 @@
     "maxPageReached": null,
     "lastRefreshAt": null,
     "refreshCount": 0,
-    "newestSaleDate": "2026-04-29",
+    "newestSaleDate": "2026-05-31",
     "oldestSaleDate": "2025-11-08",
-    "compCount": 37,
+    "compCount": 47,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -49249,7 +49279,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-04-26",
     "oldestSaleDate": "2026-01-13",
-    "compCount": 8
+    "compCount": 24
   },
   "2016 mexico tenth oz silver libertad proof": {
     "deepAt": null,
@@ -49257,19 +49287,19 @@
     "maxPageReached": null,
     "lastRefreshAt": null,
     "refreshCount": 0,
-    "newestSaleDate": "2026-05-02",
+    "newestSaleDate": "2026-05-16",
     "oldestSaleDate": "2026-02-01",
-    "compCount": 9
+    "compCount": 11
   },
   "2016 mexico 1oz silver libertad proof": {
     "deepAt": "2026-05-03T02:32:54.713Z",
-    "page1At": "2026-05-03T02:32:54.713Z",
+    "page1At": "2026-05-31T21:29:00.692616",
     "maxPageReached": 6,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-05-04",
+    "lastRefreshAt": "2026-05-31T21:29:00.692616",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-24",
     "oldestSaleDate": "2025-11-07",
-    "compCount": 62,
+    "compCount": 97,
     "identifiers": {
       "is_low_volume_candidate": true,
       "is_bullion": true,
@@ -49753,9 +49783,9 @@
     "maxPageReached": null,
     "lastRefreshAt": null,
     "refreshCount": 0,
-    "newestSaleDate": "2026-04-20",
+    "newestSaleDate": "2026-05-23",
     "oldestSaleDate": "2025-11-09",
-    "compCount": 4
+    "compCount": 6
   },
   "2017 mexico tenth oz gold libertad": {
     "deepAt": null,
@@ -49763,19 +49793,19 @@
     "maxPageReached": null,
     "lastRefreshAt": null,
     "refreshCount": 0,
-    "newestSaleDate": "2026-03-28",
+    "newestSaleDate": "2026-05-10",
     "oldestSaleDate": "2026-01-16",
-    "compCount": 3
+    "compCount": 4
   },
   "2017 mexico 1oz gold libertad": {
     "deepAt": null,
-    "page1At": "2026-04-26T18:52:43.411Z",
+    "page1At": "2026-05-31T22:23:43.888035",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-16",
-    "oldestSaleDate": "2025-11-21",
-    "compCount": 9,
+    "lastRefreshAt": "2026-05-31T22:23:43.888035",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-15",
+    "oldestSaleDate": "2025-11-09",
+    "compCount": 21,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -49869,9 +49899,9 @@
     "maxPageReached": null,
     "lastRefreshAt": null,
     "refreshCount": 0,
-    "newestSaleDate": "2026-05-03",
+    "newestSaleDate": "2026-05-31",
     "oldestSaleDate": "2025-11-08",
-    "compCount": 31
+    "compCount": 46
   },
   "2017 mexico twentieth oz silver libertad proof": {
     "deepAt": null,
@@ -49880,8 +49910,8 @@
     "lastRefreshAt": null,
     "refreshCount": 0,
     "newestSaleDate": "2026-04-05",
-    "oldestSaleDate": "2025-12-12",
-    "compCount": 10,
+    "oldestSaleDate": "2025-11-26",
+    "compCount": 20,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -49902,8 +49932,8 @@
     "lastRefreshAt": null,
     "refreshCount": 0,
     "newestSaleDate": "2026-04-18",
-    "oldestSaleDate": "2025-11-10",
-    "compCount": 14,
+    "oldestSaleDate": "2025-10-31",
+    "compCount": 28,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -49929,13 +49959,13 @@
   },
   "2017 mexico 1oz silver libertad proof": {
     "deepAt": "2026-05-03T22:01:50.490Z",
-    "page1At": "2026-05-03T22:01:50.490Z",
+    "page1At": "2026-05-31T20:58:40.650723",
     "maxPageReached": 5,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
+    "lastRefreshAt": "2026-05-31T20:58:40.650723",
+    "refreshCount": 2,
     "newestSaleDate": "2026-05-12",
     "oldestSaleDate": "2025-10-31",
-    "compCount": 38,
+    "compCount": 42,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -50149,13 +50179,13 @@
   },
   "2018 american silver eagle": {
     "deepAt": "2026-05-25T18:49:49.462Z",
-    "page1At": "2026-05-25T18:49:49.462Z",
+    "page1At": "2026-05-31T21:10:41.419524",
     "maxPageReached": 6,
-    "lastRefreshAt": null,
-    "refreshCount": 2,
-    "newestSaleDate": "2026-05-08",
+    "lastRefreshAt": "2026-05-31T21:10:41.419524",
+    "refreshCount": 3,
+    "newestSaleDate": "2026-05-28",
     "oldestSaleDate": "2025-10-16",
-    "compCount": 277,
+    "compCount": 291,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -50170,14 +50200,14 @@
     }
   },
   "2018 american silver eagle ms69": {
-    "deepAt": null,
-    "page1At": "2026-05-09T22:04:14.411Z",
+    "deepAt": "2026-05-31T21:45:02.546856",
+    "page1At": "2026-05-31T21:45:02.546856",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-05-09",
+    "lastRefreshAt": "2026-05-31T21:45:02.546856",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-30",
     "oldestSaleDate": "2025-11-12",
-    "compCount": 48,
+    "compCount": 115,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -50485,9 +50515,9 @@
     "maxPageReached": null,
     "lastRefreshAt": null,
     "refreshCount": 0,
-    "newestSaleDate": "2026-04-03",
+    "newestSaleDate": "2026-05-22",
     "oldestSaleDate": "2025-11-11",
-    "compCount": 18,
+    "compCount": 26,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -50513,13 +50543,13 @@
   },
   "2018 mexico 1oz gold libertad": {
     "deepAt": null,
-    "page1At": "2026-04-26T19:05:19.827Z",
+    "page1At": "2026-05-31T22:35:00.220679",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-19",
+    "lastRefreshAt": "2026-05-31T22:35:00.220679",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-26",
     "oldestSaleDate": "2025-11-01",
-    "compCount": 6,
+    "compCount": 12,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -51083,9 +51113,9 @@
     "maxPageReached": null,
     "lastRefreshAt": null,
     "refreshCount": 0,
-    "newestSaleDate": "2026-04-17",
+    "newestSaleDate": "2026-05-27",
     "oldestSaleDate": "2025-11-01",
-    "compCount": 14
+    "compCount": 21
   },
   "2019 mexico quarter oz gold libertad": {
     "deepAt": null,
@@ -51093,9 +51123,9 @@
     "maxPageReached": null,
     "lastRefreshAt": null,
     "refreshCount": 0,
-    "newestSaleDate": "2026-04-17",
+    "newestSaleDate": "2026-05-19",
     "oldestSaleDate": "2026-03-16",
-    "compCount": 9
+    "compCount": 12
   },
   "2019 mexico twentieth oz gold libertad": {
     "deepAt": null,
@@ -51103,9 +51133,9 @@
     "maxPageReached": null,
     "lastRefreshAt": null,
     "refreshCount": 0,
-    "newestSaleDate": "2026-03-12",
+    "newestSaleDate": "2026-05-30",
     "oldestSaleDate": "2026-02-25",
-    "compCount": 2
+    "compCount": 7
   },
   "2019 mexico tenth oz gold libertad": {
     "deepAt": null,
@@ -51119,13 +51149,15 @@
   },
   "2019 mexico 1oz gold libertad": {
     "deepAt": null,
-    "page1At": "2026-04-26T19:29:32.787Z",
+    "page1At": "2026-05-31T22:14:26.970316",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
+    "lastRefreshAt": "2026-05-31T22:14:26.970316",
+    "refreshCount": 2,
     "newestSaleDate": "2026-02-13",
     "oldestSaleDate": "2026-01-02",
     "compCount": 10,
+    "consecutiveDryRefreshes": 1,
+    "lastRefreshNewComps": 0,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -51429,13 +51461,13 @@
   },
   "2020 american silver eagle": {
     "deepAt": "2026-05-25T18:49:49.465Z",
-    "page1At": "2026-05-25T18:49:49.465Z",
+    "page1At": "2026-05-31T23:13:56.111763",
     "maxPageReached": 6,
-    "lastRefreshAt": null,
-    "refreshCount": 2,
-    "newestSaleDate": "2026-05-11",
+    "lastRefreshAt": "2026-05-31T23:13:56.111763",
+    "refreshCount": 3,
+    "newestSaleDate": "2026-05-30",
     "oldestSaleDate": "2025-10-17",
-    "compCount": 244,
+    "compCount": 252,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -51731,9 +51763,9 @@
     "maxPageReached": null,
     "lastRefreshAt": null,
     "refreshCount": 0,
-    "newestSaleDate": "2026-05-08",
+    "newestSaleDate": "2026-05-31",
     "oldestSaleDate": "2026-01-25",
-    "compCount": 9
+    "compCount": 12
   },
   "2020 mexico twentieth oz gold libertad": {
     "deepAt": null,
@@ -51767,13 +51799,13 @@
   },
   "2020 mexico 1oz gold libertad": {
     "deepAt": null,
-    "page1At": "2026-05-13T05:27:44.702Z",
+    "page1At": "2026-05-31T23:26:25.684914",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
+    "lastRefreshAt": "2026-05-31T23:26:25.684914",
+    "refreshCount": 2,
     "newestSaleDate": "2026-04-01",
-    "oldestSaleDate": "2026-02-23",
-    "compCount": 3,
+    "oldestSaleDate": "2025-11-24",
+    "compCount": 12,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -51911,9 +51943,9 @@
     "maxPageReached": null,
     "lastRefreshAt": null,
     "refreshCount": 0,
-    "newestSaleDate": "2026-04-25",
+    "newestSaleDate": "2026-05-12",
     "oldestSaleDate": "2025-10-27",
-    "compCount": 17
+    "compCount": 18
   },
   "2020 perth lunar mouse half oz silver": {
     "deepAt": null,
@@ -51921,9 +51953,9 @@
     "maxPageReached": null,
     "lastRefreshAt": null,
     "refreshCount": 0,
-    "newestSaleDate": "2026-05-03",
+    "newestSaleDate": "2026-05-29",
     "oldestSaleDate": "2025-11-04",
-    "compCount": 24,
+    "compCount": 31,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -51939,13 +51971,13 @@
   },
   "2020 perth lunar mouse 1oz silver": {
     "deepAt": "2026-05-04T00:15:48.814Z",
-    "page1At": "2026-05-04T00:15:48.814Z",
+    "page1At": "2026-05-31T22:15:27.496481",
     "maxPageReached": 6,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-05-01",
-    "oldestSaleDate": "2025-10-20",
-    "compCount": 120,
+    "lastRefreshAt": "2026-05-31T22:15:27.496481",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-29",
+    "oldestSaleDate": "2025-10-18",
+    "compCount": 172,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -52658,8 +52690,8 @@
     "lastRefreshAt": null,
     "refreshCount": 0,
     "newestSaleDate": "2026-02-13",
-    "oldestSaleDate": "2026-01-09",
-    "compCount": 2
+    "oldestSaleDate": "2025-12-09",
+    "compCount": 44
   },
   "2021 mexico half oz silver libertad": {
     "deepAt": null,
@@ -52691,7 +52723,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-02-07",
     "oldestSaleDate": "2026-01-18",
-    "compCount": 2
+    "compCount": 5
   },
   "2021 mexico twentieth oz silver libertad": {
     "deepAt": null,
@@ -52701,7 +52733,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-03-30",
     "oldestSaleDate": "2025-12-09",
-    "compCount": 7
+    "compCount": 9
   },
   "2021 mexico 2oz silver libertad": {
     "deepAt": null,
@@ -52711,17 +52743,17 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-01-28",
     "oldestSaleDate": "2026-01-28",
-    "compCount": 1
+    "compCount": 6
   },
   "2021 mexico 1oz silver libertad": {
     "deepAt": "2026-05-03T23:27:32.619Z",
-    "page1At": "2026-05-03T23:27:32.619Z",
+    "page1At": "2026-05-31T21:17:36.741572",
     "maxPageReached": 6,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-05-15",
+    "lastRefreshAt": "2026-05-31T21:17:36.741572",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-30",
     "oldestSaleDate": "2025-10-14",
-    "compCount": 233
+    "compCount": 304
   },
   "2021 mexico 5oz silver libertad proof": {
     "deepAt": null,
@@ -52755,13 +52787,13 @@
   },
   "2021 mexico 1oz silver libertad proof": {
     "deepAt": "2026-05-02T20:26:21.069Z",
-    "page1At": "2026-05-02T20:26:21.069Z",
+    "page1At": "2026-05-31T20:23:45.036543",
     "maxPageReached": 4,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-05-02",
+    "lastRefreshAt": "2026-05-31T20:23:45.036543",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-25",
     "oldestSaleDate": "2025-11-11",
-    "compCount": 53,
+    "compCount": 55,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -52776,14 +52808,14 @@
     }
   },
   "2021 perth lunar ox half oz silver": {
-    "deepAt": null,
+    "deepAt": "2026-05-31T20:16:00.490Z",
     "page1At": "2026-05-21T14:30:03.756531",
     "maxPageReached": null,
     "lastRefreshAt": null,
     "refreshCount": 0,
-    "newestSaleDate": "2026-05-10",
+    "newestSaleDate": "2026-05-24",
     "oldestSaleDate": "2025-11-15",
-    "compCount": 40,
+    "compCount": 60,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -52809,13 +52841,13 @@
   },
   "2021 perth lunar ox 1oz silver": {
     "deepAt": "2026-05-02T17:09:10.931Z",
-    "page1At": "2026-05-02T17:09:10.931Z",
+    "page1At": "2026-05-31T21:23:44.005356",
     "maxPageReached": 6,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-05-16",
+    "lastRefreshAt": "2026-05-31T21:23:44.005356",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-20",
     "oldestSaleDate": "2025-10-18",
-    "compCount": 200,
+    "compCount": 287,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -53017,13 +53049,13 @@
   },
   "2022 american silver eagle": {
     "deepAt": "2026-05-25T18:49:49.467Z",
-    "page1At": "2026-05-25T18:49:49.467Z",
+    "page1At": "2026-05-31T20:52:34.597262",
     "maxPageReached": 6,
-    "lastRefreshAt": null,
-    "refreshCount": 2,
-    "newestSaleDate": "2026-05-16",
+    "lastRefreshAt": "2026-05-31T20:52:34.597262",
+    "refreshCount": 3,
+    "newestSaleDate": "2026-05-29",
     "oldestSaleDate": "2025-10-16",
-    "compCount": 205,
+    "compCount": 215,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -53373,9 +53405,9 @@
     "maxPageReached": null,
     "lastRefreshAt": null,
     "refreshCount": 0,
-    "newestSaleDate": "2026-04-25",
+    "newestSaleDate": "2026-05-22",
     "oldestSaleDate": "2026-03-05",
-    "compCount": 22,
+    "compCount": 35,
     "identifiers": {
       "is_low_volume_candidate": true,
       "is_bullion": true,
@@ -53396,8 +53428,8 @@
     "lastRefreshAt": null,
     "refreshCount": 0,
     "newestSaleDate": "2026-04-17",
-    "oldestSaleDate": "2025-12-31",
-    "compCount": 11
+    "oldestSaleDate": "2025-12-12",
+    "compCount": 16
   },
   "2022 mexico twentieth oz gold libertad": {
     "deepAt": null,
@@ -53433,13 +53465,13 @@
   },
   "2022 mexico 1oz gold libertad": {
     "deepAt": "2026-05-01T23:38:47.442Z",
-    "page1At": "2026-05-01T23:38:47.442Z",
+    "page1At": "2026-05-31T22:46:27.630865",
     "maxPageReached": 6,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-30",
+    "lastRefreshAt": "2026-05-31T22:46:27.630865",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-22",
     "oldestSaleDate": "2025-11-07",
-    "compCount": 22,
+    "compCount": 32,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -53563,9 +53595,9 @@
     "maxPageReached": null,
     "lastRefreshAt": null,
     "refreshCount": 0,
-    "newestSaleDate": "2026-04-27",
+    "newestSaleDate": "2026-05-10",
     "oldestSaleDate": "2026-01-28",
-    "compCount": 3
+    "compCount": 4
   },
   "2022 mexico 3oz silver libertad proof": {
     "deepAt": null,
@@ -53573,19 +53605,19 @@
     "maxPageReached": null,
     "lastRefreshAt": null,
     "refreshCount": 0,
-    "newestSaleDate": "2026-05-03",
+    "newestSaleDate": "2026-05-11",
     "oldestSaleDate": "2026-05-01",
-    "compCount": 2
+    "compCount": 4
   },
   "2022 mexico 1oz silver libertad proof": {
     "deepAt": "2026-05-04T00:43:24.723Z",
-    "page1At": "2026-05-04T00:43:24.723Z",
+    "page1At": "2026-05-31T22:40:59.308512",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-27",
+    "lastRefreshAt": "2026-05-31T22:40:59.308512",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-23",
     "oldestSaleDate": "2025-11-02",
-    "compCount": 37,
+    "compCount": 65,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -53631,13 +53663,15 @@
   },
   "2022 perth lunar tiger 1oz silver": {
     "deepAt": "2026-05-02T21:12:14.240Z",
-    "page1At": "2026-05-02T21:12:14.240Z",
+    "page1At": "2026-05-31T21:16:35.445558",
     "maxPageReached": 6,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
+    "lastRefreshAt": "2026-05-31T21:16:35.445558",
+    "refreshCount": 2,
     "newestSaleDate": "2026-05-17",
     "oldestSaleDate": "2025-10-24",
     "compCount": 122,
+    "consecutiveDryRefreshes": 1,
+    "lastRefreshNewComps": 0,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -54229,9 +54263,9 @@
     "maxPageReached": null,
     "lastRefreshAt": null,
     "refreshCount": 0,
-    "newestSaleDate": "2026-04-21",
+    "newestSaleDate": "2026-05-08",
     "oldestSaleDate": "2025-12-23",
-    "compCount": 17,
+    "compCount": 19,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -54253,7 +54287,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-04-23",
     "oldestSaleDate": "2025-11-27",
-    "compCount": 4
+    "compCount": 20
   },
   "2023 mexico tenth oz gold libertad": {
     "deepAt": null,
@@ -54261,9 +54295,9 @@
     "maxPageReached": null,
     "lastRefreshAt": null,
     "refreshCount": 0,
-    "newestSaleDate": "2026-04-28",
-    "oldestSaleDate": "2025-11-09",
-    "compCount": 15,
+    "newestSaleDate": "2026-05-25",
+    "oldestSaleDate": "2025-11-04",
+    "compCount": 27,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -54285,7 +54319,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-04-26",
     "oldestSaleDate": "2025-10-28",
-    "compCount": 31,
+    "compCount": 40,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -54301,13 +54335,13 @@
   },
   "2023 mexico 1oz gold libertad": {
     "deepAt": "2026-05-02T21:00:51.487Z",
-    "page1At": "2026-05-02T21:00:51.487Z",
+    "page1At": "2026-05-31T23:18:03.558088",
     "maxPageReached": 4,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-05-01",
+    "lastRefreshAt": "2026-05-31T23:18:03.558088",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-23",
     "oldestSaleDate": "2025-11-04",
-    "compCount": 57,
+    "compCount": 77,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -54459,7 +54493,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-05-02",
     "oldestSaleDate": "2025-10-16",
-    "compCount": 77
+    "compCount": 106
   },
   "2023 perth lunar rabbit quarter oz silver": {
     "deepAt": null,
@@ -54468,18 +54502,18 @@
     "lastRefreshAt": null,
     "refreshCount": 0,
     "newestSaleDate": "2025-12-27",
-    "oldestSaleDate": "2025-12-27",
-    "compCount": 1
+    "oldestSaleDate": "2025-11-08",
+    "compCount": 48
   },
   "2023 perth lunar rabbit 1oz silver": {
     "deepAt": "2026-05-03T01:03:43.081Z",
-    "page1At": "2026-05-03T01:03:43.081Z",
+    "page1At": "2026-05-31T23:08:56.293242",
     "maxPageReached": 6,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-05-20",
+    "lastRefreshAt": "2026-05-31T23:08:56.293242",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-29",
     "oldestSaleDate": "2025-10-18",
-    "compCount": 176,
+    "compCount": 204,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -55208,8 +55242,8 @@
     "lastRefreshAt": null,
     "refreshCount": 0,
     "newestSaleDate": "2026-04-29",
-    "oldestSaleDate": "2025-11-29",
-    "compCount": 13
+    "oldestSaleDate": "2025-11-25",
+    "compCount": 16
   },
   "2024 mexico tenth oz gold libertad": {
     "deepAt": null,
@@ -55219,7 +55253,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-04-25",
     "oldestSaleDate": "2026-01-04",
-    "compCount": 6
+    "compCount": 8
   },
   "2024 mexico half oz gold libertad": {
     "deepAt": null,
@@ -55228,8 +55262,8 @@
     "lastRefreshAt": null,
     "refreshCount": 0,
     "newestSaleDate": "2026-04-29",
-    "oldestSaleDate": "2025-11-17",
-    "compCount": 16,
+    "oldestSaleDate": "2025-11-06",
+    "compCount": 33,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -55251,17 +55285,17 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-04-27",
     "oldestSaleDate": "2025-11-25",
-    "compCount": 9
+    "compCount": 15
   },
   "2024 mexico 1oz gold libertad": {
     "deepAt": "2026-05-02T17:45:04.890Z",
-    "page1At": "2026-05-02T17:45:04.890Z",
+    "page1At": "2026-05-31T22:20:17.198527",
     "maxPageReached": 6,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-29",
+    "lastRefreshAt": "2026-05-31T22:20:17.198527",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-30",
     "oldestSaleDate": "2025-11-06",
-    "compCount": 160,
+    "compCount": 205,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -55292,8 +55326,8 @@
     "lastRefreshAt": null,
     "refreshCount": 0,
     "newestSaleDate": "2026-04-13",
-    "oldestSaleDate": "2025-12-08",
-    "compCount": 7
+    "oldestSaleDate": "2025-11-28",
+    "compCount": 18
   },
   "2024 mexico tenth oz silver libertad": {
     "deepAt": null,
@@ -55303,7 +55337,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-04-29",
     "oldestSaleDate": "2025-10-19",
-    "compCount": 9
+    "compCount": 24
   },
   "2024 mexico twentieth oz silver libertad": {
     "deepAt": null,
@@ -55313,7 +55347,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-04-21",
     "oldestSaleDate": "2025-12-03",
-    "compCount": 10,
+    "compCount": 12,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -55329,13 +55363,13 @@
   },
   "2024 mexico 1oz silver libertad": {
     "deepAt": "2026-05-03T23:43:53.574Z",
-    "page1At": "2026-05-03T23:43:53.574Z",
+    "page1At": "2026-05-31T22:05:14.785710",
     "maxPageReached": 6,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-05-17",
+    "lastRefreshAt": "2026-05-31T22:05:14.785710",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-28",
     "oldestSaleDate": "2025-10-16",
-    "compCount": 164,
+    "compCount": 197,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -55356,8 +55390,8 @@
     "lastRefreshAt": null,
     "refreshCount": 0,
     "newestSaleDate": "2026-04-25",
-    "oldestSaleDate": "2025-12-26",
-    "compCount": 10,
+    "oldestSaleDate": "2025-11-30",
+    "compCount": 36,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -55377,9 +55411,9 @@
     "maxPageReached": null,
     "lastRefreshAt": null,
     "refreshCount": 0,
-    "newestSaleDate": "2026-05-01",
+    "newestSaleDate": "2026-05-12",
     "oldestSaleDate": "2025-12-21",
-    "compCount": 11
+    "compCount": 13
   },
   "2024 mexico quarter oz silver libertad proof": {
     "deepAt": null,
@@ -55437,13 +55471,13 @@
   },
   "2024 mexico 1oz silver libertad proof": {
     "deepAt": "2026-05-02T22:11:17.356Z",
-    "page1At": "2026-05-02T22:11:17.356Z",
+    "page1At": "2026-05-31T22:27:43.999925",
     "maxPageReached": 6,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-05-19",
+    "lastRefreshAt": "2026-05-31T22:27:43.999925",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-20",
     "oldestSaleDate": "2025-11-02",
-    "compCount": 136,
+    "compCount": 193,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -56176,14 +56210,14 @@
     "compCount": 8
   },
   "2025 mexico half oz silver libertad": {
-    "deepAt": null,
+    "deepAt": "2026-05-31T20:16:00.760Z",
     "page1At": null,
     "maxPageReached": null,
     "lastRefreshAt": null,
     "refreshCount": 0,
     "newestSaleDate": "2026-02-09",
-    "oldestSaleDate": "2025-10-15",
-    "compCount": 9
+    "oldestSaleDate": "2025-10-14",
+    "compCount": 103
   },
   "2025 mexico tenth oz silver libertad": {
     "deepAt": null,
@@ -56229,13 +56263,13 @@
   },
   "2025 mexico 1oz silver libertad": {
     "deepAt": "2026-05-02T17:33:55.934Z",
-    "page1At": "2026-05-02T17:33:55.934Z",
+    "page1At": "2026-05-31T20:36:38.226181",
     "maxPageReached": 6,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-05-17",
+    "lastRefreshAt": "2026-05-31T20:36:38.226181",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-30",
     "oldestSaleDate": "2025-10-14",
-    "compCount": 170,
+    "compCount": 191,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -56299,7 +56333,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-04-22",
     "oldestSaleDate": "2025-11-02",
-    "compCount": 14,
+    "compCount": 15,
     "identifiers": {
       "is_low_volume_candidate": true,
       "is_bullion": true,
@@ -56321,7 +56355,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-05-20",
     "oldestSaleDate": "2025-10-18",
-    "compCount": 51,
+    "compCount": 92,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -56337,13 +56371,13 @@
   },
   "2025 perth lunar snake 1oz silver": {
     "deepAt": "2026-05-02T16:47:45.756Z",
-    "page1At": "2026-05-02T16:47:45.756Z",
+    "page1At": "2026-05-31T22:38:58.977408",
     "maxPageReached": 6,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
+    "lastRefreshAt": "2026-05-31T22:38:58.977408",
+    "refreshCount": 2,
     "newestSaleDate": "2026-05-15",
-    "oldestSaleDate": "2025-10-22",
-    "compCount": 168,
+    "oldestSaleDate": "2025-10-18",
+    "compCount": 223,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -58523,13 +58557,13 @@
   },
   "half oz gold libertad": {
     "deepAt": "2026-05-03T00:48:27.903Z",
-    "page1At": "2026-05-03T00:48:27.903Z",
+    "page1At": "2026-05-31T23:29:46.412175",
     "maxPageReached": 6,
-    "lastRefreshAt": null,
-    "refreshCount": 0,
-    "newestSaleDate": "2026-05-02",
+    "lastRefreshAt": "2026-05-31T23:29:46.412175",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-31",
     "oldestSaleDate": "2025-10-13",
-    "compCount": 27,
+    "compCount": 173,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -58550,8 +58584,8 @@
     "lastRefreshAt": null,
     "refreshCount": 0,
     "newestSaleDate": "2026-04-30",
-    "oldestSaleDate": "2025-12-05",
-    "compCount": 14,
+    "oldestSaleDate": "2025-12-03",
+    "compCount": 20,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -58567,13 +58601,13 @@
   },
   "1oz gold libertad": {
     "deepAt": "2026-05-02T20:32:18.202Z",
-    "page1At": "2026-05-02T20:32:18.202Z",
+    "page1At": "2026-05-31T21:19:37.157832",
     "maxPageReached": 6,
-    "lastRefreshAt": null,
-    "refreshCount": 2,
+    "lastRefreshAt": "2026-05-31T21:19:37.157832",
+    "refreshCount": 3,
     "newestSaleDate": "2026-05-15",
     "oldestSaleDate": "2025-10-16",
-    "compCount": 165,
+    "compCount": 202,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -58595,7 +58629,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-05-12",
     "oldestSaleDate": "2025-11-22",
-    "compCount": 12,
+    "compCount": 23,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -58616,8 +58650,8 @@
     "lastRefreshAt": null,
     "refreshCount": 0,
     "newestSaleDate": "2026-04-27",
-    "oldestSaleDate": "2025-12-19",
-    "compCount": 6
+    "oldestSaleDate": "2025-12-08",
+    "compCount": 15
   },
   "silver libertad twentieth oz": {
     "deepAt": null,
@@ -58627,7 +58661,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-04-28",
     "oldestSaleDate": "2026-01-07",
-    "compCount": 9
+    "compCount": 10
   },
   "silver libertad tenth oz": {
     "deepAt": null,
@@ -58637,7 +58671,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-05-10",
     "oldestSaleDate": "2025-10-21",
-    "compCount": 15,
+    "compCount": 17,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -58653,13 +58687,13 @@
   },
   "silver libertad 1oz": {
     "deepAt": "2026-05-02T20:05:54.942Z",
-    "page1At": "2026-05-02T20:05:54.942Z",
+    "page1At": "2026-05-31T23:17:01.723438",
     "maxPageReached": 6,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-05-19",
+    "lastRefreshAt": "2026-05-31T23:17:01.723438",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-28",
     "oldestSaleDate": "2025-11-10",
-    "compCount": 182,
+    "compCount": 218,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -58680,18 +58714,18 @@
     "lastRefreshAt": null,
     "refreshCount": 0,
     "newestSaleDate": "2026-05-19",
-    "oldestSaleDate": "2025-10-26",
-    "compCount": 63
+    "oldestSaleDate": "2025-10-13",
+    "compCount": 95
   },
   "mexico twentieth oz silver libertad": {
     "deepAt": "2026-05-02T22:36:38.472Z",
-    "page1At": "2026-05-19T01:16:27.711802",
+    "page1At": "2026-05-31T21:59:10.501136",
     "maxPageReached": 6,
-    "lastRefreshAt": null,
-    "refreshCount": 0,
-    "newestSaleDate": "2026-05-12",
-    "oldestSaleDate": "2025-10-21",
-    "compCount": 32,
+    "lastRefreshAt": "2026-05-31T21:59:10.501136",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-30",
+    "oldestSaleDate": "2025-10-14",
+    "compCount": 240,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -58707,13 +58741,13 @@
   },
   "mexico tenth oz silver libertad": {
     "deepAt": "2026-05-02T22:36:38.472Z",
-    "page1At": "2026-05-17T00:42:44.716Z",
+    "page1At": "2026-05-31T21:58:02.462295",
     "maxPageReached": 6,
-    "lastRefreshAt": null,
-    "refreshCount": 0,
-    "newestSaleDate": "2026-03-22",
-    "oldestSaleDate": "2026-01-17",
-    "compCount": 3,
+    "lastRefreshAt": "2026-05-31T21:58:02.462295",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-02",
+    "oldestSaleDate": "2025-10-19",
+    "compCount": 180,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -58735,7 +58769,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-05-16",
     "oldestSaleDate": "2025-11-03",
-    "compCount": 11,
+    "compCount": 15,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -58751,13 +58785,13 @@
   },
   "mexico half oz silver libertad": {
     "deepAt": "2026-05-03T03:29:42.544Z",
-    "page1At": "2026-05-03T03:29:42.544Z",
+    "page1At": "2026-05-31T23:10:58.650869",
     "maxPageReached": 6,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-05-16",
+    "lastRefreshAt": "2026-05-31T23:10:58.650869",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-30",
     "oldestSaleDate": "2025-10-15",
-    "compCount": 192,
+    "compCount": 324,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -58773,13 +58807,13 @@
   },
   "mexico quarter oz silver libertad": {
     "deepAt": "2026-05-02T18:29:10.706Z",
-    "page1At": "2026-05-02T18:29:10.706Z",
+    "page1At": "2026-05-31T21:52:22.930536",
     "maxPageReached": 6,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-05-12",
+    "lastRefreshAt": "2026-05-31T21:52:22.930536",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-31",
     "oldestSaleDate": "2025-10-20",
-    "compCount": 203,
+    "compCount": 284,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -59173,13 +59207,13 @@
   },
   "perth lunar 2020 mouse silver 1oz": {
     "deepAt": null,
-    "page1At": "2026-05-25T23:37:27.006Z",
+    "page1At": "2026-05-31T21:12:47.076523",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
+    "lastRefreshAt": "2026-05-31T21:12:47.076523",
+    "refreshCount": 2,
     "newestSaleDate": "2026-05-09",
     "oldestSaleDate": "2025-12-04",
-    "compCount": 39,
+    "compCount": 40,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -59249,13 +59283,13 @@
   },
   "perth lunar 2021 ox silver 1oz": {
     "deepAt": null,
-    "page1At": "2026-04-05T23:36:55.607Z",
+    "page1At": "2026-05-31T23:36:55.902960",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-02",
-    "oldestSaleDate": "2026-03-11",
-    "compCount": 4,
+    "lastRefreshAt": "2026-05-31T23:36:55.902960",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-04-15",
+    "oldestSaleDate": "2026-01-23",
+    "compCount": 13,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -59293,13 +59327,13 @@
   },
   "perth lunar 2022 tiger silver 1oz": {
     "deepAt": null,
-    "page1At": "2026-04-05T23:38:13.845Z",
+    "page1At": "2026-05-31T21:43:33.313879",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-04-01",
-    "oldestSaleDate": "2026-04-01",
-    "compCount": 2,
+    "lastRefreshAt": "2026-05-31T21:43:33.313879",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-29",
+    "oldestSaleDate": "2026-01-16",
+    "compCount": 11,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -59411,13 +59445,15 @@
   },
   "perth lunar 2024 dragon gold 1oz": {
     "deepAt": null,
-    "page1At": "2026-05-10T17:59:25.958Z",
+    "page1At": "2026-05-31T22:39:58.296056",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
+    "lastRefreshAt": "2026-05-31T22:39:58.296056",
+    "refreshCount": 2,
     "newestSaleDate": "2026-03-15",
     "oldestSaleDate": "2026-03-15",
     "compCount": 1,
+    "consecutiveDryRefreshes": 1,
+    "lastRefreshNewComps": 0,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -59477,13 +59513,13 @@
   },
   "perth lunar 2024 dragon silver 2oz": {
     "deepAt": null,
-    "page1At": "2026-05-10T18:04:28.292Z",
+    "page1At": "2026-05-31T21:32:51.446028",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-02-27",
+    "lastRefreshAt": "2026-05-31T21:32:51.446028",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-13",
     "oldestSaleDate": "2026-02-27",
-    "compCount": 1,
+    "compCount": 2,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -59632,8 +59668,8 @@
     "lastRefreshAt": null,
     "refreshCount": 0,
     "newestSaleDate": "2026-04-25",
-    "oldestSaleDate": "2025-12-04",
-    "compCount": 21,
+    "oldestSaleDate": "2025-12-02",
+    "compCount": 34,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -59649,13 +59685,15 @@
   },
   "perth lunar 2025 snake silver 2oz": {
     "deepAt": null,
-    "page1At": "2026-05-10T17:47:46.303Z",
+    "page1At": "2026-05-31T21:32:14.269037",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
+    "lastRefreshAt": "2026-05-31T21:32:14.269037",
+    "refreshCount": 2,
     "newestSaleDate": "2026-03-18",
     "oldestSaleDate": "2025-12-02",
     "compCount": 6,
+    "consecutiveDryRefreshes": 1,
+    "lastRefreshNewComps": 0,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -59826,8 +59864,8 @@
     "lastRefreshAt": null,
     "refreshCount": 0,
     "newestSaleDate": "2026-01-27",
-    "oldestSaleDate": "2026-01-27",
-    "compCount": 1,
+    "oldestSaleDate": "2025-12-17",
+    "compCount": 5,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -59843,13 +59881,15 @@
   },
   "perth lunar 2026 horse silver 1oz": {
     "deepAt": null,
-    "page1At": "2026-05-10T18:07:21.806Z",
+    "page1At": "2026-05-31T20:43:01.706649",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
+    "lastRefreshAt": "2026-05-31T20:43:01.706649",
+    "refreshCount": 2,
     "newestSaleDate": "2026-04-14",
     "oldestSaleDate": "2026-01-05",
     "compCount": 4,
+    "consecutiveDryRefreshes": 1,
+    "lastRefreshNewComps": 0,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -61615,13 +61655,13 @@
   },
   "1oz 999 silver round": {
     "deepAt": "2026-05-02T17:39:20.614Z",
-    "page1At": "2026-05-02T17:39:20.614Z",
+    "page1At": "2026-05-31T22:12:21.695051",
     "maxPageReached": 6,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": "2026-05-17",
+    "lastRefreshAt": "2026-05-31T22:12:21.695051",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-25",
     "oldestSaleDate": "2025-11-14",
-    "compCount": 149,
+    "compCount": 162,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -62072,8 +62112,8 @@
     "lastRefreshAt": null,
     "refreshCount": 0,
     "newestSaleDate": "2026-04-28",
-    "oldestSaleDate": "2025-11-04",
-    "compCount": 19,
+    "oldestSaleDate": "2025-10-16",
+    "compCount": 23,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -62094,8 +62134,8 @@
     "lastRefreshAt": null,
     "refreshCount": 0,
     "newestSaleDate": "2026-04-29",
-    "oldestSaleDate": "2025-11-29",
-    "compCount": 8
+    "oldestSaleDate": "2025-11-26",
+    "compCount": 12
   },
   "100oz gold libertad": {
     "deepAt": null,
@@ -64158,8 +64198,8 @@
     "lastRefreshAt": null,
     "refreshCount": 0,
     "newestSaleDate": "2026-04-01",
-    "oldestSaleDate": "2025-11-18",
-    "compCount": 1
+    "oldestSaleDate": "2025-11-13",
+    "compCount": 2
   },
   "2024 mexico 5oz silver libertad proof": {
     "deepAt": null,
@@ -64861,14 +64901,14 @@
   },
   "2003 mexico 1oz gold libertad": {
     "deepAt": null,
-    "page1At": "2026-04-26T19:26:20.178Z",
+    "page1At": "2026-05-31T23:05:21.358465",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
+    "lastRefreshAt": "2026-05-31T23:05:21.358465",
+    "refreshCount": 2,
     "newestSaleDate": "2026-01-10",
     "oldestSaleDate": "2026-01-08",
     "compCount": null,
-    "consecutiveDryRefreshes": 1,
+    "consecutiveDryRefreshes": 2,
     "lastRefreshNewComps": 0,
     "identifiers": {
       "is_low_volume_candidate": true,
@@ -64933,14 +64973,14 @@
   },
   "2004 mexico 1oz gold libertad": {
     "deepAt": null,
-    "page1At": "2026-04-26T19:03:15.342Z",
+    "page1At": "2026-05-31T23:44:55.935915",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
+    "lastRefreshAt": "2026-05-31T23:44:55.935915",
+    "refreshCount": 2,
     "newestSaleDate": null,
     "oldestSaleDate": null,
     "compCount": null,
-    "consecutiveDryRefreshes": 1,
+    "consecutiveDryRefreshes": 2,
     "lastRefreshNewComps": 0,
     "identifiers": {
       "is_low_volume_candidate": true,
@@ -64981,14 +65021,14 @@
   },
   "2005 mexico 1oz gold libertad": {
     "deepAt": null,
-    "page1At": "2026-04-26T18:53:54.956Z",
+    "page1At": "2026-05-31T22:04:13.037649",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
+    "lastRefreshAt": "2026-05-31T22:04:13.037649",
+    "refreshCount": 2,
     "newestSaleDate": null,
     "oldestSaleDate": null,
     "compCount": null,
-    "consecutiveDryRefreshes": 1,
+    "consecutiveDryRefreshes": 2,
     "lastRefreshNewComps": 0,
     "identifiers": {
       "is_low_volume_candidate": true,
@@ -65005,15 +65045,13 @@
   },
   "2006 mexico 1oz gold libertad": {
     "deepAt": null,
-    "page1At": "2026-04-26T19:15:26.133Z",
+    "page1At": "2026-05-31T22:25:44.346874",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
-    "newestSaleDate": null,
-    "oldestSaleDate": null,
-    "compCount": null,
-    "consecutiveDryRefreshes": 1,
-    "lastRefreshNewComps": 0,
+    "lastRefreshAt": "2026-05-31T22:25:44.346874",
+    "refreshCount": 2,
+    "newestSaleDate": "2026-05-20",
+    "oldestSaleDate": "2026-05-20",
+    "compCount": 1,
     "identifiers": {
       "is_low_volume_candidate": true,
       "is_bullion": true,
@@ -65149,15 +65187,13 @@
   },
   "2009 mexico 1oz gold libertad": {
     "deepAt": null,
-    "page1At": "2026-04-26T18:48:32.208Z",
+    "page1At": "2026-05-31T20:34:40.528986",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
+    "lastRefreshAt": "2026-05-31T20:34:40.528986",
+    "refreshCount": 3,
     "newestSaleDate": "2026-04-30",
     "oldestSaleDate": "2026-04-30",
-    "compCount": null,
-    "consecutiveDryRefreshes": 1,
-    "lastRefreshNewComps": 0,
+    "compCount": 1,
     "identifiers": {
       "is_low_volume_candidate": true,
       "is_bullion": true,
@@ -65293,14 +65329,14 @@
   },
   "2013 mexico 1oz gold libertad": {
     "deepAt": null,
-    "page1At": "2026-04-26T18:47:20.058Z",
+    "page1At": "2026-05-31T20:27:11.544256",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
+    "lastRefreshAt": "2026-05-31T20:27:11.544256",
+    "refreshCount": 2,
     "newestSaleDate": null,
     "oldestSaleDate": null,
     "compCount": null,
-    "consecutiveDryRefreshes": 1,
+    "consecutiveDryRefreshes": 2,
     "lastRefreshNewComps": 0,
     "identifiers": {
       "is_low_volume_candidate": true,
@@ -65657,14 +65693,14 @@
   },
   "perth lunar 2025 snake silver 1oz": {
     "deepAt": null,
-    "page1At": "2026-05-17T02:04:24.028Z",
+    "page1At": "2026-05-31T21:08:04.478008",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "refreshCount": 1,
+    "lastRefreshAt": "2026-05-31T21:08:04.478008",
+    "refreshCount": 2,
     "newestSaleDate": "2026-03-09",
     "oldestSaleDate": "2025-12-17",
     "compCount": null,
-    "consecutiveDryRefreshes": 1,
+    "consecutiveDryRefreshes": 2,
     "lastRefreshNewComps": 0,
     "identifiers": {
       "is_low_volume_candidate": false,
@@ -66245,13 +66281,13 @@
   },
   "1995 mexico 1oz gold libertad": {
     "deepAt": null,
-    "page1At": "2026-05-17T00:42:44.667Z",
+    "page1At": "2026-05-31T22:52:39.586233",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "refreshCount": 0,
-    "newestSaleDate": null,
-    "oldestSaleDate": null,
-    "compCount": null
+    "lastRefreshAt": "2026-05-31T22:52:39.586233",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-10",
+    "oldestSaleDate": "2025-11-29",
+    "compCount": 2
   },
   "1996 australia 1oz gold kangaroo": {
     "deepAt": null,
@@ -67389,13 +67425,13 @@
   },
   "perth lunar 2024 dragon silver 1oz": {
     "deepAt": null,
-    "page1At": "2026-05-17T00:42:44.718Z",
+    "page1At": "2026-05-31T21:53:31.594559",
     "maxPageReached": null,
-    "lastRefreshAt": null,
-    "refreshCount": 0,
-    "newestSaleDate": null,
-    "oldestSaleDate": null,
-    "compCount": null,
+    "lastRefreshAt": "2026-05-31T21:53:31.594559",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-14",
+    "oldestSaleDate": "2026-04-29",
+    "compCount": 4,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -73092,6 +73128,16 @@
     }
   },
   "1997 great britain 1oz gold britannia": {
+    "deepAt": null,
+    "page1At": null,
+    "maxPageReached": null,
+    "lastRefreshAt": null,
+    "refreshCount": 0,
+    "newestSaleDate": null,
+    "oldestSaleDate": null,
+    "compCount": null,
+    "noDataAt": "2026-05-31T23:48:54.013Z",
+    "noDataCount": 1,
     "identifiers": {
       "is_low_volume_candidate": true,
       "is_bullion": true,
@@ -73302,6 +73348,16 @@
     }
   },
   "1894 o morgan silver dollar ms63": {
+    "deepAt": null,
+    "page1At": null,
+    "maxPageReached": null,
+    "lastRefreshAt": null,
+    "refreshCount": 0,
+    "newestSaleDate": null,
+    "oldestSaleDate": null,
+    "compCount": null,
+    "noDataAt": "2026-05-31T23:47:54.198Z",
+    "noDataCount": 1,
     "identifiers": {
       "is_low_volume_candidate": true,
       "is_bullion": false,
@@ -73358,6 +73414,14 @@
     }
   },
   "2000 mexico 1oz gold libertad": {
+    "deepAt": null,
+    "page1At": "2026-05-31T21:56:58.869248",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T21:56:58.869248",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-08",
+    "oldestSaleDate": "2026-05-08",
+    "compCount": 1,
     "identifiers": {
       "is_low_volume_candidate": true,
       "is_bullion": true,
@@ -73988,6 +74052,16 @@
     }
   },
   "1998 mexico 1oz gold libertad": {
+    "deepAt": null,
+    "page1At": null,
+    "maxPageReached": null,
+    "lastRefreshAt": null,
+    "refreshCount": 0,
+    "newestSaleDate": null,
+    "oldestSaleDate": null,
+    "compCount": null,
+    "noDataAt": "2026-05-31T20:24:33.422Z",
+    "noDataCount": 1,
     "identifiers": {
       "is_low_volume_candidate": true,
       "is_bullion": true,
@@ -74072,6 +74146,16 @@
     }
   },
   "1997 mexico 1oz gold libertad": {
+    "deepAt": null,
+    "page1At": null,
+    "maxPageReached": null,
+    "lastRefreshAt": null,
+    "refreshCount": 0,
+    "newestSaleDate": null,
+    "oldestSaleDate": null,
+    "compCount": null,
+    "noDataAt": "2026-05-31T20:29:18.483Z",
+    "noDataCount": 1,
     "identifiers": {
       "is_low_volume_candidate": true,
       "is_bullion": true,
@@ -76888,6 +76972,16 @@
     }
   },
   "2001 mexico 1oz gold libertad": {
+    "deepAt": null,
+    "page1At": null,
+    "maxPageReached": null,
+    "lastRefreshAt": null,
+    "refreshCount": 0,
+    "newestSaleDate": null,
+    "oldestSaleDate": null,
+    "compCount": null,
+    "noDataAt": "2026-05-31T21:13:24.677Z",
+    "noDataCount": 1,
     "identifiers": {
       "is_low_volume_candidate": true,
       "is_bullion": true,
@@ -80130,6 +80224,14 @@
     }
   },
   "1986 american silver eagle ms69": {
+    "deepAt": null,
+    "page1At": "2026-05-31T22:37:57.412849",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T22:37:57.412849",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-31",
+    "oldestSaleDate": "2025-12-05",
+    "compCount": 50,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -80144,6 +80246,14 @@
     }
   },
   "1986 american silver eagle ms70": {
+    "deepAt": null,
+    "page1At": "2026-05-31T20:28:13.703033",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T20:28:13.703033",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-25",
+    "oldestSaleDate": "2025-12-06",
+    "compCount": 50,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -80290,6 +80400,14 @@
     }
   },
   "1987 american silver eagle ms69": {
+    "deepAt": null,
+    "page1At": "2026-05-31T23:07:26.397853",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T23:07:26.397853",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-31",
+    "oldestSaleDate": "2025-12-04",
+    "compCount": 49,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -80304,6 +80422,14 @@
     }
   },
   "1987 american silver eagle ms70": {
+    "deepAt": null,
+    "page1At": "2026-05-31T21:06:07.941347",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T21:06:07.941347",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-29",
+    "oldestSaleDate": "2025-12-04",
+    "compCount": 50,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -80442,6 +80568,14 @@
     }
   },
   "1988 american silver eagle ms69": {
+    "deepAt": null,
+    "page1At": "2026-05-31T20:30:17.966530",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T20:30:17.966530",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-31",
+    "oldestSaleDate": "2025-12-03",
+    "compCount": 49,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -80456,6 +80590,14 @@
     }
   },
   "1988 american silver eagle ms70": {
+    "deepAt": null,
+    "page1At": "2026-05-31T21:39:15.842998",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T21:39:15.842998",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-24",
+    "oldestSaleDate": "2025-12-03",
+    "compCount": 42,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -80806,6 +80948,14 @@
     }
   },
   "1990 american silver eagle ms69": {
+    "deepAt": null,
+    "page1At": "2026-05-31T22:54:45.045699",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T22:54:45.045699",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-31",
+    "oldestSaleDate": "2025-12-12",
+    "compCount": 49,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -80820,6 +80970,14 @@
     }
   },
   "1990 american silver eagle ms70": {
+    "deepAt": null,
+    "page1At": "2026-05-31T22:08:25.212602",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T22:08:25.212602",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-30",
+    "oldestSaleDate": "2025-12-07",
+    "compCount": 22,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -81046,6 +81204,14 @@
     }
   },
   "1991 american silver eagle ms69": {
+    "deepAt": null,
+    "page1At": "2026-05-31T22:11:18.288841",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T22:11:18.288841",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-31",
+    "oldestSaleDate": "2025-12-07",
+    "compCount": 48,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -81060,6 +81226,14 @@
     }
   },
   "1991 american silver eagle ms70": {
+    "deepAt": null,
+    "page1At": "2026-05-31T22:09:22.690767",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T22:09:22.690767",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-29",
+    "oldestSaleDate": "2025-12-04",
+    "compCount": 38,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -81278,6 +81452,14 @@
     }
   },
   "1992 american silver eagle ms69": {
+    "deepAt": null,
+    "page1At": "2026-05-31T22:07:21.006489",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T22:07:21.006489",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-31",
+    "oldestSaleDate": "2025-12-04",
+    "compCount": 50,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -81292,6 +81474,14 @@
     }
   },
   "1992 american silver eagle ms70": {
+    "deepAt": null,
+    "page1At": "2026-05-31T22:28:43.123241",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T22:28:43.123241",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-27",
+    "oldestSaleDate": "2025-12-04",
+    "compCount": 41,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -81502,6 +81692,14 @@
     }
   },
   "1993 american silver eagle ms69": {
+    "deepAt": null,
+    "page1At": "2026-05-31T22:49:34.607584",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T22:49:34.607584",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-31",
+    "oldestSaleDate": "2025-12-03",
+    "compCount": 47,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -81516,6 +81714,14 @@
     }
   },
   "1993 american silver eagle ms70": {
+    "deepAt": null,
+    "page1At": "2026-05-31T23:04:20.955365",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T23:04:20.955365",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-27",
+    "oldestSaleDate": "2025-12-07",
+    "compCount": 22,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -81748,6 +81954,14 @@
     }
   },
   "1994 american silver eagle ms69": {
+    "deepAt": null,
+    "page1At": "2026-05-31T23:35:51.271979",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T23:35:51.271979",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-31",
+    "oldestSaleDate": "2025-12-05",
+    "compCount": 48,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -81762,6 +81976,14 @@
     }
   },
   "1994 american silver eagle ms70": {
+    "deepAt": null,
+    "page1At": "2026-05-31T21:55:56.721630",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T21:55:56.721630",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-17",
+    "oldestSaleDate": "2025-12-06",
+    "compCount": 26,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -81958,6 +82180,14 @@
     }
   },
   "1995 american silver eagle ms69": {
+    "deepAt": null,
+    "page1At": "2026-05-31T21:30:34.442390",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T21:30:34.442390",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-31",
+    "oldestSaleDate": "2025-12-03",
+    "compCount": 36,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -81972,6 +82202,14 @@
     }
   },
   "1995 american silver eagle ms70": {
+    "deepAt": null,
+    "page1At": "2026-05-31T23:20:43.953838",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T23:20:43.953838",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-29",
+    "oldestSaleDate": "2025-12-03",
+    "compCount": 37,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -82182,6 +82420,14 @@
     }
   },
   "1996 american silver eagle ms69": {
+    "deepAt": null,
+    "page1At": "2026-05-31T22:03:10.458053",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T22:03:10.458053",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-31",
+    "oldestSaleDate": "2025-12-04",
+    "compCount": 47,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -82196,6 +82442,14 @@
     }
   },
   "1996 american silver eagle ms70": {
+    "deepAt": null,
+    "page1At": "2026-05-31T22:18:17.993866",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T22:18:17.993866",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-13",
+    "oldestSaleDate": "2025-12-02",
+    "compCount": 35,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -82370,6 +82624,14 @@
     }
   },
   "1997 american silver eagle ms69": {
+    "deepAt": null,
+    "page1At": "2026-05-31T22:51:36.801711",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T22:51:36.801711",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-31",
+    "oldestSaleDate": "2025-12-05",
+    "compCount": 50,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -82384,6 +82646,14 @@
     }
   },
   "1997 american silver eagle ms70": {
+    "deepAt": null,
+    "page1At": "2026-05-31T21:48:14.822296",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T21:48:14.822296",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-25",
+    "oldestSaleDate": "2025-12-11",
+    "compCount": 25,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -82616,6 +82886,14 @@
     }
   },
   "1998 american silver eagle ms69": {
+    "deepAt": null,
+    "page1At": "2026-05-31T23:42:07.310884",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T23:42:07.310884",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-31",
+    "oldestSaleDate": "2025-12-04",
+    "compCount": 50,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -82630,6 +82908,14 @@
     }
   },
   "1998 american silver eagle ms70": {
+    "deepAt": null,
+    "page1At": "2026-05-31T21:15:26.402488",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T21:15:26.402488",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-20",
+    "oldestSaleDate": "2025-12-07",
+    "compCount": 43,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -82870,6 +83156,14 @@
     }
   },
   "1999 american silver eagle ms69": {
+    "deepAt": null,
+    "page1At": "2026-05-31T22:47:30.606850",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T22:47:30.606850",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-31",
+    "oldestSaleDate": "2025-12-03",
+    "compCount": 49,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -82884,6 +83178,14 @@
     }
   },
   "1999 american silver eagle ms70": {
+    "deepAt": null,
+    "page1At": "2026-05-31T22:33:57.694317",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T22:33:57.694317",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-25",
+    "oldestSaleDate": "2025-12-07",
+    "compCount": 25,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -83080,6 +83382,14 @@
     }
   },
   "2000 american silver eagle ms69": {
+    "deepAt": null,
+    "page1At": "2026-05-31T23:19:43.737348",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T23:19:43.737348",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-30",
+    "oldestSaleDate": "2025-12-07",
+    "compCount": 50,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -83094,6 +83404,14 @@
     }
   },
   "2000 american silver eagle ms70": {
+    "deepAt": null,
+    "page1At": "2026-05-31T20:54:37.613881",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T20:54:37.613881",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-31",
+    "oldestSaleDate": "2025-12-03",
+    "compCount": 49,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -83356,6 +83674,14 @@
     }
   },
   "2001 american silver eagle ms69": {
+    "deepAt": null,
+    "page1At": "2026-05-31T21:47:09.737320",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T21:47:09.737320",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-29",
+    "oldestSaleDate": "2025-12-04",
+    "compCount": 50,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -83370,6 +83696,14 @@
     }
   },
   "2001 american silver eagle ms70": {
+    "deepAt": null,
+    "page1At": "2026-05-31T21:41:23.016663",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T21:41:23.016663",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-22",
+    "oldestSaleDate": "2025-12-03",
+    "compCount": 50,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -83610,6 +83944,14 @@
     }
   },
   "2002 american silver eagle ms69": {
+    "deepAt": null,
+    "page1At": "2026-05-31T23:22:45.511462",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T23:22:45.511462",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-29",
+    "oldestSaleDate": "2025-12-05",
+    "compCount": 49,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -83836,6 +84178,14 @@
     }
   },
   "2003 american silver eagle ms69": {
+    "deepAt": null,
+    "page1At": "2026-05-31T20:48:01.543119",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T20:48:01.543119",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-27",
+    "oldestSaleDate": "2025-12-05",
+    "compCount": 50,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -83850,6 +84200,14 @@
     }
   },
   "2003 american silver eagle ms70": {
+    "deepAt": null,
+    "page1At": "2026-05-31T21:04:20.383848",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T21:04:20.383848",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-17",
+    "oldestSaleDate": "2025-12-02",
+    "compCount": 49,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -84120,6 +84478,14 @@
     }
   },
   "2004 american silver eagle ms69": {
+    "deepAt": null,
+    "page1At": "2026-05-31T22:02:05.903950",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T22:02:05.903950",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-29",
+    "oldestSaleDate": "2025-12-05",
+    "compCount": 46,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -84360,6 +84726,14 @@
     }
   },
   "2005 american silver eagle ms69": {
+    "deepAt": null,
+    "page1At": "2026-05-31T20:39:50.374090",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T20:39:50.374090",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-30",
+    "oldestSaleDate": "2025-12-06",
+    "compCount": 50,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -84374,6 +84748,14 @@
     }
   },
   "2005 american silver eagle ms70": {
+    "deepAt": null,
+    "page1At": "2026-05-31T22:31:51.331010",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T22:31:51.331010",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-26",
+    "oldestSaleDate": "2025-12-07",
+    "compCount": 48,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -84586,6 +84968,14 @@
     }
   },
   "2006 american silver eagle ms69": {
+    "deepAt": null,
+    "page1At": "2026-05-31T23:31:47.239009",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T23:31:47.239009",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-27",
+    "oldestSaleDate": "2025-12-04",
+    "compCount": 47,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -84600,6 +84990,14 @@
     }
   },
   "2006 american silver eagle ms70": {
+    "deepAt": null,
+    "page1At": "2026-05-31T20:55:39.227229",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T20:55:39.227229",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-22",
+    "oldestSaleDate": "2025-12-02",
+    "compCount": 50,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -84804,6 +85202,14 @@
     }
   },
   "2007 american silver eagle ms69": {
+    "deepAt": null,
+    "page1At": "2026-05-31T21:02:54.928317",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T21:02:54.928317",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-23",
+    "oldestSaleDate": "2025-12-05",
+    "compCount": 50,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -84818,6 +85224,14 @@
     }
   },
   "2007 american silver eagle ms70": {
+    "deepAt": null,
+    "page1At": "2026-05-31T20:51:13.504301",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T20:51:13.504301",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-15",
+    "oldestSaleDate": "2025-12-08",
+    "compCount": 50,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -85022,6 +85436,14 @@
     }
   },
   "2008 american silver eagle ms69": {
+    "deepAt": null,
+    "page1At": "2026-05-31T22:57:54.288045",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T22:57:54.288045",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-18",
+    "oldestSaleDate": "2025-12-05",
+    "compCount": 47,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -85036,6 +85458,14 @@
     }
   },
   "2008 american silver eagle ms70": {
+    "deepAt": null,
+    "page1At": "2026-05-31T22:58:59.410230",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T22:58:59.410230",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-22",
+    "oldestSaleDate": "2025-12-04",
+    "compCount": 47,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -85262,6 +85692,14 @@
     }
   },
   "2009 american silver eagle ms69": {
+    "deepAt": null,
+    "page1At": "2026-05-31T22:53:46.451527",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T22:53:46.451527",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-29",
+    "oldestSaleDate": "2025-12-07",
+    "compCount": 49,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -85276,6 +85714,14 @@
     }
   },
   "2009 american silver eagle ms70": {
+    "deepAt": null,
+    "page1At": "2026-05-31T22:55:46.812345",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T22:55:46.812345",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-19",
+    "oldestSaleDate": "2025-12-06",
+    "compCount": 47,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -85568,6 +86014,14 @@
     }
   },
   "2010 american silver eagle ms69": {
+    "deepAt": null,
+    "page1At": "2026-05-31T22:10:19.073070",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T22:10:19.073070",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-25",
+    "oldestSaleDate": "2025-12-04",
+    "compCount": 48,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -85582,6 +86036,14 @@
     }
   },
   "2010 american silver eagle ms70": {
+    "deepAt": null,
+    "page1At": "2026-05-31T21:07:08.652676",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T21:07:08.652676",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-25",
+    "oldestSaleDate": "2025-12-02",
+    "compCount": 48,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -85794,6 +86256,14 @@
     }
   },
   "2011 american silver eagle ms69": {
+    "deepAt": null,
+    "page1At": "2026-05-31T23:16:02.415351",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T23:16:02.415351",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-28",
+    "oldestSaleDate": "2025-12-06",
+    "compCount": 48,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -85808,6 +86278,14 @@
     }
   },
   "2011 american silver eagle ms70": {
+    "deepAt": null,
+    "page1At": "2026-05-31T22:36:01.028237",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T22:36:01.028237",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-24",
+    "oldestSaleDate": "2025-12-05",
+    "compCount": 50,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -86062,6 +86540,14 @@
     }
   },
   "2012 american silver eagle ms69": {
+    "deepAt": null,
+    "page1At": "2026-05-31T21:09:03.146406",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T21:09:03.146406",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-23",
+    "oldestSaleDate": "2025-12-02",
+    "compCount": 48,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -86076,6 +86562,14 @@
     }
   },
   "2012 american silver eagle ms70": {
+    "deepAt": null,
+    "page1At": "2026-05-31T23:00:23.256421",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T23:00:23.256421",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-26",
+    "oldestSaleDate": "2025-12-03",
+    "compCount": 49,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -86302,6 +86796,14 @@
     }
   },
   "2013 american silver eagle ms69": {
+    "deepAt": null,
+    "page1At": "2026-05-31T23:03:22.561149",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T23:03:22.561149",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-27",
+    "oldestSaleDate": "2025-12-04",
+    "compCount": 50,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -86316,6 +86818,14 @@
     }
   },
   "2013 american silver eagle ms70": {
+    "deepAt": null,
+    "page1At": "2026-05-31T21:03:38.198747",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T21:03:38.198747",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-31",
+    "oldestSaleDate": "2025-12-04",
+    "compCount": 50,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -86520,6 +87030,14 @@
     }
   },
   "2014 american silver eagle ms69": {
+    "deepAt": null,
+    "page1At": "2026-05-31T20:33:32.443175",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T20:33:32.443175",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-28",
+    "oldestSaleDate": "2025-12-09",
+    "compCount": 48,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -86534,6 +87052,14 @@
     }
   },
   "2014 american silver eagle ms70": {
+    "deepAt": null,
+    "page1At": "2026-05-31T22:21:23.544738",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T22:21:23.544738",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-30",
+    "oldestSaleDate": "2025-12-09",
+    "compCount": 48,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -86790,6 +87316,14 @@
     }
   },
   "2015 american silver eagle ms69": {
+    "deepAt": null,
+    "page1At": "2026-05-31T22:36:54.525133",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T22:36:54.525133",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-28",
+    "oldestSaleDate": "2025-12-09",
+    "compCount": 49,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -86804,6 +87338,14 @@
     }
   },
   "2015 american silver eagle ms70": {
+    "deepAt": null,
+    "page1At": "2026-05-31T22:30:46.484944",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T22:30:46.484944",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-30",
+    "oldestSaleDate": "2025-12-05",
+    "compCount": 49,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -87052,6 +87594,14 @@
     }
   },
   "2016 american silver eagle ms69": {
+    "deepAt": null,
+    "page1At": "2026-05-31T22:43:08.225072",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T22:43:08.225072",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-31",
+    "oldestSaleDate": "2025-12-05",
+    "compCount": 47,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -87066,6 +87616,14 @@
     }
   },
   "2016 american silver eagle ms70": {
+    "deepAt": null,
+    "page1At": "2026-05-31T21:51:21.996536",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T21:51:21.996536",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-26",
+    "oldestSaleDate": "2025-12-11",
+    "compCount": 49,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -87358,6 +87916,14 @@
     }
   },
   "2017 american silver eagle ms69": {
+    "deepAt": null,
+    "page1At": "2026-05-31T21:46:04.712042",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T21:46:04.712042",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-28",
+    "oldestSaleDate": "2025-12-07",
+    "compCount": 48,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -87372,6 +87938,14 @@
     }
   },
   "2017 american silver eagle ms70": {
+    "deepAt": null,
+    "page1At": "2026-05-31T23:10:00.377319",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T23:10:00.377319",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-22",
+    "oldestSaleDate": "2025-12-06",
+    "compCount": 50,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -87642,6 +88216,14 @@
     }
   },
   "2018 american silver eagle ms70": {
+    "deepAt": null,
+    "page1At": "2026-05-31T20:46:59.325829",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T20:46:59.325829",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-30",
+    "oldestSaleDate": "2025-12-06",
+    "compCount": 48,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -87920,6 +88502,14 @@
     }
   },
   "2019 american silver eagle ms69": {
+    "deepAt": null,
+    "page1At": "2026-05-31T23:46:41.893133",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T23:46:41.893133",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-29",
+    "oldestSaleDate": "2025-12-03",
+    "compCount": 47,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -87934,6 +88524,14 @@
     }
   },
   "2019 american silver eagle ms70": {
+    "deepAt": null,
+    "page1At": "2026-05-31T23:12:00.668864",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T23:12:00.668864",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-26",
+    "oldestSaleDate": "2025-12-06",
+    "compCount": 49,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -88174,6 +88772,14 @@
     }
   },
   "2020 american silver eagle ms69": {
+    "deepAt": null,
+    "page1At": "2026-05-31T23:41:09.473078",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T23:41:09.473078",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-31",
+    "oldestSaleDate": "2025-12-07",
+    "compCount": 48,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -88188,6 +88794,14 @@
     }
   },
   "2020 american silver eagle ms70": {
+    "deepAt": null,
+    "page1At": "2026-05-31T20:59:47.057958",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T20:59:47.057958",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-11",
+    "oldestSaleDate": "2025-12-11",
+    "compCount": 49,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -88400,6 +89014,14 @@
     }
   },
   "2021 american silver eagle ms69": {
+    "deepAt": null,
+    "page1At": "2026-05-31T21:01:51.555866",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T21:01:51.555866",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-25",
+    "oldestSaleDate": "2025-12-03",
+    "compCount": 49,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -88414,6 +89036,14 @@
     }
   },
   "2021 american silver eagle ms70": {
+    "deepAt": null,
+    "page1At": "2026-05-31T21:28:03.932355",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T21:28:03.932355",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-30",
+    "oldestSaleDate": "2025-12-09",
+    "compCount": 50,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -88692,6 +89322,14 @@
     }
   },
   "2022 american silver eagle ms69": {
+    "deepAt": null,
+    "page1At": "2026-05-31T22:56:53.633256",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T22:56:53.633256",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-31",
+    "oldestSaleDate": "2025-12-02",
+    "compCount": 46,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -88706,6 +89344,14 @@
     }
   },
   "2022 american silver eagle ms70": {
+    "deepAt": null,
+    "page1At": "2026-05-31T22:29:43.704925",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T22:29:43.704925",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-30",
+    "oldestSaleDate": "2025-12-09",
+    "compCount": 50,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -88976,6 +89622,14 @@
     }
   },
   "2023 american silver eagle ms69": {
+    "deepAt": null,
+    "page1At": "2026-05-31T20:45:00.357591",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T20:45:00.357591",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-31",
+    "oldestSaleDate": "2025-12-03",
+    "compCount": 50,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -88990,6 +89644,14 @@
     }
   },
   "2023 american silver eagle ms70": {
+    "deepAt": null,
+    "page1At": "2026-05-31T21:11:45.986142",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T21:11:45.986142",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-29",
+    "oldestSaleDate": "2025-12-12",
+    "compCount": 50,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -89246,6 +89908,14 @@
     }
   },
   "2024 american silver eagle ms69": {
+    "deepAt": null,
+    "page1At": "2026-05-31T22:48:35.411947",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T22:48:35.411947",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-31",
+    "oldestSaleDate": "2025-12-11",
+    "compCount": 50,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -89260,6 +89930,14 @@
     }
   },
   "2024 american silver eagle ms70": {
+    "deepAt": null,
+    "page1At": "2026-05-31T20:26:16.025446",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T20:26:16.025446",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-27",
+    "oldestSaleDate": "2025-12-20",
+    "compCount": 50,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -89516,6 +90194,14 @@
     }
   },
   "2025 american silver eagle ms69": {
+    "deepAt": null,
+    "page1At": "2026-05-31T23:43:53.702204",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T23:43:53.702204",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-31",
+    "oldestSaleDate": "2025-12-05",
+    "compCount": 50,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -89530,6 +90216,14 @@
     }
   },
   "2025 american silver eagle ms70": {
+    "deepAt": null,
+    "page1At": "2026-05-31T23:06:24.460003",
+    "maxPageReached": null,
+    "lastRefreshAt": "2026-05-31T23:06:24.460003",
+    "refreshCount": 1,
+    "newestSaleDate": "2026-05-23",
+    "oldestSaleDate": "2025-12-17",
+    "compCount": 50,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -91308,5 +92002,115 @@
       "bullion_signal_hits": 1,
       "last_updated": "2026-05-31T01:50:13.754Z"
     }
+  },
+  "1996 mexico half oz silver libertad proof": {
+    "deepAt": null,
+    "page1At": null,
+    "maxPageReached": null,
+    "lastRefreshAt": null,
+    "refreshCount": 0,
+    "newestSaleDate": "2026-05-15",
+    "oldestSaleDate": "2026-05-15",
+    "compCount": 1
+  },
+  "1996 mexico quarter oz silver libertad proof": {
+    "deepAt": null,
+    "page1At": null,
+    "maxPageReached": null,
+    "lastRefreshAt": null,
+    "refreshCount": 0,
+    "newestSaleDate": "2026-05-15",
+    "oldestSaleDate": "2026-05-15",
+    "compCount": 1
+  },
+  "2010 mexico tenth oz gold libertad": {
+    "deepAt": null,
+    "page1At": null,
+    "maxPageReached": null,
+    "lastRefreshAt": null,
+    "refreshCount": 0,
+    "newestSaleDate": "2026-05-16",
+    "oldestSaleDate": "2026-05-16",
+    "compCount": 1
+  },
+  "mexico 200oz silver libertad": {
+    "deepAt": null,
+    "page1At": null,
+    "maxPageReached": null,
+    "lastRefreshAt": null,
+    "refreshCount": 0,
+    "newestSaleDate": "2026-02-26",
+    "oldestSaleDate": "2026-02-26",
+    "compCount": 1
+  },
+  "mexico 20oz silver libertad": {
+    "deepAt": null,
+    "page1At": null,
+    "maxPageReached": null,
+    "lastRefreshAt": null,
+    "refreshCount": 0,
+    "newestSaleDate": "2026-04-23",
+    "oldestSaleDate": "2026-03-24",
+    "compCount": 3
+  },
+  "2009 mexico half oz silver libertad proof": {
+    "deepAt": null,
+    "page1At": null,
+    "maxPageReached": null,
+    "lastRefreshAt": null,
+    "refreshCount": 0,
+    "newestSaleDate": "2026-05-30",
+    "oldestSaleDate": "2026-05-30",
+    "compCount": 1
+  },
+  "2009 mexico twentieth oz silver libertad proof": {
+    "deepAt": null,
+    "page1At": null,
+    "maxPageReached": null,
+    "lastRefreshAt": null,
+    "refreshCount": 0,
+    "newestSaleDate": "2026-05-08",
+    "oldestSaleDate": "2026-05-08",
+    "compCount": 1
+  },
+  "2000 mexico half oz silver libertad proof": {
+    "deepAt": null,
+    "page1At": null,
+    "maxPageReached": null,
+    "lastRefreshAt": null,
+    "refreshCount": 0,
+    "newestSaleDate": "2026-05-30",
+    "oldestSaleDate": "2026-05-30",
+    "compCount": 1
+  },
+  "2017 mexico quarter oz gold libertad": {
+    "deepAt": null,
+    "page1At": null,
+    "maxPageReached": null,
+    "lastRefreshAt": null,
+    "refreshCount": 0,
+    "newestSaleDate": "2026-05-10",
+    "oldestSaleDate": "2026-05-10",
+    "compCount": 1
+  },
+  "2006 mexico tenth oz gold libertad": {
+    "deepAt": null,
+    "page1At": null,
+    "maxPageReached": null,
+    "lastRefreshAt": null,
+    "refreshCount": 0,
+    "newestSaleDate": "2026-04-30",
+    "oldestSaleDate": "2026-04-30",
+    "compCount": 1
+  },
+  "2003 mexico quarter oz silver libertad proof": {
+    "deepAt": null,
+    "page1At": null,
+    "maxPageReached": null,
+    "lastRefreshAt": null,
+    "refreshCount": 0,
+    "newestSaleDate": "2026-05-03",
+    "oldestSaleDate": "2026-05-03",
+    "compCount": 1
   }
 }
