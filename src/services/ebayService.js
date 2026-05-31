@@ -873,6 +873,31 @@ function applyFilters(comps, options, expected) {
     });
   }
 
+  // Bar brand-match filter: when searching for a bar with a brand specified
+  // (e.g. "Perth Mint"), keep ONLY listings whose title contains every token
+  // of the brand. eBay's Brand aspect filter is unreliable because sellers
+  // don't consistently tag listings, so wrong-brand bars (Geiger, PAMP,
+  // New Zealand Mint Star Wars, etc.) slip through the keyword search and
+  // the -25 score penalty alone isn't enough to gate them out.
+  if (expected.type === 'bar' && expected.brand) {
+    const tokens = String(expected.brand)
+      .toLowerCase()
+      .split(/\s+/)
+      .filter(Boolean)
+      .map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+    if (tokens.length) {
+      const tokenRes = tokens.map(t => new RegExp(`\\b${t}\\b`, 'i'));
+      removed.wrongBrand = 0;
+      kept = kept.filter(c => {
+        const t = c.title || '';
+        for (const re of tokenRes) {
+          if (!re.test(t)) { removed.wrongBrand++; return false; }
+        }
+        return true;
+      });
+    }
+  }
+
   // Exclusion-term filter: when the query contains eBay-style exclusion
   // operators (e.g. "-proof", "-gold"), remove comps whose title contains
   // the excluded word. This honors the user's intent to exclude specific
