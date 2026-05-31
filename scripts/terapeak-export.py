@@ -223,6 +223,56 @@ def human_idle(page):
         time.sleep(random.uniform(0.3, 0.8))
 
 
+# ── Smart render waits (#198) ───────────────────────────────
+# Replace blanket `time.sleep(3)` after page transitions with a selector-bounded
+# wait. We wait up to `total_seconds` for the relevant DOM element to appear;
+# if it arrives early we proceed immediately, otherwise we fall back to a
+# fixed sleep covering the remaining budget. Worst-case wall-clock is exactly
+# `total_seconds` -- identical to the original blanket sleep.
+#
+# Note (PR #67 review finding #2): we intentionally only key on positive-render
+# selectors (results table / search input). Empty-results selectors were dropped
+# because they're speculative and would inflate worst-case waits if they don't
+# match the live DOM.
+
+# Terapeak results table marker (set in EXTRACT_TABLE_JS, line 507).
+_RESULTS_READY_SELECTOR = 'tr.research-table-header'
+
+# Research-page UI marker for post-goto session verification.
+_RESEARCH_PAGE_SELECTOR = (
+    'input[placeholder*="keyword"], '
+    'input[placeholder*="MPN"], '
+    '#researchKeywords'
+)
+
+
+def _wait_for_selector_or_fallback(page, selector, total_seconds):
+    """Wait up to `total_seconds` for `selector`, then sleep any remaining
+    budget. Worst-case wall-clock == total_seconds (matches original blanket
+    sleep). Returns True if the selector appeared, False if we fell back."""
+    start = time.monotonic()
+    try:
+        page.wait_for_selector(selector, timeout=int(total_seconds * 1000), state="attached")
+        return True
+    except Exception:
+        remaining = total_seconds - (time.monotonic() - start)
+        if remaining > 0:
+            time.sleep(remaining)
+        return False
+
+
+def wait_for_results_render(page, total_seconds=3.0):
+    """Wait for the Terapeak results table to render after a search/pagination.
+    Worst-case wall-clock == total_seconds. Returns True on selector hit."""
+    return _wait_for_selector_or_fallback(page, _RESULTS_READY_SELECTOR, total_seconds)
+
+
+def wait_for_research_page(page, total_seconds=3.0):
+    """Wait for the Terapeak Research page UI (search input) to render after
+    a navigation. Worst-case wall-clock == total_seconds."""
+    return _wait_for_selector_or_fallback(page, _RESEARCH_PAGE_SELECTOR, total_seconds)
+
+
 # Characters near each key on a QWERTY keyboard for realistic typos
 _NEARBY_KEYS = {
     'a': 'sqwz', 'b': 'vghn', 'c': 'xdfv', 'd': 'sfecx', 'e': 'wrsdf',
@@ -356,7 +406,7 @@ PROOF_NEGATIVE_KEYWORDS = " -NGC -PCGS -graded -slab -certified"
 # Exclude "Proof Set" which are sealed government sets, not individual coins.
 import re as _re
 _GRADE_SUFFIX_RE = _re.compile(r'\b(MS|PR|PF|SP|AU|XF|EF|VF|VG|AG|FR|PO)\s*\d{1,2}\+?\s*$', _re.IGNORECASE)
-_PROOF_COIN_RE = _re.compile(r'\bproof\b(?!\s*set)', _re.IGNORECASE)
+_PROOF_COIN_RE = _re.compile(r'\bproof\b(?![\s\-_/]*set)', _re.IGNORECASE)
 
 
 def get_search_terms():
@@ -660,7 +710,7 @@ def do_login():
         # Verify we're logged in by checking for the Research page
         print("Verifying login by navigating to Research tab...")
         page.goto(EBAY_RESEARCH_URL, wait_until="domcontentloaded")
-        time.sleep(3)
+        wait_for_research_page(page)  # #198: selector-bounded, sleep(3) fallback
 
         # Check if we landed on the research page or got redirected to login
         current_url = page.url
@@ -908,8 +958,8 @@ def do_search_and_export(page, search_term, download_dir):
     except PlaywrightTimeout:
         pass  # Continue anyway -- networkidle can be flaky
 
-    # Extra wait for Terapeak SPA to render results
-    time.sleep(3)
+    # Extra wait for Terapeak SPA to render results (#198: selector-bounded)
+    wait_for_results_render(page)
 
     # ── S0: Active Listings Guard (tab check) ──────────────────
     # When Terapeak has no sold results, eBay may auto-switch to
@@ -1411,7 +1461,7 @@ def do_export_run(args):
     page = launch_browser()
     print("Verifying session...")
     page.goto(EBAY_RESEARCH_URL, wait_until="domcontentloaded")
-    time.sleep(3)
+    wait_for_research_page(page)  # #198: selector-bounded, sleep(3) fallback
     verify_url = page.url
     print(f"  Verification URL: {verify_url}")
     DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True)
