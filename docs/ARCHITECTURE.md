@@ -43,7 +43,8 @@ server.js                              Express entry point (port 3000)
 │   ├─ prefetchScheduler.js            Nightly PCGS prefetch scheduler
 │   ├─ terapeakService.js              Terapeak CSV import, fuzzy lookup, eviction, auto-import, aggregationMeta tracking (Cosmos write-through + hydration + git-tracked sidecar)
 │   ├─ terapeakQuotaService.js         Daily Terapeak query quota tracker
-│   ├─ adminService.js                 Admin dashboard aggregation (stats, stale detection, data health)
+│   ├─ adminService.js                 Admin dashboard aggregation (stats, stale detection [filters via freshnessClassifier], data health)
+│   ├─ freshnessClassifier.js          Shared refresh-skip logic (thresholds + shouldSkipRefresh) used by adminService and generate-freshness-report.js -- #229
 │   ├─ greysheetHistoryService.js      Daily Greysheet price history snapshots
 │   ├─ authService.js                  Server-side auth (bcrypt + JWT, dual-mode Cosmos + local JSON)
 │   │                                  JWT_SECRET REQUIRED in production (FATAL throw if unset)
@@ -812,6 +813,10 @@ One-command biweekly refresh of stale Terapeak datasets:
 ┌─ Query ───────────────────────────────────────────────────┐
 │  GET /api/admin/stale-datasets?days=N                     │
 │  → list of datasets older than threshold (default 14 days)│
+│  → excludes dormant / confirmed-thin / thin-wait /        │
+│    recently-confirmed-stale / dry-refresh-backoff via     │
+│    src/services/freshnessClassifier.js::shouldSkipRefresh │
+│  → ?includeSkipped=true returns all rows + skipReason     │
 ├─ Build Filter ────────────────────────────────────────────┤
 │  Extract search terms → build regex: "term1|term2|..."    │
 │  Write to /tmp/terapeak_refresh_regex.txt (avoids eval)   │

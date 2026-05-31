@@ -121,7 +121,7 @@ describe('GET /api/admin/stale-datasets', () => {
     expect(res.status).toBe(200);
     expect(res.body.stale).toHaveLength(1);
     expect(res.body.summary.totalCSVs).toBe(100);
-    expect(adminService.getStaleDatasets).toHaveBeenCalledWith({ days: 30, limit: 50 });
+    expect(adminService.getStaleDatasets).toHaveBeenCalledWith({ days: 30, limit: 50, includeSkipped: false });
   });
 
   test('passes custom days and limit', async () => {
@@ -132,7 +132,7 @@ describe('GET /api/admin/stale-datasets', () => {
 
     const res = await req('GET', '/api/admin/stale-datasets?days=60&limit=25');
     expect(res.status).toBe(200);
-    expect(adminService.getStaleDatasets).toHaveBeenCalledWith({ days: 60, limit: 25 });
+    expect(adminService.getStaleDatasets).toHaveBeenCalledWith({ days: 60, limit: 25, includeSkipped: false });
   });
 
   test('clamps days to valid range', async () => {
@@ -142,7 +142,7 @@ describe('GET /api/admin/stale-datasets', () => {
     });
 
     await req('GET', '/api/admin/stale-datasets?days=0&limit=999');
-    expect(adminService.getStaleDatasets).toHaveBeenCalledWith({ days: 1, limit: 500 });
+    expect(adminService.getStaleDatasets).toHaveBeenCalledWith({ days: 1, limit: 500, includeSkipped: false });
   });
 });
 

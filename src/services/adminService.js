@@ -6,6 +6,7 @@
 const fs = require('fs');
 const path = require('path');
 const { parse } = require('csv-parse/sync');
+const { shouldSkipRefresh } = require('./freshnessClassifier');
 
 const TERAPEAK_DIR = process.env.TERAPEAK_DATA_DIR || 'data/terapeak';
 
@@ -14,27 +15,37 @@ const TERAPEAK_DIR = process.env.TERAPEAK_DATA_DIR || 'data/terapeak';
 /**
  * Analyze staleness of all Terapeak datasets.
  * Uses newestSaleDate from aggregationMeta (pre-computed, no CSV re-parsing).
- * Falls back to CSV parsing only for datasets missing newestSaleDate in meta.
+ *
+ * By default, applies the same refresh-skip exclusions as
+ * scripts/generate-freshness-report.js (dormant, confirmed-thin, thin-wait,
+ * recently-confirmed-stale, dry-refresh-backoff). Set opts.includeSkipped=true
+ * to bypass exclusions (useful for admin dashboards that want the full picture).
  *
  * @param {object} opts
  * @param {number} [opts.days=30]  -- flag datasets with no sale newer than this many days
  * @param {number} [opts.limit=50] -- max results to return (sorted stalest-first)
+ * @param {boolean} [opts.includeSkipped=false] -- include datasets the freshness classifier would skip
  * @returns {{ stale: object[], summary: object }}
  */
 function getStaleDatasets(opts = {}) {
   const days = opts.days || 30;
   const limit = opts.limit || 50;
+  const includeSkipped = !!opts.includeSkipped;
   const cutoffDate = new Date(Date.now() - days * 86_400_000);
   const cutoffStr = cutoffDate.toISOString().split('T')[0]; // YYYY-MM-DD
+  const now = new Date();
 
   // Primary path: read from terapeakService in-memory store (fast, uses sidecar data)
   const terapeakService = require('./terapeakService');
   const datasets = terapeakService.listDatasets();
   const results = [];
+  let skippedCount = 0;
+  const skippedByReason = {};
 
   for (const d of datasets) {
-    const newestSaleDate = d.aggregationMeta?.newestSaleDate || null;
-    const oldestSaleDate = d.aggregationMeta?.oldestSaleDate || null;
+    const am = d.aggregationMeta || {};
+    const newestSaleDate = am.newestSaleDate || null;
+    const oldestSaleDate = am.oldestSaleDate || null;
     const compCount = d.compCount || 0;
 
     let ageDays = null;
@@ -44,6 +55,26 @@ function getStaleDatasets(opts = {}) {
 
     const isStale = !newestSaleDate || newestSaleDate < cutoffStr;
 
+    // Apply the same refresh-skip logic as the freshness report.
+    // Build the meta shape shouldSkipRefresh() expects.
+    const classifyMeta = {
+      newestSaleDate,
+      compCount,
+      refreshCount: am.refreshCount || 0,
+      lastRefreshAt: am.lastRefreshAt || am.page1At || null,
+      noDataCount: am.noDataCount || 0,
+      noDataAt: am.noDataAt || null,
+      consecutiveDryRefreshes: am.consecutiveDryRefreshes || 0,
+      csvExists: true, // listDatasets only returns datasets that have a store entry
+    };
+    const skipDecision = shouldSkipRefresh(classifyMeta, now);
+
+    if (skipDecision.skip) {
+      skippedCount += 1;
+      skippedByReason[skipDecision.reason] = (skippedByReason[skipDecision.reason] || 0) + 1;
+      if (!includeSkipped) continue;
+    }
+
     results.push({
       file: d.key.replace(/ /g, '_'),
       searchTerm: d.searchTerm || d.key,
@@ -52,6 +83,7 @@ function getStaleDatasets(opts = {}) {
       oldestSoldDate: oldestSaleDate,
       ageDays,
       isStale,
+      ...(skipDecision.skip ? { skipReason: skipDecision.reason } : {}),
     });
   }
 
@@ -64,11 +96,15 @@ function getStaleDatasets(opts = {}) {
   });
 
   const stale = results.filter(r => r.isStale).slice(0, limit);
-  const totalCSVs = results.length;
+  const totalCSVs = datasets.length;
   const staleCount = results.filter(r => r.isStale).length;
 
-  // Generate filter regex for the top stale items
-  const filterTerms = stale.slice(0, limit).map(s => _escapeRegex(s.searchTerm));
+  // Generate filter regex for the top stale items (excludes skipped unless
+  // includeSkipped=true, so refresh-stale.sh only scrapes actionable datasets).
+  const filterTerms = stale
+    .filter(s => !s.skipReason)
+    .slice(0, limit)
+    .map(s => _escapeRegex(s.searchTerm));
   const filterRegex = filterTerms.length > 0
     ? filterTerms.map(t => `^${t}$`).join('|')
     : '';
@@ -81,6 +117,9 @@ function getStaleDatasets(opts = {}) {
       freshCount: totalCSVs - staleCount,
       staleDays: days,
       filterRegex,
+      skippedCount,
+      skippedByReason,
+      includeSkipped,
     },
   };
 }

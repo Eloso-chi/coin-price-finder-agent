@@ -135,15 +135,22 @@ describe('getStaleDatasets', () => {
     expect(result.summary.filterRegex).toContain('1921 Morgan Silver Dollar');
   });
 
-  test('empty CSVs have null age', () => {
+  test('empty CSVs have null age (only returned with includeSkipped)', () => {
     terapeakService.listDatasets.mockReturnValue([
       { key: 'stub', searchTerm: 'stub coin', compCount: 0, aggregationMeta: {} },
     ]);
 
-    const result = adminService.getStaleDatasets({ days: 30 });
-    const stub = result.stale.find(s => s.file === 'stub');
+    // Default: excluded as 'empty' by freshnessClassifier (#229)
+    const def = adminService.getStaleDatasets({ days: 30 });
+    expect(def.stale.find(s => s.file === 'stub')).toBeUndefined();
+    expect(def.summary.skippedByReason.empty).toBe(1);
+
+    // includeSkipped=true: returned with skipReason populated
+    const all = adminService.getStaleDatasets({ days: 30, includeSkipped: true });
+    const stub = all.stale.find(s => s.file === 'stub');
     expect(stub).toBeDefined();
     expect(stub.ageDays).toBeNull();
+    expect(stub.skipReason).toBe('empty');
   });
 });
 

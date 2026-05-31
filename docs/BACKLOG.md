@@ -530,6 +530,32 @@ Ops can override to any value (e.g., `BROWSER_RECYCLE_EVERY=40 python scripts/te
 
 ---
 
+### 229. Align `/api/admin/stale-datasets` with Freshness-Report Exclusions [P1 -- blocks #228 -- DONE]
+
+> Implemented in PR (this branch). Closed by commit `065dcb9`.
+
+**Problem:** `src/services/adminService.js::getStaleDatasets()` (used by `/api/admin/stale-datasets` -> `scripts/refresh-stale.sh`) flagged datasets stale purely on `newestSaleDate < cutoff` and sorted by ageDays. It ignored every exclusion that `scripts/generate-freshness-report.js` applies:
+
+- `noDataCount >= 2 && noDataAgeDays < 60` (dormant)
+- `compCount < 10 && refreshCount >= 3` (confirmed-thin)
+- `compCount < 10 && lastRefreshDays < 60` (thin-wait)
+- `lastRefreshDays < 14` on stale/very-stale datasets (recently-confirmed-stale)
+- `consecutiveDryRefreshes >= 2/4` within 30d/60d (dry-refresh-backoff tier 1/2)
+
+**Impact:** Every `refresh-stale.sh` run wasted scrapes on datasets the freshness report would skip. With ~885 recently-confirmed-stale + ~438 dormant in current data, up to ~50% of the top-N stalest list was no-op work. Blocked #228.
+
+**Fix:**
+1. New `src/services/freshnessClassifier.js` exports `THRESHOLDS` + `classify()` + `shouldSkipRefresh(meta, now)` -> `{skip, reason, state}` -- single source of truth.
+2. `getStaleDatasets()` calls `shouldSkipRefresh()` and filters skipped rows by default; attaches `skipReason` when present; new `summary.skippedCount` + `summary.skippedByReason`.
+3. `/api/admin/stale-datasets` accepts `?includeSkipped=true`. `filterRegex` never includes skipped rows so `refresh-stale.sh` stays safe even with `includeSkipped=true`.
+4. `generate-freshness-report.js` refactored to import thresholds from the shared classifier. Regression-verified byte-identical output.
+
+**Tests:** 9 new in `__tests__/adminServiceStaleDatasets.test.js`. Pre-existing `adminService.test.js` + `adminRoute.test.js` updated. Full suite: 80 suites / 3052 tests pass.
+
+**Files:** NEW `src/services/freshnessClassifier.js`, MOD `src/services/adminService.js`, MOD `src/routes/adminRoute.js`, MOD `scripts/generate-freshness-report.js`, NEW `__tests__/adminServiceStaleDatasets.test.js`, MOD `__tests__/adminService.test.js`, MOD `__tests__/adminRoute.test.js`, DOCS `README.md` + `docs/ARCHITECTURE.md`.
+
+---
+
 ### 228. Page 1 Refresh Run -- Libertads, ASEs, Perth Lunars [P1]
 
 > Originally memory #183 -- renumbered to avoid collision with backlog #183 (Designation-Aware Comp Scoring -- DONE).
