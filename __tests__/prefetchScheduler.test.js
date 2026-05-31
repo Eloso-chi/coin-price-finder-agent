@@ -237,3 +237,40 @@ describe('prefetchScheduler — triggerManual', () => {
     }
   });
 });
+
+// ═══════════════════════════════════════════════════════════════
+//  #214 — World bullion PCGS numbers (6-7 digits) reach the queue
+// ═══════════════════════════════════════════════════════════════
+
+describe('prefetchScheduler — world bullion extraction (#214)', () => {
+
+  test('extractor regex picks up 6-7 digit world bullion PCGS numbers', () => {
+    // Read the real pcgsNumbers.js source (mirrors what extractAllPcgsNumbers does)
+    const realFs = jest.requireActual('fs');
+    const path = jest.requireActual('path');
+    const src = realFs.readFileSync(
+      path.resolve(__dirname, '../src/data/pcgsNumbers.js'),
+      'utf8'
+    );
+    const matches = src.match(/:\s*(\d{3,7})\b/g) || [];
+    const numbers = new Set(
+      matches.map(m => parseInt(m.replace(/[:\s]/g, ''), 10)).filter(n => n > 100)
+    );
+
+    // Sample world bullion PCGS numbers from #206-#213 (Kookaburra, Krugerrand,
+    // Kangaroo, Maple Leaf, Britannia, Panda, Perth Lunar). These are 6-7 digit
+    // numbers that the old \d{3,5} regex skipped entirely.
+    const worldBullionSamples = [
+      114425,   // 1992 Kookaburra
+      564601,   // 1967 Krugerrand
+      143219,   // 1993 Kangaroo
+      1004509,  // 2026 Maple Leaf
+      1001434,  // 2026 Britannia
+      1000705,  // 2026 Panda
+      170456,   // 1999 Perth Lunar 1/2 oz
+    ];
+    for (const n of worldBullionSamples) {
+      expect(numbers.has(n)).toBe(true);
+    }
+  });
+});

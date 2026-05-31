@@ -61,6 +61,12 @@ function buildQueue() {
   const allPcgsNumbers = extractAllPcgsNumbers();
   const keyDateNumbers = getKeyDatePcgsNumbers();
 
+  // #214: log extractor inventory so silent drops (e.g. regex mis-matches) are visible.
+  console.log(
+    `[prefetch] Extractor inventory: ${allPcgsNumbers.length} total PCGS numbers, ` +
+    `${keyDateNumbers.length} key dates`
+  );
+
   // Separate key dates from regular
   const keyDateSet = new Set(keyDateNumbers);
 
@@ -109,11 +115,13 @@ function buildQueue() {
 
 /**
  * Extract all unique PCGS numbers from the static tables.
+ * Range 3-7 digits covers US coins (4-6 digits) and world bullion (6-7 digits,
+ * e.g. Kookaburra 114425, Maple Leaf 1004509). #214.
  */
 function extractAllPcgsNumbers() {
   try {
     const src = fs.readFileSync(path.resolve(__dirname, '../data/pcgsNumbers.js'), 'utf8');
-    const matches = src.match(/:\s*(\d{3,5})\b/g);
+    const matches = src.match(/:\s*(\d{3,7})\b/g);
     if (!matches) return [];
     const numbers = [...new Set(matches.map(m => parseInt(m.replace(/[:\s]/g, ''), 10)))];
     return numbers.filter(n => n > 100); // filter out noise

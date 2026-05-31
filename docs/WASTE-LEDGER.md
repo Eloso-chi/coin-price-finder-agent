@@ -171,6 +171,40 @@ Tracks wasted compute, agent time, and Azure cost caused by bugs, agent violatio
 
 ---
 
+### INC-009: Backlog Drift -- Multi-Pass Reconciliation Triggered by Stale Status
+
+| Field | Value |
+|-------|-------|
+| Date | 2026-05-31 |
+| Category | `agent-violation` / `recovery-ops` |
+| Root Cause | Agent let `docs/BACKLOG.md` drift from reality over multiple sessions: items implemented in code/data (PCGS world bullion numbers #206-#210/#212-#213, RRV mode #195, classification audit agent #190, sales-aggregator APP_URL #182, holdout validation #177, bar-pricing-health #187, pricing-regression #191, classification-audit #192, admin role #201, PAMP Suisse normalization #225, cross-route platinum #184, Type 1 ASE dataset #168, Franklin/Kennedy D-mints #44/#46, 1870-CC Seated Liberty dataset #170) were never marked DONE. Required three escalating user prompts ("are 206-213 done?", "mark any and all done", "spot check open items") plus a thorough fourth-pass verification to clean up. Compounded: agent then **falsely marked #228 DONE** based on `git checkout` mtimes rather than verifying scrape scope; user caught the error. |
+| Impact | 16 backlog items correctly moved Open -> DONE this session; 1 (#228) wrongly marked DONE and reverted after user challenge. User had to re-ask three times AND catch a fabricated completion. Three+ extra reconciliation rounds in this session that should have been one. Also originally violated process by tracking items in `/memories/repo/future-edits.md` instead of `docs/BACKLOG.md` (corrected earlier in same session). |
+| Codespace | ~90 min of session time spent on reconciliation that should have been an ongoing per-PR discipline = **$0.27** |
+| Copilot | ~35 requests across the three reconciliation rounds (initial gap analysis, PCGS pass, spot check, thorough verification) = **$1.40** |
+| Azure | $0.00 |
+| **Total** | **$1.67** |
+| Resolution | Imported all open items into BACKLOG.md (Option A bulk reconciliation), then ran four verification passes against the actual codebase. Final state: 17 items moved Open -> DONE in this session; ~30 truly open remain. |
+| Rules Added | 1) **Every PR that implements a backlog item MUST update its status in the same commit** -- enforced by PR template review checklist. 2) When asked "show the backlog", agent MUST spot-check status of at least the top-priority items against current code, not just read the file. 3) Backlog status changes are approval-gated per `BACKLOG.rules.md` but the *verification* of completion is not -- agent must surface evidence proactively. 4) `/memories/repo/future-edits.md` is non-authoritative; never the destination for new items. 5) **File mtimes are NOT evidence of work being done** -- `git checkout` updates mtimes. Use `git log -- <path>` to verify actual content changes, and read commit messages to confirm scope matches the backlog item. |
+
+---
+
+### INC-010: Red-on-Green CI -- Cosmetic Workflow Failure Masked Healthy Production for 5 Days
+
+| Field | Value |
+|-------|-------|
+| Date | 2026-05-26 -- 2026-05-31 |
+| Category | `observability-debt` / `agent-violation` |
+| Root Cause | `nightly-prefetch.yml` "Report prefetch results" step used a Python `python3 -c "<heredoc>"` block with indented body lines. Bash preserved the indentation when forwarding to Python, causing `IndentationError: unexpected indent`. The report step runs AFTER the prefetch already succeeded, but exited 1 anyway, marking every nightly workflow run as FAILED. Nobody clicked into the failing runs because "of course it's failing -- it always fails". Meanwhile production was prefetching ~990 calls/night successfully. Discovered only when user asked "has the process been running for non-bullion coins?" and agent dug into GH Actions logs and the prod `/api/admin/prefetch-status`. |
+| Impact | False signal for 5 consecutive nights (May 26-31). Lost the ability to detect a REAL prefetch failure if one had occurred. Wasted agent time during INC-009 reconciliation chasing the stale local `cache/prefetch_status.json` (May 19) under the assumption the scheduler was broken -- it wasn't. Could have led to false WONTFIX/DONE conclusions about scheduler reliability. |
+| Codespace | ~15 min investigating GH Actions + prod status during INC-009 cleanup that traced back to this issue = **$0.05** |
+| Copilot | ~6 requests to triage workflow failure, fetch logs, identify Python heredoc bug = **$0.24** |
+| Azure | $0.00 (scheduler actually worked; no real waste, just no signal) |
+| **Total** | **$0.29** |
+| Resolution | Replaced Python heredoc with inline `jq` calls in `.github/workflows/nightly-prefetch.yml` "Report prefetch results" step. Tonight's run will be the first to pass cleanly (and the first to include world-bullion APR data after the #214 regex fix). |
+| Rules Added | 6) **A failing CI run is a signal, not noise.** If the same workflow has been failing for >2 consecutive runs, agent MUST investigate before continuing other work. 7) **Workflow steps that run AFTER the critical work must not be allowed to mask success.** Reporting/summary steps should be wrapped with `if: always()` and exit 0 on their own internal errors, or kept simple enough to not fail. 8) Prefer `jq` / bash over inline Python heredocs in workflow YAML -- indentation rules differ between the two and break silently. |
+
+---
+
 ## Summary
 
 | # | Date | Category | Description | Total Cost |
@@ -183,14 +217,16 @@ Tracks wasted compute, agent time, and Azure cost caused by bugs, agent violatio
 | INC-006 | May 16 | duplicate-pull | 754 rows re-fetched | $0.01 |
 | INC-007 | May 23 | code-bug / agent-violation | Buggy code + skipped pre-commit reviewer | $1.54 |
 | INC-008 | May 26-27 | agent-violation / recovery-ops | PR #52 branch-protection bypass + token rediscovery + silent working-tree carryover | $1.55 |
-| | | | **Running Total** | **$9.82** |
+| INC-009 | May 31 | agent-violation / recovery-ops | Backlog drift -- 17 items stale-marked, required 4-pass reconciliation | $1.67 |
+| INC-010 | May 26-31 | observability-debt / agent-violation | Red-on-green CI: heredoc bug masked healthy prefetch for 5 days | $0.29 |
+| | | | **Running Total** | **$11.78** |
 
 ---
 
 ## Metrics
 
-- **Total waste (all time):** $9.82
-- **Worst category:** data-corruption ($5.94 / 60%)
-- **Agent violations:** 4 incidents, $3.31
+- **Total waste (all time):** $11.78
+- **Worst category:** data-corruption ($5.94 / 50%)
+- **Agent violations:** 6 incidents, $5.27
 - **Code bugs:** 1 incident, $1.54
-- **Preventable (with rules now in place):** $9.26 (INC-001 through INC-008)
+- **Preventable (with rules now in place):** $11.22 (INC-001 through INC-010)
