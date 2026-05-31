@@ -30,6 +30,7 @@ const fs = require('fs');
 const path = require('path');
 const { classifyComposition, classifyGradeCategory, getCoinMetalProfile } = require('../src/utils/coinMetalProfile');
 const { normalizeSearchKey } = require('../src/services/terapeakService');
+const { THRESHOLDS } = require('../src/services/freshnessClassifier');
 
 const META_PATH = path.join(__dirname, '..', 'data', 'terapeak-meta.json');
 const OUTPUT_PATH = path.join(__dirname, '..', 'cache', 'freshness-report.json');
@@ -39,21 +40,22 @@ const VALIDITY_HOURS = 24;
 const args = process.argv.slice(2);
 const summaryOnly = args.includes('--summary');
 const staleIdx = args.indexOf('--stale');
-const STALE_THRESHOLD = staleIdx >= 0 ? parseInt(args[staleIdx + 1]) || 15 : 15;
-const VERY_STALE_THRESHOLD = STALE_THRESHOLD * 2; // 30d if threshold is 15
+const STALE_THRESHOLD = staleIdx >= 0 ? parseInt(args[staleIdx + 1]) || THRESHOLDS.STALE_THRESHOLD_DAYS : THRESHOLDS.STALE_THRESHOLD_DAYS;
+const VERY_STALE_THRESHOLD = STALE_THRESHOLD * THRESHOLDS.VERY_STALE_MULTIPLIER;
 const LOW_COMP_THRESHOLD = 100;
 
-// Market depth thresholds
-const THIN_MARKET_THRESHOLD = 10;     // <10 comps = thin market
-const CONFIRMED_THIN_REFRESHES = 3;   // After N refreshes still thin = confirmed-thin
-const THIN_MARKET_CADENCE_DAYS = 60;  // Thin-market datasets only refresh every 60d
-const RECENTLY_REFRESHED_DAYS = 14;  // If scraped within this window and still stale, don't re-queue
+// Market depth thresholds (sourced from src/services/freshnessClassifier.js
+// so adminService.getStaleDatasets() applies the same exclusions).
+const THIN_MARKET_THRESHOLD = THRESHOLDS.THIN_MARKET_THRESHOLD;
+const CONFIRMED_THIN_REFRESHES = THRESHOLDS.CONFIRMED_THIN_REFRESHES;
+const THIN_MARKET_CADENCE_DAYS = THRESHOLDS.THIN_MARKET_CADENCE_DAYS;
+const RECENTLY_REFRESHED_DAYS = THRESHOLDS.RECENTLY_REFRESHED_DAYS;
 
 // Dry-refresh backoff: when refreshes consistently yield 0 new comps, extend cadence
-const DRY_REFRESH_TIER1 = 2;          // After 2 consecutive dry refreshes -> 30d cadence
-const DRY_REFRESH_TIER2 = 4;          // After 4 consecutive dry refreshes -> 60d cadence
-const DRY_REFRESH_TIER1_DAYS = 30;    // Extended cadence for tier 1
-const DRY_REFRESH_TIER2_DAYS = 60;    // Extended cadence for tier 2
+const DRY_REFRESH_TIER1 = THRESHOLDS.DRY_REFRESH_TIER1;
+const DRY_REFRESH_TIER2 = THRESHOLDS.DRY_REFRESH_TIER2;
+const DRY_REFRESH_TIER1_DAYS = THRESHOLDS.DRY_REFRESH_TIER1_DAYS;
+const DRY_REFRESH_TIER2_DAYS = THRESHOLDS.DRY_REFRESH_TIER2_DAYS;
 
 // Low-signal threshold (backward compat): datasets with comps > 0 but < this value.
 const lowSigIdx = args.indexOf('--low-signal');

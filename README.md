@@ -415,7 +415,7 @@ All `/api/coins/*` endpoints require `Authorization: Bearer <jwt>` header.
 | `POST` | `/api/clear-cache` | Flush all caches (eBay + PCGS + market + Numista + metals) 🔒 |
 | `GET` | `/api/health` | Health check + uptime |
 | `GET` | `/api/admin/dashboard` | System overview: uptime, user count, dataset count, Terapeak quota 🔒 |
-| `GET` | `/api/admin/stale-datasets` | List datasets older than N days (default 30) 🔒 |
+| `GET` | `/api/admin/stale-datasets` | List datasets older than N days (default 30); applies freshness-classifier exclusions (dormant, confirmed-thin, thin-wait, recently-confirmed-stale, dry-refresh-backoff) -- pass `?includeSkipped=true` to see skipped rows with `skipReason` 🔒 |
 | `GET` | `/api/admin/data-health` | Total files, empty files, oldest/newest file dates 🔒 |
 | `GET` | `/api/admin/prefetch-status` | Nightly PCGS prefetch scheduler status 🔒 |
 | `POST` | `/api/admin/prefetch-trigger` | Trigger a manual prefetch run 🔒 |
@@ -715,6 +715,14 @@ scripts/
 ---
 
 ## Recent Changes
+
+### Freshness Classifier Alignment (#229, May 31, 2026)
+
+- **Shared `src/services/freshnessClassifier.js`** -- single source of truth for refresh-skip thresholds (STALE/THIN/DRY/RECENTLY_REFRESHED/DORMANT) and the `shouldSkipRefresh(meta)` decision used by both the freshness report and the admin staleness API.
+- **`/api/admin/stale-datasets` honors exclusions** -- `adminService.getStaleDatasets()` now filters out dormant, confirmed-thin, thin-wait, recently-confirmed-stale, and dry-refresh-backoff datasets by default. New `?includeSkipped=true` query param returns the full list with a `skipReason` field per row; new `summary.skippedCount` + `summary.skippedByReason` breakdown.
+- **`refresh-stale.sh` no longer wastes scrapes** -- because the API now agrees with the freshness report, the regex it builds excludes datasets the freshness report would skip (~50% reduction in no-op work in the current dataset).
+- **`scripts/generate-freshness-report.js`** -- refactored to import thresholds from the shared classifier; output is unchanged (regression-verified byte-for-byte excluding day-rollover ageDays drift).
+- 9 new tests in `__tests__/adminServiceStaleDatasets.test.js` covering each exclusion category + `includeSkipped` round-trip + `filterRegex` safety.
 
 ### Auth Performance & Diagnostics (May 31, 2026)
 

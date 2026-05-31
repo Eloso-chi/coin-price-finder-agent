@@ -24,8 +24,16 @@ router.get('/dashboard', (_req, res) => {
 });
 
 /**
- * GET /api/admin/stale-datasets?days=30&limit=50
+ * GET /api/admin/stale-datasets?days=30&limit=50&includeSkipped=false
  * Staleness tracker: which CSVs need refreshing?
+ *
+ * By default, applies the same refresh-skip exclusions as
+ * scripts/generate-freshness-report.js (dormant, confirmed-thin, thin-wait,
+ * recently-confirmed-stale, dry-refresh-backoff) so scripts/refresh-stale.sh
+ * doesn't waste scrapes on datasets the freshness report would skip.
+ *
+ * Pass `includeSkipped=true` to see the full picture (each row gets a
+ * `skipReason` field when applicable).
  */
 router.get('/stale-datasets', (req, res) => {
   try {
@@ -33,7 +41,8 @@ router.get('/stale-datasets', (req, res) => {
     const rawLimit = parseInt(req.query.limit, 10);
     const days = Math.max(1, Math.min(365, Number.isFinite(rawDays) ? rawDays : 30));
     const limit = Math.max(1, Math.min(500, Number.isFinite(rawLimit) ? rawLimit : 50));
-    const result = adminService.getStaleDatasets({ days, limit });
+    const includeSkipped = req.query.includeSkipped === 'true' || req.query.includeSkipped === '1';
+    const result = adminService.getStaleDatasets({ days, limit, includeSkipped });
     res.json(result);
   } catch (err) {
     console.error('[admin] Stale datasets error:', err.message);
