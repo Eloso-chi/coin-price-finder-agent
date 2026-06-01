@@ -769,5 +769,37 @@ const MyCoins = (() => {
   /** Invalidate the render cache so the next tab-switch re-fetches. */
   function invalidate() { _lastRenderedAt = 0; }
 
-  return { init, render, invalidate };
+  return {
+    init,
+    render,
+    invalidate,
+    // ── Test seam ──
+    // Exposes IIFE-internal functions and constants so jest (jsdom) tests can
+    // exercise them without DOM-driven UI flows. Browser code never reads this.
+    // Keep additions minimal and reviewed — anything here becomes a public API
+    // surface for tests.
+    __testing: {
+      MAX_BATCH,
+      CONCURRENCY,
+      STAGGER_MS,
+      SPOT_CACHE_TTL,
+      RENDER_CACHE_TTL,
+      PAGE_SIZE,
+      _fetchPricing,
+      _fetchSpotPrices,
+      _resetSpotCache() {
+        _spotPrices = null;
+        _spotPricesFetchedAt = 0;
+        _spotFetchFailed = false;
+      },
+      _setContainer(c) { _container = c; },
+      _getDelegated() { return _delegated; },
+    },
+  };
 })();
+
+// CommonJS shim for jest. No-op in the browser (no `module` global there).
+// Tests can: `const MyCoins = require('../../public/js/my-coins');`
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = MyCoins;
+}

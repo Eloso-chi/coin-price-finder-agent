@@ -31,13 +31,15 @@ Your job is to keep the test suite fast, deterministic, and comprehensive.
 |------|-------|
 | Runtime | Node.js >= 22, CommonJS |
 | Test runner | Jest 30 (`npm test` = `jest --verbose`) |
-| Test files | `__tests__/*.test.js` (81 suites, ~3,065 tests) |
+| Test files | `__tests__/*.test.js` (84 suites, ~3,080 tests) |
+| Frontend tests | `__tests__/frontend/*.test.js` — require `/** @jest-environment jsdom */` pragma (BACKLOG #238) |
 | Test helpers | `__tests__/helpers/` (excluded from Jest) |
 | Mocking | axios-mock-adapter, `jest.mock('axios')` |
 | Metrics script | `npm run test:metrics` |
 | Summary script | `npm run test:summary` |
 | Metrics store | `.test-metrics/test-runs.jsonl` (append-only) |
-| Coverage in CI | Yes (report-only, no threshold gate) — see BACKLOG #237 |
+| Coverage in CI | Yes, with soft floors via `jest.coverageThreshold` in `package.json` (statements:68, branches:61, functions:68, lines:70 — set 5pts below 2026-06 observed baseline per BACKLOG #238) |
+| Response schema | `src/schemas/priceResponse.schema.js` (ajv Draft-07) — do not hand-roll duplicate validators |
 | `terapeakDataIntegrity` | Runs in CI (stabilized commit `e012f23`, May 26) |
 | Local coverage | `npm test -- --coverage` |
 

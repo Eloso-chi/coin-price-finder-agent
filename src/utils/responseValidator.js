@@ -6,68 +6,58 @@
 
 'use strict';
 
+const Ajv = require('ajv');
 const { hasSeriesConflict, detectDenomination } = require('./filters');
+const priceResponseSchema = require('../schemas/priceResponse.schema');
 
-// ── Schema: required top-level keys and their types ─────────
-const TOP_LEVEL_KEYS = [
-  'query', 'identification', 'pcgs', 'ebay', 'valuation', 'decisions'
-];
+// ajv instance, compiled validator (module-singleton — cheap and reused).
+// allErrors: surface every missing-required violation in one pass so the
+// returned `errors[]` matches the test contract (multiple substrings expected).
+const _ajv = new Ajv({ allErrors: true, strict: false });
+const _validateAgainstSchema = _ajv.compile(priceResponseSchema);
 
-// Valuation sub-keys that must be present and numeric (or null only when no data)
-const VALUATION_NUMERIC = ['fmvCore', 'rangeLow', 'rangeHigh', 'confidence'];
-
-// Decisions sub-keys
-const BUY_NUMERIC  = ['max70', 'max75', 'max80'];
-const SELL_NUMERIC = ['fast', 'normal', 'premium', 'offerFloor'];
+// Build a human-readable error message for one ajv error.
+// Translates ajv's instancePath-based output ("/decisions/buy missing property
+// max70") into the legacy "Missing decisions.buy.max70" / "Missing valuation.fmvCore"
+// format so existing assertions that grep for `decisions.buy`, `fmvCore`, etc.
+// keep passing.
+function _formatAjvError(err) {
+  const path = err.instancePath
+    ? err.instancePath.replace(/^\//, '').replace(/\//g, '.')
+    : '';
+  if (err.keyword === 'required') {
+    const prop = err.params && err.params.missingProperty;
+    // Top-level missing: "Missing top-level key: \"<prop>\""
+    if (!path && prop) return `Missing top-level key: "${prop}"`;
+    // Nested missing: "Missing <path>.<prop>"
+    if (path && prop) return `Missing ${path}.${prop}`;
+  }
+  if (err.keyword === 'type') {
+    // Keep prefix-compatible with legacy "<field> is not a valid number" wording
+    // where possible; otherwise fall back to ajv's message.
+    return `${path || 'response'} ${err.message}`;
+  }
+  return `${path || 'response'} ${err.message || 'schema violation'}`;
+}
 
 /**
  * Validate response schema completeness.
  * Returns { valid: boolean, errors: string[] }
+ *
+ * Backed by ajv compilation of `src/schemas/priceResponse.schema.js`.
+ * Cross-field ordering / numeric sanity / domain integrity remain in the
+ * dedicated validators below.
  */
 function validateSchema(response) {
-  const errors = [];
   if (!response || typeof response !== 'object') {
     return { valid: false, errors: ['Response is null or not an object'] };
   }
 
-  for (const key of TOP_LEVEL_KEYS) {
-    if (!(key in response)) errors.push(`Missing top-level key: "${key}"`);
-  }
+  const ok = _validateAgainstSchema(response);
+  if (ok) return { valid: true, errors: [] };
 
-  // Valuation
-  if (response.valuation) {
-    for (const k of VALUATION_NUMERIC) {
-      if (!(k in response.valuation)) {
-        errors.push(`Missing valuation.${k}`);
-      }
-    }
-    if (!('explanation' in response.valuation)) {
-      errors.push('Missing valuation.explanation');
-    }
-    if (!('dataSource' in response.valuation)) {
-      errors.push('Missing valuation.dataSource');
-    }
-  }
-
-  // Decisions
-  if (response.decisions) {
-    if (response.decisions.buy) {
-      for (const k of BUY_NUMERIC) {
-        if (!(k in response.decisions.buy)) errors.push(`Missing decisions.buy.${k}`);
-      }
-    } else {
-      errors.push('Missing decisions.buy');
-    }
-    if (response.decisions.sell) {
-      for (const k of SELL_NUMERIC) {
-        if (!(k in response.decisions.sell)) errors.push(`Missing decisions.sell.${k}`);
-      }
-    } else {
-      errors.push('Missing decisions.sell');
-    }
-  }
-
-  return { valid: errors.length === 0, errors };
+  const errors = (_validateAgainstSchema.errors || []).map(_formatAjvError);
+  return { valid: false, errors };
 }
 
 /**
