@@ -943,7 +943,24 @@ node -e "console.log(require('./src/services/pcgsService').parseDescription('BU 
 
 > Multi-batch plan from Testing Strategy & Quality Enforcement assessment. Each batch is a separate PR/commit chain. Items reference each other; complete in order.
 
-### 237. Testing Batch 1 — Quick Wins + CI Hygiene [P1]
+### 237. Testing Batch 1 — Quick Wins + CI Hygiene [P1] — DONE (PR #77, commit `704aefe`)
+
+**Status (2026-06-01):** Merged. Shipped in [PR #77](https://github.com/Eloso-chi/coin-price-finder-agent/pull/77).
+- ✅ 1. Coverage reporting in CI (report-only, text/text-summary/json-summary, totals piped to `$GITHUB_STEP_SUMMARY`).
+- ✅ 2. `terapeakDataIntegrity` re-enabled. **Caveat:** the May 12 exclusion was NOT stale — it was masking a seed-dependent flake. Fix: `COIN_TEST_SEED=ci-batch1-stable` pinned in the workflow `env:` block. Multi-seed hardening tracked in #239.
+- ✅ 3. Post-deploy smoke step: 3-attempt `/api/health` (15s cold-start backoff) + `/api/price` golden-coin FMV sanity band `[$5, $500]`. Fails deploy on either probe.
+- ⚠️ 4. CodeQL workflow file added at [.github/workflows/codeql.yml](.github/workflows/codeql.yml) (PR + push + weekly Monday cron, `security-and-quality` query pack). **Action required:** the run currently errors with `Code scanning is not enabled for this repository` — enable in **repo Settings → Security → Code security → Code scanning → "Set up CodeQL analysis"** (or just toggle "Default setup" off and let the existing workflow upload SARIF). Until enabled, the CodeQL job will fail on uploads but will not block `test` (which is the only required status).
+- ✅ 5. `.github/dependabot.yml` verified present and correct (weekly npm + GH actions, `xlsx` ignored, `dependencies`/`ci` labels). **Action required:** **Secret-scanning push protection** is a repo-level toggle — enable in **repo Settings → Security → Code security → "Push protection"**.
+- ✅ 6. Env-test audit — `__tests__/ebayFetchSoldComps.test.js` and `__tests__/pcgsService.test.js` already use module-level `jest.mock('axios')`; added defensive comments documenting the invariant.
+- ✅ 7. Agent sync — `test-monitor` / `test-coverage` Quick Reference tables corrected: `40 suites / 2,043 tests` → `81 suites / 3,065 tests`; documented coverage-in-CI and terapeakDataIntegrity-in-CI.
+
+**Manual follow-ups (not in code):**
+1. Enable **Code Scanning** in repo Settings to make the CodeQL workflow's SARIF upload succeed.
+2. Enable **Secret-scanning push protection** in repo Settings.
+
+---
+
+**Original scope (preserved for history):**
 
 **Source:** Testing Strategy assessment 2026-06-01.
 
