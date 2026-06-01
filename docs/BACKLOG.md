@@ -581,7 +581,14 @@ Ops can override to any value (e.g., `BROWSER_RECYCLE_EVERY=40 python scripts/te
 
 **Scope:** ~355 datasets, ~4-5 hours total.
 
-**Status notes:** Commit `567dc17` (May 30) refreshed 122 datasets as part of a general loop run, NOT the targeted 355-dataset sweep this item requires. Still open.
+**Status notes:**
+- Commit `567dc17` (May 30) refreshed 122 datasets as part of a general loop run -- NOT the targeted sweep.
+- Commit `7ec679e` (May 31, "pass 1") refreshed 181 CSVs for #228. Breakdown vs meta-key totals:
+  - **ASEs: 92 CSVs refreshed (target ~51) -- COMPLETE / exceeded.**
+  - **Libertads: 79 CSVs refreshed (target ~131) -- PARTIAL (~60%).**
+  - **Perth Lunars: only 17 of ~436 meta keys touched on May 31; 272 keys have never been scanned; 147 last scanned in April -- BARELY STARTED.**
+- Pass 1 appears to have run ASE + Libertad to near-completion then only sampled a token slice of Lunars before terminating.
+- **Still open.** Remaining work: ~52 Libertad gaps + Perth Lunar bulk sweep (419 remaining meta keys). Recommend running `python3 scripts/sales-aggregator.py --filter "Perth Lunar"` and `--filter "Lunar"` as a dedicated pass 2.
 
 ---
 
@@ -875,6 +882,60 @@ Current repo state: 63 total PRs, **0 open**. Item was stale-imported; root caus
 **Fix:** Move to `.admin-chip` class in shared stylesheet.
 
 **Source:** PR #60 deferred S4#15
+
+---
+
+### 234. parseDescription Misclassifies "Proof-Like" as Proof [P1]
+
+**Source:** numismatic-audit run 2026-06-01 (commit `d85e9bf`).
+
+**Problem:** `parseDescription` in [src/services/pcgsService.js](src/services/pcgsService.js#L365) uses `/\bproof\b/i.test(t)` without the negative-lookahead that `PROOF_RE` in `ebayService.js` and `_detectFinish` in `greysheetTypeMap.js` correctly have. Input `"1881-S Morgan Proof-Like"` returns `{ grade: 'Proof', finish: 'Proof' }` — Proof-Like Morgans get routed to the proof pricing pool instead of the graded MS pool.
+
+**Repro:**
+```
+node -e "console.log(require('./src/services/pcgsService').parseDescription('1881-S Morgan Proof-Like'))"
+// => { grade: 'Proof', finish: 'Proof', series: 'Morgan' }
+```
+
+**Fix:** Change line 365 from `/\bproof\b/i.test(t)` to `/\bproof\b(?![\s-]*like)/i.test(t)`.
+
+**Tests:** Add parseDescription cases for `"Proof-Like"`, `"Proof Like"`, `"DMPL"`, `"MS64 PL"` — none should yield `grade === 'Proof'`.
+
+**Impact:** Wrong FMV for any Morgan/Peace dollar with "Proof-Like" in the description when grade is not explicitly stated. PL Morgan premiums differ substantially from true proof Morgan premiums.
+
+---
+
+### 235. parseDescription "BU Proof" Precedence Bug [P2]
+
+**Source:** numismatic-audit run 2026-06-01 (commit `d85e9bf`).
+
+**Problem:** Per SKILL trap table, `"BU Proof Silver Eagle"` should classify as **proof** ("Proof is definitive; BU is informal"). Currently the BU regex at [src/services/pcgsService.js](src/services/pcgsService.js#L277-L289) runs before the proof block, sets `grade='MS60'`, then the `!result.grade` guard at line 365 prevents the proof branch from running.
+
+**Repro:**
+```
+node -e "console.log(require('./src/services/pcgsService').parseDescription('BU Proof Silver Eagle'))"
+// => { grade: 'MS60', series: 'Silver Eagle' }   (expected: grade: 'Proof')
+```
+
+**Fix:** Either (a) detect `\bproof\b(?![\s-]*like)` BEFORE the BU regex and skip BU assignment when present, or (b) after BU assignment, if proof is also present in text and no formal numeric grade was matched, override with `grade='Proof'`.
+
+**Impact:** Lower than #234 because the eBay-comp-side `classifyGradeType` is unaffected (already correct), but `parseDescription` drives PCGS price lookups and `pcgs.grade` → `userGrade` plumbing, so PCGS prices and pool-selection signals can be wrong for these titles.
+
+**Tests:** Add cases `"BU Proof Silver Eagle"`, `"Gem BU Proof"`, `"Choice BU Proof Set"` (last should remain `setType='clad'` not graded).
+
+---
+
+### 236. Pool Fallback Leaks Proof Comps Into Graded FMV [P2]
+
+**Source:** numismatic-audit run 2026-06-01 (commit `d85e9bf`).
+
+**Problem:** SKILL audit checklist requires "Pool fallback never mixes proof comps into graded pool or vice versa." [src/services/valuationService.js](src/services/valuationService.js#L68-L70) currently uses `usGraded.length >= 3 ? usGraded : usCompsAll` — `usCompsAll` includes proof comps. The #176 sold-comp swap only redirects to raw when `rawSold.length >= 10 AND gradedSold.length < 5`, so the middle band (e.g. graded=2, raw=5, proof=4) ends up with a mixed graded+proof+raw pool.
+
+**Fix:** Replace `usCompsAll` fallback on lines 69-70 with `[...usGraded, ...usRaw]` (exclude proof). Same for `glComps`.
+
+**Tests:** Add a `computeValuation` case with `userGrade='MS65'`, `usGraded.length=2`, `usProof.length=4`, `usRaw.length=5` — assert chosen `usComps` does not include any proof-typed comps.
+
+**Impact:** Upward bias on graded MS FMV whenever graded pool is thin and proof comps exist in the dataset. Proof typically commands a premium over graded MS.
 
 ---
 
