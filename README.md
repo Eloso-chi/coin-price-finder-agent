@@ -1004,4 +1004,17 @@ The project includes 13 custom Copilot agents and 6 prompt commands in `.github/
 
 ## License
 
-ISC
+**All Rights Reserved.** Copyright © 2025–2026 Eloso-chi.
+
+This source code is published publicly for **transparency, security scanning (CodeQL), and portfolio visibility only**. It is **not** open-source and is **not licensed for reuse, redistribution, modification, or deployment** of any kind.
+
+Viewing the source on GitHub and forking through the GitHub UI (as permitted by GitHub's Terms of Service) does **not** grant any license to use the code. No permission is granted — express or implied — to:
+
+- Use the code (in whole or in part) in another project, commercial or non-commercial
+- Redistribute, sublicense, or publish derivative works
+- Run the software in production, including self-hosting
+- Train machine-learning models on the source
+
+If you would like to use, license, or collaborate on this project, please open an issue or contact the author directly. A separate commercial license may be available.
+
+*This stance is deliberate: the project may be offered commercially or under a dual-license model in the future, so clean copyright ownership is being preserved.*
