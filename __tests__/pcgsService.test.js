@@ -15,7 +15,9 @@ jest.mock('../src/services/pcgsQuotaService', () => ({
   DAILY_LIMIT: 1000
 }));
 
-// Ensure PCGS_API_KEY is set so we exercise the API paths (not the "no key" early return)
+// Ensure PCGS_API_KEY is set so we exercise the API paths (not the "no key" early return).
+// Safety note (#237 Batch 1 env-test audit): axios is fully mocked above, so this
+// stub key can never reach the real PCGS endpoint. Do NOT remove `jest.mock('axios')`.
 process.env.PCGS_API_KEY = 'test-key-123';
 
 const pcgsService = require('../src/services/pcgsService');

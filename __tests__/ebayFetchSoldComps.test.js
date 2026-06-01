@@ -17,7 +17,10 @@ const axios = require('axios');
 const terapeakService = require('../src/services/terapeakService');
 const stats = require('../src/utils/stats');
 
-// Stable env before importing ebayService
+// Stable env before importing ebayService.
+// Safety note (#237 Batch 1 env-test audit): axios is fully mocked above, so
+// these stub credentials can never reach a real eBay endpoint. Do NOT remove
+// the `jest.mock('axios')` line.
 process.env.EBAY_APP_ID = 'test-app-id';
 process.env.EBAY_CLIENT_SECRET = 'test-secret';
 process.env.EBAY_THROTTLE_MS = '0';        // disable throttle in tests
