@@ -31,13 +31,15 @@ Your job is to write new tests that cover behavioral gaps -- without duplicating
 |------|-------|
 | Runtime | Node.js >= 22, CommonJS |
 | Test runner | Jest 30 (`npm test` = `jest --verbose`) |
-| Test files | `__tests__/*.test.js` (81 suites, ~3,065 tests) |
+| Test files | `__tests__/*.test.js` (84 suites, ~3,080 tests) |
+| Frontend tests | `__tests__/frontend/*.test.js` — jsdom env via `/** @jest-environment jsdom */` pragma; `public/js/*.js` modules expose `__testing` seams + CommonJS shim (BACKLOG #238) |
 | Shared helpers | `__tests__/helpers/coinTestConstants.js` |
 | Mocking | Inline `jest.mock()` per file; `supertest` for route integration |
 | Seed support | `COIN_TEST_SEED` env var for reproducible random selection |
 | Config | `package.json` (jest section); `testPathIgnorePatterns: [helpers]` |
 | Metrics | `npm run test:metrics`, `npm run test:summary` |
-| Coverage in CI | Report-only (no threshold gate yet) — BACKLOG #237/#238 |
+| Coverage in CI | Soft floors via `jest.coverageThreshold` (statements:68 branches:61 functions:68 lines:70) — set 5pts below observed; raise as suite matures |
+| Response schema | `src/schemas/priceResponse.schema.js` (ajv Draft-07) — `validateSchema()` in `src/utils/responseValidator.js` uses it. Do NOT add hand-rolled key-shape validators. |
 | Local coverage | `npm test -- --coverage` |
 | `terapeakDataIntegrity` | Runs in CI (re-enabled in #237) |
 

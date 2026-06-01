@@ -981,26 +981,16 @@ node -e "console.log(require('./src/services/pcgsService').parseDescription('BU 
 
 ---
 
-### 238. Testing Batch 2 — High-Impact Structural [P2]
+### 238. Testing Batch 2 — High-Impact Structural [P2] — DONE (PR #81)
 
-**Source:** Testing Strategy assessment 2026-06-01. Depends on #237.
+**Shipped:**
+1. ajv JSON Schema at [src/schemas/priceResponse.schema.js](src/schemas/priceResponse.schema.js) (Draft-07, no `$schema` key) — covers query/identification/pcgs/ebay/valuation/decisions branches with nullable numerics.
+2. [src/utils/responseValidator.js](src/utils/responseValidator.js) `validateSchema()` refactored to compile-once ajv singleton; error messages translated back to legacy substring contract; the other three validators (`validateNumericSanity`, `validateSeriesIntegrity`, `validateFMVReasonability`) + `validateResponse()` unchanged. All 418 existing validator tests still pass.
+3. Three jsdom frontend test suites added under `__tests__/frontend/` (15 tests). Achieved by adding a `__testing` seam + CommonJS shim to [public/js/my-coins.js](public/js/my-coins.js) — no behavioral change.
+4. Soft coverage floor wired via `jest.coverageThreshold` in [package.json](package.json) at statements:68, branches:61, functions:68, lines:70 (5 pts below 2026-06 baseline of 73/66/73/75).
+5. Agent sync — updated [.github/agents/test-coverage.agent.md](.github/agents/test-coverage.agent.md) + [.github/agents/test-monitor.agent.md](.github/agents/test-monitor.agent.md) Quick Reference rows (test count → 84/3080, frontend pragma note, schema location, coverage floor values).
 
-**Scope:**
-1. Define a **JSON Schema** for the `/api/price` response. Recommended lib: **`ajv`** (smaller than zod, schema-first, plain JS-friendly). Schema location: `src/schemas/priceResponse.schema.js`.
-2. **Refactor [src/utils/responseValidator.js](src/utils/responseValidator.js)** to import + use the schema instead of hand-rolled checks. Keep the same exported API surface so existing callers don't break.
-3. **Add frontend unit tests** for [public/js/my-coins.js](public/js/my-coins.js). Configure jest with `jsdom` testEnvironment for `__tests__/frontend/*.test.js` (use jest `projects` or `// @jest-environment jsdom` comment). Three test files max:
-   - `myCoinsBatchChunker.test.js` — `_fetchPricing` chunks of 25 (BACKLOG #21)
-   - `myCoinsSpotCache.test.js` — SPOT_CACHE_TTL 5-min (BACKLOG #23)
-   - `myCoinsDelegation.test.js` — `_setupDelegation()` (BACKLOG #22)
-4. **Set a soft coverage floor** in CI based on observed baseline from Batch 1. Recommend starting 5 pts below observed (e.g., if Batch 1 shows 72% → set 65% floor).
-5. **Agent sync** — update [.github/agents/test-coverage.agent.md](.github/agents/test-coverage.agent.md) Quick Reference + Conventions sections: add `__tests__/frontend/*.test.js` location, jsdom env requirement for those files, ajv schema at `src/schemas/priceResponse.schema.js` (do not hand-roll validators that duplicate it), coverage soft floor value, public/js modules now require-able from tests. Update [.github/agents/test-monitor.agent.md](.github/agents/test-monitor.agent.md) test count + new file locations.
-
-**Tests:** New ajv schema must pass against all current `/api/price` integration test response shapes (use existing supertest fixtures as input). Frontend tests run under jsdom in CI.
-
-**Notes for executor:**
-- Schema lib decision: `ajv` chosen for batch 2. Reconsider `zod` only in Batch 4 if we want unified runtime input validation (TS migration).
-- `public/js/` files are not modularized — may need a small refactor to make them `require`-able from tests. Keep refactor minimal.
-- jsdom is NOT yet installed. Add `jest-environment-jsdom` as devDependency in this batch.
+**Post-batch state:** 84 suites / 3,080 tests passing. New devDeps: `ajv`, `jest-environment-jsdom`.
 
 ---
 
