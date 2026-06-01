@@ -139,6 +139,9 @@ router.post('/', upload.single('file'), async (req, res) => {
       id: jobId,
       created: Date.now(),
       coins,
+      // #232 -- captured at request time so background processing uses
+      // the caller's admin context (req is gone by then).
+      audience: req.isAdmin ? 'admin' : 'public',
       status: 'pending',     // pending → running → complete | error
       results: [],
       lotSummary: null,
@@ -235,7 +238,7 @@ async function _runJob(job) {
       for (const res of job.listeners) {
         _sseWrite(res, 'coin', { index, total, ...result });
       }
-    });
+    }, { audience: job.audience });
 
     job.results = results;
     job.lotSummary = lotSummary;

@@ -399,6 +399,9 @@ router.post('/', async (req, res) => {
       spotPrice: (isBullion && expected.meltPerOz && resolvedWeight)
         ? expected.meltPerOz * resolvedWeight
         : null,
+      // #232 -- gate Greysheet/CPG dollar amounts and other licensed/competitive
+      // detail to admins; anonymous + standard users see sanitized reasoning.
+      audience: req.isAdmin ? 'admin' : 'public',
     });
 
     // ── 5b. Runtime series integrity guardrail ──

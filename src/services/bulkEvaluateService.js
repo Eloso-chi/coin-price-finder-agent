@@ -123,7 +123,7 @@ function computeLotSummary(results) {
 
 // ── Per-coin evaluation (medium-weight) ──────────────────────
 
-async function evaluateOneCoin(coin) {
+async function evaluateOneCoin(coin, opts = {}) {
   const query = String(coin.query || coin.name || '').trim();
   if (!query) return { query: '', error: 'missing query' };
 
@@ -244,6 +244,8 @@ async function evaluateOneCoin(coin) {
       isBullion,
       greysheet,
       spotPrice,
+      // #232 -- forwarded from route via runBulkEvaluation opts.
+      audience: opts.audience === 'admin' ? 'admin' : 'public',
     });
     const val = result.valuation || {};
     const fmv = val.fmvCore || null;
@@ -285,7 +287,7 @@ async function evaluateOneCoin(coin) {
  * @param {function} onProgress -- called with (result, index, total) for each coin completed
  * @returns {Promise<{ results: Array, lotSummary: object }>}
  */
-async function runBulkEvaluation(coins, onProgress) {
+async function runBulkEvaluation(coins, onProgress, opts = {}) {
   if (!Array.isArray(coins) || coins.length === 0) {
     throw new Error('coins array is required');
   }
@@ -317,7 +319,7 @@ async function runBulkEvaluation(coins, onProgress) {
     for (let i = 0; i < total; i += COIN_CONCURRENCY) {
       const batch = coins.slice(i, i + COIN_CONCURRENCY);
       const batchResults = await Promise.all(
-        batch.map((coin, j) => evaluateOneCoin(coin).then(result => {
+        batch.map((coin, j) => evaluateOneCoin(coin, opts).then(result => {
           const idx = i + j;
           results[idx] = result;
           onProgress?.(result, idx, total);

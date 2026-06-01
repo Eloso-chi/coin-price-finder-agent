@@ -149,6 +149,8 @@ router.post('/', async (req, res) => {
     const { valuation, decisions } = computeValuation(pcgsStub, ebay, askingPrice || null, null, {
       isBullion: true,
       spotPrice: spotPrice ? spotPrice * barWeightForSpot : null,
+      // #232 -- gate Greysheet/CPG dollar amounts to admins.
+      audience: req.isAdmin ? 'admin' : 'public',
     });
 
     // ── Melt value calculation ──

@@ -111,19 +111,22 @@ const coinHistoryRoute  = require('./src/routes/coinHistoryRoute');
 const excelImportRoute  = require('./src/routes/excelImportRoute');
 const bulkEvaluateRoute = require('./src/routes/bulkEvaluateRoute');
 const adminRoute        = require('./src/routes/adminRoute');
+// #232 -- non-blocking middleware that sets req.isAdmin for downstream handlers
+// to gate licensed/competitive detail in valuation reasoning text.
+const optionalAdminContext = require('./src/middleware/optionalAdminContext');
 app.use('/api/auth', authRoute);
 app.use('/api/coins', coinRoute);
-app.use('/api/price', apiLimiter, priceRoute);
+app.use('/api/price', apiLimiter, optionalAdminContext, priceRoute);
 app.use('/api/metals', metalsRoute);
-app.use('/api/bar-price', apiLimiter, barPriceRoute);
+app.use('/api/bar-price', apiLimiter, optionalAdminContext, barPriceRoute);
 app.use('/api/coin-variant', apiLimiter, coinVariantRoute);
 app.use('/api/market/ebay', apiLimiter, marketRoute);
 app.use('/api/terapeak', terapeakRoute);
-app.use('/api/pricing-batch', apiLimiter, pricingBatchRoute);
+app.use('/api/pricing-batch', apiLimiter, optionalAdminContext, pricingBatchRoute);
 app.use('/api/image-proxy', apiLimiter, imageProxyRoute);
 app.use('/api/coin-history', apiLimiter, coinHistoryRoute);
 app.use('/api/import/excel', uploadLimiter, excelImportRoute);
-app.use('/api/bulk-evaluate', apiLimiter, bulkEvaluateRoute);
+app.use('/api/bulk-evaluate', apiLimiter, optionalAdminContext, bulkEvaluateRoute);
 app.use('/api/admin', requireAdmin, adminRoute);
 
 // Clear all caches (admin-only)
