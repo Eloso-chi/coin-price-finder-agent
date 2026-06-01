@@ -108,22 +108,30 @@ describe('getHistory', () => {
   });
 
   test('returns sorted entries within range', () => {
-    // Seed the store directly via _loadStore
-    const store = _loadStore();
-    const key = 'hist-test:63';
-    store[key] = {
-      '2026-05-01': { w: 100, r: 120 },
-      '2026-05-03': { w: 105, r: 125 },
-      '2026-05-02': { w: 102, r: 122 },
-      '2025-01-01': { w: 50, r: 60 }, // old — should be excluded for short range
-    };
+    // Pin "now" so the 30-day window is deterministic regardless of when
+    // CI runs. Real timers are restored at the end so other tests that rely
+    // on Date.now() for unique keys continue to work.
+    jest.useFakeTimers({ now: new Date('2026-05-05T00:00:00Z') });
+    try {
+      // Seed the store directly via _loadStore
+      const store = _loadStore();
+      const key = 'hist-test:63';
+      store[key] = {
+        '2026-05-01': { w: 100, r: 120 },
+        '2026-05-03': { w: 105, r: 125 },
+        '2026-05-02': { w: 102, r: 122 },
+        '2025-01-01': { w: 50, r: 60 }, // old — should be excluded for short range
+      };
 
-    const result = getHistory(key, 30);
-    // Only recent entries (within 30 days of now = May 5 2026)
-    expect(result.wholesale.length).toBeGreaterThanOrEqual(3);
-    // Verify sorted
-    for (let i = 1; i < result.wholesale.length; i++) {
-      expect(result.wholesale[i][0] >= result.wholesale[i - 1][0]).toBe(true);
+      const result = getHistory(key, 30);
+      // Only recent entries (within 30 days of pinned now = May 5 2026)
+      expect(result.wholesale.length).toBeGreaterThanOrEqual(3);
+      // Verify sorted
+      for (let i = 1; i < result.wholesale.length; i++) {
+        expect(result.wholesale[i][0] >= result.wholesale[i - 1][0]).toBe(true);
+      }
+    } finally {
+      jest.useRealTimers();
     }
   });
 
@@ -181,24 +189,35 @@ describe('getLatest', () => {
 
 describe('evictOld', () => {
   test('removes entries older than maxDays', () => {
-    const store = _loadStore();
-    store['evict-test:63'] = {
-      '2020-01-01': { w: 10, r: 12 },
-      '2020-06-01': { w: 20, r: 22 },
-      '2026-05-01': { w: 100, r: 120 },
-    };
-    const evicted = evictOld(30);
-    expect(evicted).toBeGreaterThanOrEqual(2);
-    // Recent entry should survive
-    expect(store['evict-test:63']['2026-05-01']).toBeDefined();
+    // Pin "now" so the 30-day cutoff is deterministic; 2026-05-01 must stay recent.
+    jest.useFakeTimers({ now: new Date('2026-05-05T00:00:00Z') });
+    try {
+      const store = _loadStore();
+      store['evict-test:63'] = {
+        '2020-01-01': { w: 10, r: 12 },
+        '2020-06-01': { w: 20, r: 22 },
+        '2026-05-01': { w: 100, r: 120 },
+      };
+      const evicted = evictOld(30);
+      expect(evicted).toBeGreaterThanOrEqual(2);
+      // Recent entry should survive
+      expect(store['evict-test:63']['2026-05-01']).toBeDefined();
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   test('returns 0 when nothing to evict', () => {
-    const store = _loadStore();
-    store['fresh:63'] = {
-      '2026-05-04': { w: 100, r: 120 },
-    };
-    expect(evictOld(30)).toBe(0);
+    jest.useFakeTimers({ now: new Date('2026-05-05T00:00:00Z') });
+    try {
+      const store = _loadStore();
+      store['fresh:63'] = {
+        '2026-05-04': { w: 100, r: 120 },
+      };
+      expect(evictOld(30)).toBe(0);
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   test('removes empty coin keys after eviction', () => {
