@@ -31,12 +31,15 @@ Your job is to write new tests that cover behavioral gaps -- without duplicating
 |------|-------|
 | Runtime | Node.js >= 22, CommonJS |
 | Test runner | Jest 30 (`npm test` = `jest --verbose`) |
-| Test files | `__tests__/*.test.js` |
+| Test files | `__tests__/*.test.js` (81 suites, ~3,065 tests) |
 | Shared helpers | `__tests__/helpers/coinTestConstants.js` |
 | Mocking | Inline `jest.mock()` per file; `supertest` for route integration |
 | Seed support | `COIN_TEST_SEED` env var for reproducible random selection |
 | Config | `package.json` (jest section); `testPathIgnorePatterns: [helpers]` |
 | Metrics | `npm run test:metrics`, `npm run test:summary` |
+| Coverage in CI | Report-only (no threshold gate yet) — BACKLOG #237/#238 |
+| Local coverage | `npm test -- --coverage` |
+| `terapeakDataIntegrity` | Runs in CI (re-enabled in #237) |
 
 ## Shared Test Infrastructure
 
