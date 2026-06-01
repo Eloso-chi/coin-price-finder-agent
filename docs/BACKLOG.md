@@ -939,6 +939,108 @@ node -e "console.log(require('./src/services/pcgsService').parseDescription('BU 
 
 ---
 
+## Testing Strategy Improvements (2026-06-01 assessment)
+
+> Multi-batch plan from Testing Strategy & Quality Enforcement assessment. Each batch is a separate PR/commit chain. Items reference each other; complete in order.
+
+### 237. Testing Batch 1 — Quick Wins + CI Hygiene [P1]
+
+**Source:** Testing Strategy assessment 2026-06-01.
+
+**Scope (6 items, all XS-S effort):**
+1. Add `--coverage` (text-summary, no threshold yet) to the `Run tests` step in [.github/workflows/main_coinpricefinder-h3a3b5g0dmdydna4.yml](.github/workflows/main_coinpricefinder-h3a3b5g0dmdydna4.yml). Report-only.
+2. **Re-enable `terapeakDataIntegrity`** in CI. Drop `|terapeakDataIntegrity` from `testPathIgnorePatterns`. Investigation 2026-06-01 confirmed the test passes 105/105 in ~31s after stabilization commit `e012f23` (May 26); the May 12 exclusion in PR #1 is stale dead config. Adds ~30s to CI test job — accepted.
+3. Add **post-deploy smoke step** to the `deploy` job: `curl /api/health` + `curl /api/price?q=1921+Morgan+Silver+Dollar` and assert FMV is in a sane range (>5 < 500). Fails deploy if smoke fails.
+4. Add **CodeQL workflow** at `.github/workflows/codeql.yml` using GitHub's default JS template. Weekly schedule + PR triggers.
+5. Verify **Dependabot config** exists (commit `08b7578` claims it was added — confirm `.github/dependabot.yml` is present; if not, add weekly npm + GH actions update schedule). Enable **GitHub secret-scanning push protection** as a repo setting (manual step — not in code).
+6. **Audit env-reading tests** [__tests__/ebayFetchSoldComps.test.js](__tests__/ebayFetchSoldComps.test.js) and [__tests__/pcgsService.test.js](__tests__/pcgsService.test.js): ensure no real-network call is possible if `EBAY_*`/`PCGS_*` env vars are set. Force `jest.mock('axios')` or equivalent.
+7. **Agent sync** — update [.github/agents/test-monitor.agent.md](.github/agents/test-monitor.agent.md) and [.github/agents/test-coverage.agent.md](.github/agents/test-coverage.agent.md) Quick Reference tables: correct stale test count (40 suites / 2,043 tests → current count from `npm test`), note that `terapeakDataIntegrity` is now in CI, note coverage is reported.
+
+**Tests:** Each step is its own observable. Verify the new test job summary shows coverage, terapeakDataIntegrity appears in results, deploy step logs the smoke result, CodeQL alerts surface, Dependabot opens PRs.
+
+**Notes for executor:**
+- `terapeakDataIntegrity` adds 30s to CI. If split into a separate `slow` job later (Batch 4), revisit.
+- Coverage gate is REPORT-ONLY in batch 1. Hard floor decision deferred to Batch 2 once baseline is known.
+- `xlsx` audit exception lives in workflow YAML; do not touch in this batch.
+- **Agent sync (#7) is mandatory** — without it, test-monitor will keep reporting stale fact counts and may flag the newly-enabled terapeakDataIntegrity as broken.
+
+---
+
+### 238. Testing Batch 2 — High-Impact Structural [P2]
+
+**Source:** Testing Strategy assessment 2026-06-01. Depends on #237.
+
+**Scope:**
+1. Define a **JSON Schema** for the `/api/price` response. Recommended lib: **`ajv`** (smaller than zod, schema-first, plain JS-friendly). Schema location: `src/schemas/priceResponse.schema.js`.
+2. **Refactor [src/utils/responseValidator.js](src/utils/responseValidator.js)** to import + use the schema instead of hand-rolled checks. Keep the same exported API surface so existing callers don't break.
+3. **Add frontend unit tests** for [public/js/my-coins.js](public/js/my-coins.js). Configure jest with `jsdom` testEnvironment for `__tests__/frontend/*.test.js` (use jest `projects` or `// @jest-environment jsdom` comment). Three test files max:
+   - `myCoinsBatchChunker.test.js` — `_fetchPricing` chunks of 25 (BACKLOG #21)
+   - `myCoinsSpotCache.test.js` — SPOT_CACHE_TTL 5-min (BACKLOG #23)
+   - `myCoinsDelegation.test.js` — `_setupDelegation()` (BACKLOG #22)
+4. **Set a soft coverage floor** in CI based on observed baseline from Batch 1. Recommend starting 5 pts below observed (e.g., if Batch 1 shows 72% → set 65% floor).
+5. **Agent sync** — update [.github/agents/test-coverage.agent.md](.github/agents/test-coverage.agent.md) Quick Reference + Conventions sections: add `__tests__/frontend/*.test.js` location, jsdom env requirement for those files, ajv schema at `src/schemas/priceResponse.schema.js` (do not hand-roll validators that duplicate it), coverage soft floor value, public/js modules now require-able from tests. Update [.github/agents/test-monitor.agent.md](.github/agents/test-monitor.agent.md) test count + new file locations.
+
+**Tests:** New ajv schema must pass against all current `/api/price` integration test response shapes (use existing supertest fixtures as input). Frontend tests run under jsdom in CI.
+
+**Notes for executor:**
+- Schema lib decision: `ajv` chosen for batch 2. Reconsider `zod` only in Batch 4 if we want unified runtime input validation (TS migration).
+- `public/js/` files are not modularized — may need a small refactor to make them `require`-able from tests. Keep refactor minimal.
+- jsdom is NOT yet installed. Add `jest-environment-jsdom` as devDependency in this batch.
+
+---
+
+### 239. Testing Batch 3 — Maturity Layers [P3]
+
+**Source:** Testing Strategy assessment 2026-06-01. Depends on #237, #238.
+
+**Scope:**
+1. **Multi-seed holdout** — modify [__tests__/holdoutValidation.test.js](__tests__/holdoutValidation.test.js) to loop over 3-5 seeds (e.g., 42, 7, 1337) and require **majority pass** (≥3 of 5). Avoids single-seed luck/unluck.
+2. **Mutation testing config** — add Stryker (`@stryker-mutator/core` + `@stryker-mutator/jest-runner`) scoped to:
+   - [src/services/ebayService.js](src/services/ebayService.js)
+   - [src/data/greysheetTypeMap.js](src/data/greysheetTypeMap.js)
+   - [src/services/pcgsService.js](src/services/pcgsService.js)
+   Run as `npm run test:mutation` — manual command, NOT a CI gate. Document baseline mutation score in README.
+3. **Agent eval fixtures** — add `__tests__/agentEvals/` directory with one fixture per critical agent:
+   - `numismatic-audit.fixture.json` — input code snippet + expected key claims
+   - `code-reviewer.fixture.json` — input diff + expected review categories
+   Eval runner script (not a Jest test — runs weekly via new `.github/workflows/agent-eval.yml`).
+4. **Agent sync** — update [.github/agents/test-monitor.agent.md](.github/agents/test-monitor.agent.md): add `npm run test:mutation` to commands table, note that `__tests__/agentEvals/` is NOT a jest test directory (exclude from `testPathIgnorePatterns` or via naming convention so jest doesn't pick it up). Update [.github/agents/test-coverage.agent.md](.github/agents/test-coverage.agent.md) to mention Stryker for measuring assertion strength on classification regexes.
+
+**Tests:** Mutation score baseline captured in README. Agent eval workflow opens an issue on regression (key claim missing from output).
+
+**Notes for executor:**
+- Stryker is heavy — only invoke manually. CI gate would balloon CI time 10x.
+- Agent eval is non-deterministic; use tolerance-based assertions (key terms present, not exact string match).
+
+---
+
+### 240. Testing Batch 4 — Long-Term Pyramid Maturity [P4]
+
+**Source:** Testing Strategy assessment 2026-06-01. Depends on #237-239.
+
+**Scope:**
+1. **Evaluate `zod` migration** — only if Batch 2's ajv schema becomes painful. Single decision point: pick lib for input validation too. Likely SKIP unless TypeScript migration is in play.
+2. **Playwright E2E** for 2-3 critical user journeys:
+   - Search → see price card
+   - Bulk evaluator submit → SSE results stream
+   - Admin login → admin chip visible
+   Run only on `main` push, not on every PR (too slow).
+3. **Two-stage CI** with Jest `projects: [unit, integration, slow]`:
+   - `unit` — runs on every push, must pass < 30s
+   - `integration` — supertest + pricingPipeline + crossRouteConsistency, < 60s
+   - `slow` — terapeakDataIntegrity + holdoutValidation + bulkLotEstimatorHealth, runs in parallel job
+4. **Fault injection** on Azure dependencies — use existing axios-mock-adapter to systematically test Cosmos/Blob/SMTP timeout paths.
+5. **Agent sync (final)** — update ALL test-related agents to reflect final test pyramid: `unit` / `integration` / `slow` jest projects, Playwright location (e.g., `e2e/*.spec.js`), how to run each project independently. Add a new entry to each agent's Quick Reference noting that `jest.config.js` (not package.json) is the source of truth.
+
+**Tests:** Playwright tests pass in CI for the 3 journeys. CI total time stays under 5 min despite expansion.
+
+**Notes for executor:**
+- Playwright will need browser cache in CI — use `actions/cache@v4`.
+- `projects:` config requires migrating from `package.json` jest config to `jest.config.js`. Do this here, not earlier.
+- Pull #237's `terapeakDataIntegrity` re-enable into the `slow` project at this stage.
+
+---
+
 ## Completed (reference)
 
 | # | Item | Commit |
