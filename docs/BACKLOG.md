@@ -246,6 +246,16 @@ Fixed: `evaluateOneCoin()` in `bulkEvaluateService.js` now matches price discove
 
 ---
 
+### #233. Tier B Audience Gating -- Competitive Weighting Math [P3 -- DEFERRED]
+
+**Problem:** #232 (Tier A) sanitized licensed dollar amounts (Greysheet/CPG) and source-brand attribution in public-facing valuation `explanation` text. Tier B covers *internal competitive weighting math* that still leaks today: dynamic grade-weight curves (#51), sliding buy spread tiers (#52), low-pop confidence penalty thresholds (#50), Greysheet blend weight schedule (5%/10%/15%/20% by comp count), and recency half-life constants. These reveal our proprietary scoring approach to scrapers/competitors.
+
+**Why deferred:** Stripping them entirely would gut the explainability the UI relies on; need a design pass on a "summary-only" mode that preserves *narrative* (e.g. "high-comp count → minimal wholesale anchor") without exposing exact thresholds. Likely a follow-on to #232 once we observe what admins vs anonymous users actually need.
+
+**Files (when picked up):** `src/services/valuationService.js`, plus any UI tooltip that currently surfaces these numbers.
+
+---
+
 ### #185. World Proof Greysheet Year-Specific Fallback [LOW -- DEFERRED]
 
 **Status (May 31, 2026):** Considered for the #24/#198/#185 PR batch but deferred -- design work needed to define the year-specific proof lookup API path (no clean way to construct a year-specific proof query without a PCGS number, which `fetchTypePrice()` doesn't have). Tracked here for future spike.

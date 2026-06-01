@@ -29,7 +29,8 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: `Maximum ${MAX_ITEMS} items per batch` });
     }
 
-    const results = await Promise.all(items.map(item => _priceOne(item)));
+    const audience = req.isAdmin ? 'admin' : 'public';
+    const results = await Promise.all(items.map(item => _priceOne(item, { audience })));
     return res.json({ ok: true, results });
   } catch (err) {
     console.error('pricing-batch error:', err.message);
@@ -37,7 +38,7 @@ router.post('/', async (req, res) => {
   }
 });
 
-async function _priceOne(item) {
+async function _priceOne(item, opts = {}) {
   try {
     const query = item.query || '';
     const coinData = item.coinData || {};
@@ -259,6 +260,8 @@ async function _priceOne(item) {
       spotPrice: (isBullion && meltPerOz && weight)
         ? meltPerOz * weight
         : null,
+      // #232 -- gate Greysheet/CPG dollar amounts to admins.
+      audience: opts.audience === 'admin' ? 'admin' : 'public',
     });
     const val = result.valuation || {};
 

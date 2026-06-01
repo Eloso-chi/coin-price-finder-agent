@@ -17,6 +17,16 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
   const isCertified = !!(pcgs?.verified);
   const explanation = [];
 
+  // #232 (Tier A) -- Audience gating for valuation reasoning.
+  // 'admin' callers see full diagnostic detail (exact Greysheet/CPG dollar
+  // amounts, comp-derived premium math, source brand names, blend weights).
+  // 'public' callers (default) see a sanitized version that does not redistribute
+  // licensed wholesale data (CDN/Greysheet TOS) and does not expose source-brand
+  // attribution we have a license-restricted relationship with.
+  // Tier B (competitive weighting math) is tracked separately in BACKLOG #233.
+  const audience = opts.audience === 'admin' ? 'admin' : 'public';
+  const isAdmin = audience === 'admin';
+
   // ── Gather eBay comps and separate graded vs raw pools ──
   const usCompsAll = ebay?.us?.comps || [];
   const glCompsAll = ebay?.global?.comps || [];
@@ -145,12 +155,16 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
     fmv = spotPrice * (1 + premiumPct);
     method = 'bullion-spot-premium';
 
-    explanation.push(
-      `Bullion spot+premium: spot $${spotPrice.toFixed(2)}, `
-      + `comp-derived premium ${(premiumPct * 100).toFixed(1)}%, `
-      + `FMV = $${fmv.toFixed(2)}. `
-      + `(eBay median $${ebayMedian.toFixed(2)} used to derive premium.)`
-    );
+    if (isAdmin) {
+      explanation.push(
+        `Bullion spot+premium: spot $${spotPrice.toFixed(2)}, `
+        + `comp-derived premium ${(premiumPct * 100).toFixed(1)}%, `
+        + `FMV = $${fmv.toFixed(2)}. `
+        + `(eBay median $${ebayMedian.toFixed(2)} used to derive premium.)`
+      );
+    } else {
+      explanation.push('Bullion valued from current spot price plus a market premium derived from recent sold comps.');
+    }
 
     // If Greysheet is available, blend with adaptive weight based on comp count.
     // High-comp coins (20+) need minimal GS anchoring (5%); thin markets lean on GS more.
@@ -161,7 +175,11 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
         : compCount >= 5 ? 0.15
         : 0.20;
       fmv = fmv * (1 - gsWeight) + greysheetVal * gsWeight;
-      explanation.push(`Greysheet blend: ${((1 - gsWeight) * 100).toFixed(0)}% spot-premium + ${(gsWeight * 100).toFixed(0)}% wholesale ($${greysheetVal.toFixed(2)}, ${compCount} comps).`);
+      if (isAdmin) {
+        explanation.push(`Greysheet blend: ${((1 - gsWeight) * 100).toFixed(0)}% spot-premium + ${(gsWeight * 100).toFixed(0)}% wholesale ($${greysheetVal.toFixed(2)}, ${compCount} comps).`);
+      } else {
+        explanation.push(`Wholesale guide lightly anchored (n=${compCount} comps).`);
+      }
     }
   }
 
@@ -170,9 +188,13 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
   if (fmv == null && isBullion && spotPrice > 0 && ebayMedian == null) {
     fmv = spotPrice;
     method = 'bullion-spot-only';
-    explanation.push(
-      `Bullion spot fallback (no comps): spot $${spotPrice.toFixed(2)} used as FMV with 0% premium.`
-    );
+    if (isAdmin) {
+      explanation.push(
+        `Bullion spot fallback (no comps): spot $${spotPrice.toFixed(2)} used as FMV with 0% premium.`
+      );
+    } else {
+      explanation.push('Bullion fallback: no comps available; FMV set to current spot price.');
+    }
   }
 
   // #51: Dynamic weights based on grade tier.
@@ -196,7 +218,12 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
 
     const pct = (k) => Math.round(weights[k] * 100);
     const usedSources = Object.keys(available).join('+');
-    explanation.push(`Certified coin blend (${usedSources}), grade tier: ${gradeTier}. Weights: eBay ${pct('ebay')}%, PCGS Guide ${pct('pcgs')}%, Auction ${pct('auction')}%, Greysheet ${pct('greysheet')}%.`);
+    if (isAdmin) {
+      explanation.push(`Certified coin blend (${usedSources}), grade tier: ${gradeTier}. Weights: eBay ${pct('ebay')}%, PCGS Guide ${pct('pcgs')}%, Auction ${pct('auction')}%, Greysheet ${pct('greysheet')}%.`);
+    } else {
+      // #232 -- brand names (Greysheet/PCGS Guide) are gated; weighting math is Tier B (#233).
+      explanation.push(`Certified coin blend across ${Object.keys(available).length} price sources, grade tier: ${gradeTier}.`);
+    }
   } else {
     // Raw coin: eBay 70% + PCGS 10% + Greysheet 20%
     // If Greysheet unavailable, weights renormalize to eBay 80/PCGS 20
@@ -208,7 +235,12 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
 
     fmv = blendSources(available, weights);
     method = 'raw-blend';
-    explanation.push(`Raw coin blend. Base weights: eBay 70%, PCGS 10%, Greysheet 20%.`);
+    if (isAdmin) {
+      explanation.push(`Raw coin blend. Base weights: eBay 70%, PCGS 10%, Greysheet 20%.`);
+    } else {
+      // #232 -- brand names gated; weight schedule is Tier B (#233).
+      explanation.push('Raw coin blend across available price sources.');
+    }
   }
   } // end if (fmv == null) — bullion spot+premium may have set it above
 
@@ -246,10 +278,20 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
   const mostlyBrowse = soldRatio < 0.3 && activeCount > 0;
 
   if (terapeakCount > 0) {
-    explanation.push(`${terapeakCount} Terapeak sold comps used (verified eBay sales data).`);
+    if (isAdmin) {
+      explanation.push(`${terapeakCount} Terapeak sold comps used (verified eBay sales data).`);
+    } else {
+      explanation.push(`${terapeakCount} verified sold comps used.`);
+    }
   }
   if (greysheetVal != null) {
-    explanation.push(`Greysheet wholesale: $${greysheetVal.toFixed(2)}${gsData.cpgVal ? ` (retail CPG: $${gsData.cpgVal.toFixed(2)})` : ''}.`);
+    if (isAdmin) {
+      explanation.push(`Greysheet wholesale: $${greysheetVal.toFixed(2)}${gsData.cpgVal ? ` (retail CPG: $${gsData.cpgVal.toFixed(2)})` : ''}.`);
+    } else {
+      // Public callers see only that a wholesale guide informed the valuation
+      // -- exact CDN/Greysheet dollar amounts are licensed and not redistributable.
+      explanation.push('Wholesale price guide referenced.');
+    }
   }
   if (isBullion) {
     explanation.push('Bullion coin — using steeper recency weighting (30-day half-life) to track metal price shifts.');

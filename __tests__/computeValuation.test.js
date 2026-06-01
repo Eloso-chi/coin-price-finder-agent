@@ -1404,3 +1404,81 @@ describe('computeValuation — proof pool isolation (#184)', () => {
     expect(result.valuation.fmvCore).toBeLessThan(150);
   });
 });
+
+// ============================================================================
+// #232 -- Audience gating for valuation reasoning
+// ============================================================================
+
+describe('computeValuation -- audience gating (#232)', () => {
+  const comps = makeComps([95, 100, 105, 110, 115], { gradeType: 'graded' });
+  const greysheet = { greyVal: 150.00, cpgVal: 200.00, source: 'greysheet' };
+
+  test('public audience (default) hides Greysheet brand + dollar amounts', () => {
+    const result = computeValuation(
+      mockPcgs(), mockEbay({ usComps: comps }), null, 'MS65',
+      { greysheet, audience: 'public' }
+    );
+    const text = result.valuation.explanation.join(' | ');
+    expect(text).not.toMatch(/Greysheet/i);
+    expect(text).not.toMatch(/CPG/);
+    expect(text).not.toMatch(/\$\d+\.\d{2}/);  // any $X.YY amount
+    expect(text).not.toMatch(/Terapeak/i);
+    // But the *narrative* should still mention a wholesale guide was used.
+    expect(text).toMatch(/wholesale/i);
+  });
+
+  test('admin audience exposes Greysheet brand + exact dollar amounts', () => {
+    const result = computeValuation(
+      mockPcgs(), mockEbay({ usComps: comps }), null, 'MS65',
+      { greysheet, audience: 'admin' }
+    );
+    const text = result.valuation.explanation.join(' | ');
+    expect(text).toMatch(/Greysheet wholesale: \$150\.00/);
+    expect(text).toMatch(/CPG: \$200\.00/);
+  });
+
+  test('default audience (no opts.audience) behaves as public', () => {
+    const result = computeValuation(
+      mockPcgs(), mockEbay({ usComps: comps }), null, 'MS65',
+      { greysheet }
+    );
+    const text = result.valuation.explanation.join(' | ');
+    expect(text).not.toMatch(/Greysheet/i);
+    expect(text).not.toMatch(/\$\d+\.\d{2}/);
+  });
+
+  test('bullion public hides spot $ + premium %; admin shows them', () => {
+    const bullionComps = makeComps([32, 33, 34, 35, 36], { gradeType: 'raw' });
+    const optsBase = { isBullion: true, spotPrice: 30.00 };
+    const pub = computeValuation(
+      mockPcgs(), mockEbay({ usComps: bullionComps }), null, null,
+      { ...optsBase, audience: 'public' }
+    );
+    const adm = computeValuation(
+      mockPcgs(), mockEbay({ usComps: bullionComps }), null, null,
+      { ...optsBase, audience: 'admin' }
+    );
+    const pubText = pub.valuation.explanation.join(' | ');
+    const admText = adm.valuation.explanation.join(' | ');
+    expect(pubText).not.toMatch(/spot \$\d/);
+    expect(pubText).not.toMatch(/premium \d+\.\d+%/);
+    expect(admText).toMatch(/spot \$30\.00/);
+    expect(admText).toMatch(/premium \d+\.\d+%/);
+  });
+
+  test('audience gating does not change FMV value, only explanation text', () => {
+    const optsBase = { greysheet };
+    const pub = computeValuation(
+      mockPcgs(), mockEbay({ usComps: comps }), null, 'MS65',
+      { ...optsBase, audience: 'public' }
+    );
+    const adm = computeValuation(
+      mockPcgs(), mockEbay({ usComps: comps }), null, 'MS65',
+      { ...optsBase, audience: 'admin' }
+    );
+    expect(pub.valuation.fmvCore).toBeCloseTo(adm.valuation.fmvCore, 4);
+    expect(pub.valuation.rangeLow).toBeCloseTo(adm.valuation.rangeLow, 4);
+    expect(pub.valuation.rangeHigh).toBeCloseTo(adm.valuation.rangeHigh, 4);
+    expect(pub.valuation.confidence).toBe(adm.valuation.confidence);
+  });
+});
