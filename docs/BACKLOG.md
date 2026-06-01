@@ -949,14 +949,12 @@ node -e "console.log(require('./src/services/pcgsService').parseDescription('BU 
 - ✅ 1. Coverage reporting in CI (report-only, text/text-summary/json-summary, totals piped to `$GITHUB_STEP_SUMMARY`).
 - ✅ 2. `terapeakDataIntegrity` re-enabled. **Caveat:** the May 12 exclusion was NOT stale — it was masking a seed-dependent flake. Fix: `COIN_TEST_SEED=ci-batch1-stable` pinned in the workflow `env:` block. Multi-seed hardening tracked in #239.
 - ✅ 3. Post-deploy smoke step: 3-attempt `/api/health` (15s cold-start backoff) + `/api/price` golden-coin FMV sanity band `[$5, $500]`. Fails deploy on either probe.
-- ⚠️ 4. CodeQL workflow file added at [.github/workflows/codeql.yml](.github/workflows/codeql.yml) (PR + push + weekly Monday cron, `security-and-quality` query pack). **Action required:** the run currently errors with `Code scanning is not enabled for this repository` — enable in **repo Settings → Security → Code security → Code scanning → "Set up CodeQL analysis"** (or just toggle "Default setup" off and let the existing workflow upload SARIF). Until enabled, the CodeQL job will fail on uploads but will not block `test` (which is the only required status).
-- ✅ 5. `.github/dependabot.yml` verified present and correct (weekly npm + GH actions, `xlsx` ignored, `dependencies`/`ci` labels). **Action required:** **Secret-scanning push protection** is a repo-level toggle — enable in **repo Settings → Security → Code security → "Push protection"**.
+- ✅ 4. CodeQL — repo flipped to **public** and **CodeQL Default setup** enabled via GitHub UI. The custom workflow at `.github/workflows/codeql.yml` (originally shipped in PR #77) was deleted because Default setup and Advanced setup are mutually exclusive — keeping the workflow caused SARIF uploads to fail with *"CodeQL analyses from advanced configurations cannot be processed when the default setup is enabled."* Default setup auto-maintains action versions / query packs / language detection, which is the right tradeoff for a single-language JS repo.
+- ✅ 5. `.github/dependabot.yml` verified present and correct (weekly npm + GH actions, `xlsx` ignored, `dependencies`/`ci` labels). **Secret Protection** (secret scanning + push protection) enabled via GitHub UI.
 - ✅ 6. Env-test audit — `__tests__/ebayFetchSoldComps.test.js` and `__tests__/pcgsService.test.js` already use module-level `jest.mock('axios')`; added defensive comments documenting the invariant.
 - ✅ 7. Agent sync — `test-monitor` / `test-coverage` Quick Reference tables corrected: `40 suites / 2,043 tests` → `81 suites / 3,065 tests`; documented coverage-in-CI and terapeakDataIntegrity-in-CI.
 
-**Manual follow-ups (not in code):**
-1. Enable **Code Scanning** in repo Settings to make the CodeQL workflow's SARIF upload succeed.
-2. Enable **Secret-scanning push protection** in repo Settings.
+**All manual follow-ups complete** (repo made public, Code Scanning + Secret Protection enabled, License updated to All Rights Reserved in PR #79).
 
 ---
 
