@@ -230,6 +230,76 @@ describe('parseDescription - fractional word weights', () => {
   });
 });
 
+describe('parseDescription - proof vs proof-like (#234)', () => {
+  test('"Proof-Like" (hyphenated) does NOT classify as Proof', () => {
+    const parsed = pcgsService.parseDescription('1881-S Morgan Proof-Like');
+    expect(parsed.grade).toBeUndefined();
+    expect(parsed.finish).toBeUndefined();
+    expect(parsed.series).toBe('Morgan');
+  });
+
+  test('"Proof Like" (space) does NOT classify as Proof', () => {
+    const parsed = pcgsService.parseDescription('1881-S Morgan Proof Like');
+    expect(parsed.grade).toBeUndefined();
+    expect(parsed.finish).toBeUndefined();
+  });
+
+  test('"DMPL" does NOT classify as Proof', () => {
+    const parsed = pcgsService.parseDescription('1881-S Morgan DMPL');
+    expect(parsed.grade).toBeUndefined();
+    expect(parsed.finish).toBeUndefined();
+  });
+
+  test('"MS64 PL" keeps formal grade and PL designation, not Proof', () => {
+    const parsed = pcgsService.parseDescription('1881-S Morgan MS64 PL');
+    expect(parsed.grade).toBe('MS64');
+    expect(parsed.designation).toBe('PL');
+    expect(parsed.finish).toBeUndefined();
+  });
+
+  test('plain "Proof" (sanity) still classifies as Proof', () => {
+    const parsed = pcgsService.parseDescription('1881-S Morgan Proof');
+    expect(parsed.grade).toBe('Proof');
+    expect(parsed.finish).toBe('Proof');
+  });
+});
+
+describe('parseDescription - BU Proof precedence (#235)', () => {
+  test('"BU Proof Silver Eagle" classifies as Proof (proof overrides BU)', () => {
+    const parsed = pcgsService.parseDescription('BU Proof Silver Eagle');
+    expect(parsed.grade).toBe('Proof');
+    expect(parsed.finish).toBe('Proof');
+    expect(parsed.gradeNum).toBeUndefined();
+  });
+
+  test('"Gem BU Proof" classifies as Proof (proof overrides Gem BU)', () => {
+    const parsed = pcgsService.parseDescription('Gem BU Proof');
+    expect(parsed.grade).toBe('Proof');
+    expect(parsed.finish).toBe('Proof');
+  });
+
+  test('"Choice BU Proof Set" remains a set, NOT graded as Proof', () => {
+    const parsed = pcgsService.parseDescription('Choice BU Proof Set');
+    expect(parsed.setType).toBe('clad');
+    expect(parsed.series).toBe('US Proof Set');
+    expect(parsed.finish).toBeUndefined();
+    // grade may stay as MS63 from the BU branch; the key invariant is that
+    // it didn't get overridden to 'Proof' (which would conflict with setType).
+    expect(parsed.grade).not.toBe('Proof');
+  });
+
+  test('plain "BU" (no proof) still classifies as MS60 (sanity)', () => {
+    const parsed = pcgsService.parseDescription('1986 American Silver Eagle BU');
+    expect(parsed.grade).toBe('MS60');
+  });
+
+  test('formal grade with proof does NOT override (e.g. "PR70 DCAM")', () => {
+    const parsed = pcgsService.parseDescription('2020 American Silver Eagle PR70 DCAM');
+    expect(parsed.grade).toBe('PR70');
+    expect(parsed.designation).toBe('DCAM');
+  });
+});
+
 describe('_mapResponse internals (via lookupByCert)', () => {
   test('handles empty/null PCGS response', async () => {
     axios.get.mockResolvedValueOnce({ data: null, headers: {} });
