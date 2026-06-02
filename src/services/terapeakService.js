@@ -138,6 +138,48 @@ function saveMetaSidecar() {
 }
 
 /**
+ * Merge two aggregationMeta objects, picking the most informative value per
+ * field. Used by hydrators (#246 PR B): previously hydration used first-wins
+ * (`existing.page1At || incoming.page1At || null`), which silently kept the
+ * older marker when both sides had a value -- e.g. if Cosmos hydrated a 2026
+ * `lastRefreshAt` over an existing 2025 marker, the 2025 value won, masking
+ * the more recent refresh from freshness classification.
+ *
+ * Rules:
+ *   - timestamps (page1At, deepAt, lastRefreshAt, newestSaleDate, noDataAt)
+ *       -> latest (ISO lexical max)
+ *   - oldestSaleDate -> earliest (ISO lexical min)
+ *   - counters (maxPageReached, compCount, refreshCount, noDataCount,
+ *               consecutiveDryRefreshes) -> max
+ *   - lastRefreshNewComps -> existing if defined, else incoming (last-wins
+ *       not meaningful here; this is a per-refresh value, not cumulative)
+ *
+ * Either argument may be null/undefined.
+ */
+function _mergeAggregationMeta(existing, incoming) {
+  const A = existing || {};
+  const B = incoming || {};
+  const latest = (x, y) => (!x ? (y || null) : !y ? x : (x > y ? x : y));
+  const earliest = (x, y) => (!x ? (y || null) : !y ? x : (x < y ? x : y));
+  const maxNum = (x, y) => Math.max(Number(x) || 0, Number(y) || 0);
+  const maxNumOrNull = (x, y) => maxNum(x, y) || null;
+  return {
+    page1At:                  latest(A.page1At, B.page1At),
+    deepAt:                   latest(A.deepAt, B.deepAt),
+    lastRefreshAt:            latest(A.lastRefreshAt, B.lastRefreshAt),
+    newestSaleDate:           latest(A.newestSaleDate, B.newestSaleDate),
+    oldestSaleDate:           earliest(A.oldestSaleDate, B.oldestSaleDate),
+    noDataAt:                 latest(A.noDataAt, B.noDataAt),
+    maxPageReached:           maxNumOrNull(A.maxPageReached, B.maxPageReached),
+    compCount:                maxNumOrNull(A.compCount, B.compCount),
+    refreshCount:             maxNum(A.refreshCount, B.refreshCount),
+    noDataCount:              maxNum(A.noDataCount, B.noDataCount),
+    consecutiveDryRefreshes:  maxNum(A.consecutiveDryRefreshes, B.consecutiveDryRefreshes),
+    lastRefreshNewComps:      (A.lastRefreshNewComps != null ? A.lastRefreshNewComps : (B.lastRefreshNewComps != null ? B.lastRefreshNewComps : null)),
+  };
+}
+
+/**
  * Load aggregationMeta markers from the git-tracked sidecar file.
  * Called at startup BEFORE CSV import so deepAt markers are pre-seeded.
  * Returns { hydrated: number }.
@@ -150,15 +192,7 @@ function loadMetaSidecar() {
     for (const [key, meta] of Object.entries(raw)) {
       if (!meta || (!meta.deepAt && !meta.page1At && !meta.newestSaleDate && !meta.identifiers)) continue;
       const existing = store[key]?.aggregationMeta || {};
-      const merged = {
-        page1At: existing.page1At || meta.page1At || null,
-        deepAt: existing.deepAt || meta.deepAt || null,
-        maxPageReached: Math.max(existing.maxPageReached || 0, meta.maxPageReached || 0) || null,
-        lastRefreshAt: existing.lastRefreshAt || meta.lastRefreshAt || null,
-        newestSaleDate: existing.newestSaleDate || meta.newestSaleDate || null,
-        oldestSaleDate: existing.oldestSaleDate || meta.oldestSaleDate || null,
-        compCount: existing.compCount || meta.compCount || null,
-      };
+      const merged = _mergeAggregationMeta(existing, meta);
       if (store[key]) {
         store[key].aggregationMeta = merged;
       } else {
@@ -211,14 +245,11 @@ async function hydrateMetaFromCosmos() {
       const key = normalizeSearchKey(doc.searchTerm || doc.id || '');
       if (!key) continue;
 
-      // Merge into store -- never overwrite existing markers with null
+      // Merge into store -- never overwrite newer markers with older Cosmos
+      // values (#246 PR B: was first-wins via `||`, now takes latest timestamp
+      // / max counter via _mergeAggregationMeta).
       const existing = store[key]?.aggregationMeta || {};
-      const merged = {
-        page1At: existing.page1At || meta.page1At || null,
-        deepAt: existing.deepAt || meta.deepAt || null,
-        maxPageReached: Math.max(existing.maxPageReached || 0, meta.maxPageReached || 0) || null,
-        lastRefreshAt: existing.lastRefreshAt || meta.lastRefreshAt || null,
-      };
+      const merged = _mergeAggregationMeta(existing, meta);
 
       if (store[key]) {
         store[key].aggregationMeta = merged;
@@ -1592,6 +1623,7 @@ module.exports = {
   updateDatasetMeta,
   // Exposed for testing
   mapColumn,
+  _mergeAggregationMeta,
   rowToComp,
   _resetStoreCache() { _store = null; },
   _cancelPendingSaves() {
