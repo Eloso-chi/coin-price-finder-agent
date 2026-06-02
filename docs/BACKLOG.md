@@ -359,7 +359,9 @@ Fixed: `evaluateOneCoin()` in `bulkEvaluateService.js` now matches price discove
 
 ---
 
-### #247. Deep-Paginate Over-Triggers on Evidence-Hydrated Entries [P2 -- DATA-QUALITY]
+### #247. Deep-Paginate Over-Triggers on Evidence-Hydrated Entries [P2 -- DATA-QUALITY] -- DONE 2026-06-02
+
+**Status:** Fixed via 1-line gate change in `scripts/generate-freshness-report.js` (added `&& refreshCount >= 1`). Regression coverage in `__tests__/freshnessReportDeepPaginate.test.js` (4 cases incl. the critical Python-stamped `lastRefreshAt`-only case). Live verification: `deep-paginate` count dropped 407 -> 0 immediately. The 407 entries remain queued via `refresh` and will graduate to deep-paginate naturally on the next cycle once `refreshCount >= 1`.
 
 **Problem:** Freshness triage flags 407 datasets as `deep-paginate` even though they have **`refreshCount = 0`** -- the runtime scraper has never successfully touched them. Their `compCount` values (50-587) come entirely from the `historical_evidence_index` hydration, not from a live page-1 fetch. Deep-paginating them risks spending budget on multi-page scrapes against eBay searches whose underlying listings may no longer exist / may have been re-keyed.
 
