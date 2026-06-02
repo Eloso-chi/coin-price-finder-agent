@@ -30,6 +30,13 @@ const DRY_REFRESH_TIER2_DAYS = 60;
 const DORMANT_MIN_NO_DATA_COUNT = 2;
 const DORMANT_WINDOW_DAYS = 60;
 
+// Evidence-based low-volume gate (BACKLOG #245 Fix A):
+//  When build-evidence-index.js has marked a dataset as a high-confidence
+//  low-volume candidate (e.g. 5/5 historical runs returned 0 comps), trust
+//  that evidence and only re-probe on quarterly cadence. Prevents the queue
+//  from drowning in known-empty bullion series like Krugerrand/Britannia.
+const EVIDENCE_LOW_VOL_CADENCE_DAYS = 90;
+
 const THRESHOLDS = Object.freeze({
   STALE_THRESHOLD_DAYS,
   VERY_STALE_MULTIPLIER,
@@ -44,6 +51,7 @@ const THRESHOLDS = Object.freeze({
   DRY_REFRESH_TIER2_DAYS,
   DORMANT_MIN_NO_DATA_COUNT,
   DORMANT_WINDOW_DAYS,
+  EVIDENCE_LOW_VOL_CADENCE_DAYS,
 });
 
 // ── Helpers ─────────────────────────────────────────────────
@@ -52,6 +60,19 @@ function _daysBetween(now, iso) {
   const t = new Date(iso).getTime();
   if (!Number.isFinite(t)) return null;
   return Math.floor((now.getTime() - t) / 86_400_000);
+}
+
+/**
+ * Returns true when meta.identifiers indicates a high-confidence
+ * low-volume candidate from the historical evidence index.
+ * Medium/Low confidence is NOT trusted (may be a false negative on a
+ * single run); only High triggers the queue-skip.
+ */
+function _isHighConfidenceLowVolEvidence(meta) {
+  const ids = meta && meta.identifiers;
+  if (!ids) return false;
+  return ids.is_low_volume_candidate === true
+      && ids.identifier_confidence === 'High';
 }
 
 /**
@@ -146,6 +167,15 @@ function shouldSkipRefresh(meta, now = new Date(), opts = {}) {
     return { skip: true, reason: 'dormant', state };
   }
 
+  // BACKLOG #245 Fix A: high-confidence historical evidence of low volume.
+  // Skip on quarterly cadence regardless of current freshness/depth axes.
+  if (_isHighConfidenceLowVolEvidence(meta)) {
+    if (lastRefreshDays === null || lastRefreshDays < EVIDENCE_LOW_VOL_CADENCE_DAYS) {
+      return { skip: true, reason: 'evidence-low-vol', state };
+    }
+    // >=90 days since last attempt: allow a probe-refresh through.
+  }
+
   if (marketDepth === 'empty') {
     // Empty (no comps, but tested): treat as dormant for refresh purposes.
     return { skip: true, reason: 'empty', state };
@@ -200,4 +230,5 @@ module.exports = {
   THRESHOLDS,
   classify,
   shouldSkipRefresh,
+  _isHighConfidenceLowVolEvidence,
 };
