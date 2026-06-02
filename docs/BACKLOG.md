@@ -359,6 +359,80 @@ Fixed: `evaluateOneCoin()` in `bulkEvaluateService.js` now matches price discove
 
 ---
 
+### #247. Deep-Paginate Over-Triggers on Evidence-Hydrated Entries [P2 -- DATA-QUALITY]
+
+**Problem:** Freshness triage flags 407 datasets as `deep-paginate` even though they have **`refreshCount = 0`** -- the runtime scraper has never successfully touched them. Their `compCount` values (50-587) come entirely from the `historical_evidence_index` hydration, not from a live page-1 fetch. Deep-paginating them risks spending budget on multi-page scrapes against eBay searches whose underlying listings may no longer exist / may have been re-keyed.
+
+**Trigger location:** `scripts/generate-freshness-report.js:315` (gate `if`; line 314 is the comment)
+```js
+if (compCount >= 50 && !hasDeepAt && marketDepth === 'viable') {
+  actions.push('deep-paginate');
+}
+```
+The gate trusts `compCount` regardless of whether it came from runtime data or evidence-index hydration.
+
+**Hard-number evidence** (report generated 2026-06-02T02:16Z against `data/terapeak-meta.json` at commit `6ce0784`, post-#245):
+
+| Metric | Value |
+|---|---|
+| Total `deep-paginate` flagged | 407 |
+| Of those, `refreshCount = 0` | 407 (100%) |
+| Of those, `identifier_source = historical_evidence_index` | 407 (100%) |
+| Of those, `hasDeepAt = true` | 0 (gate correctly suppresses re-deep) |
+| Of those, `lastRefreshAt` set but `page1At` null (Python-stamped only) | 217 (53%) |
+| Of those, neither `lastRefreshAt` nor `page1At` set (pure evidence hydration) | 190 (47%) |
+| compCount distribution | 50-99: 213 \| 100-199: 74 \| 200-499: 119 \| 500+: 1 |
+
+**Top 5 examples (all `refreshCount=0`, all `deepAt=null`, all sourced from evidence index):**
+
+| Comps | newestSale | Term |
+|---|---|---|
+| 587 | 2026-05-02 | Silver Round 1oz Generic |
+| 387 | 2026-05-02 | Australian Lunar Silver 1oz Generic |
+| 332 | 2026-05-01 | 1982 Mexican Silver Libertad 1oz |
+| 325 | 2026-05-03 | Chinese Silver Panda 1oz Generic |
+| 323 | 2026-05-?? | Perth Lunar 2016 Monkey Silver 1oz |
+
+The comp counts are *plausible* (these are very common eBay listings) -- this is not a bad-data problem. It's a **dispatch sequencing problem**: deep-pagination should only fire after the cheap page-1 refresh has confirmed the listings still exist on the live marketplace.
+
+**Why it matters:**
+- Wastes scrape budget: a deep-pagination run is 5-10 page-loads vs. 1 for page-1.
+- Risks bot-detection bursts on stale search terms (cf. INC-004).
+- If the evidence-hydrated `compCount` doesn't match what eBay currently surfaces, the deep scrape will dredge up either nothing (wasted) or noise (wrong listings under a re-keyed search term -- cf. #246 duplicates).
+
+**Fix (small):** Add `refreshCount >= 1` to the deep-paginate gate in `scripts/generate-freshness-report.js`:
+```js
+// Deep-paginate: viable + >=50 comps + not yet deep-paged + at least one runtime-confirmed page-1
+if (compCount >= 50 && !hasDeepAt && marketDepth === 'viable' && refreshCount >= 1) {
+  actions.push('deep-paginate');
+}
+```
+
+**Do NOT use `entry.page1At` as the gate.** It is *not* equivalent to `refreshCount >= 1`. The JS terapeak route writes `page1At`; the Python scraper's report path writes only `lastRefreshAt`. Post-Fix D (PR #86), `refreshCount` increments on *either* signal, so it is the canonical "has been runtime-touched" marker. Of the 407 flagged entries, 217 (53%) have `lastRefreshAt` only -- gating on `page1At` would still over-trigger on every one of those. This is the exact wiring-oversight class of bug logged as INC-011; do not repeat it.
+
+After the cheap page-1 refresh runs on these entries (which they're already queued for via `refresh` / `refresh-urgent`), they naturally graduate to `deep-paginate` on the next report -- in the correct sequence.
+
+**Expected impact:** 407 -> ~0 `deep-paginate` immediately. The 407 stay in the `refresh` queue (where they already also are -- the current report shows their action as `refresh+deep-paginate`, so neither goal is lost). Over the next 1-2 scrape cycles, the ones that genuinely have viable depth will re-enter `deep-paginate` legitimately with `refreshCount > 0`.
+
+**Files:**
+- MOD `scripts/generate-freshness-report.js` (1-line gate change)
+- NEW `__tests__/freshnessReportDeepPaginate.test.js` -- four assertions:
+  1. `refreshCount=0, compCount=500, deepAt=null, page1At=null, lastRefreshAt=null` (pure evidence hydration) -> action does NOT include `deep-paginate`.
+  2. `refreshCount=0, compCount=500, deepAt=null, page1At=null, lastRefreshAt=<recent>` (Python-stamped only, 53% of current flagged set) -> action does NOT include `deep-paginate`. **Critical regression case** -- gating on `page1At` instead of `refreshCount` would let this through.
+  3. `refreshCount=1, compCount=500, deepAt=null` -> action DOES include `deep-paginate`.
+  4. `refreshCount=0, compCount=500, deepAt=null, page1At=null, lastRefreshAt=null` -> action set still includes the pre-existing `refresh` (or `refresh-urgent`) entry. The fix must be surgical to the `deep-paginate` push and not affect other actions.
+- Verify: re-run `node scripts/generate-freshness-report.js`, expect "deep-paginate" count to drop from 407 to a small number (whatever subset has `refreshCount >= 1` and no `deepAt`).
+
+**Out of scope:**
+- Cosmos-hydrated entries are also evidence-only-ish but they at least come from a prior runtime scrape, so they have non-zero `refreshCount`. No change needed there.
+- Don't fix in `freshnessClassifier.js`'s `shouldSkipRefresh()` -- this is a report-only action, not a skip decision. The classifier doesn't currently emit `deep-paginate`; only the report does.
+
+**Sequence dependency:** None. Can land independently of #246.
+
+**Reference investigation (2026-06-02):** A one-off node script (not committed, lived in tmpfs during the diagnostic session) loaded `cache/freshness-report.json`, filtered for entries whose `actions` array contained `deep-paginate`, then cross-referenced each against `data/terapeak-meta.json`. Findings: 100% of the 407 flagged had `refreshCount=0` and `identifier_source=historical_evidence_index`. The 217/190 split between `lastRefreshAt`-only and pure-evidence is reproducible by walking the same JSON pair. To re-derive: load both files, filter the report by `(e.actions || []).includes('deep-paginate')`, then for each filtered key check `meta[key].lastRefreshAt` and `meta[key].page1At`.
+
+---
+
 ### #185. World Proof Greysheet Year-Specific Fallback [LOW -- DEFERRED]
 
 **Status (May 31, 2026):** Considered for the #24/#198/#185 PR batch but deferred -- design work needed to define the year-specific proof lookup API path (no clean way to construct a year-specific proof query without a PCGS number, which `fetchTypePrice()` doesn't have). Tracked here for future spike.
