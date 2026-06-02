@@ -323,6 +323,19 @@ Fixed: `evaluateOneCoin()` in `bulkEvaluateService.js` now matches price discove
 
 ### #246. Dataset-Key Duplication Across Naming Variants [P2 -- DATA-QUALITY]
 
+**Status (2026-06-02):** **Phase 1 complete.** `scripts/audit-duplicate-keys.js` shipped (read-only) with regression coverage in `__tests__/auditDuplicateKeys.test.js`. Audit output committed at `docs/reports/duplicate-keys-report.json` for review.
+
+**Phase 1 findings (against `data/terapeak-meta.json` post-#245, 4,812 keys):**
+- 144 duplicate groups (290 keys total)
+- **30 mixed-class groups** (one form populated, another empty) -- HIGH PRIORITY
+- 85 all-populated groups (merge candidates)
+- 29 all-empty groups (low priority)
+- Largest delta: 223 comps fragmented between `"2025 perth lunar snake 1oz silver"` (223 comps) and `"perth lunar 2025 snake silver 1oz"` (0 comps)
+
+Numbers are more conservative than the spec's "620/1,242" estimate because phase-1 deepCanonical applies only a high-precision alias map (country aliases + ounce normalization + token sort). Phase 2 normalizeSearchKey extension can widen the net.
+
+**Phases 2-4 still open.** See the original plan below.
+
 **Problem:** `data/terapeak-meta.json` has **620 duplicate groups (1,242 keys)** that represent the same coin under two or more naming forms. **106 of those groups have a mix of populated + empty entries** -- so the same coin was scraped twice into different keys, and one form returned data while the other silently dropped its 0-row "result."
 
 **Examples (from 2026-06-02 freshness-report inspection):**
@@ -342,7 +355,7 @@ Fixed: `evaluateOneCoin()` in `bulkEvaluateService.js` now matches price discove
 **Why it matters:** Comp data is fragmented across keys -- valuation lookups miss data that exists under the alternative key. Refresh queues waste pulls re-scraping orphan keys. Adds noise to every dashboard.
 
 **Plan (gated -- audit first, merge second):**
-1. **Audit (read-only)** -- `scripts/audit-duplicate-keys.js` produces `cache/duplicate-keys-report.json`: groups, suggested canonical form per group, comp-count delta, identifier confidence. Output reviewed before any write.
+1. **Audit (read-only)** -- `scripts/audit-duplicate-keys.js` produces `docs/reports/duplicate-keys-report.json`: groups, suggested canonical form per group, comp-count delta, identifier confidence. Output reviewed before any write. **[DONE 2026-06-02]**
 2. **Extend `normalizeSearchKey()`** -- add alias map (countries + series + ounce notation) + sorted-token canonicalization. Add unit tests for each alias rule before applying merges.
 3. **Backfill merger (one-shot)** -- `scripts/merge-duplicate-keys.js` reads the audit report, merges comps into the canonical key, archives the orphan to `data/archive/terapeak-meta-orphans-YYYYMMDD.json`. Includes `--dry-run` flag.
 4. **Cosmos write-through** -- migration must propagate to Cosmos `terapeak-sold` container or the orphans resurrect on next hydration.
@@ -350,7 +363,9 @@ Fixed: `evaluateOneCoin()` in `bulkEvaluateService.js` now matches price discove
 **Risk:** Direct mutation of canonical data store. Mitigations: dry-run default, archived orphans, audit report committed before merger run, Cosmos backup taken first.
 
 **Files:**
-- NEW `scripts/audit-duplicate-keys.js`
+- NEW `scripts/audit-duplicate-keys.js` **[DONE]**
+- NEW `__tests__/auditDuplicateKeys.test.js` **[DONE]**
+- NEW `docs/reports/duplicate-keys-report.json` **[DONE]**
 - NEW `scripts/merge-duplicate-keys.js`
 - MOD `src/services/terapeakService.js` (`normalizeSearchKey` alias map)
 - NEW `__tests__/normalizeSearchKey.test.js`
