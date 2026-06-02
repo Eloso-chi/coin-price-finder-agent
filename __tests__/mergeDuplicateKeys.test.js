@@ -87,8 +87,14 @@ describe('merge-duplicate-keys.js -- dry-run end-to-end against the real meta fi
     expect(after).toBe(before);
     expect(res.status).toBe(0);
 
-    // Plan artifact must be written
-    expect(fs.existsSync(planPath)).toBe(true);
+    // Steady state after #246 PR C migration: no duplicate groups remain,
+    // script short-circuits with "Nothing to do." and writes no plan.
+    // Before migration: script writes a plan artifact with >=1 merges.
+    if (!fs.existsSync(planPath)) {
+      expect(res.stdout || '').toMatch(/No duplicate groups found/);
+      return;
+    }
+
     const plan = JSON.parse(fs.readFileSync(planPath, 'utf8'));
     expect(plan.mode).toBe('dry-run');
     expect(typeof plan.duplicateGroupCount).toBe('number');

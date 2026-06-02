@@ -1,0 +1,3587 @@
+{
+  "archivedAt": "2026-06-02T20:37:59.489Z",
+  "reason": "#246 PR C duplicate-key merge",
+  "schemaVersion": 1,
+  "entries": {
+    "2023 perth lunar rabbit 1oz silver": {
+      "winner": "perth lunar 2023 rabbit silver 1oz",
+      "entry": {
+        "deepAt": "2026-05-03T01:03:43.081Z",
+        "page1At": "2026-05-31T23:08:56.293242",
+        "maxPageReached": 6,
+        "lastRefreshAt": "2026-05-31T23:08:56.293242",
+        "refreshCount": 0,
+        "newestSaleDate": "2026-05-29",
+        "oldestSaleDate": "2025-10-18",
+        "compCount": 204,
+        "identifiers": {
+          "is_low_volume_candidate": false,
+          "is_bullion": true,
+          "identifier_reason": "median 162 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 1,
+          "runs_with_insufficient_comps": 0,
+          "median_comps_count": 162,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2019 s enhanced reverse proof american silver eagle": {
+      "winner": "2019 s american silver eagle enhanced reverse proof",
+      "entry": {
+        "deepAt": "2026-05-25T23:22:57.921Z",
+        "page1At": "2026-05-25T23:22:57.921Z",
+        "maxPageReached": 6,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-05-20",
+        "oldestSaleDate": "2025-10-15",
+        "compCount": 179,
+        "identifiers": {
+          "is_low_volume_candidate": false,
+          "is_bullion": true,
+          "identifier_reason": "median 187 comps; bullion-proof detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 1,
+          "runs_with_insufficient_comps": 0,
+          "median_comps_count": 187,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2021 great britain 1oz silver britannia": {
+      "winner": "2021 british silver britannia 1oz",
+      "entry": {
+        "deepAt": "2026-05-25T18:49:49.466Z",
+        "page1At": "2026-05-25T18:49:49.466Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-05-15",
+        "oldestSaleDate": "2025-10-24",
+        "compCount": 152,
+        "identifiers": {
+          "is_low_volume_candidate": false,
+          "is_bullion": true,
+          "identifier_reason": "median 48 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 2,
+          "runs_with_insufficient_comps": 0,
+          "median_comps_count": 48,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2023 perth lunar rabbit half oz silver": {
+      "winner": "perth lunar 2023 rabbit silver half oz",
+      "entry": {
+        "deepAt": "2026-05-16T17:09:57.099Z",
+        "page1At": "2026-05-20T21:50:28.312826",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-05-02",
+        "oldestSaleDate": "2025-10-16",
+        "compCount": 106
+      }
+    },
+    "2022 perth lunar tiger half oz silver": {
+      "winner": "perth lunar 2022 tiger silver half oz",
+      "entry": {
+        "deepAt": "2026-05-16T17:09:57.009Z",
+        "page1At": null,
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-05-01",
+        "oldestSaleDate": "2025-10-13",
+        "compCount": 88
+      }
+    },
+    "2024 silver eagle": {
+      "winner": "2024 american silver eagle",
+      "entry": {
+        "deepAt": "2026-05-16T15:38:04.675Z",
+        "page1At": "2026-05-16T15:38:04.735Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-05-28",
+        "oldestSaleDate": "2026-05-01",
+        "compCount": 80
+      }
+    },
+    "2017 great britain 1oz silver britannia": {
+      "winner": "2017 british silver britannia 1oz",
+      "entry": {
+        "deepAt": "2026-05-25T18:49:49.461Z",
+        "page1At": "2026-05-25T18:49:49.461Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-04-27",
+        "oldestSaleDate": "2025-11-01",
+        "compCount": 79,
+        "identifiers": {
+          "is_low_volume_candidate": false,
+          "is_bullion": true,
+          "identifier_reason": "median 39 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 1,
+          "runs_with_insufficient_comps": 0,
+          "median_comps_count": 39,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2013 great britain 1oz silver britannia": {
+      "winner": "2013 british silver britannia 1oz",
+      "entry": {
+        "deepAt": "2026-05-25T18:49:49.454Z",
+        "page1At": "2026-05-25T18:49:49.454Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-05-07",
+        "oldestSaleDate": "2025-11-04",
+        "compCount": 74,
+        "identifiers": {
+          "is_low_volume_candidate": false,
+          "is_bullion": true,
+          "identifier_reason": "median 13 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 2,
+          "runs_with_insufficient_comps": 0,
+          "median_comps_count": 13,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2014 great britain 1oz silver britannia": {
+      "winner": "2014 british silver britannia 1oz",
+      "entry": {
+        "deepAt": "2026-05-25T18:49:49.456Z",
+        "page1At": "2026-05-25T18:49:49.456Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-05-03",
+        "oldestSaleDate": "2025-11-16",
+        "compCount": 67,
+        "identifiers": {
+          "is_low_volume_candidate": true,
+          "is_bullion": true,
+          "identifier_reason": "insufficient comps in 1/2 runs (50%); median 17 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 2,
+          "runs_with_insufficient_comps": 1,
+          "median_comps_count": 17,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2016 great britain 1oz silver britannia": {
+      "winner": "2016 british silver britannia 1oz",
+      "entry": {
+        "deepAt": "2026-05-25T18:49:49.459Z",
+        "page1At": "2026-05-25T18:49:49.459Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-04-26",
+        "oldestSaleDate": "2025-11-19",
+        "compCount": 65,
+        "identifiers": {
+          "is_low_volume_candidate": false,
+          "is_bullion": true,
+          "identifier_reason": "median 33 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 1,
+          "runs_with_insufficient_comps": 0,
+          "median_comps_count": 33,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2001 great britain 1oz silver britannia": {
+      "winner": "2001 silver britannia 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-05-25T18:49:49.428Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-03-30",
+        "oldestSaleDate": "2025-11-09",
+        "compCount": 29,
+        "identifiers": {
+          "is_low_volume_candidate": true,
+          "is_bullion": true,
+          "identifier_reason": "insufficient comps in 2/3 runs (67%); median 0 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "High",
+          "total_runs_seen": 3,
+          "runs_with_insufficient_comps": 2,
+          "median_comps_count": 0,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2001 british silver britannia 1oz": {
+      "winner": "2001 silver britannia 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-05-17T00:42:44.751Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-05-10",
+        "oldestSaleDate": "2025-11-09",
+        "compCount": 34,
+        "identifiers": {
+          "is_low_volume_candidate": false,
+          "is_bullion": true,
+          "identifier_reason": "median 34 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 1,
+          "runs_with_insufficient_comps": 0,
+          "median_comps_count": 34,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2018 great britain 1oz silver britannia": {
+      "winner": "2018 british silver britannia 1oz",
+      "entry": {
+        "deepAt": "2026-05-25T18:49:49.462Z",
+        "page1At": "2026-05-25T18:49:49.462Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-05-18",
+        "oldestSaleDate": "2025-11-29",
+        "compCount": 60,
+        "identifiers": {
+          "is_low_volume_candidate": false,
+          "is_bullion": true,
+          "identifier_reason": "median 16 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 2,
+          "runs_with_insufficient_comps": 0,
+          "median_comps_count": 16,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2021 perth lunar ox half oz silver": {
+      "winner": "perth lunar 2021 ox silver half oz",
+      "entry": {
+        "deepAt": "2026-05-31T20:16:00.490Z",
+        "page1At": "2026-05-21T14:30:03.756531",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-05-24",
+        "oldestSaleDate": "2025-11-15",
+        "compCount": 60,
+        "identifiers": {
+          "is_low_volume_candidate": false,
+          "is_bullion": true,
+          "identifier_reason": "median 5 comps; bullion-fractional-silver detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 1,
+          "runs_with_insufficient_comps": 1,
+          "median_comps_count": 5,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2024 great britain 1oz silver britannia": {
+      "winner": "2024 british silver britannia 1oz",
+      "entry": {
+        "deepAt": "2026-05-31T02:16:38.290Z",
+        "page1At": "2026-05-31T02:16:38.290Z",
+        "maxPageReached": 5,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-05-25",
+        "oldestSaleDate": "2025-11-17",
+        "compCount": 52,
+        "identifiers": {
+          "is_low_volume_candidate": false,
+          "is_bullion": true,
+          "identifier_reason": "median 50 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 2,
+          "runs_with_insufficient_comps": 0,
+          "median_comps_count": 50,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2015 great britain 1oz silver britannia": {
+      "winner": "2015 british silver britannia 1oz",
+      "entry": {
+        "deepAt": "2026-05-17T23:46:56.036686",
+        "page1At": "2026-05-10T19:38:35.976Z",
+        "maxPageReached": 5,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-05-05",
+        "oldestSaleDate": "2025-11-12",
+        "compCount": 50,
+        "identifiers": {
+          "is_low_volume_candidate": false,
+          "is_bullion": true,
+          "identifier_reason": "median 50 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 1,
+          "runs_with_insufficient_comps": 0,
+          "median_comps_count": 50,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2022 british silver britannia 1oz": {
+      "winner": "2022 great britain 1oz silver britannia",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-05-17T00:42:44.752Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-05-10",
+        "oldestSaleDate": "2026-01-03",
+        "compCount": 50,
+        "identifiers": {
+          "is_low_volume_candidate": false,
+          "is_bullion": true,
+          "identifier_reason": "median 50 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 1,
+          "runs_with_insufficient_comps": 0,
+          "median_comps_count": 50,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2025 british silver britannia 1oz": {
+      "winner": "2025 great britain 1oz silver britannia",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-05-17T00:42:44.751Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-04-23",
+        "oldestSaleDate": "2025-11-22",
+        "compCount": 50,
+        "identifiers": {
+          "is_low_volume_candidate": false,
+          "is_bullion": true,
+          "identifier_reason": "median 50 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 1,
+          "runs_with_insufficient_comps": 0,
+          "median_comps_count": 50,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2019 great britain 1oz silver britannia": {
+      "winner": "2019 british silver britannia 1oz",
+      "entry": {
+        "deepAt": "2026-05-18T21:30:39.078Z",
+        "page1At": "2026-05-25T18:49:49.464Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-05-04",
+        "oldestSaleDate": "2025-11-18",
+        "compCount": 45,
+        "identifiers": {
+          "is_low_volume_candidate": false,
+          "is_bullion": true,
+          "identifier_reason": "median 24 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 1,
+          "runs_with_insufficient_comps": 0,
+          "median_comps_count": 24,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2011 great britain 1oz silver britannia": {
+      "winner": "2011 british silver britannia 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-05-25T18:49:49.449Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-04-19",
+        "oldestSaleDate": "2025-11-09",
+        "compCount": 44,
+        "identifiers": {
+          "is_low_volume_candidate": true,
+          "is_bullion": true,
+          "identifier_reason": "insufficient comps in 1/2 runs (50%); median 9 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 2,
+          "runs_with_insufficient_comps": 1,
+          "median_comps_count": 9,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2003 great britain 1oz silver britannia": {
+      "winner": "2003 british silver britannia 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-05-25T18:49:49.430Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-05-01",
+        "oldestSaleDate": "2025-11-01",
+        "compCount": 42,
+        "identifiers": {
+          "is_low_volume_candidate": false,
+          "is_bullion": true,
+          "identifier_reason": "median 27 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 2,
+          "runs_with_insufficient_comps": 0,
+          "median_comps_count": 27,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "1999 great britain 1oz silver britannia": {
+      "winner": "1999 british silver britannia 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-05-25T18:49:49.425Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-05-14",
+        "oldestSaleDate": "2025-11-04",
+        "compCount": 40,
+        "identifiers": {
+          "is_low_volume_candidate": false,
+          "is_bullion": true,
+          "identifier_reason": "median 35 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 2,
+          "runs_with_insufficient_comps": 0,
+          "median_comps_count": 35,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "perth lunar 2020 mouse silver 1oz": {
+      "winner": "2020 perth lunar mouse 1oz silver",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-05-31T21:12:47.076523",
+        "maxPageReached": null,
+        "lastRefreshAt": "2026-05-31T21:12:47.076523",
+        "refreshCount": 0,
+        "newestSaleDate": "2026-05-09",
+        "oldestSaleDate": "2025-12-04",
+        "compCount": 40,
+        "identifiers": {
+          "is_low_volume_candidate": false,
+          "is_bullion": true,
+          "identifier_reason": "median 39 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 1,
+          "runs_with_insufficient_comps": 0,
+          "median_comps_count": 39,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2020 great britain 1oz silver britannia": {
+      "winner": "2020 british silver britannia 1oz",
+      "entry": {
+        "deepAt": "2026-05-18T21:30:39.123Z",
+        "page1At": "2026-05-25T18:49:49.465Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-04-16",
+        "oldestSaleDate": "2025-11-18",
+        "compCount": 37,
+        "identifiers": {
+          "is_low_volume_candidate": false,
+          "is_bullion": true,
+          "identifier_reason": "median 26 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 2,
+          "runs_with_insufficient_comps": 0,
+          "median_comps_count": 26,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2000 great britain 1oz silver britannia": {
+      "winner": "2000 british silver britannia 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-05-10T20:04:50.288Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-05-10",
+        "oldestSaleDate": "2025-11-17",
+        "compCount": 35,
+        "identifiers": {
+          "is_low_volume_candidate": false,
+          "is_bullion": true,
+          "identifier_reason": "median 29 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 2,
+          "runs_with_insufficient_comps": 0,
+          "median_comps_count": 29,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2010 great britain 1oz silver britannia": {
+      "winner": "2010 british silver britannia 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-05-25T18:49:49.443Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-04-15",
+        "oldestSaleDate": "2025-11-06",
+        "compCount": 35,
+        "identifiers": {
+          "is_low_volume_candidate": true,
+          "is_bullion": true,
+          "identifier_reason": "insufficient comps in 1/2 runs (50%); median 5 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 2,
+          "runs_with_insufficient_comps": 1,
+          "median_comps_count": 5,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2012 great britain 1oz silver britannia": {
+      "winner": "2012 british silver britannia 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-05-25T18:49:49.450Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-04-01",
+        "oldestSaleDate": "2025-11-02",
+        "compCount": 34,
+        "identifiers": {
+          "is_low_volume_candidate": false,
+          "is_bullion": true,
+          "identifier_reason": "median 19 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 1,
+          "runs_with_insufficient_comps": 0,
+          "median_comps_count": 19,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "perth lunar 2025 snake silver half oz": {
+      "winner": "2025 perth lunar snake half oz silver",
+      "entry": {
+        "deepAt": null,
+        "page1At": null,
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-04-25",
+        "oldestSaleDate": "2025-12-02",
+        "compCount": 34,
+        "identifiers": {
+          "is_low_volume_candidate": false,
+          "is_bullion": true,
+          "identifier_reason": "median 248 comps; bullion-fractional-silver detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 1,
+          "runs_with_insufficient_comps": 0,
+          "median_comps_count": 248,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "perth lunar 2020 mouse silver half oz": {
+      "winner": "2020 perth lunar mouse half oz silver",
+      "entry": {
+        "deepAt": null,
+        "page1At": null,
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-04-11",
+        "oldestSaleDate": "2025-10-20",
+        "compCount": 30,
+        "identifiers": {
+          "is_low_volume_candidate": false,
+          "is_bullion": true,
+          "identifier_reason": "median 30 comps; bullion-fractional-silver detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 1,
+          "runs_with_insufficient_comps": 0,
+          "median_comps_count": 30,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2002 great britain 1oz silver britannia": {
+      "winner": "2002 british silver britannia 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-05-25T18:49:49.429Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-05-01",
+        "oldestSaleDate": "2025-11-02",
+        "compCount": 29,
+        "identifiers": {
+          "is_low_volume_candidate": false,
+          "is_bullion": true,
+          "identifier_reason": "median 13 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 1,
+          "runs_with_insufficient_comps": 0,
+          "median_comps_count": 13,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2001 british silver britannia": {
+      "winner": "2001 silver britannia",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-05-25T23:35:24.239Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-05-16",
+        "oldestSaleDate": "2025-11-23",
+        "compCount": 26,
+        "identifiers": {
+          "is_low_volume_candidate": true,
+          "is_bullion": true,
+          "identifier_reason": "insufficient comps in 1/2 runs (50%); median 26 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 2,
+          "runs_with_insufficient_comps": 1,
+          "median_comps_count": 26,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "1978 south africa 1oz gold krugerrand": {
+      "winner": "1978 gold krugerrand 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-05-13T05:18:21.309Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-05-07",
+        "oldestSaleDate": "2025-11-19",
+        "compCount": 24,
+        "identifiers": {
+          "is_low_volume_candidate": false,
+          "is_bullion": true,
+          "identifier_reason": "median 25 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 2,
+          "runs_with_insufficient_comps": 0,
+          "median_comps_count": 25,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2023 great britain 1oz silver britannia": {
+      "winner": "2023 british silver britannia 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-05-10T19:34:31.898Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-05-10",
+        "oldestSaleDate": "2026-04-20",
+        "compCount": 21,
+        "identifiers": {
+          "is_low_volume_candidate": false,
+          "is_bullion": true,
+          "identifier_reason": "median 43 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 2,
+          "runs_with_insufficient_comps": 0,
+          "median_comps_count": 43,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "perth lunar 2024 dragon silver half oz": {
+      "winner": "2024 perth lunar dragon half oz silver",
+      "entry": {
+        "deepAt": null,
+        "page1At": null,
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-03-24",
+        "oldestSaleDate": "2025-11-14",
+        "compCount": 18,
+        "identifiers": {
+          "is_low_volume_candidate": false,
+          "is_bullion": true,
+          "identifier_reason": "median 246 comps; bullion-fractional-silver detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 1,
+          "runs_with_insufficient_comps": 0,
+          "median_comps_count": 246,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "1997 british silver britannia": {
+      "winner": "1997 silver britannia",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-05-31T02:16:38.267Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-05-13",
+        "oldestSaleDate": "2025-11-27",
+        "compCount": 17,
+        "identifiers": {
+          "is_low_volume_candidate": true,
+          "is_bullion": true,
+          "identifier_reason": "insufficient comps in 1/2 runs (50%); median 16 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 2,
+          "runs_with_insufficient_comps": 1,
+          "median_comps_count": 16,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "1981 south africa 1oz gold krugerrand": {
+      "winner": "1981 gold krugerrand 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-04-15T23:49:42.059Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-03-04",
+        "oldestSaleDate": "2025-10-17",
+        "compCount": 16,
+        "identifiers": {
+          "is_low_volume_candidate": false,
+          "is_bullion": true,
+          "identifier_reason": "median 16 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 1,
+          "runs_with_insufficient_comps": 0,
+          "median_comps_count": 16,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2022 great britain 1oz gold britannia": {
+      "winner": "2022 british gold britannia 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-04-26T20:48:47.716Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-03-14",
+        "oldestSaleDate": "2025-11-05",
+        "compCount": 16,
+        "identifiers": {
+          "is_low_volume_candidate": false,
+          "is_bullion": true,
+          "identifier_reason": "median 18 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "High",
+          "total_runs_seen": 3,
+          "runs_with_insufficient_comps": 1,
+          "median_comps_count": 18,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2024 south africa 1oz gold krugerrand": {
+      "winner": "2024 gold krugerrand 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-05-13T05:18:21.319Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-05-10",
+        "oldestSaleDate": "2025-11-17",
+        "compCount": 16,
+        "identifiers": {
+          "is_low_volume_candidate": false,
+          "is_bullion": true,
+          "identifier_reason": "median 27 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "High",
+          "total_runs_seen": 3,
+          "runs_with_insufficient_comps": 1,
+          "median_comps_count": 27,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "1997 great britain 1oz silver britannia": {
+      "winner": "1997 silver britannia 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-04-29T04:03:09.490Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-04-22",
+        "oldestSaleDate": "2025-12-01",
+        "compCount": 7,
+        "identifiers": {
+          "is_low_volume_candidate": false,
+          "is_bullion": true,
+          "identifier_reason": "median 7 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 1,
+          "runs_with_insufficient_comps": 1,
+          "median_comps_count": 7,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "1997 british silver britannia 1oz": {
+      "winner": "1997 silver britannia 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": null,
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-04-22",
+        "oldestSaleDate": "2025-12-01",
+        "compCount": 7,
+        "identifiers": {
+          "is_low_volume_candidate": false,
+          "is_bullion": true,
+          "identifier_reason": "median 7 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 1,
+          "runs_with_insufficient_comps": 0,
+          "median_comps_count": 7,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2004 great britain 1oz silver britannia": {
+      "winner": "2004 british silver britannia 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-05-10T19:58:08.344Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-05-10",
+        "oldestSaleDate": "2025-11-14",
+        "compCount": 13,
+        "identifiers": {
+          "is_low_volume_candidate": false,
+          "is_bullion": true,
+          "identifier_reason": "median 6 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "High",
+          "total_runs_seen": 3,
+          "runs_with_insufficient_comps": 1,
+          "median_comps_count": 6,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "perth lunar 2021 ox silver 1oz": {
+      "winner": "2021 perth lunar ox 1oz silver",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-05-31T23:36:55.902960",
+        "maxPageReached": null,
+        "lastRefreshAt": "2026-05-31T23:36:55.902960",
+        "refreshCount": 0,
+        "newestSaleDate": "2026-04-15",
+        "oldestSaleDate": "2026-01-23",
+        "compCount": 13,
+        "identifiers": {
+          "is_low_volume_candidate": false,
+          "is_bullion": true,
+          "identifier_reason": "median 4 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 1,
+          "runs_with_insufficient_comps": 0,
+          "median_comps_count": 4,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2025 south africa 1oz gold krugerrand": {
+      "winner": "2025 gold krugerrand 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-04-26T18:07:29.872Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-02-25",
+        "oldestSaleDate": "2025-11-05",
+        "compCount": 12,
+        "identifiers": {
+          "is_low_volume_candidate": false,
+          "is_bullion": true,
+          "identifier_reason": "median 15 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "High",
+          "total_runs_seen": 3,
+          "runs_with_insufficient_comps": 1,
+          "median_comps_count": 15,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "perth lunar 2022 tiger silver 1oz": {
+      "winner": "2022 perth lunar tiger 1oz silver",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-05-31T21:43:33.313879",
+        "maxPageReached": null,
+        "lastRefreshAt": "2026-05-31T21:43:33.313879",
+        "refreshCount": 0,
+        "newestSaleDate": "2026-05-29",
+        "oldestSaleDate": "2026-01-16",
+        "compCount": 11,
+        "identifiers": {
+          "is_low_volume_candidate": false,
+          "is_bullion": true,
+          "identifier_reason": "median 2 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 1,
+          "runs_with_insufficient_comps": 0,
+          "median_comps_count": 2,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "1979 south africa 1oz gold krugerrand": {
+      "winner": "1979 gold krugerrand 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-05-25T23:36:54.081Z",
+        "maxPageReached": null,
+        "lastRefreshAt": "2026-05-20T01:19:56.856937",
+        "refreshCount": 0,
+        "newestSaleDate": "2026-03-14",
+        "oldestSaleDate": "2025-11-03",
+        "compCount": 10,
+        "identifiers": {
+          "is_low_volume_candidate": false,
+          "is_bullion": true,
+          "identifier_reason": "median 10 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "High",
+          "total_runs_seen": 3,
+          "runs_with_insufficient_comps": 1,
+          "median_comps_count": 10,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "1983 south africa 1oz gold krugerrand": {
+      "winner": "1983 gold krugerrand 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-04-26T17:59:03.197Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-03-24",
+        "oldestSaleDate": "2025-12-27",
+        "compCount": 10,
+        "identifiers": {
+          "is_low_volume_candidate": false,
+          "is_bullion": true,
+          "identifier_reason": "median 17 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 2,
+          "runs_with_insufficient_comps": 0,
+          "median_comps_count": 17,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "1998 great britain 1oz silver britannia": {
+      "winner": "1998 british silver britannia 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-05-25T18:49:49.424Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-05-11",
+        "oldestSaleDate": "2026-01-07",
+        "compCount": 10,
+        "identifiers": {
+          "is_low_volume_candidate": false,
+          "is_bullion": true,
+          "identifier_reason": "median 9 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 1,
+          "runs_with_insufficient_comps": 0,
+          "median_comps_count": 9,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2023 great britain 1oz gold britannia": {
+      "winner": "2023 british gold britannia 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-04-26T21:01:24.975Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-04-05",
+        "oldestSaleDate": "2025-11-10",
+        "compCount": 9,
+        "identifiers": {
+          "is_low_volume_candidate": false,
+          "is_bullion": true,
+          "identifier_reason": "median 33 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 2,
+          "runs_with_insufficient_comps": 0,
+          "median_comps_count": 33,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "1976 south africa 1oz gold krugerrand": {
+      "winner": "1976 gold krugerrand 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-04-15T23:26:09.819Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-04-11",
+        "oldestSaleDate": "2026-01-05",
+        "compCount": 8,
+        "identifiers": {
+          "is_low_volume_candidate": false,
+          "is_bullion": true,
+          "identifier_reason": "median 8 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 1,
+          "runs_with_insufficient_comps": 1,
+          "median_comps_count": 8,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2009 great britain 1oz silver britannia": {
+      "winner": "2009 british silver britannia 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-05-10T20:10:05.091Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-04-09",
+        "oldestSaleDate": "2025-11-11",
+        "compCount": 8,
+        "identifiers": {
+          "is_low_volume_candidate": true,
+          "is_bullion": true,
+          "identifier_reason": "insufficient comps in 2/2 runs (100%); median 9 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 2,
+          "runs_with_insufficient_comps": 2,
+          "median_comps_count": 9,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2017 south africa 1oz gold krugerrand": {
+      "winner": "2017 gold krugerrand 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-05-13T05:18:21.315Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-05-05",
+        "oldestSaleDate": "2025-11-23",
+        "compCount": 8,
+        "identifiers": {
+          "is_low_volume_candidate": false,
+          "is_bullion": true,
+          "identifier_reason": "median 15 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 2,
+          "runs_with_insufficient_comps": 0,
+          "median_comps_count": 15,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2008 great britain 1oz silver britannia": {
+      "winner": "2008 british silver britannia 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-05-25T18:49:49.436Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-05-08",
+        "oldestSaleDate": "2025-12-06",
+        "compCount": 7,
+        "identifiers": {
+          "is_low_volume_candidate": true,
+          "is_bullion": true,
+          "identifier_reason": "insufficient comps in 1/2 runs (50%); median 3 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 2,
+          "runs_with_insufficient_comps": 1,
+          "median_comps_count": 3,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2006 great britain 1oz silver britannia": {
+      "winner": "2006 british silver britannia 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-05-25T18:49:49.433Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-02-19",
+        "oldestSaleDate": "2025-12-09",
+        "compCount": 6,
+        "identifiers": {
+          "is_low_volume_candidate": true,
+          "is_bullion": true,
+          "identifier_reason": "insufficient comps in 1/2 runs (50%); median 2 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 2,
+          "runs_with_insufficient_comps": 1,
+          "median_comps_count": 2,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2007 great britain 1oz silver britannia": {
+      "winner": "2007 british silver britannia 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-05-25T18:49:49.434Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-04-23",
+        "oldestSaleDate": "2025-12-30",
+        "compCount": 6,
+        "identifiers": {
+          "is_low_volume_candidate": false,
+          "is_bullion": true,
+          "identifier_reason": "median 7 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 1,
+          "runs_with_insufficient_comps": 0,
+          "median_comps_count": 7,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2017 great britain 1oz gold britannia": {
+      "winner": "2017 british gold britannia 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-04-26T20:55:00.104Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-04-22",
+        "oldestSaleDate": "2025-12-27",
+        "compCount": 6,
+        "identifiers": {
+          "is_low_volume_candidate": true,
+          "is_bullion": true,
+          "identifier_reason": "insufficient comps in 2/2 runs (100%); median 6 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 2,
+          "runs_with_insufficient_comps": 2,
+          "median_comps_count": 6,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2024 great britain 1oz gold britannia": {
+      "winner": "2024 british gold britannia 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-05-13T06:18:57.448Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-04-28",
+        "oldestSaleDate": "2025-11-17",
+        "compCount": 6,
+        "identifiers": {
+          "is_low_volume_candidate": false,
+          "is_bullion": true,
+          "identifier_reason": "median 17 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 2,
+          "runs_with_insufficient_comps": 0,
+          "median_comps_count": 17,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "1975 south africa 1oz gold krugerrand": {
+      "winner": "1975 gold krugerrand 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-04-15T23:46:58.433Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-02-06",
+        "oldestSaleDate": "2025-11-01",
+        "compCount": 5,
+        "identifiers": {
+          "is_low_volume_candidate": false,
+          "is_bullion": true,
+          "identifier_reason": "median 5 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 1,
+          "runs_with_insufficient_comps": 1,
+          "median_comps_count": 5,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "1977 south africa 1oz gold krugerrand": {
+      "winner": "1977 gold krugerrand 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-04-26T17:55:34.654Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-04-12",
+        "oldestSaleDate": "2026-01-09",
+        "compCount": 5,
+        "identifiers": {
+          "is_low_volume_candidate": true,
+          "is_bullion": true,
+          "identifier_reason": "insufficient comps in 2/2 runs (100%); median 5 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 2,
+          "runs_with_insufficient_comps": 2,
+          "median_comps_count": 5,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "1980 south africa 1oz gold krugerrand": {
+      "winner": "1980 gold krugerrand 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-04-26T18:18:56.342Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-04-22",
+        "oldestSaleDate": "2026-03-10",
+        "compCount": 5,
+        "identifiers": {
+          "is_low_volume_candidate": false,
+          "is_bullion": true,
+          "identifier_reason": "median 50 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 2,
+          "runs_with_insufficient_comps": 0,
+          "median_comps_count": 50,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "1982 south africa 1oz gold krugerrand": {
+      "winner": "1982 gold krugerrand 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-04-26T18:38:45.364Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-02-26",
+        "oldestSaleDate": "2026-01-07",
+        "compCount": 5,
+        "identifiers": {
+          "is_low_volume_candidate": false,
+          "is_bullion": true,
+          "identifier_reason": "median 49 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 2,
+          "runs_with_insufficient_comps": 0,
+          "median_comps_count": 49,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "1974 south africa 1oz gold krugerrand": {
+      "winner": "1974 gold krugerrand 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-04-26T18:10:27.686Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-04-19",
+        "oldestSaleDate": "2025-11-18",
+        "compCount": 4,
+        "identifiers": {
+          "is_low_volume_candidate": true,
+          "is_bullion": true,
+          "identifier_reason": "insufficient comps in 2/2 runs (100%); median 4 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 2,
+          "runs_with_insufficient_comps": 2,
+          "median_comps_count": 4,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2015 great britain 1oz gold britannia": {
+      "winner": "2015 british gold britannia 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-04-26T20:42:07.994Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-04-01",
+        "oldestSaleDate": "2025-11-09",
+        "compCount": 4,
+        "identifiers": {
+          "is_low_volume_candidate": true,
+          "is_bullion": true,
+          "identifier_reason": "insufficient comps in 2/2 runs (100%); median 4 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 2,
+          "runs_with_insufficient_comps": 2,
+          "median_comps_count": 4,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2022 south africa 1oz gold krugerrand": {
+      "winner": "2022 gold krugerrand 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-04-26T17:57:55.016Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-04-01",
+        "oldestSaleDate": "2025-11-09",
+        "compCount": 4,
+        "identifiers": {
+          "is_low_volume_candidate": false,
+          "is_bullion": true,
+          "identifier_reason": "median 12 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 2,
+          "runs_with_insufficient_comps": 0,
+          "median_comps_count": 12,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "perth lunar 2024 dragon silver 1oz": {
+      "winner": "2024 perth lunar dragon 1oz silver",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-05-31T21:53:31.594559",
+        "maxPageReached": null,
+        "lastRefreshAt": "2026-05-31T21:53:31.594559",
+        "refreshCount": 0,
+        "newestSaleDate": "2026-05-14",
+        "oldestSaleDate": "2026-04-29",
+        "compCount": 4,
+        "identifiers": {
+          "is_low_volume_candidate": false,
+          "is_bullion": true,
+          "identifier_reason": "median 0 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 1,
+          "runs_with_insufficient_comps": 0,
+          "median_comps_count": 0,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "1973 south africa 1oz gold krugerrand": {
+      "winner": "1973 gold krugerrand 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-04-26T18:34:44.648Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-02-15",
+        "oldestSaleDate": "2025-12-01",
+        "compCount": 3,
+        "identifiers": {
+          "is_low_volume_candidate": true,
+          "is_bullion": true,
+          "identifier_reason": "insufficient comps in 2/2 runs (100%); median 3 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 2,
+          "runs_with_insufficient_comps": 2,
+          "median_comps_count": 3,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "1987 great britain 1oz gold britannia": {
+      "winner": "1987 british gold britannia 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-05-13T05:40:26.758Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-04-13",
+        "oldestSaleDate": "2025-12-18",
+        "compCount": 3,
+        "identifiers": {
+          "is_low_volume_candidate": true,
+          "is_bullion": true,
+          "identifier_reason": "insufficient comps in 2/2 runs (100%); median 9 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 2,
+          "runs_with_insufficient_comps": 2,
+          "median_comps_count": 9,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "1989 great britain 1oz gold britannia": {
+      "winner": "1989 british gold britannia 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-04-26T21:02:31.853Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-01-07",
+        "oldestSaleDate": "2025-11-29",
+        "compCount": 3,
+        "identifiers": {
+          "is_low_volume_candidate": true,
+          "is_bullion": true,
+          "identifier_reason": "insufficient comps in 2/2 runs (100%); median 3 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 2,
+          "runs_with_insufficient_comps": 2,
+          "median_comps_count": 3,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2001 great britain 1oz gold britannia": {
+      "winner": "2001 british gold britannia 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-04-26T21:00:19.318Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-04-12",
+        "oldestSaleDate": "2025-11-13",
+        "compCount": 3,
+        "identifiers": {
+          "is_low_volume_candidate": true,
+          "is_bullion": true,
+          "identifier_reason": "insufficient comps in 2/2 runs (100%); median 4 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 2,
+          "runs_with_insufficient_comps": 2,
+          "median_comps_count": 4,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2005 great britain 1oz silver britannia": {
+      "winner": "2005 british silver britannia 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-05-25T18:49:49.432Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-02-22",
+        "oldestSaleDate": "2026-01-13",
+        "compCount": 3,
+        "identifiers": {
+          "is_low_volume_candidate": false,
+          "is_bullion": true,
+          "identifier_reason": "median 7 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 1,
+          "runs_with_insufficient_comps": 0,
+          "median_comps_count": 7,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2015 south africa 1oz gold krugerrand": {
+      "winner": "2015 gold krugerrand 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-04-26T18:00:09.385Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-03-31",
+        "oldestSaleDate": "2025-11-23",
+        "compCount": 3,
+        "identifiers": {
+          "is_low_volume_candidate": true,
+          "is_bullion": true,
+          "identifier_reason": "insufficient comps in 2/2 runs (100%); median 3 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 2,
+          "runs_with_insufficient_comps": 2,
+          "median_comps_count": 3,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2018 south africa 1oz gold krugerrand": {
+      "winner": "2018 gold krugerrand 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-05-25T23:36:54.089Z",
+        "maxPageReached": null,
+        "lastRefreshAt": "2026-05-20T01:55:19.883885",
+        "refreshCount": 0,
+        "newestSaleDate": "2026-05-11",
+        "oldestSaleDate": "2026-04-14",
+        "compCount": 3,
+        "identifiers": {
+          "is_low_volume_candidate": true,
+          "is_bullion": true,
+          "identifier_reason": "insufficient comps in 2/2 runs (100%); median 8 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 2,
+          "runs_with_insufficient_comps": 2,
+          "median_comps_count": 8,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2021 south africa 1oz gold krugerrand": {
+      "winner": "2021 gold krugerrand 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-05-13T05:18:21.318Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-02-02",
+        "oldestSaleDate": "2025-12-28",
+        "compCount": 3,
+        "identifiers": {
+          "is_low_volume_candidate": false,
+          "is_bullion": true,
+          "identifier_reason": "median 4 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 1,
+          "runs_with_insufficient_comps": 1,
+          "median_comps_count": 4,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "1984 south africa 1oz gold krugerrand": {
+      "winner": "1984 gold krugerrand 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-04-16T00:12:49.426Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-04-13",
+        "oldestSaleDate": "2026-01-21",
+        "compCount": 2,
+        "identifiers": {
+          "is_low_volume_candidate": false,
+          "is_bullion": true,
+          "identifier_reason": "median 23 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 1,
+          "runs_with_insufficient_comps": 0,
+          "median_comps_count": 23,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2011 south africa 1oz gold krugerrand": {
+      "winner": "2011 gold krugerrand 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-04-16T00:17:53.563Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-03-01",
+        "oldestSaleDate": "2025-10-20",
+        "compCount": 2,
+        "identifiers": {
+          "is_low_volume_candidate": false,
+          "is_bullion": true,
+          "identifier_reason": "median 5 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 1,
+          "runs_with_insufficient_comps": 1,
+          "median_comps_count": 5,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2012 south africa 1oz gold krugerrand": {
+      "winner": "2012 gold krugerrand 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-04-26T18:01:22.152Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-02-06",
+        "oldestSaleDate": "2026-01-21",
+        "compCount": 2,
+        "identifiers": {
+          "is_low_volume_candidate": true,
+          "is_bullion": true,
+          "identifier_reason": "insufficient comps in 2/2 runs (100%); median 2 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 2,
+          "runs_with_insufficient_comps": 2,
+          "median_comps_count": 2,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2014 south africa 1oz gold krugerrand": {
+      "winner": "2014 gold krugerrand 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-04-26T17:52:33.684Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-03-11",
+        "oldestSaleDate": "2026-01-31",
+        "compCount": 2,
+        "identifiers": {
+          "is_low_volume_candidate": true,
+          "is_bullion": true,
+          "identifier_reason": "insufficient comps in 2/2 runs (100%); median 3 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 2,
+          "runs_with_insufficient_comps": 2,
+          "median_comps_count": 3,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2020 great britain 1oz gold britannia": {
+      "winner": "2020 british gold britannia 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-04-26T20:34:57.764Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-02-17",
+        "oldestSaleDate": "2026-02-13",
+        "compCount": 2,
+        "identifiers": {
+          "is_low_volume_candidate": true,
+          "is_bullion": true,
+          "identifier_reason": "insufficient comps in 2/2 runs (100%); median 6 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 2,
+          "runs_with_insufficient_comps": 2,
+          "median_comps_count": 6,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2021 great britain 1oz gold britannia": {
+      "winner": "2021 british gold britannia 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-05-25T23:36:54.091Z",
+        "maxPageReached": null,
+        "lastRefreshAt": "2026-05-20T00:50:42.938962",
+        "refreshCount": 0,
+        "newestSaleDate": "2026-04-15",
+        "oldestSaleDate": "2026-03-07",
+        "compCount": 2,
+        "identifiers": {
+          "is_low_volume_candidate": false,
+          "is_bullion": true,
+          "identifier_reason": "median 14 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 2,
+          "runs_with_insufficient_comps": 0,
+          "median_comps_count": 14,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2023 south africa 1oz gold krugerrand": {
+      "winner": "2023 gold krugerrand 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-04-16T00:02:54.082Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-01-12",
+        "oldestSaleDate": "2025-10-23",
+        "compCount": 2,
+        "identifiers": {
+          "is_low_volume_candidate": false,
+          "is_bullion": true,
+          "identifier_reason": "median 11 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 1,
+          "runs_with_insufficient_comps": 0,
+          "median_comps_count": 11,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "1967 south africa 1oz gold krugerrand": {
+      "winner": "1967 gold krugerrand 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-04-26T18:30:44.649Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-03-24",
+        "oldestSaleDate": "2026-03-24",
+        "compCount": 1,
+        "identifiers": {
+          "is_low_volume_candidate": true,
+          "is_bullion": true,
+          "identifier_reason": "insufficient comps in 2/2 runs (100%); median 1 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 2,
+          "runs_with_insufficient_comps": 2,
+          "median_comps_count": 1,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2008 south africa 1oz gold krugerrand": {
+      "winner": "2008 gold krugerrand 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-04-26T18:16:53.684Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-02-21",
+        "oldestSaleDate": "2026-02-21",
+        "compCount": 1,
+        "identifiers": {
+          "is_low_volume_candidate": true,
+          "is_bullion": true,
+          "identifier_reason": "insufficient comps in 2/2 runs (100%); median 8 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 2,
+          "runs_with_insufficient_comps": 2,
+          "median_comps_count": 8,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2009 south africa 1oz gold krugerrand": {
+      "winner": "2009 gold krugerrand 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-06-01T00:30:58.545236",
+        "maxPageReached": null,
+        "lastRefreshAt": "2026-06-01T00:30:58.545236",
+        "refreshCount": 0,
+        "newestSaleDate": "2026-02-02",
+        "oldestSaleDate": "2026-02-02",
+        "compCount": 1,
+        "identifiers": {
+          "is_low_volume_candidate": true,
+          "is_bullion": true,
+          "identifier_reason": "insufficient comps in 2/2 runs (100%); median 8 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 2,
+          "runs_with_insufficient_comps": 2,
+          "median_comps_count": 8,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2013 south africa 1oz gold krugerrand": {
+      "winner": "2013 gold krugerrand 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-05-13T05:18:21.313Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-04-14",
+        "oldestSaleDate": "2026-04-14",
+        "compCount": 1,
+        "identifiers": {
+          "is_low_volume_candidate": true,
+          "is_bullion": true,
+          "identifier_reason": "insufficient comps in 2/2 runs (100%); median 8 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 2,
+          "runs_with_insufficient_comps": 2,
+          "median_comps_count": 8,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2024 perth lunar dragon 2oz silver": {
+      "winner": "perth lunar 2024 dragon silver 2oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": null,
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-04-28",
+        "oldestSaleDate": "2026-01-28",
+        "compCount": 1
+      }
+    },
+    "1998 south africa 1oz gold krugerrand": {
+      "winner": "1998 gold krugerrand 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-05-17T00:42:44.732Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2025-12-09",
+        "oldestSaleDate": "2025-12-09",
+        "compCount": 1,
+        "identifiers": {
+          "is_low_volume_candidate": false,
+          "is_bullion": true,
+          "identifier_reason": "median 1 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 1,
+          "runs_with_insufficient_comps": 0,
+          "median_comps_count": 1,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2005 south africa 1oz gold krugerrand": {
+      "winner": "2005 gold krugerrand 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-05-17T00:42:44.732Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2025-12-14",
+        "oldestSaleDate": "2025-12-14",
+        "compCount": 1,
+        "identifiers": {
+          "is_low_volume_candidate": false,
+          "is_bullion": true,
+          "identifier_reason": "median 1 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 1,
+          "runs_with_insufficient_comps": 0,
+          "median_comps_count": 1,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2009 great britain 1oz gold britannia": {
+      "winner": "2009 british gold britannia 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-05-17T00:42:44.732Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": "2026-01-25",
+        "oldestSaleDate": "2026-01-25",
+        "compCount": 1,
+        "identifiers": {
+          "is_low_volume_candidate": false,
+          "is_bullion": true,
+          "identifier_reason": "median 1 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 1,
+          "runs_with_insufficient_comps": 0,
+          "median_comps_count": 1,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "1995 great britain 1oz gold britannia": {
+      "winner": "1995 british gold britannia 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": null,
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": null,
+        "oldestSaleDate": null,
+        "compCount": null,
+        "noDataAt": "2026-05-20T15:53:49.799Z",
+        "noDataCount": 5,
+        "identifiers": {
+          "is_low_volume_candidate": true,
+          "is_bullion": true,
+          "identifier_reason": "insufficient comps in 7/7 runs (100%); median 0 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "High",
+          "total_runs_seen": 7,
+          "runs_with_insufficient_comps": 7,
+          "median_comps_count": 0,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "1991 great britain 1oz gold britannia": {
+      "winner": "1991 british gold britannia 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": null,
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": null,
+        "oldestSaleDate": null,
+        "compCount": null,
+        "noDataAt": "2026-05-10T20:14:32.121Z",
+        "noDataCount": 5,
+        "identifiers": {
+          "is_low_volume_candidate": true,
+          "is_bullion": true,
+          "identifier_reason": "insufficient comps in 7/7 runs (100%); median 0 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "High",
+          "total_runs_seen": 7,
+          "runs_with_insufficient_comps": 7,
+          "median_comps_count": 0,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "1969 south africa 1oz gold krugerrand": {
+      "winner": "1969 gold krugerrand 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": null,
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": null,
+        "oldestSaleDate": null,
+        "compCount": null,
+        "noDataAt": "2026-04-30T17:35:05.727Z",
+        "noDataCount": 5,
+        "identifiers": {
+          "is_low_volume_candidate": true,
+          "is_bullion": true,
+          "identifier_reason": "insufficient comps in 7/7 runs (100%); median 0 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "High",
+          "total_runs_seen": 7,
+          "runs_with_insufficient_comps": 7,
+          "median_comps_count": 0,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "1991 south africa 1oz gold krugerrand": {
+      "winner": "1991 gold krugerrand 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": null,
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": null,
+        "oldestSaleDate": null,
+        "compCount": null,
+        "noDataAt": "2026-04-30T18:34:30.058Z",
+        "noDataCount": 5,
+        "identifiers": {
+          "is_low_volume_candidate": true,
+          "is_bullion": true,
+          "identifier_reason": "insufficient comps in 7/7 runs (100%); median 0 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "High",
+          "total_runs_seen": 7,
+          "runs_with_insufficient_comps": 7,
+          "median_comps_count": 0,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "1999 south africa 1oz gold krugerrand": {
+      "winner": "1999 gold krugerrand 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": null,
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": null,
+        "oldestSaleDate": null,
+        "compCount": null,
+        "noDataAt": "2026-04-30T16:37:12.005Z",
+        "noDataCount": 5,
+        "identifiers": {
+          "is_low_volume_candidate": true,
+          "is_bullion": true,
+          "identifier_reason": "insufficient comps in 7/7 runs (100%); median 0 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "High",
+          "total_runs_seen": 7,
+          "runs_with_insufficient_comps": 7,
+          "median_comps_count": 0,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "1970 south africa 1oz gold krugerrand": {
+      "winner": "1970 gold krugerrand 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": null,
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": null,
+        "oldestSaleDate": null,
+        "compCount": null,
+        "noDataAt": "2026-04-30T14:38:23.248Z",
+        "noDataCount": 4,
+        "identifiers": {
+          "is_low_volume_candidate": true,
+          "is_bullion": true,
+          "identifier_reason": "insufficient comps in 4/4 runs (100%); median 0 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "High",
+          "total_runs_seen": 4,
+          "runs_with_insufficient_comps": 4,
+          "median_comps_count": 0,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2000 great britain 1oz gold britannia": {
+      "winner": "2000 british gold britannia 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": null,
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": null,
+        "oldestSaleDate": null,
+        "compCount": null,
+        "noDataAt": "2026-05-10T20:14:32.121Z",
+        "noDataCount": 5,
+        "identifiers": {
+          "is_low_volume_candidate": true,
+          "is_bullion": true,
+          "identifier_reason": "insufficient comps in 6/7 runs (86%); median 0 comps; bullion detected via classifyComposition; 1 error runs",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "High",
+          "total_runs_seen": 7,
+          "runs_with_insufficient_comps": 6,
+          "median_comps_count": 0,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2019 south africa 1oz gold krugerrand": {
+      "winner": "2019 gold krugerrand 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": null,
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": null,
+        "oldestSaleDate": null,
+        "compCount": null,
+        "noDataAt": "2026-04-30T18:52:13.880Z",
+        "noDataCount": 5,
+        "identifiers": {
+          "is_low_volume_candidate": true,
+          "is_bullion": true,
+          "identifier_reason": "insufficient comps in 8/8 runs (100%); median 0 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "High",
+          "total_runs_seen": 8,
+          "runs_with_insufficient_comps": 8,
+          "median_comps_count": 0,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "1990 south africa 1oz gold krugerrand": {
+      "winner": "1990 gold krugerrand 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": null,
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": null,
+        "oldestSaleDate": null,
+        "compCount": null,
+        "noDataAt": "2026-04-30T15:37:10.072Z",
+        "noDataCount": 5,
+        "identifiers": {
+          "is_low_volume_candidate": true,
+          "is_bullion": true,
+          "identifier_reason": "insufficient comps in 6/6 runs (100%); median 0 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "High",
+          "total_runs_seen": 6,
+          "runs_with_insufficient_comps": 6,
+          "median_comps_count": 0,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "1987 south africa 1oz gold krugerrand": {
+      "winner": "1987 gold krugerrand 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": null,
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": null,
+        "oldestSaleDate": null,
+        "compCount": null,
+        "noDataAt": "2026-04-30T18:34:30.058Z",
+        "noDataCount": 5,
+        "identifiers": {
+          "is_low_volume_candidate": true,
+          "is_bullion": true,
+          "identifier_reason": "insufficient comps in 7/7 runs (100%); median 0 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "High",
+          "total_runs_seen": 7,
+          "runs_with_insufficient_comps": 7,
+          "median_comps_count": 0,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "1988 south africa 1oz gold krugerrand": {
+      "winner": "1988 gold krugerrand 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": null,
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": null,
+        "oldestSaleDate": null,
+        "compCount": null,
+        "noDataAt": "2026-04-30T17:35:05.727Z",
+        "noDataCount": 4,
+        "identifiers": {
+          "is_low_volume_candidate": true,
+          "is_bullion": true,
+          "identifier_reason": "insufficient comps in 4/4 runs (100%); median 0 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "High",
+          "total_runs_seen": 4,
+          "runs_with_insufficient_comps": 4,
+          "median_comps_count": 0,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "1995 south africa 1oz gold krugerrand": {
+      "winner": "1995 gold krugerrand 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": null,
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": null,
+        "oldestSaleDate": null,
+        "compCount": null,
+        "noDataAt": "2026-04-30T16:37:12.005Z",
+        "noDataCount": 5,
+        "identifiers": {
+          "is_low_volume_candidate": true,
+          "is_bullion": true,
+          "identifier_reason": "insufficient comps in 5/5 runs (100%); median 0 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "High",
+          "total_runs_seen": 5,
+          "runs_with_insufficient_comps": 5,
+          "median_comps_count": 0,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "1971 south africa 1oz gold krugerrand": {
+      "winner": "1971 gold krugerrand 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": null,
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": null,
+        "oldestSaleDate": null,
+        "compCount": null,
+        "noDataAt": "2026-05-20T15:53:49.799Z",
+        "noDataCount": 5,
+        "identifiers": {
+          "is_low_volume_candidate": true,
+          "is_bullion": true,
+          "identifier_reason": "insufficient comps in 8/8 runs (100%); median 0 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "High",
+          "total_runs_seen": 8,
+          "runs_with_insufficient_comps": 8,
+          "median_comps_count": 0,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "1992 south africa 1oz gold krugerrand": {
+      "winner": "1992 gold krugerrand 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": null,
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": null,
+        "oldestSaleDate": null,
+        "compCount": null,
+        "noDataAt": "2026-04-30T15:37:10.072Z",
+        "noDataCount": 5,
+        "identifiers": {
+          "is_low_volume_candidate": true,
+          "is_bullion": true,
+          "identifier_reason": "insufficient comps in 5/5 runs (100%); median 0 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "High",
+          "total_runs_seen": 5,
+          "runs_with_insufficient_comps": 5,
+          "median_comps_count": 0,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "1968 south africa 1oz gold krugerrand": {
+      "winner": "1968 gold krugerrand 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": null,
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": null,
+        "oldestSaleDate": null,
+        "compCount": null,
+        "noDataAt": "2026-04-30T18:52:13.880Z",
+        "noDataCount": 5,
+        "identifiers": {
+          "is_low_volume_candidate": true,
+          "is_bullion": true,
+          "identifier_reason": "insufficient comps in 5/5 runs (100%); median 0 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "High",
+          "total_runs_seen": 5,
+          "runs_with_insufficient_comps": 5,
+          "median_comps_count": 0,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "1985 south africa 1oz gold krugerrand": {
+      "winner": "1985 gold krugerrand 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": null,
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": null,
+        "oldestSaleDate": null,
+        "compCount": null,
+        "noDataAt": "2026-04-30T01:17:30.014Z",
+        "noDataCount": 5,
+        "identifiers": {
+          "is_low_volume_candidate": true,
+          "is_bullion": true,
+          "identifier_reason": "insufficient comps in 5/5 runs (100%); median 0 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "High",
+          "total_runs_seen": 5,
+          "runs_with_insufficient_comps": 5,
+          "median_comps_count": 0,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "1997 south africa 1oz gold krugerrand": {
+      "winner": "1997 gold krugerrand 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": null,
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": null,
+        "oldestSaleDate": null,
+        "compCount": null,
+        "noDataAt": "2026-04-29T08:13:24.930Z",
+        "noDataCount": 3,
+        "identifiers": {
+          "is_low_volume_candidate": true,
+          "is_bullion": true,
+          "identifier_reason": "insufficient comps in 3/3 runs (100%); median 0 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "High",
+          "total_runs_seen": 3,
+          "runs_with_insufficient_comps": 3,
+          "median_comps_count": 0,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "1989 south africa 1oz gold krugerrand": {
+      "winner": "1989 gold krugerrand 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": null,
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": null,
+        "oldestSaleDate": null,
+        "compCount": null,
+        "noDataAt": "2026-04-30T18:34:30.058Z",
+        "noDataCount": 5,
+        "identifiers": {
+          "is_low_volume_candidate": true,
+          "is_bullion": true,
+          "identifier_reason": "insufficient comps in 9/9 runs (100%); median 0 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "High",
+          "total_runs_seen": 9,
+          "runs_with_insufficient_comps": 9,
+          "median_comps_count": 0,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "1972 south africa 1oz gold krugerrand": {
+      "winner": "1972 gold krugerrand 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": null,
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": null,
+        "oldestSaleDate": null,
+        "compCount": null,
+        "noDataAt": "2026-04-30T17:35:05.727Z",
+        "noDataCount": 3,
+        "identifiers": {
+          "is_low_volume_candidate": true,
+          "is_bullion": true,
+          "identifier_reason": "insufficient comps in 3/4 runs (75%); median 0 comps; bullion detected via classifyComposition; 1 error runs",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "High",
+          "total_runs_seen": 4,
+          "runs_with_insufficient_comps": 3,
+          "median_comps_count": 0,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "1993 south africa 1oz gold krugerrand": {
+      "winner": "1993 gold krugerrand 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": null,
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": null,
+        "oldestSaleDate": null,
+        "compCount": null,
+        "noDataAt": "2026-04-30T18:34:30.058Z",
+        "noDataCount": 5,
+        "identifiers": {
+          "is_low_volume_candidate": true,
+          "is_bullion": true,
+          "identifier_reason": "insufficient comps in 6/6 runs (100%); median 0 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "High",
+          "total_runs_seen": 6,
+          "runs_with_insufficient_comps": 6,
+          "median_comps_count": 0,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2006 great britain 1oz gold britannia": {
+      "winner": "2006 british gold britannia 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": null,
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": null,
+        "oldestSaleDate": null,
+        "compCount": null,
+        "noDataAt": "2026-05-10T20:14:32.121Z",
+        "noDataCount": 5,
+        "identifiers": {
+          "is_low_volume_candidate": true,
+          "is_bullion": true,
+          "identifier_reason": "insufficient comps in 5/5 runs (100%); median 0 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "High",
+          "total_runs_seen": 5,
+          "runs_with_insufficient_comps": 5,
+          "median_comps_count": 0,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2004 great britain 1oz gold britannia": {
+      "winner": "2004 british gold britannia 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": null,
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": null,
+        "oldestSaleDate": null,
+        "compCount": null,
+        "noDataAt": "2026-05-10T20:14:32.121Z",
+        "noDataCount": 5,
+        "identifiers": {
+          "is_low_volume_candidate": true,
+          "is_bullion": true,
+          "identifier_reason": "insufficient comps in 7/7 runs (100%); median 0 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "High",
+          "total_runs_seen": 7,
+          "runs_with_insufficient_comps": 7,
+          "median_comps_count": 0,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "1994 great britain 1oz gold britannia": {
+      "winner": "1994 british gold britannia 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": null,
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": null,
+        "oldestSaleDate": null,
+        "compCount": null,
+        "noDataAt": "2026-05-10T20:14:32.121Z",
+        "noDataCount": 5,
+        "identifiers": {
+          "is_low_volume_candidate": true,
+          "is_bullion": true,
+          "identifier_reason": "insufficient comps in 6/6 runs (100%); median 0 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "High",
+          "total_runs_seen": 6,
+          "runs_with_insufficient_comps": 6,
+          "median_comps_count": 0,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "1997 great britain 1oz gold britannia": {
+      "winner": "1997 british gold britannia 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": null,
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": null,
+        "oldestSaleDate": null,
+        "compCount": null,
+        "noDataAt": "2026-05-10T20:14:32.121Z",
+        "noDataCount": 5,
+        "identifiers": {
+          "is_low_volume_candidate": true,
+          "is_bullion": true,
+          "identifier_reason": "insufficient comps in 7/8 runs (88%); median 0 comps; bullion detected via classifyComposition; 1 error runs",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "High",
+          "total_runs_seen": 8,
+          "runs_with_insufficient_comps": 7,
+          "median_comps_count": 0,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2005 great britain 1oz gold britannia": {
+      "winner": "2005 british gold britannia 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-05-10T19:45:14.713Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": null,
+        "oldestSaleDate": null,
+        "compCount": null,
+        "noDataAt": "2026-04-30T00:36:20.900Z",
+        "noDataCount": 3,
+        "identifiers": {
+          "is_low_volume_candidate": true,
+          "is_bullion": true,
+          "identifier_reason": "insufficient comps in 4/5 runs (80%); median 0 comps; bullion detected via classifyComposition; 1 error runs",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "High",
+          "total_runs_seen": 5,
+          "runs_with_insufficient_comps": 4,
+          "median_comps_count": 0,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2008 great britain 1oz gold britannia": {
+      "winner": "2008 british gold britannia 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": null,
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": null,
+        "oldestSaleDate": null,
+        "compCount": null,
+        "noDataAt": "2026-05-10T20:14:32.121Z",
+        "noDataCount": 4,
+        "identifiers": {
+          "is_low_volume_candidate": true,
+          "is_bullion": true,
+          "identifier_reason": "insufficient comps in 4/5 runs (80%); median 0 comps; bullion detected via classifyComposition; 1 error runs",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "High",
+          "total_runs_seen": 5,
+          "runs_with_insufficient_comps": 4,
+          "median_comps_count": 0,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "1999 great britain 1oz gold britannia": {
+      "winner": "1999 british gold britannia 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": null,
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": null,
+        "oldestSaleDate": null,
+        "compCount": null,
+        "noDataAt": "2026-05-10T20:14:32.121Z",
+        "noDataCount": 5,
+        "identifiers": {
+          "is_low_volume_candidate": true,
+          "is_bullion": true,
+          "identifier_reason": "insufficient comps in 6/6 runs (100%); median 0 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "High",
+          "total_runs_seen": 6,
+          "runs_with_insufficient_comps": 6,
+          "median_comps_count": 0,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2002 great britain 1oz gold britannia": {
+      "winner": "2002 british gold britannia 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": null,
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": null,
+        "oldestSaleDate": null,
+        "compCount": null,
+        "noDataAt": "2026-05-10T20:14:32.121Z",
+        "noDataCount": 5,
+        "identifiers": {
+          "is_low_volume_candidate": true,
+          "is_bullion": true,
+          "identifier_reason": "insufficient comps in 5/5 runs (100%); median 0 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "High",
+          "total_runs_seen": 5,
+          "runs_with_insufficient_comps": 5,
+          "median_comps_count": 0,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "1996 great britain 1oz gold britannia": {
+      "winner": "1996 british gold britannia 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": null,
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": null,
+        "oldestSaleDate": null,
+        "compCount": null,
+        "noDataAt": "2026-05-10T20:14:32.121Z",
+        "noDataCount": 5,
+        "identifiers": {
+          "is_low_volume_candidate": true,
+          "is_bullion": true,
+          "identifier_reason": "insufficient comps in 6/6 runs (100%); median 0 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "High",
+          "total_runs_seen": 6,
+          "runs_with_insufficient_comps": 6,
+          "median_comps_count": 0,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "1993 great britain 1oz gold britannia": {
+      "winner": "1993 british gold britannia 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": null,
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": null,
+        "oldestSaleDate": null,
+        "compCount": null,
+        "noDataAt": "2026-05-10T20:14:32.121Z",
+        "noDataCount": 5,
+        "identifiers": {
+          "is_low_volume_candidate": true,
+          "is_bullion": true,
+          "identifier_reason": "insufficient comps in 6/6 runs (100%); median 0 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "High",
+          "total_runs_seen": 6,
+          "runs_with_insufficient_comps": 6,
+          "median_comps_count": 0,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2003 great britain 1oz gold britannia": {
+      "winner": "2003 british gold britannia 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-04-26T20:46:23.577Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": null,
+        "oldestSaleDate": null,
+        "compCount": null,
+        "noDataAt": "2026-05-14T14:41:52.245Z",
+        "noDataCount": 1,
+        "identifiers": {
+          "is_low_volume_candidate": true,
+          "is_bullion": true,
+          "identifier_reason": "insufficient comps in 3/3 runs (100%); median 1 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "High",
+          "total_runs_seen": 3,
+          "runs_with_insufficient_comps": 3,
+          "median_comps_count": 1,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2010 great britain 1oz gold britannia": {
+      "winner": "2010 british gold britannia 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-05-13T03:15:58.553Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": null,
+        "oldestSaleDate": null,
+        "compCount": null,
+        "noDataAt": "2026-05-14T14:41:52.245Z",
+        "noDataCount": 1,
+        "identifiers": {
+          "is_low_volume_candidate": true,
+          "is_bullion": true,
+          "identifier_reason": "insufficient comps in 3/3 runs (100%); median 4 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "High",
+          "total_runs_seen": 3,
+          "runs_with_insufficient_comps": 3,
+          "median_comps_count": 4,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2025 great britain 1oz gold britannia": {
+      "winner": "2025 british gold britannia 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-04-26T20:36:03.589Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": null,
+        "oldestSaleDate": null,
+        "compCount": null,
+        "noDataAt": "2026-05-17T02:37:54.017Z",
+        "noDataCount": 2,
+        "identifiers": {
+          "is_low_volume_candidate": true,
+          "is_bullion": true,
+          "identifier_reason": "insufficient comps in 2/4 runs (50%); median 7 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "High",
+          "total_runs_seen": 4,
+          "runs_with_insufficient_comps": 2,
+          "median_comps_count": 7,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "1986 south africa 1oz gold krugerrand": {
+      "winner": "1986 gold krugerrand 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-04-26T18:28:49.456Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": null,
+        "oldestSaleDate": null,
+        "compCount": null,
+        "noDataAt": "2026-05-17T02:37:54.017Z",
+        "noDataCount": 2,
+        "identifiers": {
+          "is_low_volume_candidate": true,
+          "is_bullion": true,
+          "identifier_reason": "insufficient comps in 4/4 runs (100%); median 1 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "High",
+          "total_runs_seen": 4,
+          "runs_with_insufficient_comps": 4,
+          "median_comps_count": 1,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2007 great britain 1oz gold britannia": {
+      "winner": "2007 british gold britannia 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-05-20T02:18:32.840Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": null,
+        "oldestSaleDate": null,
+        "compCount": null,
+        "noDataAt": "2026-05-14T14:41:52.245Z",
+        "noDataCount": 1,
+        "identifiers": {
+          "is_low_volume_candidate": true,
+          "is_bullion": true,
+          "identifier_reason": "insufficient comps in 3/3 runs (100%); median 1 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "High",
+          "total_runs_seen": 3,
+          "runs_with_insufficient_comps": 3,
+          "median_comps_count": 1,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2007 south africa 1oz gold krugerrand": {
+      "winner": "2007 gold krugerrand 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-04-26T18:12:37.651Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": null,
+        "oldestSaleDate": null,
+        "compCount": null,
+        "noDataAt": "2026-05-14T14:41:52.245Z",
+        "noDataCount": 1,
+        "identifiers": {
+          "is_low_volume_candidate": true,
+          "is_bullion": true,
+          "identifier_reason": "insufficient comps in 3/3 runs (100%); median 3 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "High",
+          "total_runs_seen": 3,
+          "runs_with_insufficient_comps": 3,
+          "median_comps_count": 3,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2001 south africa 1oz gold krugerrand": {
+      "winner": "2001 gold krugerrand 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-04-15T23:29:21.797Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": null,
+        "oldestSaleDate": null,
+        "compCount": null,
+        "noDataAt": "2026-05-14T14:41:52.245Z",
+        "noDataCount": 1,
+        "identifiers": {
+          "is_low_volume_candidate": true,
+          "is_bullion": true,
+          "identifier_reason": "insufficient comps in 2/2 runs (100%); median 3 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 2,
+          "runs_with_insufficient_comps": 2,
+          "median_comps_count": 3,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2000 south africa 1oz gold krugerrand": {
+      "winner": "2000 gold krugerrand 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-04-26T18:26:10.522Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": null,
+        "oldestSaleDate": null,
+        "compCount": null,
+        "noDataAt": "2026-05-17T02:37:54.017Z",
+        "noDataCount": 2,
+        "identifiers": {
+          "is_low_volume_candidate": true,
+          "is_bullion": true,
+          "identifier_reason": "insufficient comps in 4/4 runs (100%); median 4 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "High",
+          "total_runs_seen": 4,
+          "runs_with_insufficient_comps": 4,
+          "median_comps_count": 4,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2004 south africa 1oz gold krugerrand": {
+      "winner": "2004 gold krugerrand 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-04-26T18:36:51.522Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": null,
+        "oldestSaleDate": null,
+        "compCount": null,
+        "noDataAt": "2026-05-14T14:41:52.245Z",
+        "noDataCount": 1,
+        "identifiers": {
+          "is_low_volume_candidate": true,
+          "is_bullion": true,
+          "identifier_reason": "insufficient comps in 3/3 runs (100%); median 2 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "High",
+          "total_runs_seen": 3,
+          "runs_with_insufficient_comps": 3,
+          "median_comps_count": 2,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2014 great britain 1oz gold britannia": {
+      "winner": "2014 british gold britannia 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-05-10T20:01:01.959Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": null,
+        "oldestSaleDate": null,
+        "compCount": null,
+        "noDataAt": "2026-05-14T14:41:52.245Z",
+        "noDataCount": 1,
+        "identifiers": {
+          "is_low_volume_candidate": true,
+          "is_bullion": true,
+          "identifier_reason": "insufficient comps in 3/3 runs (100%); median 1 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "High",
+          "total_runs_seen": 3,
+          "runs_with_insufficient_comps": 3,
+          "median_comps_count": 1,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2013 great britain 1oz gold britannia": {
+      "winner": "2013 british gold britannia 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-05-10T19:51:46.204Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": null,
+        "oldestSaleDate": null,
+        "compCount": null,
+        "noDataAt": "2026-05-14T14:41:52.245Z",
+        "noDataCount": 1,
+        "identifiers": {
+          "is_low_volume_candidate": true,
+          "is_bullion": true,
+          "identifier_reason": "insufficient comps in 3/3 runs (100%); median 6 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "High",
+          "total_runs_seen": 3,
+          "runs_with_insufficient_comps": 3,
+          "median_comps_count": 6,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2012 great britain 1oz gold britannia": {
+      "winner": "2012 british gold britannia 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-04-26T20:53:54.336Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": null,
+        "oldestSaleDate": null,
+        "compCount": null,
+        "noDataAt": "2026-05-14T14:41:52.245Z",
+        "noDataCount": 1,
+        "identifiers": {
+          "is_low_volume_candidate": true,
+          "is_bullion": true,
+          "identifier_reason": "insufficient comps in 3/3 runs (100%); median 4 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "High",
+          "total_runs_seen": 3,
+          "runs_with_insufficient_comps": 3,
+          "median_comps_count": 4,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "1990 great britain 1oz gold britannia": {
+      "winner": "1990 british gold britannia 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-05-17T00:42:44.663Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": null,
+        "oldestSaleDate": null,
+        "compCount": null,
+        "noDataAt": "2026-05-20T15:53:49.799Z",
+        "noDataCount": 1
+      }
+    },
+    "1992 great britain 1oz gold britannia": {
+      "winner": "1992 british gold britannia 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-05-17T00:42:44.664Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": null,
+        "oldestSaleDate": null,
+        "compCount": null,
+        "noDataAt": "2026-05-20T15:53:49.799Z",
+        "noDataCount": 1
+      }
+    },
+    "1996 south africa 1oz gold krugerrand": {
+      "winner": "1996 gold krugerrand 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-05-17T00:42:44.668Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": null,
+        "oldestSaleDate": null,
+        "compCount": null,
+        "noDataAt": "2026-05-20T15:53:49.799Z",
+        "noDataCount": 1
+      }
+    },
+    "1998 great britain 1oz gold britannia": {
+      "winner": "1998 british gold britannia 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-05-17T00:42:44.670Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": null,
+        "oldestSaleDate": null,
+        "compCount": null,
+        "noDataAt": "2026-05-20T15:53:49.799Z",
+        "noDataCount": 1
+      }
+    },
+    "2002 south africa 1oz gold krugerrand": {
+      "winner": "2002 gold krugerrand 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-05-17T00:42:44.674Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": null,
+        "oldestSaleDate": null,
+        "compCount": null,
+        "noDataAt": "2026-05-20T15:53:49.799Z",
+        "noDataCount": 1
+      }
+    },
+    "2003 south africa 1oz gold krugerrand": {
+      "winner": "2003 gold krugerrand 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-05-17T00:42:44.675Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": null,
+        "oldestSaleDate": null,
+        "compCount": null,
+        "noDataAt": "2026-05-20T15:53:49.799Z",
+        "noDataCount": 1
+      }
+    },
+    "2006 south africa 1oz gold krugerrand": {
+      "winner": "2006 gold krugerrand 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-05-17T00:42:44.678Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": null,
+        "oldestSaleDate": null,
+        "compCount": null,
+        "noDataAt": "2026-05-20T15:53:49.799Z",
+        "noDataCount": 1
+      }
+    },
+    "2010 south africa 1oz gold krugerrand": {
+      "winner": "2010 gold krugerrand 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-05-17T00:42:44.683Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": null,
+        "oldestSaleDate": null,
+        "compCount": null,
+        "noDataAt": "2026-05-20T15:53:49.799Z",
+        "noDataCount": 1
+      }
+    },
+    "2011 great britain 1oz gold britannia": {
+      "winner": "2011 british gold britannia 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-05-17T00:42:44.684Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": null,
+        "oldestSaleDate": null,
+        "compCount": null,
+        "noDataAt": "2026-05-20T15:53:49.799Z",
+        "noDataCount": 1
+      }
+    },
+    "2016 great britain 1oz gold britannia": {
+      "winner": "2016 british gold britannia 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-05-17T00:42:44.693Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": null,
+        "oldestSaleDate": null,
+        "compCount": null,
+        "noDataAt": "2026-05-20T15:53:49.799Z",
+        "noDataCount": 1,
+        "identifiers": {
+          "is_low_volume_candidate": true,
+          "is_bullion": true,
+          "identifier_reason": "insufficient comps in 2/2 runs (100%); median 4 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 2,
+          "runs_with_insufficient_comps": 2,
+          "median_comps_count": 4,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2016 south africa 1oz gold krugerrand": {
+      "winner": "2016 gold krugerrand 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-05-17T00:42:44.693Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": null,
+        "oldestSaleDate": null,
+        "compCount": null,
+        "noDataAt": "2026-05-20T15:53:49.799Z",
+        "noDataCount": 1
+      }
+    },
+    "2018 great britain 1oz gold britannia": {
+      "winner": "2018 british gold britannia 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-05-17T00:42:44.696Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": null,
+        "oldestSaleDate": null,
+        "compCount": null,
+        "noDataAt": "2026-05-20T15:53:49.799Z",
+        "noDataCount": 1,
+        "identifiers": {
+          "is_low_volume_candidate": false,
+          "is_bullion": true,
+          "identifier_reason": "median 1 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 1,
+          "runs_with_insufficient_comps": 1,
+          "median_comps_count": 1,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2019 great britain 1oz gold britannia": {
+      "winner": "2019 british gold britannia 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-05-17T00:42:44.698Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": null,
+        "oldestSaleDate": null,
+        "compCount": null,
+        "noDataAt": "2026-05-20T15:53:49.799Z",
+        "noDataCount": 1
+      }
+    },
+    "perth lunar 2025 snake silver 1oz": {
+      "winner": "2025 perth lunar snake 1oz silver",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-05-31T21:08:04.478008",
+        "maxPageReached": null,
+        "lastRefreshAt": "2026-05-31T21:08:04.478008",
+        "refreshCount": 0,
+        "newestSaleDate": "2026-03-09",
+        "oldestSaleDate": "2025-12-17",
+        "compCount": null,
+        "identifiers": {
+          "is_low_volume_candidate": false,
+          "is_bullion": true,
+          "identifier_reason": "median 3 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 1,
+          "runs_with_insufficient_comps": 1,
+          "median_comps_count": 3,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "1988 great britain 1oz gold britannia": {
+      "winner": "1988 british gold britannia 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-05-10T19:50:19.171Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": null,
+        "oldestSaleDate": null,
+        "compCount": null,
+        "identifiers": {
+          "is_low_volume_candidate": true,
+          "is_bullion": true,
+          "identifier_reason": "insufficient comps in 2/2 runs (100%); median 3 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 2,
+          "runs_with_insufficient_comps": 2,
+          "median_comps_count": 3,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "1994 south africa 1oz gold krugerrand": {
+      "winner": "1994 gold krugerrand 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-04-26T17:54:25.228Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": null,
+        "oldestSaleDate": null,
+        "compCount": null,
+        "identifiers": {
+          "is_low_volume_candidate": true,
+          "is_bullion": true,
+          "identifier_reason": "insufficient comps in 2/2 runs (100%); median 1 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 2,
+          "runs_with_insufficient_comps": 2,
+          "median_comps_count": 1,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    },
+    "2020 south africa 1oz gold krugerrand": {
+      "winner": "2020 gold krugerrand 1oz",
+      "entry": {
+        "deepAt": null,
+        "page1At": "2026-04-15T23:34:58.864Z",
+        "maxPageReached": null,
+        "lastRefreshAt": null,
+        "refreshCount": 0,
+        "newestSaleDate": null,
+        "oldestSaleDate": null,
+        "compCount": null,
+        "identifiers": {
+          "is_low_volume_candidate": false,
+          "is_bullion": true,
+          "identifier_reason": "median 1 comps; bullion detected via classifyComposition",
+          "identifier_source": "historical_evidence_index",
+          "identifier_confidence": "Medium",
+          "total_runs_seen": 1,
+          "runs_with_insufficient_comps": 1,
+          "median_comps_count": 1,
+          "bullion_signal_hits": 1,
+          "last_updated": "2026-05-31T01:50:13.754Z"
+        }
+      }
+    }
+  }
+}
