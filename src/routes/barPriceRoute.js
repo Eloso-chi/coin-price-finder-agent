@@ -10,6 +10,7 @@ const { computeValuation } = require('../services/valuationService');
 const { getMetalsSpotPrice } = require('../services/metalsSpotPrice');
 const { zodiacForYear, perthLunarSeries } = require('../data/constants');
 const { BAR_SERIES, detectBarSeries } = require('../data/barSeries');
+const { redactCompsForPublic } = require('../utils/redactForPublic');
 
 // ── GET /api/bar-options — return available brands + series for dropdowns ──
 router.get('/options', (_req, res) => {
@@ -173,7 +174,7 @@ router.post('/', async (req, res) => {
     };
     const pureOzt = sizeMap[size] || sizeMap[normalizeSize(size)] || 1;
 
-    return res.json({
+    return res.json(redactCompsForPublic({
       query: { metal, size, brand: brand || null, condition: condition || null, askingPrice: askingPrice || null, options: opts },
       bar: {
         metal,
@@ -194,7 +195,7 @@ router.post('/', async (req, res) => {
       },
       valuation,
       decisions,
-    });
+    }, req.isAdmin === true));
   } catch (err) {
     console.error('[/api/bar-price] Unhandled error:', err.message);
     return res.status(500).json({

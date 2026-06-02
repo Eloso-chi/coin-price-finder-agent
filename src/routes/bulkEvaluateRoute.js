@@ -10,6 +10,7 @@ const router  = express.Router();
 
 const { runBulkEvaluation, MAX_COINS } = require('../services/bulkEvaluateService');
 const { mapExcelToBackup, parseCoinString } = require('../utils/excelMapper');
+const { redactCompsForPublic } = require('../utils/redactForPublic');
 
 // ── Multer for Excel upload ──────────────────────────────────
 const upload = multer({
@@ -141,12 +142,17 @@ router.post('/', upload.single('file'), async (req, res) => {
       coins,
       // #232 -- captured at request time so background processing uses
       // the caller's admin context (req is gone by then).
-      audience: req.isAdmin ? 'admin' : 'public',
+      audience: req.isAdmin === true ? 'admin' : 'public',
       status: 'pending',     // pending → running → complete | error
       results: [],
       lotSummary: null,
       error: null,
-      listeners: new Set(),   // SSE response objects
+      // Listeners are tracked as a Map<res, { isAdmin }> so the SSE fanout
+      // can redact per-subscriber. We must NOT bake the job creator's
+      // admin context into stored results because /:jobId/stream is open
+      // -- an anonymous subscriber who knows the jobId would otherwise
+      // receive the unredacted form of an admin-created job (#243).
+      listeners: new Map(),
     };
     _pruneJobs();
     _jobs.set(jobId, job);
@@ -181,9 +187,14 @@ router.get('/:jobId/stream', (req, res) => {
   });
   res.flushHeaders();
 
-  // Replay already-completed results
+  // Replay already-completed results -- redacted per THIS subscriber's
+  // admin context, not the job creator's (#243).
+  const isAdmin = req.isAdmin === true;
   for (let i = 0; i < job.results.length; i++) {
-    _sseWrite(res, 'coin', { index: i, total: job.coins.length, ...job.results[i] });
+    _sseWrite(res, 'coin', redactCompsForPublic(
+      { index: i, total: job.coins.length, ...job.results[i] },
+      isAdmin,
+    ));
   }
   if (job.status === 'complete') {
     _sseWrite(res, 'summary', job.lotSummary);
@@ -197,8 +208,8 @@ router.get('/:jobId/stream', (req, res) => {
     return;
   }
 
-  // Register for live updates
-  job.listeners.add(res);
+  // Register for live updates (carry this subscriber's admin context).
+  job.listeners.set(res, { isAdmin });
   req.on('close', () => job.listeners.delete(res));
 });
 
@@ -210,7 +221,7 @@ router.get('/:jobId', (req, res) => {
   if (!job) {
     return res.status(404).json({ error: 'Job not found or expired.' });
   }
-  return res.json({
+  return res.json(redactCompsForPublic({
     jobId:      job.id,
     status:     job.status,
     coinCount:  job.coins.length,
@@ -218,7 +229,7 @@ router.get('/:jobId', (req, res) => {
     results:    job.results,
     lotSummary: job.lotSummary,
     error:      job.error,
-  });
+  }, req.isAdmin === true));
 });
 
 // ── Internal helpers ─────────────────────────────────────────
@@ -233,10 +244,15 @@ async function _runJob(job) {
   job.status = 'running';
   try {
     const { results, lotSummary } = await runBulkEvaluation(job.coins, (result, index, total) => {
+      // Store the RAW result -- per-subscriber redaction happens at fanout
+      // time. Pre-redacting here would force every subscriber to see the
+      // job creator's redaction level (#243).
       job.results[index] = result;
-      // Broadcast to all SSE listeners
-      for (const res of job.listeners) {
-        _sseWrite(res, 'coin', { index, total, ...result });
+      for (const [res, meta] of job.listeners) {
+        _sseWrite(res, 'coin', redactCompsForPublic(
+          { index, total, ...result },
+          meta.isAdmin,
+        ));
       }
     }, { audience: job.audience });
 
@@ -245,7 +261,7 @@ async function _runJob(job) {
     job.status = 'complete';
 
     // Broadcast summary + done
-    for (const res of job.listeners) {
+    for (const [res] of job.listeners) {
       _sseWrite(res, 'summary', lotSummary);
       _sseWrite(res, 'done', { status: 'complete' });
       res.end();
@@ -254,7 +270,7 @@ async function _runJob(job) {
   } catch (err) {
     job.status = 'error';
     job.error = err.message;
-    for (const res of job.listeners) {
+    for (const [res] of job.listeners) {
       _sseWrite(res, 'error', { message: err.message });
       res.end();
     }

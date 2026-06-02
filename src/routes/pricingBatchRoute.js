@@ -16,6 +16,7 @@ const { getCoinMetalProfile } = require('../utils/coinMetalProfile');
 const { lookupKeyDate } = require('../data/keyDates');
 const { zodiacForYear, perthLunarSeries, getRollQuantity, BULLION_1OZ_DEFAULT, ALLOWED_LABELS } = require('../data/constants');
 const { detectDenomination } = require('../utils/filters');
+const { redactCompsForPublic } = require('../utils/redactForPublic');
 
 const MAX_ITEMS = 25;
 
@@ -31,7 +32,7 @@ router.post('/', async (req, res) => {
 
     const audience = req.isAdmin ? 'admin' : 'public';
     const results = await Promise.all(items.map(item => _priceOne(item, { audience })));
-    return res.json({ ok: true, results });
+    return res.json(redactCompsForPublic({ ok: true, results }, req.isAdmin));
   } catch (err) {
     console.error('pricing-batch error:', err.message);
     return res.status(500).json({ error: 'Internal server error' });
