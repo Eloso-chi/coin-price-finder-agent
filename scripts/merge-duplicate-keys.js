@@ -23,12 +23,24 @@
  *   node scripts/merge-duplicate-keys.js --apply --migrate-cosmos
  *                                                            # ALSO mutate Cosmos
  *
+ *   # #246 follow-up: Cosmos-only migration AFTER meta was already merged in a
+ *   # prior run. Reads the loser->winner map from a previously written orphan
+ *   # archive instead of recomputing the plan from terapeak-meta.json (which
+ *   # would now correctly find 0 duplicates).
+ *   node scripts/merge-duplicate-keys.js --from-archive=data/archive/terapeak-meta-orphans-<ISO>.json
+ *                                                            # dry-run summary
+ *   node scripts/merge-duplicate-keys.js --from-archive=<path> --apply --migrate-cosmos
+ *                                                            # apply Cosmos migration only
+ *
  * SAFETY:
  *  - Dry-run is the default. --apply is required to mutate anything.
  *  - --apply ALWAYS writes data/archive/terapeak-meta-orphans-<ISO>.json
  *    with the full deleted entries before deletion (recoverable).
  *  - --migrate-cosmos requires --apply and additionally requires Cosmos
  *    credentials in the environment.
+ *  - --from-archive skips meta mutation entirely (assumes meta is already
+ *    deduped) and only operates on Cosmos. --apply alone with --from-archive
+ *    is a no-op; combine with --migrate-cosmos to actually do work.
  *  - When --migrate-cosmos and the local cache contains comps for both
  *    winner and loser, they are merged and dedup'd (itemId, then
  *    title+price+date -- same logic as importComps).
@@ -54,6 +66,30 @@ const APPLY = argv.includes('--apply');
 const MIGRATE_COSMOS = argv.includes('--migrate-cosmos');
 const VERBOSE = argv.includes('--verbose');
 const QUIET = argv.includes('--quiet');
+
+// --from-archive=<path> -- Cosmos-only follow-up mode
+function _flagValue(name) {
+  const prefix = name + '=';
+  for (const a of argv) {
+    if (a.startsWith(prefix)) return a.slice(prefix.length);
+  }
+  // also support `--name value` form
+  const idx = argv.indexOf(name);
+  if (idx !== -1 && idx + 1 < argv.length && !argv[idx + 1].startsWith('--')) {
+    return argv[idx + 1];
+  }
+  return null;
+}
+const FROM_ARCHIVE = _flagValue('--from-archive');
+
+// Item 2: a bare --from-archive (no value, or followed by another --flag) is
+// almost certainly a typo. Without this guard we silently fall through to the
+// legacy meta path, which now (post-PR-#95) prints 'No duplicate groups found'
+// and exits 0 -- the user could conclude Cosmos is already clean.
+if (argv.includes('--from-archive') && !FROM_ARCHIVE) {
+  console.error('[merge] --from-archive requires a value: --from-archive=<path> or --from-archive <path>');
+  process.exit(2);
+}
 
 if (MIGRATE_COSMOS && !APPLY) {
   console.error('[merge] --migrate-cosmos requires --apply. Aborting.');
@@ -233,6 +269,62 @@ function printPlan(merges, meta) {
   console.log('');
 }
 
+// ── Archive-driven plan (Cosmos-only follow-up) ──────────────────────
+// Reads a previously written orphan archive (the loser->winner map produced
+// by an earlier --apply run) and reconstructs the `merges` array shape that
+// applyCosmosMigration() consumes. Used when meta has already been deduped
+// and only Cosmos still needs cleanup.
+function buildPlanFromArchive(archivePath) {
+  if (!fs.existsSync(archivePath)) {
+    console.error(`[merge] --from-archive path does not exist: ${archivePath}`);
+    process.exit(2);
+  }
+  let archive;
+  try {
+    archive = JSON.parse(fs.readFileSync(archivePath, 'utf8'));
+  } catch (err) {
+    console.error(`[merge] --from-archive: failed to parse ${archivePath}: ${err.message}`);
+    process.exit(2);
+  }
+  if (!archive || typeof archive.entries !== 'object' || archive.entries === null) {
+    console.error('[merge] --from-archive: archive has no `entries` object. Expected schema { entries: { <loserKey>: { winner, entry } } }');
+    process.exit(2);
+  }
+
+  // Group losers by their winner key so each `merges[i]` has all losers for one winner.
+  const byWinner = new Map();
+  for (const [loserKey, info] of Object.entries(archive.entries)) {
+    if (!info || typeof info.winner !== 'string') continue;
+    if (!byWinner.has(info.winner)) byWinner.set(info.winner, []);
+    const entry = info.entry || {};
+    byWinner.get(info.winner).push({
+      key: loserKey,
+      compCount: entry.compCount || 0,
+      page1At: entry.page1At || null,
+      deepAt: entry.deepAt || null,
+      lastRefreshAt: entry.lastRefreshAt || null,
+    });
+  }
+
+  const merges = [];
+  for (const [winner, losers] of byWinner.entries()) {
+    merges.push({
+      canonical: deepCanonical(winner),
+      winner,
+      winnerMatchesNormalizer: normalizeSearchKey(winner) === winner,
+      losers,
+      fromArchive: true,
+    });
+  }
+  // Sort largest-data-movement first (matches buildPlan ordering)
+  merges.sort((a, b) => {
+    const aMov = a.losers.reduce((s, l) => s + l.compCount, 0);
+    const bMov = b.losers.reduce((s, l) => s + l.compCount, 0);
+    return bMov - aMov;
+  });
+  return merges;
+}
+
 // ── Mutation ────────────────────────────────────────────────────────-
 function applyMetaMerge(meta, merges) {
   const archive = {
@@ -300,26 +392,35 @@ async function applyCosmosMigration(merges) {
 
   const result = { upserts: 0, deletes: 0, missing: 0, errors: 0, totalCompsAdded: 0 };
 
+  const PROGRESS_EVERY = 10;
+  let groupIdx = 0;
   for (const m of merges) {
+    groupIdx++;
+    if (VERBOSE || groupIdx === 1 || groupIdx === merges.length || groupIdx % PROGRESS_EVERY === 0) {
+      console.log(`  [cosmos] group ${groupIdx}/${merges.length}  winner="${m.winner}"  losers=${m.losers.length}`);
+    }
     const winnerId = cosmosDocId(m.winner);
+    // terapeak-sold partitionKey path is /searchTerm (the raw, un-sanitized
+    // key), NOT the sanitized doc id. @azure/cosmos .read() does NOT throw
+    // on 404 -- it returns { resource: undefined, statusCode: 404 }, so we
+    // must check !resource rather than catch.
     let winnerDoc = null;
     try {
-      const { resource } = await container.item(winnerId, winnerId).read();
-      winnerDoc = resource;
+      const { resource } = await container.item(winnerId, m.winner).read();
+      winnerDoc = resource || null;
     } catch (err) {
-      if (err.code === 404 || err.statusCode === 404) {
-        // Winner has no Cosmos doc yet -- build a skeleton from local store
-        winnerDoc = {
-          id: winnerId,
-          searchTerm: m.winner,
-          comps: (localStore[m.winner] && localStore[m.winner].comps) || [],
-          aggregationMeta: (localStore[m.winner] && localStore[m.winner].aggregationMeta) || {},
-        };
-      } else {
-        console.error(`[merge] read winner ${winnerId} failed:`, err.message);
-        result.errors++;
-        continue;
-      }
+      console.error(`[merge] read winner ${winnerId} failed:`, err.message);
+      result.errors++;
+      continue;
+    }
+    if (!winnerDoc) {
+      // Winner has no Cosmos doc yet -- build a skeleton from local store
+      winnerDoc = {
+        id: winnerId,
+        searchTerm: m.winner,
+        comps: (localStore[m.winner] && localStore[m.winner].comps) || [],
+        aggregationMeta: (localStore[m.winner] && localStore[m.winner].aggregationMeta) || {},
+      };
     }
 
     // Seed winner comps from local store if Cosmos doc was thin
@@ -332,19 +433,18 @@ async function applyCosmosMigration(merges) {
 
     for (const l of m.losers) {
       const loserId = cosmosDocId(l.key);
+      // Same partition-key + no-throw-on-404 caveat as winner read above.
       let loserDoc = null;
       try {
-        const { resource } = await container.item(loserId, loserId).read();
-        loserDoc = resource;
+        const { resource } = await container.item(loserId, l.key).read();
+        loserDoc = resource || null;
       } catch (err) {
-        if (err.code === 404 || err.statusCode === 404) {
-          result.missing++;
-          loserDoc = null;
-        } else {
-          console.error(`[merge] read loser ${loserId} failed:`, err.message);
-          result.errors++;
-          continue;
-        }
+        console.error(`[merge] read loser ${loserId} failed:`, err.message);
+        result.errors++;
+        continue;
+      }
+      if (!loserDoc) {
+        result.missing++;
       }
 
       // Source-of-truth comps for loser: Cosmos doc + local store
@@ -375,7 +475,7 @@ async function applyCosmosMigration(merges) {
       // Delete loser doc
       if (loserDoc) {
         try {
-          await container.item(loserId, loserId).delete();
+          await container.item(loserId, l.key).delete();
           result.deletes++;
           if (VERBOSE) console.log(`    [cosmos] deleted ${loserId} (${loserComps.length} comps merged into winner)`);
         } catch (err) {
@@ -403,6 +503,12 @@ async function applyCosmosMigration(merges) {
 
 // ── Main ────────────────────────────────────────────────────────────-
 async function main() {
+  // --from-archive: Cosmos-only follow-up mode.
+  if (FROM_ARCHIVE) {
+    await runFromArchive(FROM_ARCHIVE);
+    return;
+  }
+
   if (!fs.existsSync(META_PATH)) {
     console.error(`[merge] meta file not found: ${META_PATH}`);
     process.exit(1);
@@ -459,6 +565,111 @@ async function main() {
     console.log('  The next hydrateMetaFromCosmos() will re-introduce the loser keys at startup.');
     console.log('  Run again with --apply --migrate-cosmos to make this durable.');
   }
+  console.log('================================================================');
+}
+
+// ── --from-archive runner ────────────────────────────────────────────
+// Item 1: pre-apply Cosmos scope probe. Issues a read per winner/loser id and
+// returns presence counts so the dry-run output can warn the user that the
+// migration will CREATE new winner docs (not just delete losers). Returns null
+// when Cosmos is not configured (so dry-runs still work offline).
+async function probeCosmosScope(merges) {
+  const cosmos = require('../src/utils/cosmosClient');
+  if (!cosmos.isEnabled()) return null;
+  const container = cosmos.container('terapeak-sold');
+  const out = { winnersPresent: 0, winnersAbsent: 0, losersPresent: 0, losersAbsent: 0 };
+  async function exists(id, partitionKey) {
+    // NOTE: @azure/cosmos .read() does NOT throw on 404 -- it returns
+    // { resource: undefined, statusCode: 404 }. Must check resource, not catch.
+    // Container 'terapeak-sold' partitionKey is /searchTerm (the original
+    // un-sanitized key), NOT the sanitized doc id.
+    const { resource } = await container.item(id, partitionKey).read();
+    return !!resource;
+  }
+  for (const m of merges) {
+    if (await exists(cosmosDocId(m.winner), m.winner)) out.winnersPresent++;
+    else out.winnersAbsent++;
+    for (const l of m.losers) {
+      if (await exists(cosmosDocId(l.key), l.key)) out.losersPresent++;
+      else out.losersAbsent++;
+    }
+  }
+  return out;
+}
+
+async function runFromArchive(archivePath) {
+  const merges = buildPlanFromArchive(archivePath);
+
+  const totalLosers = merges.reduce((s, m) => s + m.losers.length, 0);
+  const totalCompsInArchive = merges.reduce(
+    (s, m) => s + m.losers.reduce((s2, l) => s2 + l.compCount, 0),
+    0,
+  );
+
+  console.log('');
+  console.log('================================================================');
+  console.log(`  #246 -- Cosmos-only follow-up ${APPLY ? '[APPLY]' : '[DRY-RUN]'}`);
+  console.log('================================================================');
+  console.log(`  Source archive:                 ${path.relative(process.cwd(), archivePath)}`);
+  console.log(`  Winner groups in archive:       ${merges.length}`);
+  console.log(`  Loser keys to migrate:          ${totalLosers}`);
+  console.log(`  Comps recorded in archive:      ${totalCompsInArchive}`);
+  console.log(`  Cosmos migration:               ${MIGRATE_COSMOS ? 'YES' : 'no (--migrate-cosmos to enable)'}`);
+  console.log('');
+
+  // Item 1: when Cosmos is configured, probe winner-doc presence so the user
+  // sees the real scope BEFORE authorizing --apply --migrate-cosmos:
+  //   - losers actually in Cosmos (will be deleted)
+  //   - winners NOT in Cosmos today (will be CREATED as new docs)
+  // Skipped silently when Cosmos creds are absent (e.g., local dry-run, tests).
+  const cosmosProbe = await probeCosmosScope(merges);
+  if (cosmosProbe) {
+    console.log(`  Cosmos pre-flight (live container):`);
+    console.log(`    Losers present in Cosmos:     ${cosmosProbe.losersPresent}  (will be deleted)`);
+    console.log(`    Losers absent from Cosmos:    ${cosmosProbe.losersAbsent}  (no-op for that loser)`);
+    console.log(`    Winners present in Cosmos:    ${cosmosProbe.winnersPresent}  (will be upserted)`);
+    console.log(`    Winners absent from Cosmos:   ${cosmosProbe.winnersAbsent}  (WILL BE CREATED as new docs)`);
+    console.log('');
+  } else {
+    console.log('  (Cosmos pre-flight skipped: COSMOS_ENDPOINT/COSMOS_KEY not set)');
+    console.log('');
+  }
+
+  if (VERBOSE) {
+    for (const m of merges) {
+      console.log(`  WINNER  "${m.winner}"`);
+      for (const l of m.losers) {
+        console.log(`    loser [${String(l.compCount).padStart(4)}c]  "${l.key}"`);
+      }
+    }
+    console.log('');
+  } else {
+    console.log(`  (re-run with --verbose to list all ${merges.length} groups)`);
+    console.log('');
+  }
+
+  if (!APPLY) {
+    console.log('  (dry-run -- no changes written. Re-run with --apply --migrate-cosmos to mutate Cosmos.)');
+    console.log('================================================================');
+    return;
+  }
+
+  if (!MIGRATE_COSMOS) {
+    console.log('  NOTE: --apply was passed but --migrate-cosmos was not.');
+    console.log('  --from-archive only operates on Cosmos; meta is assumed already deduped.');
+    console.log('  Nothing to do. Re-run with --migrate-cosmos to actually mutate Cosmos.');
+    console.log('================================================================');
+    return;
+  }
+
+  console.log('  Starting Cosmos migration...');
+  const cosmosResult = await applyCosmosMigration(merges);
+  console.log('');
+  console.log(`  [cosmos] winner upserts:   ${cosmosResult.upserts}`);
+  console.log(`  [cosmos] loser deletes:    ${cosmosResult.deletes}`);
+  console.log(`  [cosmos] losers missing:   ${cosmosResult.missing}  (no doc to delete)`);
+  console.log(`  [cosmos] comps added:      ${cosmosResult.totalCompsAdded}`);
+  console.log(`  [cosmos] errors:           ${cosmosResult.errors}`);
   console.log('================================================================');
 }
 

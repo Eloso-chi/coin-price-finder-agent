@@ -111,3 +111,176 @@ describe('merge-duplicate-keys.js -- dry-run end-to-end against the real meta fi
     }
   }, 30000);
 });
+
+describe('merge-duplicate-keys.js -- --from-archive (Cosmos-only follow-up)', () => {
+  const repoRoot = path.join(__dirname, '..');
+
+  test('script source declares --from-archive flag and buildPlanFromArchive', () => {
+    const src = fs.readFileSync(SCRIPT_PATH, 'utf8');
+    expect(src).toMatch(/--from-archive/);
+    expect(src).toMatch(/function buildPlanFromArchive/);
+    expect(src).toMatch(/async function runFromArchive/);
+  });
+
+  test('--from-archive with non-existent path exits 2', () => {
+    const res = childProcess.spawnSync(
+      'node',
+      [SCRIPT_PATH, '--from-archive=/tmp/this-file-does-not-exist-xyz.json'],
+      { encoding: 'utf8', cwd: repoRoot },
+    );
+    expect(res.status).toBe(2);
+    expect(res.stderr).toMatch(/--from-archive path does not exist/);
+  });
+
+  test('--from-archive with malformed archive (no entries) exits 2', () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'mergedup-arch-'));
+    const bad = path.join(tmp, 'bad.json');
+    fs.writeFileSync(bad, JSON.stringify({ archivedAt: 'x', reason: 'y' }));
+    const res = childProcess.spawnSync(
+      'node',
+      [SCRIPT_PATH, `--from-archive=${bad}`],
+      { encoding: 'utf8', cwd: repoRoot },
+    );
+    expect(res.status).toBe(2);
+    expect(res.stderr).toMatch(/archive has no `entries` object/);
+    fs.rmSync(tmp, { recursive: true });
+  });
+
+  test('--from-archive dry-run prints summary, mutates nothing, exits 0', () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'mergedup-arch-'));
+    const archivePath = path.join(tmp, 'orphans.json');
+    fs.writeFileSync(archivePath, JSON.stringify({
+      archivedAt: '2026-06-02T00:00:00.000Z',
+      reason: 'test',
+      schemaVersion: 1,
+      entries: {
+        'loser key one': {
+          winner: 'winner alpha',
+          entry: { compCount: 42, page1At: '2026-05-01T00:00:00.000Z' },
+        },
+        'loser key two': {
+          winner: 'winner alpha',
+          entry: { compCount: 17 },
+        },
+        'loser key three': {
+          winner: 'winner beta',
+          entry: { compCount: 5 },
+        },
+      },
+    }));
+
+    const res = childProcess.spawnSync(
+      'node',
+      [SCRIPT_PATH, `--from-archive=${archivePath}`],
+      { encoding: 'utf8', cwd: repoRoot },
+    );
+    expect(res.status).toBe(0);
+    expect(res.stdout).toMatch(/Cosmos-only follow-up \[DRY-RUN\]/);
+    expect(res.stdout).toMatch(/Winner groups in archive:\s+2/);
+    expect(res.stdout).toMatch(/Loser keys to migrate:\s+3/);
+    expect(res.stdout).toMatch(/Comps recorded in archive:\s+64/);
+    fs.rmSync(tmp, { recursive: true });
+  });
+
+  test('--from-archive --apply WITHOUT --migrate-cosmos is a documented no-op (exit 0)', () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'mergedup-arch-'));
+    const archivePath = path.join(tmp, 'orphans.json');
+    fs.writeFileSync(archivePath, JSON.stringify({
+      entries: { 'l1': { winner: 'w1', entry: { compCount: 1 } } },
+    }));
+    const res = childProcess.spawnSync(
+      'node',
+      [SCRIPT_PATH, `--from-archive=${archivePath}`, '--apply'],
+      { encoding: 'utf8', cwd: repoRoot },
+    );
+    expect(res.status).toBe(0);
+    expect(res.stdout).toMatch(/--from-archive only operates on Cosmos/);
+    fs.rmSync(tmp, { recursive: true });
+  });
+
+  test('--from-archive --apply --migrate-cosmos without Cosmos config exits 3', () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'mergedup-arch-'));
+    const archivePath = path.join(tmp, 'orphans.json');
+    fs.writeFileSync(archivePath, JSON.stringify({
+      entries: { 'l1': { winner: 'w1', entry: { compCount: 1 } } },
+    }));
+    const env = { ...process.env };
+    delete env.COSMOS_ENDPOINT;
+    delete env.COSMOS_KEY;
+    const res = childProcess.spawnSync(
+      'node',
+      [SCRIPT_PATH, `--from-archive=${archivePath}`, '--apply', '--migrate-cosmos'],
+      { encoding: 'utf8', cwd: repoRoot, env },
+    );
+    expect(res.status).toBe(3);
+    expect(res.stderr).toMatch(/Cosmos is not configured/);
+    fs.rmSync(tmp, { recursive: true });
+  });
+
+  test('--from-archive groups multiple losers under the same winner', () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'mergedup-arch-'));
+    const archivePath = path.join(tmp, 'orphans.json');
+    fs.writeFileSync(archivePath, JSON.stringify({
+      entries: {
+        'a': { winner: 'X', entry: { compCount: 10 } },
+        'b': { winner: 'X', entry: { compCount: 20 } },
+        'c': { winner: 'X', entry: { compCount: 30 } },
+        'd': { winner: 'Y', entry: { compCount: 5 } },
+      },
+    }));
+    const res = childProcess.spawnSync(
+      'node',
+      [SCRIPT_PATH, `--from-archive=${archivePath}`, '--verbose'],
+      { encoding: 'utf8', cwd: repoRoot },
+    );
+    expect(res.status).toBe(0);
+    // Winner X should have 3 losers grouped underneath it (one WINNER line, three loser lines for X)
+    expect(res.stdout).toMatch(/WINNER\s+"X"[\s\S]*loser \[\s*\d+c\]\s+"a"[\s\S]*loser \[\s*\d+c\]\s+"b"[\s\S]*loser \[\s*\d+c\]\s+"c"/);
+    fs.rmSync(tmp, { recursive: true });
+  });
+
+  test('bare --from-archive (no value) exits 2 with a clear error', () => {
+    const res = childProcess.spawnSync(
+      'node',
+      [SCRIPT_PATH, '--from-archive', '--apply', '--migrate-cosmos'],
+      { encoding: 'utf8', cwd: repoRoot },
+    );
+    expect(res.status).toBe(2);
+    expect(res.stderr).toMatch(/--from-archive requires a value/);
+  });
+});
+
+describe('merge-duplicate-keys.js -- Cosmos call-signature invariants (regression for S1 partition-key bug)', () => {
+  const src = fs.readFileSync(SCRIPT_PATH, 'utf8');
+  // Isolate the applyCosmosMigration function body so we don't accidentally
+  // match the new probeCosmosScope helper or other functions.
+  const fnStart = src.indexOf('async function applyCosmosMigration');
+  const fnEnd = src.indexOf('\nasync function ', fnStart + 1);
+  const fnBody = src.slice(fnStart, fnEnd > -1 ? fnEnd : undefined);
+
+  test('reads winner with raw key as partition key, NOT the sanitized id', () => {
+    // GOOD: container.item(winnerId, m.winner).read()
+    // BAD:  container.item(winnerId, winnerId).read()  <-- S1 bug
+    expect(fnBody).toMatch(/container\.item\(winnerId,\s*m\.winner\)\.read\(\)/);
+    expect(fnBody).not.toMatch(/container\.item\(winnerId,\s*winnerId\)/);
+  });
+
+  test('reads loser with raw key as partition key, NOT the sanitized id', () => {
+    expect(fnBody).toMatch(/container\.item\(loserId,\s*l\.key\)\.read\(\)/);
+    expect(fnBody).not.toMatch(/container\.item\(loserId,\s*loserId\)/);
+  });
+
+  test('deletes loser with raw key as partition key', () => {
+    expect(fnBody).toMatch(/container\.item\(loserId,\s*l\.key\)\.delete\(\)/);
+  });
+
+  test('treats absent doc as !resource (404 does not throw in @azure/cosmos)', () => {
+    // The fix replaces the dead `if (err.code === 404)` branch with a
+    // !resource / !winnerDoc / !loserDoc check after the read.
+    expect(fnBody).toMatch(/!\s*winnerDoc/);
+    expect(fnBody).toMatch(/!\s*loserDoc/);
+    // The dead 404 catch must be gone (it never fired in practice).
+    expect(fnBody).not.toMatch(/err\.code\s*===\s*404/);
+    expect(fnBody).not.toMatch(/err\.statusCode\s*===\s*404/);
+  });
+});
