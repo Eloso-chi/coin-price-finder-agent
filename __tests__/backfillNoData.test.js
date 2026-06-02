@@ -137,4 +137,30 @@ describe('backfill-no-data buildPlan against live store', () => {
     // Already at 4, new max(4,1)=4, lastHitMs=0 < existing -> no change
     expect(plan[0].action).toBe('skip');
   });
+
+  test('treats sidecar aggregationMeta.compCount as evidence of data even if comps.length is 0', () => {
+    // Regression: in slim deployments (codespaces hydrating only the sidecar,
+    // not Cosmos), comps.length is 0 for every entry while the stored
+    // aggregationMeta.compCount marker still reflects the true historical
+    // depth. buildPlan must respect that marker and skip the stamp.
+    const backfill = require('../scripts/backfill-no-data');
+    const SLIM_TERM = '__test_backfill_slim_' + Date.now();
+    const SLIM_KEY = terapeakService.normalizeSearchKey(SLIM_TERM);
+    // Stamp a sidecar-style entry with no comps but with a compCount marker.
+    terapeakService.updateDatasetMeta(SLIM_TERM, {
+      page1At: '2026-05-01T00:00:00.000Z',
+      compCount: 42,
+    });
+    try {
+      const aggregated = [
+        { normalizedKey: SLIM_KEY,
+          searchTerm: SLIM_TERM, hitCount: 2, lastHitMs: Date.now(), logs: new Set(['a.log']) },
+      ];
+      const plan = backfill.buildPlan(aggregated);
+      expect(plan[0].action).toBe('skip');
+      expect(plan[0].reason).toMatch(/has comps/);
+    } finally {
+      terapeakService.deleteDataset(SLIM_KEY);
+    }
+  });
 });

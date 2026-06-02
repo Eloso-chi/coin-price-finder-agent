@@ -28,6 +28,13 @@ const fs = require('fs');
 const path = require('path');
 const terapeakService = require('../src/services/terapeakService');
 
+// Hydrate the in-memory _store from the git-tracked sidecar BEFORE we touch
+// listDatasets / updateDatasetMeta. Without this, the store is loaded from
+// cache/terapeak_sold.json only, which is missing the evidence-only orphans
+// (entries with just an `identifiers` block, no comps). saveMetaSidecar()
+// would then write a truncated sidecar, deleting ~400 valid orphan entries.
+terapeakService.loadMetaSidecar();
+
 const CACHE_DIR = path.join(__dirname, '..', 'cache');
 const REPORT_PATH = path.join(CACHE_DIR, 'backfill-no-data-report.json');
 const NO_DATA_CAP = 5; // never stamp more than 5 -- enough to trigger dormancy with margin
@@ -108,7 +115,13 @@ function buildPlan(aggregated) {
     const prevNoDataCount = existingEntry?.aggregationMeta?.noDataCount || 0;
     const prevNoDataAtMs = existingEntry?.aggregationMeta?.noDataAt
       ? new Date(existingEntry.aggregationMeta.noDataAt).getTime() : 0;
-    const prevCompCount = existingEntry?.compCount || 0;
+    // Use the sidecar's stored compCount marker rather than the in-memory
+    // comps.length: in slim deployments (e.g. codespaces hydrating only the
+    // sidecar, not Cosmos), comps.length is 0 for every entry while the
+    // stored compCount marker still reflects the true historical depth.
+    const sidecarCompCount = existingEntry?.aggregationMeta?.compCount;
+    const liveCompCount = existingEntry?.compCount || 0;
+    const prevCompCount = Math.max(liveCompCount, sidecarCompCount || 0);
 
     // Skip datasets that already have comps -- their last-known state is data, not no-data.
     // Treat as a successful run that reset noDataCount.
