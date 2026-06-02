@@ -526,8 +526,8 @@ Reports land in `reports/mutation/` (gitignored). Open `mutation-report.html` fo
 | File | LOC | Mutation score | Killed / Survived | Runtime |
 |------|----:|---------------:|------------------:|--------:|
 | `src/data/greysheetTypeMap.js` | 303 | **75.47%** | 243 / 79 | 41 min |
-| `src/services/pcgsService.js`  | 672 | _TODO_ | -- | ~1.5 hr est |
-| `src/services/ebayService.js`  | 1,754 | _TODO_ | -- | ~4 hr est |
+| `src/services/pcgsService.js`  | 672 | _TODO (#242)_ | -- | ~1.5 hr est |
+| `src/services/ebayService.js`  | 1,754 | _TODO (#242)_ | -- | ~4 hr est |
 
 Stryker thresholds (from `stryker.conf.json`): high=80, low=60, break=null. The `greysheetTypeMap.js` baseline at 75% has known gaps in regex-precision assertions (`.*` -> `.` mutations on barber/washington quarter rows survive) and string-literal mutations on `metal` fields. Future test additions should target those.
 

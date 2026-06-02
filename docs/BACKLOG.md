@@ -1007,6 +1007,25 @@ node -e "console.log(require('./src/services/pcgsService').parseDescription('BU 
 
 ---
 
+### 242. Stryker mutation baselines for pcgsService.js + ebayService.js [P3]
+
+**Source:** Deferred from #239 workstream 2 (2026-06-02). Config in `stryker.conf.json` already lists both files in `mutate`; only the actual baseline runs are outstanding.
+
+**Scope:**
+1. `npx stryker run --mutate services/pcgsService.js` — estimated ~1.5 hr. Record score + (killed/survived) counts in README mutation baseline table.
+2. `npx stryker run --mutate services/ebayService.js` — estimated ~4 hr. Same record-keeping.
+3. For each: scan the HTML report under `reports/mutation/` for surviving-mutant clusters, document top 2-3 categories in README (same format as `greysheetTypeMap.js` entry).
+4. If surviving-mutant patterns suggest a clear test gap (not just equivalent mutants), file a follow-up issue or fix inline.
+
+**Notes for executor:**
+- Re-run greysheetTypeMap.js first as a sanity check that the new `enableFindRelatedTests: false` setting hasn't broken the runner; replace the 75.47% number in README if it drifts (likely lower).
+- Run during off-hours / in a separate terminal; full ebayService run will hold a Codespace for ~4 hours.
+- Optional: split into two PRs (one per file) to avoid one long-running session blocking the other.
+
+**Tests:** Successful Stryker run with HTML report committed-as-not (gitignored) but score numbers + survivor categories updated in README.
+
+---
+
 ### 241. Agent prompt regression evals via GitHub Models [P3]
 
 **Source:** Split out from #239 workstream 3 (2026-06-02). Original spec required CI-invoked agent evals; this was infeasible because `.github/agents/*.agent.md` files are VS Code Copilot Chat artifacts with no programmatic invocation path from GitHub Actions. This issue captures the realistic design.
