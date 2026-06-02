@@ -26,3 +26,6 @@ scripts/run-multi-phase.sh
 reports/mutation/
 .stryker-tmp/
 stryker.log
+
+# #246 Cosmos dumps -- too large for git, kept locally + Azure backup only
+data/archive/cosmos-terapeak-sold-*.json
