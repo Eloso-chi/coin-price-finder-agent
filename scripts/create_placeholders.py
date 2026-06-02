@@ -426,8 +426,10 @@ print(f"  Created: {created_csv - prev} CSVs")
 # ═══════════════════════════════════════════════════════════
 prev = created_csv
 print("=== Gold Krugerrand ===")
+# Canonical form per #246 PR A: drop "South Africa" prefix (Krugerrand is implicitly
+# South African), collapse "1 oz" -> "1oz", reorder to match CSV filename convention.
 for year in range(1967, 2026):
-    make(f"{year}_Gold_Krugerrand_1oz", f"{year} South Africa 1 oz Gold Krugerrand")
+    make(f"{year}_Gold_Krugerrand_1oz", f"{year} Gold Krugerrand 1oz")
 print(f"  Created: {created_csv - prev} CSVs")
 
 # ═══════════════════════════════════════════════════════════
@@ -435,8 +437,10 @@ print(f"  Created: {created_csv - prev} CSVs")
 # ═══════════════════════════════════════════════════════════
 prev = created_csv
 print("=== British Silver Britannia ===")
+# Canonical form per #246 PR A: "Great Britain" -> "British", collapse "1 oz" -> "1oz",
+# reorder to match CSV filename convention.
 for year in range(1997, 2026):
-    make(f"{year}_British_Silver_Britannia_1oz", f"{year} Great Britain 1 oz Silver Britannia")
+    make(f"{year}_British_Silver_Britannia_1oz", f"{year} British Silver Britannia 1oz")
 print(f"  Created: {created_csv - prev} CSVs")
 
 # ═══════════════════════════════════════════════════════════
@@ -444,8 +448,10 @@ print(f"  Created: {created_csv - prev} CSVs")
 # ═══════════════════════════════════════════════════════════
 prev = created_csv
 print("=== British Gold Britannia ===")
+# Canonical form per #246 PR A: "Great Britain" -> "British", collapse "1 oz" -> "1oz",
+# reorder to match CSV filename convention.
 for year in range(1987, 2026):
-    make(f"{year}_British_Gold_Britannia_1oz", f"{year} Great Britain 1 oz Gold Britannia")
+    make(f"{year}_British_Gold_Britannia_1oz", f"{year} British Gold Britannia 1oz")
 print(f"  Created: {created_csv - prev} CSVs")
 
 # ═══════════════════════════════════════════════════════════
