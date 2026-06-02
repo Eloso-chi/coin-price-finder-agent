@@ -188,6 +188,24 @@ Tracks wasted compute, agent time, and Azure cost caused by bugs, agent violatio
 
 ---
 
+### INC-011: Backfill Script Truncated Sidecar -- Incomplete Wiring + Missing Integration Test
+
+| Field | Value |
+|-------|-------|
+| Date | 2026-06-02 |
+| Category | `data-corruption` / `code-bug` / `agent-violation` |
+| Root Cause | PR #86 Fix C (`scripts/backfill-no-data.js`) was authored against the in-memory `terapeakService._store` API but never wired up the store hydration that the running server does at boot. Two omissions:<br>1. Script never called `terapeakService.loadMetaSidecar()`, so `_store` held only ~628 entries loaded from `cache/terapeak_sold.json` instead of the full 4,812 in `data/terapeak-meta.json`.<br>2. `buildPlan()` used `existingEntry.compCount` (in-memory `comps.length`, = 0 in slim deployments) instead of `aggregationMeta.compCount` (the stored marker). So the script considered nearly every entry "empty" and queued it for stamping.<br>When `--apply` then triggered `updateDatasetMeta()` → `saveMetaSidecar()`, the sidecar was rewritten from the partial `_store`, **deleting 4,184 entries** (92,276 lines → 3,978 lines). Restored via `git checkout HEAD -- data/terapeak-meta.json`. |
+| Impact | Production sidecar truncated by 88,716 lines (95% loss) before being caught and reverted from git. INC-002's `NODE_ENV=test` guard didn't trigger because this was a real one-shot script, not a test run. The first dry-run reported "374 stamp / 254 skip"; the second reported "628 stamp / 0 skip" -- the inconsistency between runs was the smoking gun that something was wrong with the store snapshot, but agent applied anyway. |
+| Missing Test | No integration test exercised the script's full `--apply` path against a populated sidecar. Unit tests mocked the store via `terapeakService` API in-process, which masked both the missing-hydration bug and the compCount-source bug. A simple test that wrote a multi-entry sidecar to a tmp dir, invoked the script's exported helpers, and asserted the sidecar still contained every original key would have caught both bugs in CI. |
+| Codespace | ~35 min (corruption detection + git restore + architectural diagnosis + Fix C.1 + regression test + re-verify + amend PR) = **$0.11** |
+| Copilot | ~22 requests (root cause hunt across store/sidecar code paths, two rounds of dry-run analysis, test authoring, full-suite re-run, PR amend + merge) = **$0.88** |
+| Azure | $0.00 |
+| **Total** | **$0.99** |
+| Resolution | Commit `6b8427f` (Fix C.1): call `loadMetaSidecar()` at script start; `buildPlan()` uses `max(comps.length, aggregationMeta.compCount)`. New regression test `treats sidecar aggregationMeta.compCount as evidence of data even if comps.length is 0`. Re-applied cleanly: 255 stamps, sidecar grew from 92,276 to 93,956 lines, all 4,812 keys preserved. |
+| Rules Added | 9) **Standalone scripts that mutate persistent state via a service module MUST replicate the service's full boot-time hydration sequence** (call `loadMetaSidecar()`, `hydrateMetaFromCosmos()`, etc.) before any write. The "in-memory store" abstraction is not safe to reach into from a fresh `node` process without explicit hydration. 10) **Any script with `--apply` semantics MUST have an integration test that asserts post-write data is a strict superset (or precise transformation) of pre-write data** -- not just that the intended entries changed. The test would have failed loudly here. 11) **Dry-run output instability between consecutive runs is a stop signal**: if a dry-run on identical input produces a materially different plan than its previous run (628→374 here), agent MUST diagnose before invoking `--apply`. |
+
+---
+
 ### INC-010: Red-on-Green CI -- Cosmetic Workflow Failure Masked Healthy Production for 5 Days
 
 | Field | Value |
@@ -219,14 +237,15 @@ Tracks wasted compute, agent time, and Azure cost caused by bugs, agent violatio
 | INC-008 | May 26-27 | agent-violation / recovery-ops | PR #52 branch-protection bypass + token rediscovery + silent working-tree carryover | $1.55 |
 | INC-009 | May 31 | agent-violation / recovery-ops | Backlog drift -- 17 items stale-marked, required 4-pass reconciliation | $1.67 |
 | INC-010 | May 26-31 | observability-debt / agent-violation | Red-on-green CI: heredoc bug masked healthy prefetch for 5 days | $0.29 |
-| | | | **Running Total** | **$11.78** |
+| INC-011 | Jun 2 | data-corruption / code-bug / agent-violation | Backfill script truncated sidecar (95% loss) -- missing hydration + missing integration test | $0.99 |
+| | | | **Running Total** | **$12.77** |
 
 ---
 
 ## Metrics
 
-- **Total waste (all time):** $11.78
-- **Worst category:** data-corruption ($5.94 / 50%)
-- **Agent violations:** 6 incidents, $5.27
-- **Code bugs:** 1 incident, $1.54
-- **Preventable (with rules now in place):** $11.22 (INC-001 through INC-010)
+- **Total waste (all time):** $12.77
+- **Worst category:** data-corruption ($6.93 / 54%)
+- **Agent violations:** 7 incidents, $6.26
+- **Code bugs:** 2 incidents, $2.53
+- **Preventable (with rules now in place):** $12.21 (INC-001 through INC-011)
