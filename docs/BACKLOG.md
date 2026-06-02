@@ -284,9 +284,11 @@ Fixed: `evaluateOneCoin()` in `bulkEvaluateService.js` now matches price discove
 
 ---
 
-### #245. Freshness Triage Safeguards Not Firing [P1 -- DATA-QUALITY]
+### #245. Freshness Triage Safeguards Not Firing [P1 -- DATA-QUALITY] -- DONE 2026-06-02
 
-**Problem:** Freshness triage keeps recommending scrapes for coins that should be excluded by existing safeguards (dormancy, low-volume evidence, recently-empty refresh). Diagnostic on `data/terapeak-meta.json` (4,812 entries) on 2026-06-02 confirms multiple chain breaks:
+**Status:** Resolved via 5 commits on `fix/freshness-safeguards-245`. All 4 fixes (A/B/C/D) landed + a Fix C.1 patch for a corruption bug in the backfill script. Verified end-to-end: initial-fetch 171→40, dormant 0→473, evidence-low-vol 196→54 (numbers settle after Fix C applied 255 historical noDataCount stamps). 89/89 suites pass, 3164 tests.
+
+**Problem (original):** Freshness triage keeps recommending scrapes for coins that should be excluded by existing safeguards (dormancy, low-volume evidence, recently-empty refresh). Diagnostic on `data/terapeak-meta.json` (4,812 entries) on 2026-06-02 confirms multiple chain breaks:
 
 | Bug | Hard-number evidence |
 |-----|---------------------|
