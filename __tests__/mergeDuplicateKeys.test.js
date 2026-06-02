@@ -238,4 +238,49 @@ describe('merge-duplicate-keys.js -- --from-archive (Cosmos-only follow-up)', ()
     expect(res.stdout).toMatch(/WINNER\s+"X"[\s\S]*loser \[\s*\d+c\]\s+"a"[\s\S]*loser \[\s*\d+c\]\s+"b"[\s\S]*loser \[\s*\d+c\]\s+"c"/);
     fs.rmSync(tmp, { recursive: true });
   });
+
+  test('bare --from-archive (no value) exits 2 with a clear error', () => {
+    const res = childProcess.spawnSync(
+      'node',
+      [SCRIPT_PATH, '--from-archive', '--apply', '--migrate-cosmos'],
+      { encoding: 'utf8', cwd: repoRoot },
+    );
+    expect(res.status).toBe(2);
+    expect(res.stderr).toMatch(/--from-archive requires a value/);
+  });
+});
+
+describe('merge-duplicate-keys.js -- Cosmos call-signature invariants (regression for S1 partition-key bug)', () => {
+  const src = fs.readFileSync(SCRIPT_PATH, 'utf8');
+  // Isolate the applyCosmosMigration function body so we don't accidentally
+  // match the new probeCosmosScope helper or other functions.
+  const fnStart = src.indexOf('async function applyCosmosMigration');
+  const fnEnd = src.indexOf('\nasync function ', fnStart + 1);
+  const fnBody = src.slice(fnStart, fnEnd > -1 ? fnEnd : undefined);
+
+  test('reads winner with raw key as partition key, NOT the sanitized id', () => {
+    // GOOD: container.item(winnerId, m.winner).read()
+    // BAD:  container.item(winnerId, winnerId).read()  <-- S1 bug
+    expect(fnBody).toMatch(/container\.item\(winnerId,\s*m\.winner\)\.read\(\)/);
+    expect(fnBody).not.toMatch(/container\.item\(winnerId,\s*winnerId\)/);
+  });
+
+  test('reads loser with raw key as partition key, NOT the sanitized id', () => {
+    expect(fnBody).toMatch(/container\.item\(loserId,\s*l\.key\)\.read\(\)/);
+    expect(fnBody).not.toMatch(/container\.item\(loserId,\s*loserId\)/);
+  });
+
+  test('deletes loser with raw key as partition key', () => {
+    expect(fnBody).toMatch(/container\.item\(loserId,\s*l\.key\)\.delete\(\)/);
+  });
+
+  test('treats absent doc as !resource (404 does not throw in @azure/cosmos)', () => {
+    // The fix replaces the dead `if (err.code === 404)` branch with a
+    // !resource / !winnerDoc / !loserDoc check after the read.
+    expect(fnBody).toMatch(/!\s*winnerDoc/);
+    expect(fnBody).toMatch(/!\s*loserDoc/);
+    // The dead 404 catch must be gone (it never fired in practice).
+    expect(fnBody).not.toMatch(/err\.code\s*===\s*404/);
+    expect(fnBody).not.toMatch(/err\.statusCode\s*===\s*404/);
+  });
 });
