@@ -674,8 +674,15 @@ function importComps(searchTerm, comps, meta = {}, _reclassifying = false) {
     lastRefreshAt: (incomingMeta.lastRefreshAt && prevMeta.lastRefreshAt)
       ? (incomingMeta.lastRefreshAt > prevMeta.lastRefreshAt ? incomingMeta.lastRefreshAt : prevMeta.lastRefreshAt)
       : incomingMeta.lastRefreshAt || prevMeta.lastRefreshAt || null,
-    // refreshCount: increment on each page-1 import
-    refreshCount: (prevMeta.refreshCount || 0) + (incomingMeta.page1At ? 1 : 0),
+    // refreshCount: increment on each page-1 attempt (success OR empty).
+    // BACKLOG #245 Fix D: previously only fired on `incomingMeta.page1At`,
+    // which meant the Python scraper's lastRefreshAt-only empty-scrape path
+    // never advanced the counter. Result: empty datasets stayed at
+    // refreshCount=0 forever and marketDepth='untested' kept queueing them
+    // as initial-fetch. Counting any page-1 attempt (page1At or lastRefreshAt)
+    // lets marketDepth transition to 'empty' after the first empty scrape
+    // and lets 'confirmed-thin' (>=3 attempts <10 comps) converge correctly.
+    refreshCount: (prevMeta.refreshCount || 0) + ((incomingMeta.page1At || incomingMeta.lastRefreshAt) ? 1 : 0),
   };
   // Track refresh yield: how many NEW comps this refresh found
   // (only stamp when this is a page-1 refresh, not a deep-pagination import)
