@@ -1064,7 +1064,9 @@ Current repo state: 63 total PRs, **0 open**. Item was stale-imported; root caus
 
 ---
 
-### 234. parseDescription Misclassifies "Proof-Like" as Proof [P1]
+### 234. parseDescription Misclassifies "Proof-Like" as Proof [P1] -- DONE 2026-06-02
+
+**Status:** Fixed in `src/services/pcgsService.js` -- the standalone-proof branch now uses `/\bproof\b(?![\s-]*like)/i`. 5 regression cases in `__tests__/pcgsService.test.js` cover `Proof-Like`, `Proof Like`, `DMPL`, `MS64 PL`, and a plain-`Proof` sanity check.
 
 **Source:** numismatic-audit run 2026-06-01 (commit `d85e9bf`).
 
@@ -1084,7 +1086,9 @@ node -e "console.log(require('./src/services/pcgsService').parseDescription('188
 
 ---
 
-### 235. parseDescription "BU Proof" Precedence Bug [P2]
+### 235. parseDescription "BU Proof" Precedence Bug [P2] -- DONE 2026-06-02
+
+**Status:** Fixed in `src/services/pcgsService.js` (option (b) from the spec) -- the standalone-proof branch now also fires when `_gradeSource === 'bu-term'` and clears the BU-derived `grade`/`gradeNum`. Set titles (`Choice BU Proof Set`) are unaffected because the `setMatch` branch above consumes them first. 5 regression cases in `__tests__/pcgsService.test.js`.
 
 **Source:** numismatic-audit run 2026-06-01 (commit `d85e9bf`).
 

@@ -362,10 +362,20 @@ function parseDescription(text) {
       result.setType = 'clad';
     }
     // Don't set grade to 'Proof' — it's a set, not a graded coin
-  } else if (/\bproof\b/i.test(t) && !result.grade && !result.finish) {
-    // Standalone "proof" without "set" and without a finish qualifier → grade
+  } else if (/\bproof\b(?![\s-]*like)/i.test(t) && !result.finish && (!result.grade || result._gradeSource === 'bu-term')) {
+    // Standalone "proof" without "set", without a finish qualifier, and without a formal
+    // numeric grade → grade as Proof.
+    //
+    // #234: Negative-lookahead on `[\s-]*like` so "Proof-Like" / "Proof Like" / "Proof  Like"
+    //       (Morgan PL designation) is NOT misclassified as Proof.
+    // #235: Override BU-derived grade (`_gradeSource === 'bu-term'`) when "proof" is also
+    //       present in the title. Per SKILL trap table, "Proof is definitive; BU is informal."
+    //       Set titles ("BU Proof Set") are unaffected because the setMatch branch above
+    //       already consumed them.
     result.grade = 'Proof';
     result.finish = 'Proof';
+    delete result._gradeSource;
+    delete result.gradeNum;
   }
 
   // Type 1 / Type 2 variant detection — relevant for 2021 ASE/AGE transition year.
