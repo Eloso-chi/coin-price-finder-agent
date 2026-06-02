@@ -692,10 +692,25 @@ function importComps(searchTerm, comps, meta = {}, _reclassifying = false) {
     mergedAggregationMeta.consecutiveDryRefreshes = prevMeta.consecutiveDryRefreshes || 0;
   }
 
-  // Successful import with comps resets dormant tracking (self-healing)
+  // Dormancy tracking (BACKLOG #245 Fix B):
+  //  - Successful import with comps resets dormant tracking (self-healing)
+  //  - Page-1 refresh that returns 0 comps increments noDataCount + stamps noDataAt
+  //    so the freshness classifier's dormancy guard (noDataCount>=2) can fire
+  //    instead of forever re-queueing empty datasets.
+  //  - Cap at 5 -- enough to trigger dormancy with margin, avoids unbounded growth.
+  const isPage1Refresh = !!(incomingMeta.page1At || incomingMeta.lastRefreshAt);
   if (comps.length > 0 && prevMeta.noDataCount) {
     mergedAggregationMeta.noDataAt = null;
     mergedAggregationMeta.noDataCount = 0;
+  } else if (isPage1Refresh && comps.length === 0 && existing.length === 0) {
+    // Empty page-1 refresh against a dataset that still has no stored comps.
+    const NO_DATA_CAP = 5;
+    mergedAggregationMeta.noDataCount = Math.min(NO_DATA_CAP, (prevMeta.noDataCount || 0) + 1);
+    mergedAggregationMeta.noDataAt = (incomingMeta.lastRefreshAt || incomingMeta.page1At || new Date().toISOString());
+  } else if (prevMeta.noDataCount) {
+    // Preserve existing dormancy markers (deep-pagination, etc.)
+    mergedAggregationMeta.noDataCount = prevMeta.noDataCount;
+    mergedAggregationMeta.noDataAt = prevMeta.noDataAt || null;
   }
 
   // Compute sale date bounds from all comps (existing + newly added)
@@ -745,7 +760,8 @@ function importComps(searchTerm, comps, meta = {}, _reclassifying = false) {
   const metaChanged = mergedAggregationMeta.deepAt !== (prevMeta.deepAt || null)
     || mergedAggregationMeta.page1At !== (prevMeta.page1At || null)
     || mergedAggregationMeta.maxPageReached !== (prevMeta.maxPageReached || null)
-    || mergedAggregationMeta.newestSaleDate !== (prevMeta.newestSaleDate || null);
+    || mergedAggregationMeta.newestSaleDate !== (prevMeta.newestSaleDate || null)
+    || (mergedAggregationMeta.noDataCount || 0) !== (prevMeta.noDataCount || 0);
 
   // Persist meta sidecar (git-tracked) whenever markers change
   if (metaChanged) saveMetaSidecar();
