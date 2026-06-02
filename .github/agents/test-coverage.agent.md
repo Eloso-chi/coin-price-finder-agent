@@ -38,7 +38,8 @@ Your job is to write new tests that cover behavioral gaps -- without duplicating
 | Seed support | `COIN_TEST_SEED` env var for reproducible random selection |
 | Config | `package.json` (jest section); `testPathIgnorePatterns: [helpers]` |
 | Metrics | `npm run test:metrics`, `npm run test:summary` |
-| Coverage in CI | Soft floors via `jest.coverageThreshold` (statements:68 branches:61 functions:68 lines:70) — set 5pts below observed; raise as suite matures |
+| Coverage in CI | Soft floors via `jest.coverageThreshold` (statements:68 branches:61 functions:68 lines:70) -- set 5pts below observed; raise as suite matures |
+| Mutation testing | `npm run test:mutation` (Stryker -- manual, not CI). Config: `stryker.conf.json`. Scoped to ebayService.js, greysheetTypeMap.js, pcgsService.js. Use surviving mutants as targets when adding tests for these files (BACKLOG #239). |
 | Response schema | `src/schemas/priceResponse.schema.js` (ajv Draft-07) — `validateSchema()` in `src/utils/responseValidator.js` uses it. Do NOT add hand-rolled key-shape validators. |
 | Local coverage | `npm test -- --coverage` |
 | `terapeakDataIntegrity` | Runs in CI (re-enabled in #237) |

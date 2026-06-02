@@ -994,28 +994,42 @@ node -e "console.log(require('./src/services/pcgsService').parseDescription('BU 
 
 ---
 
-### 239. Testing Batch 3 — Maturity Layers [P3]
+### 239. Testing Batch 3 — Maturity Layers [P3] — DONE (workstreams 1, 2, 4; workstream 3 split out as #241)
 
-**Source:** Testing Strategy assessment 2026-06-01. Depends on #237, #238.
+**Shipped (PR #82):**
+1. **Multi-seed holdout** — [__tests__/holdoutValidation.test.js](__tests__/holdoutValidation.test.js) now runs across 5 fixed seeds (42, 7, 1337, 2025, 99) with a cross-seed majority gate (>= 3 of 5 seeds must clear the 70% per-seed pass rate). Single-seed legacy mode preserved via `HOLDOUT_SEED` env var. Suite grew from 11 to 56 tests; runtime still ~2s. All 5 seeds currently passing.
+2. **Stryker mutation testing** — added `@stryker-mutator/core` + `@stryker-mutator/jest-runner` as devDeps; `stryker.conf.json` scoped to the 3 spec'd files; `npm run test:mutation` script wired; `reports/mutation/`, `.stryker-tmp/`, `stryker.log` gitignored. Baseline captured for `greysheetTypeMap.js`: **75.47%** mutation score (243 killed / 79 survived, 41 min runtime). Surviving mutants documented in README (regex `.*`→`.` on barber/washington quarter rows, string-literal mutations on `metal` fields). Baselines for `pcgsService.js` (~1.5hr) and `ebayService.js` (~4hr) deferred — config is ready, run `npx stryker run --mutate <file>` when capacity allows.
+4. **Agent doc sync** — [.github/agents/test-monitor.agent.md](.github/agents/test-monitor.agent.md) + [.github/agents/test-coverage.agent.md](.github/agents/test-coverage.agent.md) updated with Stryker entries.
+
+**Workstream 3 (agent evals)** — split out as #241 below. Realistic implementation requires LLM-API glue (GitHub Models or equivalent) that wasn't in the original spec; broke it out so this batch could ship.
+
+**Post-batch state:** 84 suites / **3,125 tests passing** (was 3,080; +45 from multi-seed holdout). New devDeps: `@stryker-mutator/core`, `@stryker-mutator/jest-runner`.
+
+---
+
+### 241. Agent prompt regression evals via GitHub Models [P3]
+
+**Source:** Split out from #239 workstream 3 (2026-06-02). Original spec required CI-invoked agent evals; this was infeasible because `.github/agents/*.agent.md` files are VS Code Copilot Chat artifacts with no programmatic invocation path from GitHub Actions. This issue captures the realistic design.
 
 **Scope:**
-1. **Multi-seed holdout** — modify [__tests__/holdoutValidation.test.js](__tests__/holdoutValidation.test.js) to loop over 3-5 seeds (e.g., 42, 7, 1337) and require **majority pass** (≥3 of 5). Avoids single-seed luck/unluck.
-2. **Mutation testing config** — add Stryker (`@stryker-mutator/core` + `@stryker-mutator/jest-runner`) scoped to:
-   - [src/services/ebayService.js](src/services/ebayService.js)
-   - [src/data/greysheetTypeMap.js](src/data/greysheetTypeMap.js)
-   - [src/services/pcgsService.js](src/services/pcgsService.js)
-   Run as `npm run test:mutation` — manual command, NOT a CI gate. Document baseline mutation score in README.
-3. **Agent eval fixtures** — add `__tests__/agentEvals/` directory with one fixture per critical agent:
-   - `numismatic-audit.fixture.json` — input code snippet + expected key claims
-   - `code-reviewer.fixture.json` — input diff + expected review categories
-   Eval runner script (not a Jest test — runs weekly via new `.github/workflows/agent-eval.yml`).
-4. **Agent sync** — update [.github/agents/test-monitor.agent.md](.github/agents/test-monitor.agent.md): add `npm run test:mutation` to commands table, note that `__tests__/agentEvals/` is NOT a jest test directory (exclude from `testPathIgnorePatterns` or via naming convention so jest doesn't pick it up). Update [.github/agents/test-coverage.agent.md](.github/agents/test-coverage.agent.md) to mention Stryker for measuring assertion strength on classification regexes.
+1. **`scripts/run-agent-eval.js`** — loads `__tests__/agentEvals/<name>.fixture.json` (`{ agent, input, expect: { keyClaims: [...] } }`), reads `.github/agents/<agent>.agent.md`, strips YAML frontmatter, uses body as system prompt. POSTs to GitHub Models inference endpoint (`models.inference.ai.azure.com`) with workflow's `GITHUB_TOKEN`. Asserts every `keyClaim` substring (case-insensitive) appears in response. Exit code 0 = pass, 1 = fail with diff.
+2. **`scripts/run-all-evals.js`** — orchestrates all fixtures, writes `eval-results.md`.
+3. **Fixtures** in `__tests__/agentEvals/` (NOT a Jest dir):
+   - `numismatic-audit.fixture.json` — input code snippet + expected key claims (mint mark checks, key date detection, etc.)
+   - `code-reviewer.fixture.json` — input diff + expected review categories (security, scope, style)
+4. **`.github/workflows/agent-eval.yml`** — weekly cron + manual `workflow_dispatch`. `permissions: { models: read, issues: write, contents: read }`. On any failure: `gh issue create --title "Agent eval regression $(date +%F)" --body-file eval-results.md --label agent-eval`.
+5. **Agent docs** — update test-monitor / test-coverage with eval workflow location + how to add fixtures.
 
-**Tests:** Mutation score baseline captured in README. Agent eval workflow opens an issue on regression (key claim missing from output).
+**Caveats:**
+- GitHub Models inference uses gpt-4o (or similar), NOT the model VS Code Copilot Chat is currently routing through (Claude). Tests "is this agent prompt still sound for a competent LLM" — not "does Copilot Chat still behave identically."
+- For catching `.agent.md` file regressions (someone deletes "always check mint mark" → eval fails), this is sufficient and useful.
+- Free tier: ~50 req/day gpt-4o, plenty for weekly evals on 2-5 fixtures. No new secrets needed.
+
+**Tests:** Workflow runs end-to-end via `workflow_dispatch`; intentional regression (mutate fixture's expected claim) produces an issue.
 
 **Notes for executor:**
-- Stryker is heavy — only invoke manually. CI gate would balloon CI time 10x.
-- Agent eval is non-deterministic; use tolerance-based assertions (key terms present, not exact string match).
+- Estimated effort: 2-3 hours implementation + ~10 min verifying workflow.
+- If GitHub Models GA terms change, fall back to direct OpenAI / Anthropic API with a secret.
 
 ---
 

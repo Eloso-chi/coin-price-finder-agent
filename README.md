@@ -508,6 +508,31 @@ The **Test Monitor** system records per-run metrics (timestamp, branch, commit, 
 
 A Copilot agent persona (`.github/agents/test-monitor.agent.md`) can be invoked to diagnose failures, quarantine flaky tests, and suggest fixes. See [docs/testing/test-monitor.md](docs/testing/test-monitor.md) for full usage.
 
+### Mutation Testing (manual, BACKLOG #239)
+
+Mutation testing programmatically mutates source code (`>` -> `>=`, `&&` -> `||`, literal swaps, etc.) then re-runs the test suite. Surviving mutants are gaps in assertion strength. Stryker is scoped to the highest-stakes classification / comp-scoring code paths.
+
+```bash
+npm run test:mutation                                            # run all configured files (~6 hours total)
+npx stryker run --mutate src/data/greysheetTypeMap.js            # single file (~40 min)
+```
+
+Reports land in `reports/mutation/` (gitignored). Open `mutation-report.html` for a per-file, per-line drill-down.
+
+**Not a CI gate** -- runtime is too long. Run periodically (e.g., quarterly) to spot test rot.
+
+**Baselines** (captured 2026-06-02 on commit just before this PR):
+
+| File | LOC | Mutation score | Killed / Survived | Runtime |
+|------|----:|---------------:|------------------:|--------:|
+| `src/data/greysheetTypeMap.js` | 303 | **75.47%** | 243 / 79 | 41 min |
+| `src/services/pcgsService.js`  | 672 | _TODO_ | -- | ~1.5 hr est |
+| `src/services/ebayService.js`  | 1,754 | _TODO_ | -- | ~4 hr est |
+
+Stryker thresholds (from `stryker.conf.json`): high=80, low=60, break=null. The `greysheetTypeMap.js` baseline at 75% has known gaps in regex-precision assertions (`.*` -> `.` mutations on barber/washington quarter rows survive) and string-literal mutations on `metal` fields. Future test additions should target those.
+
+> **Note on baseline comparability:** The 75.47% baseline was captured with `enableFindRelatedTests: true`. The config has since been switched to `false` for accuracy (see code-reviewer note in `stryker.conf.json`). Re-running may yield a slightly *lower* score because more tests will execute per mutant, exposing assertion gaps that `findRelatedTests` was skipping. Treat the next run's score as the new authoritative baseline.
+
 Runs **Jest** across 73 test suites:
 
 | Suite | What it covers |
@@ -567,7 +592,7 @@ Runs **Jest** across 73 test suites:
 | `coinMetalProfile.test.js` | Metal profile detection: silver/gold/platinum/palladium, bullion inference, exclusion operators, detectWeightFromTitle, weightToKeyToken |
 | `reclassification.test.js` | Comp reclassification: weight detection, key token mapping, import-time rerouting, metal mismatch handling |
 | `freshnessReport.test.js` | Freshness report: 5-state decision tree, recently-confirmed-stale split, summary stats, batch mode |
-| `holdoutValidation.test.js` | Holdout validation: 80/20 split on real Terapeak data, FMV within IQR of held-out set (10 coins, seeded PRNG) |
+| `holdoutValidation.test.js` | Holdout validation: 80/20 split on real Terapeak data, FMV within IQR of held-out set (10 coins, multi-seed majority gate across 5 seeds -- BACKLOG #239) |
 | `normalizationRegression.test.js` | Normalization regression: series/year/mint parsing edge cases |
 | `terapeakDataIntegrity.test.js` | Terapeak data integrity: CSV structure, header validation, duplicate detection |
 
