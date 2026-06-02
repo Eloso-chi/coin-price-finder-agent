@@ -231,8 +231,24 @@ for (const [key, entry] of Object.entries(meta)) {
   const actions = [];
   let priority = null; // P0=urgent, P1=normal, P2=background, P3=monitor, null=skip
 
+  // BACKLOG #245 Fix A: high-confidence historical evidence of low volume.
+  // build-evidence-index.js stamps is_low_volume_candidate=true with
+  // identifier_confidence='High' on datasets that returned 0 comps across
+  // multiple runs. Skip these from the queue on quarterly cadence rather
+  // than waiting for noDataCount-based dormancy to converge.
+  const EVIDENCE_LOW_VOL_CADENCE_DAYS = 90;
+  const storedIdsEarly = entry.identifiers || null;
+  const isHighConfLowVol = !!(storedIdsEarly
+    && storedIdsEarly.is_low_volume_candidate === true
+    && storedIdsEarly.identifier_confidence === 'High');
+  const evidenceLowVolSkip = isHighConfLowVol
+    && (lastRefreshDays === null || lastRefreshDays < EVIDENCE_LOW_VOL_CADENCE_DAYS);
+
   if (isDormant) {
     actions.push('dormant');
+    priority = null;
+  } else if (evidenceLowVolSkip) {
+    actions.push('evidence-low-vol');
     priority = null;
   } else if (freshness === 'missing' && marketDepth === 'untested') {
     actions.push('initial-fetch');

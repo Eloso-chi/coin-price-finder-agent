@@ -66,6 +66,7 @@ function getStaleDatasets(opts = {}) {
       noDataAt: am.noDataAt || null,
       consecutiveDryRefreshes: am.consecutiveDryRefreshes || 0,
       csvExists: true, // listDatasets only returns datasets that have a store entry
+      identifiers: d.identifiers || null, // Fix A of #245: classifier reads evidence
     };
     const skipDecision = shouldSkipRefresh(classifyMeta, now);
 
