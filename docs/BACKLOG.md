@@ -321,9 +321,37 @@ Fixed: `evaluateOneCoin()` in `bulkEvaluateService.js` now matches price discove
 
 ---
 
-### #246. Dataset-Key Duplication Across Naming Variants [P2 -- DATA-QUALITY]
+### #246. Dataset-Key Duplication Across Naming Variants [P2 -- DATA-QUALITY] -- TOOLS SHIPPED, OPERATOR RUN PENDING
 
-**Status (2026-06-02):** **Phase 1 complete.** `scripts/audit-duplicate-keys.js` shipped (read-only) with regression coverage in `__tests__/auditDuplicateKeys.test.js`. Audit output committed at `docs/reports/duplicate-keys-report.json` for review.
+**Status (2026-06-02):** All four PRs landed. **The dedup tool is built but has NOT been applied to live data yet.** Operator action required (see below).
+
+| PR | Merged | Scope |
+|---|---|---|
+| #90 | yes | Phase 1 audit (`scripts/audit-duplicate-keys.js`, read-only) |
+| #91 | yes | PR A -- canonicalize 133 `.meta` files + Python placeholder script (preventive; no runtime data touched) |
+| #92 | yes | PR B' -- `_mergeAggregationMeta` hydration helper (fixes latent first-wins bug in `loadMetaSidecar` / `hydrateMetaFromCosmos`) |
+| #93 | yes | PR C -- `scripts/merge-duplicate-keys.js` (dry-run + `--apply` + `--migrate-cosmos`) |
+
+**OPERATOR ACTION REMAINING -- run PR C against live data:**
+
+```bash
+git pull
+node scripts/merge-duplicate-keys.js                              # 1. review plan in docs/reports/merge-duplicate-keys-plan.json
+node scripts/merge-duplicate-keys.js --apply --migrate-cosmos     # 2. mutate meta sidecar + Cosmos in one go
+git add data/terapeak-meta.json data/archive/ docs/reports/merge-duplicate-keys-plan.json
+git commit -m "data(#246): apply merge-duplicate-keys plan -- 146 losers archived, Cosmos migrated"
+git push
+```
+
+Expected impact (per current committed plan):
+- 144 duplicate groups collapsed
+- 146 loser keys deleted from `data/terapeak-meta.json` (archived to `data/archive/terapeak-meta-orphans-<ISO>.json`)
+- 2,317 historical comps preserved into winners
+- Cosmos `terapeak-sold`: loser docs deleted, winner docs upserted with merged `aggregationMeta` + dedup'd comps array
+
+Why NOT auto-run on deploy: irreversible data migration touching Cosmos; the dry-run-first design exists so the 144-group plan can be eyeballed before any write. Run once manually with Cosmos creds in env; no follow-up needed after that.
+
+**Phase 1 complete.** `scripts/audit-duplicate-keys.js` shipped (read-only) with regression coverage in `__tests__/auditDuplicateKeys.test.js`. Audit output committed at `docs/reports/duplicate-keys-report.json` for review.
 
 **Phase 1 findings (against `data/terapeak-meta.json` post-#245, 4,812 keys):**
 - 144 duplicate groups (290 keys total)
