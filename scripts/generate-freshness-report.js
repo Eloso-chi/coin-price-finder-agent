@@ -311,8 +311,12 @@ for (const [key, entry] of Object.entries(meta)) {
     priority = null;
   }
 
-  // Deep-paginate: viable + >=50 comps + not yet deep-paged
-  if (compCount >= 50 && !hasDeepAt && marketDepth === 'viable') {
+  // Deep-paginate: viable + >=50 comps + not yet deep-paged + at least one runtime-confirmed page-1.
+  // Gating on `refreshCount >= 1` (not `page1At`) is intentional -- see backlog #247: the Python
+  // scraper stamps only `lastRefreshAt`, while the JS route stamps `page1At`; post-#245 Fix D,
+  // `refreshCount` is the canonical "has been runtime-touched" marker. Evidence-hydrated entries
+  // (refreshCount=0) graduate to deep-paginate naturally after the cheap page-1 refresh.
+  if (compCount >= 50 && !hasDeepAt && marketDepth === 'viable' && refreshCount >= 1) {
     actions.push('deep-paginate');
   }
   if (actions.length === 0) actions.push('ok');
