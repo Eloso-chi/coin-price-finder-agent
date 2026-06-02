@@ -21,6 +21,7 @@ const { validateSeriesIntegrity, validateNumericSanity } = require('../utils/res
 const { hasSeriesConflict, detectDenomination } = require('../utils/filters');
 const { getCoinMetalProfile } = require('../utils/coinMetalProfile');
 const terapeakService = require('../services/terapeakService');
+const { redactCompsForPublic } = require('../utils/redactForPublic');
 const stats = require('../utils/stats');
 
 // ── #41: Adjacent-year context ──
@@ -518,7 +519,7 @@ router.post('/', async (req, res) => {
     }
 
     // ── Response ──
-    return res.json({
+    return res.json(redactCompsForPublic({
       query: { input: query, askingPrice: askingPrice || null, weight: resolvedWeight, setType: resolvedSetType, options: opts },
       coinData: coinData || null,
       keyDate: keyDateInfo,
@@ -585,7 +586,7 @@ router.post('/', async (req, res) => {
         }
         return null;
       })()
-    });
+    }, req.isAdmin === true));
   } catch (err) {
     console.error('[/api/price] Unhandled error:', err.message);
     return res.status(500).json({

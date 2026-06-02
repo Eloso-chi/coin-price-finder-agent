@@ -256,6 +256,34 @@ Fixed: `evaluateOneCoin()` in `bulkEvaluateService.js` now matches price discove
 
 ---
 
+### ~~#243. Terapeak Source-Label Redaction for Non-Admin Responses [SECURITY -- P1 -- DONE]~~
+
+**Status (DONE):** Shipped on branch `fix/redact-terapeak-public`. Option A scope: rewrite `_source: "terapeak"` -> `"ebay-sold"` (and `source: "terapeak"` -> `"ebay-sold"` in `/api/coin-history`) for non-admin callers. Admins (JWT `isAdmin === true` or `x-api-key: ADMIN_API_KEY`) still see the real label for dealer/debug tooling.
+
+**Problem (resolved):** Audit of an anonymous `POST /api/price` for `1882-S Morgan Silver Dollar` showed every entry in `ebay.us.comps[]` shipping `_source: "terapeak"` -- a provenance label that advertises our use of licensed eBay Seller Hub Research data. Across ~4,800 cached datasets this label was leaking on every public price request, every batch (`/api/pricing-batch`), every bulk-evaluate SSE/poll, every history chart, and every bar-price call.
+
+**Fix:** New utility `src/utils/redactForPublic.js` (`redactCompsForPublic(response, isAdmin)`) wired into the response path of: `priceRoute`, `barPriceRoute`, `pricingBatchRoute`, `bulkEvaluateRoute` (SSE replay + GET poll + `_runJob` per-coin emit), and `coinHistoryRoute` (top-level `source` field). The utility shallow-clones `ebay.us`/`ebay.global` and each rewritten comp so the upstream `ebayService` TTL cache and `terapeakService` in-memory dataset cache are never mutated -- regression-tested explicitly (anon call followed by admin call still returns the real `"terapeak"` label to admin).
+
+**Trade-offs accepted:**
+- Public UI's `c._source === 'terapeak'` branch in `public/index.html` (lines 3389, 3597) becomes a no-op for anon viewers -- they see uniform "SOLD" badges instead of the distinct "TERAPEAK" badge. Admins still see the badge. Intentional.
+- This is a label-only redaction. `itemId`, `url`, `title`, `totalUsd`, `soldDate` etc. are still shipped. If compliance ever escalates, two escalation paths are pre-scoped: **Option B** -- strip `itemId` + `url` from non-admin comps (lose deep-links but keep tabular comp data); **Option C** -- strip `comps[]` entirely for non-admin, return only aggregated `stats` (most defensible, biggest UX hit).
+
+**Files:** `src/utils/redactForPublic.js` (new), `src/routes/priceRoute.js`, `src/routes/barPriceRoute.js`, `src/routes/pricingBatchRoute.js`, `src/routes/bulkEvaluateRoute.js`, `src/routes/coinHistoryRoute.js`, `__tests__/redactForPublic.test.js` (new, 11 cases incl. cache-poisoning regression), `__tests__/coinHistoryRoute.test.js` (assertion updated).
+
+---
+
+### #244. Reverse-Proof Morgan Dollar Pipeline-Leak [P2 -- TRIAGE]
+
+**Problem:** Pricing health full-run on 100 Morgans (`cache/health-morgan-100.json`) flagged `2023 Reverse Proof Morgan Silver Dollar` RED: 205 Terapeak rows enter the discovery pipeline but only 3 US comps survive (98.5% attrition) with `discovery.removed.{denied,nonUsd,pcgsOnly,gradeOnly,outlier,lowRelevance,metalMismatch,compositionMismatch,yearMismatch,variantWrongColor,seriesConflict}` ALL reporting 0. The filter that's killing the comps is silently dropping them without reporting to the `removed` telemetry buckets.
+
+**Why it matters:** A 98.5% attrition with zero attribution is an instrumentation gap, not just a single-coin issue. Any future Reverse Proof / NGC-only / unusual finish series likely has the same blind spot.
+
+**Repro:** `ADMIN_API_KEY="$(grep '^ADMIN_API_KEY' .env | cut -d= -f2-)" node scripts/pricing-health-full.js --full --filter "Morgan" --limit 100 --min 10 --out cache/health-morgan-100.json` then inspect the RED row.
+
+**Files:** likely `src/services/ebayService.js` filter pipeline + any callers that drop comps without incrementing a `removed.*` counter.
+
+---
+
 ### #185. World Proof Greysheet Year-Specific Fallback [LOW -- DEFERRED]
 
 **Status (May 31, 2026):** Considered for the #24/#198/#185 PR batch but deferred -- design work needed to define the year-specific proof lookup API path (no clean way to construct a year-specific proof query without a PCGS number, which `fetchTypePrice()` doesn't have). Tracked here for future spike.

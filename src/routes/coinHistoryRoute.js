@@ -104,7 +104,7 @@ router.get('/', async (req, res) => {
       displayName: dataset.searchTerm || query,
       currency: 'USD',
       rangeDays,
-      source: 'terapeak',
+      source: 'ebay-sold',
       prices: [],
       totalComps: 0,
       metalOverlay: null
@@ -211,7 +211,7 @@ router.get('/', async (req, res) => {
     displayName,
     currency: 'USD',
     rangeDays,
-    source: 'terapeak',
+    source: 'ebay-sold',
     prices,
     totalComps: compsInRange.length,
     gradeFiltered: gradeFiltered || false,

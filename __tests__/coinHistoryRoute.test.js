@@ -126,7 +126,7 @@ describe('GET /api/coin-history', () => {
     expect(res.body.displayName).toBe('1881-CC Morgan Silver Dollar');
     expect(res.body.currency).toBe('USD');
     expect(res.body.rangeDays).toBe(90);
-    expect(res.body.source).toBe('terapeak');
+    expect(res.body.source).toBe('ebay-sold');
     expect(res.body.prices.length).toBeGreaterThanOrEqual(1);
     // Each price entry: [date, median, avg, min, max, count]
     const entry = res.body.prices[0];
