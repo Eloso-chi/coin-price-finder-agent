@@ -284,6 +284,79 @@ Fixed: `evaluateOneCoin()` in `bulkEvaluateService.js` now matches price discove
 
 ---
 
+### #245. Freshness Triage Safeguards Not Firing [P1 -- DATA-QUALITY]
+
+**Problem:** Freshness triage keeps recommending scrapes for coins that should be excluded by existing safeguards (dormancy, low-volume evidence, recently-empty refresh). Diagnostic on `data/terapeak-meta.json` (4,812 entries) on 2026-06-02 confirms multiple chain breaks:
+
+| Bug | Hard-number evidence |
+|-----|---------------------|
+| **B1. Dormancy never fires** | `0 / 4,812` entries have `noDataCount > 0`. Logs show **485 "NO EXPORT (no results)" hits in last 30 days** -- ALL went unrecorded. `shouldSkipRefresh()` gates on `noDataCount >= 2`, so dormancy is dead code. |
+| **B2. Classifier ignores `identifiers` block** | `196` entries have `identifiers.is_low_volume_candidate=true` + `identifier_confidence='High'` (built by `build-evidence-index.js`); `freshnessClassifier.js` never reads them. `84` of the `171` P0 initial-fetch queue and `4` of the `1,313` P1 refresh queue are known-low-vol-High but still queued. |
+| **B3. 421 evidence-only orphans** | 421 entries have ONLY the `identifiers` block (no `page1At`, `compCount`, `refreshCount`). Classifier sees `marketDepth='untested'` → permanently queued for initial-fetch. |
+| **B4. `refreshCount` only counts successes** | Entries scraped and returned empty get `page1At` stamped but `refreshCount` stays 0, `compCount` stays `null`. The `recently-confirmed-stale` guard requires `marketDepth='viable'`, so empty scrapes get no protection and cycle back into the queue every report. |
+
+**Root cause of B1:** Python `_report_no_data()` only fires on the "NO EXPORT (no results or button not found)" branch and is wrapped in `try/except: pass`. When the export button DOES appear but returns 0 rows, the script uploads an empty CSV which stamps `page1At` and skips the no-data signal entirely. POST failures are silent.
+
+**Why it matters:** Wasted aggregation runs on known-dud datasets. ~485 untracked no-data events in last 30 days; ~196 high-confidence low-vol candidates re-queued every refresh; 421 entries permanently stuck in `initial-fetch`. After fixes, the actionable queue is projected to drop from `2,477` to roughly `800-1,200` (~50-65% reduction).
+
+**Fix order (separate small commits, each testable):**
+1. **Fix A** -- `freshnessClassifier.js` reads `identifiers`. When `is_low_volume_candidate=true && confidence='High'`, treat as `confirmed-thin` (skip initial-fetch + refresh). ~30 LOC + classifier tests. Projected drainage: 88 queue items immediately.
+2. **Fix B** -- `terapeakService.importComps()` auto-stamps `noDataCount++` + `noDataAt` when `comps.length === 0`. Stops relying on Python's optional POST. ~10 LOC + unit test.
+3. **Fix C** -- `scripts/backfill-no-data.js` (new): parse `cache/terapeak_*.log` for "NO EXPORT" hits since 2026-04-01, stamp historical `noDataCount` + `noDataAt`. One-shot; activates B1's safeguard retroactively for ~485 documented events.
+4. **Fix D** -- Split `refreshCount` (successes) from `attemptCount` (all tries). Extend `recently-confirmed-stale` guard to gate on either when `compCount === 0` after an attempt. Small schema migration + meta sidecar update.
+
+**Verification:** After all four fixes + re-run `generate-freshness-report.js`, the `1990 Great Britain 1oz Gold Britannia` / `1968 South Africa 1oz Gold Krugerrand` family should move from `initial-fetch` to `dormant` / `confirmed-thin`. Re-running the diagnostic in `/tmp/diag-phase1.js` should show `noDataCount > 0` for ~200+ entries.
+
+**Files:**
+- MOD `src/services/freshnessClassifier.js` (A, D)
+- MOD `src/services/terapeakService.js` (B, D)
+- NEW `scripts/backfill-no-data.js` (C)
+- NEW `__tests__/freshnessClassifierIdentifiers.test.js` (A)
+- NEW `__tests__/terapeakServiceNoDataStamp.test.js` (B)
+- MOD `__tests__/freshnessClassifier.test.js` (D regression)
+
+**Out of scope (separate item #246):** dataset-key deduplication across naming variants (`"south africa 1oz gold krugerrand"` vs `"gold krugerrand 1oz"`). That mutates `terapeak-meta.json` and needs its own approval gate.
+
+---
+
+### #246. Dataset-Key Duplication Across Naming Variants [P2 -- DATA-QUALITY]
+
+**Problem:** `data/terapeak-meta.json` has **620 duplicate groups (1,242 keys)** that represent the same coin under two or more naming forms. **106 of those groups have a mix of populated + empty entries** -- so the same coin was scraped twice into different keys, and one form returned data while the other silently dropped its 0-row "result."
+
+**Examples (from 2026-06-02 freshness-report inspection):**
+
+| Long form (0 comps) | Short form (has data) |
+|---|---|
+| `1996 South Africa 1oz Gold Krugerrand` | `1996 Gold Krugerrand 1oz` (1 comp) |
+| `2006 South Africa 1oz Gold Krugerrand` | `2006 Gold Krugerrand 1oz` (5 comps) |
+| `1990 Great Britain 1oz Gold Britannia` | `1990 British Gold Britannia 1oz` (1 comp) |
+| `2018 Great Britain 1oz Gold Britannia` | `2018 British Silver Britannia 1oz` (62 comps) |
+
+**Root cause:** `terapeakService.normalizeSearchKey()` doesn't collapse:
+- country aliases (`south africa` ↔ ∅, `great britain` ↔ `british`, `royal mint` ↔ `royalmint`)
+- ounce notation (`1oz` ↔ `1 oz` ↔ `one ounce`)
+- word order (`gold krugerrand 1oz` ↔ `1oz gold krugerrand`)
+
+**Why it matters:** Comp data is fragmented across keys -- valuation lookups miss data that exists under the alternative key. Refresh queues waste pulls re-scraping orphan keys. Adds noise to every dashboard.
+
+**Plan (gated -- audit first, merge second):**
+1. **Audit (read-only)** -- `scripts/audit-duplicate-keys.js` produces `cache/duplicate-keys-report.json`: groups, suggested canonical form per group, comp-count delta, identifier confidence. Output reviewed before any write.
+2. **Extend `normalizeSearchKey()`** -- add alias map (countries + series + ounce notation) + sorted-token canonicalization. Add unit tests for each alias rule before applying merges.
+3. **Backfill merger (one-shot)** -- `scripts/merge-duplicate-keys.js` reads the audit report, merges comps into the canonical key, archives the orphan to `data/archive/terapeak-meta-orphans-YYYYMMDD.json`. Includes `--dry-run` flag.
+4. **Cosmos write-through** -- migration must propagate to Cosmos `terapeak-sold` container or the orphans resurrect on next hydration.
+
+**Risk:** Direct mutation of canonical data store. Mitigations: dry-run default, archived orphans, audit report committed before merger run, Cosmos backup taken first.
+
+**Files:**
+- NEW `scripts/audit-duplicate-keys.js`
+- NEW `scripts/merge-duplicate-keys.js`
+- MOD `src/services/terapeakService.js` (`normalizeSearchKey` alias map)
+- NEW `__tests__/normalizeSearchKey.test.js`
+
+**Dependency:** Should be done AFTER #245 so the audit isn't polluted by entries that should be marked dormant first.
+
+---
+
 ### #185. World Proof Greysheet Year-Specific Fallback [LOW -- DEFERRED]
 
 **Status (May 31, 2026):** Considered for the #24/#198/#185 PR batch but deferred -- design work needed to define the year-specific proof lookup API path (no clean way to construct a year-specific proof query without a PCGS number, which `fetchTypePrice()` doesn't have). Tracked here for future spike.
