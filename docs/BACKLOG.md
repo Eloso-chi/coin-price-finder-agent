@@ -334,6 +334,23 @@ Fixed: `evaluateOneCoin()` in `bulkEvaluateService.js` now matches price discove
 
 Numbers are more conservative than the spec's "620/1,242" estimate because phase-1 deepCanonical applies only a high-precision alias map (country aliases + ounce normalization + token sort). Phase 2 normalizeSearchKey extension can widen the net.
 
+**Phase A complete (PR A, 2026-06-02): source cleanup.** Investigation during phase 2 design revealed the root cause is NOT a missing normalizer feature -- it's that two placeholder scripts (`scripts/create_placeholders.py` and `scripts/generateAllCoinData.js`) emit different search-term conventions for the same coin:
+- `create_placeholders.py` wrote `"1990 Great Britain 1 oz Gold Britannia"` (long-form, spaced ounce) into `.meta` files.
+- CSV filenames used `"1990_British_Gold_Britannia_1oz.csv"` (short-form, collapsed ounce).
+- Result: every Britannia and Krugerrand year had two cache keys -- one from each convention -- and historical scrape runs over time populated both intermittently, producing the fragmentation visible in the audit report.
+
+PR A is a *preventive* fix: it rewrites 133 `.meta` files to match the CSV filename convention (`British` / `Gold Krugerrand 1oz`) and updates `create_placeholders.py` so future placeholder runs are canonical. It does NOT touch `data/terapeak-meta.json` (the historical cache) or Cosmos -- the existing duplicates persist until a separate cleanup PR (PR C). PR A guarantees that re-importing the affected CSVs going forward will write to the canonical key form instead of re-creating the long-form duplicate.
+
+**Investigation summary (in support of PR A):**
+- Britannia: 78 cache keys with `great britain` form, 78 with `british` form -- same data, two keys.
+- Krugerrand: 103 with `south africa` prefix, 73 without -- same data, two keys.
+- Panda / Maple Leaf / Philharmonic also have country-vs-demonym splits (~700 keys), but the audit showed 0 / 0 / 3 mixed-class years respectively -- the forms exist in parallel but are not fragmenting data. Out of scope for PR A.
+- PCGS service does NOT touch search-term strings (it works with cert numbers / grade codes) -- this is purely a Terapeak-scrape-pipeline issue.
+
+**PR B (deferred -- needs decision):** Extend `normalizeSearchKey()` with alias rules (`great britain` -> `british`, `south africa` strip for Krugerrand, `one ounce` -> `1oz`) to defensively collapse any *historical* search terms that still come in long-form (e.g. from old log replays in `build-evidence-index.js`). Also fix `loadCosmosHydration()` to merge comps arrays when two docs collapse to the same key (currently last-write-wins drops the first doc's comps in memory).
+
+**PR C (deferred -- needs decision):** Extend `scripts/prune-ghost-keys.js` with (1) archive write to `data/archive/terapeak-meta-orphans-YYYYMMDD.json` before delete, (2) `--migrate-cosmos` flag to dedup Cosmos docs whose `id` derives from a stale key form. Run after PR B is live in prod.
+
 **Phases 2-4 still open.** See the original plan below.
 
 **Problem:** `data/terapeak-meta.json` has **620 duplicate groups (1,242 keys)** that represent the same coin under two or more naming forms. **106 of those groups have a mix of populated + empty entries** -- so the same coin was scraped twice into different keys, and one form returned data while the other silently dropped its 0-row "result."
