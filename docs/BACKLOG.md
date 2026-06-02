@@ -321,9 +321,9 @@ Fixed: `evaluateOneCoin()` in `bulkEvaluateService.js` now matches price discove
 
 ---
 
-### #246. Dataset-Key Duplication Across Naming Variants [P2 -- DATA-QUALITY] -- TOOLS SHIPPED, OPERATOR RUN PENDING
+### #246. Dataset-Key Duplication Across Naming Variants [P2 -- DATA-QUALITY] -- META MIGRATION DONE, COSMOS MIGRATION PENDING
 
-**Status (2026-06-02):** All four PRs landed. **The dedup tool is built but has NOT been applied to live data yet.** Operator action required (see below).
+**Status (2026-06-02):** Five PRs landed. **Meta sidecar migrated. Cosmos still has 146 loser docs that will re-hydrate at next server restart -- operator action still required.**
 
 | PR | Merged | Scope |
 |---|---|---|
@@ -331,25 +331,33 @@ Fixed: `evaluateOneCoin()` in `bulkEvaluateService.js` now matches price discove
 | #91 | yes | PR A -- canonicalize 133 `.meta` files + Python placeholder script (preventive; no runtime data touched) |
 | #92 | yes | PR B' -- `_mergeAggregationMeta` hydration helper (fixes latent first-wins bug in `loadMetaSidecar` / `hydrateMetaFromCosmos`) |
 | #93 | yes | PR C -- `scripts/merge-duplicate-keys.js` (dry-run + `--apply` + `--migrate-cosmos`) |
+| #95 | yes (2026-06-02) | Operator run, meta-only: `--apply` against `data/terapeak-meta.json`. 4,812 -> 4,666 keys. 146 losers archived to `data/archive/terapeak-meta-orphans-2026-06-02T20-37-59-494Z.json`. Cosmos NOT touched. |
 
-**OPERATOR ACTION REMAINING -- run PR C against live data:**
+**RISK -- Cosmos drift:** `hydrateMetaFromCosmos` runs at every server startup and merges `aggregationMeta` from Cosmos back into the local store. The 146 loser docs still in `terapeak-sold` will NOT re-create loser keys in the meta sidecar (their `searchTerm` no longer normalizes to a known winner), but they WILL keep occupying RU / storage and will keep emitting their stale `aggregationMeta` markers. Resolve by running `--migrate-cosmos` from an env with Cosmos creds.
+
+**OPERATOR ACTION REMAINING -- run Cosmos migration from a creds-enabled env (NOT this codespace, which has no `COSMOS_ENDPOINT`):**
 
 ```bash
 git pull
-node scripts/merge-duplicate-keys.js                              # 1. review plan in docs/reports/merge-duplicate-keys-plan.json
-node scripts/merge-duplicate-keys.js --apply --migrate-cosmos     # 2. mutate meta sidecar + Cosmos in one go
-git add data/terapeak-meta.json data/archive/ docs/reports/merge-duplicate-keys-plan.json
-git commit -m "data(#246): apply merge-duplicate-keys plan -- 146 losers archived, Cosmos migrated"
+# 1. SAFETY: full Cosmos export first (new in this iteration)
+node scripts/export-cosmos-terapeak-sold.js
+#    -> writes data/archive/cosmos-terapeak-sold-<ISO>.json (rollback artifact)
+
+# 2. Re-run plan generation (idempotent against an already-deduped meta sidecar)
+node scripts/merge-duplicate-keys.js
+
+# 3. Apply Cosmos-only migration
+node scripts/merge-duplicate-keys.js --apply --migrate-cosmos
+#    -> meta sidecar should be a no-op (already deduped); Cosmos deletes 146 loser docs, upserts winners
+
+git add data/archive/ docs/reports/merge-duplicate-keys-plan.json
+git commit -m "data(#246): apply Cosmos migration -- 146 loser docs deleted, winners upserted"
 git push
 ```
 
-Expected impact (per current committed plan):
-- 144 duplicate groups collapsed
-- 146 loser keys deleted from `data/terapeak-meta.json` (archived to `data/archive/terapeak-meta-orphans-<ISO>.json`)
-- 2,317 historical comps preserved into winners
-- Cosmos `terapeak-sold`: loser docs deleted, winner docs upserted with merged `aggregationMeta` + dedup'd comps array
+Rollback if `--migrate-cosmos` goes wrong: re-upsert every doc from `data/archive/cosmos-terapeak-sold-<ISO>.json` back into the `terapeak-sold` container (one-off script, not pre-built; the export is full-fidelity including `_etag`).
 
-Why NOT auto-run on deploy: irreversible data migration touching Cosmos; the dry-run-first design exists so the 144-group plan can be eyeballed before any write. Run once manually with Cosmos creds in env; no follow-up needed after that.
+Why NOT auto-run on deploy: irreversible data migration touching Cosmos; the dry-run-first design plus the new export step exist so the operator can eyeball the plan and have a true rollback artifact before any write.
 
 **Phase 1 complete.** `scripts/audit-duplicate-keys.js` shipped (read-only) with regression coverage in `__tests__/auditDuplicateKeys.test.js`. Audit output committed at `docs/reports/duplicate-keys-report.json` for review.
 
