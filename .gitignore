@@ -21,3 +21,8 @@ tests/__pycache__/
 test-parse.js
 test_output.log
 scripts/run-multi-phase.sh
+
+# Stryker mutation testing (BACKLOG #239)
+reports/mutation/
+.stryker-tmp/
+stryker.log

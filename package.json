@@ -13,6 +13,7 @@
     "lint": "eslint .",
     "test:metrics": "node scripts/test-metrics/run-with-metrics.cjs",
     "test:summary": "node scripts/test-metrics/summarize.cjs",
+    "test:mutation": "stryker run",
     "health:lot-estimator": "node scripts/lot-estimator-health.js"
   },
   "repository": {
@@ -47,6 +48,8 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@stryker-mutator/core": "^9.6.1",
+    "@stryker-mutator/jest-runner": "^9.6.1",
     "axios-mock-adapter": "^2.1.0",
     "eslint": "^10.4.0",
     "fake-indexeddb": "^6.2.5",

@@ -1,0 +1,38 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "_comment": "Mutation testing for the highest-stakes classification / comp-scoring code paths. Manual command (npm run test:mutation) -- not a CI gate. See BACKLOG #239.",
+  "packageManager": "npm",
+  "testRunner": "jest",
+  "jest": {
+    "projectType": "custom",
+    "configFile": "package.json",
+    "_comment": "enableFindRelatedTests is intentionally false: code-reviewer flagged a tension with coverageAnalysis:perTest where transitive-only imports could be wrongly skipped, inflating mutation scores. Accuracy beats runtime for a baseline tool.",
+    "enableFindRelatedTests": false
+  },
+  "coverageAnalysis": "perTest",
+  "mutate": [
+    "src/services/ebayService.js",
+    "src/data/greysheetTypeMap.js",
+    "src/services/pcgsService.js"
+  ],
+  "reporters": [
+    "clear-text",
+    "progress",
+    "html",
+    "json"
+  ],
+  "htmlReporter": {
+    "fileName": "reports/mutation/mutation-report.html"
+  },
+  "jsonReporter": {
+    "fileName": "reports/mutation/mutation-report.json"
+  },
+  "thresholds": {
+    "high": 80,
+    "low": 60,
+    "break": null
+  },
+  "timeoutMS": 60000,
+  "concurrency": 2,
+  "disableTypeChecks": true
+}

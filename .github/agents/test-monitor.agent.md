@@ -37,6 +37,7 @@ Your job is to keep the test suite fast, deterministic, and comprehensive.
 | Mocking | axios-mock-adapter, `jest.mock('axios')` |
 | Metrics script | `npm run test:metrics` |
 | Summary script | `npm run test:summary` |
+| Mutation script | `npm run test:mutation` (Stryker, manual only -- not CI; ~6hrs full run; baselines in README) |
 | Metrics store | `.test-metrics/test-runs.jsonl` (append-only) |
 | Coverage in CI | Yes, with soft floors via `jest.coverageThreshold` in `package.json` (statements:68, branches:61, functions:68, lines:70 — set 5pts below 2026-06 observed baseline per BACKLOG #238) |
 | Response schema | `src/schemas/priceResponse.schema.js` (ajv Draft-07) — do not hand-roll duplicate validators |
