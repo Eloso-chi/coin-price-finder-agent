@@ -148,7 +148,7 @@ Optional variables:
 | `NUMISTA_API_KEY` | Numista API key for rarity/mintage data | *(none)* || `GREYSHEET_API_TOKEN` | Greysheet CDN Public API V2 token | *(none)* |
 | `GREYSHEET_API_KEY` | Greysheet CDN Public API V2 key | *(none)* |
 | `GREYSHEET_BASE_URL` | Greysheet API base URL override | `https://cpgpublicapiv2.greysheet.com/api` |
-| `ADMIN_API_KEY` | API key for admin/destructive endpoints | *(none -- endpoints locked)* |
+| `ADMIN_API_KEY` | API key for admin/destructive endpoints. In local WSL/shell usage this must be the raw secret value (not App Service Key Vault reference syntax like `@Microsoft.KeyVault(...)`). | *(none -- endpoints locked)* |
 | `JWT_SECRET` | Secret key for signing JWTs (auth tokens). **Required in production** (`NODE_ENV=production`) -- server throws FATAL if unset. | *(random on startup -- sessions expire on restart)* |
 | `PORT` | Server port | `3000` |
 | `EBAY_CACHE_TTL_MS` | eBay cache lifetime | `3600000` (1 hour) |

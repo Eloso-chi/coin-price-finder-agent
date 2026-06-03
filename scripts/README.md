@@ -19,6 +19,9 @@ Operational scripts for data collection, migration, and maintenance. Most script
 |---|---|---|
 | `terapeak-export.py` | Semi-automated Terapeak CSV exporter (page 1) | `python3 scripts/terapeak-export.py --run --limit 20` |
 | `sales-aggregator.py` | Deep pagination aggregator (pages 2-6) with dashboard mode | `python3 scripts/sales-aggregator.py` (dashboard) or `--run --limit 10` |
+| `bootstrap-surface-wsl.sh` | One-command Surface/WSL bootstrap for PR250 flow (deps, venv, Playwright, env templates) | `bash scripts/bootstrap-surface-wsl.sh` |
+| `surface` | One-word launcher for the Surface freshness loop (loads validated env + runs loop) | `surface` |
+| `run-surface-freshness-loop.sh` | Surface/WSL wrapper: report -> page 1 backlog -> report -> deep backlog -> report | `bash scripts/run-surface-freshness-loop.sh --env-file ~/.env.surface` |
 | `vnc-login.py` | Opens browser, waits for eBay login, saves cookies | `python3 scripts/vnc-login.py` |
 | `create_placeholders.py` | Create placeholder CSVs + meta files for export backlog | `python3 scripts/create_placeholders.py` |
 
@@ -108,3 +111,38 @@ node scripts/generate-freshness-report.js --batch 100  # Write top-100 priority 
 node scripts/generate-freshness-report.js --metal gold # Filter to gold-metal datasets only
 node scripts/generate-freshness-report.js --stale 15   # Override stale threshold (default 15 days)
 ```
+
+### Surface freshness loop
+
+```bash
+# Residential-machine loop: pre-flight cookies, generate report, run page-1
+# backlog, regenerate report, run deep-pagination backlog, regenerate report.
+bash scripts/run-surface-freshness-loop.sh --env-file ~/.env.surface
+
+# Skip the live eBay probe if you already did one moments ago.
+bash scripts/run-surface-freshness-loop.sh --env-file ~/.env.surface --skip-probe
+
+# Run page-1 only and defer deep pagination.
+bash scripts/run-surface-freshness-loop.sh --env-file ~/.env.surface --skip-deep --page1-batch 20
+```
+
+### Surface bootstrap (fast setup)
+
+```bash
+# Run once per new Surface/WSL environment.
+bash scripts/bootstrap-surface-wsl.sh
+
+# Save admin key once (hidden prompt, chmod 600 file):
+~/set-cpf-admin-key.sh
+
+# Activate the one-word command in your shell:
+source ~/.bashrc
+
+# Run the full freshness loop:
+surface
+```
+
+Notes:
+- Key persists in `~/.config/cpf/admin_api_key` and is never written to shell history.
+- Use raw `ADMIN_API_KEY` value, not `@Microsoft.KeyVault(SecretUri=...)`.
+- If Playwright install fails on Ubuntu 26.04, use Ubuntu 24.04/22.04 for scraper runs.

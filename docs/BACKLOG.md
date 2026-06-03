@@ -1477,6 +1477,35 @@ node -e "console.log(require('./src/services/pcgsService').parseDescription('BU 
 
 ---
 
+### #250. Image Proxy Numista Allowlist Baseline Failures [P2 -- TEST STABILITY] -- BACKLOG
+
+**Problem:** Baseline test failures remain for Numista allowlist behavior in
+`__tests__/imageProxyRoute.test.js`:
+- `allows en.numista.com`
+- `allows www.numista.com`
+
+These failures reproduce on both `origin/main` and the
+`chore/surface-one-word-launcher` PR branch, so they are not introduced by the
+Surface launcher work.
+
+**Impact:** Full-suite `npm test` remains red, which blocks clean merge gates
+and obscures regressions in unrelated PRs.
+
+**Scope:**
+1. Reconcile allowlist logic in `src/routes/imageProxyRoute.js` with the
+   expected host rules in `__tests__/imageProxyRoute.test.js`.
+2. Keep SSRF protections intact (localhost/private ranges/subdomain bypass).
+3. Add/adjust targeted assertions only where behavior and security policy are
+   explicitly agreed.
+4. Re-run and record focused results for `__tests__/imageProxyRoute.test.js`.
+
+**Definition of done:**
+- `__tests__/imageProxyRoute.test.js` passes on a clean worktree.
+- No weakening of existing SSRF-blocking assertions.
+- Backlog status updated in the same PR that lands the fix.
+
+---
+
 ## Completed (reference)
 
 | # | Item | Commit |
