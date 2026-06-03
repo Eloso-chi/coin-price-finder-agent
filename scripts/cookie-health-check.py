@@ -11,14 +11,18 @@ EXIT CODES:
   0  HEALTHY  -- session looks usable. No expired auth cookies; key Akamai
                  bot-mgmt cookies present and within their TTL; if --probe was
                  requested, eBay accepted the session.
-  1  EXPIRED  -- one or more critical cookies are past their expiry. Manual
-                 re-login required (terapeak-export.py --login on a desktop,
-                 or --cookie-file paste from a logged-in browser).
+  1  EXPIRED  -- one or more critical cookies are past their expiry, or the
+                 cookie file is corrupt/unparseable. Manual re-login required
+                 (terapeak-export.py --login on a desktop, or --cookie-file
+                 paste from a logged-in browser).
   2  CHALLENGED -- session loaded fine but eBay is serving an Akamai/hCaptcha
                    challenge instead of the Terapeak page. Same remedy as
                    EXPIRED but distinct cause (IP reputation / behavioral
                    trip, not stale tokens).
   3  MISSING  -- no cookie file at the resolved path. First-time setup needed.
+  4  PROBE_FAILED -- --probe was requested but could not run (no Playwright,
+                     chromium launch failed, cookie injection failed). Caller
+                     should treat as INDETERMINATE, not HEALTHY.
 
 USAGE:
   python3 scripts/cookie-health-check.py                # offline check only
@@ -46,6 +50,12 @@ DEFAULT_COOKIE_FILE = PROJECT_DIR / "cache" / "ebay_cookies.json"
 # request, so a stale entry there is normal and does NOT mean the session is
 # broken; eBay's edge will re-mint them if the underlying identity tier is
 # trusted. Excluded from this list on purpose.
+#
+# How this set was derived: jar inspection on 2026-06-03 (sample size 1, the
+# operator's working Terapeak session). eBay does NOT publish this contract,
+# so if they rename/replace a critical cookie this offline check will silently
+# downgrade to HEALTHY while the real session is dead. After any production
+# false-positive, re-run with --probe to confirm and update this set.
 CRITICAL_PERSISTENT_COOKIES = {"dp1", "cid", "ebaysid", "shs", "ns1", "totp"}
 
 # Cookies that may not yet exist in a freshly-extracted jar (e.g. browser
@@ -56,7 +66,29 @@ OPTIONAL_PERSISTENT_COOKIES = {"nonsession", "thx_guid", "tmx_guid"}
 EBAY_RESEARCH_URL = "https://www.ebay.com/sh/research"
 
 
+# Sentinel returned by load_cookies() to distinguish a corrupt/unreadable jar
+# from an intentionally-empty one. The classifier treats both as EXPIRED but
+# emits distinct reason strings so the operator can tell whether to re-login
+# (empty) or investigate disk corruption / partial-write (corrupt).
+LOAD_CORRUPT = object()
+
+
 def load_cookies(path: Path):
+    """
+    Load a Playwright cookie jar.
+
+    Schema expected (matches `context.cookies()` output):
+      [{name, value, domain, path, expires, httpOnly, secure, sameSite}, ...]
+    where `expires` is a float (seconds since epoch) or -1 for a session
+    cookie.
+
+    Returns:
+      None          -- file does not exist
+      []            -- file exists but contains an empty list (rare; usually a
+                       brand-new jar before --login completes)
+      LOAD_CORRUPT  -- file exists but is unparseable
+      list[dict]    -- normal case
+    """
     if not path.exists():
         return None
     try:
@@ -64,15 +96,17 @@ def load_cookies(path: Path):
             return json.load(f)
     except (json.JSONDecodeError, OSError) as e:
         print(f"ERROR: cannot read {path}: {e}", file=sys.stderr)
-        return []
+        return LOAD_CORRUPT
 
 
 def classify_offline(cookies, now_ts):
     """Pure local check: which cookies are expired, missing, or healthy."""
     if cookies is None:
         return {"status": "MISSING", "reasons": []}
+    if cookies is LOAD_CORRUPT:
+        return {"status": "EXPIRED", "reasons": ["cookie file is corrupt or unparseable (see stderr)"]}
     if not cookies:
-        return {"status": "EXPIRED", "reasons": ["cookie file is empty or unparseable"]}
+        return {"status": "EXPIRED", "reasons": ["cookie file is empty"]}
 
     present = {c.get("name") for c in cookies}
     expired_critical = []
@@ -140,72 +174,75 @@ def probe_ebay(cookies):
         except Exception as e:
             return {"verdict": "SKIPPED", "reason": f"chromium launch failed: {e}"}
 
-        context = browser.new_context(
-            user_agent=(
-                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) "
-                "Chrome/134.0.0.0 Safari/537.36"
-            ),
-        )
-        normalized = []
-        for c in cookies:
-            cc = dict(c)
-            ss = cc.get("sameSite")
-            if ss not in (None, "Strict", "Lax", "None"):
-                cc["sameSite"] = "None" if ss in ("no_restriction", "unspecified") else "Lax"
-            normalized.append(cc)
         try:
-            context.add_cookies(normalized)
-        except Exception as e:
-            browser.close()
-            return {"verdict": "SKIPPED", "reason": f"cookie injection failed: {e}"}
+            context = browser.new_context(
+                user_agent=(
+                    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) "
+                    "Chrome/134.0.0.0 Safari/537.36"
+                ),
+            )
+            normalized = []
+            for c in cookies:
+                cc = dict(c)
+                ss = cc.get("sameSite")
+                if ss not in (None, "Strict", "Lax", "None"):
+                    cc["sameSite"] = "None" if ss in ("no_restriction", "unspecified") else "Lax"
+                normalized.append(cc)
+            try:
+                context.add_cookies(normalized)
+            except Exception as e:
+                return {"verdict": "SKIPPED", "reason": f"cookie injection failed: {e}"}
 
-        page = context.new_page()
-        try:
-            resp = page.goto(EBAY_RESEARCH_URL, wait_until="domcontentloaded", timeout=15000)
-        except Exception as e:
-            browser.close()
-            return {"verdict": "CHALLENGED", "reason": f"navigation failed: {e}"}
+            page = context.new_page()
+            try:
+                resp = page.goto(EBAY_RESEARCH_URL, wait_until="domcontentloaded", timeout=15000)
+            except Exception as e:
+                return {"verdict": "CHALLENGED", "reason": f"navigation failed: {e}"}
 
-        final_url = page.url
-        status = resp.status if resp else None
-        # Akamai/hCaptcha challenge fingerprints. Conservative -- prefer false
-        # CHALLENGED to false HEALTHY because the next step is "go re-login",
-        # which is cheap.
-        body_snippet = ""
-        try:
-            body_snippet = page.content()[:4000].lower()
-        except Exception:
-            pass
+            final_url = page.url
+            status = resp.status if resp else None
+            # Akamai/hCaptcha challenge fingerprints. Conservative -- prefer
+            # false CHALLENGED to false HEALTHY because the next step is "go
+            # re-login", which is cheap.
+            body_snippet = ""
+            try:
+                body_snippet = page.content()[:4000].lower()
+            except Exception:
+                pass
 
-        challenge_signals = [
-            "captcha" in body_snippet,
-            "hcaptcha" in body_snippet,
-            "are you a human" in body_snippet,
-            "/splashui/" in final_url.lower(),
-            "/captcha" in final_url.lower(),
-            status is not None and status in (403, 429),
-        ]
-        browser.close()
+            challenge_signals = [
+                "captcha" in body_snippet,
+                "hcaptcha" in body_snippet,
+                "are you a human" in body_snippet,
+                "/splashui/" in final_url.lower(),
+                "/captcha" in final_url.lower(),
+                status is not None and status in (403, 429),
+            ]
 
-        if any(challenge_signals):
-            return {
-                "verdict": "CHALLENGED",
-                "reason": "Akamai/hCaptcha or HTTP block detected",
-                "final_url": final_url,
-                "status": status,
-            }
-        # Heuristic for "we landed on the real research page": URL contains
-        # /sh/research and not a redirect to signin.
-        if "/signin" in final_url.lower() or "/login" in final_url.lower():
-            return {"verdict": "EXPIRED", "reason": "redirected to sign-in", "final_url": final_url}
-        if "/sh/research" not in final_url.lower():
-            return {
-                "verdict": "CHALLENGED",
-                "reason": f"unexpected landing URL: {final_url}",
-                "status": status,
-            }
-        return {"verdict": "HEALTHY", "final_url": final_url, "status": status}
+            if any(challenge_signals):
+                return {
+                    "verdict": "CHALLENGED",
+                    "reason": "Akamai/hCaptcha or HTTP block detected",
+                    "final_url": final_url,
+                    "status": status,
+                }
+            # Heuristic for "we landed on the real research page": URL
+            # contains /sh/research and not a redirect to signin.
+            if "/signin" in final_url.lower() or "/login" in final_url.lower():
+                return {"verdict": "EXPIRED", "reason": "redirected to sign-in", "final_url": final_url}
+            if "/sh/research" not in final_url.lower():
+                return {
+                    "verdict": "CHALLENGED",
+                    "reason": f"unexpected landing URL: {final_url}",
+                    "status": status,
+                }
+            return {"verdict": "HEALTHY", "final_url": final_url, "status": status}
+        finally:
+            try:
+                browser.close()
+            except Exception:
+                pass
 
 
 def main():
@@ -224,22 +261,46 @@ def main():
 
     cookies = load_cookies(cookie_path)
     offline = classify_offline(cookies, now_ts)
+    # Stat once -- avoids a TOCTOU window where the file gets deleted between
+    # the report-time stat and the human-readable age computation below.
     mtime_iso = None
-    if cookie_path.exists():
-        mtime_iso = datetime.fromtimestamp(cookie_path.stat().st_mtime, tz=timezone.utc).isoformat()
+    mtime_epoch = None
+    try:
+        st = cookie_path.stat()
+        mtime_epoch = st.st_mtime
+        mtime_iso = datetime.fromtimestamp(mtime_epoch, tz=timezone.utc).isoformat()
+    except FileNotFoundError:
+        pass
 
     probe_result = None
-    if args.probe and offline["status"] == "HEALTHY":
+    if args.probe and offline["status"] == "HEALTHY" and cookies and cookies is not LOAD_CORRUPT:
         probe_result = probe_ebay(cookies)
 
-    # Final verdict: offline EXPIRED/MISSING wins; otherwise probe wins if run.
+    # Final verdict precedence:
+    # 1. offline EXPIRED/MISSING always wins (no point probing a dead jar)
+    # 2. probe CHALLENGED/EXPIRED overrides offline HEALTHY
+    # 3. probe SKIPPED when --probe was explicitly requested -> PROBE_FAILED
+    #    (do NOT silently report HEALTHY -- a broken chromium install or
+    #    missing playwright would otherwise green-light a cron caller)
     status = offline["status"]
     if probe_result and probe_result.get("verdict") in ("CHALLENGED", "EXPIRED"):
         status = probe_result["verdict"]
+    elif args.probe and probe_result and probe_result.get("verdict") == "SKIPPED":
+        status = "PROBE_FAILED"
 
-    exit_code = {"HEALTHY": 0, "EXPIRED": 1, "CHALLENGED": 2, "MISSING": 3}[status]
+    exit_code = {
+        "HEALTHY": 0,
+        "EXPIRED": 1,
+        "CHALLENGED": 2,
+        "MISSING": 3,
+        "PROBE_FAILED": 4,
+    }[status]
 
-    summary = summarize(cookies or [], now_ts)
+    # Normalize sentinels/None to an empty list for the summary -- LOAD_CORRUPT
+    # is a sentinel object (truthy, not iterable), so `cookies or []` is not
+    # enough.
+    cookie_list = cookies if isinstance(cookies, list) else []
+    summary = summarize(cookie_list, now_ts)
     report = {
         "status": status,
         "exit_code": exit_code,
@@ -256,8 +317,8 @@ def main():
         print()
     else:
         print(f"Cookie file: {cookie_path}")
-        if mtime_iso:
-            age_h = (now_ts - cookie_path.stat().st_mtime) / 3600
+        if mtime_iso and mtime_epoch is not None:
+            age_h = (now_ts - mtime_epoch) / 3600
             print(f"  Last modified: {mtime_iso}  ({age_h:.1f}h ago)")
         print(f"  Total cookies: {summary.get('total', 0)}")
         if summary.get("buckets"):
@@ -281,7 +342,11 @@ def main():
             print("          which means the IP/fingerprint is no longer trusted.")
             print("          Avoid further scrape attempts from this machine for a few hours.")
         elif status == "MISSING":
-            print("  Remedy: first-time setup. See docs/runbooks/local-scraper-setup.md")
+            print("  Remedy: first-time setup. See docs/runbooks/local-scraper-wsl2.md")
+        elif status == "PROBE_FAILED":
+            print("  Remedy: --probe could not run (see probe.reason above).")
+            print("          Install Playwright + Chromium, or omit --probe and")
+            print("          rely on the offline classification only.")
 
     sys.exit(exit_code)
 
