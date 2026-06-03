@@ -114,11 +114,21 @@ jobs:
           fi
 
           echo "── Smoke 2/2: /api/price (golden coin) ──"
-          RESPONSE=$(curl -s --max-time 60 "$BASE_URL/api/price?q=1921%20Morgan%20Silver%20Dollar")
-          FMV=$(echo "$RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); v=d.get('valuation') or {}; print(v.get('fmv') or v.get('priceUSD') or 0)" 2>/dev/null || echo "0")
+          # priceRoute is mounted as POST /api/price with a JSON body and
+          # returns valuation.fmvCore (not .fmv / .priceUSD). The previous
+          # smoke used GET ?q=... which 404s, then read non-existent fields,
+          # silently turning every deploy red since this step was added in
+          # #237. Verified live on 2026-06-03: POST returns fmvCore=$61.39
+          # for 1921 Morgan with 95 comps, confidence 83.
+          RESPONSE=$(curl -s --max-time 90 -X POST \
+            -H 'content-type: application/json' \
+            -d '{"query":"1921 Morgan Silver Dollar"}' \
+            "$BASE_URL/api/price")
+          FMV=$(echo "$RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); v=d.get('valuation') or {}; print(v.get('fmvCore') or v.get('fmv') or v.get('priceUSD') or 0)" 2>/dev/null || echo "0")
           echo "FMV returned: $FMV"
 
-          # Sane band for 1921 Morgan Silver Dollar: $20-$200 (raw, common date)
+          # Sane band for 1921 Morgan Silver Dollar: $20-$200 (raw, common date).
+          # The wide [5, 500] guard tolerates silver-spot drift without false-positives.
           IN_RANGE=$(python3 -c "f=float('$FMV'); print(1 if 5 <= f <= 500 else 0)" 2>/dev/null || echo "0")
           if [ "$IN_RANGE" != "1" ]; then
             echo "::error::Golden coin FMV $FMV outside sane range [5, 500]"
