@@ -358,24 +358,28 @@ export COSMOS_ENDPOINT="$(az cosmosdb show --name coinpricefinder-cosmos --resou
 export COSMOS_KEY="$(az cosmosdb keys list --name coinpricefinder-cosmos --resource-group CoinPriceFinder_group-82d5 --query primaryMasterKey -o tsv)"
 export COSMOS_DB="coinprice"
 
-# 3. Take fresh dump (rollback artifact)
+# 3. Take fresh dump (rollback artifact) + persistent off-tree backup
 node scripts/export-cosmos-terapeak-sold.js
-cp data/archive/cosmos-terapeak-sold-<ISO>.json /tmp/   # local + tmp backup
+ROLLBACK_DUMP=$(ls -t data/archive/cosmos-terapeak-sold-*.json | head -1)
+cp "$ROLLBACK_DUMP" ~/cpf-rollback-$(date -u +%Y%m%dT%H%M%SZ).json   # survives codespace rebuild (~/ is persisted; /tmp/ is not)
 
-# 4. Dry-run (--verbose for full group list) -- probe will show real Cosmos scope
-node scripts/merge-duplicate-keys.js --from-archive=data/archive/terapeak-meta-orphans-<ISO>.json --verbose
+# 4. Bind the orphans archive once (latest from PR #95-era run, or rerun the planner first)
+ORPHANS_ARCHIVE=$(ls -t data/archive/terapeak-meta-orphans-*.json | head -1)
 
-# 5. Apply (after operator eyeball-review of #4)
-node scripts/merge-duplicate-keys.js --from-archive=data/archive/terapeak-meta-orphans-<ISO>.json --apply --migrate-cosmos
+# 5. Dry-run (--verbose for full group list) -- probe will show real Cosmos scope
+node scripts/merge-duplicate-keys.js --from-archive="$ORPHANS_ARCHIVE" --verbose
 
-# 6. Re-probe to verify 0/N losers present
-node scripts/merge-duplicate-keys.js --from-archive=data/archive/terapeak-meta-orphans-<ISO>.json
+# 6. Apply (after operator eyeball-review of #5)
+node scripts/merge-duplicate-keys.js --from-archive="$ORPHANS_ARCHIVE" --apply --migrate-cosmos
 
-# 7. Restart App Service
+# 7. Re-probe to verify 0/N losers present
+node scripts/merge-duplicate-keys.js --from-archive="$ORPHANS_ARCHIVE"
+
+# 8. Restart App Service
 az webapp start --name coinpricefinder --resource-group CoinPriceFinder_group-82d5
 ```
 
-Rollback if `--migrate-cosmos` goes wrong: re-upsert every doc from `/tmp/cosmos-terapeak-sold-<ISO>.json` back into the `terapeak-sold` container (one-off script, not pre-built; the export is full-fidelity including `_etag`).
+Rollback if `--migrate-cosmos` goes wrong: re-upsert every doc from `$ROLLBACK_DUMP` (or the `~/cpf-rollback-*.json` copy) back into the `terapeak-sold` container (one-off script, not pre-built; the export is full-fidelity including `_etag`).
 
 **Phase 1 complete.** `scripts/audit-duplicate-keys.js` shipped (read-only) with regression coverage in `__tests__/auditDuplicateKeys.test.js`. Audit output committed at `docs/reports/duplicate-keys-report.json` for review.
 
