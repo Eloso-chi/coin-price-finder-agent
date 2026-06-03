@@ -131,6 +131,25 @@ describe('getStaleDatasets exclusions (#229)', () => {
     expect(summary.skippedByReason['confirmed-thin-skip']).toBe(1);
   });
 
+  // #248 regression: dryConfirmedThin path (a single dry refresh on a
+  // thin-comp dataset) must escalate to confirmed-thin via adminService too,
+  // not just via generate-freshness-report.js. This guards against the
+  // INC-011-class drift fixed by forwarding lastRefreshNewComps in
+  // adminService's classifyMeta builder.
+  test('excludes dryConfirmedThin (compCount<10 + refreshCount=1 + lastRefreshNewComps=0) (#248)', () => {
+    setDatasets([
+      makeDataset('dry-confirmed-thin', {
+        newestSaleDate: dateAgo(40),
+        lastRefreshAt: daysAgo(30),        // <90d cadence -> skip if confirmed-thin
+        refreshCount: 1,                   // single refresh
+        lastRefreshNewComps: 0,            // dry: added 0 new comps
+      }, 5),                               // <10 comps -> thin
+    ]);
+    const { stale, summary } = adminService.getStaleDatasets({ days: 30, limit: 50 });
+    expect(stale.find(s => s.searchTerm === 'dry-confirmed-thin')).toBeUndefined();
+    expect(summary.skippedByReason['confirmed-thin-skip']).toBe(1);
+  });
+
   test('excludes thin-wait (compCount<10 + refreshCount<3 within 60d)', () => {
     setDatasets([
       makeDataset('thin-wait', {

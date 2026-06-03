@@ -427,6 +427,94 @@ PR A is a *preventive* fix: it rewrites 133 `.meta` files to match the CSV filen
 
 ---
 
+### #248. Refresh Queue Doesn't Gate on Evidence-Confidence or Single-Cycle Confirmation [P2 -- DATA-QUALITY] -- DONE 2026-06-03
+
+**Status:** Fixed via two surgical changes that close gaps left by #245 Fix A and #247:
+1. `evidence-probe` action -- Medium-confidence `is_low_volume_candidate` entries that have never been runtime-touched (`refreshCount === 0`) are demoted to a single P3 page-1 probe instead of being queued as P0/P1 refresh.
+2. `dryConfirmedThin` escalation -- a single dry refresh (`refreshCount >= 1 && lastRefreshNewComps === 0`) on a thin market (`compCount < THIN_MARKET_THRESHOLD`) marks `marketDepth = 'confirmed-thin'` immediately, instead of waiting for `CONFIRMED_THIN_REFRESHES` (=3) cycles.
+
+**Problem:** Two related leaks in the freshness queue, both made visible by the 2026-06-03 safe-176 batch audit (the user's question: "shouldn't some of these fractional silvers be low signal or dormant?"):
+- **Leak A (Medium-confidence low-vol):** The High-confidence evidence gate from #245 Fix A only fires on `identifier_confidence === 'High'`. Medium-confidence entries (74 P0 in the 2026-06-03 report -- e.g. `2024 American Gold Eagle 1oz Bu`, `2013 China 1oz Gold Panda`, `1993 China Half Oz Silver Panda`) flow straight through into P0 refresh on every cycle, even though the evidence index already flagged them as probable low-volume. They are not yet provably low-volume (Medium != High), but they also do not deserve P0 treatment. The correct action is one cheap page-1 probe, then re-classify based on runtime data.
+- **Leak B (slow confirmed-thin escalation):** Today a thin entry must accumulate `refreshCount >= 3` to be marked `confirmed-thin` and dropped to the 90-day cadence. If a single live refresh on a 5-comp entry adds 0 new listings, that is already definitive proof the market is structurally thin -- waiting for 2 more refreshes burns 2x quota with zero information gain. 917 entries in the 2026-06-03 report match this single-cycle-confirmable shape (`refreshCount=0, 0<compCount<10`); they will compound the queue every two months under the old logic.
+
+**Trigger location:**
+- `src/services/freshnessClassifier.js:classify()` -- the `marketDepth` derivation for `compCount < THIN_MARKET_THRESHOLD` only checks `refreshCount >= CONFIRMED_THIN_REFRESHES`.
+- `scripts/generate-freshness-report.js` -- the priority-action chain only checks `isHighConfLowVol`, not `isMediumConfLowVol`.
+
+**Hard-number evidence** (report generated 2026-06-03T00:15Z against `data/terapeak-meta.json` post-#247):
+
+| Metric | Value |
+|---|---|
+| P0 entries total | 731 |
+| P0 with `refreshCount = 0` | 731 (100%) -- all P0 today are evidence-hydrated, never runtime-touched |
+| P0 with `identifier_source = historical_evidence_index` | 656 (90%) |
+| P0 with `is_low_volume_candidate && confidence === 'Medium'` | **74** (these get demoted to evidence-probe/P3 by Leak A fix) |
+| P0 with `is_low_volume_candidate && confidence === 'High'` | 0 (already handled by #245 Fix A) |
+| All-priority candidates for single-cycle confirmed-thin (`refreshCount=0, 0<compCount<10`) | **917** (these will resolve to `confirmed-thin` after 1 probe instead of 3 under Leak B fix) |
+
+**Top 5 examples (Leak A, would be demoted to evidence-probe/P3):**
+
+| compCount | refreshes | searchTerm |
+|---:|---:|---|
+| 34 | 0 | 2006 Canada Half Oz Silver Maple Leaf |
+| 66 | 0 | 2003 Mexico Tenth Oz Silver Libertad |
+| 18 | 0 | 2024 American Gold Eagle 1oz Bu |
+| 14 | 0 | 2013 China 1oz Gold Panda |
+| 14 | 0 | 1993 China Half Oz Silver Panda |
+
+**Top 5 examples (Leak B, would resolve to confirmed-thin in 1 cycle):**
+
+| compCount | priority | identifier_source | searchTerm |
+|---:|---|---|---|
+| 1 | P3 | fallback_live | 2003 China Quarter Oz Gold Panda |
+| 1 | P3 | fallback_live | 2006 Canada Twentieth Oz Gold Maple Leaf |
+| 1 | P3 | fallback_live | 2019 Canada Half Oz Gold Maple Leaf |
+| 1 | P3 | historical_evidence_index | Perth Lunar 1997 Ox Gold Half Oz |
+| 1 | P3 | fallback_live | 2024 American Gold Eagle Half Oz Bu |
+
+**Why it matters:**
+- Leak A: 74 P0s per cycle wasted on entries the evidence index already half-flagged. Equivalent to a 10% phantom-budget tax on every P0 batch.
+- Leak B: each affected entry burns 3x the quota and 3x the bot-detection exposure before settling on the same `confirmed-thin` verdict. Compounds in lock-step with the queue size.
+- Both interact with PR #98 / migration #246: the cleaner the meta gets, the more these long-tail wastes dominate.
+
+**Fix (two-part, surgical):**
+
+1. `src/services/freshnessClassifier.js`:
+   - New helper `_isMediumConfidenceLowVolEvidence(meta)` (parallel to existing `_isHighConfidenceLowVolEvidence`).
+   - `classify()` market-depth branch: escalate to `confirmed-thin` if `refreshCount >= CONFIRMED_THIN_REFRESHES OR (refreshCount >= 1 AND lastRefreshNewComps === 0)`.
+   - Export the new helper.
+2. `scripts/generate-freshness-report.js`:
+   - Mirror the `dryConfirmedThin` rule in market-depth derivation (so report and classifier stay in lock-step -- avoids the Fix-D-class wiring oversight).
+   - After existing `evidenceLowVolSkip` branch, add `evidenceProbeNeeded = isMediumConfLowVol && refreshCount === 0` and a new action branch `{ actions: ['evidence-probe'], priority: 'P3' }`.
+
+**Files:**
+- MOD `src/services/freshnessClassifier.js` (~30 lines incl. helper, comment, classify() change, export)
+- MOD `scripts/generate-freshness-report.js` (~20 lines incl. mirror of marketDepth logic + new evidence-probe branch)
+- NEW `__tests__/freshnessReportEvidenceGates.test.js` -- 12 assertions covering: Medium-conf low-vol demotion at refreshCount=0, no demotion at refreshCount>=1, High-conf path unchanged, viable bullion unaffected, dryConfirmedThin at refreshCount=1 + lastRefreshNewComps=0, NOT dryConfirmedThin if lastRefreshNewComps>0, classic refreshCount>=3 path preserved, report-classifier parity, helper boundary cases.
+- MOD `__tests__/freshnessReport.test.js` -- "LowSignalMarketData -- few comps" expectation updated: Medium-conf low-vol + refreshCount=0 now asserts `evidence-probe` (P3) instead of `monitor-refresh`. Behavioral change, not a regression.
+
+**Expected impact:**
+- 74 P0 entries -> demoted to P3 evidence-probe immediately (10% P0 queue reduction).
+- 917 thin candidates -> resolve to `confirmed-thin` in 1 cycle vs 3 (~67% quota savings on the long-tail thin band over a refresh window).
+- Note: evidence-probe at P3 is NOT run by default by `scripts/terapeak-export.py` (it only runs P0-P2 unless `--include-thin` is passed). That is the desired behavior -- probes are explicit, not automatic.
+
+**Out of scope:**
+- `Low` confidence evidence (none in current report). Same shape as Medium could be added later as `evidence-probe` if useful.
+- Cosmos-hydrated entries. They have non-zero `refreshCount` so they bypass the evidence-probe gate naturally.
+- Re-classifying entries that already passed through the old logic. The fix is forward-only; the next report regeneration will surface the corrected priorities.
+
+**Sequence dependency:** None. Independent of PR #98 and #247 (which is already merged).
+
+**Reference investigation (2026-06-03):** Counts derived inline from `cache/freshness-report.json` (4,666 datasets):
+```js
+const r = require('./cache/freshness-report.json').datasets;
+const p0 = r.filter(d => d.priority === 'P0');                                  // 731
+const p0LowVolMed = p0.filter(d => d.identifiers?.is_low_volume_candidate && d.identifiers?.identifier_confidence === 'Medium'); // 74
+const probeCandidates = r.filter(d => d.priority !== null && (d.refreshCount || 0) === 0 && d.compCount > 0 && d.compCount < 10); // 917
+```
+
+---
+
 ### #247. Deep-Paginate Over-Triggers on Evidence-Hydrated Entries [P2 -- DATA-QUALITY] -- DONE 2026-06-02
 
 **Status:** Fixed via 1-line gate change in `scripts/generate-freshness-report.js` (added `&& refreshCount >= 1`). Regression coverage in `__tests__/freshnessReportDeepPaginate.test.js` (4 cases incl. the critical Python-stamped `lastRefreshAt`-only case). Live verification: `deep-paginate` count dropped 407 -> 0 immediately. The 407 entries remain queued via `refresh` and will graduate to deep-paginate naturally on the next cycle once `refreshCount >= 1`.

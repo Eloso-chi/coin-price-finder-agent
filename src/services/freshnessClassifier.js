@@ -76,6 +76,28 @@ function _isHighConfidenceLowVolEvidence(meta) {
 }
 
 /**
+ * Returns true when meta.identifiers indicates a Medium-confidence
+ * low-volume candidate. Used by #248 to demote these entries to a
+ * single evidence-probe (page-1 refresh at P3) rather than full P0/P1
+ * refresh until one runtime touch confirms or refutes the evidence.
+ *
+ * NOTE: This helper is intentionally NOT called by shouldSkipRefresh().
+ * Unlike _isHighConfidenceLowVolEvidence (which gates skip decisions),
+ * Medium-conf entries are not skipped -- they fall through to normal
+ * classification so adminService still surfaces them as stale. The
+ * evidence-probe action is emitted only by scripts/generate-freshness-
+ * report.js, which controls the P3 queue. Exported here so tests in
+ * __tests__/freshnessReportEvidenceGates.test.js can cover the helper
+ * directly without re-implementing the identifier-shape check.
+ */
+function _isMediumConfidenceLowVolEvidence(meta) {
+  const ids = meta && meta.identifiers;
+  if (!ids) return false;
+  return ids.is_low_volume_candidate === true
+      && ids.identifier_confidence === 'Medium';
+}
+
+/**
  * Derive raw freshness/depth state from a meta entry.
  * Pure function; no exclusions applied yet.
  *
@@ -127,13 +149,23 @@ function classify(meta, now = new Date(), opts = {}) {
   }
 
   // Axis 2: Market Depth
+  // #248: a single dry refresh (refreshCount>=1 AND lastRefreshNewComps===0)
+  // escalates a thin market to 'confirmed-thin' immediately, instead of
+  // waiting for CONFIRMED_THIN_REFRESHES cycles. Rationale: if the live
+  // page-1 fetch added zero new listings AND we still have <10 total comps,
+  // the market is structurally thin -- additional probes will not change
+  // that and just burn quota.
   let marketDepth;
+  const lastRefreshNewComps = meta.lastRefreshNewComps;
+  const dryConfirmedThin = refreshCount >= 1 && lastRefreshNewComps === 0;
   if (compCount === 0 && !csvExists && refreshCount === 0) {
     marketDepth = 'untested';
   } else if (compCount === 0) {
     marketDepth = 'empty';
   } else if (compCount < THIN_MARKET_THRESHOLD) {
-    marketDepth = refreshCount >= CONFIRMED_THIN_REFRESHES ? 'confirmed-thin' : 'thin';
+    marketDepth = (refreshCount >= CONFIRMED_THIN_REFRESHES || dryConfirmedThin)
+      ? 'confirmed-thin'
+      : 'thin';
   } else {
     marketDepth = 'viable';
   }
@@ -231,4 +263,5 @@ module.exports = {
   classify,
   shouldSkipRefresh,
   _isHighConfidenceLowVolEvidence,
+  _isMediumConfidenceLowVolEvidence,
 };

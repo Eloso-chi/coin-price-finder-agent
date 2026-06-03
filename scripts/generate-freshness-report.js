@@ -184,13 +184,19 @@ for (const [key, entry] of Object.entries(meta)) {
   }
 
   // Axis 2: Market Depth
+  // #248: dry-confirmed-thin escalation -- mirrors classify() in
+  // src/services/freshnessClassifier.js. A single refresh that added 0 new
+  // comps while total comps stay <THIN_MARKET_THRESHOLD escalates immediately
+  // to confirmed-thin (no need to wait for CONFIRMED_THIN_REFRESHES cycles).
   let marketDepth;
+  const lastRefreshNewComps = entry.lastRefreshNewComps ?? null;
+  const dryConfirmedThin = refreshCount >= 1 && entry.lastRefreshNewComps === 0;
   if (compCount === 0 && !csvExists && refreshCount === 0) {
     marketDepth = 'untested';
   } else if (compCount === 0) {
     marketDepth = 'empty';
   } else if (compCount < THIN_MARKET_THRESHOLD) {
-    if (refreshCount >= CONFIRMED_THIN_REFRESHES) {
+    if (refreshCount >= CONFIRMED_THIN_REFRESHES || dryConfirmedThin) {
       marketDepth = 'confirmed-thin';
     } else {
       marketDepth = 'thin';
@@ -207,8 +213,8 @@ for (const [key, entry] of Object.entries(meta)) {
   const isDormant = noDataCount >= 2 && noDataAgeDays !== null && noDataAgeDays < 60;
 
   // Dry-refresh backoff: consecutive refreshes that yielded 0 new comps
+  // (lastRefreshNewComps already declared above for #248 dryConfirmedThin gate)
   const consecutiveDryRefreshes = entry.consecutiveDryRefreshes || 0;
-  const lastRefreshNewComps = entry.lastRefreshNewComps ?? null;
 
   // ── Backward-compat: derive legacy freshnessStatus ─────────
   let freshnessStatus;
@@ -244,12 +250,26 @@ for (const [key, entry] of Object.entries(meta)) {
   const evidenceLowVolSkip = isHighConfLowVol
     && (lastRefreshDays === null || lastRefreshDays < EVIDENCE_LOW_VOL_CADENCE_DAYS);
 
+  // #248: Medium-confidence low-vol candidates that have never been
+  // runtime-probed. Demote from P0/P1 refresh queues to a single P3
+  // evidence-probe (page-1 fetch). Once refreshCount >= 1 they flow back
+  // into normal classification: if still <THIN_MARKET_THRESHOLD and the
+  // probe added 0 new comps they become confirmed-thin via dryConfirmedThin
+  // above; otherwise they re-enter the standard refresh cadence.
+  const isMediumConfLowVol = !!(storedIdsEarly
+    && storedIdsEarly.is_low_volume_candidate === true
+    && storedIdsEarly.identifier_confidence === 'Medium');
+  const evidenceProbeNeeded = isMediumConfLowVol && refreshCount === 0;
+
   if (isDormant) {
     actions.push('dormant');
     priority = null;
   } else if (evidenceLowVolSkip) {
     actions.push('evidence-low-vol');
     priority = null;
+  } else if (evidenceProbeNeeded) {
+    actions.push('evidence-probe');
+    priority = 'P3';
   } else if (freshness === 'missing' && marketDepth === 'untested') {
     actions.push('initial-fetch');
     priority = 'P2';
