@@ -1506,6 +1506,31 @@ and obscures regressions in unrelated PRs.
 
 ---
 
+### #251. Local vs Codespaces Scraper Parity and Write-Path Hardening [P1 -- OPERATIONS/DATA-INTEGRITY] -- DONE 2026-06-03
+
+**Status:** Shipped. Exporter now has an explicit `UPLOAD_MODE` selector (default `api`), the Surface loop wrapper sets `UPLOAD_MODE=api` unless overridden, blob mode no longer silently falls back to the API, and an optional `VERIFY_IMPORT=1` switch surfaces deferred-ingestion warnings. Runbooks (Surface + travel) and `scripts/README.md` carry a single parity matrix and a decision table. A source-level contract test pins the contract.
+
+**Verified Azure write-path truths (recorded for reference):**
+1. `POST /api/terapeak/import` runs `importComps` immediately and drives freshness/dormancy progression.
+2. Cosmos write-through inside `importComps` is best-effort async and gated on `COSMOS_ENDPOINT` + `COSMOS_KEY`.
+3. Blob ingestion is deferred to server startup or an explicit `POST /api/terapeak/reimport`.
+4. Pre-#251, blob-first success in the exporter could skip immediate API import.
+
+**Files:**
+- MOD `scripts/terapeak-export.py` (UPLOAD_MODE + VERIFY_IMPORT + blob-only branch with no API fallback)
+- MOD `scripts/run-surface-freshness-loop.sh` (default `UPLOAD_MODE=api`, exported; warn on overrides)
+- MOD `docs/runbooks/local-scraper-wsl2.md` (parity matrix + operator notes)
+- MOD `docs/runbooks/scraper-travel-mode.md` (parity matrix + operator notes)
+- MOD `scripts/README.md` (UPLOAD_MODE section + decision table)
+- NEW `__tests__/terapeakExportUploadMode.test.js` (5 source-contract assertions, all green)
+
+**Out of scope (kept for follow-up):**
+- Making Cosmos write-through blocking/transactional inside `/api/terapeak/import`.
+- Scheduling/automation layer (already tracked in #249).
+- Runtime verification of import completion beyond response-shape checks.
+
+---
+
 ## Completed (reference)
 
 | # | Item | Commit |

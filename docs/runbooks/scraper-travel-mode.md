@@ -90,14 +90,41 @@ python3 scripts/cookie-health-check.py --probe
 If the probe returns CHALLENGED, **stop**. Don't burn quota and don't poison
 the host browser's session. Wait or use a different host browser.
 
-### 5. Run small batches
+### 5. Run small batches (freshness triage integrated)
 
 ```bash
-python3 scripts/terapeak-export.py --batch-size 10
+# Keep travel mode conservative: smaller page-1 batch, skip deep by default.
+bash scripts/run-surface-freshness-loop.sh \
+  --stale 15 \
+  --page1-batch 10 \
+  --skip-deep
+
+# Optional focus to one coin family while traveling:
+bash scripts/run-surface-freshness-loop.sh --page1-batch 10 --skip-deep --coin-type libertads
+bash scripts/run-surface-freshness-loop.sh --page1-batch 10 --skip-deep --focus "morgan|peace"
 ```
 
 Smaller batches than the Surface workflow (10 vs 20) because the data-center
 IP shortens the Akamai trust window.
+
+If you need to run exporter directly (without triage orchestration), use:
+
+```bash
+python3 scripts/terapeak-export.py --batch 10
+```
+
+### Upload mode (UPLOAD_MODE) -- #251
+
+Travel mode follows the same parity defaults as Surface: `UPLOAD_MODE=api`
+(immediate import via `APP_URL/api/terapeak/import`). Set `UPLOAD_MODE=blob`
+only for explicit bulk-backfill profiles, in which case ingestion is deferred
+until server startup or an explicit `POST /api/terapeak/reimport` call.
+
+Do NOT set `TERAPEAK_BLOB_ACCOUNT` / `TERAPEAK_BLOB_CONTAINER` for the
+default travel workflow -- they cause `auto` mode to attempt blob-first uploads.
+
+Set `VERIFY_IMPORT=1` to log explicit warnings when ingestion cannot be
+confirmed immediately (any non-api mode).
 
 ## Hard limits
 
