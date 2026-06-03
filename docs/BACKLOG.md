@@ -321,9 +321,9 @@ Fixed: `evaluateOneCoin()` in `bulkEvaluateService.js` now matches price discove
 
 ---
 
-### #246. Dataset-Key Duplication Across Naming Variants [P2 -- DATA-QUALITY] -- META MIGRATION DONE, COSMOS MIGRATION PENDING
+### #246. Dataset-Key Duplication Across Naming Variants [P2 -- DATA-QUALITY] -- DONE 2026-06-03
 
-**Status (2026-06-02):** Five PRs landed. **Meta sidecar migrated. Cosmos still has 146 loser docs that will re-hydrate at next server restart -- operator action still required.**
+**Status (2026-06-03):** Complete. Meta sidecar deduped (PR #95) and Cosmos cleaned up (operator run via PR #97). 0 / 146 loser docs remaining in `terapeak-sold` after the migration. App Service stopped during the window and restarted clean.
 
 | PR | Merged | Scope |
 |---|---|---|
@@ -332,32 +332,50 @@ Fixed: `evaluateOneCoin()` in `bulkEvaluateService.js` now matches price discove
 | #92 | yes | PR B' -- `_mergeAggregationMeta` hydration helper (fixes latent first-wins bug in `loadMetaSidecar` / `hydrateMetaFromCosmos`) |
 | #93 | yes | PR C -- `scripts/merge-duplicate-keys.js` (dry-run + `--apply` + `--migrate-cosmos`) |
 | #95 | yes (2026-06-02) | Operator run, meta-only: `--apply` against `data/terapeak-meta.json`. 4,812 -> 4,666 keys. 146 losers archived to `data/archive/terapeak-meta-orphans-2026-06-02T20-37-59-494Z.json`. Cosmos NOT touched. |
+| #96 | yes (2026-06-02) | `scripts/export-cosmos-terapeak-sold.js` -- pre-migration safety dump (107MB rollback artifact). |
+| #97 | yes (2026-06-02) | `--from-archive` flag for Cosmos-only follow-up + S1 fix for `applyCosmosMigration` partition-key bug (was passing sanitized id as both id and pk; `terapeak-sold` pk is `/searchTerm`, the raw key). |
 
-**RISK -- Cosmos drift:** `hydrateMetaFromCosmos` runs at every server startup and merges `aggregationMeta` from Cosmos back into the local store. The 146 loser docs still in `terapeak-sold` will NOT re-create loser keys in the meta sidecar (their `searchTerm` no longer normalizes to a known winner), but they WILL keep occupying RU / storage and will keep emitting their stale `aggregationMeta` markers. Resolve by running `--migrate-cosmos` from an env with Cosmos creds.
+**Cosmos migration results (2026-06-03T00:05:48Z, run from this codespace via `az`-resolved creds):**
 
-**OPERATOR ACTION REMAINING -- run Cosmos migration from a creds-enabled env (NOT this codespace, which has no `COSMOS_ENDPOINT`):**
+| Metric | Predicted | Actual |
+|---|---|---|
+| Loser deletes | 101 | **101** |
+| Losers missing (already absent) | 45 | **45** |
+| Winner upserts | up to 144 | **99** (45 skipped where `didChange=false`) |
+| Comps merged into winners | up to 2,317 | **643** (rest dedup'd against existing winner comps) |
+| Errors | 0 | **0** |
+
+Post-migration verification probe: 0 / 146 losers present in Cosmos; 101 / 43 winners present-vs-absent (the 43 absent are local-meta-only entries with no losers in Cosmos and no comps to migrate -- meta sidecar already has them from PR #95). App Service stopped before apply, restarted after, HTTP 200 confirmed.
+
+**Runbook for future similar operations:**
 
 ```bash
-git pull
-# 1. SAFETY: full Cosmos export first (new in this iteration)
+# 1. Stop App Service to prevent write-through races
+az webapp stop --name coinpricefinder --resource-group CoinPriceFinder_group-82d5
+
+# 2. Resolve Cosmos creds from Azure
+export COSMOS_ENDPOINT="$(az cosmosdb show --name coinpricefinder-cosmos --resource-group CoinPriceFinder_group-82d5 --query documentEndpoint -o tsv)"
+export COSMOS_KEY="$(az cosmosdb keys list --name coinpricefinder-cosmos --resource-group CoinPriceFinder_group-82d5 --query primaryMasterKey -o tsv)"
+export COSMOS_DB="coinprice"
+
+# 3. Take fresh dump (rollback artifact)
 node scripts/export-cosmos-terapeak-sold.js
-#    -> writes data/archive/cosmos-terapeak-sold-<ISO>.json (rollback artifact)
+cp data/archive/cosmos-terapeak-sold-<ISO>.json /tmp/   # local + tmp backup
 
-# 2. Re-run plan generation (idempotent against an already-deduped meta sidecar)
-node scripts/merge-duplicate-keys.js
+# 4. Dry-run (--verbose for full group list) -- probe will show real Cosmos scope
+node scripts/merge-duplicate-keys.js --from-archive=data/archive/terapeak-meta-orphans-<ISO>.json --verbose
 
-# 3. Apply Cosmos-only migration
-node scripts/merge-duplicate-keys.js --apply --migrate-cosmos
-#    -> meta sidecar should be a no-op (already deduped); Cosmos deletes 146 loser docs, upserts winners
+# 5. Apply (after operator eyeball-review of #4)
+node scripts/merge-duplicate-keys.js --from-archive=data/archive/terapeak-meta-orphans-<ISO>.json --apply --migrate-cosmos
 
-git add data/archive/ docs/reports/merge-duplicate-keys-plan.json
-git commit -m "data(#246): apply Cosmos migration -- 146 loser docs deleted, winners upserted"
-git push
+# 6. Re-probe to verify 0/N losers present
+node scripts/merge-duplicate-keys.js --from-archive=data/archive/terapeak-meta-orphans-<ISO>.json
+
+# 7. Restart App Service
+az webapp start --name coinpricefinder --resource-group CoinPriceFinder_group-82d5
 ```
 
-Rollback if `--migrate-cosmos` goes wrong: re-upsert every doc from `data/archive/cosmos-terapeak-sold-<ISO>.json` back into the `terapeak-sold` container (one-off script, not pre-built; the export is full-fidelity including `_etag`).
-
-Why NOT auto-run on deploy: irreversible data migration touching Cosmos; the dry-run-first design plus the new export step exist so the operator can eyeball the plan and have a true rollback artifact before any write.
+Rollback if `--migrate-cosmos` goes wrong: re-upsert every doc from `/tmp/cosmos-terapeak-sold-<ISO>.json` back into the `terapeak-sold` container (one-off script, not pre-built; the export is full-fidelity including `_etag`).
 
 **Phase 1 complete.** `scripts/audit-duplicate-keys.js` shipped (read-only) with regression coverage in `__tests__/auditDuplicateKeys.test.js`. Audit output committed at `docs/reports/duplicate-keys-report.json` for review.
 
