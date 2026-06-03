@@ -23,6 +23,22 @@ Codespace.
 
 ## One-time setup
 
+### 0. Fast path (recommended)
+
+If you want the quickest repeatable setup, run the bootstrap script from repo
+root. It installs deps, creates the venv, installs Playwright Chromium,
+creates `~/cpf/state`, and writes `~/.env.surface` + `~/load-cpf-env.sh`.
+
+```bash
+bash scripts/bootstrap-surface-wsl.sh
+~/set-cpf-admin-key.sh
+source ~/load-cpf-env.sh
+```
+
+`~/set-cpf-admin-key.sh` stores the raw `ADMIN_API_KEY` in
+`~/.config/cpf/admin_api_key` with mode `600`, so you do not re-paste it every
+session.
+
 ### 1. WSL2 + Ubuntu
 
 You confirmed: default distribution Ubuntu, default version 2. Verify from
@@ -36,6 +52,14 @@ wsl -l -v
 
 Open Ubuntu and run the rest from inside WSL.
 
+**Important:** run from a real Ubuntu terminal, not a VS Code devcontainer
+terminal. If `whoami` shows `devcontainers` *and* you are inside a remote
+container workspace, you are on the wrong path.
+
+**Ubuntu version support:** Playwright Chromium currently fails on Ubuntu 26.04
+in this workflow (`Playwright does not support chromium on ubuntu26.04-x64`).
+Use Ubuntu 24.04 LTS or 22.04 LTS for the Surface path.
+
 ### 2. System dependencies
 
 ```bash
@@ -45,8 +69,11 @@ sudo apt install -y python3 python3-venv python3-pip git
 sudo apt install -y \
   libnss3 libnspr4 libdbus-1-3 libatk1.0-0 libatk-bridge2.0-0 libcups2 \
   libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libxkbcommon0 \
-  libpango-1.0-0 libcairo2 libasound2
+  libpango-1.0-0 libcairo2 libasound2t64
 ```
+
+If your distro still uses `libasound2` instead of `libasound2t64`, install the
+available one.
 
 ### 3. Clone the repo
 
@@ -83,14 +110,27 @@ Create `~/cpf/coin-price-agent/.env.surface` (do **not** commit this file):
 ```env
 # --- target ---
 APP_URL=https://coinpricefinder-h3a3b5g0dmdydna4.azurewebsites.net
-ADMIN_API_KEY=<paste from 1Password / Azure Key Vault>
+ADMIN_API_KEY_FILE=/home/<your-wsl-user>/.config/cpf/admin_api_key
 
 # --- per-machine cookie jar (KEY for #250) ---
 COOKIE_FILE=/home/<your-wsl-user>/cpf/state/cookies-surface.json
 ```
 
+`ADMIN_API_KEY` must be the **raw secret value**. Do not use App Service
+reference syntax like:
+
+```env
+ADMIN_API_KEY=@Microsoft.KeyVault(SecretUri=...)
+```
+
+That syntax is resolved only by App Service runtime, not by your local shell,
+and causes auth failures (`401`) in local scraper runs.
+
 Then `source .env.surface` (or use `set -a; source .env.surface; set +a` for
-auto-export) before running the scraper. Verify the App Service is reachable:
+auto-export) before running the scraper. Prefer `source ~/load-cpf-env.sh`
+because it validates key format and loads from `ADMIN_API_KEY_FILE`.
+
+Verify the App Service is reachable:
 
 ```bash
 curl -s -o /dev/null -w 'health=%{http_code}\n' "$APP_URL/api/health"
@@ -99,6 +139,14 @@ curl -s -o /dev/null -w 'health=%{http_code}\n' "$APP_URL/api/health"
 
 If you ever see a 401 instead, the admin key is wrong. If you see a 000, your
 network is blocking outbound HTTPS.
+
+Quick auth check (expects `admin=200`):
+
+```bash
+curl -s -o /dev/null -w 'admin=%{http_code}\n' \
+  -H "x-api-key: $ADMIN_API_KEY" \
+  "$APP_URL/api/admin/stale-datasets?days=30&limit=1"
+```
 
 ## First sign-in
 
@@ -137,6 +185,15 @@ esac
 # 2. Run the scraper (example: 20 search terms at a time)
 python3 scripts/terapeak-export.py --batch-size 20
 ```
+
+For a repeatable long-run loop, use:
+
+```bash
+bash scripts/run-surface-freshness-loop.sh --env-file ~/.env.surface
+```
+
+This wires freshness triage into page-1 refresh and deep pagination in one
+command.
 
 ## When the session goes stale
 

@@ -63,6 +63,11 @@ just orientation; the runbook is the source of truth.
 >    commits to `main`. Never start `node server.js` or any long-running
 >    process without backgrounding it. Never expose secrets. Use ASCII `--`,
 >    not Unicode dashes.
+> 8. **Key Vault reference gotcha.** In local WSL shells, `ADMIN_API_KEY` must
+>    be the raw secret value. `@Microsoft.KeyVault(SecretUri=...)` only works
+>    inside App Service runtime and will yield `401` locally.
+> 9. **Ubuntu/Playwright support gotcha.** If Playwright says Chromium is not
+>    supported on Ubuntu 26.04, switch to Ubuntu 24.04/22.04 for scraper runs.
 >
 > State as of 2026-06-03:
 >
@@ -79,7 +84,9 @@ just orientation; the runbook is the source of truth.
 > state (`apt` installs, `playwright install`, creating `~/cpf/state/`). After
 > setup completes: health-check (no `--probe`) -> `--login` flow ->
 > health-check `--probe` -> a 15-coin `--run` batch against the App Service
-> `APP_URL`.
+> `APP_URL`. Use `bash scripts/bootstrap-surface-wsl.sh` for fast setup, then
+> `bash scripts/run-surface-freshness-loop.sh --env-file ~/.env.surface` for
+> repeatable long-run batches.
 
 ---
 
