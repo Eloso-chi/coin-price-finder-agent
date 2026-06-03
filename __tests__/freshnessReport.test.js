@@ -103,7 +103,12 @@ describe('generate-freshness-report.js', () => {
     const ds = report.datasets[0];
     expect(ds.freshnessStatus).toBe('LowSignalMarketData');
     expect(ds.freshnessReason).toMatch(/thin market/i);
-    expect(ds.actions).toContain('monitor-refresh');
+    // #248: Medium-conf low-vol + refreshCount=0 routes to `evidence-probe`
+    // (single P3 page-1 probe), not the older `monitor-refresh`. Behavioral
+    // change is intentional -- see BACKLOG #248 and the dedicated test file
+    // __tests__/freshnessReportEvidenceGates.test.js.
+    expect(ds.actions).toContain('evidence-probe');
+    expect(ds.priority).toBe('P3');
     expect(ds.identifiers.is_low_volume_candidate).toBe(true);
   });
 
