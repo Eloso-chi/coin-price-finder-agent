@@ -57,6 +57,8 @@ Read these project docs:
 8. `.github/skills/code-review/SKILL.md` -- shared review framework (severity, finding schema)
 9. `.github/skills/numismatics/SKILL.md` -- domain knowledge: classification decision tree, finish detection, audit checklist
 10. `.github/skills/testing/TESTING-PLAN.md` -- testing strategy and expectations
+11. `docs/runbooks/local-scraper-wsl2.md` -- Surface laptop + WSL2 setup for the preferred scraper path (#250)
+12. `docs/runbooks/scraper-travel-mode.md` -- Codespace fallback scraper workflow, host-browser cookie export, per-machine `COOKIE_FILE` discipline (#250)
 
 ### Phase 3: Key Source Files (scan exports/structure only)
 

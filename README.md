@@ -166,6 +166,7 @@ Optional variables:
 | `METALS_POLL_MS` | Background metals polling interval | `1800000` (30 min) |
 | `GS_REFRESH_INTERVAL_DAYS` | Days between automatic Greysheet price refreshes | `3` |
 | `TERAPEAK_DATA_DIR` | Local Terapeak CSV directory override | `data/terapeak` |
+| `COOKIE_FILE` | Per-machine cookie jar for `terapeak-export.py` / `cookie-health-check.py`. Lets the same script run from a residential laptop (preferred) and a Codespace (travel fallback) without their cookie jars colliding. Akamai treats one persistent eBay identity used from two disparate IPs as a fraud signal. Supports `~` expansion. (#250) | `cache/ebay_cookies.json` |
 | `PCGS_PREFETCH_ENABLED` | Enable nightly PCGS prefetch scheduler | `true` |
 | `PREFETCH_HOUR_PT` | Nightly prefetch trigger hour (Pacific time) | `23` |
 | `PREFETCH_THROTTLE_MS` | Delay between prefetch API calls | `1000` |
@@ -821,6 +822,13 @@ scripts/
 The project includes ~2,800 Terapeak CSV files in `data/terapeak/` containing real sold-comp data collected from eBay Seller Hub Research. The data pipeline has three stages:
 
 **Stage 1: Page 1 Collection** -- `scripts/terapeak-export.py` uses Playwright to automate Terapeak searches and CSV downloads. It loops through all coin search terms, exports 50 rows per coin, and uploads CSVs directly to Azure Blob Storage via the Azure SDK (`upload_to_blob()`), falling back to HTTP POST to the local server if blob credentials are unavailable. Features: `--login` for manual eBay cookie capture, `--run` for headless batch execution, `--batch N` for safe incremental collection, `--priority` for thin-data-first ordering, `--resume` to continue after interruption, `--refresh` to re-collect stale CSVs (age-aware, skips fresh files), `--max-age DAYS` to set the staleness threshold (default 14), browser recycling every 40 coins, and auto-recovery from crashes (up to 5). Requires VNC (Xtigervnc :1), Python 3.12+, and Playwright.
+
+**Dual-path runtime (#250)** -- the scraper is designed to run from two environments:
+
+- **Preferred:** a personal laptop on a residential IP (e.g. Surface + WSL2 Ubuntu). Akamai's bot-management trusts residential fingerprints longer, so cookie jars survive 1-7 days between forced re-logins. Setup: [docs/runbooks/local-scraper-wsl2.md](docs/runbooks/local-scraper-wsl2.md).
+- **Travel fallback:** the Codespace. Azure data-center IPs are challenged aggressively (jars often die within hours). Setup: [docs/runbooks/scraper-travel-mode.md](docs/runbooks/scraper-travel-mode.md).
+
+The `COOKIE_FILE` env var keeps each machine's jar separate (sharing a single persistent eBay identity across two IPs is the exact pattern Akamai flags). Pre-flight every batch with `scripts/cookie-health-check.py` -- exits `0` HEALTHY / `1` EXPIRED / `2` CHALLENGED / `3` MISSING / `4` PROBE_FAILED so cron and scheduler callers can gate cleanly. Optional `--probe` (~10s, costs 1 quota unit) confirms eBay actually accepts the session.
 
 **Stage 2: Page 2+ Deep Pagination** -- `scripts/sales-aggregator.py` extends existing CSVs beyond 50 rows by navigating to pages 2-5 of Terapeak results. Bullion series get up to 5 pages (250 results), non-bullion stays at page 2 (100 results). Identifies candidate coins (>=50 rows with no `deepAt` marker), clicks the Next pagination button, collects additional rows, and appends them with composite-key deduplication (itemId|soldDate|soldPrice). Sends `deepAt` and `maxPageReached` metadata to stamp the dataset. Gold coins are automatically excluded from candidates. 243 datasets deep-aggregated so far. **Dashboard mode:** run without `--run` or `--dry-run` to get an interactive priority dashboard that queries the server's `/api/terapeak/aggregation-status` endpoint and presents categorized work (needs-deep, stale, thin) with one-click launch. VNC and noVNC are auto-started in both dashboard and run modes.
 

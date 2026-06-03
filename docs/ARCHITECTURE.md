@@ -662,7 +662,9 @@ Automates Terapeak CSV downloads from eBay Seller Hub Research:
 ```
 ┌─ Phase 1: Login ──────────────────────────────────────────┐
 │  --login flag → visible browser, manual eBay sign-in      │
-│  Cookies saved to scripts/cache.cookies.json              │
+│  Cookies saved to $COOKIE_FILE (default:                  │
+│    cache/ebay_cookies.json; override per machine to       │
+│    keep residential + Codespace jars separate -- #250)    │
 ├─ Phase 2: Batch Run ─────────────────────────────────────┤
 │  --run flag → headless browser (or headed via VNC)        │
 │  For each coin in schedule:                               │
@@ -678,6 +680,19 @@ Automates Terapeak CSV downloads from eBay Seller Hub Research:
 │  Bot-detection abort: stops batch on CAPTCHA/block        │
 └───────────────────────────────────────────────────────────┘
 ```
+
+**Dual-path execution model (#250):** the scraper runs from two environments
+that must each maintain their own cookie jar. Akamai bot-management binds
+session trust to the IP + browser fingerprint that first authenticated;
+reusing one persistent identity across an Azure data-center IP and a
+residential IP is a high-confidence fraud signal. Preferred path is a
+personal laptop (e.g. Surface + WSL2 Ubuntu) on a residential IP; the
+Codespace is a travel fallback. The `COOKIE_FILE` env var (with `~`
+expansion) selects which jar to load; defaults preserve single-machine
+behavior. Pre-flight gate: `scripts/cookie-health-check.py` exits
+`0/1/2/3/4` for HEALTHY/EXPIRED/CHALLENGED/MISSING/PROBE_FAILED. Runbooks:
+[docs/runbooks/local-scraper-wsl2.md](runbooks/local-scraper-wsl2.md) and
+[docs/runbooks/scraper-travel-mode.md](runbooks/scraper-travel-mode.md).
 
 Key flags: `--batch N` (coin count), `--priority` (thin-data-first), `--resume` (continue after crash), `--refresh` (re-collect stale CSVs by file age), `--max-age DAYS` (staleness threshold, default 14).
 
@@ -961,6 +976,7 @@ This ensures unslabbed proof coins (e.g. Proof Libertads in OGP) don't inflate r
 | `TERAPEAK_BLOB_ACCOUNT` | No | -- | Azure Blob Storage account name |
 | `TERAPEAK_BLOB_CONTAINER` | No | -- | Azure Blob Storage container name |
 | `TERAPEAK_DATA_DIR` | No | `data/terapeak` | Local directory for Terapeak CSV files |
+| `COOKIE_FILE` | No | `cache/ebay_cookies.json` | Per-machine cookie jar for `terapeak-export.py` and `cookie-health-check.py`. Set to a path outside the worktree on each host (e.g. `~/cpf/state/cookies-surface.json`) to keep Akamai trust intact when running from multiple machines. (#250) |
 | `METALS_POLL_MS` | No | `1800000` | Metals spot-price polling interval (ms) |
 | `EBAY_DEFAULT_LOOKBACK_DAYS` | No | `180` | Default sold-comp lookback window (auto-extends to 365 if thin) |
 | `BLOB_REIMPORT_MS` | No | `1800000` | Periodic blob re-import interval (ms; 30 min default) |
