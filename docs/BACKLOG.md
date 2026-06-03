@@ -449,7 +449,44 @@ PR A is a *preventive* fix: it rewrites 133 `.meta` files to match the CSV filen
 
 ---
 
-### #248. Refresh Queue Doesn't Gate on Evidence-Confidence or Single-Cycle Confirmation [P2 -- DATA-QUALITY] -- DONE 2026-06-03
+### #249. Unattended Scheduler for Local Scraper Path [P3 -- OPERATIONS] -- BACKLOG
+
+**Status:** Deferred. Phase 1 (dual-path scraper -- Surface laptop + Codespace fallback) will be added first. This entry covers the optional automation layer that runs the scraper on a schedule once the manual workflow is validated.
+
+**Why deferred:** Per operator request, manual `--run` invocations for the first ~2 weeks of the local-scraper rollout. Build operator confidence, observe Akamai/eBay session behavior on residential IP, tune batch size and cadence empirically. Only then automate.
+
+**Goal:** Hands-off scraping run on the local machine that:
+1. Runs `--check` first; bails (with non-zero exit + log line) if the session is challenged or expired.
+2. Runs `--run --limit N` against the priority queue.
+3. Logs to a rotating file under `~/cpf-scraper/logs/`.
+4. Surfaces failures without spamming success (push notification on `--check` fail, daily summary email/Slack on completion -- optional).
+
+**Platform-specific plans:**
+- **Windows / Surface Laptop:** Task Scheduler entry triggered nightly at a configurable hour (default 03:00 local). Wakes-from-sleep optional via "Wake the computer to run this task." Battery: skip if on battery and below 30%.
+- **Mac (future):** `launchd` plist under `~/Library/LaunchAgents/com.cpf.scraper.daily.plist` (sample sketched in chat history for #248 session). Runs at next wake if Mac slept through the scheduled time.
+- **Linux (future):** systemd user timer + service unit.
+
+**Out of scope:**
+- Codespace-side scheduling -- the codespace path is explicitly travel-only / ad-hoc; never automated.
+- Multi-account / multi-region. One scraper per local machine, one cookie jar per machine.
+- Cloud-hosted scheduler (Azure Function, GitHub Actions). Defeats the residential-IP fix that motivates the local-path approach.
+
+**Pre-requisites (must land first):**
+- Dual-path scraper PR (next in line) -- introduces `COOKIE_FILE` env override, runbooks for Surface + Codespace paths, and `scripts/cookie-health-check.py`.
+- 2 weeks of stable manual operation from the local machine.
+
+**Risks / open questions:**
+- Surface goes on the road with operator -> scheduled run targets the wrong network (hotel WiFi, tether). Mitigation: scheduled job checks egress IP against a known-good prefix before running; if mismatch, skip.
+- Cookie jar rotation mid-batch -> partial batch could land on a degraded session. Mitigation: scheduler runs `--check` between every N coins, halts on first challenge.
+- Operator forgets the scheduled job exists, queue dries up silently. Mitigation: daily heartbeat ping (low-priority alert if 24h with no scrape activity in Cosmos audit log).
+
+**Estimate:** Small (~150 lines incl. PowerShell scheduler script, docs, the IP-prefix safety guard).
+
+**Open question:** Notification channel. Operator preferences unknown -- email, Pushover, Slack webhook, Discord, Windows toast. Defer to implementation time.
+
+---
+
+
 
 **Status:** Fixed via two surgical changes that close gaps left by #245 Fix A and #247:
 1. `evidence-probe` action -- Medium-confidence `is_low_volume_candidate` entries that have never been runtime-touched (`refreshCount === 0`) are demoted to a single P3 page-1 probe instead of being queued as P0/P1 refresh.

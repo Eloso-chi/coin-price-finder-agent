@@ -66,7 +66,16 @@ except ImportError:
 # ── Config ──────────────────────────────────────────────────
 SCRIPT_DIR = Path(__file__).parent
 PROJECT_DIR = SCRIPT_DIR.parent
-COOKIE_FILE = PROJECT_DIR / "cache" / "ebay_cookies.json"
+
+# #250: COOKIE_FILE env override lets the same script run from multiple machines
+# (e.g. Surface laptop on residential IP + Codespace as travel fallback) without
+# their cookie jars colliding -- Akamai treats one persistent identity on two
+# disparate IPs/fingerprints as a fraud signal and trips CAPTCHA.
+# Keep the in-repo default (cache/ebay_cookies.json) so existing single-machine
+# workflows are unchanged. Override with e.g. COOKIE_FILE=~/cpf/cookies-surface.json.
+COOKIE_FILE = Path(os.path.expanduser(
+    os.environ.get("COOKIE_FILE", str(PROJECT_DIR / "cache" / "ebay_cookies.json"))
+))
 PROGRESS_FILE = PROJECT_DIR / "cache" / "terapeak_export_progress.json"
 DOWNLOAD_DIR = PROJECT_DIR / "cache" / "terapeak_downloads"
 TERAPEAK_DIR = PROJECT_DIR / "data" / "terapeak"
