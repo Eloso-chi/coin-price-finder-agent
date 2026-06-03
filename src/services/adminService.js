@@ -65,6 +65,12 @@ function getStaleDatasets(opts = {}) {
       noDataCount: am.noDataCount || 0,
       noDataAt: am.noDataAt || null,
       consecutiveDryRefreshes: am.consecutiveDryRefreshes || 0,
+      // #248: forward lastRefreshNewComps so classifier's dryConfirmedThin
+      // gate (refreshCount>=1 && lastRefreshNewComps===0) actually fires here.
+      // Without this field the gate is dead code via the admin API path and
+      // /api/admin/stale-datasets drifts from generate-freshness-report.js
+      // (exactly the INC-011 class of bug we're trying to prevent).
+      lastRefreshNewComps: am.lastRefreshNewComps ?? null,
       csvExists: true, // listDatasets only returns datasets that have a store entry
       identifiers: d.identifiers || null, // Fix A of #245: classifier reads evidence
     };

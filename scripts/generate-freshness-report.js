@@ -189,8 +189,8 @@ for (const [key, entry] of Object.entries(meta)) {
   // comps while total comps stay <THIN_MARKET_THRESHOLD escalates immediately
   // to confirmed-thin (no need to wait for CONFIRMED_THIN_REFRESHES cycles).
   let marketDepth;
-  const lastRefreshNewCompsRaw = entry.lastRefreshNewComps;
-  const dryConfirmedThin = refreshCount >= 1 && lastRefreshNewCompsRaw === 0;
+  const lastRefreshNewComps = entry.lastRefreshNewComps ?? null;
+  const dryConfirmedThin = refreshCount >= 1 && entry.lastRefreshNewComps === 0;
   if (compCount === 0 && !csvExists && refreshCount === 0) {
     marketDepth = 'untested';
   } else if (compCount === 0) {
@@ -213,8 +213,8 @@ for (const [key, entry] of Object.entries(meta)) {
   const isDormant = noDataCount >= 2 && noDataAgeDays !== null && noDataAgeDays < 60;
 
   // Dry-refresh backoff: consecutive refreshes that yielded 0 new comps
+  // (lastRefreshNewComps already declared above for #248 dryConfirmedThin gate)
   const consecutiveDryRefreshes = entry.consecutiveDryRefreshes || 0;
-  const lastRefreshNewComps = entry.lastRefreshNewComps ?? null;
 
   // ── Backward-compat: derive legacy freshnessStatus ─────────
   let freshnessStatus;

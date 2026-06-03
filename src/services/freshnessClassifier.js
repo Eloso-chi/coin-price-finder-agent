@@ -80,6 +80,15 @@ function _isHighConfidenceLowVolEvidence(meta) {
  * low-volume candidate. Used by #248 to demote these entries to a
  * single evidence-probe (page-1 refresh at P3) rather than full P0/P1
  * refresh until one runtime touch confirms or refutes the evidence.
+ *
+ * NOTE: This helper is intentionally NOT called by shouldSkipRefresh().
+ * Unlike _isHighConfidenceLowVolEvidence (which gates skip decisions),
+ * Medium-conf entries are not skipped -- they fall through to normal
+ * classification so adminService still surfaces them as stale. The
+ * evidence-probe action is emitted only by scripts/generate-freshness-
+ * report.js, which controls the P3 queue. Exported here so tests in
+ * __tests__/freshnessReportEvidenceGates.test.js can cover the helper
+ * directly without re-implementing the identifier-shape check.
  */
 function _isMediumConfidenceLowVolEvidence(meta) {
   const ids = meta && meta.identifiers;
