@@ -242,6 +242,9 @@ async function evaluateOneCoin(coin, opts = {}) {
     const spotPrice = (isBullion && meltPerOz && weight) ? meltPerOz * weight : null;
     const result = computeValuation(pcgs, ebay, null, effectiveGradeNum, {
       isBullion,
+      // #260W -- forward isProof + finish so valuationService can pick the proof / reverse-proof pool.
+      isProof,
+      finish: expected.finish || null,
       greysheet,
       spotPrice,
       // #232 -- forwarded from route via runBulkEvaluation opts.

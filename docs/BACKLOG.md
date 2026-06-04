@@ -953,6 +953,22 @@ Platinum metal detection wired through the shared pipeline: `coinMetalProfile.js
 
 ---
 
+### #265W. Frontend comp-list does not recognize `usedPool='reverse-proof'` [P3 -- UI] -- OPEN 2026-06-04
+- **Symptom**: After #260W ships, RP queries correctly compute FMV from RP comps only, and `gradePool.usedPool='reverse-proof'`. The frontend comp-list renderer in `public/index.html` only understands `'graded'` vs everything-else-as-`'raw'`, so RP queries render:
+  - Comp chip: `"Comps: N raw (M graded excluded)"` -- wrong label and wrong excluded category.
+  - Comp list: shows raw + proof + RP titles mixed together under a "US Comps -- Raw" heading even though FMV used only RP comps.
+- **Scope**: Display-only. FMV correctness is unaffected -- this is purely a rendering issue surfaced (not caused) by #260W.
+- **Files**:
+  - `public/index.html` line 4299 (chip pool label binary: graded vs raw)
+  - `public/index.html` line 4317 (excluded count binary)
+  - `public/index.html` line 4540 (comp-list filter binary)
+  - `public/index.html` line 4546-4554 (pool label, excluded count, table heading)
+- **Proposed fix**: Extend the binary checks to 4-way: `graded` / `proof` / `reverse-proof` / `raw`. Add corresponding labels ("Proof", "Reverse Proof") and excluded-from-pool counts. Also handles the existing #184 `usedPool='proof'` case, which has the same bug pattern (proof queries show "Raw" heading) -- worth fixing both at once.
+- **Test plan**: Manual: POST /api/price with `coinData.finish='Reverse Proof'`, verify rendered chip says "Reverse Proof" and comp list shows only RP-tagged comps. Then repeat for `coinData.finish='Proof'` to confirm the existing-but-also-broken proof rendering is fixed.
+- **Related**: #260W (introduced the new pool value), #184 (introduced `'proof'` pool that has the same latent display bug).
+
+---
+
 ## Scraper Performance -- Additional Open Items
 
 ### ~~198. Smart SPA Render Wait Instead of 3s Hard Pause [DONE]~~
