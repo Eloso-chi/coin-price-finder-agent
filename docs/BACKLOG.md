@@ -990,6 +990,21 @@ Ops can override to any value (e.g., `BROWSER_RECYCLE_EVERY=40 python scripts/te
 
 ## Tooling & Observability
 
+### #264W. Per-machine backlog ID convention (W/H suffix) [P2 -- PROCESS] -- DONE 2026-06-04
+- **Problem**: This project is worked on from two machines that may both add backlog items without coordinating. Without per-machine namespacing, the first new entry on each machine claims the same next-integer ID, forcing post-hoc renumbering (e.g., this session: drafted #260-#262, collided with PR #118's #260, renumbered to #261-#263, then again to #260W-#262W).
+- **Fix**:
+  - New top-level convention in `docs/BACKLOG.rules.md` ("Per-machine ID convention"): every ID from #264W onward carries a `W` (Codespace) or `H` (home workstation) suffix; the two series are independent.
+  - `.machine-id` file at repo root holds the single letter; gitignored so it never travels in commits.
+  - `scripts/machine-id.sh` reads the file, validates it (must be `W` or `H`), prints the letter on stdout; errors with a setup-instructions message on stderr if missing.
+  - `.github/copilot-instructions.md` adds a one-line pointer so any Copilot agent reads the rule on session start.
+  - `.github/agents/onboard.agent.md` Phase 0 adds a `.machine-id` existence check + a "next-in-series" scan that prints the next available `#NW` and `#NH`.
+  - `.github/pull_request_template.md` adds a reminder line under "Backlog Reference".
+- **Grandfathered**: All bare-number IDs (#1 .. #263) keep their bare form forever. No retroactive renames.
+- **One-time setup per machine**: `echo W > .machine-id` (Codespace) or `echo H > .machine-id` (home). Verified working on this machine: `scripts/machine-id.sh` -> `W`.
+- **Files**: `docs/BACKLOG.rules.md`, `.gitignore`, `scripts/machine-id.sh` (NEW), `.github/copilot-instructions.md`, `.github/agents/onboard.agent.md`, `.github/pull_request_template.md`.
+
+---
+
 ### ~~177. Holdout Validation Test -- FMV vs Actual Sales [DONE]~~
 
 Implemented as `__tests__/holdoutValidation.test.js` with `holdoutSplit` + IQR comparison. Verified May 31, 2026.

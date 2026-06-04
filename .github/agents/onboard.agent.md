@@ -19,6 +19,15 @@ Before reading anything, scan for files that may have been added since this agen
 3. Run (Unix/macOS): `ls .github/agents/ .github/prompts/ .github/skills/`
 	Run (PowerShell): `Get-ChildItem .github/agents, .github/prompts, .github/skills`
 	Note the full agent/prompt/skill inventory.
+4. **Machine ID check (added #264W)**: Run `scripts/machine-id.sh` (Unix/macOS) or `bash scripts/machine-id.sh` (PowerShell with WSL/Git-Bash). If it errors with "not found", report the missing-file condition in the Readiness Report under "Gaps Detected" and instruct the user to run `echo W > .machine-id` or `echo H > .machine-id` as the one-time setup. Do NOT guess the machine letter. Backlog additions cannot proceed until this is resolved.
+5. **Next-in-series scan (added #264W)**: For each suffix found in `docs/BACKLOG.md`, print the highest current number so a new entry can be assigned without collision:
+   ```bash
+   for suf in W H; do
+     hi=$(grep -oE "^### #[0-9]+${suf}\." docs/BACKLOG.md | grep -oE "[0-9]+" | sort -n | tail -1)
+     echo "Next #${suf}: #$((${hi:-263} + 1))${suf}"
+   done
+   ```
+   Include the output in the Readiness Report under "Recent Changes".
 
 If new files are discovered, read them and include their contents in the Readiness Report under a "New/Undocumented Files" section.
 
