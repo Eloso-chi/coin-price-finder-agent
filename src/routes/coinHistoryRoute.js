@@ -40,6 +40,16 @@ router.get('/', async (req, res) => {
     ? gradeMatch[1].toUpperCase() + '-' + gradeMatch[2]  // normalize to "MS-63"
     : null;
 
+  // #254: Detect proof intent in the query string.  Mirrors the route-layer
+  // intent extraction in priceRoute -- without this, a query like
+  // "2019 Mexican Silver Libertad Proof" silently flips to the raw pool
+  // (no grade matched -> wantsGraded=false -> raw filter applied).
+  const PROOF_RE = /\b(proof|reverse[\s-]?proof|matte[\s-]?proof)\b/i;
+  const wantsProof = !!queryGrade
+    ? /^(PR|PF)/i.test(queryGrade)
+    : PROOF_RE.test(query);
+  const wantsGraded = !!queryGrade && !wantsProof;
+
   // Resolve query against Terapeak datasets
   const dataset = terapeakService.lookupComps(query);
   if (!dataset || !dataset.comps || dataset.comps.length === 0) {
@@ -64,12 +74,15 @@ router.get('/', async (req, res) => {
   // 1. Remove denied titles (lots, replicas, etc.)
   compsInRange = compsInRange.filter(c => !isDenied(c.title || ''));
 
-  // 2. Grade-type split: when no specific grade is in the query, use raw
-  //    comps only (graded/slabbed coins sell at different prices).
-  const wantsGraded = !!queryGrade;
+  // 2. Grade-type split: pick the comp pool that matches user intent.
+  //    proof: only proof comps (strict, no fallback -- matches #244)
+  //    graded: only certified/slabbed comps
+  //    raw: only raw/BU comps (default when no grade or finish was specified)
   compsInRange = compsInRange.filter(c => {
     const gt = c.gradeType || classifyGradeType(c);
-    return wantsGraded ? gt === 'graded' : gt === 'raw';
+    if (wantsProof)  return gt === 'proof';
+    if (wantsGraded) return gt === 'graded';
+    return gt === 'raw';
   });
 
   // 3. MAD outlier removal (same 3.5× threshold as Price Discovery)
