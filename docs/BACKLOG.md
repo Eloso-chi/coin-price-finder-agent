@@ -276,7 +276,7 @@ Fixed: `evaluateOneCoin()` in `bulkEvaluateService.js` now matches price discove
 
 **Status:** Telemetry gap fixed on `fix/244-prefilter-telemetry`. Root cause was the Terapeak pre-filter path in `ebayService.js` (lines ~1373-1407) -- the grade-pool split and time-window narrowing dropped comps without incrementing any `removed.*` bucket. Added `preFilterRemoved = { prefilterPoolSize, prefilterStrikeSplit, prefilterTimeWindow }` (provenance-neutral key names, see review item 3), hoisted to function scope so partial-seed paths (Finding/Browse supplement) preserve it through downstream `usResult` rebuilds. Added a runtime `console.warn('[telemetry-leak]')` guard that fires when `reportedTotal + tolerance < droppedTotal` (catches both fully-silent AND partial-attribution gaps). `pricing-health-full.js` now prints the top non-zero `removed.*` bucket per RED issue with a stable tie-break. Test coverage: 5 new cases in `__tests__/ebayFetchSoldComps.test.js` (strike-split, zero-drop sanity, time-window, partial-seed path, guard no-fire). Schema-safe: `priceResponse.schema.js` has `additionalProperties: true`.
 
-**Follow-up:** The underlying data-quality issue (2023 Reverse Proof Morgan dataset is contaminated with regular Proof/BU comps that get correctly rejected) is tracked separately -- the 200 drops are now visible as `prefilterStrikeSplit=N` and represent CORRECT REJECTIONS, not a bug in the filter. Open as #252 if intake-side cleanup is wanted.
+**Follow-up:** The underlying data-quality issue (2023 Reverse Proof Morgan dataset is contaminated with regular Proof/BU comps that get correctly rejected) is tracked separately -- the 200 drops are now visible as `prefilterStrikeSplit=N` and represent CORRECT REJECTIONS, not a bug in the filter. Open as a fresh backlog entry if intake-side cleanup is wanted (no ID reserved -- see #252 / #253 for the related findings that emerged from the post-merge Maple pricing-health run).
 
 **Original problem:** Pricing health full-run on 100 Morgans (`cache/health-morgan-100.json`) flagged `2023 Reverse Proof Morgan Silver Dollar` RED: 205 Terapeak rows enter the discovery pipeline but only 3 US comps survive (98.5% attrition) with `discovery.removed.*` ALL reporting 0. The filter that's killing the comps was silently dropping them without reporting to the `removed` telemetry buckets.
 
@@ -1530,6 +1530,129 @@ and obscures regressions in unrelated PRs.
 - Making Cosmos write-through blocking/transactional inside `/api/terapeak/import`.
 - Scheduling/automation layer (already tracked in #249).
 - Runtime verification of import completion beyond response-shape checks.
+
+---
+
+### #252. Bullion Strike-Pool Split Misclassifies Graded Bullion as Off-Pool [P1 -- DATA-QUALITY]
+
+**Problem:** The pre-filter strike/grade-pool split in `fetchSoldComps` (introduced for #182, made visible by #244) treats slabbed bullion as off-pool for raw-bullion queries. For a query like `2024 Canada 1 oz Gold Maple Leaf` the parser sets neither `isProof` nor `grade`, so `targetPool = 'raw'`. Any Terapeak comp with `conditionId=2000` (slabbed PCGS/NGC) -- which is a large share of premium bullion listings -- gets classified as `graded` and dropped via `prefilterStrikeSplit` before scoring or filters ever run.
+
+**Evidence (pricing-health Maple run, 2026-06-04, `cache/health-maple-100.json`):** 9 of 13 RED rows are 1oz Gold Maple Leaf datasets (years 2013, 2014, 2015, 2019, 2021, 2022, 2023, 2024, 2025). Top bucket on every one is `prefilterStrikeSplit` (1-45 comps). Concrete worst case: 2025 Canada 1 oz Gold Maple Leaf -- 164 gathered, 3 survived, 98.2% attrition, `prefilterStrikeSplit=45`. The drops are correct *given the rule* but the rule itself is wrong for bullion: graded 1oz Gold Maple still trades at metal + premium, not at a separate "slabbed" tier worth excluding from FMV.
+
+**Why it matters:** Gold bullion is the highest-value category in the catalog ($4500-$5600 FMV per 1oz comp). Losing 75-95% of Terapeak comps systematically biases FMV toward whatever tiny sample survives -- often 1-3 comps, well below the `usMinComps` threshold, which then triggers downstream Browse fallback to active listings (less reliable). The same logic likely affects Gold Eagle, Krugerrand, Britannia, and any other bullion series; #244 only made it visible.
+
+**Proposed fix (sketch -- needs discussion before APPLY):**
+1. In `ebayService.js` around line 1393-1400, add a bullion-aware exception to the strike-pool split: when `expected.weight` is set (a strong bullion indicator already used elsewhere for the `_fromGenericDataset` flag) AND user did not specify `isProof` AND did not specify `grade`, merge the `graded` and `raw` pools instead of choosing one. Proof comps stay excluded.
+2. Optional secondary signal: expose a `expected.isBullion` flag from the parser (already inferred in priceRoute via `BULLION_1OZ_DEFAULT` / weight detection) and key off that explicitly rather than re-deriving from `expected.weight`.
+3. Keep proof exclusion intact -- a Proof Gold Maple is a different market from bullion Gold Maple.
+4. Add a new prefilter bucket `prefilterBullionMerge` set to 0 in the bullion branch so operators can see when the new path is taken.
+
+**Repro:** `ADMIN_API_KEY="$(grep '^ADMIN_API_KEY' .env | cut -d= -f2-)" node scripts/pricing-health-full.js --full --filter "Maple" --limit 100 --min 10 --out cache/health-maple-100.json` and inspect any `1 oz Gold Maple Leaf` RED row -- the `prefilterStrikeSplit` bucket should be the dominant drop.
+
+**Acceptance criteria:**
+- Re-running the Maple pricing-health drops Gold 1oz RED count from 9 -> 0 (or downgrades to YELLOW with a sensible `usComps`).
+- Proof Gold Maple queries still exclude bullion comps (regression test).
+- New unit test in `__tests__/ebayFetchSoldComps.test.js` mirroring the existing strike-split tests but with `expected.weight = 31.1` and asserts graded comps survive.
+- Telemetry remains attributed (no `[telemetry-leak]` warnings introduced).
+
+**Files (anticipated):** `src/services/ebayService.js` (pre-filter block + classifier call site), `src/routes/priceRoute.js` (optional: emit `expected.isBullion`), `__tests__/ebayFetchSoldComps.test.js`.
+
+**Risk:** Could pull in unwanted graded-premium comps for sub-1oz fractional bullion where the slab premium IS meaningful (1/10oz Gold Eagle MS70 trades well above bullion). Mitigation: gate the merge on `weight >= 31.0g` (full troy ounce or larger) so fractional bullion still uses the original split. Confirm with a second pricing-health run filtered to `Eagle` after the fix lands.
+
+---
+
+### #253. Malformed Dataset Keys Produce Nonsensical FMVs [P2 -- DATA-QUALITY]
+
+**Problem:** Three dataset keys in the Maple pricing-health run are malformed -- they describe weights that don't exist as real products, and one is parser-noise where a fractional weight got tokenized incorrectly. Each produces a 100% attrition RED row, but the more concerning issue is that two of the three return a non-null `fmvCore` extrapolated from spot metal price, which would mislead any caller that ignores `usComps`.
+
+**Evidence (`cache/health-maple-100.json`, 2026-06-04):**
+
+| Coin | gathered | usComps | fmvCore | Issue |
+|------|----------|---------|---------|-------|
+| `2025 canada 1000oz gold maple leaf` | 65 | 0 | **$4,493,300** | `1000oz` is not a real product; FMV is spot-gold * fictitious weight |
+| `2004 canada 12oz silver maple leaf` | 21 | 0 | $890.16 | `12oz` is not a real Silver Maple weight (real: 1, 10, 100, kilo) |
+| `2003 canada twentieth oz silver maple leaf` | 18 | 0 | $3.71 | `twentieth oz` is parser noise -- `1/20 oz` tokenized as the word "twentieth" |
+
+**Root cause (suspected, two parts):**
+1. **Bad dataset keys present in `data/terapeak-meta.json`** -- the keys exist because at some point the scraper or evidence-index ingested them. They survive every refresh because nothing prunes "impossible weight" datasets.
+2. **Parser tolerates fractional weight words** -- `pcgsService.parseDescription` or upstream tokenization converts `1/20 oz` to `twentieth oz`, which is then stored as a dataset key. Real Maple weights are: 1oz, 1/2oz, 1/4oz, 1/10oz, 1/20oz (gold) and 1oz, 10oz, 100oz, kilo (silver). `12oz`, `25oz`, `1000oz` are not in the product lineup.
+
+**Why it matters (and limits):**
+- A caller hitting `/api/price` with `query="2025 canada 1000oz gold maple leaf"` gets `fmvCore=4,493,300` with `compCount=0`. Any consumer that only renders FMV and ignores `compCount` / `lowData` / `confidence` will display a 7-figure price. That's a public-API trust issue.
+- Limit: these queries are unlikely to come from real users; they come from the dataset key list and the curated Terapeak meta. So the blast radius is the pricing-health script and any internal batch consumer.
+
+**Proposed fix (two-track, both small):**
+
+*Track A -- runtime guard (low risk, lands first):*
+1. In `valuationService.js`, when `compCount === 0` AND `fmvCore` was computed from metal melt extrapolation alone, set `confidence = 'unreliable'` and `lowData = true` (most likely already true) AND null out `fmvCore`. Force callers to inspect `dataSource` to see there were zero comps.
+2. Add an integration assertion to `__tests__/computeValuation.test.js`: "zero comps + metal-only FMV returns null fmvCore".
+
+*Track B -- intake cleanup (one-shot script, no schema change):*
+1. Add `scripts/prune-impossible-weights.js` that walks `data/terapeak-meta.json`, flags keys matching weights outside the known canonical set per series, prints a dry-run list, and (with `--apply`) deletes both the meta entry and the corresponding `data/terapeak/<key>.csv`.
+2. Canonical weight whitelist lives in `data/constants.js` next to `BULLION_1OZ_DEFAULT`; populate per-series (Maple, Eagle, Britannia, Panda, Libertad, Krugerrand).
+3. Run once on the working tree, commit the diff, then add it to the regular freshness loop so it idempotently catches new mistakes.
+
+**Repro:** `node -e "const r=require('./cache/health-maple-100.json'); console.log(r.results.filter(c=>(c.discovery||{}).usComps===0 && c.issues.some(i=>i.severity==='RED')).map(c=>c.coin))"`
+
+**Acceptance criteria:**
+- Track A: no `/api/price` response ever returns a non-null `fmvCore` with `compCount === 0`.
+- Track B: `data/terapeak-meta.json` no longer contains `1000oz`, `12oz silver`, `25oz gold`, `twentieth oz` keys (and any siblings the pruner finds). Re-running Maple pricing-health drops the three 100%-attrition RED rows because the keys are gone.
+- Backlog entry kept open until both tracks land.
+
+**Files (anticipated):** `src/services/valuationService.js`, `__tests__/computeValuation.test.js`, NEW `scripts/prune-impossible-weights.js`, `data/constants.js` (canonical weight whitelist), `docs/runbooks/local-scraper-wsl2.md` (note the prune step).
+
+**Out of scope:** Upstream parser fix for `1/20 oz` tokenization. Once the bad keys are pruned and the source of new bad keys is identified (likely the evidence-index or an old scraper run), open a follow-up at that boundary.
+
+---
+
+### #254. Route-Layer Silent Drops for Grade / Finish / isProof [P1 -- CORRECTNESS]
+
+**Status:** Backend hardening shipped on `fix/structured-form-silent-drops` (PR TBD). UI cleanup tracked separately as a follow-up; reverse-proof pool separation tracked as a follow-up.
+
+**Problem:** Three input fields the structured form, Quick search, and API callers can reasonably send were silently dropped by `priceRoute.js` and `pricingBatchRoute.js`, producing the wrong comp pool (raw / graded / proof) and therefore the wrong FMV with no telemetry indication:
+
+1. `coinData.grade: "MS-65"` -- the route's `expected.grade` derivation read only `pcgs.grade || parsed.grade`, never `coinData.grade`. Structured form happens to work today only because `buildQuery` re-appends the grade to the query text so it round-trips through parsing -- fragile and silently breaks for any external API caller or any future change to `buildQuery`. Repro: `POST /api/price {query:"1921 Morgan Dollar", coinData:{grade:"MS-65"}}` returned 71 raw comps + FMV $82.38 (correct: 21 graded comps + FMV $414.76).
+2. `options.isProof: true` and `coinData.isProof: true` -- never read at all. Repro: `POST /api/price {query:"2019 mexican silver libertad", options:{isProof:true}}` returned 60 BU comps + FMV $124.51 (correct: 20 proof comps + FMV $144.41).
+3. `coinData.finish: "proof"` (lowercase) -- case-sensitive comparison against literal `"Proof"`. Same Libertad symptom, different shape.
+
+**Evidence:** Full route probe in this session showed all three shapes landing in `targetPool='raw'` and being shredded by the `prefilterStrikeSplit` filter shipped under #244. Telemetry from #244 made the drops *visible* (`prefilterStrikeSplit=141` on the Libertad case) but did not surface them as a route-layer bug until manual investigation.
+
+**UI gap (handled in follow-up):** The Proof checkbox lives in the Grade & Price chip but conceptually belongs with Identification (finish is a coin attribute, not a grade attribute). Quick search has no proof toggle at all; users must type "proof" into the query text. Pruned-by-numismatic-correctness proposal:
+- Add a **Finish** dropdown to the Identification chip: `Business Strike (default) | Proof | Reverse Proof | Enhanced Reverse Proof | Matte Proof | Burnished | Satin Finish | Antiqued`.
+- Remove the Proof checkbox from the Grade chip (no longer needed -- Finish covers it).
+- Prune the Label dropdown to slab pedigree only (`First Strike | Early Releases | First Day of Issue | First Releases`); move Burnished / Reverse Proof / Enhanced Reverse Proof / Satin Finish / Antiqued into Finish (they are finishes, not pedigree labels).
+- Keep Silver checkbox (composition flag for proof sets).
+
+**Proposed fix (backend -- THIS PR):**
+1. New helper [src/utils/coinIntent.js](src/utils/coinIntent.js): `extractCoinIntent({ coinData, options, parsed, pcgs, isSet })` returns canonicalized `{ grade, finish, isProof, designation }`. User-explicit structured input wins over PCGS heuristics over parsed-from-text. `finish` is normalized to PCGS spelling (`Proof`, `Reverse Proof`, etc.). `isProof` is true if any of finish, designation, grade, explicit flag, or parsed grade signals proof intent. `isSet` always nulls grade and isProof (sets are a separate pool).
+2. Both [src/routes/priceRoute.js](src/routes/priceRoute.js) and [src/routes/pricingBatchRoute.js](src/routes/pricingBatchRoute.js) call the helper instead of inline derivation, guaranteeing identical behavior.
+3. 25 unit tests in [__tests__/coinIntent.test.js](__tests__/coinIntent.test.js) covering precedence, every alias, set-override, and the three exact regression scenarios from this audit.
+
+**Proposed fix (UI -- follow-up PR `feat/finish-dropdown`):**
+Move the Proof checkbox into a Finish dropdown in Identification as described above. Backend already accepts both new and legacy shapes (`coinData.finish: 'Reverse Proof'` lands as-is), so the UI PR is pure HTML + the form-serialization tweak in `public/index.html` and a screenshot in the PR description.
+
+**Proposed fix (pricing accuracy -- follow-up PR `feat/reverse-proof-pool-separation`):**
+Gated on data: run pricing-health across a Reverse-Proof slate (2023 RP Morgan, 2019-S Enhanced RP ASE, 2024 RP Eagle) BEFORE writing code to measure current attrition. If meaningful, split `classifyGradeType` to return `'reverse-proof'` as a distinct pool, and have the strike-split filter treat it separately from regular Proof. If small, defer to backlog with the measurement attached.
+
+**Repro for THIS PR:** Re-run the 7-case probe in `/tmp/probe2.sh` (in session log) -- all four "BROKEN" rows now land in the correct pool; Proof Set test still correctly forces raw (isSet wins).
+
+**Acceptance criteria:**
+- `extractCoinIntent` is the single source of truth for grade/finish/isProof across both routes.
+- 25 helper unit tests pass.
+- Full ebay/classify/applyFilters/contract test suite (279 tests) passes.
+- Manual repro of all four broken shapes shows correct pool selection.
+
+**Files:**
+- NEW [src/utils/coinIntent.js](src/utils/coinIntent.js)
+- MOD [src/routes/priceRoute.js](src/routes/priceRoute.js) (use helper)
+- MOD [src/routes/pricingBatchRoute.js](src/routes/pricingBatchRoute.js) (use helper)
+- NEW [__tests__/coinIntent.test.js](__tests__/coinIntent.test.js) (25 tests)
+- MOD [docs/BACKLOG.md](docs/BACKLOG.md) (this entry)
+
+**Out of scope (follow-up PRs):**
+- UI Finish dropdown (`feat/finish-dropdown`).
+- Reverse Proof pool separation (`feat/reverse-proof-pool-separation`, gated on measurement).
+- Designation UI control for DCAM/CAM/FS/FB (parser handles from query text today; UI control is a separate UX project).
 
 ---
 
