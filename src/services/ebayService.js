@@ -1326,6 +1326,10 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
   let apiUsed = 'none';
   let usedFallback = false;
   let actualDays = requestedDays;
+  // #244: pre-filter telemetry shared across all downstream usResult rebuilds.
+  // Populated inside the Terapeak block; merged into every later usResult so
+  // partial-seed paths (Finding/Browse supplement) do not silently drop it.
+  let preFilterRemoved = {};
 
   // ── Attempt 0: Terapeak imported sold data (highest priority — real sold comps) ──
   const tpOpts = { metal: expected.metal || null, grade: expected.grade || null };
@@ -1368,11 +1372,14 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
     // #244: pre-filter telemetry. Drops upstream of applyFilters() must report
     // a non-zero bucket so 98%+ attrition can be attributed. Keys are merged
     // into the final `removed` object so existing consumers (pricing-health,
-    // freshness diagnostics) see them without code changes.
-    const preFilterRemoved = {
-      terapeakOriginal: tpComps.length,
-      terapeakGradeSplit: 0,
-      terapeakTimeWindow: 0
+    // freshness diagnostics) see them without code changes. Key names are
+    // intentionally provenance-neutral (no 'terapeak' prefix) because the
+    // `removed` object is returned to non-admin callers via /api/price
+    // (see redactForPublic.js + BACKLOG #243).
+    preFilterRemoved = {
+      prefilterPoolSize: tpComps.length,
+      prefilterStrikeSplit: 0,
+      prefilterTimeWindow: 0
     };
 
     // ── Strike & grade-type pool split: use only the matching pool ──
@@ -1391,7 +1398,7 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
       c.gradeType = gt; // update stored value for downstream consumers
       return gt === targetPool;
     });
-    preFilterRemoved.terapeakGradeSplit = beforeSplit - tpComps.length;
+    preFilterRemoved.prefilterStrikeSplit = beforeSplit - tpComps.length;
     if (tpComps.length !== beforeSplit) {
       console.log(`[ebay] Terapeak grade-split: ${beforeSplit} → ${tpComps.length} (${targetPool} only)`);
     }
@@ -1408,7 +1415,7 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
     // Only attribute the time-window drop when the window result is actually
     // used as the pool (fallback path keeps stale comps and reports 0 here).
     if (pool === withinWindow) {
-      preFilterRemoved.terapeakTimeWindow = tpComps.length - withinWindow.length;
+      preFilterRemoved.prefilterTimeWindow = tpComps.length - withinWindow.length;
     }
 
     // #165: Detect if comps came from a generic (non-year-specific) dataset.
@@ -1426,15 +1433,17 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
     // Merge pre-filter buckets so callers see the full attrition picture.
     const removed = { ...preFilterRemoved, ...filterRemoved };
 
-    // #244 safety net: catch any future silent drop. If anything was dropped
-    // but every reported bucket is zero, we still have an instrumentation gap.
-    const droppedTotal = preFilterRemoved.terapeakOriginal - kept.length;
+    // #244 safety net: catch any future silent drop -- including PARTIAL
+    // attribution gaps where some drops are reported but most are not. A
+    // small tolerance absorbs boundary effects (e.g. dedup, score-eq-cap).
+    const droppedTotal = preFilterRemoved.prefilterPoolSize - kept.length;
     if (droppedTotal > 0) {
       const reportedTotal = Object.entries(removed)
-        .filter(([k]) => k !== 'terapeakOriginal')
+        .filter(([k]) => k !== 'prefilterPoolSize')
         .reduce((s, [, v]) => s + (typeof v === 'number' ? v : 0), 0);
-      if (reportedTotal === 0) {
-        console.warn(`[telemetry-leak] dropped ${droppedTotal} terapeak comps for "${terapeakData.searchTerm}" with no reported bucket (#244)`);
+      const tolerance = 2;
+      if (reportedTotal + tolerance < droppedTotal) {
+        console.warn(`[telemetry-leak] dropped ${droppedTotal} terapeak comps for "${terapeakData.searchTerm}" but only ${reportedTotal} attributed (#244)`);
       }
     }
 
@@ -1528,7 +1537,7 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
         const mergedUS = usResult ? dedup([...usResult.comps, ...filterUS.kept]) : filterUS.kept;
         const mergedPrices = mergedUS.map(c => c.totalUsd);
 
-        usResult = { stats: stats.summarize(mergedPrices), comps: mergedUS, removed: filterUS.removed, error: null };
+        usResult = { stats: stats.summarize(mergedPrices), comps: mergedUS, removed: { ...preFilterRemoved, ...filterUS.removed }, error: null };
         apiUsed = apiUsed === 'marketplace-insights' ? 'insights+finding' : 'finding';
         console.log(`[ebay] Finding API US (${tierDays}d): ${mergedUS.length} comps`);
       } catch (err) {
@@ -1567,7 +1576,7 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
             delete expected._fromGenericDataset;
             const mergedRetry = usResult ? dedup([...usResult.comps, ...filterRetry.kept]) : filterRetry.kept;
             const mergedPrices = mergedRetry.map(c => c.totalUsd);
-            usResult = { stats: stats.summarize(mergedPrices), comps: mergedRetry, removed: filterRetry.removed, error: null };
+            usResult = { stats: stats.summarize(mergedPrices), comps: mergedRetry, removed: { ...preFilterRemoved, ...filterRetry.removed }, error: null };
             apiUsed = 'finding';
             console.log(`[ebay] Finding API retry US (${tierDays}d): ${mergedRetry.length} comps (simplified keywords)`);
           } catch (retryErr) {
@@ -1654,7 +1663,7 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
       usResult = {
         stats: stats.summarize(mergedPrices),
         comps: merged,
-        removed,
+        removed: { ...preFilterRemoved, ...removed },
         error: { message: `Browse API fallback used (active listings, not sold). Previous: ${usResult.error?.message || 'n/a'}` }
       };
       apiUsed = apiUsed !== 'none' ? `${apiUsed}+browse` : 'browse';
