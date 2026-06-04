@@ -1365,6 +1365,16 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
   if (terapeakData && terapeakData.comps && terapeakData.comps.length > 0) {
     let tpComps = terapeakData.comps;
 
+    // #244: pre-filter telemetry. Drops upstream of applyFilters() must report
+    // a non-zero bucket so 98%+ attrition can be attributed. Keys are merged
+    // into the final `removed` object so existing consumers (pricing-health,
+    // freshness diagnostics) see them without code changes.
+    const preFilterRemoved = {
+      terapeakOriginal: tpComps.length,
+      terapeakGradeSplit: 0,
+      terapeakTimeWindow: 0
+    };
+
     // ── Strike & grade-type pool split: use only the matching pool ──
     // Split by user intent in this order:
     //  1) Strike type (proof vs non-proof), then
@@ -1381,6 +1391,7 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
       c.gradeType = gt; // update stored value for downstream consumers
       return gt === targetPool;
     });
+    preFilterRemoved.terapeakGradeSplit = beforeSplit - tpComps.length;
     if (tpComps.length !== beforeSplit) {
       console.log(`[ebay] Terapeak grade-split: ${beforeSplit} → ${tpComps.length} (${targetPool} only)`);
     }
@@ -1394,6 +1405,11 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
     });
     // Use windowed comps if enough, otherwise use all terapeak comps
     const pool = withinWindow.length >= opts.usMinComps ? withinWindow : tpComps;
+    // Only attribute the time-window drop when the window result is actually
+    // used as the pool (fallback path keeps stale comps and reports 0 here).
+    if (pool === withinWindow) {
+      preFilterRemoved.terapeakTimeWindow = tpComps.length - withinWindow.length;
+    }
 
     // #165: Detect if comps came from a generic (non-year-specific) dataset.
     // Generic datasets intentionally span multiple years; applying strict
@@ -1404,8 +1420,23 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
 
     // Apply scoring and filters
     const scored = pool.map(c => scoreMatch(c, expected));
-    const { kept, removed } = applyFilters(scored, opts, expected);
+    const { kept, removed: filterRemoved } = applyFilters(scored, opts, expected);
     const prices = kept.map(c => c.totalUsd);
+
+    // Merge pre-filter buckets so callers see the full attrition picture.
+    const removed = { ...preFilterRemoved, ...filterRemoved };
+
+    // #244 safety net: catch any future silent drop. If anything was dropped
+    // but every reported bucket is zero, we still have an instrumentation gap.
+    const droppedTotal = preFilterRemoved.terapeakOriginal - kept.length;
+    if (droppedTotal > 0) {
+      const reportedTotal = Object.entries(removed)
+        .filter(([k]) => k !== 'terapeakOriginal')
+        .reduce((s, [, v]) => s + (typeof v === 'number' ? v : 0), 0);
+      if (reportedTotal === 0) {
+        console.warn(`[telemetry-leak] dropped ${droppedTotal} terapeak comps for "${terapeakData.searchTerm}" with no reported bucket (#244)`);
+      }
+    }
 
     // Clean up transient flag
     delete expected._fromGenericDataset;

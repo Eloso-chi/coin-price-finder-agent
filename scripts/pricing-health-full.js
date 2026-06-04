@@ -291,6 +291,17 @@ async function main() {
           if (issue.attritionPct) process.stderr.write(` (${issue.attritionPct}% attrition)`);
           if (issue.teakRows && issue.usComps !== undefined) process.stderr.write(` (${issue.teakRows} teak -> ${issue.usComps} comps)`);
           process.stderr.write('\n');
+          // #244: surface non-zero removed buckets so the attribution path is
+          // immediately visible to operators (no longer "all zeros").
+          if (issue.removed && typeof issue.removed === 'object') {
+            const nonZero = Object.entries(issue.removed)
+              .filter(([k, v]) => typeof v === 'number' && v > 0 && k !== 'terapeakOriginal')
+              .sort((a, b) => b[1] - a[1]);
+            if (nonZero.length > 0) {
+              const parts = nonZero.map(([k, v]) => `${k}=${v}`).join(', ');
+              process.stderr.write(`      removed: ${parts}\n`);
+            }
+          }
         }
       }
     }
