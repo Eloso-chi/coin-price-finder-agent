@@ -1689,3 +1689,20 @@ Gated on data: run pricing-health across a Reverse-Proof slate (2023 RP Morgan, 
 | 23 | Client-side spot cache | `my-coins.js` 5-min `SPOT_CACHE_TTL` |
 | 11-20 | Code review findings (April 2026) | All resolved -- see README "Recent Changes" |
 | 1-10 | Account features, labels, agents | All done |
+
+---
+
+## Reverse Proof Pool Follow-ups (PR #114)
+
+### 243. Split Enhanced Reverse Proof into its own pool [P3] [OPEN]
+- **Context**: PR #114 (`feat/reverse-proof-pool-separation`) introduced a `'reverse-proof'` grade pool. Both "Reverse Proof" and "Enhanced Reverse Proof" titles classify as `'reverse-proof'` and share the pool. Pool selection uses `expected.finish` to route the query, so the user's selected finish does flow in correctly, but within-pool scoring is the only thing distinguishing RP from ERP comps.
+- **Why low priority**: No current coin year issues both a Reverse Proof and an Enhanced Reverse Proof of the same coin (ERP exists only for 2019-S ASE, and that year has no plain RP). The risk is purely hypothetical until the US Mint or another issuer produces both in the same year.
+- **Proposed fix**: Add an `'enhanced-reverse-proof'` grade type. `classifyGradeType()` checks for "enhanced reverse proof" before "reverse proof". Pool selection routes `expected.finish === 'Enhanced Reverse Proof'` to the new pool.
+- **Files**: `src/services/ebayService.js` (classifier + pool selection), `src/routes/coinHistoryRoute.js` (mirror), tests.
+- **Related**: PR #114, #189 (numismatic terminology).
+
+### 244. Auto-extend lookback or year-fan-out for thin Reverse Proof pools [P3] [OPEN]
+- **Symptom**: Year-specific RP pools can be very thin in the default 180d window (e.g., 2013-W RP returns 3 comps after the PR #114 split). Existing `lowData` flag surfaces this but FMV becomes noisy.
+- **Proposed fix**: When `targetPool === 'reverse-proof'` and the surviving pool has <5 comps, extend lookback to 365d before falling back to Browse-only. Also consider widening the year window by +/-1 for RP coins where the same finish is unchanged across multiple years.
+- **Files**: `src/services/ebayService.js` (auto-extend logic), `src/services/valuationService.js` (Browse-only threshold for RP pool).
+- **Related**: PR #114, #176 (pool fallback before Browse-only).
