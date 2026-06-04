@@ -20,6 +20,25 @@ describe('extractCoinIntent', () => {
       expect(extractCoinIntent({ parsed: { grade: 'MS-64' } }).grade).toBe('MS-64');
     });
 
+    test('coinData.grade wins over a conflicting pcgs.grade (S4-#4)', () => {
+      // User explicitly chose a grade -- never let a heuristic PCGS
+      // lookup override the user's structured input.
+      const out = extractCoinIntent({
+        coinData: { grade: 'MS-65' },
+        pcgs:     { grade: 'MS-63' },
+        parsed:   { grade: 'MS-60' },
+      });
+      expect(out.grade).toBe('MS-65');
+    });
+
+    test('numeric grade is coerced to string (S4-#3)', () => {
+      // Some API callers send grade as a number; downstream code does
+      // grade.match(/\d+/) and would throw without coercion.
+      const out = extractCoinIntent({ coinData: { grade: 65 } });
+      expect(out.grade).toBe('65');
+      expect(typeof out.grade).toBe('string');
+    });
+
     test('isSet always nulls grade', () => {
       const out = extractCoinIntent({
         coinData: { grade: 'MS-65' },
@@ -63,6 +82,14 @@ describe('extractCoinIntent', () => {
       expect(extractCoinIntent({ coinData: { finish: '' } }).finish).toBeNull();
       expect(extractCoinIntent({ coinData: { finish: '   ' } }).finish).toBeNull();
     });
+
+    test('parsed.finish flows through when coinData.finish is absent (S4-#4)', () => {
+      // Make sure the parser's read of the query text still feeds the
+      // pipeline when structured input doesn't provide a finish.
+      const out = extractCoinIntent({ parsed: { finish: 'proof' } });
+      expect(out.finish).toBe('Proof');
+      expect(out.isProof).toBe(true);
+    });
   });
 
   describe('isProof', () => {
@@ -70,6 +97,20 @@ describe('extractCoinIntent', () => {
       // Prior route code never read options.isProof -- silently dropped.
       const out = extractCoinIntent({ options: { isProof: true } });
       expect(out.isProof).toBe(true);
+    });
+
+    test('string "true" for isProof is honored (S3-#1)', () => {
+      // HTML forms and several JSON serializers emit the string "true".
+      // We accept both to avoid resurrecting the silent-drop bug.
+      expect(extractCoinIntent({ options:  { isProof: 'true' } }).isProof).toBe(true);
+      expect(extractCoinIntent({ coinData: { isProof: 'true' } }).isProof).toBe(true);
+    });
+
+    test('other truthy values for isProof are NOT honored (avoid false positives)', () => {
+      // Only explicit true / "true" should flip the flag; arbitrary
+      // truthy values (e.g. an accidental "false" string) must not.
+      expect(extractCoinIntent({ options:  { isProof: 'false' } }).isProof).toBe(false);
+      expect(extractCoinIntent({ coinData: { isProof: 1 } }).isProof).toBe(false);
     });
 
     test('explicit coinData.isProof:true sets isProof=true', () => {
@@ -128,6 +169,14 @@ describe('extractCoinIntent', () => {
       expect(extractCoinIntent({ pcgs: { designation: 'DCAM' }, coinData: { designation: 'CAM' } }).designation).toBe('DCAM');
       expect(extractCoinIntent({ coinData: { designation: 'CAM' } }).designation).toBe('CAM');
       expect(extractCoinIntent({ parsed: { designation: 'FS' } }).designation).toBe('FS');
+    });
+
+    test('coinData.designation is accepted (S3-#2: prior route code dropped it)', () => {
+      // priceRoute's old expression was `pcgs.designation || parsed.designation`
+      // -- coinData.designation was silently dropped.  The helper now
+      // accepts it; this test guards against a future refactor undoing that.
+      const out = extractCoinIntent({ coinData: { designation: 'CAM' } });
+      expect(out.designation).toBe('CAM');
     });
   });
 

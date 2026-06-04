@@ -52,9 +52,10 @@ function extractCoinIntent({ coinData, options, parsed, pcgs, isSet } = {}) {
   // ── Grade ──
   // User-explicit (structured form) wins over heuristic PCGS resolution
   // and over parsed-from-text.  isSet nulls grade entirely.
-  const grade = isSet
-    ? null
-    : (coinData.grade || pcgs.grade || parsed.grade || null);
+  // Coerce to string so downstream `.match(/\d+/)` callers don't throw
+  // if an API caller sends a numeric grade.
+  const rawGrade = coinData.grade || pcgs.grade || parsed.grade || null;
+  const grade = isSet || rawGrade == null ? null : String(rawGrade);
 
   // ── Finish ──
   // Accept any case / hyphenation; normalize to PCGS spelling.
@@ -72,7 +73,10 @@ function extractCoinIntent({ coinData, options, parsed, pcgs, isSet } = {}) {
   // Enhanced Reverse Proof / Matte Proof all carry the word "proof".
   // Set lookups are always non-proof (the set itself may contain proofs;
   // pricing them works on a different pool).
-  const explicitFlag        = options.isProof === true || coinData.isProof === true;
+  // Accept boolean true and the string "true" -- HTML forms and several
+  // JSON serializers emit the latter.
+  const isExplicitTrue = (v) => v === true || v === 'true';
+  const explicitFlag        = isExplicitTrue(options.isProof) || isExplicitTrue(coinData.isProof);
   const finishIsProof       = /\bproof\b/i.test(finish || '');
   const designationIsProof  = /^(PR|PF)\s*[-]?\s*\d/i.test(String(designation || ''));
   const gradeIsProof        = /^(PR|PF)[-\s]?\d/i.test(String(grade || ''))
