@@ -208,7 +208,45 @@ for key in [
 PY
 }
 
+sync_meta_from_app() {
+  # #253 -- pull the canonical data/terapeak-meta.json from Azure before
+  # generating the freshness report. Without this, the local sidecar is
+  # frozen at whatever was committed to git and the report classifies every
+  # already-scraped coin as still-stale, so the scraper re-scrapes the same
+  # list forever. On failure (missing key, 404, transport error, invalid
+  # JSON) we log a warning and proceed with whatever's on disk.
+  step "Sync terapeak-meta.json from $APP_URL"
+  if [[ -z "${ADMIN_API_KEY:-}" ]]; then
+    echo "[warn] ADMIN_API_KEY not set; skipping meta sync (freshness report will use git-frozen sidecar)" >&2
+    return 0
+  fi
+  local tmp
+  tmp="$(mktemp -t terapeak-meta.XXXXXX.json)"
+  local http_code
+  http_code="$(curl -sS -o "$tmp" -w '%{http_code}' \
+    -H "x-api-key: $ADMIN_API_KEY" \
+    -H 'accept: application/json' \
+    --max-time 60 \
+    "$APP_URL/api/admin/terapeak-meta" || echo '000')"
+  if [[ "$http_code" != "200" ]]; then
+    echo "[warn] meta sync got HTTP $http_code; keeping existing data/terapeak-meta.json" >&2
+    rm -f "$tmp"
+    return 0
+  fi
+  if ! python3 -c "import json,sys; json.load(open(sys.argv[1]))" "$tmp" >/dev/null 2>&1; then
+    echo "[warn] meta sync returned non-JSON payload; keeping existing data/terapeak-meta.json" >&2
+    rm -f "$tmp"
+    return 0
+  fi
+  mkdir -p data
+  mv -f "$tmp" data/terapeak-meta.json
+  local bytes
+  bytes="$(stat -c '%s' data/terapeak-meta.json 2>/dev/null || stat -f '%z' data/terapeak-meta.json)"
+  echo "  Synced data/terapeak-meta.json (${bytes} bytes) from $APP_URL"
+}
+
 generate_report() {
+  sync_meta_from_app
   step "Generate freshness report"
   node scripts/generate-freshness-report.js --stale "$STALE_DAYS"
   print_report_summary
