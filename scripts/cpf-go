@@ -1,0 +1,162 @@
+#!/usr/bin/env bash
+# cpf-go - one-command setup + run for the CoinPriceFinder scraper on WSL.
+#
+# Safe to re-run; idempotent. By default it always refreshes eBay cookies
+# (handles CAPTCHA in a headed browser) before launching the scraper so we
+# don't burn a session on stale cookies. Pass --no-login to reuse the existing
+# cookie jar.
+#
+# Bootstrap (first time on a new machine):
+#   1. Install WSL Ubuntu 24.04 from PowerShell:  wsl --install -d Ubuntu-24.04
+#   2. From inside WSL, copy this script to ~/cpf-go:
+#        curl -fsSL https://raw.githubusercontent.com/Eloso-chi/coin-price-finder-agent/main/scripts/cpf-go -o ~/cpf-go
+#        chmod +x ~/cpf-go
+#   3. Run it. It will install Node, python3-venv, clone the repo, set up the
+#      venv, install Playwright Chromium, run `npm ci`, open the eBay login
+#      browser, and start the scraper.
+#
+# Once the repo is cloned you can also run scripts/cpf-go directly.
+#
+# Flags:
+#   --no-login           skip the interactive cookie refresh (use existing jar)
+#   --loop               keep re-running ./surface until it exits non-zero
+#                        (3-strike bot detection, end of backlog, or error)
+#   --pause-between=SEC  seconds to sleep between loop passes (default 300)
+#   any others           forwarded to ./surface (and onward to
+#                        run-surface-freshness-loop.sh). Useful examples:
+#                          --skip-deep
+#                          --include-thin
+#                          --page1-batch 50
+#                          --deep-limit 25
+#                          --focus "morgan|libertad"
+#                          --coin-type libertads
+#
+# Common recipes:
+#   # First run on a new machine -- logs in, single pass:
+#   ~/cpf-go
+#
+#   # Continuous backlog drain until bot detection:
+#   scripts/cpf-go --no-login --loop --skip-deep --page1-batch 25 --pause-between=600
+#
+#   # Focused pass on one coin family (no loop), then drain general backlog:
+#   scripts/cpf-go --skip-deep --include-thin \
+#     --focus "1oz.*libertad.*proof" --page1-batch 40 \
+#     && sleep 600 \
+#     && scripts/cpf-go --no-login --loop --skip-deep \
+#          --page1-batch 25 --pause-between=600
+#
+# IMPORTANT: this file must be saved with LF (Unix) line endings. CRLF line
+# endings cause `exec ./surface "$@"` to receive an empty `\r` token as a
+# trailing argument, which surfaces as `Unknown argument:` and aborts the
+# freshness loop. The repo .gitattributes enforces LF for shell scripts.
+
+set -euo pipefail
+
+REPO_DIR="$HOME/cpf/coin-price-finder-agent"
+DO_LOGIN=1
+LOOP=0
+PAUSE_BETWEEN=300
+FORWARD_ARGS=()
+for arg in "$@"; do
+  case "$arg" in
+    --no-login) DO_LOGIN=0 ;;
+    --loop) LOOP=1 ;;
+    --pause-between=*) PAUSE_BETWEEN="${arg#*=}" ;;
+    *) FORWARD_ARGS+=("$arg") ;;
+  esac
+done
+
+log()  { printf '\n== %s ==\n' "$*"; }
+warn() { printf '\n[warn] %s\n' "$*" >&2; }
+die()  { printf '\n[err] %s\n' "$*" >&2; exit 1; }
+
+# 0. environment sanity
+if [[ "${WSL_DISTRO_NAME:-}" == "" && ! -e /proc/sys/fs/binfmt_misc/WSLInterop ]]; then
+  die "Run this inside WSL Ubuntu-24.04, not Windows/PowerShell."
+fi
+case "$PWD" in
+  /mnt/c/*|/mnt/d/*) warn "Current dir is on the Windows mount; using $REPO_DIR instead." ;;
+esac
+
+# 1. apt prereqs: node + python venv
+if ! command -v node >/dev/null 2>&1; then
+  log "Installing Node.js (v22 LTS)"
+  curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+  sudo apt install -y nodejs
+fi
+if ! dpkg -s python3-venv >/dev/null 2>&1; then
+  log "Installing python3-venv"
+  sudo apt update && sudo apt install -y python3 python3-venv python3-pip
+fi
+
+# 2. ensure repo exists
+if [[ ! -d "$REPO_DIR/.git" ]]; then
+  log "Cloning repo into $REPO_DIR"
+  mkdir -p "$(dirname "$REPO_DIR")"
+  git clone https://github.com/Eloso-chi/coin-price-finder-agent.git "$REPO_DIR"
+fi
+
+cd "$REPO_DIR"
+
+# 3. pull latest main
+log "Pulling latest main"
+git fetch origin --quiet
+git checkout main --quiet
+git pull --ff-only --quiet
+
+# 4. ensure venv + playwright + chromium
+if [[ ! -d .venv ]]; then
+  log "Creating Python venv"
+  python3 -m venv .venv
+fi
+# shellcheck disable=SC1091
+source .venv/bin/activate
+if ! python3 -c 'import playwright' 2>/dev/null; then
+  log "Installing Playwright + requests"
+  pip install -U pip playwright requests
+fi
+if [[ ! -d "$HOME/.cache/ms-playwright" ]] || [[ -z "$(ls -A "$HOME/.cache/ms-playwright" 2>/dev/null)" ]]; then
+  log "Installing Chromium for Playwright"
+  python3 -m playwright install chromium
+fi
+
+# 4b. ensure node_modules (freshness report + surface loop need csv-parse, etc.)
+if [[ ! -d node_modules ]] || [[ package-lock.json -nt node_modules/.package-lock.json ]]; then
+  log "Installing npm dependencies (npm ci)"
+  npm ci --no-audit --no-fund
+fi
+
+# 5. env sanity
+if [[ ! -f "$HOME/.env.surface" ]]; then
+  die "Missing $HOME/.env.surface. Run: bash scripts/bootstrap-surface-wsl.sh"
+fi
+if [[ ! -f "$HOME/load-cpf-env.sh" ]]; then
+  die "Missing $HOME/load-cpf-env.sh. Run: bash scripts/bootstrap-surface-wsl.sh"
+fi
+# load env so COOKIE_FILE is exported for the login step
+# shellcheck disable=SC1091
+source "$HOME/load-cpf-env.sh"
+
+# 6. always refresh cookies first (unless --no-login)
+if [[ "$DO_LOGIN" == "1" ]]; then
+  log "Refreshing eBay cookies (solve CAPTCHA / sign in in the browser window)"
+  if ! COOKIE_FILE="${COOKIE_FILE:-$HOME/cpf/state/cookies-surface.json}" \
+       python3 scripts/terapeak-export.py --login; then
+    die "Cookie refresh failed. Re-run, or pass --no-login to use the existing jar."
+  fi
+  log "Cookies refreshed at ${COOKIE_FILE}"
+fi
+
+# 7. go (skip the live probe since we just minted fresh cookies)
+if [[ "$LOOP" == "1" ]]; then
+  pass=1
+  while ./surface --skip-probe "${FORWARD_ARGS[@]}"; do
+    log "Pass $pass complete -- sleeping ${PAUSE_BETWEEN}s before next pass"
+    sleep "$PAUSE_BETWEEN"
+    pass=$((pass + 1))
+  done
+  warn "./surface exited non-zero (likely bot detection or end of backlog). Stopping loop after $pass pass(es)."
+else
+  log "Launching ./surface --skip-probe (single pass; use --loop to keep draining backlog)"
+  exec ./surface --skip-probe "${FORWARD_ARGS[@]}"
+fi
