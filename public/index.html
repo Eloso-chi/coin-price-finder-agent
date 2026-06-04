@@ -1283,6 +1283,22 @@
               <span class="hint">P, D, S, O, CC, W</span>
             </div>
           </div>
+          <!-- #254: Finish (Method + Finish per PCGS taxonomy) lives with
+               Identification, not Grade.  Replaces the old Proof checkbox. -->
+          <div class="field" style="margin-top:14px">
+            <label for="coinFinish">Finish</label>
+            <select id="coinFinish">
+              <option value="">Business Strike (default)</option>
+              <option value="Proof">Proof</option>
+              <option value="Reverse Proof">Reverse Proof</option>
+              <option value="Enhanced Reverse Proof">Enhanced Reverse Proof</option>
+              <option value="Matte Proof">Matte Proof</option>
+              <option value="Burnished">Burnished</option>
+              <option value="Satin Finish">Satin Finish</option>
+              <option value="Antiqued">Antiqued</option>
+            </select>
+            <span class="hint">Mint finish (PCGS taxonomy). Auto-set from PF/PR grade.</span>
+          </div>
         </div>
       </div>
 
@@ -1294,7 +1310,6 @@
             <label for="coinGrade">Grade</label>
             <div style="display:flex;gap:8px;align-items:center">
             <input id="coinGrade" type="text" placeholder="e.g. MS-65, VF-30, PF-69DCAM" list="grades-list" autocomplete="off" style="flex:1">
-            <label class="checkbox-label" style="white-space:nowrap"><input type="checkbox" id="coinProof"> <span>Proof</span></label>
             <label class="checkbox-label" id="silverCheckLabel" style="white-space:nowrap;display:none"><input type="checkbox" id="coinSilver"> <span>Silver</span></label>
             </div>
             <datalist id="grades-list">
@@ -1315,20 +1330,14 @@
             <span class="hint">Sheldon scale — PCGS, NGC, or raw estimate</span>
           </div>
           <div class="field">
-            <label for="coinLabel">Label</label>
+            <label for="coinLabel">Label / Pedigree</label>
             <select id="coinLabel">
               <option value="">(none)</option>
               <option value="First Strike">First Strike</option>
               <option value="Early Releases">Early Releases</option>
               <option value="First Day of Issue">First Day of Issue</option>
-              <option value="Burnished">Burnished</option>
-              <option value="Reverse Proof">Reverse Proof</option>
-              <option value="Enhanced Reverse Proof">Enhanced Reverse Proof</option>
-              <option value="Satin Finish">Satin Finish</option>
-              <option value="Antiqued">Antiqued</option>
-              <option value="High Relief">High Relief</option>
             </select>
-            <span class="hint">Graded slab label (PCGS / NGC)</span>
+            <span class="hint">PCGS / NGC slab pedigree label only. Finishes (Proof, Reverse Proof, Burnished, etc.) now live in the Finish dropdown.</span>
           </div>
           <div class="field">
             <label for="askingPrice">Asking Price</label>
@@ -2746,7 +2755,7 @@ Silver Libertad 1 oz Proof"></textarea>
         coinYear:      document.getElementById('coinYear'),
         coinMint:      document.getElementById('coinMint'),
         grade:         document.getElementById('coinGrade'),
-        coinProof:     document.getElementById('coinProof'),
+        coinFinish:    document.getElementById('coinFinish'),
         coinSilver:    document.getElementById('coinSilver'),
         silverLabel:   document.getElementById('silverCheckLabel'),
         coinLabel:     document.getElementById('coinLabel'),
@@ -2889,14 +2898,18 @@ Silver Libertad 1 oz Proof"></textarea>
       this.els.coinName.addEventListener('input', check);
       this.els.coinName.addEventListener('change', check);
       this.els.setType.addEventListener('change', () => this._updatePreview());
-      // Auto-toggle proof checkbox when grade field suggests proof
+      // Auto-set Finish=Proof when grade field suggests a proof grade.
+      // Only overwrites the default (empty) value -- never overrides a
+      // user-selected non-Proof finish like Reverse Proof.
       this.els.grade.addEventListener('input', () => {
         const g = this.els.grade.value.trim();
-        if (/^(PF|PR)[-\s]?\d/i.test(g)) this.els.coinProof.checked = true;
+        if (/^(PF|PR)[-\s]?\d/i.test(g) && !this.els.coinFinish.value) {
+          this.els.coinFinish.value = 'Proof';
+        }
         this._updateSilverVisibility();
         this._updatePreview();
       });
-      this.els.coinProof.addEventListener('change', () => {
+      this.els.coinFinish.addEventListener('change', () => {
         this._updateSilverVisibility();
         this._updatePreview();
       });
@@ -2905,12 +2918,12 @@ Silver Libertad 1 oz Proof"></textarea>
     },
 
     /* ── Silver checkbox show/hide logic ──────────────────── */
-    // Show when: Proof checked, year >= 1992, coin is a denomination
-    // that has both silver and clad proof variants.
+    // Show when: Finish is a proof variant, year >= 1992, coin is a
+    // denomination that has both silver and clad proof variants.
     _SILVER_PROOF_RE: /\b(kennedy|half\s*dollar|washington|quarter|roosevelt|dime|jefferson|nickel|lincoln|cent|penny)\b/i,
 
     _updateSilverVisibility() {
-      const proof = this.els.coinProof.checked;
+      const proof = /\bproof\b/i.test(this.els.coinFinish.value || '');
       const year = parseInt(this.els.coinYear.value, 10) || 0;
       const name = this.els.coinName.value.trim();
       const isSet = this._isSetName(name);
@@ -2930,7 +2943,8 @@ Silver Libertad 1 oz Proof"></textarea>
       const grade = this.els.grade.value.trim();
       const isSet = this._isSetName(name);
 
-      const proof = this.els.coinProof.checked;
+      const finish = this.els.coinFinish.value || '';
+      const isProofFinish = /\bproof\b/i.test(finish);
       if (!name && !year) return '';
 
       let parts = [];
@@ -2943,8 +2957,17 @@ Silver Libertad 1 oz Proof"></textarea>
         if (name) parts.push(name);
         // Append "Silver" when silver proof checkbox is checked
         if (this.els.coinSilver.checked && !/\bsilver\b/i.test(name)) parts.push('Silver');
-        // Append "Proof" before grade when checkbox is checked and not already in name/grade
-        if (proof && !/\bproof\b/i.test(name) && !/\b(PF|PR)[-\s]?\d/i.test(grade)) parts.push('Proof');
+        // Append finish word(s) before grade when not already in name/grade.
+        // Covers Proof, Reverse Proof, Enhanced Reverse Proof, Matte Proof,
+        // Burnished, Satin Finish, Antiqued.
+        if (finish) {
+          const finishLower = finish.toLowerCase();
+          const nameHasFinish = name.toLowerCase().includes(finishLower);
+          const gradeHasProof = /\b(PF|PR)[-\s]?\d/i.test(grade);
+          if (!nameHasFinish && !(isProofFinish && gradeHasProof)) {
+            parts.push(finish);
+          }
+        }
         if (grade) parts.push(grade);
       }
 
@@ -3031,7 +3054,7 @@ Silver Libertad 1 oz Proof"></textarea>
           year:           parseInt(this.els.coinYear.value, 10),
           mintMark:       (this.els.coinMint.value.trim().toUpperCase() === '0' ? 'O' : this.els.coinMint.value.trim().toUpperCase()) || null,
           grade:          this.els.grade.value.trim() || null,
-          finish:         this.els.coinProof.checked ? 'Proof' : null,
+          finish:         this.els.coinFinish.value || null,
           composition:    this.els.coinSilver.checked ? 'silver' : null,
           label:          this.els.coinLabel.value || null,
           weight:         parseFloat(this.els.coinWeight.value) || null,
