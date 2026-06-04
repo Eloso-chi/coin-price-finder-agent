@@ -1706,3 +1706,22 @@ Gated on data: run pricing-health across a Reverse-Proof slate (2023 RP Morgan, 
 - **Proposed fix**: When `targetPool === 'reverse-proof'` and the surviving pool has <5 comps, extend lookback to 365d before falling back to Browse-only. Also consider widening the year window by +/-1 for RP coins where the same finish is unchanged across multiple years.
 - **Files**: `src/services/ebayService.js` (auto-extend logic), `src/services/valuationService.js` (Browse-only threshold for RP pool).
 - **Related**: PR #114, #176 (pool fallback before Browse-only).
+
+---
+
+## Scraper Launcher + Meta Sync (June 2026)
+
+### #257. Documentation: cpf-go launcher + terapeak-meta sync [P3 -- DOCS] -- DONE 2026-06-04
+- **Scope**: README.md scripts table + Admin endpoints table + "Recent Changes" entries for #258/#259; docs/ARCHITECTURE.md scripts tree + Persistence tiers section (added 4th tier); docs/runbooks/local-scraper-wsl2.md auto-sync callout.
+- **PR**: #116 (`feat/255-docs-cpf-go-meta-sync`).
+- **Why a separate ticket**: the two underlying work tickets (#258/#259) shipped first with misnumbered commit subjects. This ticket exists so the documentation update itself has a backlog reference.
+
+### #258. WSL scraper launcher (`scripts/cpf-go`) [P2 -- OPERATIONS] -- DONE 2026-06-04
+- **Merge commit**: `baf530c` -- subject reads `#252 add scripts/cpf-go launcher + WSL runbook updates (#110)`. The `#252` reference in the subject is a misnumbering -- that slot was already taken on `main` by "Bullion Strike-Pool Split Misclassifies Graded Bullion as Off-Pool [P1]" (unrelated, OPEN). Canonical backlog ticket = **#258**.
+- **What shipped**: `scripts/cpf-go` one-command bootstrap + run wrapper for the WSL/Surface scraper path (apt prereqs -> repo clone/pull -> Python venv + Playwright Chromium -> `npm ci` -> env sanity -> optional interactive cookie refresh -> exec/loop `./surface --skip-probe`); `.gitattributes` LF enforcement for `*.sh` and `scripts/cpf-go` (CRLF would crash the freshness loop with `Unknown argument:`); runbook updates in `docs/runbooks/local-scraper-wsl2.md` ("Fast path" section with flag tables and operational guardrails).
+- **Flags consumed by `cpf-go`**: `--no-login`, `--loop`, `--pause-between=SEC` (default 300). All other flags forwarded to `./surface`.
+
+### #259. Remote-scraper terapeak-meta sync [P1 -- OPERATIONS/DATA-INTEGRITY] -- DONE 2026-06-04
+- **Merge commit**: `53eba23` -- subject reads `#253 sync terapeak-meta from Azure before freshness report (#113)`. The `#253` reference is a misnumbering -- that slot was already taken on `main` by "Malformed Dataset Keys Produce Nonsensical FMVs [P2]" (unrelated, OPEN). Canonical backlog ticket = **#259**.
+- **Root cause**: `data/terapeak-meta.json` is the freshness classifier's only input but its only writer (`saveMetaSidecar()` in `src/services/terapeakService.js`) runs server-side. Remote scrapers using `UPLOAD_MODE=api` POST CSVs to Azure for ingest, so their on-disk sidecar is git-frozen and `generate-freshness-report.js` keeps re-targeting the same coins forever -- the loop appears to run at zero efficiency.
+- **What shipped**: new admin endpoint `GET /api/admin/terapeak-meta` in `src/routes/adminRoute.js` (streams sidecar with `X-Meta-Mtime` + `X-Meta-Bytes` headers, `Cache-Control: no-store`, requires `ADMIN_API_KEY` via `requireAdminOrKey`); `sync_meta_from_app()` in `scripts/run-surface-freshness-loop.sh` runs before `generate-freshness-report.js` on every pass (curl + JSON validation + atomic `mv -f`); failure modes log `[warn]` and proceed -- never crashes the loop; 4 new tests in `__tests__/adminRoute.test.js`.

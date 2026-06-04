@@ -106,6 +106,8 @@ server.js                              Express entry point (port 3000)
 │       └─ test-monitor.md             Test Monitor usage guide & command reference
 │
 ├─ scripts/
+│   ├─ cpf-go                          One-command WSL bootstrap + scraper launcher (#258; merge commit reads #252)
+│   ├─ run-surface-freshness-loop.sh   Orchestrator: meta sync (#259; merge commit reads #253) -> freshness report -> page-1 batch -> deep-paginate
 │   ├─ terapeak-export.py              Semi-automated Terapeak CSV exporter (Playwright + blob upload)
 │   ├─ sales-aggregator.py               Sales data aggregator (deep pagination) (extends CSVs beyond 50 rows)
 │   ├─ chain-aggregate.sh                 Chain multiple collect batches with anti-bot monitoring
@@ -697,6 +699,18 @@ behavior. Pre-flight gate: `scripts/cookie-health-check.py` exits
 
 Key flags: `--batch N` (coin count), `--priority` (thin-data-first), `--resume` (continue after crash), `--refresh` (re-collect stale CSVs by file age), `--max-age DAYS` (staleness threshold, default 14).
 
+**Remote-scraper meta sync (#259):** the on-disk `data/terapeak-meta.json`
+sidecar is only written by `saveMetaSidecar()` inside the Node server
+process. Remote scrapers running under `UPLOAD_MODE=api` (WSL/Surface and
+Codespaces) POST CSVs to Azure for ingest, so their local sidecar is
+git-frozen and `generate-freshness-report.js` keeps re-targeting the same
+coins forever. `scripts/run-surface-freshness-loop.sh` calls
+`sync_meta_from_app()` before each freshness pass, which `curl`s
+`GET /api/admin/terapeak-meta` (auth via `ADMIN_API_KEY`), validates the
+JSON, and atomically replaces the local sidecar. Any failure (missing key,
+non-200, non-JSON, transport error) logs `[warn]` and the loop proceeds
+with the existing on-disk copy -- never crashes.
+
 **Sort-skip optimization (#200):** Both scripts use a module-level `_sort_confirmed` flag to skip redundant "Date sold" column sort clicks. On first page load the script clicks the sort column and waits for re-render; after CSV write, it validates date order (first >= last = descending). If confirmed, subsequent pages skip the sort step entirely. The flag resets on browser recycle (every 40/80 coins), bot-block detection, or crash recovery via `reset_sort_state()`.
 
 **Active Listings Guard (S0):** Two-layer protection against ingesting unsold asking prices when Terapeak falls back to the Active Listings tab: (1) DOM tab check detects active-tab selectors after results load, (2) date validation rejects pages where <20% of rows have parseable sold dates.
@@ -723,11 +737,12 @@ Extends CSVs from 50 rows (page 1 limit) to up to 250 rows by collecting pages 2
 └───────────────────────────────────────────────────────────┘
 ```
 
-**Three-tier persistence:** aggregationMeta is persisted through three independent mechanisms, loaded in priority order at startup:
+**Persistence tiers:** aggregationMeta is persisted through four independent mechanisms, loaded in priority order at startup:
 
-1. **Git-tracked sidecar** (`data/terapeak-meta.json`) -- lightweight JSON file storing per-dataset metadata. Git-tracked so it survives codespace rebuilds and cache wipes without any infrastructure dependency. Loaded first via `loadMetaSidecar()`. Debounce-written (1s) whenever `importComps()` detects a metadata change.
+1. **Git-tracked sidecar** (`data/terapeak-meta.json`) -- lightweight JSON file storing per-dataset metadata. Git-tracked so it survives codespace rebuilds and cache wipes without any infrastructure dependency. Loaded first via `loadMetaSidecar()`. Debounce-written (1s) whenever `importComps()` detects a metadata change. **Server-side only:** the writer runs inside the Node process, so any clone that does not host the Node server (remote scrapers under `UPLOAD_MODE=api`) sees a git-frozen copy unless it pulls from the server -- see tier 4.
 2. **Cosmos DB write-through** -- aggregationMeta is written to the `terapeak-sold` Cosmos DB container on each import. On startup, `hydrateMetaFromCosmos()` merges Cosmos markers into the in-memory store (after sidecar load). Only active when Cosmos connection string is configured.
 3. **CSV row-count inference** -- `importComps()` infers `deepAt` from comp count (>50 = was deep-paginated). Catches legacy datasets that predate explicit tracking.
+4. **Remote-scraper HTTP pull (#259)** -- machines running `scripts/run-surface-freshness-loop.sh` (WSL/Surface, Codespaces) call `sync_meta_from_app()` before every freshness pass, which `curl`s `GET /api/admin/terapeak-meta` and atomically replaces their local `data/terapeak-meta.json`. Without this step the local sidecar is git-frozen and the classifier re-targets already-scraped coins forever, making the scraper loop appear to make zero progress. Failures degrade to `[warn]` and the loop continues with whatever is on disk.
 
 **Per-dataset metadata fields:**
 
