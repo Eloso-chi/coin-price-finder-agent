@@ -272,15 +272,17 @@ Fixed: `evaluateOneCoin()` in `bulkEvaluateService.js` now matches price discove
 
 ---
 
-### #244. Reverse-Proof Morgan Dollar Pipeline-Leak [P2 -- TRIAGE]
+### #244. Reverse-Proof Morgan Dollar Pipeline-Leak [P2 -- TRIAGE] -- DONE 2026-06-04
 
-**Problem:** Pricing health full-run on 100 Morgans (`cache/health-morgan-100.json`) flagged `2023 Reverse Proof Morgan Silver Dollar` RED: 205 Terapeak rows enter the discovery pipeline but only 3 US comps survive (98.5% attrition) with `discovery.removed.{denied,nonUsd,pcgsOnly,gradeOnly,outlier,lowRelevance,metalMismatch,compositionMismatch,yearMismatch,variantWrongColor,seriesConflict}` ALL reporting 0. The filter that's killing the comps is silently dropping them without reporting to the `removed` telemetry buckets.
+**Status:** Telemetry gap fixed on `fix/244-prefilter-telemetry`. Root cause was the Terapeak pre-filter path in `ebayService.js` (lines ~1373-1407) -- the grade-pool split and time-window narrowing dropped comps without incrementing any `removed.*` bucket. Added `preFilterRemoved = { prefilterPoolSize, prefilterStrikeSplit, prefilterTimeWindow }` (provenance-neutral key names, see review item 3), hoisted to function scope so partial-seed paths (Finding/Browse supplement) preserve it through downstream `usResult` rebuilds. Added a runtime `console.warn('[telemetry-leak]')` guard that fires when `reportedTotal + tolerance < droppedTotal` (catches both fully-silent AND partial-attribution gaps). `pricing-health-full.js` now prints the top non-zero `removed.*` bucket per RED issue with a stable tie-break. Test coverage: 5 new cases in `__tests__/ebayFetchSoldComps.test.js` (strike-split, zero-drop sanity, time-window, partial-seed path, guard no-fire). Schema-safe: `priceResponse.schema.js` has `additionalProperties: true`.
 
-**Why it matters:** A 98.5% attrition with zero attribution is an instrumentation gap, not just a single-coin issue. Any future Reverse Proof / NGC-only / unusual finish series likely has the same blind spot.
+**Follow-up:** The underlying data-quality issue (2023 Reverse Proof Morgan dataset is contaminated with regular Proof/BU comps that get correctly rejected) is tracked separately -- the 200 drops are now visible as `prefilterStrikeSplit=N` and represent CORRECT REJECTIONS, not a bug in the filter. Open as #252 if intake-side cleanup is wanted.
+
+**Original problem:** Pricing health full-run on 100 Morgans (`cache/health-morgan-100.json`) flagged `2023 Reverse Proof Morgan Silver Dollar` RED: 205 Terapeak rows enter the discovery pipeline but only 3 US comps survive (98.5% attrition) with `discovery.removed.*` ALL reporting 0. The filter that's killing the comps was silently dropping them without reporting to the `removed` telemetry buckets.
 
 **Repro:** `ADMIN_API_KEY="$(grep '^ADMIN_API_KEY' .env | cut -d= -f2-)" node scripts/pricing-health-full.js --full --filter "Morgan" --limit 100 --min 10 --out cache/health-morgan-100.json` then inspect the RED row.
 
-**Files:** likely `src/services/ebayService.js` filter pipeline + any callers that drop comps without incrementing a `removed.*` counter.
+**Files:** `src/services/ebayService.js`, `scripts/pricing-health-full.js`, `__tests__/ebayFetchSoldComps.test.js`.
 
 ---
 

@@ -1326,6 +1326,10 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
   let apiUsed = 'none';
   let usedFallback = false;
   let actualDays = requestedDays;
+  // #244: pre-filter telemetry shared across all downstream usResult rebuilds.
+  // Populated inside the Terapeak block; merged into every later usResult so
+  // partial-seed paths (Finding/Browse supplement) do not silently drop it.
+  let preFilterRemoved = {};
 
   // ── Attempt 0: Terapeak imported sold data (highest priority — real sold comps) ──
   const tpOpts = { metal: expected.metal || null, grade: expected.grade || null };
@@ -1365,6 +1369,19 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
   if (terapeakData && terapeakData.comps && terapeakData.comps.length > 0) {
     let tpComps = terapeakData.comps;
 
+    // #244: pre-filter telemetry. Drops upstream of applyFilters() must report
+    // a non-zero bucket so 98%+ attrition can be attributed. Keys are merged
+    // into the final `removed` object so existing consumers (pricing-health,
+    // freshness diagnostics) see them without code changes. Key names are
+    // intentionally provenance-neutral (no 'terapeak' prefix) because the
+    // `removed` object is returned to non-admin callers via /api/price
+    // (see redactForPublic.js + BACKLOG #243).
+    preFilterRemoved = {
+      prefilterPoolSize: tpComps.length,
+      prefilterStrikeSplit: 0,
+      prefilterTimeWindow: 0
+    };
+
     // ── Strike & grade-type pool split: use only the matching pool ──
     // Split by user intent in this order:
     //  1) Strike type (proof vs non-proof), then
@@ -1381,6 +1398,7 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
       c.gradeType = gt; // update stored value for downstream consumers
       return gt === targetPool;
     });
+    preFilterRemoved.prefilterStrikeSplit = beforeSplit - tpComps.length;
     if (tpComps.length !== beforeSplit) {
       console.log(`[ebay] Terapeak grade-split: ${beforeSplit} → ${tpComps.length} (${targetPool} only)`);
     }
@@ -1394,6 +1412,11 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
     });
     // Use windowed comps if enough, otherwise use all terapeak comps
     const pool = withinWindow.length >= opts.usMinComps ? withinWindow : tpComps;
+    // Only attribute the time-window drop when the window result is actually
+    // used as the pool (fallback path keeps stale comps and reports 0 here).
+    if (pool === withinWindow) {
+      preFilterRemoved.prefilterTimeWindow = tpComps.length - withinWindow.length;
+    }
 
     // #165: Detect if comps came from a generic (non-year-specific) dataset.
     // Generic datasets intentionally span multiple years; applying strict
@@ -1404,8 +1427,25 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
 
     // Apply scoring and filters
     const scored = pool.map(c => scoreMatch(c, expected));
-    const { kept, removed } = applyFilters(scored, opts, expected);
+    const { kept, removed: filterRemoved } = applyFilters(scored, opts, expected);
     const prices = kept.map(c => c.totalUsd);
+
+    // Merge pre-filter buckets so callers see the full attrition picture.
+    const removed = { ...preFilterRemoved, ...filterRemoved };
+
+    // #244 safety net: catch any future silent drop -- including PARTIAL
+    // attribution gaps where some drops are reported but most are not. A
+    // small tolerance absorbs boundary effects (e.g. dedup, score-eq-cap).
+    const droppedTotal = preFilterRemoved.prefilterPoolSize - kept.length;
+    if (droppedTotal > 0) {
+      const reportedTotal = Object.entries(removed)
+        .filter(([k]) => k !== 'prefilterPoolSize')
+        .reduce((s, [, v]) => s + (typeof v === 'number' ? v : 0), 0);
+      const tolerance = 2;
+      if (reportedTotal + tolerance < droppedTotal) {
+        console.warn(`[telemetry-leak] dropped ${droppedTotal} terapeak comps for "${terapeakData.searchTerm}" but only ${reportedTotal} attributed (#244)`);
+      }
+    }
 
     // Clean up transient flag
     delete expected._fromGenericDataset;
@@ -1497,7 +1537,7 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
         const mergedUS = usResult ? dedup([...usResult.comps, ...filterUS.kept]) : filterUS.kept;
         const mergedPrices = mergedUS.map(c => c.totalUsd);
 
-        usResult = { stats: stats.summarize(mergedPrices), comps: mergedUS, removed: filterUS.removed, error: null };
+        usResult = { stats: stats.summarize(mergedPrices), comps: mergedUS, removed: { ...preFilterRemoved, ...filterUS.removed }, error: null };
         apiUsed = apiUsed === 'marketplace-insights' ? 'insights+finding' : 'finding';
         console.log(`[ebay] Finding API US (${tierDays}d): ${mergedUS.length} comps`);
       } catch (err) {
@@ -1536,7 +1576,7 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
             delete expected._fromGenericDataset;
             const mergedRetry = usResult ? dedup([...usResult.comps, ...filterRetry.kept]) : filterRetry.kept;
             const mergedPrices = mergedRetry.map(c => c.totalUsd);
-            usResult = { stats: stats.summarize(mergedPrices), comps: mergedRetry, removed: filterRetry.removed, error: null };
+            usResult = { stats: stats.summarize(mergedPrices), comps: mergedRetry, removed: { ...preFilterRemoved, ...filterRetry.removed }, error: null };
             apiUsed = 'finding';
             console.log(`[ebay] Finding API retry US (${tierDays}d): ${mergedRetry.length} comps (simplified keywords)`);
           } catch (retryErr) {
@@ -1623,7 +1663,7 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
       usResult = {
         stats: stats.summarize(mergedPrices),
         comps: merged,
-        removed,
+        removed: { ...preFilterRemoved, ...removed },
         error: { message: `Browse API fallback used (active listings, not sold). Previous: ${usResult.error?.message || 'n/a'}` }
       };
       apiUsed = apiUsed !== 'none' ? `${apiUsed}+browse` : 'browse';
