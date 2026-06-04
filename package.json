@@ -14,7 +14,9 @@
     "test:metrics": "node scripts/test-metrics/run-with-metrics.cjs",
     "test:summary": "node scripts/test-metrics/summarize.cjs",
     "test:mutation": "stryker run",
-    "health:lot-estimator": "node scripts/lot-estimator-health.js"
+    "health:lot-estimator": "node scripts/lot-estimator-health.js",
+    "sync:meta": "node scripts/sync-terapeak-meta.js",
+    "freshness": "node scripts/sync-terapeak-meta.js && node scripts/generate-freshness-report.js"
   },
   "repository": {
     "type": "git",
