@@ -648,6 +648,7 @@ src/
   utils/
     cache.js                       TTLCache with optional JSON file persistence
     stats.js                       Statistical functions (median, MAD, weighted median)
+    coinIntent.js                  Route-layer canonical {grade, finish, isProof, designation} extractor (#254)
 │   ├─ coinMetalProfile.js             Metal detection, weight detection (detectWeightFromTitle, weightToKeyToken) for bullion coins
     filters.js                     Deny-list filtering, denomination & series checks
     responseValidator.js           /api/price response schema & sanity validation
@@ -792,6 +793,7 @@ scripts/
 
 ### Batch Pricing Parity
 
+- **Route-layer silent-drop fix (#254)** -- `priceRoute` and `pricingBatchRoute` each had their own inline derivation of `expected.{grade, finish, isProof, designation}` that silently dropped three common input shapes: `coinData.grade` (only `pcgs.grade || parsed.grade` was read), `options.isProof` / `coinData.isProof` (never read), and lowercase `coinData.finish: 'proof'` (case-sensitive comparison vs literal `'Proof'`). Extracted into `src/utils/coinIntent.js` as the single source of truth -- user-explicit structured input wins over PCGS heuristics over parsed-from-text; `isSet` always nulls grade and forces `isProof=false`; finish is normalized to PCGS spelling (Proof, Reverse Proof, Enhanced Reverse Proof, Matte Proof, Burnished, Satin Finish, Antiqued) via `FINISH_CANONICAL`. Accepts boolean `true` and string `'true'` for the proof flag. 31-test unit suite in `__tests__/coinIntent.test.js`.
 - **Enriched `pricingBatchRoute` expected object** -- now detects and passes `isProof`, `finish`, `isRoll`, `isSet`, `setType`, and `_rawQuery` to `fetchSoldComps()`, matching the main `/api/price` route. Proof/roll/set filtering now works correctly for My Coins batch pricing.
 - **Roll/tube parsing** -- `parseDescription()` and `ROLL_PATTERN` now detect "tube" and "coin roll" patterns in addition to "roll/rolls", so tube listings are correctly identified and priced as rolls.
 
