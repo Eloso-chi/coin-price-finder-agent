@@ -65,6 +65,7 @@ server.js                              Express entry point (port 3000)
 │   ├─ stats.js                        Statistical functions (median, MAD, weighted median, etc.)
 │   ├─ filters.js                      Deny-list filtering, denomination & series checks, two-way composition mismatch (silver/clad)
 │   ├─ coinMetalProfile.js             Metal detection + weight detection (detectWeightFromTitle, weightToKeyToken) for bullion
+│   ├─ coinIntent.js                   Route-layer extractor: canonicalizes {grade, finish, isProof, designation} across coinData / options / pcgs / parsed (#254)
 │   ├─ responseValidator.js            /api/price response schema & sanity validation
 │   ├─ excelMapper.js                  Excel-to-backup converter (header aliases, series normalization)
 │   ├─ cachePath.js                    Centralized CACHE_DIR from env var
