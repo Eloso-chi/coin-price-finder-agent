@@ -172,3 +172,83 @@ describe('GET /api/admin/data-health', () => {
     expect(res.status).toBe(500);
   });
 });
+
+// ── GET /api/admin/terapeak-meta (#253) ─────────────────────
+
+describe('GET /api/admin/terapeak-meta', () => {
+  const fs = require('fs');
+  let existsSpy, statSpy, readSpy;
+
+  afterEach(() => {
+    if (existsSpy) existsSpy.mockRestore();
+    if (statSpy) statSpy.mockRestore();
+    if (readSpy) readSpy.mockRestore();
+  });
+
+  test('401 without API key', async () => {
+    const res = await req('GET', '/api/admin/terapeak-meta', { 'x-api-key': '' });
+    expect(res.status).toBe(401);
+  });
+
+  test('returns JSON body with mtime + size headers on success', async () => {
+    const payload = Buffer.from(JSON.stringify({
+      '1953 roosevelt dime': { compCount: 12, newestSaleDate: '2026-06-04' },
+    }));
+    const mtime = new Date('2026-06-04T12:34:56.000Z');
+    existsSpy = jest.spyOn(fs, 'existsSync').mockReturnValue(true);
+    statSpy = jest.spyOn(fs, 'statSync').mockReturnValue({ mtime, size: payload.length });
+    readSpy = jest.spyOn(fs, 'readFileSync').mockReturnValue(payload);
+
+    const res = await reqWithHeaders('GET', '/api/admin/terapeak-meta');
+    expect(res.status).toBe(200);
+    expect(res.headers['x-meta-mtime']).toBe(mtime.toISOString());
+    expect(res.headers['x-meta-bytes']).toBe(String(payload.length));
+    expect(res.headers['cache-control']).toMatch(/no-cache/);
+    expect(res.body).toEqual({
+      '1953 roosevelt dime': { compCount: 12, newestSaleDate: '2026-06-04' },
+    });
+  });
+
+  test('404 when sidecar is absent on server', async () => {
+    existsSpy = jest.spyOn(fs, 'existsSync').mockReturnValue(false);
+
+    const res = await req('GET', '/api/admin/terapeak-meta');
+    expect(res.status).toBe(404);
+    expect(res.body).toMatchObject({ path: 'data/terapeak-meta.json' });
+  });
+
+  test('500 when fs.readFileSync throws', async () => {
+    existsSpy = jest.spyOn(fs, 'existsSync').mockReturnValue(true);
+    statSpy = jest.spyOn(fs, 'statSync').mockReturnValue({ mtime: new Date(), size: 0 });
+    readSpy = jest.spyOn(fs, 'readFileSync').mockImplementation(() => { throw new Error('EACCES'); });
+
+    const res = await req('GET', '/api/admin/terapeak-meta');
+    expect(res.status).toBe(500);
+    expect(res.body).toMatchObject({ error: expect.stringMatching(/terapeak-meta/) });
+  });
+});
+
+// Helper that also returns response headers (needed for the meta-export test)
+function reqWithHeaders(method, path, headers = {}) {
+  return new Promise((resolve, reject) => {
+    const url = new URL(baseUrl + path);
+    const opts = {
+      hostname: url.hostname,
+      port: url.port,
+      path: url.pathname + url.search,
+      method,
+      headers: { 'x-api-key': TEST_KEY, ...headers },
+    };
+    const r = http.request(opts, (res) => {
+      let body = '';
+      res.on('data', (c) => (body += c));
+      res.on('end', () => {
+        const wrap = { status: res.statusCode, headers: res.headers };
+        try { wrap.body = JSON.parse(body); } catch { wrap.body = body; }
+        resolve(wrap);
+      });
+    });
+    r.on('error', reject);
+    r.end();
+  });
+}

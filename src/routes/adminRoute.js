@@ -147,4 +147,46 @@ router.post('/auction-fetch', async (req, res) => {
   }
 });
 
+// ── Terapeak meta sidecar export (#253) ─────────────────────
+
+const fs = require('fs');
+const path = require('path');
+const META_PATH = path.join(__dirname, '..', '..', 'data', 'terapeak-meta.json');
+
+/**
+ * GET /api/admin/terapeak-meta
+ * Returns the contents of data/terapeak-meta.json as the server currently
+ * sees it on disk. Used by scripts/run-surface-freshness-loop.sh on remote
+ * scraper machines (WSL/Codespaces) so the freshness classifier reads
+ * Azure-current state, not a git-frozen snapshot. See #253.
+ *
+ * Response: application/json, the raw sidecar body.
+ * Headers include `X-Meta-Mtime` (ISO8601 of the file's mtime) and
+ * `X-Meta-Bytes` (raw file size) so clients can short-circuit identical
+ * payloads in a future patch.
+ *
+ * Errors: 404 if the sidecar doesn't exist on this server yet; 500 on
+ * unexpected I/O failure.
+ */
+router.get('/terapeak-meta', (_req, res) => {
+  try {
+    if (!fs.existsSync(META_PATH)) {
+      return res.status(404).json({
+        error: 'terapeak-meta.json not present on this server',
+        path: 'data/terapeak-meta.json',
+      });
+    }
+    const stat = fs.statSync(META_PATH);
+    const body = fs.readFileSync(META_PATH);
+    res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.set('X-Meta-Mtime', stat.mtime.toISOString());
+    res.set('X-Meta-Bytes', String(stat.size));
+    res.type('application/json');
+    res.send(body);
+  } catch (err) {
+    console.error('[admin] terapeak-meta export error:', err.message);
+    res.status(500).json({ error: 'Failed to read terapeak-meta sidecar' });
+  }
+});
+
 module.exports = router;
