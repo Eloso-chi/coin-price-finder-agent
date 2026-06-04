@@ -44,11 +44,20 @@ router.get('/', async (req, res) => {
   // intent extraction in priceRoute -- without this, a query like
   // "2019 Mexican Silver Libertad Proof" silently flips to the raw pool
   // (no grade matched -> wantsGraded=false -> raw filter applied).
-  const PROOF_RE = /\b(proof|reverse[\s-]?proof|matte[\s-]?proof)\b/i;
-  const wantsProof = !!queryGrade
-    ? /^(PR|PF)/i.test(queryGrade)
-    : PROOF_RE.test(query);
-  const wantsGraded = !!queryGrade && !wantsProof;
+  //
+  // PR #3: Reverse Proof / Enhanced Reverse Proof get their own pool. Check
+  // for RP intent BEFORE the generic proof check (RP titles also match the
+  // generic \bproof\b). When neither RP nor a designation grade matched,
+  // wantsProof picks up plain "Proof" / "Matte Proof" via PROOF_RE.
+  const REVERSE_PROOF_RE = /\b(enhanced[\s-]+)?reverse[\s-]+proof\b/i;
+  const PROOF_RE = /\b(proof|matte[\s-]?proof)\b/i;
+  const wantsReverseProof = !queryGrade && REVERSE_PROOF_RE.test(query);
+  const wantsProof = wantsReverseProof
+    ? false
+    : (!!queryGrade
+        ? /^(PR|PF)/i.test(queryGrade)
+        : PROOF_RE.test(query));
+  const wantsGraded = !!queryGrade && !wantsProof && !wantsReverseProof;
 
   // Resolve query against Terapeak datasets
   const dataset = terapeakService.lookupComps(query);
@@ -75,13 +84,15 @@ router.get('/', async (req, res) => {
   compsInRange = compsInRange.filter(c => !isDenied(c.title || ''));
 
   // 2. Grade-type split: pick the comp pool that matches user intent.
+  //    reverse-proof: only reverse-proof / enhanced reverse-proof comps
   //    proof: only proof comps (strict, no fallback -- matches #244)
   //    graded: only certified/slabbed comps
   //    raw: only raw/BU comps (default when no grade or finish was specified)
   compsInRange = compsInRange.filter(c => {
     const gt = c.gradeType || classifyGradeType(c);
-    if (wantsProof)  return gt === 'proof';
-    if (wantsGraded) return gt === 'graded';
+    if (wantsReverseProof) return gt === 'reverse-proof';
+    if (wantsProof)        return gt === 'proof';
+    if (wantsGraded)       return gt === 'graded';
     return gt === 'raw';
   });
 
