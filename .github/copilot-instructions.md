@@ -63,3 +63,9 @@
 - Use `/onboard` at the start of a new conversation to bootstrap full project understanding.
 - Reads all repo memory files, architecture docs, and key source file exports.
 - Produces a Readiness Report confirming what was learned.
+
+## Backlog Per-Machine ID Convention
+
+- New backlog items from #264W onward use a single-letter suffix indicating the origin machine: `W` (Codespace / work) or `H` (home workstation).
+- Before adding a new entry, run `scripts/machine-id.sh` to detect this machine's letter. If the script errors, follow the one-time setup it prints on stderr; never guess.
+- See `docs/BACKLOG.rules.md` "Per-machine ID convention" for the full rule (next-number selection, cross-references, grandfathered IDs).

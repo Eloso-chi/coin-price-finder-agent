@@ -32,3 +32,10 @@ stryker.log
 
 # #246 Cosmos dumps -- too large for git, kept locally + Azure backup only
 data/archive/cosmos-terapeak-sold-*.json
+
+
+# Per-machine identity file (#264W). Value is "W" or "H".
+# Setup: echo W > .machine-id   (Codespace / work) or
+#        echo H > .machine-id   (home workstation)
+# See docs/BACKLOG.rules.md "Per-machine ID convention".
+/.machine-id

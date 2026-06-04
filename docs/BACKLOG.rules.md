@@ -40,6 +40,44 @@ Each item should include:
 
 ---
 
+## Per-machine ID convention (in effect from #264W onward)
+
+This project is worked on from two machines that may both add backlog items without coordinating. To eliminate ID collisions during merge, every new backlog ID gets a single-letter suffix identifying its origin machine:
+
+- `W` -- Codespace / **w**ork environment (this dev container)
+- `H` -- **h**ome workstation (native Windows)
+
+An ID is the number **plus** the suffix. `#264W` and `#264H` are two unrelated items and may coexist freely.
+
+### Picking the next number
+
+Before writing a new backlog entry:
+
+1. Run `scripts/machine-id.sh` to get this machine's letter. If it errors with "not found", do the one-time setup printed on stderr (`echo W > .machine-id` or `echo H > .machine-id`) and re-run. **Never guess.**
+2. Run `git fetch --all --prune` so you see the latest entries from BOTH series.
+3. Find the highest existing number for your letter:
+   ```bash
+   grep -oE "^### #[0-9]+$(scripts/machine-id.sh)\." docs/BACKLOG.md \
+     | grep -oE "[0-9]+" | sort -n | tail -1
+   ```
+4. Use the next integer, with your letter suffix (e.g. `#265W`).
+5. Cross-references inside the entry MUST include the suffix (`See #261W`, never bare `#261`).
+
+### Grandfathered numbers
+
+Backlog items added BEFORE #264W are bare numbers (no suffix). They are never retroactively renamed. When referencing them, use the bare form (`#244`, `#256`).
+
+### PR titles and branch names
+
+- PR titles should include the suffixed ID, e.g. `feat(#265W): split fractional gold pools`.
+- Branch names may include the suffix (`feat/265W-fractional-gold`) or omit it -- the suffix on the backlog ID is the source of truth.
+
+### Detection failure mode
+
+If `scripts/machine-id.sh` exits non-zero, the agent or developer MUST stop and create the file. Do NOT assume a default. CI environments have no `.machine-id` and must not author backlog items.
+
+---
+
 ## Approval-Gated Actions
 
 The following require explicit user approval before execution:
