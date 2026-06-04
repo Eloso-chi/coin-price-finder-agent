@@ -914,6 +914,45 @@ Platinum metal detection wired through the shared pipeline: `coinMetalProfile.js
 
 ---
 
+### #261W. Fractional Gold Maple Leaf -- 1/10 and 1/20 oz Pools Collide, FMV $4,987 (10-50x too high) [P1 -- BUG] -- OPEN 2026-06-04
+- **Symptom**: Pricing-health top-100 run on 2026-06-04 returned identical FMV for two distinct gold weights:
+  - `Canada 1/10 Gold Maple Leaf`: FMV=$4986.93, conf=92, comps=145, method=`bullion-spot-premium`
+  - `Canada 1/20 Gold Maple Leaf`: FMV=$4986.93, conf=92, comps=145, method=`bullion-spot-premium`
+- **Expected**: 1/10 oz ~ $300-400, 1/20 oz ~ $150-200 at June 2026 gold spot. $4986.93 is approximately the 1 oz Maple Leaf FMV -- the queries are matching full-ounce comps and/or 20-coin tube lots.
+- **Telemetry from discovery.removed**: `prefilterPoolSize=1046`, `weightMismatch=334`, `meltFloor=149`, but 145 comps survive and produce a pathological FMV. Same `compCount=145` for both queries strongly suggests the same pool is being returned for both.
+- **Root cause hypothesis** (needs confirmation):
+  - `coinMetalProfile.js#detectWeightFromTitle` may not distinguish "1/10" from "1/20" reliably in eBay titles, especially when sellers write "Fractional Gold Maple" or list multi-coin tubes.
+  - The shared dataset path may be falling back to a tube/multi-coin pool that has 1 oz aggregate prices.
+- **Impact**: This is the highest-value error class in the catalog (a few dollars per fractional coin priced at $5k). Likely affects 1/10, 1/20, 1/4, 1/2 Maple Leaf, Gold Eagle fractional, Britannia fractional, Krugerrand fractional, Panda fractional.
+- **Proposed investigation**:
+  1. Probe `/api/price` with both queries, inspect `comps[].title` to confirm whether full-oz / tube lots are leaking in.
+  2. Check `detectWeightFromTitle` against 50 sample real eBay titles for fractional gold.
+  3. Verify multi-coin lot filtering (`utils/filters.js` -- "tube", "lot of N", quantity detection).
+- **Related**: #S5 (Gold year-specific CSVs, [HIGH]), #244 (telemetry made strike-split visible; this is a different filter), #196 (dealer premium benchmark FMV drift monitor should have caught this if `dealerPremiums.js` has fractional gold benchmarks).
+- **Files**: `src/utils/coinMetalProfile.js` (weight detection), `src/utils/filters.js` (lot/tube deny), `src/services/ebayService.js` (`weightMismatch` filter), tests.
+
+---
+
+### #262W. pricing-health-full.js classifier misses obvious RED issues [P2 -- TOOLING] -- OPEN 2026-06-04
+- **Symptom**: `scripts/pricing-health-full.js` rated the top-100 run "HEALTHY" (99 GREEN / 1 YELLOW / 0 RED) when it should have surfaced at least 3 RED items:
+  - 2023 Reverse Proof Morgan returning silver melt (caught only as YELLOW low-confidence; the 73%-below-expected FMV was not flagged).
+  - Canada 1/10 and 1/20 Gold Maple Leaf returning identical $4986.93 (not flagged at all).
+- **Root cause**: Classifier rules only flag `attritionPct > threshold` and `confidence < 30`. They do not:
+  - Compare related-dataset FMVs (1/10 vs 1/20 vs 1/4 vs 1/2 should be monotonically increasing by weight).
+  - Compare FMV to a sanity floor (e.g., RP Morgan should never return melt-only when 150 RP-tagged comps exist).
+  - Cross-reference `dealerPremiums.js` benchmark bands (the #196 drift monitor exists separately but is not called from pricing-health-full).
+- **Missing data point**: The "ADMIN_API_KEY required for `--full` mode" is not documented in `.github/agents/pricing-health.agent.md`. A missing key silently produces "0 datasets tested -> HEALTHY". Add a hard precondition check.
+- **Proposed fix**:
+  1. Add a fractional-collision check: for any pair of `{series, weight=A/B}` and `{series, weight=A/(B*2)}` datasets, flag RED if FMVs are within 1% of each other.
+  2. Add a melt-floor sanity check: for any RP/proof intent with >=10 surviving Terapeak comps, flag RED if final FMV is within 10% of spot+5% (the bullion-spot-premium method should not win when proof comps exist).
+  3. Integrate `dealerPremiums.js` band check directly (call `computePremium` and flag RED if outside the band).
+  4. Hard-fail at startup if `--full` mode is set and `ADMIN_API_KEY` is unset.
+  5. Update `.github/agents/pricing-health.agent.md` Prerequisites section to call out the env var.
+- **Files**: `scripts/pricing-health-full.js`, `.github/agents/pricing-health.agent.md`.
+- **Related**: #196 (dealer premium drift monitor), #261W (the fractional-gold finding this missed), #260W (the RP Morgan finding this only partially flagged).
+
+---
+
 ## Scraper Performance -- Additional Open Items
 
 ### ~~198. Smart SPA Render Wait Instead of 3s Hard Pause [DONE]~~
@@ -989,6 +1028,21 @@ Ops can override to any value (e.g., `BROWSER_RECYCLE_EVERY=40 python scripts/te
 ---
 
 ## Tooling & Observability
+
+### #264W. Per-machine backlog ID convention (W/H suffix) [P2 -- PROCESS] -- DONE 2026-06-04
+- **Problem**: This project is worked on from two machines that may both add backlog items without coordinating. Without per-machine namespacing, the first new entry on each machine claims the same next-integer ID, forcing post-hoc renumbering (e.g., this session: drafted #260-#262, collided with PR #118's #260, renumbered to #261-#263, then again to #260W-#262W).
+- **Fix**:
+  - New top-level convention in `docs/BACKLOG.rules.md` ("Per-machine ID convention"): every ID from #264W onward carries a `W` (Codespace) or `H` (home workstation) suffix; the two series are independent.
+  - `.machine-id` file at repo root holds the single letter; gitignored so it never travels in commits.
+  - `scripts/machine-id.sh` reads the file, validates it (must be `W` or `H`), prints the letter on stdout; errors with a setup-instructions message on stderr if missing.
+  - `.github/copilot-instructions.md` adds a one-line pointer so any Copilot agent reads the rule on session start.
+  - `.github/agents/onboard.agent.md` Phase 0 adds a `.machine-id` existence check + a "next-in-series" scan that prints the next available `#NW` and `#NH`.
+  - `.github/pull_request_template.md` adds a reminder line under "Backlog Reference".
+- **Grandfathered**: All bare-number IDs (#1 .. #263) keep their bare form forever. No retroactive renames.
+- **One-time setup per machine**: `echo W > .machine-id` (Codespace) or `echo H > .machine-id` (home). Verified working on this machine: `scripts/machine-id.sh` -> `W`.
+- **Files**: `docs/BACKLOG.rules.md`, `.gitignore`, `scripts/machine-id.sh` (NEW), `.github/copilot-instructions.md`, `.github/agents/onboard.agent.md`, `.github/pull_request_template.md`.
+
+---
 
 ### ~~177. Holdout Validation Test -- FMV vs Actual Sales [DONE]~~
 
@@ -1706,6 +1760,38 @@ Gated on data: run pricing-health across a Reverse-Proof slate (2023 RP Morgan, 
 - **Proposed fix**: When `targetPool === 'reverse-proof'` and the surviving pool has <5 comps, extend lookback to 365d before falling back to Browse-only. Also consider widening the year window by +/-1 for RP coins where the same finish is unchanged across multiple years.
 - **Files**: `src/services/ebayService.js` (auto-extend logic), `src/services/valuationService.js` (Browse-only threshold for RP pool).
 - **Related**: PR #114, #176 (pool fallback before Browse-only).
+
+### #260W. valuationService has no `reverse-proof` pool selector -- RP queries collapse to silver melt [P1 -- BUG -- REGRESSION] -- OPEN 2026-06-04
+- **Symptom**: After PR #114, any query that resolves to `targetPool='reverse-proof'` produces FMV at silver-melt-only with `confidence=0` and `compCount=0`, even when the comp-gathering layer returns a healthy pool of comps. Discovered during pricing-health top-100 run on 2026-06-04:
+  - 2023 Reverse Proof Morgan Silver Dollar: 203 teak rows -> 150 surviving RP-tagged comps -> `discovery.fmv=$56.31`, `method='raw-blend'`, `compCount=0`, `confidence=0`. `batch.avgEbay=$205.96` on the same comps (3.7x higher) confirms the comps are present but discarded by the valuation engine.
+- **Root cause**: PR #114 added `gradeType='reverse-proof'` in `ebayService.js#classifyGradeType` and the `'reverse-proof'` `targetPool` for prefilter, but did NOT propagate `wantsReverseProof` / `isReverseProof` / finish into `valuationService.evaluate()`. The engine only knows three pools:
+  ```js
+  // valuationService.js lines 45-50
+  const usGraded = usCompsAll.filter(c => c.gradeType === 'graded');
+  const usRaw    = usCompsAll.filter(c => c.gradeType === 'raw');
+  const usProof  = usCompsAll.filter(c => c.gradeType === 'proof');
+  ```
+  There is no `usReverseProof` filter and no `wantsReverseProof` branch in the pool-selection ladder (lines 53-105). RP-tagged comps fail every filter and the engine falls through to the default raw branch, which selects zero comps because `gradeType !== 'raw'` for the entire pool. The downstream blend collapses to bullion-spot-premium / silver melt.
+- **Impact**: Every coin with a Reverse Proof Terapeak dataset returns wrong FMV. Visible damage: 2023 RP Morgan ($56 vs ~$300-900 real). All 2024 RP Eagle, 2013-W RP Buffalo, etc. likely affected; pricing-health top-100 only caught the Morgan because it appeared in the top-comp-count slate.
+- **Why measurement-first missed it**: The PR #114 8-coin slate measured **pool contamination** (RP comps appearing in regular Proof queries -- now 0%). It did NOT measure **FMV plausibility** for RP-intent queries. The contamination measurement was passing while the actual FMV was collapsing silently.
+- **Proposed fix**:
+  1. Pass `isReverseProof` (or normalized `finish`) from routes (`priceRoute.js`, `pricingBatchRoute.js`, `coinHistoryRoute.js`) into `valuationService.evaluate(opts)`.
+  2. In `valuationService.js`, after line 43, add:
+     ```js
+     const wantsReverseProof = !!(opts.isReverseProof) ||
+       /reverse[\s-]*proof/i.test(String(opts.finish || ''));
+     const usRevProof = usCompsAll.filter(c => c.gradeType === 'reverse-proof');
+     const glRevProof = glCompsAll.filter(c => c.gradeType === 'reverse-proof');
+     ```
+  3. Insert a `wantsReverseProof` branch BEFORE the `wantsProof` branch (lines 55-67) that mirrors the proof pool's "never mix in non-RP comps; flag lowData when thin; explanation when comps excluded" pattern.
+  4. Update `usedPool` telemetry at line 432 to include `'reverse-proof'`.
+- **Test plan**:
+  - Add pricing-health assertion: any coin with `expected.finish='Reverse Proof'` and >=10 Terapeak rows must produce non-null FMV with confidence > 30 (or `lowData=true` flag must be set explicitly, not collapsed to raw).
+  - Unit test in `__tests__/valuationService.test.js`: when `opts.isReverseProof=true` and `usCompsAll` has only `gradeType='reverse-proof'` comps, FMV is computed from those comps (not zero).
+  - Regression test in `__tests__/valuationService.test.js`: when `opts.isReverseProof=true` but `usCompsAll` is empty for that gradeType, return explicit "no RP comps" explanation rather than falling through to raw.
+- **Files**: `src/services/valuationService.js` (primary), `src/routes/priceRoute.js`, `src/routes/pricingBatchRoute.js`, `src/routes/coinHistoryRoute.js`, `src/services/bulkEvaluateService.js` (pass `isReverseProof` through), tests.
+- **Related**: PR #114 (introduced the regression), #244 (telemetry fix that made the silent drops visible elsewhere but not this one), #176 (pool fallback patterns to mirror), #256 (auto-extend lookback -- should be implemented ON TOP of this fix, not instead of it).
+- **Note on numbering**: This entry uses the new per-machine W/H suffix convention (see #264W). PR #118 from the other machine claimed the bare number #260; this entry coexists as #260W under the new convention.
 
 ---
 

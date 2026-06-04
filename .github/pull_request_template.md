@@ -5,7 +5,9 @@
 ## Backlog Reference
 
 <!-- REQUIRED: Link to the backlog item(s) this PR addresses. -->
-<!-- Format: docs/BACKLOG.md#section-name or item number (e.g. #171) -->
+<!-- Format: docs/BACKLOG.md#section-name or item number. -->
+<!-- New items from #264W onward use a W/H suffix; see docs/BACKLOG.rules.md. -->
+<!-- Examples: bare-number #171 (grandfathered), #265W (Codespace), #260H (home). -->
 
 - Backlog item:
 - Status change: <!-- e.g. "Planned -> Done", "New item proposed", "N/A (explain below)" -->
