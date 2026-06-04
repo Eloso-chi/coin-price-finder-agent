@@ -156,27 +156,47 @@ const TPG_RE          = /\b(PCGS|NGC|ANACS|ICG|CGC)\b/i;
 const FORMAL_GRADE_RE = /\b(MS|PR|PF|SP|AU|XF|EF|VF|VG|AG|FR|PO)\s*[-]?\s*\d{1,2}\+?\b/i;
 
 const PROOF_RE = /\bproof\b(?![\s-]*like)/i;
+// PR #3 / RP-pool-split: "Reverse Proof" and "Enhanced Reverse Proof" titles
+// also match PROOF_RE (the second word is "proof"), so they previously fell
+// into the regular 'proof' pool and contaminated FMV + comp lists for both
+// regular Proof queries (RP comps showed up) and RP queries (regular Proof
+// comps showed up). Detect RP/ERP BEFORE the generic proof check so they
+// route to a dedicated 'reverse-proof' pool.
+const REVERSE_PROOF_RE = /\b(enhanced[\s-]+)?reverse[\s-]+proof\b/i;
+
+function isReverseProofTitle(title) {
+  return REVERSE_PROOF_RE.test(title || '');
+}
 
 /**
- * Classify a comp as 'graded', 'proof', or 'raw' using eBay's structured
- * condition data first, falling back to title parsing only when
- * the API doesn't provide a conditionId.
+ * Classify a comp as 'graded', 'proof', 'reverse-proof', or 'raw' using
+ * eBay's structured condition data first, falling back to title parsing
+ * only when the API doesn't provide a conditionId.
  *
  * #182: Slabbed proofs (conditionId=2000 + "proof" in title) are classified
  * as 'proof' so they land in the proof pool, not the graded (BU) pool.
+ *
+ * PR #3: Reverse Proof / Enhanced Reverse Proof titles classify as
+ * 'reverse-proof' (checked before the generic proof match). Enhanced
+ * Reverse Proof shares this pool with Reverse Proof -- pool-selection
+ * uses expected.finish to distinguish where it matters, and within-pool
+ * scoring/keyword filters further separate them.
  */
 function classifyGradeType(comp) {
   const cid = comp.conditionId ? String(comp.conditionId) : null;
   const title = comp.title || '';
+  const isRP = isReverseProofTitle(title);
 
   // 1. Authoritative: eBay conditionId
   if (cid === '2000') {
     // #182: Certified coin — check if it's a slabbed proof or slabbed BU
+    if (isRP) return 'reverse-proof';
     if (PROOF_RE.test(title)) return 'proof';
     return 'graded';
   }
   if (cid === '3000' || cid === '4000') {
     // Uncirculated/Circulated condition but may still be proof
+    if (isRP) return 'reverse-proof';
     if (PROOF_RE.test(title)) return 'proof';
     return 'raw';
   }
@@ -186,11 +206,13 @@ function classifyGradeType(comp) {
   // 2. ConditionDescriptors / localizedAspects (set by Browse API normalizer)
   if (comp._certificationAspect) {
     // #182: Certified via aspect — still check for proof
+    if (isRP) return 'reverse-proof';
     if (PROOF_RE.test(title)) return 'proof';
     return 'graded';
   }
 
   // 3. Title fallback (least reliable — eBay policy says don't rely on title)
+  if (isRP) return 'reverse-proof';
   if (PROOF_RE.test(title)) return 'proof';
   if (TPG_RE.test(title) || FORMAL_GRADE_RE.test(title)) return 'graded';
 
@@ -1384,14 +1406,24 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
 
     // ── Strike & grade-type pool split: use only the matching pool ──
     // Split by user intent in this order:
-    //  1) Strike type (proof vs non-proof), then
+    //  1) Strike type (proof vs reverse-proof vs non-proof), then
     //  2) Certification (graded vs raw)
     // This avoids dropping proof comps when the user asked for proof but did
     // not specify a slab grade.
     // Always re-classify: stored gradeType may be stale (pre-proof-split imports).
+    //
+    // PR #3: When the user picked Finish = "Reverse Proof" or "Enhanced
+    // Reverse Proof", target the dedicated 'reverse-proof' pool so RP comps
+    // are not mixed with regular Proof comps (and vice versa). Measurement
+    // showed 97--100% cross-contamination on years where both issues exist
+    // (e.g. 2023 ASE, 2019-S ASE ERP, 2023-S Morgan Dollar).
     const wantsProof = !!expected.isProof;
+    const wantsReverseProof = wantsProof
+      && /reverse[\s-]*proof/i.test(String(expected.finish || ''));
     const wantsGraded = !!expected.grade;
-    const targetPool = wantsProof ? 'proof' : (wantsGraded ? 'graded' : 'raw');
+    const targetPool = wantsReverseProof
+      ? 'reverse-proof'
+      : (wantsProof ? 'proof' : (wantsGraded ? 'graded' : 'raw'));
     const beforeSplit = tpComps.length;
     tpComps = tpComps.filter(c => {
       const gt = classifyGradeType(c);
@@ -1790,5 +1822,6 @@ module.exports = {
   detectWeightFromTitle,
   detectMetalFromTitle,
   applyFilters,
-  classifyGradeType
+  classifyGradeType,
+  isReverseProofTitle
 };

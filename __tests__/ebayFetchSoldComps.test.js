@@ -154,19 +154,22 @@ describe('fetchSoldComps — Terapeak tier', () => {
   });
 
   test('uses proof pool when proof intent is set without explicit grade', async () => {
+    // PR #3: isProof:true without finish targets the 'proof' pool only --
+    // Reverse Proof comps go to the 'reverse-proof' pool and are excluded
+    // here. See the dedicated RP test below for the RP-pool path.
     terapeakService.lookupComps.mockReturnValue({
-      searchTerm: '2023 Reverse Proof Morgan Silver Dollar',
+      searchTerm: '2023-S Morgan Silver Dollar Proof',
       lastImport: '2026-05-26',
       comps: [
-        { title: '2023 Reverse Proof Morgan Silver Dollar', totalUsd: 190, soldDate: '2026-05-01', conditionId: '4000', _source: 'terapeak' },
-        { title: '2023 Reverse Proof Morgan Silver Dollar OGP', totalUsd: 185, soldDate: '2026-05-02', conditionId: '3000', _source: 'terapeak' },
-        { title: '2023 Reverse Proof Morgan Silver Dollar NGC PF70', totalUsd: 235, soldDate: '2026-05-03', conditionId: '2000', _source: 'terapeak' },
+        { title: '2023-S Morgan Silver Dollar Proof', totalUsd: 190, soldDate: '2026-05-01', conditionId: '4000', _source: 'terapeak' },
+        { title: '2023-S Morgan Silver Dollar Proof OGP', totalUsd: 185, soldDate: '2026-05-02', conditionId: '3000', _source: 'terapeak' },
+        { title: '2023-S Morgan Silver Dollar Proof NGC PF70', totalUsd: 235, soldDate: '2026-05-03', conditionId: '2000', _source: 'terapeak' },
         { title: '2023 Morgan Silver Dollar BU', totalUsd: 95, soldDate: '2026-05-04', conditionId: '4000', _source: 'terapeak' },
         { title: '2023 Morgan Silver Dollar PCGS MS70', totalUsd: 140, soldDate: '2026-05-05', conditionId: '2000', _source: 'terapeak' },
       ]
     });
 
-    const result = await ebayService.fetchSoldComps('2023 Reverse Proof Morgan Silver Dollar', {}, {
+    const result = await ebayService.fetchSoldComps('2023-S Morgan Silver Dollar Proof', {}, {
       year: 2023,
       series: 'Morgan Silver Dollar',
       isProof: true,
@@ -240,29 +243,85 @@ describe('fetchSoldComps — Terapeak tier', () => {
     expect(result.us.comps.some(c => /MS65/.test(c.title) && !/proof/i.test(c.title))).toBe(false);
   });
 
+  // PR #3: Reverse Proof gets its own pool.
+  test('routes Reverse Proof intent to reverse-proof pool, excludes regular Proof comps', async () => {
+    terapeakService.lookupComps.mockReturnValue({
+      searchTerm: '2023-W American Silver Eagle Reverse Proof',
+      lastImport: '2026-05-26',
+      comps: [
+        // 3 reverse-proof comps (kept)
+        { title: '2023-W American Silver Eagle Reverse Proof',          totalUsd: 245, soldDate: '2026-05-01', conditionId: '4000', _source: 'terapeak' },
+        { title: '2023-W ASE Reverse Proof OGP COA',                    totalUsd: 250, soldDate: '2026-05-02', conditionId: '3000', _source: 'terapeak' },
+        { title: '2023-W ASE Reverse Proof PCGS PR70',                  totalUsd: 295, soldDate: '2026-05-03', conditionId: '2000', _source: 'terapeak' },
+        // 3 regular proof comps (must be excluded -- this was the bug)
+        { title: '2023-W American Silver Eagle Proof',                  totalUsd: 75,  soldDate: '2026-05-04', conditionId: '4000', _source: 'terapeak' },
+        { title: '2023-W ASE Proof OGP',                                totalUsd: 78,  soldDate: '2026-05-05', conditionId: '3000', _source: 'terapeak' },
+        { title: '2023-W ASE Proof PCGS PF70',                          totalUsd: 110, soldDate: '2026-05-06', conditionId: '2000', _source: 'terapeak' },
+        // 1 raw BU
+        { title: '2023 American Silver Eagle BU',                       totalUsd: 32,  soldDate: '2026-05-07', conditionId: '4000', _source: 'terapeak' },
+      ]
+    });
+
+    const result = await ebayService.fetchSoldComps(
+      '2023-W American Silver Eagle Reverse Proof', {},
+      { year: 2023, series: 'American Silver Eagle', isProof: true, finish: 'Reverse Proof' }
+    );
+
+    expect(result.apiUsed).toBe('terapeak');
+    expect(result.us.comps.length).toBe(3);
+    expect(result.us.comps.every(c => /reverse[\s-]+proof/i.test(c.title))).toBe(true);
+    // Critical: no regular Proof comps leaked in.
+    expect(result.us.comps.some(c => /\bproof\b/i.test(c.title) && !/reverse/i.test(c.title))).toBe(false);
+    // 4 dropped via strike split (3 regular proof + 1 BU)
+    expect(result.us.removed.prefilterStrikeSplit).toBe(4);
+  });
+
+  test('routes Enhanced Reverse Proof intent to reverse-proof pool', async () => {
+    terapeakService.lookupComps.mockReturnValue({
+      searchTerm: '2019-S American Silver Eagle Enhanced Reverse Proof',
+      lastImport: '2026-05-26',
+      comps: [
+        { title: '2019-S ASE Enhanced Reverse Proof',           totalUsd: 1400, soldDate: '2026-05-01', conditionId: '4000', _source: 'terapeak' },
+        { title: '2019-S ASE Enhanced Reverse Proof OGP COA',   totalUsd: 1450, soldDate: '2026-05-02', conditionId: '3000', _source: 'terapeak' },
+        { title: '2019-S ASE Enhanced Reverse Proof PCGS SP70', totalUsd: 2200, soldDate: '2026-05-03', conditionId: '2000', _source: 'terapeak' },
+        // regular Proof must be excluded
+        { title: '2019-W ASE Proof',                            totalUsd: 75,   soldDate: '2026-05-04', conditionId: '4000', _source: 'terapeak' },
+      ]
+    });
+
+    const result = await ebayService.fetchSoldComps(
+      '2019-S American Silver Eagle Enhanced Reverse Proof', {},
+      { year: 2019, series: 'American Silver Eagle', isProof: true, finish: 'Enhanced Reverse Proof' }
+    );
+
+    expect(result.apiUsed).toBe('terapeak');
+    expect(result.us.comps.length).toBe(3);
+    expect(result.us.comps.every(c => /reverse[\s-]+proof/i.test(c.title))).toBe(true);
+  });
+
   // ── #244: pre-filter telemetry ─────────────────────────────
   // Key names are intentionally provenance-neutral (`prefilter*`) because the
   // `removed` object is returned to non-admin callers via /api/price (see
   // src/utils/redactForPublic.js + BACKLOG #243).
   test('#244 reports prefilterStrikeSplit when proof intent drops non-proof comps', async () => {
     terapeakService.lookupComps.mockReturnValue({
-      searchTerm: '2023 Reverse Proof Morgan Silver Dollar',
+      searchTerm: '2023-S Morgan Silver Dollar Proof',
       lastImport: '2026-05-26',
       comps: [
         // 3 proof comps (kept)
-        { title: '2023 Reverse Proof Morgan Silver Dollar',          totalUsd: 190, soldDate: '2026-05-01', conditionId: '4000', _source: 'terapeak' },
-        { title: '2023 Reverse Proof Morgan Silver Dollar OGP',      totalUsd: 185, soldDate: '2026-05-02', conditionId: '3000', _source: 'terapeak' },
-        { title: '2023 Reverse Proof Morgan Silver Dollar NGC PF70', totalUsd: 235, soldDate: '2026-05-03', conditionId: '2000', _source: 'terapeak' },
+        { title: '2023-S Morgan Silver Dollar Proof',          totalUsd: 190, soldDate: '2026-05-01', conditionId: '4000', _source: 'terapeak' },
+        { title: '2023-S Morgan Silver Dollar Proof OGP',      totalUsd: 185, soldDate: '2026-05-02', conditionId: '3000', _source: 'terapeak' },
+        { title: '2023-S Morgan Silver Dollar Proof NGC PF70', totalUsd: 235, soldDate: '2026-05-03', conditionId: '2000', _source: 'terapeak' },
         // 4 non-proof comps that previously vanished silently
-        { title: '2023 Morgan Silver Dollar BU',                     totalUsd: 95,  soldDate: '2026-05-04', conditionId: '4000', _source: 'terapeak' },
-        { title: '2023 Morgan Silver Dollar PCGS MS70',              totalUsd: 140, soldDate: '2026-05-05', conditionId: '2000', _source: 'terapeak' },
-        { title: '2023 Morgan Silver Dollar NGC MS69',               totalUsd: 130, soldDate: '2026-05-06', conditionId: '2000', _source: 'terapeak' },
-        { title: '2023 Morgan Silver Dollar',                        totalUsd: 90,  soldDate: '2026-05-07', conditionId: '4000', _source: 'terapeak' },
+        { title: '2023 Morgan Silver Dollar BU',               totalUsd: 95,  soldDate: '2026-05-04', conditionId: '4000', _source: 'terapeak' },
+        { title: '2023 Morgan Silver Dollar PCGS MS70',        totalUsd: 140, soldDate: '2026-05-05', conditionId: '2000', _source: 'terapeak' },
+        { title: '2023 Morgan Silver Dollar NGC MS69',         totalUsd: 130, soldDate: '2026-05-06', conditionId: '2000', _source: 'terapeak' },
+        { title: '2023 Morgan Silver Dollar',                  totalUsd: 90,  soldDate: '2026-05-07', conditionId: '4000', _source: 'terapeak' },
       ]
     });
 
     const result = await ebayService.fetchSoldComps(
-      '2023 Reverse Proof Morgan Silver Dollar', {},
+      '2023-S Morgan Silver Dollar Proof', {},
       { year: 2023, series: 'Morgan Silver Dollar', isProof: true }
     );
 
@@ -731,6 +790,35 @@ describe('classifyGradeType', () => {
 
   test('conditionId 2000 + proof title = proof (#182: strike type determines pool)', () => {
     expect(ebayService.classifyGradeType({ conditionId: '2000', title: '1987 Proof Libertad NGC PF70' })).toBe('proof');
+  });
+
+  // PR #3: Reverse Proof gets its own pool.
+  test('reverse proof in title (no conditionId) = reverse-proof', () => {
+    expect(ebayService.classifyGradeType({ title: '2023-W American Silver Eagle Reverse Proof' })).toBe('reverse-proof');
+  });
+
+  test('enhanced reverse proof in title = reverse-proof', () => {
+    expect(ebayService.classifyGradeType({ title: '2019-S American Silver Eagle Enhanced Reverse Proof' })).toBe('reverse-proof');
+  });
+
+  test('reverse-proof with hyphen variant = reverse-proof', () => {
+    expect(ebayService.classifyGradeType({ title: '2023 Morgan Dollar Reverse-Proof MS70' })).toBe('reverse-proof');
+  });
+
+  test('slabbed reverse proof (cid=2000 + PCGS) = reverse-proof, not graded', () => {
+    expect(ebayService.classifyGradeType({ conditionId: '2000', title: '2023-W ASE Reverse Proof PCGS PR70' })).toBe('reverse-proof');
+  });
+
+  test('slabbed reverse proof via _certificationAspect = reverse-proof', () => {
+    expect(ebayService.classifyGradeType({ title: '2023 Reverse Proof Morgan Dollar', _certificationAspect: 'NGC' })).toBe('reverse-proof');
+  });
+
+  test('reverse proof + cid 3000 = reverse-proof (not raw)', () => {
+    expect(ebayService.classifyGradeType({ conditionId: '3000', title: '2023 Reverse Proof Morgan Silver Dollar' })).toBe('reverse-proof');
+  });
+
+  test('regular Proof title still classifies as proof (not reverse-proof)', () => {
+    expect(ebayService.classifyGradeType({ title: '2019-W American Silver Eagle Proof' })).toBe('proof');
   });
 });
 

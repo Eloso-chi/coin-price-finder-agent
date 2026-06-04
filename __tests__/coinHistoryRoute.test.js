@@ -252,18 +252,54 @@ describe('GET /api/coin-history', () => {
     expect(res.body.totalComps).toBe(2); // proof pool only
   });
 
-  test('uses proof pool for "Reverse Proof" query', async () => {
+  test('uses reverse-proof pool for "Reverse Proof" query (PR #3)', async () => {
+    // PR #3: Reverse Proof gets its own pool -- previously this routed to
+    // the regular 'proof' pool, mixing RP comps with regular Proof comps.
     terapeakService.lookupComps.mockReturnValue({
       comps: [
-        makeComp({ gradeType: 'raw',   totalUsd: 100 }),
-        makeComp({ gradeType: 'proof', totalUsd: 300 }),
+        makeComp({ gradeType: 'raw',           totalUsd: 100 }),
+        makeComp({ gradeType: 'proof',         totalUsd: 300 }),
+        makeComp({ gradeType: 'reverse-proof', totalUsd: 250 }),
+        makeComp({ gradeType: 'reverse-proof', totalUsd: 260 }),
       ],
       searchTerm: '2019 Pride of Two Nations Reverse Proof',
     });
     greysheetService.fetchTypePrice.mockResolvedValue(null);
 
     const res = await request(app).get('/api/coin-history?query=2019+Pride+of+Two+Nations+Reverse+Proof');
-    expect(res.body.totalComps).toBe(1); // proof, raw excluded
+    expect(res.body.totalComps).toBe(2); // reverse-proof only; raw + regular proof excluded
+  });
+
+  test('PR #3: regular "Proof" query excludes reverse-proof comps', async () => {
+    terapeakService.lookupComps.mockReturnValue({
+      comps: [
+        makeComp({ gradeType: 'raw',           totalUsd: 100 }),
+        makeComp({ gradeType: 'proof',         totalUsd: 300 }),
+        makeComp({ gradeType: 'proof',         totalUsd: 320 }),
+        makeComp({ gradeType: 'reverse-proof', totalUsd: 250 }),
+        makeComp({ gradeType: 'reverse-proof', totalUsd: 1400 }),
+      ],
+      searchTerm: '2019-W American Silver Eagle Proof',
+    });
+    greysheetService.fetchTypePrice.mockResolvedValue(null);
+
+    const res = await request(app).get('/api/coin-history?query=2019-W+American+Silver+Eagle+Proof');
+    expect(res.body.totalComps).toBe(2); // regular proof only; RP comps excluded
+  });
+
+  test('PR #3: "Enhanced Reverse Proof" query routes to reverse-proof pool', async () => {
+    terapeakService.lookupComps.mockReturnValue({
+      comps: [
+        makeComp({ gradeType: 'proof',         totalUsd: 75 }),
+        makeComp({ gradeType: 'reverse-proof', totalUsd: 1400 }),
+        makeComp({ gradeType: 'reverse-proof', totalUsd: 2200 }),
+      ],
+      searchTerm: '2019-S American Silver Eagle Enhanced Reverse Proof',
+    });
+    greysheetService.fetchTypePrice.mockResolvedValue(null);
+
+    const res = await request(app).get('/api/coin-history?query=2019-S+American+Silver+Eagle+Enhanced+Reverse+Proof');
+    expect(res.body.totalComps).toBe(2);
   });
 
   test('uses proof pool for PR-grade query (graded path also routes to proof)', async () => {
