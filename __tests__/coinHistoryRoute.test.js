@@ -234,6 +234,69 @@ describe('GET /api/coin-history', () => {
     expect(res.body.totalComps).toBe(2); // only raw, proofs excluded
   });
 
+  // #254: proof intent detected from finish word in query (no grade present)
+  // -- without this fix, a "Proof" query landed in the raw pool because
+  // GRADE_RE didn't match bare "Proof" so wantsGraded stayed false.
+  test('uses proof pool when query contains the word "Proof" (no grade)', async () => {
+    terapeakService.lookupComps.mockReturnValue({
+      comps: [
+        makeComp({ gradeType: 'raw',   totalUsd: 100 }),
+        makeComp({ gradeType: 'proof', totalUsd: 300 }),
+        makeComp({ gradeType: 'proof', totalUsd: 320 }),
+      ],
+      searchTerm: '2019 Mexican Silver Libertad Proof',
+    });
+    greysheetService.fetchTypePrice.mockResolvedValue(null);
+
+    const res = await request(app).get('/api/coin-history?query=2019+Mexican+Silver+Libertad+Proof');
+    expect(res.body.totalComps).toBe(2); // proof pool only
+  });
+
+  test('uses proof pool for "Reverse Proof" query', async () => {
+    terapeakService.lookupComps.mockReturnValue({
+      comps: [
+        makeComp({ gradeType: 'raw',   totalUsd: 100 }),
+        makeComp({ gradeType: 'proof', totalUsd: 300 }),
+      ],
+      searchTerm: '2019 Pride of Two Nations Reverse Proof',
+    });
+    greysheetService.fetchTypePrice.mockResolvedValue(null);
+
+    const res = await request(app).get('/api/coin-history?query=2019+Pride+of+Two+Nations+Reverse+Proof');
+    expect(res.body.totalComps).toBe(1); // proof, raw excluded
+  });
+
+  test('uses proof pool for PR-grade query (graded path also routes to proof)', async () => {
+    terapeakService.lookupComps.mockReturnValue({
+      comps: [
+        makeComp({ gradeType: 'raw',    totalUsd: 100 }),
+        makeComp({ gradeType: 'graded', totalUsd: 200, title: '1971-S Ike MS-65 PCGS' }),
+        makeComp({ gradeType: 'proof',  totalUsd: 300, title: '1971-S Ike PR-69 DCAM PCGS' }),
+      ],
+      searchTerm: '1971-S Eisenhower Dollar PR-69',
+    });
+    greysheetService.fetchTypePrice.mockResolvedValue(null);
+
+    const res = await request(app).get('/api/coin-history?query=1971-S+Eisenhower+Dollar+PR-69');
+    // PR-69 routes to proof pool; the MS-65 graded comp must NOT be included.
+    expect(res.body.totalComps).toBe(1);
+  });
+
+  test('strict: wantsProof returns empty when no proof comps exist (no fallback)', async () => {
+    terapeakService.lookupComps.mockReturnValue({
+      comps: [
+        makeComp({ gradeType: 'raw',    totalUsd: 100 }),
+        makeComp({ gradeType: 'graded', totalUsd: 200 }),
+      ],
+      searchTerm: '2019 Mexican Silver Libertad Proof',
+    });
+    greysheetService.fetchTypePrice.mockResolvedValue(null);
+
+    const res = await request(app).get('/api/coin-history?query=2019+Mexican+Silver+Libertad+Proof');
+    // Strict per #244: no proof comps -> empty, never fall back to raw.
+    expect(res.body.totalComps).toBe(0);
+  });
+
   // ═══════════════════════════════════════════════════════════
   //  Metal overlay
   // ═══════════════════════════════════════════════════════════
