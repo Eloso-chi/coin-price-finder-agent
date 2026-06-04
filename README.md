@@ -417,6 +417,7 @@ All `/api/coins/*` endpoints require `Authorization: Bearer <jwt>` header.
 | `GET` | `/api/health` | Health check + uptime |
 | `GET` | `/api/admin/dashboard` | System overview: uptime, user count, dataset count, Terapeak quota 🔒 |
 | `GET` | `/api/admin/stale-datasets` | List datasets older than N days (default 30); applies freshness-classifier exclusions (dormant, confirmed-thin, thin-wait, recently-confirmed-stale, dry-refresh-backoff) -- pass `?includeSkipped=true` to see skipped rows with `skipReason` 🔒 |
+| `GET` | `/api/admin/terapeak-meta` | Streams the canonical `data/terapeak-meta.json` sidecar with `X-Meta-Mtime` + `X-Meta-Bytes` headers and `Cache-Control: no-store`; remote scrapers (WSL/Codespaces) pull this before each freshness pass so their classifier input matches the server (#259; merge commit reads `#253`) 🔒 |
 | `GET` | `/api/admin/data-health` | Total files, empty files, oldest/newest file dates 🔒 |
 | `GET` | `/api/admin/prefetch-status` | Nightly PCGS prefetch scheduler status 🔒 |
 | `POST` | `/api/admin/prefetch-trigger` | Trigger a manual prefetch run 🔒 |
@@ -723,6 +724,8 @@ scripts/
   sales-aggregator.py              Sales data aggregator -- dashboard mode + deep pagination (extends CSVs beyond 50 rows)
   chain-aggregate.sh               Chain multiple aggregation batches sequentially with anti-bot monitoring
   refresh-stale.sh                 One-command stale data refresh (queries staleness API, builds filter, runs aggregator)
+  cpf-go                           One-command WSL bootstrap + scraper launcher: apt prereqs, repo clone/pull, venv, Playwright Chromium, npm ci, optional cookie refresh, looped ./surface (#258; merge commit reads `#252`). See docs/runbooks/local-scraper-wsl2.md "Fast path".
+  run-surface-freshness-loop.sh    Orchestrator invoked by ./surface: sync meta from Azure (#259) -> generate freshness report -> page-1 backlog batch -> optional deep-paginate. Logs each phase and exits non-zero on bot block so cpf-go's --loop knows to stop.
   pricing-health-full.js           Pricing health check runner (--full, --filter, --limit, --concurrency, --out)
   reclassify-comps.js              Batch comp reclassification (weight mismatch detection + reroute to correct dataset)
   build-evidence-index.js          Historical evidence index builder (scans logs + CSVs)
@@ -742,6 +745,25 @@ scripts/
 ---
 
 ## Recent Changes
+
+### Remote-scraper meta sync (#259, June 4, 2026)
+
+> Note: the merge commit subject reads `#253 sync terapeak-meta from Azure...` but that ticket number was already taken on `main` by an unrelated data-quality item ("Malformed Dataset Keys Produce Nonsensical FMVs"). Canonical backlog ticket for this work is **#259**.
+
+- **Root cause:** `data/terapeak-meta.json` is the freshness classifier's only input, but the lone writer (`saveMetaSidecar()` in `src/services/terapeakService.js`) runs server-side inside the Node process. Remote scrapers (WSL/Codespaces) using `UPLOAD_MODE=api` POST CSVs to Azure for ingest, so their on-disk sidecar is git-frozen and `generate-freshness-report.js` keeps re-targeting the same coins forever -- the loop appears to run at zero efficiency.
+- **`GET /api/admin/terapeak-meta`** -- new admin endpoint in `src/routes/adminRoute.js` that streams the live sidecar with `X-Meta-Mtime` + `X-Meta-Bytes` headers and `Cache-Control: no-store`. Returns 404 when the file is absent, 500 on read failure. Requires `ADMIN_API_KEY` (`x-api-key` header) via `requireAdminOrKey`.
+- **`sync_meta_from_app()` in `scripts/run-surface-freshness-loop.sh`** -- runs before `generate-freshness-report.js` on every pass. `curl` with a 60s timeout, JSON validation via `python3 -c "import json; json.load(open(...))"`, atomic `mv -f` into `data/terapeak-meta.json`. All failure modes (missing key, non-200, non-JSON, transport error) log `[warn]` and proceed with the existing on-disk copy -- never crashes the loop.
+- 4 new tests in `__tests__/adminRoute.test.js` covering 401-without-key, 200-with-headers, 404-when-absent, and 500-on-read-error.
+
+### WSL scraper launcher (#258, June 4, 2026)
+
+> Note: the merge commit subject reads `#252 add scripts/cpf-go launcher...` but that ticket number was already taken on `main` by an unrelated data-quality item ("Bullion Strike-Pool Split Misclassifies Graded Bullion as Off-Pool"). Canonical backlog ticket for this work is **#258**.
+
+- **`scripts/cpf-go`** -- one-command bootstrap + run wrapper for the WSL/Surface scraper path. Sections: WSL sanity check -> apt prereqs (node v22, python3-venv) -> repo clone/pull -> Python venv + Playwright Chromium -> `npm ci` -> env sanity (`.env.surface`, `load-cpf-env.sh`) -> optional interactive cookie refresh via `terapeak-export.py --login` -> exec/loop `./surface --skip-probe`.
+- **Flags:** `--no-login` (reuse cookies), `--loop` (re-run until non-zero exit), `--pause-between=SEC` (default 300). All other flags forwarded to `./surface` / `run-surface-freshness-loop.sh`.
+- **`.gitattributes`** -- enforces LF on `*.sh` and `scripts/cpf-go`. CRLF endings cause bash to treat the trailing `\r` as an extra argument and crash the freshness loop with `Unknown argument:`.
+- Full runbook coverage in [docs/runbooks/local-scraper-wsl2.md](docs/runbooks/local-scraper-wsl2.md) including operational guardrails (Akamai cooldown, 3-strike bot detection, concurrent-scraper warning, sleep prevention) and quick status snippets.
+- Full runbook coverage in [docs/runbooks/local-scraper-wsl2.md](docs/runbooks/local-scraper-wsl2.md) including operational guardrails (Akamai cooldown, 3-strike bot detection, concurrent-scraper warning, sleep prevention) and quick status snippets.
 
 ### Freshness Classifier Alignment (#229, May 31, 2026)
 

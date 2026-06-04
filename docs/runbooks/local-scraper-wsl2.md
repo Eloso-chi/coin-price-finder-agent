@@ -173,6 +173,18 @@ Terapeak loads, then close the window. The script writes the jar to
 One command handles login, dependency checks, freshness report, scraper run,
 and optional looping. Recommended for almost all daily use.
 
+> **Meta sidecar auto-sync (#259; merge commit reads #253):** before each freshness pass,
+> `run-surface-freshness-loop.sh` pulls the canonical
+> `data/terapeak-meta.json` from Azure
+> (`GET /api/admin/terapeak-meta`, auth via `ADMIN_API_KEY`) and atomically
+> replaces the local copy. Without this step the local sidecar is git-frozen
+> and the freshness classifier keeps re-targeting already-scraped coins,
+> making the loop appear to make zero progress. If the sync fails (no key,
+> non-200, non-JSON, transport error) the loop logs a `[warn]` and continues
+> with the existing on-disk copy. Look for the
+> `== Sync terapeak-meta.json from $APP_URL ==` line in the log to confirm
+> it ran.
+
 ```bash
 # First run on a fresh machine (clones repo, installs everything, opens login
 # browser, runs one pass):
