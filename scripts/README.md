@@ -124,6 +124,10 @@ bash scripts/run-surface-freshness-loop.sh --env-file ~/.env.surface --skip-prob
 
 # Run page-1 only and defer deep pagination.
 bash scripts/run-surface-freshness-loop.sh --env-file ~/.env.surface --skip-deep --page1-batch 20
+
+# Focus on a coin family using built-in alias or custom regex.
+bash scripts/run-surface-freshness-loop.sh --env-file ~/.env.surface --coin-type libertads
+bash scripts/run-surface-freshness-loop.sh --env-file ~/.env.surface --focus "morgan|peace"
 ```
 
 ### Surface bootstrap (fast setup)
@@ -146,3 +150,23 @@ Notes:
 - Key persists in `~/.config/cpf/admin_api_key` and is never written to shell history.
 - Use raw `ADMIN_API_KEY` value, not `@Microsoft.KeyVault(SecretUri=...)`.
 - If Playwright install fails on Ubuntu 26.04, use Ubuntu 24.04/22.04 for scraper runs.
+- Loop page-1 batching uses `--limit` semantics (no implicit `--resume`) to avoid skipping valid freshness backlog candidates.
+- HTTP 422 import responses (`No valid comps found`) are treated as no-data attempts to drive dormant convergence.
+
+### Upload mode (UPLOAD_MODE) -- #251 parity
+
+The exporter `terapeak-export.py` honors `UPLOAD_MODE` for choosing the persistence path:
+
+| Mode  | Behavior                                                                                       | When to use                          | Ingestion latency                   |
+|-------|------------------------------------------------------------------------------------------------|--------------------------------------|-------------------------------------|
+| `api` | POST each CSV to `APP_URL/api/terapeak/import`. Triggers immediate import + dormancy progression. | Default for Surface + Codespaces.    | Immediate.                          |
+| `blob`| Upload to Azure Blob only. No API fallback. Returns failure if blob env vars are missing.       | Bulk-backfill / decoupled collection. | Deferred until server startup or `/api/terapeak/reimport`. |
+| `auto`| Legacy: blob first if configured, fall back to API.                                             | Compatibility for old workflows.     | Mixed -- not recommended for daily ops. |
+
+Defaults:
+- The `surface` launcher and `run-surface-freshness-loop.sh` set `UPLOAD_MODE=api` unless the operator overrides it.
+- Operator notes:
+  - Local-ops profile: leave `UPLOAD_MODE` unset (defaults to `api`) and do NOT set `TERAPEAK_BLOB_ACCOUNT`/`TERAPEAK_BLOB_CONTAINER`.
+  - Bulk-backfill profile: set `UPLOAD_MODE=blob` plus blob env vars, then explicitly invoke `POST /api/terapeak/reimport` to ingest.
+  - Set `VERIFY_IMPORT=1` to log explicit warnings whenever the upload path cannot confirm immediate ingestion (e.g. blob mode).
+

@@ -88,6 +88,21 @@ ADMIN_API_KEY = os.environ.get("ADMIN_API_KEY", "")
 BLOB_ACCOUNT = os.environ.get("TERAPEAK_BLOB_ACCOUNT", "")
 BLOB_CONTAINER = os.environ.get("TERAPEAK_BLOB_CONTAINER", "")
 
+# Upload mode selection (#251 -- local vs codespaces parity)
+#   api  -- POST every CSV to APP_URL /api/terapeak/import (default; deterministic;
+#           triggers immediate import + freshness/dormancy progression).
+#   blob -- Upload to Azure Blob only; ingestion is DEFERRED until the server's
+#           startup blob import or an explicit POST /api/terapeak/reimport call.
+#   auto -- Legacy behavior: blob first if configured, fall back to API.
+UPLOAD_MODE = os.environ.get("UPLOAD_MODE", "api").strip().lower()
+if UPLOAD_MODE not in ("api", "blob", "auto"):
+    print(f"[warn] UPLOAD_MODE='{UPLOAD_MODE}' is invalid; falling back to 'api'.")
+    UPLOAD_MODE = "api"
+
+# Optional: when set to a truthy value, emit explicit warnings whenever the
+# upload path cannot confirm immediate ingestion (e.g. blob mode).
+VERIFY_IMPORT = os.environ.get("VERIFY_IMPORT", "").strip().lower() in ("1", "true", "yes", "on")
+
 # Auto-read keys from .env if not set in environment
 if not ADMIN_API_KEY or not BLOB_ACCOUNT:
     env_file = PROJECT_DIR / ".env"
@@ -552,20 +567,45 @@ def upload_to_blob(csv_path):
 
 # ── Upload to App ───────────────────────────────────────────
 def upload_csv(csv_path, search_term, aggregation_meta=None):
-    """Upload a CSV: try Azure Blob first, fall back to app server POST.
-    
-    aggregation_meta (optional dict): keys like page1At, deepAt, maxPageReached, lastRefreshAt
-    to track aggregation depth per dataset.
+    """Upload a CSV honoring UPLOAD_MODE.
+
+    Modes (set via the UPLOAD_MODE env var):
+      api  -- POST to APP_URL /api/terapeak/import. Immediate import +
+              freshness/dormancy progression. Recommended default.
+      blob -- Upload only to Azure Blob. Ingestion is DEFERRED until server
+              startup blob import or a POST to /api/terapeak/reimport. No API
+              fallback in this mode; failures are returned to the caller.
+      auto -- Legacy: blob first if configured, fall back to API.
+
+    aggregation_meta (optional dict): keys like page1At, deepAt, maxPageReached,
+    lastRefreshAt to track aggregation depth per dataset.
     """
-    # Try blob upload first (decoupled from local server)
-    if BLOB_ACCOUNT and BLOB_CONTAINER:
+    # Pure blob mode -- explicit, no API fallback
+    if UPLOAD_MODE == "blob":
+        if not (BLOB_ACCOUNT and BLOB_CONTAINER):
+            return False, ("UPLOAD_MODE=blob but TERAPEAK_BLOB_ACCOUNT/"
+                           "TERAPEAK_BLOB_CONTAINER are unset")
+        ok, msg = upload_to_blob(csv_path)
+        if ok and VERIFY_IMPORT:
+            print(f"    [verify] blob upload ok; ingestion DEFERRED until "
+                  f"server startup or /api/terapeak/reimport ({msg})")
+        elif ok:
+            # Brief note so logs make the deferred nature obvious even without VERIFY_IMPORT
+            print(f"    [blob mode] ingestion deferred -- run reimport to surface {msg}")
+        return ok, msg
+
+    # Auto (legacy) mode -- try blob first when configured, then API
+    if UPLOAD_MODE == "auto" and BLOB_ACCOUNT and BLOB_CONTAINER:
         ok, msg = upload_to_blob(csv_path)
         if ok:
+            if VERIFY_IMPORT:
+                print(f"    [verify] auto-mode blob path succeeded; "
+                      f"ingestion DEFERRED ({msg})")
             return True, msg
         # Blob failed -- fall back to server POST
         print(f"    [blob fallback] {msg}")
 
-    # Fall back to HTTP POST to local server
+    # api mode (default) and auto-mode fallthrough -- POST to server
     url = f"{APP_URL}/api/terapeak/import"
     headers = {}
     if ADMIN_API_KEY:
@@ -662,9 +702,19 @@ def _report_no_data(search_term):
             count = data.get("noDataCount", "?")
             if int(count) >= 2:
                 print(f"  (dormant: {count} consecutive empty attempts)")
-        # Non-fatal -- silently ignore errors
-    except Exception:
-        pass
+        else:
+            print(f"  WARNING: report-no-data failed ({resp.status_code}): {resp.text[:120]}")
+    except Exception as e:
+        print(f"  WARNING: report-no-data request failed: {e}")
+
+
+def _is_no_valid_comps_error(msg):
+    """Best-effort classifier for upload responses that indicate zero valid
+    parsed comps (HTTP 422 no-valid-comps)."""
+    if not msg:
+        return False
+    low = str(msg).lower()
+    return "http 422" in low and "no valid comps" in low
 
 
 # ── Login Flow ──────────────────────────────────────────────
@@ -1247,6 +1297,7 @@ def do_export_run(args):
             sys.exit(1)
         with open(backlog_path) as f:
             report = _json.load(f)
+        backlog_filter = re.compile(args.filter, re.IGNORECASE) if args.filter else None
         # Only include priority tiers P0-P2 by default (viable markets).
         # P3 (thin-market monitor) is excluded unless --include-thin is passed.
         allowed_priorities = {"P0", "P1", "P2"}
@@ -1257,6 +1308,9 @@ def do_export_run(args):
         dormant_count = 0
         thin_skipped = 0
         for item in report.get("datasets", []):
+            item_search_term = item.get("searchTerm", item["key"])
+            if backlog_filter and not (backlog_filter.search(item_search_term) or backlog_filter.search(item["key"])):
+                continue
             actions = item.get("actions", [])
             priority = item.get("priority")
             if "dormant" in actions:
@@ -1294,10 +1348,14 @@ def do_export_run(args):
             if existing_csv:
                 # CSV exists under a different naming -- use its filename
                 search_term = existing_csv.replace(".csv", "").replace("_", " ")
+                if backlog_filter and not (backlog_filter.search(search_term) or backlog_filter.search(key)):
+                    continue
                 terms.append({"term": search_term, "filename": existing_csv})
             else:
                 # Genuinely new -- use the searchTerm from report as eBay query
                 st = backlog_search_terms.get(key, key)
+                if backlog_filter and not (backlog_filter.search(st) or backlog_filter.search(key)):
+                    continue
                 filename = re.sub(r'[^\w\s\-]', '', st).replace(' ', '_')[:80] + ".csv"
                 terms.append({"term": st, "filename": filename})
         print(f"Backlog mode: {len(terms)} from report ({len(missing_keys)} new, {len(terms) - len(missing_keys)} existing), skipping {before - (len(terms) - len(missing_keys))} not in backlog")
@@ -1562,11 +1620,16 @@ def do_export_run(args):
                 if ok:
                     print(f"OK ({msg})")
                     uploaded += 1
+                    success += 1
+                    progress.setdefault("completed", []).append(term)
                 else:
                     print(f"SAVED but upload failed: {msg}")
-
-                success += 1
-                progress.setdefault("completed", []).append(term)
+                    # Treat 422/no-valid-comps as an empty scrape signal so
+                    # dormant tracking can converge instead of retrying forever.
+                    if _is_no_valid_comps_error(msg):
+                        _report_no_data(term)
+                    failed += 1
+                    progress.setdefault("failed", []).append(term)
             else:
                 print("NO EXPORT (no results or button not found)")
                 _report_no_data(term)

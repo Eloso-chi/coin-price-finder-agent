@@ -182,18 +182,49 @@ case $? in
   3) echo "MISSING -- first-time setup" ; exit 1 ;;
 esac
 
-# 2. Run the scraper (example: 20 search terms at a time)
-python3 scripts/terapeak-export.py --batch-size 20
+# 2. Run the scraper (example: 20 terms in one resume-aware batch)
+python3 scripts/terapeak-export.py --batch 20
 ```
 
 For a repeatable long-run loop, use:
 
 ```bash
 bash scripts/run-surface-freshness-loop.sh --env-file ~/.env.surface
+
+# Focus only on one coin family (examples):
+bash scripts/run-surface-freshness-loop.sh --env-file ~/.env.surface --coin-type libertads
+bash scripts/run-surface-freshness-loop.sh --env-file ~/.env.surface --focus "morgan|peace"
 ```
 
 This wires freshness triage into page-1 refresh and deep pagination in one
 command.
+
+Notes:
+- The loop uses `--limit` for page-1 batches (not `--batch`) to avoid
+  resume-history skipping of valid backlog refresh candidates.
+- `SAVED but upload failed` with HTTP 422 (`No valid comps found`) is treated
+  as a no-data attempt and contributes to dormancy convergence.
+- P3 monitor/evidence-probe entries are excluded by default; include them with
+  `--include-thin` when you intentionally want monitor passes.
+
+### Upload mode (UPLOAD_MODE) -- #251
+
+The Surface launcher and `run-surface-freshness-loop.sh` set `UPLOAD_MODE=api`
+unless you override it. The exporter (`terapeak-export.py`) supports three modes:
+
+| Mode  | Behavior                                                                                     | Ingestion latency                                                |
+|-------|----------------------------------------------------------------------------------------------|------------------------------------------------------------------|
+| `api` | POST every CSV to `APP_URL/api/terapeak/import`. Immediate import + dormancy progression.    | Immediate.                                                       |
+| `blob`| Upload to Azure Blob only. No API fallback. Errors if blob env vars are missing.             | Deferred until server startup or explicit `/api/terapeak/reimport`. |
+| `auto`| Legacy: blob first if configured, else API.                                                  | Mixed -- not recommended for daily ops.                          |
+
+Local-ops profile (recommended): leave `UPLOAD_MODE` unset and do NOT set
+`TERAPEAK_BLOB_ACCOUNT` / `TERAPEAK_BLOB_CONTAINER`. Bulk-backfill profile:
+set `UPLOAD_MODE=blob` plus blob env vars and follow up with a manual call to
+`POST /api/terapeak/reimport`.
+
+Set `VERIFY_IMPORT=1` to surface explicit warnings whenever the upload path
+cannot confirm immediate ingestion (always the case in blob mode).
 
 ## When the session goes stale
 

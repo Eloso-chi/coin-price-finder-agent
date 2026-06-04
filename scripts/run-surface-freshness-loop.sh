@@ -21,6 +21,8 @@ DEEP_LIMIT=10
 SKIP_DEEP=false
 SKIP_PROBE=false
 INCLUDE_THIN=false
+FOCUS_REGEX=""
+COIN_TYPE=""
 
 usage() {
   cat <<'EOF'
@@ -34,6 +36,8 @@ Options:
   --skip-deep          Skip the deep-pagination stage.
   --skip-probe         Skip cookie-health-check.py --probe.
   --include-thin       Include P3 thin-market entries in page-1 backlog mode.
+  --focus REGEX        Focus queue execution to terms matching REGEX (e.g. "morgan|libertad").
+  --coin-type NAME     Focus to a built-in coin family alias (e.g. libertads, morgans).
   -h, --help           Show this help text.
 
 Required environment:
@@ -53,6 +57,42 @@ EOF
 
 step() {
   printf '\n== %s ==\n' "$1"
+}
+
+resolve_focus_regex() {
+  if [[ -n "$FOCUS_REGEX" ]]; then
+    printf '%s' "$FOCUS_REGEX"
+    return
+  fi
+
+  if [[ -z "$COIN_TYPE" ]]; then
+    return
+  fi
+
+  case "${COIN_TYPE,,}" in
+    libertad|libertads)
+      printf '%s' 'libertad'
+      ;;
+    morgan|morgans)
+      printf '%s' 'morgan'
+      ;;
+    eagle|eagles)
+      printf '%s' 'eagle'
+      ;;
+    panda|pandas)
+      printf '%s' 'panda'
+      ;;
+    lunar|lunars)
+      printf '%s' 'lunar'
+      ;;
+    barber|barbers)
+      printf '%s' 'barber'
+      ;;
+    *)
+      # Fall back to direct regex use for custom names.
+      printf '%s' "$COIN_TYPE"
+      ;;
+  esac
 }
 
 while [[ $# -gt 0 ]]; do
@@ -85,6 +125,14 @@ while [[ $# -gt 0 ]]; do
       INCLUDE_THIN=true
       shift
       ;;
+    --focus)
+      FOCUS_REGEX="$2"
+      shift 2
+      ;;
+    --coin-type)
+      COIN_TYPE="$2"
+      shift 2
+      ;;
     -h|--help)
       usage
       exit 0
@@ -108,6 +156,26 @@ fi
 
 : "${APP_URL:?APP_URL must be set}"
 : "${COOKIE_FILE:?COOKIE_FILE must be set}"
+
+# #251 -- enforce deterministic upload path unless the operator explicitly
+# overrides it (e.g. UPLOAD_MODE=blob for a bulk-backfill profile). The
+# default is API so freshness/dormancy progression is immediate and the
+# Surface/Codespaces flows behave identically.
+: "${UPLOAD_MODE:=api}"
+export UPLOAD_MODE
+if [[ "$UPLOAD_MODE" != "api" ]]; then
+  echo "[warn] UPLOAD_MODE=$UPLOAD_MODE -- non-default; ingestion may be deferred." >&2
+fi
+
+if [[ -n "$FOCUS_REGEX" && -n "$COIN_TYPE" ]]; then
+  echo "Specify only one of --focus or --coin-type." >&2
+  exit 1
+fi
+
+FILTER_REGEX="$(resolve_focus_regex)"
+if [[ -n "$FILTER_REGEX" ]]; then
+  echo "Focus filter active: $FILTER_REGEX"
+fi
 
 REPORT_FILE="cache/freshness-report.json"
 
@@ -159,10 +227,13 @@ PAGE1_ARGS=(
   python3 scripts/terapeak-export.py
   --run
   --backlog "$REPORT_FILE"
-  --batch "$PAGE1_BATCH"
+  --limit "$PAGE1_BATCH"
 )
 if [[ "$INCLUDE_THIN" == true ]]; then
   PAGE1_ARGS+=(--include-thin)
+fi
+if [[ -n "$FILTER_REGEX" ]]; then
+  PAGE1_ARGS+=(--filter "$FILTER_REGEX")
 fi
 "${PAGE1_ARGS[@]}"
 
@@ -170,7 +241,16 @@ generate_report
 
 if [[ "$SKIP_DEEP" != true ]]; then
   step "Run deep-pagination backlog"
-  python3 scripts/sales-aggregator.py --backlog "$REPORT_FILE" --run --limit "$DEEP_LIMIT"
+  DEEP_ARGS=(
+    python3 scripts/sales-aggregator.py
+    --backlog "$REPORT_FILE"
+    --run
+    --limit "$DEEP_LIMIT"
+  )
+  if [[ -n "$FILTER_REGEX" ]]; then
+    DEEP_ARGS+=(--filter "$FILTER_REGEX")
+  fi
+  "${DEEP_ARGS[@]}"
   generate_report
 fi
 
