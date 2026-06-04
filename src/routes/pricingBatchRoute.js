@@ -17,6 +17,7 @@ const { lookupKeyDate } = require('../data/keyDates');
 const { zodiacForYear, perthLunarSeries, getRollQuantity, BULLION_1OZ_DEFAULT, ALLOWED_LABELS } = require('../data/constants');
 const { detectDenomination } = require('../utils/filters');
 const { redactCompsForPublic } = require('../utils/redactForPublic');
+const { extractCoinIntent } = require('../utils/coinIntent');
 
 const MAX_ITEMS = 25;
 
@@ -50,8 +51,24 @@ async function _priceOne(item, opts = {}) {
     const series = coinData.name || parsed.series || '';
     const year   = coinData.year || parsed.year;
     const mint   = coinData.mintMark || parsed.mint || '';  // user-specified only (drives filtering)
-    const grade  = coinData.grade || parsed.grade || '';
-    let gradeNum = parsed.gradeNum || parseInt((grade.match(/\d+/) || [])[0]) || null;
+
+    // Detect roll / set first -- intent extraction is gated on isSet
+    const isRoll = !!(coinData.isRoll || parsed.isRoll);
+    const isSet  = !!(parsed.setType);
+
+    // #254: Centralize grade / finish / isProof extraction across the
+    // structured-input, PCGS, and parsed-from-text sources.  Matches the
+    // helper used by priceRoute so both routes derive intent identically.
+    const intent = extractCoinIntent({
+      coinData,
+      options: item.options,
+      parsed,
+      pcgs: {},  // batch route doesn't do a PCGS lookup
+      isSet,
+    });
+    const grade   = intent.grade || '';
+    const isProof = intent.isProof;
+    let gradeNum  = parsed.gradeNum || parseInt((grade.match(/\d+/) || [])[0]) || null;
 
     // Weight defaulting for bullion
     let weight = coinData.weight || parsed.weight || null;
@@ -59,15 +76,6 @@ async function _priceOne(item, opts = {}) {
       const sl = series.toLowerCase();
       if (BULLION_1OZ_DEFAULT.some(b => sl.includes(b))) weight = 1;
     }
-
-    // Detect proof / roll / set from parsed description
-    const isRoll = !!(coinData.isRoll || parsed.isRoll);
-    const isSet  = !!(parsed.setType);
-    const isProof = !isSet && (
-      parsed.finish === 'Proof' ||
-      parsed.grade  === 'Proof' ||
-      /^(PF|PR)[-\s]?\d/i.test(grade)
-    );
 
     // Detect metal and bullion status early — needed for melt cross-check on eBay comps
     const isBullion = BULLION_1OZ_DEFAULT.some(b => (series || '').toLowerCase().includes(b));
@@ -120,7 +128,7 @@ async function _priceOne(item, opts = {}) {
 
     let expected = {
       year, mint, series, grade, weight,
-      finish:  parsed.finish || null,
+      finish:  intent.finish,
       isProof,
       isRoll,
       isSet,
