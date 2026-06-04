@@ -40,19 +40,44 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
   // #184: Detect proof intent from userGrade string OR explicit isProof opt.
   // userGrade can be "Proof", "PF69", "PR69 DCAM", or a bare number (batch route).
   // opts.isProof is the definitive signal from the route layer.
-  const wantsProof = !!(opts.isProof) || (wantsGraded && /^(proof|pr|pf)/i.test(String(userGrade || '').trim()));
+  // #260W: Reverse Proof intent must be detected BEFORE generic proof intent.
+  // Reverse-proof is a distinct pool (`gradeType='reverse-proof'`) introduced
+  // by PR #114 in `ebayService.js`. Without this branch, RP queries fall through
+  // to the raw pool selector and collapse to silver-melt FMV with compCount=0.
+  const wantsReverseProof = !!(opts.isReverseProof)
+    || /reverse[\s-]*proof/i.test(String(opts.finish || ''));
+  const wantsProof = !wantsReverseProof
+    && (!!(opts.isProof) || (wantsGraded && /^(proof|pr|pf)/i.test(String(userGrade || '').trim())));
 
-  const usGraded = usCompsAll.filter(c => c.gradeType === 'graded');
-  const usRaw    = usCompsAll.filter(c => c.gradeType === 'raw');
-  const usProof  = usCompsAll.filter(c => c.gradeType === 'proof');
-  const glGraded = glCompsAll.filter(c => c.gradeType === 'graded');
-  const glRaw    = glCompsAll.filter(c => c.gradeType === 'raw');
-  const glProof  = glCompsAll.filter(c => c.gradeType === 'proof');
+  const usGraded   = usCompsAll.filter(c => c.gradeType === 'graded');
+  const usRaw      = usCompsAll.filter(c => c.gradeType === 'raw');
+  const usProof    = usCompsAll.filter(c => c.gradeType === 'proof');
+  const usRevProof = usCompsAll.filter(c => c.gradeType === 'reverse-proof');
+  const glGraded   = glCompsAll.filter(c => c.gradeType === 'graded');
+  const glRaw      = glCompsAll.filter(c => c.gradeType === 'raw');
+  const glProof    = glCompsAll.filter(c => c.gradeType === 'proof');
+  const glRevProof = glCompsAll.filter(c => c.gradeType === 'reverse-proof');
 
   // Pick the pool matching user intent (need >= 3 comps to be usable)
   let usComps, glComps;
   let poolFallback = false;
-  if (wantsProof) {
+  if (wantsReverseProof) {
+    // #260W: Reverse Proof FMV must come from RP comps only -- mixing in
+    // regular proof or BU comps produces wildly wrong values (RP coins trade
+    // at significant premiums to their BU/proof counterparts). Mirror the
+    // #184 proof-pool pattern: never mix non-RP comps in; flag lowData when
+    // thin; explanation when comps excluded.
+    usComps = usRevProof;
+    glComps = glRevProof;
+    if (usRevProof.length === 0) {
+      explanation.push(`⚠ No reverse-proof comps found — cannot compute reverse-proof FMV. Non-RP comps excluded to prevent incorrect valuation.`);
+    } else if (usRevProof.length < 3) {
+      explanation.push(`⚠ Only ${usRevProof.length} reverse-proof comp${usRevProof.length === 1 ? '' : 's'} — low-data reverse-proof FMV (non-RP comps excluded).`);
+    } else {
+      const excluded = usCompsAll.length - usRevProof.length;
+      if (excluded > 0) explanation.push(`Using ${usRevProof.length} reverse-proof comps for FMV (${excluded} non-RP comps excluded).`);
+    }
+  } else if (wantsProof) {
     // #184: Never mix BU comps into proof FMV — they are fundamentally different products.
     // Use proof pool regardless of count. Flag lowData when thin.
     usComps = usProof;
@@ -429,10 +454,20 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
       gradePool: {
         wantsGraded,
         wantsProof,
-        usedPool: poolFallback ? 'raw (fallback)' : wantsProof ? 'proof' : wantsGraded ? 'graded' : 'raw',
+        wantsReverseProof,
+        usedPool: poolFallback
+          ? 'raw (fallback)'
+          : wantsReverseProof
+            ? 'reverse-proof'
+            : wantsProof
+              ? 'proof'
+              : wantsGraded
+                ? 'graded'
+                : 'raw',
         gradedCount: usGraded.length,
         rawCount: usRaw.length,
         proofCount: usProof.length,
+        reverseProofCount: usRevProof.length,
         poolCount: usComps.length,
         totalCount: usCompsAll.length,
         poolFallback,

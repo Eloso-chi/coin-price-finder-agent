@@ -403,6 +403,8 @@ router.post('/', async (req, res) => {
     const { valuation, decisions } = computeValuation(pcgs, ebay, askingPrice || null, userGrade, {
       isBullion,
       isProof: expected.isProof,
+      // #260W -- forward finish so valuationService can pick the reverse-proof pool.
+      finish: expected.finish || null,
       greysheet,
       saleContext,
       appealMultiplier: resolvedAppeal,

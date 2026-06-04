@@ -262,6 +262,8 @@ async function _priceOne(item, opts = {}) {
     const result = computeValuation(pcgs, ebay, null, gradeNum, {
       isBullion,
       isProof,
+      // #260W -- forward finish so valuationService can pick the reverse-proof pool.
+      finish: parsed.finish || null,
       isSet,
       isRoll,
       greysheet,
