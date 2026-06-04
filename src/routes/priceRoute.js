@@ -22,6 +22,7 @@ const { hasSeriesConflict, detectDenomination } = require('../utils/filters');
 const { getCoinMetalProfile } = require('../utils/coinMetalProfile');
 const terapeakService = require('../services/terapeakService');
 const { redactCompsForPublic } = require('../utils/redactForPublic');
+const { extractCoinIntent } = require('../utils/coinIntent');
 const stats = require('../utils/stats');
 
 // ── #41: Adjacent-year context ──
@@ -232,19 +233,27 @@ router.post('/', async (req, res) => {
     const profileMetal = getCoinMetalProfile(query).metal || null;
     const expectedMetal = parsedMetal || pcgsMetal || profileMetal || null;
 
+    // #254: Centralize grade/finish/isProof derivation so we accept every
+    // shape a UI or API caller may reasonably send (lowercase finish,
+    // explicit isProof flag, coinData.grade with no grade word in query).
+    // Previously several of these were silently dropped, putting the wrong
+    // pool through the strike-split filter and producing incorrect FMV.
+    const intent = extractCoinIntent({
+      coinData,
+      options,
+      parsed: identification.parsed,
+      pcgs,
+      isSet,
+    });
+
     const expected = {
       year: pcgs.year || identification.parsed?.year,
       mint: identification.parsed?.mint || '',  // #167: only user-specified mint drives filtering (PCGS mint used for display only)
       series: pcgs.series || identification.parsed?.series,
-      grade: isSet ? null : (pcgs.grade || identification.parsed?.grade),
-      designation: pcgs.designation || identification.parsed?.designation,
-      finish: coinData?.finish || identification.parsed?.finish || null,
-      isProof: !isSet && (
-        coinData?.finish === 'Proof' ||
-        (identification.parsed?.finish === 'Proof') ||
-        (identification.parsed?.grade === 'Proof') ||
-        /^(PF|PR)[-\s]?\d/i.test(pcgs.grade || identification.parsed?.grade || '')
-      ),
+      grade: intent.grade,
+      designation: intent.designation,
+      finish: intent.finish,
+      isProof: intent.isProof,
       metal: expectedMetal,
       weight: resolvedWeight || null,
       zodiacAnimal: zodiacAnimal,
