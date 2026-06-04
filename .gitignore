@@ -32,3 +32,6 @@ stryker.log
 
 # #246 Cosmos dumps -- too large for git, kept locally + Azure backup only
 data/archive/cosmos-terapeak-sold-*.json
+
+# #260 Backups created by scripts/sync-terapeak-meta.js when pulling Azure meta
+data/archive/terapeak-meta.before-azure-sync-*.json
