@@ -1,0 +1,20 @@
+# Default: let git handle line endings, but enforce LF for files that MUST be
+# LF (shell scripts, anything executed inside WSL/Linux).
+*           text=auto
+
+# Shell scripts MUST be LF -- CRLF in scripts/cpf-go etc. breaks bash exec
+# (trailing `\r` becomes a stray argument; see scripts/cpf-go header comment).
+*.sh        text eol=lf
+scripts/cpf-go text eol=lf
+surface     text eol=lf
+
+# Python and JS source: LF for consistency across the repo
+*.py        text eol=lf
+*.js        text eol=lf
+*.json      text eol=lf
+*.md        text eol=lf
+
+# Windows-only files
+*.ps1       text eol=crlf
+*.bat       text eol=crlf
+*.cmd       text eol=crlf

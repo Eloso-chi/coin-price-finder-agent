@@ -168,6 +168,118 @@ Terapeak loads, then close the window. The script writes the jar to
 
 ## Daily use
 
+### Fast path: `scripts/cpf-go` (#252)
+
+One command handles login, dependency checks, freshness report, scraper run,
+and optional looping. Recommended for almost all daily use.
+
+```bash
+# First run on a fresh machine (clones repo, installs everything, opens login
+# browser, runs one pass):
+~/cpf-go
+
+# Re-use existing cookies (no browser), single pass:
+scripts/cpf-go --no-login
+
+# Continuous backlog drain until 3-strike bot detection ends the loop:
+scripts/cpf-go --no-login --loop --skip-deep \
+  --page1-batch 25 --pause-between=600
+
+# Focused pass on one coin family (refreshes cookies first), then drain
+# the general P0 backlog in a loop:
+scripts/cpf-go --skip-deep --include-thin \
+  --focus "1oz.*libertad.*proof|libertad.*1oz.*proof" --page1-batch 40 \
+  && sleep 600 \
+  && scripts/cpf-go --no-login --loop --skip-deep \
+       --page1-batch 25 --pause-between=600
+```
+
+Flags consumed by `cpf-go` itself:
+
+| Flag | Default | Purpose |
+|------|---------|---------|
+| `--no-login` | login on | Reuse existing cookie jar; skip the interactive Playwright login. |
+| `--loop` | off | Keep re-running `./surface` until it exits non-zero (bot block, end of backlog, etc.). |
+| `--pause-between=SEC` | `300` | Seconds to sleep between loop passes. Recommended >=600 for overnight runs. |
+
+Any other flags are forwarded to `./surface` (and then
+`run-surface-freshness-loop.sh`). The most common forwarded flags are:
+
+| Flag | Purpose |
+|------|---------|
+| `--skip-deep` | Skip the deep-pagination stage (sales-aggregator.py). Page-1 only. |
+| `--include-thin` | Include P3 monitor / evidence-probe entries in the backlog. |
+| `--page1-batch N` | Number of terms per page-1 batch (default 15). |
+| `--deep-limit N` | Number of terms per deep-pagination batch (default 10). |
+| `--focus "REGEX"` | Filter the backlog to terms matching `REGEX` (case-insensitive). |
+| `--coin-type NAME` | Built-in alias (`libertads`, `morgans`, `eagles`, `pandas`, `lunars`, `barbers`). |
+
+#### Operational guardrails
+
+- **Loop exit condition:** `--loop` stops the instant `./surface` exits non-zero.
+  `terapeak-export.py` does this after **3 consecutive bot-detection blocks**
+  (with 2-5 min randomized cooldowns and browser-recycling between attempts).
+  Stop, wait several hours, re-login, retry.
+- **Akamai cooldown:** once eBay serves a `/splashui/captchaP` challenge, the
+  IP + fingerprint is flagged for **roughly 1-6 hours** (sometimes longer).
+  Re-running immediately just keeps tripping it. Wait, then re-login with
+  `scripts/cpf-go` (no `--no-login`).
+- **Two scrapers at once = instant CAPTCHA.** If a loop is running, kill it
+  before starting a focused pass:
+  ```bash
+  pkill -f cpf-go              # stops the wrapper
+  pkill -f run-surface         # stops the in-flight pass
+  pkill -f terapeak-export     # stops the scraper itself
+  pkill -f 'ms-playwright/chromium'   # closes the headed browser
+  ```
+- **Sleep prevention:** WSL2 idles down when no Linux processes are running,
+  but a long-running scraper keeps it alive. Windows system sleep, however,
+  pauses the VM. Plug in and run `powercfg /change standby-timeout-ac 0`
+  from PowerShell before overnight runs.
+
+#### Quick status check
+
+```bash
+# Are scraper processes still alive?
+pgrep -af 'cpf-go|run-surface|terapeak-export|playwright' || echo 'idle'
+
+# How many search terms have been touched this session?
+python3 -c "
+import json
+d = json.load(open('cache/terapeak_export_progress.json'))
+print('completed:', len(d.get('completed', [])))
+print('failed:   ', len(d.get('failed', [])))"
+
+# How many actionable datasets remain in the backlog?
+node scripts/generate-freshness-report.js --stale 15 >/dev/null
+python3 -c "
+import json
+from collections import Counter
+d = json.load(open('cache/freshness-report.json'))
+c = Counter()
+for it in d['datasets']:
+    for a in it.get('actions', []): c[a] += 1
+for k in ('refresh','initial-fetch','deep-paginate','evidence-probe'):
+    print(f'{k:20s} {c.get(k, 0)}')"
+```
+
+#### CRLF warning
+
+`scripts/cpf-go` and other shell scripts **must** stay LF-only. CRLF line
+endings cause bash to treat the trailing `\r` on `exec ./surface "$@"` as an
+empty extra argument, which surfaces downstream as
+`Unknown argument:` from `run-surface-freshness-loop.sh` and crashes the run.
+The repo's `.gitattributes` enforces LF for `*.sh` and `scripts/cpf-go`. If
+you ever hand-edit on Windows and see this error, fix with:
+
+```bash
+sed -i 's/\r$//' scripts/cpf-go
+```
+
+### Manual path (legacy)
+
+If you need to drive each step yourself (e.g. debugging the login flow):
+
 ```bash
 cd ~/cpf/coin-price-agent
 source .venv/bin/activate

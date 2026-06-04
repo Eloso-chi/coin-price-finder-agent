@@ -5,6 +5,9 @@ node_modules/
 cache/
 !cache/greysheet_history.json
 
+# Local scratch (assistant-generated helper scripts, ad-hoc queries, etc.)
+.local/
+
 # Azure
 iisnode/
 *.publishsettings
