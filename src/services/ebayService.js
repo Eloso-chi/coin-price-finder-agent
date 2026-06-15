@@ -12,6 +12,7 @@ const { isDenied, detectDenomination, hasSeriesConflict, isCompositionMismatch, 
 const terapeakService = require('./terapeakService');
 const { getSpotOnDate, METAL_SYMBOLS } = require('./metalsHistoryService');
 const { detectWeightFromTitle } = require('../utils/coinMetalProfile');
+const { isReverseProofFinish } = require('../utils/coinIntent');
 
 // ── Config ──────────────────────────────────────────────────
 const EBAY_APP_ID        = process.env.EBAY_APP_ID || '';
@@ -1418,8 +1419,7 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
     // showed 97--100% cross-contamination on years where both issues exist
     // (e.g. 2023 ASE, 2019-S ASE ERP, 2023-S Morgan Dollar).
     const wantsProof = !!expected.isProof;
-    const wantsReverseProof = wantsProof
-      && /reverse[\s-]*proof/i.test(String(expected.finish || ''));
+    const wantsReverseProof = wantsProof && isReverseProofFinish(expected.finish);
     const wantsGraded = !!expected.grade;
     const targetPool = wantsReverseProof
       ? 'reverse-proof'

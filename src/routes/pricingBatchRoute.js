@@ -264,6 +264,9 @@ async function _priceOne(item, opts = {}) {
       isProof,
       isSet,
       isRoll,
+      // #260W: forward canonical finish so valuationService can split
+      // reverse-proof comps from the regular proof pool.
+      finish: intent.finish,
       greysheet,
       appealMultiplier: coaAppealMultiplier > 1.0 ? coaAppealMultiplier : undefined,
       spotPrice: (isBullion && meltPerOz && weight)

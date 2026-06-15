@@ -403,6 +403,10 @@ router.post('/', async (req, res) => {
     const { valuation, decisions } = computeValuation(pcgs, ebay, askingPrice || null, userGrade, {
       isBullion,
       isProof: expected.isProof,
+      // #260W: forward canonical finish so valuationService can split
+      // reverse-proof comps from the regular proof pool. extractCoinIntent
+      // already normalized this to "Reverse Proof" / "Enhanced Reverse Proof".
+      finish: expected.finish,
       greysheet,
       saleContext,
       appealMultiplier: resolvedAppeal,
