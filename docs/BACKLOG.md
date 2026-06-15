@@ -529,6 +529,44 @@ Same coin, ~100 comps in each bucket, both very-stale, scheduled to be scraped a
 
 ---
 
+### #267H. `lookupComps` returns empty parallel-key dataset over populated one [P1 -- BUG] -- DONE 2026-06-15
+
+**Problem:** Production Azure valuation for `2010 Perth Mint Lunar Tiger Series II in 1/2 oz` returned `compCount: 0`, `method: bullion-spot-premium`, `confidence: 0`, `lowData: true` despite 21 verified sold comps existing on disk under a parallel storage key.
+
+**Root cause:** Azure's Terapeak store contains two entries for the same coin keyed differently by `normalizeSearchKey()`:
+- `2010 lunar tiger half oz silver` -- 21 real sold comps (populated)
+- `perth lunar 2010 tiger silver half oz` -- 0 comps (empty stub, created by an earlier aggregator run with a different search phrasing)
+
+`lookupComps()` scored both candidates on token overlap alone. The empty stub shared more tokens with the user's verbose query (`perth`, `lunar`, `2010`, `tiger`, `half`, `oz`, `silver`) and won the fuzzy match, returning 0 comps. The pipeline then fell back to bullion-spot-premium with live active-listing prices, yielding a useless valuation.
+
+**Verified on Azure (2026-06-15):**
+```
+GET /api/terapeak/lookup?q=2010+Perth+Mint+Lunar+Tiger+Series+II+in+1/2+oz
+  -> searchTerm=perth lunar 2010 tiger silver half oz, compCount=0
+GET /api/terapeak/lookup?q=2010+Lunar+Tiger+Half+oz+Silver
+  -> searchTerm=2010 lunar tiger half oz silver, compCount=21
+```
+
+**Fix (shipped):** In `src/services/terapeakService.js`, `lookupComps()` now skips datasets with zero comps:
+- Exact-match branch: falls through to fuzzy when the matched dataset is empty.
+- Fuzzy loop: `continue` at top of iteration if `(data.comps || []).length === 0`.
+
+An empty dataset can never produce a useful match, so skipping outright is purely a behavioral win.
+
+**Regression test:** `__tests__/terapeakEmptyDatasetSkip.test.js` (4 tests covering: populated wins over empty stub; empty-only store still returns null; exact-match path falls through on empty; populated exact match unchanged).
+
+**Test results:** All 4 new tests pass. Full suite: 3,336 passing; 5 pre-existing failures unrelated to this change (`freshnessReportDeepPaginate`, `freshnessReportEvidenceGates`, `imageProxyRoute` SSRF allowlist) -- confirmed by re-running the same 3 suites without the fix applied.
+
+**Relationship to #266H:** This is a tactical hotfix that mitigates the user-visible symptom of the underlying duplicate-key drift. #266H remains the structural fix -- merging the duplicate keys at the data layer so empty stubs never exist in the first place. After #266H ships, this empty-dataset skip becomes belt-and-suspenders defense rather than the only line of protection.
+
+**Files:**
+- MOD `src/services/terapeakService.js` (+16 lines: empty-dataset guard in exact-match + fuzzy loop)
+- NEW `__tests__/terapeakEmptyDatasetSkip.test.js`
+
+**Follow-up (open):** Audit Azure's actual store to scope how many other coins are affected. The `GET /api/terapeak/datasets` endpoint is admin-gated; needs a one-off audit run with admin auth to enumerate all `compCount=0` keys and check whether a populated parallel exists. If non-zero, log a one-shot cleanup that deletes the empty stubs (deferred until #266H is in flight, since #266H's merger handles them anyway).
+
+---
+
 ### #249. Unattended Scheduler for Local Scraper Path [P3 -- OPERATIONS] -- BACKLOG
 
 **Status:** Deferred. Phase 1 (dual-path scraper -- Surface laptop + Codespace fallback) will be added first. This entry covers the optional automation layer that runs the scraper on a schedule once the manual workflow is validated.

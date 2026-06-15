@@ -858,14 +858,18 @@ function lookupComps(keywords, opts = {}) {
   // Exact match — but only use it when no grade hint is pushing us toward
   // a grade-specific dataset.  When a grade hint exists, fall through to
   // fuzzy matching so the grade bonus can select the right dataset.
-  if (store[normalizedSearch] && !queryGrade) {
+  // Empty-dataset guard (#267H): if the exact-key dataset has zero comps
+  // (an empty stub), fall through to fuzzy so a populated parallel-key
+  // dataset can win.  Returning an empty stub here would short-circuit the
+  // whole pipeline and report "no sold comps" even when data exists.
+  if (store[normalizedSearch] && !queryGrade && (store[normalizedSearch].comps || []).length > 0) {
     return store[normalizedSearch];
   }
   // Also try exact match with grade appended (e.g. "1883 morgan silver dollar ms65")
   if (queryGrade) {
     const gradedKey = normalizedSearch.replace(/\s+(ms|pr|pf|sp|au|xf|ef|vf|vg|ag|fr|po)\s*\d{1,2}\+?\s*$/i, '').trim()
       + ' ' + queryGrade.toLowerCase();
-    if (store[gradedKey]) return store[gradedKey];
+    if (store[gradedKey] && (store[gradedKey].comps || []).length > 0) return store[gradedKey];
   }
 
   // Detect weight from the ORIGINAL (un-normalized) query and dataset searchTerm
@@ -897,6 +901,14 @@ function lookupComps(keywords, opts = {}) {
   for (const [key, data] of Object.entries(store)) {
     const keyTokens = key.split(/\s+/).filter(t => t.length > 1);
     if (!keyTokens.length || !searchTokens.length) continue;
+
+    // ── Empty-dataset guard (#267H): skip datasets with zero comps.
+    //    Empty parallel-key stubs (e.g. "perth lunar 2010 tiger silver half oz"
+    //    with 0 comps coexisting with populated "2010 lunar tiger half oz silver")
+    //    would otherwise score on token overlap alone and beat the real data,
+    //    causing valuation to fall back to bullion-spot or live-listings-only.
+    //    An empty dataset can never produce a useful match, so skip outright. ──
+    if (!(data.comps || []).length) continue;
 
     // ── Year-mismatch guard: when the query contains a specific year,
     //    reject datasets whose key contains a DIFFERENT year.  This
