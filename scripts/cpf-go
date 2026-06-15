@@ -22,6 +22,14 @@
 #   --loop               keep re-running ./surface until it exits non-zero
 #                        (3-strike bot detection, end of backlog, or error)
 #   --pause-between=SEC  seconds to sleep between loop passes (default 300)
+#   --batch-min=N        loop-pass batch-size lower bound (default 15)
+#   --batch-max=N        loop-pass batch-size upper bound (default 30)
+#                        Each pass picks a random size in [batch-min..batch-max]
+#                        and forwards it as --page1-batch unless the caller
+#                        already passed an explicit --page1-batch. The jitter
+#                        breaks the obvious "exactly 15 page-1 fetches every
+#                        10 minutes" footprint that bot-detection systems key on.
+#                        Set --batch-min=N --batch-max=N to disable jitter.
 #   any others           forwarded to ./surface (and onward to
 #                        run-surface-freshness-loop.sh). Useful examples:
 #                          --skip-deep
@@ -56,15 +64,32 @@ REPO_DIR="$HOME/cpf/coin-price-finder-agent"
 DO_LOGIN=1
 LOOP=0
 PAUSE_BETWEEN=300
+BATCH_MIN=15
+BATCH_MAX=30
+USER_PASSED_PAGE1_BATCH=0
 FORWARD_ARGS=()
 for arg in "$@"; do
   case "$arg" in
     --no-login) DO_LOGIN=0 ;;
     --loop) LOOP=1 ;;
     --pause-between=*) PAUSE_BETWEEN="${arg#*=}" ;;
+    --batch-min=*) BATCH_MIN="${arg#*=}" ;;
+    --batch-max=*) BATCH_MAX="${arg#*=}" ;;
+    --page1-batch) USER_PASSED_PAGE1_BATCH=1; FORWARD_ARGS+=("$arg") ;;
+    --page1-batch=*) USER_PASSED_PAGE1_BATCH=1; FORWARD_ARGS+=("$arg") ;;
     *) FORWARD_ARGS+=("$arg") ;;
   esac
 done
+
+# Validate batch bounds early so we fail before doing any work.
+if ! [[ "$BATCH_MIN" =~ ^[0-9]+$ ]] || ! [[ "$BATCH_MAX" =~ ^[0-9]+$ ]]; then
+  printf '\n[err] --batch-min and --batch-max must be positive integers (got min=%s max=%s)\n' "$BATCH_MIN" "$BATCH_MAX" >&2
+  exit 1
+fi
+if (( BATCH_MIN < 1 )) || (( BATCH_MAX < BATCH_MIN )); then
+  printf '\n[err] require 1 <= batch-min <= batch-max (got min=%s max=%s)\n' "$BATCH_MIN" "$BATCH_MAX" >&2
+  exit 1
+fi
 
 log()  { printf '\n== %s ==\n' "$*"; }
 warn() { printf '\n[warn] %s\n' "$*" >&2; }
@@ -147,15 +172,41 @@ if [[ "$DO_LOGIN" == "1" ]]; then
   log "Cookies refreshed at ${COOKIE_FILE}"
 fi
 
+# Helper: pick a random integer in [min..max] inclusive. Prefer shuf when
+# available (uniform), fall back to $RANDOM modulo (slight bias acceptable
+# for a 16-value range -- bot evasion only needs visible variability).
+pick_batch_size() {
+  local lo="$1" hi="$2"
+  if (( lo == hi )); then
+    printf '%d' "$lo"
+    return
+  fi
+  if command -v shuf >/dev/null 2>&1; then
+    shuf -i "${lo}-${hi}" -n 1
+  else
+    local span=$((hi - lo + 1))
+    printf '%d' $((lo + RANDOM % span))
+  fi
+}
+
 # 7. go (skip the live probe since we just minted fresh cookies)
 if [[ "$LOOP" == "1" ]]; then
   pass=1
-  while ./surface --skip-probe "${FORWARD_ARGS[@]}"; do
+  while true; do
+    pass_args=("${FORWARD_ARGS[@]}")
+    if [[ "$USER_PASSED_PAGE1_BATCH" == "0" ]]; then
+      batch_size=$(pick_batch_size "$BATCH_MIN" "$BATCH_MAX")
+      log "Pass $pass -- randomized --page1-batch=$batch_size (range $BATCH_MIN..$BATCH_MAX)"
+      pass_args+=(--page1-batch "$batch_size")
+    fi
+    if ! ./surface --skip-probe "${pass_args[@]}"; then
+      warn "./surface exited non-zero (likely bot detection or end of backlog). Stopping loop after $pass pass(es)."
+      break
+    fi
     log "Pass $pass complete -- sleeping ${PAUSE_BETWEEN}s before next pass"
     sleep "$PAUSE_BETWEEN"
     pass=$((pass + 1))
   done
-  warn "./surface exited non-zero (likely bot detection or end of backlog). Stopping loop after $pass pass(es)."
 else
   log "Launching ./surface --skip-probe (single pass; use --loop to keep draining backlog)"
   exec ./surface --skip-probe "${FORWARD_ARGS[@]}"
