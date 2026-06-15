@@ -599,6 +599,71 @@ An empty dataset can never produce a useful match, so skipping outright is purel
 
 ---
 
+### #269H. Meta-sync swallows local state on Azure POST failure -- HTTP 422 coins keep re-scraping forever [P1 -- DATA-QUALITY / SCRAPER] -- OPEN 2026-06-15
+
+**Problem:** When `terapeak-export.py` finishes a coin, it tries to POST the CSV to Azure (`/api/admin/terapeak/import`) AND sync the resulting canonical meta back into `data/terapeak-meta.json`. When the POST fails (HTTP 422 "No valid comps found in CSV", or HTML/auth-redirect from Azure), the local meta-sync logs:
+
+```
+[warn] meta sync returned non-JSON payload; keeping existing data/terapeak-meta.json
+```
+
+...and bails -- **without persisting the local in-memory state delta** (`lastFetchedAt`, `lastEmptyAt`, `noDataCount++`, `dormant=true`-on-2nd-strike). The next freshness pass therefore re-classifies the coin as stale and the scraper re-fetches it. Loop forever.
+
+**Evidence (2026-06-15 local-scraper session):**
+
+| Coin | Hit count this session | Outcome |
+|---|---|---|
+| `1997 American Gold Eagle Tenth oz` | 2 passes (412, 948) | HTTP 422, 3 rows, all skipped |
+| `1989 China Twentieth Oz Gold Panda` | pre-restart session | HTTP 422, 2 rows, all skipped |
+| `1982 Gold Krugerrand Quarter Oz` | post-restart pass 1 | HTTP 422, similar |
+
+Meta inspection of `1997 American Gold Eagle Tenth oz` after 2 failures:
+
+```
+key:            1997 american gold eagle tenth oz
+compCount:      20
+lastFetchedAt:  None     <- never persisted
+lastEmptyAt:    None     <- never persisted
+noDataCount:    1        <- only 1 of 2 failures recorded
+dormant:        False    <- should be True after 2 strikes
+lastUpdated:    None
+```
+
+The scraper's in-flight stdout literally prints `(dormant: 2 consecutive empty attempts)` right next to the 2nd failure -- proving the dormant promotion is computed but never persisted.
+
+**Impact:**
+- Wasted scraper cycles re-fetching coins that will keep returning unparseable data.
+- Bot-detection exposure (predictable re-pulls of the same key).
+- Freshness telemetry shows misleading "P0 stale" entries that are actually broken.
+- Empty-dataset fix from #267H gives stale entries free credit because their `lastFetchedAt` is `None` (the recently-confirmed-stale gate can't fire).
+
+**Root cause (hypothesis -- to verify):** `scripts/terapeak-export.py` (or its caller `run-surface-freshness-loop.sh` meta-sync step) treats the Azure round-trip as the sole authoritative source for meta updates. When Azure returns non-JSON (HTML auth page) or HTTP error, the local-only path is short-circuited instead of falling back to writing local state.
+
+**Proposed fix (one of, or both):**
+
+1. **Fail-open meta persistence:** If the Azure meta POST/GET fails, still write the local in-memory deltas (`lastFetchedAt`, `lastEmptyAt`, `noDataCount`, `dormant` flag) to `data/terapeak-meta.json` directly. Treat Azure as eventually-consistent, not authoritative.
+2. **HTTP 422 = empty:** Any 422 from the Azure import endpoint should be treated as a confirmed-empty outcome for that coin. Bump `noDataCount`, set `lastEmptyAt`, promote to dormant after the 2nd strike -- same as a real "0 tables on page" empty.
+
+Fix 2 is the narrow patch; Fix 1 is the structural one. Recommend doing both: Fix 2 short-term to unblock the current scraper, Fix 1 when there's time to test.
+
+**Acceptance:**
+- After 2 consecutive HTTP 422 outcomes for the same coin, the coin is marked dormant in `data/terapeak-meta.json` and excluded from subsequent freshness passes.
+- `lastFetchedAt` is non-null for every coin the scraper has touched (regardless of Azure POST result).
+- The 3 known-affected coins above stop appearing in new passes (or get explicitly dormant-promoted).
+- Regression test in `__tests__/` exercises the meta-write path with a mocked Azure 422 response.
+
+**Files (expected):**
+- `scripts/terapeak-export.py` (meta-sync handler around HTTP 422 / non-JSON response)
+- Possibly `scripts/run-surface-freshness-loop.sh` if the meta-sync invocation lives there
+- New `__tests__/terapeakExportMetaPersistence.test.js` (or `.py` equivalent if the logic stays Python-side)
+
+**Related:**
+- #267H (empty-dataset skip in lookupComps) -- this issue means #267H's gate is bypassed for these specific stuck coins.
+- #245 (freshness safeguards) -- the dormancy classifier works correctly; the bug is upstream of it, in the meta writer.
+- The `meta sync returned non-JSON payload` warning has been present in logs for a while -- worth a one-shot audit to see how many coins have `lastFetchedAt=None` cluster-wide.
+
+---
+
 ### #249. Unattended Scheduler for Local Scraper Path [P3 -- OPERATIONS] -- BACKLOG
 
 **Status:** Deferred. Phase 1 (dual-path scraper -- Surface laptop + Codespace fallback) will be added first. This entry covers the optional automation layer that runs the scraper on a schedule once the manual workflow is validated.
