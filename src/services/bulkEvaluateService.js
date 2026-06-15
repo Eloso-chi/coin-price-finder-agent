@@ -242,6 +242,12 @@ async function evaluateOneCoin(coin, opts = {}) {
     const spotPrice = (isBullion && meltPerOz && weight) ? meltPerOz * weight : null;
     const result = computeValuation(pcgs, ebay, null, effectiveGradeNum, {
       isBullion,
+      isProof,
+      // #260W: forward canonical finish so valuationService can split
+      // reverse-proof comps from the regular proof pool. expected.finish
+      // sources from parsed.finish at the route layer and is the same value
+      // ebayService.fetchSoldComps used for the prefilter strike-split.
+      finish: expected.finish || null,
       greysheet,
       spotPrice,
       // #232 -- forwarded from route via runBulkEvaluation opts.

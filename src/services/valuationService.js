@@ -1,7 +1,8 @@
-// src/services/valuationService.js — FMV estimation + dealer buy/sell decisions
+// src/services/valuationService.js -- FMV estimation + dealer buy/sell decisions
 // CommonJS
 
 const stats = require('../utils/stats');
+const { isReverseProofFinish } = require('../utils/coinIntent');
 
 /**
  * Compute FMV and dealer decisions from PCGS data + eBay comps + Greysheet.
@@ -37,30 +38,53 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
   // pcgs.grade can be set by PCGS Search API even when the user didn't
   // specify a grade, which would incorrectly filter to graded comps.
   const wantsGraded = !!(userGrade);
-  // #184: Detect proof intent from userGrade string OR explicit isProof opt.
-  // userGrade can be "Proof", "PF69", "PR69 DCAM", or a bare number (batch route).
-  // opts.isProof is the definitive signal from the route layer.
-  const wantsProof = !!(opts.isProof) || (wantsGraded && /^(proof|pr|pf)/i.test(String(userGrade || '').trim()));
+  // #184 + #260W: proof / reverse-proof intent detection.  RP is a distinct
+  // pool (PR #114).  Gate matches ebayService's pre-filter: RP requires proof
+  // intent + RP-matching finish, OR an explicit isReverseProof flag.  RP then
+  // suppresses generic proof so RP queries don't double-route.  See ADR or PR
+  // body for the contract rationale (review M1).
+  const proofIntent = !!(opts.isProof)
+    || (wantsGraded && /^(proof|pr|pf)/i.test(String(userGrade || '').trim()));
+  const wantsReverseProof = !!(opts.isReverseProof)
+    || (proofIntent && isReverseProofFinish(opts.finish));
+  const wantsProof = proofIntent && !wantsReverseProof;
 
-  const usGraded = usCompsAll.filter(c => c.gradeType === 'graded');
-  const usRaw    = usCompsAll.filter(c => c.gradeType === 'raw');
-  const usProof  = usCompsAll.filter(c => c.gradeType === 'proof');
-  const glGraded = glCompsAll.filter(c => c.gradeType === 'graded');
-  const glRaw    = glCompsAll.filter(c => c.gradeType === 'raw');
-  const glProof  = glCompsAll.filter(c => c.gradeType === 'proof');
+  const usGraded   = usCompsAll.filter(c => c.gradeType === 'graded');
+  const usRaw      = usCompsAll.filter(c => c.gradeType === 'raw');
+  const usProof    = usCompsAll.filter(c => c.gradeType === 'proof');
+  const usRevProof = usCompsAll.filter(c => c.gradeType === 'reverse-proof');
+  const glGraded   = glCompsAll.filter(c => c.gradeType === 'graded');
+  const glRaw      = glCompsAll.filter(c => c.gradeType === 'raw');
+  const glProof    = glCompsAll.filter(c => c.gradeType === 'proof');
+  const glRevProof = glCompsAll.filter(c => c.gradeType === 'reverse-proof');
 
   // Pick the pool matching user intent (need >= 3 comps to be usable)
   let usComps, glComps;
   let poolFallback = false;
-  if (wantsProof) {
-    // #184: Never mix BU comps into proof FMV — they are fundamentally different products.
+  if (wantsReverseProof) {
+    // #260W: Never mix non-RP comps into reverse-proof FMV -- RP is a
+    // distinct product tier (mint-issued separately, often priced 2-5x the
+    // regular proof). Mirrors the wantsProof "never mix in raw" rule below.
+    // Flag lowData when thin; explain when non-RP comps were excluded.
+    usComps = usRevProof;
+    glComps = glRevProof;
+    if (usRevProof.length === 0) {
+      explanation.push(`\u26a0 No reverse-proof comps found -- cannot compute reverse-proof FMV. Proof / BU comps excluded to prevent incorrect valuation.`);
+    } else if (usRevProof.length < 3) {
+      explanation.push(`\u26a0 Only ${usRevProof.length} reverse-proof comp${usRevProof.length === 1 ? '' : 's'} -- low-data reverse-proof FMV (proof / BU comps excluded).`);
+    } else {
+      const excluded = usCompsAll.length - usRevProof.length;
+      if (excluded > 0) explanation.push(`Using ${usRevProof.length} reverse-proof comps for FMV (${excluded} non-reverse-proof comps excluded).`);
+    }
+  } else if (wantsProof) {
+    // #184: Never mix BU comps into proof FMV -- they are fundamentally different products.
     // Use proof pool regardless of count. Flag lowData when thin.
     usComps = usProof;
     glComps = glProof;
     if (usProof.length === 0) {
-      explanation.push(`⚠ No proof comps found — cannot compute proof FMV. BU comps excluded to prevent incorrect valuation.`);
+      explanation.push(`\u26a0 No proof comps found -- cannot compute proof FMV. BU comps excluded to prevent incorrect valuation.`);
     } else if (usProof.length < 3) {
-      explanation.push(`⚠ Only ${usProof.length} proof comp${usProof.length === 1 ? '' : 's'} — low-data proof FMV (BU comps excluded).`);
+      explanation.push(`\u26a0 Only ${usProof.length} proof comp${usProof.length === 1 ? '' : 's'} -- low-data proof FMV (BU comps excluded).`);
     } else {
       const excluded = usCompsAll.length - usProof.length;
       if (excluded > 0) explanation.push(`Using ${usProof.length} proof comps for FMV (${excluded} non-proof comps excluded).`);
@@ -429,10 +453,21 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
       gradePool: {
         wantsGraded,
         wantsProof,
-        usedPool: poolFallback ? 'raw (fallback)' : wantsProof ? 'proof' : wantsGraded ? 'graded' : 'raw',
+        wantsReverseProof,
+        // #260W review m5: derived enum for log consumers.  wantsProof goes
+        // false when wantsReverseProof fires (RP suppresses generic proof),
+        // so anyone grep'ing for "proof intent" via wantsProof alone misses
+        // RP coins.  proofIntent collapses both into a single axis.
+        proofIntent: wantsReverseProof ? 'reverse-proof' : wantsProof ? 'proof' : null,
+        usedPool: poolFallback ? 'raw (fallback)'
+          : wantsReverseProof ? 'reverse-proof'
+          : wantsProof ? 'proof'
+          : wantsGraded ? 'graded'
+          : 'raw',
         gradedCount: usGraded.length,
         rawCount: usRaw.length,
         proofCount: usProof.length,
+        reverseProofCount: usRevProof.length,
         poolCount: usComps.length,
         totalCount: usCompsAll.length,
         poolFallback,

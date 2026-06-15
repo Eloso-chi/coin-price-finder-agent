@@ -260,6 +260,45 @@ describe('bulkEvaluateService', () => {
         expect.objectContaining({ finish: 'Proof' })
       );
     });
+
+    it('forwards explicit isProof and finish to computeValuation for proof coins (#260W review m1)', async () => {
+      // Pre-#260W, bulkEvaluateService did NOT pass isProof to computeValuation;
+      // bulk-evaluated proof coins could only enter the wantsProof branch via
+      // the secondary userGrade heuristic (/^(proof|pr|pf)/i).  As of #260W,
+      // both isProof and finish are forwarded explicitly so bulk-mode RP/Proof
+      // routing matches priceRoute / pricingBatchRoute exactly.
+      const pcgsService = require('../src/services/pcgsService');
+      const valuationService = require('../src/services/valuationService');
+      pcgsService.parseDescription.mockReturnValueOnce({
+        series: 'Silver Eagle', year: 2024, mint: null, grade: 'PR-70',
+        gradeNum: 70, weight: 1, finish: 'Proof', metal: 'silver', isRoll: false,
+      });
+      await evaluateOneCoin({ query: '2024 Silver Eagle Proof PR-70' });
+      expect(valuationService.computeValuation).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.anything(),
+        null,
+        expect.anything(),
+        expect.objectContaining({ isProof: true, finish: 'Proof' })
+      );
+    });
+
+    it('forwards reverse-proof finish to computeValuation for RP bulk coins (#260W)', async () => {
+      const pcgsService = require('../src/services/pcgsService');
+      const valuationService = require('../src/services/valuationService');
+      pcgsService.parseDescription.mockReturnValueOnce({
+        series: 'Silver Eagle', year: 2023, mint: null, grade: 'PR-70',
+        gradeNum: 70, weight: 1, finish: 'Reverse Proof', metal: 'silver', isRoll: false,
+      });
+      await evaluateOneCoin({ query: '2023 Silver Eagle Reverse Proof PR-70' });
+      expect(valuationService.computeValuation).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.anything(),
+        null,
+        expect.anything(),
+        expect.objectContaining({ isProof: true, finish: 'Reverse Proof' })
+      );
+    });
   });
 
   // ── Service: runBulkEvaluation ─────────────────────────────

@@ -9,6 +9,20 @@
 // single source of truth.
 'use strict';
 
+// Shared Reverse Proof / Enhanced Reverse Proof detection (#260W review m3).
+// Three sites previously each had their own regex with subtly different
+// strictness (valuationService and ebayService used the loose `/reverse[\s-]*proof/i`
+// which also matches "reverseproof" or words with no separator; coinHistoryRoute
+// used the stricter `\b(enhanced[\s-]+)?reverse[\s-]+proof\b`).  All three now
+// import this single helper using the stricter form.  Canonical inputs from
+// FINISH_CANONICAL ("Reverse Proof", "Enhanced Reverse Proof") and free-text
+// query strings ("2023 Reverse Proof Morgan Dollar") both match.
+const REVERSE_PROOF_RE = /\b(enhanced[\s-]+)?reverse[\s-]+proof\b/i;
+
+function isReverseProofFinish(s) {
+  return REVERSE_PROOF_RE.test(String(s || ''));
+}
+
 // PCGS-canonical finish spelling.  Downstream classifiers compare against
 // `expected.finish` literally, so we normalize on the way in.
 const FINISH_CANONICAL = {
@@ -94,4 +108,4 @@ function extractCoinIntent({ coinData, options, parsed, pcgs, isSet } = {}) {
   return { grade, finish, isProof, designation };
 }
 
-module.exports = { extractCoinIntent, FINISH_CANONICAL };
+module.exports = { extractCoinIntent, FINISH_CANONICAL, isReverseProofFinish };

@@ -985,6 +985,317 @@ describe('computeValuation — proof pool separation', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════
+//  Reverse-proof coin pool separation (#260W)
+// ═══════════════════════════════════════════════════════════════
+//
+// Before #260W, valuationService only knew three pools (graded/raw/proof).
+// PR #114 added gradeType='reverse-proof' in ebayService but did NOT teach
+// the engine how to select it, so any query for a reverse-proof coin
+// collapsed to a near-zero comp set and fell through to silver-melt.
+// These tests pin the contract: when finish='Reverse Proof' is supplied,
+// the engine MUST use the reverse-proof pool exclusively (mirroring the
+// proof pool's "never mix in non-RP comps" rule).
+describe('computeValuation — reverse-proof pool separation (#260W)', () => {
+  test('reverse-proof pool used when opts.finish="Reverse Proof"', () => {
+    const proof    = makeComps([100, 110, 120], { gradeType: 'proof' });
+    const revProof = makeComps([250, 270, 300], { gradeType: 'reverse-proof' });
+    const allComps = [...proof, ...revProof];
+    const result = computeValuation(
+      mockPcgs(),
+      mockEbay({ usComps: allComps }),
+      null,
+      'Proof',
+      { isProof: true, finish: 'Reverse Proof' }
+    );
+    expect(result.valuation.gradePool.wantsReverseProof).toBe(true);
+    expect(result.valuation.gradePool.usedPool).toBe('reverse-proof');
+    expect(result.valuation.gradePool.poolCount).toBe(3);
+    expect(result.valuation.gradePool.reverseProofCount).toBe(3);
+    // FMV should reflect RP prices (~$270), not regular proof prices (~$110)
+    expect(result.valuation.fmvCore).toBeGreaterThan(200);
+  });
+
+  test('reverse-proof pool used when opts.isReverseProof=true', () => {
+    const proof    = makeComps([100, 110, 120], { gradeType: 'proof' });
+    const revProof = makeComps([250, 270, 300, 280], { gradeType: 'reverse-proof' });
+    const allComps = [...proof, ...revProof];
+    const result = computeValuation(
+      mockPcgs(),
+      mockEbay({ usComps: allComps }),
+      null,
+      'Proof',
+      { isProof: true, isReverseProof: true }
+    );
+    expect(result.valuation.gradePool.wantsReverseProof).toBe(true);
+    expect(result.valuation.gradePool.usedPool).toBe('reverse-proof');
+    expect(result.valuation.fmvCore).toBeGreaterThan(200);
+  });
+
+  test('reverse-proof pool used when opts.finish="Enhanced Reverse Proof"', () => {
+    const proof    = makeComps([100, 110, 120], { gradeType: 'proof' });
+    const revProof = makeComps([400, 420, 450], { gradeType: 'reverse-proof' });
+    const allComps = [...proof, ...revProof];
+    const result = computeValuation(
+      mockPcgs(),
+      mockEbay({ usComps: allComps }),
+      null,
+      'Proof',
+      { isProof: true, finish: 'Enhanced Reverse Proof' }
+    );
+    expect(result.valuation.gradePool.wantsReverseProof).toBe(true);
+    expect(result.valuation.gradePool.usedPool).toBe('reverse-proof');
+    expect(result.valuation.fmvCore).toBeGreaterThan(300);
+  });
+
+  test('reverse-proof routing is suppressed without proof intent (#260W review M1 — engine/ebayService gate symmetry)', () => {
+    // Engine RP gate now requires proof intent (`isProof` true or PR/PF-shaped
+    // userGrade) ALONGSIDE an RP-matching finish, OR an explicit isReverseProof
+    // flag.  This matches ebayService's pre-filter, which only classifies
+    // comps as gradeType='reverse-proof' when wantsProof && finish-match.
+    // Without this symmetry, a caller passing { finish: 'Reverse Proof' }
+    // alone would route into the RP branch in the engine but ebayService
+    // would have pre-classified those comps into the 'proof' or 'graded'
+    // pool upstream -- producing a false-negative "no RP comps" warning.
+    //
+    // In production this never happens: extractCoinIntent always sets
+    // isProof=true when finish contains "proof" (any case).  This test
+    // locks in the engine-side contract so future callers can't introduce
+    // the asymmetry by accident.
+    const raw      = makeComps([50, 55, 60], { gradeType: 'raw' });
+    const revProof = makeComps([250, 270, 300], { gradeType: 'reverse-proof' });
+    const allComps = [...raw, ...revProof];
+    const result = computeValuation(
+      mockPcgs(),
+      mockEbay({ usComps: allComps }),
+      null,
+      null,
+      { finish: 'Reverse Proof' }  // no isProof flag, no graded grade
+    );
+    // Engine refuses to infer RP intent from finish alone -- routes through
+    // default raw branch, which uses usCompsAll when usRaw is thin.
+    expect(result.valuation.gradePool.wantsReverseProof).toBe(false);
+    expect(result.valuation.gradePool.usedPool).toBe('raw');
+    expect(result.valuation.gradePool.proofIntent).toBeNull();
+    // Explicit isReverseProof flag IS sufficient (escape hatch for callers
+    // outside the extractCoinIntent path) -- covered by a separate test.
+  });
+
+  test('reverse-proof escape hatch: opts.isReverseProof alone (no isProof) still routes to RP pool', () => {
+    // The { isReverseProof: true } flag is an explicit escape hatch: callers
+    // who know they want RP routing can bypass the proof-intent requirement.
+    // Useful for tools / scripts that don't go through extractCoinIntent.
+    const raw      = makeComps([50, 55, 60], { gradeType: 'raw' });
+    const revProof = makeComps([250, 270, 300], { gradeType: 'reverse-proof' });
+    const allComps = [...raw, ...revProof];
+    const result = computeValuation(
+      mockPcgs(),
+      mockEbay({ usComps: allComps }),
+      null,
+      null,
+      { isReverseProof: true }  // no isProof flag, no graded grade
+    );
+    expect(result.valuation.gradePool.wantsReverseProof).toBe(true);
+    expect(result.valuation.gradePool.usedPool).toBe('reverse-proof');
+    expect(result.valuation.gradePool.poolCount).toBe(3);
+    expect(result.valuation.gradePool.proofIntent).toBe('reverse-proof');
+    expect(result.valuation.fmvCore).toBeGreaterThan(200);
+  });
+
+  test('regular proof query excludes reverse-proof comps from its pool', () => {
+    // The mirror of the wantsReverseProof rule: a regular Proof query MUST
+    // NOT pull in RP comps (they trade 2-5x higher and would inflate FMV).
+    const proof    = makeComps([100, 110, 120, 105], { gradeType: 'proof' });
+    const revProof = makeComps([400, 420, 450], { gradeType: 'reverse-proof' });
+    const allComps = [...proof, ...revProof];
+    const result = computeValuation(
+      mockPcgs(),
+      mockEbay({ usComps: allComps }),
+      null,
+      'Proof',
+      { isProof: true, finish: 'Proof' }  // NOT reverse proof
+    );
+    expect(result.valuation.gradePool.wantsReverseProof).toBe(false);
+    expect(result.valuation.gradePool.usedPool).toBe('proof');
+    expect(result.valuation.gradePool.poolCount).toBe(4);
+    expect(result.valuation.gradePool.reverseProofCount).toBe(3);
+    // FMV from proof comps only (~$110), not contaminated by RP (~$420)
+    expect(result.valuation.fmvCore).toBeLessThan(200);
+  });
+
+  test('RP intent with empty RP pool surfaces explicit warning and never blends raw into FMV', () => {
+    // Repro of the #260W production bug: 2023 RP Morgan -> 0 RP comps
+    // surviving prefilter -> engine MUST surface "no RP comps" and return
+    // null FMV, never silently fall through to a raw-blend producing
+    // silver-melt from the non-RP comps it should have ignored.
+    const raw = makeComps([20, 22, 24, 21, 23, 25], { gradeType: 'raw' });
+    const result = computeValuation(
+      mockPcgs(),
+      mockEbay({ usComps: raw }),  // no RP comps in the gathered pool
+      null,
+      'Proof',
+      { isProof: true, finish: 'Reverse Proof' }
+    );
+    // With no RP comps the engine refuses to compute FMV from non-RP comps.
+    expect(result.valuation.fmvCore).toBeNull();
+    expect(result.valuation.confidence).toBe(0);
+    const text = result.valuation.explanation.join(' | ');
+    expect(text).toMatch(/no reverse-proof comps/i);
+    // The raw-blend method MUST NOT appear -- that would mean the engine
+    // silently fell through to the raw branch with non-RP comps.
+    expect(text).not.toMatch(/raw[- ]blend/i);
+  });
+
+  test('RP intent with 1-2 RP comps: lowData flagged, RP comps still used', () => {
+    const revProof = makeComps([300, 310], { gradeType: 'reverse-proof' });
+    const result = computeValuation(
+      mockPcgs(),
+      mockEbay({ usComps: revProof }),
+      null,
+      null,
+      { isReverseProof: true }
+    );
+    expect(result.valuation.gradePool.usedPool).toBe('reverse-proof');
+    expect(result.valuation.compCount).toBe(2);
+    expect(result.valuation.lowData).toBe(true);
+    const text = result.valuation.explanation.join(' | ');
+    expect(text).toMatch(/low-data reverse-proof/i);
+  });
+
+  test('RP intent takes precedence over generic proof intent (both flags set)', () => {
+    // extractCoinIntent always sets isProof=true for any "*Proof" finish,
+    // including "Reverse Proof". The engine MUST route to the RP branch,
+    // not the generic proof branch, when both signals fire. Without the
+    // suppression in wantsProof, the engine would hit the proof branch
+    // first and either contaminate FMV with regular proof comps OR collapse
+    // because the proof pool is empty.
+    const revProof = makeComps([300, 310, 320], { gradeType: 'reverse-proof' });
+    const proof    = makeComps([60, 65, 70],    { gradeType: 'proof' });
+    const result = computeValuation(
+      mockPcgs(),
+      mockEbay({ usComps: [...revProof, ...proof] }),
+      null,
+      null,
+      { isProof: true, isReverseProof: true }
+    );
+    expect(result.valuation.gradePool.wantsReverseProof).toBe(true);
+    expect(result.valuation.gradePool.wantsProof).toBe(false);
+    expect(result.valuation.gradePool.usedPool).toBe('reverse-proof');
+    // FMV from RP comps (~$310), not regular proof comps (~$65).
+    expect(result.valuation.fmvCore).toBeGreaterThan(250);
+  });
+
+  test('no-signal contract: RP comps with zero RP flags route through default raw branch', () => {
+    // Inverse of the precedence test. Without any RP signal from the route
+    // layer (no opts.isReverseProof, no opts.finish matching /reverse[\s-]*proof/i),
+    // the engine cannot infer RP intent. It falls back to the default raw
+    // branch, which uses usCompsAll when usRaw is empty -- so the RP comps
+    // ARE used, but as part of the "raw" pool. This locks in the contract
+    // that the engine never invents RP intent on its own.
+    const revProof = makeComps([300, 310, 320], { gradeType: 'reverse-proof' });
+    const result = computeValuation(
+      mockPcgs(),
+      mockEbay({ usComps: revProof }),
+      null,
+      null,
+      {}
+    );
+    expect(result.valuation.gradePool.wantsReverseProof).toBe(false);
+    expect(result.valuation.gradePool.usedPool).toBe('raw');
+    expect(result.valuation.compCount).toBe(3);
+  });
+
+  test('RP pool reports reverseProofCount in gradePool telemetry', () => {
+    const raw      = makeComps([50, 55, 60], { gradeType: 'raw' });
+    const proof    = makeComps([100, 110], { gradeType: 'proof' });
+    const revProof = makeComps([250, 270, 300, 280, 260], { gradeType: 'reverse-proof' });
+    const allComps = [...raw, ...proof, ...revProof];
+    const result = computeValuation(
+      mockPcgs(),
+      mockEbay({ usComps: allComps }),
+      null,
+      null,  // no grade -> default raw branch
+      {}
+    );
+    // Even when RP pool isn't selected, telemetry must report its size
+    // so downstream observability (pricing-health) can audit the mix.
+    expect(result.valuation.gradePool.rawCount).toBe(3);
+    expect(result.valuation.gradePool.proofCount).toBe(2);
+    expect(result.valuation.gradePool.reverseProofCount).toBe(5);
+    expect(result.valuation.gradePool.wantsReverseProof).toBe(false);
+    expect(result.valuation.gradePool.proofIntent).toBeNull();
+  });
+
+  test('greysheet RP pool split: glComps with gradeType=reverse-proof route through RP branch (#260W review m2)', () => {
+    // Engine splits glCompsAll into glRevProof; this asserts the global
+    // pool routes alongside the US pool when RP is selected.  Without this
+    // coverage, a future greysheet adapter emitting RP rows could regress
+    // silently.
+    const usRevProof = makeComps([250, 270, 300], { gradeType: 'reverse-proof' });
+    const glRevProof = makeComps([245, 265, 295], { gradeType: 'reverse-proof' });
+    const glProof    = makeComps([100, 110, 120], { gradeType: 'proof' });
+    const result = computeValuation(
+      mockPcgs(),
+      mockEbay({
+        usComps: usRevProof,
+        glComps: [...glProof, ...glRevProof],
+      }),
+      null,
+      'Proof',
+      { isProof: true, finish: 'Reverse Proof' }
+    );
+    expect(result.valuation.gradePool.usedPool).toBe('reverse-proof');
+    expect(result.valuation.gradePool.reverseProofCount).toBe(3);
+    expect(result.valuation.fmvCore).toBeGreaterThan(200);
+    // FMV must reflect RP-only blend; glProof @ ~$110 must NOT have leaked in.
+    // If glProof had leaked, US-anchored FMV (~$270) would be pulled toward
+    // a blend of $270 and $110 -- clearly < $200.
+  });
+
+  test.each([
+    ['lowercase',               'reverse proof'],
+    ['hyphen only',             'Reverse-Proof'],
+    ['double space',            'Reverse  Proof'],
+    ['enhanced lowercase',      'enhanced reverse proof'],
+    ['enhanced hyphen',         'Enhanced-Reverse-Proof'],
+    ['canonical',               'Reverse Proof'],
+  ])('finish variant routes to RP pool: %s (#260W review m4)', (_label, finishStr) => {
+    const revProof = makeComps([250, 270, 300], { gradeType: 'reverse-proof' });
+    const result = computeValuation(
+      mockPcgs(),
+      mockEbay({ usComps: revProof }),
+      null,
+      'Proof',
+      { isProof: true, finish: finishStr }
+    );
+    expect(result.valuation.gradePool.wantsReverseProof).toBe(true);
+    expect(result.valuation.gradePool.usedPool).toBe('reverse-proof');
+  });
+
+  test.each([
+    ['null',                    null],
+    ['undefined',               undefined],
+    ['empty string',            ''],
+    ['unrelated word',          'Burnished'],
+    ['reverseproof no separator', 'reverseproof'],  // stricter regex requires whitespace/hyphen
+    ['irreverseproof',          'irreverseproof'],  // word boundary blocks substring
+    ['proof-like',              'Proof-Like'],      // PL coins must NOT match RP
+  ])('finish variant does NOT route to RP pool: %s (#260W review m4)', (_label, finishStr) => {
+    const proof    = makeComps([100, 110, 120], { gradeType: 'proof' });
+    const revProof = makeComps([250, 270, 300], { gradeType: 'reverse-proof' });
+    const result = computeValuation(
+      mockPcgs(),
+      mockEbay({ usComps: [...proof, ...revProof] }),
+      null,
+      'Proof',
+      { isProof: true, finish: finishStr }
+    );
+    expect(result.valuation.gradePool.wantsReverseProof).toBe(false);
+    // With isProof + non-RP finish, routes through the generic proof branch.
+    expect(result.valuation.gradePool.usedPool).toBe('proof');
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════
 //  Greysheet confidence bonus (#4)
 // ═══════════════════════════════════════════════════════════════
 describe('computeValuation — Greysheet confidence bonus', () => {

@@ -12,6 +12,7 @@ const { getCoinMetalProfile } = require('../utils/coinMetalProfile');
 const { getHistory, METAL_SYMBOLS } = require('../services/metalsHistoryService');
 const { classifyGradeType } = require('../services/ebayService');
 const { isDenied } = require('../utils/filters');
+const { isReverseProofFinish } = require('../utils/coinIntent');
 
 const VALID_RANGES = new Set([90, 180, 365]);
 
@@ -45,13 +46,12 @@ router.get('/', async (req, res) => {
   // "2019 Mexican Silver Libertad Proof" silently flips to the raw pool
   // (no grade matched -> wantsGraded=false -> raw filter applied).
   //
-  // PR #3: Reverse Proof / Enhanced Reverse Proof get their own pool. Check
-  // for RP intent BEFORE the generic proof check (RP titles also match the
-  // generic \bproof\b). When neither RP nor a designation grade matched,
-  // wantsProof picks up plain "Proof" / "Matte Proof" via PROOF_RE.
-  const REVERSE_PROOF_RE = /\b(enhanced[\s-]+)?reverse[\s-]+proof\b/i;
+  // PR #3 + #260W m3: Reverse Proof / Enhanced Reverse Proof get their own
+  // pool.  Use the shared isReverseProofFinish helper so engine, ebayService,
+  // and this route stay in lockstep on RP detection (review m3).  Plain
+  // "Proof" / "Matte Proof" still go through PROOF_RE below.
   const PROOF_RE = /\b(proof|matte[\s-]?proof)\b/i;
-  const wantsReverseProof = !queryGrade && REVERSE_PROOF_RE.test(query);
+  const wantsReverseProof = !queryGrade && isReverseProofFinish(query);
   const wantsProof = wantsReverseProof
     ? false
     : (!!queryGrade
