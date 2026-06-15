@@ -567,6 +567,38 @@ An empty dataset can never produce a useful match, so skipping outright is purel
 
 ---
 
+### #268H. Randomize cpf-go loop-pass batch size to evade bot-detection patterning [P2 -- TOOLING / BOT-EVASION] -- DONE 2026-06-15
+
+**Problem:** `scripts/cpf-go --loop` was running a perfectly constant batch size every pass -- default `--page1-batch=15` forwarded verbatim to `terapeak-export.py` -- producing a "fetch exactly 15 page-1 queries, sleep exactly N minutes, repeat" footprint. Bot-detection systems trivially fingerprint that periodicity even with otherwise-randomized cookies, viewport, mouse trajectories, and inter-action delays. The first thing a defender's volume model keys on is "predictable count per window." Surfaced during the 2026-06-15 local-scraper session ("didnt we add a randomizer, so that it didnt always grab 15, but somethign between 15 and 30?").
+
+**Fix:** Per-pass batch-size jitter in `scripts/cpf-go`.
+- New flags `--batch-min=N` (default 15) and `--batch-max=N` (default 30).
+- Before each `./surface` invocation in the loop, pick `BATCH=$(shuf -i $MIN-$MAX -n 1)` and forward `--page1-batch "$BATCH"`.
+- If the caller explicitly passed `--page1-batch`, the jitter is suppressed (caller intent wins). Detection: tracked via `USER_PASSED_PAGE1_BATCH` flag during the arg parse loop.
+- Falls back to `$((MIN + RANDOM % span))` if `shuf` is missing (slight bias acceptable -- bot evasion only needs visible variability, not uniform distribution).
+- Validates `MIN >= 1 && MAX >= MIN` and both are positive integers; fails loudly otherwise.
+- Single-pass mode (no `--loop`) is unchanged -- the jitter only applies when looping.
+
+**Behavior change:**
+- Before: every pass scraped exactly 15 coins.
+- After: each pass scrapes a different count in `[15..30]`, drawn fresh per pass.
+- Logged per pass: `Pass N -- randomized --page1-batch=23 (range 15..30)`.
+
+**Smoke tests (manual):**
+- `bash -n scripts/cpf-go` -- syntax clean.
+- 10x `shuf -i 15-30 -n 1` -- saw spread `27 27 30 25 20 22 26 19 28 22` (good distribution, no clustering).
+- `cpf-go --batch-min=foo --batch-max=30` -- exits 1 with clear error message.
+- `cpf-go --batch-min=30 --batch-max=10` -- exits 1 with clear error message.
+
+**Files:**
+- MOD `scripts/cpf-go` (+34 lines: new flag parsing, validation block, `pick_batch_size()` helper, loop body uses jittered size unless caller forced one).
+
+**Why no unit test:** `cpf-go` is a thin orchestrator script; the random selection just shells out to `shuf` and the validation is checked by the smoke tests above. Adding a Bats harness for one script isn't worth the dependency.
+
+**Related:** #265H (unified launcher / status -- this is a small incremental hardening of the existing launcher, doesn't depend on or block #265H).
+
+---
+
 ### #249. Unattended Scheduler for Local Scraper Path [P3 -- OPERATIONS] -- BACKLOG
 
 **Status:** Deferred. Phase 1 (dual-path scraper -- Surface laptop + Codespace fallback) will be added first. This entry covers the optional automation layer that runs the scraper on a schedule once the manual workflow is validated.
