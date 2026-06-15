@@ -451,6 +451,84 @@ PR A is a *preventive* fix: it rewrites 133 `.meta` files to match the CSV filen
 
 ---
 
+### #266H. Ship Phase 2 + Phase 3 of #246 -- normalizeSearchKey alias map + duplicate-key merger [P2 -- DATA-QUALITY] -- OPEN 2026-06-15
+
+**Problem:** #246 shipped only Phase 1 (read-only audit). The PR B (`normalizeSearchKey` extension) and PR C (`scripts/merge-duplicate-keys.js --apply --migrate-cosmos`) phases were deferred. In the 12 days since the committed audit (2026-06-02), duplicate-key drift has continued and `data/terapeak-meta.json` is actively double-scraping a growing set of variant pairs.
+
+**Evidence (re-running `node scripts/audit-duplicate-keys.js --top 1` against today's meta, 2026-06-15):**
+
+| Metric | 2026-06-02 (committed) | 2026-06-15 (fresh) | Delta |
+|---|---:|---:|---:|
+| metaKeyCount | 4,812 | 5,115 | +303 |
+| canonicalGroupCount | 4,666 | 4,948 | +282 |
+| duplicateGroupCount | 144 | 165 | **+21** |
+| duplicateKeyCount | 290 | 332 | +42 |
+| mixed-populated-and-empty | 30 | 1 | -29 |
+| **all-populated (both halves scraping)** | **85** | **164** | **+79** |
+| all-empty | 29 | 0 | -29 |
+
+The "all-populated" tier nearly doubled -- those are pairs where BOTH variants are actively returning comps to two separate keys, e.g.:
+
+- `2025 perth lunar snake 1oz silver` (190c) vs `perth lunar 2025 snake silver 1oz` (0c)
+- `2021 perth lunar ox 1oz silver` (256c) vs `perth lunar 2021 ox silver 1oz` (13c)
+- `2024 perth lunar dragon 1oz silver` (174c) vs `perth lunar 2024 dragon silver 1oz` (4c)
+- `perth lunar 2022 tiger silver half oz` (231c) vs `2022 perth lunar tiger half oz silver` (88c)
+- `perth lunar 2023 rabbit silver 1oz` (305c) vs `2023 perth lunar rabbit 1oz silver` (168c)
+
+Pattern is always token-order ambiguity (`<year> perth lunar <animal> <oz> <metal>` vs `perth lunar <year> <animal> <metal> <oz>`). Phase-1 audit catches these because it does token-sort + alias collapse internally, but the live ingest path through `normalizeSearchKey()` does not, so each variant remains its own key.
+
+A second class of duplicates does NOT surface in the v1 audit because the alias map is too narrow. Example surfaced during the 2026-06-15 freshness triage:
+
+- `2025 mexico half oz silver libertad` (102c, 126d stale) vs `2025 mexican silver libertad half oz` (107c, 126d stale)
+
+Same coin, ~100 comps in each bucket, both very-stale, scheduled to be scraped again in the same P0 pass. The `mexican` <-> `mexico` country alias is not in v1.
+
+**Goal:** Land the two deferred phases of #246 so new duplicates stop accumulating and the existing 165 groups merge into their canonical keys.
+
+**Phase 2 -- `normalizeSearchKey()` extension (PR B):**
+- Extend `src/services/terapeakService.js#normalizeSearchKey()` (and any other call sites) with an alias map covering at minimum:
+  - Country aliases: `mexican` <-> `mexico`, `chinese` <-> `china`, `american` <-> `usa` / `us`, `british` <-> `great britain`, `royalmint` <-> `royal mint`, drop bare `south africa` for Krugerrand entries.
+  - Ounce notation: `half oz` <-> `0.5 oz` <-> `1/2 oz`, `quarter oz` <-> `0.25 oz` <-> `1/4 oz`, `tenth oz` <-> `0.1 oz` <-> `1/10 oz`, `twentieth oz` <-> `0.05 oz` <-> `1/20 oz`, `one ounce` <-> `1oz`.
+  - Sorted-token canonicalization: after alias substitution, sort the remaining tokens deterministically so `<year> perth lunar <animal> <metal> <oz>` and `perth lunar <year> <animal> <oz> <metal>` collapse to the same key.
+- Fix `loadCosmosHydration()` last-write-wins drop: when two source docs canonicalize to the same key, MERGE comps arrays (dedupe by item id) instead of overwriting.
+- Add `__tests__/normalizeSearchKey.test.js` with one test per alias rule plus golden-input regression cases drawn from the top 20 duplicate groups in `docs/reports/duplicate-keys-report.json`.
+
+**Phase 3 -- one-shot merger (PR C):**
+- Build `scripts/merge-duplicate-keys.js` that reads `docs/reports/duplicate-keys-report.json` and for each group:
+  1. Picks the canonical key (the report's `suggestedCanonicalKey`).
+  2. Merges all member comps into the canonical entry (`compCount` recomputed from the deduped union, `refreshCount` summed, `lastRefreshAt` = max, `noDataCount` summed, identifiers from the highest-confidence member).
+  3. Renames orphan CSVs under `data/terapeak/` to point at the canonical filename (or archives them if the canonical already has a CSV with newer mtime).
+  4. Archives the pre-merge state to `data/archive/terapeak-meta-orphans-YYYYMMDD.json` for rollback.
+- Flags: `--dry-run` (default), `--apply`, `--migrate-cosmos` (also writes the merge through to the Cosmos `terapeak-sold` container), `--from-archive=PATH` (rerun against a previously-archived orphan set), `--verbose`.
+- Take a Cosmos backup before any `--apply --migrate-cosmos` run (documented in the PR description; not automated in the script).
+
+**Acceptance criteria:**
+- After Phase 2 ships, a fresh run of `node scripts/audit-duplicate-keys.js` against an unchanged meta file produces a strictly-shrinking or equal duplicate count over time -- new ingests stop creating fresh variants.
+- After Phase 2 + Phase 3 ship (in that order), the audit report shows `duplicateGroupCount: 0` for the alias categories covered by the new map. Residual duplicates are limited to genuinely-different coins that happen to share a canonical-form collision (flagged for manual review).
+- The 5 example pairs above (4 Perth Lunar token-order pairs + the Mexican Libertad half-oz pair) all merge cleanly in `--dry-run`, with the report showing the expected canonical key and merged `compCount`.
+- Cosmos query for any merged key returns the unioned comps (no comp lost to last-write-wins).
+- Cross-route consistency check (`@pricing-health`) on any merged coin returns the same FMV from `/api/price`, `/api/pricing-batch`, `/api/bulk-evaluate`, and `/api/market/ebay`.
+- The two existing #246-Phase-1 tests in `__tests__/auditDuplicateKeys.test.js` continue to pass.
+- Server smoke: `npm test` zero failures; freshness report still generates without errors.
+
+**Files:**
+- MOD `src/services/terapeakService.js` (`normalizeSearchKey` alias map + sorted-token canonicalization)
+- MOD `src/services/<wherever loadCosmosHydration lives>` (merge instead of overwrite on key collision)
+- NEW `__tests__/normalizeSearchKey.test.js`
+- NEW `scripts/merge-duplicate-keys.js`
+- NEW `__tests__/mergeDuplicateKeysSmoke.test.js` (dry-run shape + no-mutation safety)
+- MOD `docs/BACKLOG.md` (close out #246 fully once both phases ship)
+
+**Risk:**
+- Direct mutation of `data/terapeak-meta.json` and Cosmos. Mitigation: `--dry-run` default, archived orphans, audit-report-pinned source of truth, manual Cosmos backup before `--apply --migrate-cosmos`, separate PRs for Phase 2 vs Phase 3.
+- `normalizeSearchKey()` change may shift live cache hit/miss patterns. Mitigation: ship Phase 2 first, observe one freshness pass, then run Phase 3.
+
+**Dependency:** Picks up exactly where #246 left off. No new prerequisites. Recommended to land BEFORE the next bulk Terapeak refresh pass so the merger sees a quiescent meta file.
+
+**Status notes:** Filed from the H machine during the 2026-06-15 freshness-triage session. Highest-leverage data-quality item currently open -- estimated 332 keys collapse to ~165 (saving ~165 redundant scrape slots per refresh cycle) plus prevention of further drift. See also: `docs/reports/duplicate-keys-report.json` for the full list of candidate groups.
+
+---
+
 ### #249. Unattended Scheduler for Local Scraper Path [P3 -- OPERATIONS] -- BACKLOG
 
 **Status:** Deferred. Phase 1 (dual-path scraper -- Surface laptop + Codespace fallback) will be added first. This entry covers the optional automation layer that runs the scraper on a schedule once the manual workflow is validated.
@@ -1028,6 +1106,49 @@ Ops can override to any value (e.g., `BROWSER_RECYCLE_EVERY=40 python scripts/te
 ---
 
 ## Tooling & Observability
+
+### #265H. Unified `cpf` launcher + agent-readable status for the Terapeak aggregator [P2 -- TOOLING/OBSERVABILITY] -- OPEN 2026-06-14
+- **Problem**: Launching and monitoring the local Terapeak aggregator is fragmented and opaque. To start a run a human needs to remember the WSL distro, source `~/load-cpf-env.sh`, run `~/cpf-go` (with the right combination of `--no-login`, `--loop`, `--pause-between=...`, `--skip-deep`, `--include-thin`, `--focus`, etc.), then watch stdout for the ENTER-to-continue CAPTCHA prompt. To answer "is it still running and how far along is it?" the only signals are `ps`, the mtime of CSVs under `data/terapeak/`, and the `completed`/`failed` counters in `cache/terapeak_export_progress.json`. A Copilot agent (or a returning operator) cannot get a one-shot answer without re-deriving the architecture from the scripts each session -- exactly what happened in the 2026-06-14 chat session that surfaced this item.
+- **Goal**: A single top-level name (`cpf`) that covers launch, status, logs, stop, login, and preflight; a structured status file so the agent reads progress in one read instead of inferring from filesystem side-effects; a Windows-side shim so PowerShell can call `cpf <verb>` without `wsl -d ...` quoting gymnastics (which broke twice in the same session, including stripping `&&`/`||` operators).
+- **Proposed layers** (do in order; each is independently shippable):
+  1. **Memory note** -- write `/memories/repo/aggregator-ops.md` documenting current commands, file locations, failure modes, and what each status value means. Zero code risk; benefits next agent session immediately.
+  2. **Unified launcher** `scripts/cpf` (bash, ~150 LOC) dispatches to existing scripts. Subcommands: `start` (login + single pass), `run` (reuse cookies, single pass), `loop` (continuous), `status` (pretty-print the JSON below), `logs` (`tail -F`), `stop` (TERM the loop, wait for graceful exit), `login` (cookie refresh only), `doctor` (preflight: cookie age, server reachable, key set, disk space, Playwright Chromium present). Symlink at `~/cpf`. Does NOT modify existing scripts -- `cpf-go`, `surface`, `terapeak-export.py --login`, `sales-aggregator.py --run` keep working as-is for muscle memory and existing docs.
+  3. **Tee logs** to `cache/cpf.log` (rotated daily, kept 7) so `cpf logs` and any agent have a known file to read instead of relying on terminal scrollback.
+  4. **Windows shim** `scripts/cpf.ps1` (and a `.cmd` wrapper on PATH) so `cpf status` works from PowerShell -- and from any Copilot agent's `run_in_terminal` -- without the `wsl -d Ubuntu-24.04 -- bash -lc '...'` heredoc dance.
+  5. **Structured status file** `cache/cpf-status.json` written on start, per-term, on-error, on-exit, plus a ~30s heartbeat. Schema (proposed):
+     ```json
+     {
+       "state": "running",
+       "phase": "page1-refresh",
+       "pid": 406,
+       "started_at": "2026-06-14T13:54:31Z",
+       "last_heartbeat": "2026-06-14T14:02:07Z",
+       "current_term": "1880 Morgan Silver Dollar MS65",
+       "batch": { "index": 7, "size": 15 },
+       "this_run": { "completed": 7, "failed": 1, "uploads_ok": 7, "uploads_failed": 0 },
+       "cookies": { "path": "/home/athch/cpf/state/cookies-surface.json", "age_hours": 0.1 },
+       "last_bot_strike": null
+     }
+     ```
+     Allowed `state`: `idle | logging-in | running | sleeping | stopped | error | bot-detected`. Allowed `phase`: `page1-refresh | deep-pagination | sleeping | login`. Helper module `scripts/lib/status.py` shared by `terapeak-export.py`, `sales-aggregator.py`, and `run-surface-freshness-loop.sh`. Add unit tests for the helper.
+  6. **(Optional)** `.vscode/tasks.json` entries for **CPF: Start / Status / Stop / Logs** so they live in the Command Palette. Skip if YAGNI.
+- **Backwards compat**: All existing entry points (`cpf-go`, `./surface`, `python3 scripts/terapeak-export.py --run ...`, `python3 scripts/sales-aggregator.py --run ...`) keep working unchanged. `cpf` is purely additive.
+- **Sequencing recommendation**: ship layer 1 (memory note) immediately; ship 2+3+4 (launcher + tee + PS shim) as one PR; ship 5 (status file) as a separate PR with its own tests; defer 6 unless asked.
+- **Acceptance criteria**:
+  - `cpf status` returns a one-screen summary in <1s, both from inside WSL and from Windows PowerShell.
+  - A Copilot agent can answer "is the aggregator running, what phase, and what term?" with a single `cat cache/cpf-status.json` -- no `ps | grep`, no `ls -lt cache/...`, no inference from CSV mtimes.
+  - `cpf doctor` exits non-zero with an actionable message when any preflight fails.
+  - `cpf logs` shows the last 50 lines and follows new output.
+  - Backwards-compat smoke: `~/cpf-go --no-login --loop` still works.
+  - Status file write points are unit-tested (no live browser needed).
+- **Files (when picked up)**: NEW `scripts/cpf`, NEW `scripts/cpf.ps1`, NEW `scripts/cpf.cmd`, NEW `scripts/lib/status.py`, NEW `/memories/repo/aggregator-ops.md`, edits to `scripts/run-surface-freshness-loop.sh` (tee log + status writes), `scripts/terapeak-export.py` (status writes at term boundaries + errors), `scripts/sales-aggregator.py` (status writes), optional `.vscode/tasks.json`.
+- **Open questions to resolve before implementation**:
+  - Confirm top-level name -- proposal is `cpf` (matches `~/cpf/` and the existing `cpf-go`); alternatives: `harvest`, `peak`, `comps`, `aggregate`.
+  - Confirm scope for the first PR -- layers 1+2+3+4 bundled, or split further.
+  - Branch name -- `chore/cpf-unified-launcher` proposed.
+- **Status notes**: Surfaced in the 2026-06-14 chat session while running the aggregator end-to-end on the home (H) machine. The session itself hit the friction this item is designed to remove: (a) two PowerShell heredoc attempts had their `&&`/`||` and `if` blocks stripped before reaching WSL, requiring a temp-file workaround; (b) determining run status required ad-hoc probes of `ps`, `terapeak_export_progress.json`, and CSV mtimes instead of reading a single status file. Not blocking the current production aggregator runs.
+
+---
 
 ### #264W. Per-machine backlog ID convention (W/H suffix) [P2 -- PROCESS] -- DONE 2026-06-04
 - **Problem**: This project is worked on from two machines that may both add backlog items without coordinating. Without per-machine namespacing, the first new entry on each machine claims the same next-integer ID, forcing post-hoc renumbering (e.g., this session: drafted #260-#262, collided with PR #118's #260, renumbered to #261-#263, then again to #260W-#262W).
