@@ -80,12 +80,15 @@ jest.mock('../src/utils/filters', () => ({
   detectDenomination: jest.fn(() => null),
 }));
 jest.mock('../src/utils/redactForPublic', () => ({ redactCompsForPublic: jest.fn((x) => x) }));
-jest.mock('../src/utils/coinIntent', () => ({ extractCoinIntent: jest.fn(() => null) }));
-jest.mock('../src/utils/coinMetalProfile', () => ({ getCoinMetalProfile: jest.fn(() => null) }));
+jest.mock('../src/utils/coinIntent', () => ({ extractCoinIntent: jest.fn(() => ({ grade: null, designation: null, finish: null, isProof: false })) }));
+jest.mock('../src/utils/coinMetalProfile', () => ({ getCoinMetalProfile: jest.fn(() => ({ metal: null })) }));
 
 const express = require('express');
 const request = require('supertest');
 const priceRoute = require('../src/routes/priceRoute');
+// Pull the *mocked* modules so we can spy on their call args.
+const valuationService = require('../src/services/valuationService');
+const pcgsService = require('../src/services/pcgsService');
 
 function createApp() {
   const app = express();
@@ -188,45 +191,86 @@ describe('POST /api/price -- input validation', () => {
     if (res.status >= 400) expect(isSafeErrorBody(res.body)).toBe(true);
   });
 
-  test('NoSQL-injection-shaped string is treated as opaque query text (no client 4xx)', async () => {
+  test('NoSQL-injection-shaped string is passed verbatim to pcgsService.parseDescription (treated as opaque text)', async () => {
+    pcgsService.parseDescription.mockClear();
+    const injection = '{"$gt": ""}';
     const res = await request(app)
       .post('/api/price')
-      .send({ query: '{"$gt": ""}' });
-    // Not interpreted -- if it were, this would round-trip as an object.
+      .send({ query: injection });
     expect(res.status).not.toBe(400);
     if (res.status >= 400) expect(isSafeErrorBody(res.body)).toBe(true);
+    // The contract: the route MUST forward the raw string to the parser without
+    // unwrapping the Mongo-operator-shaped object. If the route ever stringified
+    // -> JSON.parsed the input, this assertion would fail.
+    expect(pcgsService.parseDescription).toHaveBeenCalledWith(injection);
   });
 
-  test('appealMultiplier negative number is clamped (no client 4xx)', async () => {
+  test('appealMultiplier negative number is clamped to 1.0 before reaching computeValuation', async () => {
+    valuationService.computeValuation.mockClear();
     const res = await request(app)
       .post('/api/price')
       .send({ query: 'q', appealMultiplier: -50 });
     expect(res.status).not.toBe(400);
     if (res.status >= 400) expect(isSafeErrorBody(res.body)).toBe(true);
+    expect(valuationService.computeValuation).toHaveBeenCalled();
+    const opts = valuationService.computeValuation.mock.calls[0][4];
+    expect(opts.appealMultiplier).toBe(1.0);
   });
 
-  test('appealMultiplier > 2.0 clamps (no client 4xx)', async () => {
+  test('appealMultiplier > 2.0 is clamped to 2.0 before reaching computeValuation', async () => {
+    valuationService.computeValuation.mockClear();
     const res = await request(app)
       .post('/api/price')
       .send({ query: 'q', appealMultiplier: 9999 });
     expect(res.status).not.toBe(400);
     if (res.status >= 400) expect(isSafeErrorBody(res.body)).toBe(true);
+    expect(valuationService.computeValuation).toHaveBeenCalled();
+    const opts = valuationService.computeValuation.mock.calls[0][4];
+    expect(opts.appealMultiplier).toBe(2.0);
   });
 
-  test('appealMultiplier NaN clamps to 1.0 (no client 4xx)', async () => {
+  test('appealMultiplier NaN-coerced string is clamped to 1.0 before reaching computeValuation', async () => {
+    valuationService.computeValuation.mockClear();
     const res = await request(app)
       .post('/api/price')
       .send({ query: 'q', appealMultiplier: 'not-a-number' });
     expect(res.status).not.toBe(400);
     if (res.status >= 400) expect(isSafeErrorBody(res.body)).toBe(true);
+    expect(valuationService.computeValuation).toHaveBeenCalled();
+    const opts = valuationService.computeValuation.mock.calls[0][4];
+    expect(opts.appealMultiplier).toBe(1.0);
   });
 
-  test('500 envelope (when downstream fails) never leaks stack traces or paths', async () => {
-    // Issue a request likely to trigger the downstream 500 path and verify
-    // the safety envelope holds. We accept either 200 or 500 here.
-    const res = await request(app).post('/api/price').send({ query: 'q' });
+  test('appealMultiplier exact upper boundary (2.0) is preserved (not over-clamped)', async () => {
+    valuationService.computeValuation.mockClear();
+    const res = await request(app)
+      .post('/api/price')
+      .send({ query: 'q', appealMultiplier: 2.0 });
     expect(res.status).not.toBe(400);
-    if (res.status >= 500) expect(isSafeErrorBody(res.body)).toBe(true);
+    expect(valuationService.computeValuation).toHaveBeenCalled();
+    const opts = valuationService.computeValuation.mock.calls[0][4];
+    expect(opts.appealMultiplier).toBe(2.0);
+  });
+
+  test('appealMultiplier just-over upper boundary (2.0001) is clamped down to 2.0', async () => {
+    valuationService.computeValuation.mockClear();
+    const res = await request(app)
+      .post('/api/price')
+      .send({ query: 'q', appealMultiplier: 2.0001 });
+    expect(res.status).not.toBe(400);
+    expect(valuationService.computeValuation).toHaveBeenCalled();
+    const opts = valuationService.computeValuation.mock.calls[0][4];
+    expect(opts.appealMultiplier).toBe(2.0);
+  });
+
+  test('500 envelope (forced downstream failure) never leaks stack traces or paths', async () => {
+    // Force computeValuation to throw so the 500 path is actually exercised.
+    valuationService.computeValuation.mockImplementationOnce(() => {
+      throw new Error('forced failure for envelope test');
+    });
+    const res = await request(app).post('/api/price').send({ query: 'q' });
+    expect(res.status).toBe(500);
+    expect(isSafeErrorBody(res.body)).toBe(true);
   });
 
   test('400 error body never leaks stack frames or paths', async () => {

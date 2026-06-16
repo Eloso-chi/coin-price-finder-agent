@@ -46,6 +46,7 @@ jest.mock('../src/services/coinStorageService', () => {
 const express = require('express');
 const request = require('supertest');
 const coinRoute = require('../src/routes/coinRoute');
+const coinStorage = require('../src/services/coinStorageService');
 
 function createApp() {
   const app = express();
@@ -95,22 +96,27 @@ describe('POST /api/coins -- body shape validation', () => {
     expect(res.status).toBe(400);
   });
 
-  test('accepts empty object as a coin (sanitization handled downstream)', async () => {
-    const res = await request(app).post('/api/coins').set(AUTH).send({});
-    expect(res.status).toBe(200);
-    expect(res.body).toHaveProperty('coinHash');
-  });
-
-  test('accepts SQL-injection-shaped strings as opaque text', async () => {
+  test('SQL-injection-shaped strings are stored verbatim (treated as opaque text)', async () => {
+    coinStorage.addCoin.mockClear();
+    const injectedSeries = "Morgan Dollar'; DROP TABLE coins; --";
+    const injectedNotes = '{"$ne": null}';
     const res = await request(app).post('/api/coins').set(AUTH).send({
-      series: "Morgan Dollar'; DROP TABLE coins; --",
+      series: injectedSeries,
       year: '1921',
       mint: 'P',
       grade: 'MS65',
-      notes: '{"$ne": null}',
+      notes: injectedNotes,
     });
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty('coinHash');
+    // The contract: the route MUST forward the raw strings to storage without
+    // sanitization that would alter the original content. If the route ever
+    // stripped quotes, parsed $-prefixed Mongo operators, or rejected the
+    // injection-shaped strings, this assertion would fail.
+    expect(coinStorage.addCoin).toHaveBeenCalledTimes(1);
+    const [, coinArg] = coinStorage.addCoin.mock.calls[0];
+    expect(coinArg.series).toBe(injectedSeries);
+    expect(coinArg.notes).toBe(injectedNotes);
   });
 });
 

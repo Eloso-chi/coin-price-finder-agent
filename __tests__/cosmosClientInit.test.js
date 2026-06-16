@@ -27,15 +27,21 @@ function loadFresh(envOverrides = {}) {
   delete process.env.COSMOS_DB;
   Object.assign(process.env, envOverrides);
 
+  // Capture the DB name passed to client.database(...) so callers can verify
+  // that COSMOS_DB env var (or the default) was honored.
+  let capturedDbName = null;
   let mod;
   jest.isolateModules(() => {
     jest.doMock('@azure/cosmos', () => {
       const containers = {
         createIfNotExists: jest.fn().mockResolvedValue(undefined),
       };
-      const database = jest.fn().mockReturnValue({
-        container: jest.fn().mockReturnValue({ id: 'mock-container' }),
-        containers,
+      const database = jest.fn().mockImplementation((name) => {
+        capturedDbName = name;
+        return {
+          container: jest.fn().mockReturnValue({ id: 'mock-container' }),
+          containers,
+        };
       });
       const CosmosClient = jest.fn().mockImplementation(() => ({
         database,
@@ -44,7 +50,7 @@ function loadFresh(envOverrides = {}) {
     });
     mod = require('../src/utils/cosmosClient');
   });
-  return mod;
+  return Object.assign(mod, { __getCapturedDbName: () => capturedDbName });
 }
 
 describe('cosmosClient init contract', () => {
@@ -114,23 +120,22 @@ describe('cosmosClient init contract', () => {
   });
 
   test('default COSMOS_DB name is "coinprice" when unset', () => {
-    // The DB name is captured during init(); we can't read it directly, but
-    // an absent COSMOS_DB env must not cause init to throw.
     const cosmos = loadFresh({
       COSMOS_ENDPOINT: 'https://example.documents.azure.com:443/',
       COSMOS_KEY: 'secret-key',
     });
-    expect(cosmos.isEnabled()).toBe(true);
-    expect(() => cosmos.container('any')).not.toThrow();
+    // Force init by touching container() once.
+    cosmos.container('any');
+    expect(cosmos.__getCapturedDbName()).toBe('coinprice');
   });
 
-  test('custom COSMOS_DB name is accepted', () => {
+  test('custom COSMOS_DB name is honored', () => {
     const cosmos = loadFresh({
       COSMOS_ENDPOINT: 'https://example.documents.azure.com:443/',
       COSMOS_KEY: 'secret-key',
       COSMOS_DB: 'custom-db-name',
     });
-    expect(cosmos.isEnabled()).toBe(true);
-    expect(() => cosmos.container('audit')).not.toThrow();
+    cosmos.container('audit');
+    expect(cosmos.__getCapturedDbName()).toBe('custom-db-name');
   });
 });
