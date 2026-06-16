@@ -41,3 +41,13 @@ data/archive/terapeak-meta.before-azure-sync-*.json
 #        echo H > .machine-id   (home workstation)
 # See docs/BACKLOG.rules.md "Per-machine ID convention".
 /.machine-id
+
+# Assistant / session scratch helpers (ad-hoc bash + diagnostic scripts at repo root).
+# Anything matching `_*.sh` or `_*.json` at the top level is local-only.
+/_*.sh
+/_*.json
+/_*.txt
+/_*.md
+
+# Local meta backups produced by ad-hoc dormancy hotfixes (see #269H).
+data/terapeak-meta.*.bak.json
