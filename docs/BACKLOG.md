@@ -599,7 +599,7 @@ An empty dataset can never produce a useful match, so skipping outright is purel
 
 ---
 
-### #269H. Meta-sync swallows local state on Azure POST failure -- HTTP 422 coins keep re-scraping forever [P1 -- DATA-QUALITY / SCRAPER] -- OPEN 2026-06-15
+### #269H. Meta-sync swallows local state on Azure POST failure -- HTTP 422 coins keep re-scraping forever [P1 -- DATA-QUALITY / SCRAPER] -- DONE 2026-06-16
 
 **Problem:** When `terapeak-export.py` finishes a coin, it tries to POST the CSV to Azure (`/api/admin/terapeak/import`) AND sync the resulting canonical meta back into `data/terapeak-meta.json`. When the POST fails (HTTP 422 "No valid comps found in CSV", or HTML/auth-redirect from Azure), the local meta-sync logs:
 
@@ -661,6 +661,43 @@ Fix 2 is the narrow patch; Fix 1 is the structural one. Recommend doing both: Fi
 - #267H (empty-dataset skip in lookupComps) -- this issue means #267H's gate is bypassed for these specific stuck coins.
 - #245 (freshness safeguards) -- the dormancy classifier works correctly; the bug is upstream of it, in the meta writer.
 - The `meta sync returned non-JSON payload` warning has been present in logs for a while -- worth a one-shot audit to see how many coins have `lastFetchedAt=None` cluster-wide.
+
+**Resolved 2026-06-16 (PR #132 -- wave-1/269h-import-422-self-heal):** Server-side self-healing added to `/api/terapeak/import` and `/api/terapeak/import-text`. New helper `_stampNoDataMeta(searchTerm, clientPage1At)` in `src/routes/terapeakRoute.js` writes `{ noDataAt, noDataCount: prev+1, page1At }` via `terapeakService.updateDatasetMeta` on the zero-comp 422 branch, wrapped in try/catch so meta-write failure cannot mask the 422. Two consecutive 422s now trip `DORMANT_MIN_NO_DATA_COUNT=2` and the coin is excluded from subsequent passes. Regression test: `__tests__/terapeakImport422SelfHeal.test.js` (10 cases). Follow-ups tracked in #271H.
+
+---
+
+### #271H. Followups from PR #132 deep review -- noDataCount cap, integration test, /report-no-data parity [P3 -- TECH-DEBT / TEST-HARDENING] -- OPEN 2026-06-16
+
+**Origin:** Deep code review of PR #132 (#269H fix) surfaced four non-blocking quality issues that were deferred from the merge so Wave 1 could ship clean. Bundling here.
+
+**Items:**
+
+1. **Cap `noDataCount` at 5 in `_stampNoDataMeta`** (review finding M-1). The helper in `src/routes/terapeakRoute.js` currently does an unconditional `prevCount + 1`, while the existing `importComps` dormancy path caps at `NO_DATA_CAP = 5` (proved by `__tests__/terapeakServiceNoDataStamp.test.js` "noDataCount is capped at 5"). Functionally harmless above 5 but inconsistent. One-line change + one test case.
+
+2. **End-to-end integration test joining route + classifier** (review finding M-2). The current proof of the first #269H acceptance bullet ("coin is marked dormant after 2 consecutive 422s and excluded from subsequent passes") is transitive: PR #132 tests assert `noDataCount=2`, separate classifier tests assert `noDataCount>=2 + recent noDataAt -> isDormant -> shouldSkipRefresh skip=true`. Add one test (`__tests__/terapeakImport422DormancyIntegration.test.js`) that posts two 422s with the real `terapeakService` against a temp store, then calls `freshnessClassifier.classify` and `shouldSkipRefresh` on the resulting meta and asserts `isDormant: true` and `{ skip: true, reason: 'dormant' }`. ~30 lines.
+
+3. **Wrap `/report-no-data` `updateDatasetMeta` in try/catch** (review finding m-1). The prior-art handler at `src/routes/terapeakRoute.js:405` does NOT wrap its `updateDatasetMeta` call -- if the meta-write throws, the route returns 500. Should mirror the throw-safety pattern from `_stampNoDataMeta` and return 200 (or 500-with-context) instead of leaking the storage error to the python client. One try/catch + one test case.
+
+4. **`/report-no-data` regression test** (review finding m-2). The endpoint has zero test coverage today. Add `__tests__/terapeakReportNoDataRoute.test.js` with 4 cases: 400 on missing searchTerm, 200 + meta-write on new dataset, 200 + increment on existing entry with noDataCount=1, payload shape unchanged. Reuses the mock pattern from `__tests__/terapeakImport422SelfHeal.test.js`. ~50 lines.
+
+**Acceptance:**
+- Items 1 + 3 land as code changes in `src/routes/terapeakRoute.js`.
+- Items 2 + 4 land as new test files.
+- `npm test` passes with all 4 changes applied.
+- No regression in the 10 cases already shipped in `__tests__/terapeakImport422SelfHeal.test.js`.
+- Pre-existing failing suites (`freshnessReport`, `freshnessReportDeepPaginate`, `imageProxyRoute`) remain out of scope -- track separately.
+
+**Files (expected):**
+- MOD `src/routes/terapeakRoute.js` (cap + try/catch)
+- NEW `__tests__/terapeakImport422DormancyIntegration.test.js`
+- NEW `__tests__/terapeakReportNoDataRoute.test.js`
+- MOD `__tests__/terapeakImport422SelfHeal.test.js` (one extra case for the cap)
+
+**Sizing:** ~150 lines total. Could ride along with Wave 2 (silent-drift suite) or Wave 3, or land as a quick standalone PR between waves.
+
+**Related:**
+- #269H (parent fix) -- now closed.
+- Wave 2 / Wave 3 of the senior-QA test plan -- these followups should not block the silent-drift suite.
 
 ---
 
