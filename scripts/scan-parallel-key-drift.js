@@ -157,8 +157,10 @@ function runScan({ store, lookupComps }) {
     }, lookupComps);
 
     byStatus[result.status] += 1;
-    if (result.status === 'ok' || result.status === 'drift-empty' ||
-        result.status === 'drift-different' || result.status === 'skip') {
+    // datasetsScanned counts entries actually subjected to the invariant
+    // (i.e. an actual lookupComps call was made). 'skip' means we never
+    // exercised the runtime, so it must not be counted as "scanned".
+    if (result.status !== 'skip') {
       scanned += 1;
     }
     if (result.status === 'drift-empty' || result.status === 'drift-different') {
@@ -179,40 +181,58 @@ function runScan({ store, lookupComps }) {
 }
 
 // ── CLI entrypoint ───────────────────────────────────────────────────
-function main() {
-  const args = process.argv.slice(2);
-  const quiet = args.includes('--quiet');
-  const topIdx = args.indexOf('--top');
-  const topN = topIdx >= 0 ? parseInt(args[topIdx + 1], 10) || 50 : 50;
 
-  if (!fs.existsSync(META_PATH)) {
-    console.error(`[scan-parallel-key-drift] meta file not found: ${META_PATH}`);
-    process.exit(1);
-  }
-
-  // The scanner uses meta.json as its store-shape input. Each entry in
-  // meta.json already has { searchTerm, compCount, aggregationMeta },
-  // but no `comps` array (only the count). Reshape so the classifier
-  // sees a synthetic comps array of the right length.
-  const meta = JSON.parse(fs.readFileSync(META_PATH, 'utf8'));
+/**
+ * Reshape a meta-file object into the { key: { searchTerm, comps } }
+ * store shape that runScan expects. Each comps array has the right
+ * LENGTH but synthetic contents -- length is all the classifier checks.
+ *
+ * Exported for tests so the reshape contract can't regress silently
+ * (review M-2).
+ */
+function reshapeMetaToStore(meta) {
   const store = {};
-  for (const [key, value] of Object.entries(meta)) {
-    const compCount = value.compCount || 0;
+  for (const [key, value] of Object.entries(meta || {})) {
+    const compCount = (value && value.compCount) || 0;
     store[key] = {
-      searchTerm: value.searchTerm,
+      searchTerm: value && value.searchTerm,
       comps: new Array(compCount), // length is all the classifier checks
     };
   }
+  return store;
+}
 
-  // Lazy-require so the test can mock without loading the service.
-  const terapeakService = require('../src/services/terapeakService');
-  const report = runScan({
-    store,
-    lookupComps: terapeakService.lookupComps,
-  });
+/**
+ * Run the scanner end-to-end against a meta file on disk, write a
+ * report, and return { report, exitCode }. Extracted from main() so
+ * tests can exercise the reshape + report-write path without spawning
+ * a subprocess (review M-2).
+ *
+ * @param {object} opts
+ *   @param {string}   opts.metaPath     - path to terapeak-meta.json
+ *   @param {string}   opts.reportPath   - path to write the JSON report
+ *   @param {function} opts.lookupComps  - terapeakService.lookupComps or stub
+ *   @param {boolean} [opts.quiet]       - suppress console summary
+ *   @param {number}  [opts.topN]        - max drifts to print in summary
+ * @returns {{ report: object, exitCode: number }}
+ */
+function runMain({ metaPath, reportPath, lookupComps, quiet = false, topN = 50 }) {
+  // Missing meta: still produce a well-formed zero-report rather than
+  // hard-failing. This keeps the scanner safe to run on a fresh clone
+  // or CI machine without synced meta (review m-3).
+  let meta = {};
+  if (fs.existsSync(metaPath)) {
+    meta = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
+  } else if (!quiet) {
+    console.warn(`[scan-parallel-key-drift] meta file not found: ${metaPath}`);
+    console.warn('  Producing an empty report. Run `npm run sync:meta` to populate.');
+  }
 
-  fs.mkdirSync(path.dirname(REPORT_PATH), { recursive: true });
-  fs.writeFileSync(REPORT_PATH, JSON.stringify(report, null, 2) + '\n');
+  const store = reshapeMetaToStore(meta);
+  const report = runScan({ store, lookupComps });
+
+  fs.mkdirSync(path.dirname(reportPath), { recursive: true });
+  fs.writeFileSync(reportPath, JSON.stringify(report, null, 2) + '\n');
 
   if (!quiet) {
     console.log('');
@@ -246,20 +266,39 @@ function main() {
         console.log('');
       }
       if (report.drifts.length > printable.length) {
-        console.log(`...and ${report.drifts.length - printable.length} more in ${REPORT_PATH}`);
+        console.log(`...and ${report.drifts.length - printable.length} more in ${reportPath}`);
       }
     }
 
-    console.log(`Report written to ${REPORT_PATH}`);
+    console.log(`Report written to ${reportPath}`);
   }
 
   // Exit code: 0 if no drift-empty (the actionable failure class).
   // drift-different is informational, not blocking.
-  process.exit(report.byStatus['drift-empty'] > 0 ? 2 : 0);
+  const exitCode = report.byStatus['drift-empty'] > 0 ? 2 : 0;
+  return { report, exitCode };
+}
+
+function main() {
+  const args = process.argv.slice(2);
+  const quiet = args.includes('--quiet');
+  const topIdx = args.indexOf('--top');
+  const topN = topIdx >= 0 ? parseInt(args[topIdx + 1], 10) || 50 : 50;
+
+  // Lazy-require so the test can mock without loading the service.
+  const terapeakService = require('../src/services/terapeakService');
+  const { exitCode } = runMain({
+    metaPath: META_PATH,
+    reportPath: REPORT_PATH,
+    lookupComps: terapeakService.lookupComps,
+    quiet,
+    topN,
+  });
+  process.exit(exitCode);
 }
 
 if (require.main === module) {
   main();
 }
 
-module.exports = { classifyLookup, runScan };
+module.exports = { classifyLookup, runScan, reshapeMetaToStore, runMain };
