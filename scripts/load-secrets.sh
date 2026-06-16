@@ -3,7 +3,9 @@
 #
 # Usage:
 #   scripts/load-secrets.sh              # dry-run: print KEY=<redacted> to stdout
-#   scripts/load-secrets.sh --print      # print KEY=value to stdout (review only)
+#   scripts/load-secrets.sh --print      # print KEY=value to stdout
+#                                        # WARNING: exposes raw secrets via shell
+#                                        # scrollback / history / pipes. Prefer --write.
 #   scripts/load-secrets.sh --write      # merge into ./.env (chmod 600)
 #   scripts/load-secrets.sh --vault NAME # override vault name
 #
@@ -13,8 +15,18 @@
 # Mapping: Key Vault names use hyphens (EBAY-APP-ID); env vars use underscores
 # (EBAY_APP_ID). The list below is the source of truth for which secrets the
 # app needs at runtime to call external APIs.
+#
+# --write behavior:
+#   * Each matching `KEY=...` line in .env is REWRITTEN IN FULL. Inline trailing
+#     comments (e.g. `EBAY_APP_ID=x # rotated 2026-01-01`) are lost.
+#   * Secrets that SKIP (missing from KV, no access) are left untouched in .env;
+#     the previous value is preserved. Edit .env manually to remove stale keys.
 
 set -euo pipefail
+
+# Tight umask so temp files and the final .env are created mode 600, not 644.
+# Closes the window between mv and chmod where another local user could read .env.
+umask 077
 
 VAULT="${KEYVAULT_NAME:-coinpricefinder-kv}"
 MODE="dryrun"
@@ -38,7 +50,7 @@ while [[ $# -gt 0 ]]; do
     --write)  MODE="write"; shift ;;
     --vault)  VAULT="$2"; shift 2 ;;
     -h|--help)
-      sed -n '2,15p' "$0"; exit 0 ;;
+      sed -n '2,23p' "$0"; exit 0 ;;
     *) echo "Unknown arg: $1" >&2; exit 2 ;;
   esac
 done
