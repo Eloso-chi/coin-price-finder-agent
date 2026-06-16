@@ -701,6 +701,59 @@ Fix 2 is the narrow patch; Fix 1 is the structural one. Recommend doing both: Fi
 
 ---
 
+### #273H. `auditDuplicateKeys` <-> `identifierPersistence` jest-worker race on `data/terapeak-meta.json` [P2 -- TEST-INFRA / CI-FLAKE] -- OPEN 2026-06-16
+
+**Origin:** Three Dependabot PRs in a row (#123 eslint, #134 Wave 2 Batch G, #125 csv-parse 7.0.0) have failed CI on the *exact same* assertion -- `__tests__/auditDuplicateKeys.test.js:53` `expect(metaHashAfter).toBe(metaHashBefore)` -- despite the change under review having zero relationship to `audit-duplicate-keys.js` or to the meta sidecar. Each time, the suite passes when run in isolation (`npx jest __tests__/auditDuplicateKeys.test.js` -> 5/5 green), and each PR was force-merged with `--admin`. The pattern is now a tax on every dependency bump and any future PR that happens to spin up the right worker layout.
+
+**Root cause (verified):**
+
+- `__tests__/auditDuplicateKeys.test.js` is intentionally a read-only safety probe: it `sha256`s `data/terapeak-meta.json` in `beforeAll`, runs the audit script, then `sha256`s it again in the `does NOT mutate data/terapeak-meta.json` test and asserts equality (see lines 12, 21-27, 50-53).
+- `__tests__/identifierPersistence.test.js` writes the **same file path** (`path.join(__dirname, '../data/terapeak-meta.json')`, line 10) at lines 108 and 127 to set up fixtures, and restores the original in `afterAll`.
+- Jest defaults to parallel workers. When the two suites land on different workers and overlap, the identifierPersistence write lands between the audit suite's `beforeAll` hash and its `metaHashAfter` hash -- producing the deterministic `Expected: ffc3e0e4... Received: 8335b521...` failure seen in the CI logs (job 81730207197). Same hashes on every reproduction confirms it is a write race, not a stochastic data corruption.
+
+**Other suites currently entangled in the same shared-fixture surface area (they go flaky together):**
+- `__tests__/imageProxyRoute.test.js`
+- `__tests__/freshnessReport.test.js`
+- `__tests__/freshnessReportDeepPaginate.test.js`
+- `__tests__/terapeakDataIntegrity.test.js`
+- `__tests__/terapeakImportEviction.test.js`
+- `__tests__/mergeDuplicateKeys.test.js`
+
+All pass cleanly when run in isolation. The root cause for each is the same class: production code paths under test read or hash repo-root state files (`data/terapeak-meta.json`, `cache/*.json`) while sibling tests write them.
+
+**Acceptance:**
+
+Pick one of the three fixes below. Any one of them closes the issue; preference order is 1 > 2 > 3.
+
+1. **`META_PATH` env override + tmpdir** (preferred -- ~30 lines, no perf cost). Add a `META_PATH` env-var hook to `src/services/terapeakService.js` (`META_SIDECAR_PATH = process.env.META_PATH || path.join(__dirname, '../../data/terapeak-meta.json')`) and route every test that writes the sidecar (`identifierPersistence`, the two `freshnessReport*` suites, anything in the entangled list above) through `fs.mkdtempSync` + `process.env.META_PATH = tmpFile` in `beforeAll`. The `auditDuplicateKeys` suite stays pointed at the real repo path -- but no other worker can touch it because no other test still writes there.
+
+2. **Jest project group with `--runInBand` for shared-fixture suites** (~10 lines `jest.config.js` change). Move the entangled suites into a `projects: [{ displayName: 'shared-fixtures', testMatch: [...], maxWorkers: 1 }, { displayName: 'unit', testMatch: ['<rootDir>/__tests__/**/*.test.js'] }]` layout. Cheaper to ship but trades CI speed for safety.
+
+3. **Move the audit's `beforeAll` snapshot inside the test** + use a content-equal compare against an in-memory copy taken just before `runScript()`. Robust but adds an extra read per test run and only fixes the audit suite -- the other six suites remain flaky.
+
+**Verification:**
+
+- Reproduce: run `npx jest __tests__/identifierPersistence.test.js __tests__/auditDuplicateKeys.test.js --maxWorkers=2` (no `--runInBand`) in a loop of ~10 invocations on `main` -- expect at least one failure with `Expected ffc3e0e4... Received 8335b521...`.
+- Fix is good when: same loop produces 10/10 green AND `npm test` (full suite) shows zero auditDuplicateKeys failures across 5 consecutive runs.
+- Adversarial: the next Dependabot PR (whichever lands first after the fix) must reach all-green CI without `--admin` override.
+
+**Files (expected, fix #1):**
+- MOD `src/services/terapeakService.js` (env-var hook, one line)
+- MOD `__tests__/identifierPersistence.test.js` (route writes to tmp path)
+- MOD `__tests__/freshnessReport.test.js` and `freshnessReportDeepPaginate.test.js` (same)
+- MOD `__tests__/terapeakDataIntegrity.test.js`, `terapeakImportEviction.test.js`, `mergeDuplicateKeys.test.js` if they also write the sidecar
+- No change to `__tests__/auditDuplicateKeys.test.js` -- it stays as the canary
+
+**Sizing:** ~80-120 lines depending on how many sibling suites need rerouting. Standalone PR; should not ride along with feature work.
+
+**Related:**
+- PR #123 (eslint bump) -- merged with `--admin`, CI red on this exact failure.
+- PR #134 (Wave 2 Batch G) -- initial CI red on same failure, passed on retry.
+- PR #125 (csv-parse 7.0.0) -- merged with `--admin` 2026-06-16, CI red on same failure.
+- Job that exhibits the canonical failure: `https://github.com/Eloso-chi/coin-price-finder-agent/actions/runs/27637987660/job/81730207197`.
+
+---
+
 ### #249. Unattended Scheduler for Local Scraper Path [P3 -- OPERATIONS] -- BACKLOG
 
 **Status:** Deferred. Phase 1 (dual-path scraper -- Surface laptop + Codespace fallback) will be added first. This entry covers the optional automation layer that runs the scraper on a schedule once the manual workflow is validated.
