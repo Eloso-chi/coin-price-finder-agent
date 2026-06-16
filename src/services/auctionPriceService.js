@@ -389,5 +389,6 @@ module.exports = {
   needsRefresh,
   updateRunStatus,
   FRESHNESS_DAYS,
-  DATE_WINDOW_YEARS
+  DATE_WINDOW_YEARS,
+  _dedupeRecords: dedupeRecords,
 };
