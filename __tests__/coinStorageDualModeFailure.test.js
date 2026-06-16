@@ -61,6 +61,17 @@ jest.mock('../src/utils/cosmosClient', () => {
 
 const coinStorage = require('../src/services/coinStorageService');
 
+// Deterministic microtask flush. Loops bounded times to give chained promise
+// rejections multiple opportunities to surface. Replaces the prior
+// `setImmediate x2` heuristic that could pass spuriously if production code
+// chained more than two ticks before the rejection settled.
+async function flushMicrotasks(maxIterations = 50) {
+  for (let i = 0; i < maxIterations; i++) {
+    await new Promise((r) => setImmediate(r));
+    await new Promise((r) => setTimeout(r, 0));
+  }
+}
+
 beforeEach(() => {
   cosmosState.enabled = true;
   cosmosState.upsertImpl = () => Promise.reject(new Error('Cosmos 429 Throttled'));
@@ -136,9 +147,8 @@ describe('coinStorageService -- Cosmos failure tolerance', () => {
     process.on('unhandledRejection', handler);
     try {
       coinStorage.addCoin('user-G', { series: 'X', year: 1909, mint: 'S VDB', grade: 'G' });
-      // Flush microtasks so the rejected upsert promise has a chance to settle.
-      await new Promise((r) => setImmediate(r));
-      await new Promise((r) => setImmediate(r));
+      // Deterministic flush replaces prior setImmediate x2 heuristic.
+      await flushMicrotasks();
       expect(unhandled).toBeNull();
     } finally {
       process.off('unhandledRejection', handler);

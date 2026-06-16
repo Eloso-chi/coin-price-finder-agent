@@ -754,6 +754,77 @@ Pick one of the three fixes below. Any one of them closes the issue; preference 
 
 ---
 
+### #274H. `dedupeRecords` merge-strategy decision -- first-wins silently discards corrected re-scrape payloads [P3 -- CORRECTNESS / DATA-QUALITY] -- OPEN 2026-06-16
+
+**Origin:** Surfaced by the retroactive deep review of PR #135 (Wave 3 test build-out, finding S3 in `__tests__/auctionDedupCollision.test.js`).
+
+**Issue:** `src/services/auctionPriceService.js:156` (`dedupeRecords`) keys auction records on `LotNo|Auctioneer|Date|Price`. When two records share the same key but differ in non-key fields (e.g., the second scrape carries a corrected grade `MS66` instead of the originally-misread `MS65`), the **existing record wins** and the incoming corrected payload is silently dropped. The Wave 3 test `auctionDedupCollision.test.js` "records sharing the key but differing in non-key fields are dedup'd" documents this behavior as a contract, but the deep review flagged that it is more likely a latent bug than a desired contract.
+
+**Concrete consequence:** Heritage / Stack's Bowers occasionally re-publish corrected metadata (grade, holder, lot description) after the auction closes. The first scrape captures the original; a follow-up pull intended to refresh metadata is a no-op because `dedupeRecords` discards the corrected payload. The user sees stale grade/holder values for the affected lots.
+
+**Decision required:** Pick ONE of:
+
+1. **Keep first-wins** (current behavior). Acceptable only if the team confirms that auction houses' post-close edits are not relevant for valuation. Update the test comment in `__tests__/auctionDedupCollision.test.js` to make the intentional choice explicit.
+
+2. **Switch to last-wins.** Trivial change (~3 lines) -- replace the `keySet` short-circuit with an "overwrite existing index" pass. Risk: a stale or partial re-scrape could overwrite richer data with thinner data.
+
+3. **Field-merge** (preferred if any auction metadata is actionable). For records sharing a key, prefer non-null incoming values field-by-field over existing values. Slightly more code (~15-20 lines), preserves the richest payload across multiple pulls.
+
+**Acceptance:**
+
+- Decision documented in this entry and in `src/services/auctionPriceService.js` above the `dedupeRecords` function.
+- If option 2 or 3 is chosen, `__tests__/auctionDedupCollision.test.js` test "records sharing the key but differing in non-key fields are dedup'd" is rewritten to assert the new contract (corrected `grade: 'MS66'` wins, or non-null fields merge through).
+- If option 1 is chosen, the existing test stays but the comment is rewritten to "INTENTIONAL: first-wins -- post-close auction edits are not consumed".
+- No regression in `auctionPriceService.test.js`.
+
+**Files (option 3, expected):**
+- MOD `src/services/auctionPriceService.js` (`dedupeRecords` body + doc comment)
+- MOD `__tests__/auctionDedupCollision.test.js` (rewrite the differing-payload test)
+
+**Related:**
+- PR #135 (Wave 3 test build-out) -- shipped the test that documents the current contract.
+- Review report finding S3 #5.
+
+---
+
+### #275H. `mintages.normalizeSeries` throws TypeError on non-string input vs `pcgsNumbers.lookupPCGSNumber` returns null -- API contract inconsistency [P4 -- TECH-DEBT] -- OPEN 2026-06-16
+
+**Origin:** Surfaced by the retroactive deep review of PR #135 (Wave 3 test build-out, finding S3 in `__tests__/dataFileIntegrity.test.js`).
+
+**Issue:** Two adjacent data-lookup APIs in the same domain have opposite defensive behavior for non-string `series` arguments:
+
+- `src/data/mintages.js:2233` (`normalizeSeries`) -- does `series.toLowerCase()` without an `instanceof String` / `typeof` check. Crashes with `TypeError: series.toLowerCase is not a function` for non-string non-nullish input.
+- `src/data/pcgsNumbers.js:819` (`lookupPCGSNumber`) -- does `String(series).trim()` internally, so non-string inputs are tolerated and return `null` gracefully.
+
+Reproducible by `lookupMintage(123, 1921, 'P')` vs `lookupPCGSNumber(123, 1921, 'P')`.
+
+**Concrete consequence:** If any caller ever passes a non-string `series` (e.g., a route reads `req.query.series` and receives an array because the client sent `?series=a&series=b`, or a downstream pipeline forwards a number), `lookupMintage` 500s the whole request while `lookupPCGSNumber` quietly returns null. The inconsistent behavior makes it hard to write a single defensive caller.
+
+**Fix:** Add a `typeof series !== 'string'` guard at the top of `normalizeSeries`:
+
+```js
+function normalizeSeries(series) {
+  if (!series || typeof series !== 'string') return null;
+  const s = series.toLowerCase().trim()
+    // ...rest unchanged
+}
+```
+
+**Acceptance:**
+
+- One-line guard added to `src/data/mintages.js#normalizeSeries`.
+- `__tests__/dataFileIntegrity.test.js` "throws TypeError for non-string series" test rewritten to assert `lookupMintage(123, 1921, 'P').mintage === null` instead of `.toThrow(TypeError)`.
+- `__tests__/dataFileIntegrity.test.js` "normalizeSeries accepts nullish and string inputs without throwing" test extended to cover non-string non-nullish (e.g., `normalizeSeries(123)` -> null).
+- No regression in `mintages.test.js`.
+
+**Sizing:** ~1 line of production change, ~6 lines of test rewrite. Low priority -- bug is only reachable via caller error today.
+
+**Related:**
+- PR #135 (Wave 3 test build-out) -- shipped the test documenting the current (inconsistent) behavior.
+- Review report finding S3 #6.
+
+---
+
 ### #249. Unattended Scheduler for Local Scraper Path [P3 -- OPERATIONS] -- BACKLOG
 
 **Status:** Deferred. Phase 1 (dual-path scraper -- Surface laptop + Codespace fallback) will be added first. This entry covers the optional automation layer that runs the scraper on a schedule once the manual workflow is validated.

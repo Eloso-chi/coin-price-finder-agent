@@ -37,6 +37,12 @@
 - Include the UX Decision Log from `@ux-reviewer` in PR descriptions when UI changes are involved.
 - Shared review logic lives in `.github/skills/code-review/SKILL.md`.
 
+### Test-only PR review threshold
+
+- **Any PR that adds or modifies more than 5 test files MUST run `/review-deep` before merge**, even when no production code changes. Test-only PRs are NOT exempt from review.
+- The review focuses specifically on test-quality patterns: assertion strength, false-comfort assertions (e.g., `expect(...).not.toBe(400)` with no positive verification, `expect([200, 400, 500]).toContain(...)` accepting failure modes as passing), absent round-trip verification of input handling, mock-vs-production behavior drift, and microtask-flush heuristics that can pass spuriously.
+- This rule exists because PR #135 (Wave 3, 12 new test files, 169 cases) was force-merged with `--admin --squash` after only CI + CodeQL ran -- the retroactive deep review surfaced 2 High and 6 Medium findings, including injection-handling tests that verified nothing about how the input was processed.
+
 ## Copilot Agents & Prompts
 
 | Agent / Prompt | Purpose |

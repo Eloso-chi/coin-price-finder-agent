@@ -1,14 +1,20 @@
-// __tests__/metalsHistoryConcurrency.test.js -- concurrency + Cosmos
-// write-through failure semantics for src/services/metalsHistoryService.js
+// __tests__/metalsHistoryConcurrency.test.js -- burst-write idempotency +
+// Cosmos write-through failure semantics for src/services/metalsHistoryService.js
+//
+// NOTE on naming: `recordDaily` is synchronous, so true wall-clock concurrency
+// is not exercisable here. These tests cover BURST behavior (many synchronous
+// writes back-to-back in a tight loop) and IDEMPOTENCY within a calendar day.
+// The label `Concurrency` in the file name is preserved for git history but
+// the describe blocks have been renamed to match what is actually verified.
 //
 // Contract under test:
 //   1. recordDaily is idempotent within a calendar day (first write wins).
-//   2. Concurrent recordDaily calls for the same metal+day collapse to one entry.
-//   3. Concurrent recordDaily for different metals on the same day all record.
+//   2. A burst of synchronous recordDaily calls for the same metal+day
+//      collapses to one entry (idempotency under burst).
+//   3. Burst recordDaily for different metals on the same day all record.
 //   4. A rejected Cosmos write-through never throws to the caller and never
 //      surfaces as an unhandled rejection.
-//   5. evictOld + concurrent recordDaily do not race the in-memory store
-//      into an inconsistent shape.
+//   5. evictOld interleaved with recordDaily does not corrupt the store.
 'use strict';
 
 const fs = require('fs');
@@ -54,7 +60,22 @@ function uniqMetal(label) {
   return `${label}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
-describe('metalsHistoryService -- concurrency + idempotency', () => {
+// Deterministic microtask flush. Loops until the Node event loop reports no
+// pending immediates / next-tick callbacks for the rejection chain we triggered.
+// Replaces the prior `setImmediate x2` heuristic that could pass spuriously if
+// production code chained more than two ticks before the rejection settled.
+async function flushMicrotasks(maxIterations = 50) {
+  for (let i = 0; i < maxIterations; i++) {
+    await new Promise((r) => setImmediate(r));
+    if (typeof setTimeout === 'function') {
+      await new Promise((r) => setTimeout(r, 0));
+    }
+    // If no further microtasks have queued, we're flushed. We can't peek the
+    // queue directly so we rely on bounded iteration as a safety cap.
+  }
+}
+
+describe('metalsHistoryService -- burst writes + idempotency', () => {
   test('recordDaily is idempotent within the same calendar day', () => {
     const metal = uniqMetal('IDEMP');
     metalsHistory.recordDaily(metal, 100.00);
@@ -65,9 +86,10 @@ describe('metalsHistoryService -- concurrency + idempotency', () => {
     expect(hist[0][1]).toBe(100.00);
   });
 
-  test('many concurrent recordDaily calls for same metal+day collapse to one entry', () => {
+  test('burst of recordDaily calls for same metal+day collapses to one entry (idempotency)', () => {
     const metal = uniqMetal('BURST');
-    // Fire 100 writes in a tight loop (synchronous-style concurrency).
+    // Fire 100 writes in a tight synchronous loop. recordDaily is sync, so
+    // there is no true concurrency -- this tests idempotency under burst.
     for (let i = 0; i < 100; i++) {
       metalsHistory.recordDaily(metal, 1000 + i);
     }
@@ -77,7 +99,7 @@ describe('metalsHistoryService -- concurrency + idempotency', () => {
     expect(hist[0][1]).toBe(1000);
   });
 
-  test('concurrent recordDaily for different metals on same day all record', () => {
+  test('burst recordDaily for different metals on same day all record', () => {
     const metals = [
       uniqMetal('M1'), uniqMetal('M2'), uniqMetal('M3'),
       uniqMetal('M4'), uniqMetal('M5'),
@@ -105,8 +127,8 @@ describe('metalsHistoryService -- concurrency + idempotency', () => {
       for (let i = 0; i < 10; i++) {
         metalsHistory.recordDaily(uniqMetal('UNHANDLED'), 800 + i);
       }
-      await new Promise((r) => setImmediate(r));
-      await new Promise((r) => setImmediate(r));
+      // Deterministic flush replaces prior setImmediate x2 heuristic.
+      await flushMicrotasks();
       expect(unhandled).toBeNull();
     } finally {
       process.off('unhandledRejection', handler);

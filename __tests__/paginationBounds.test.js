@@ -135,6 +135,8 @@ describe('GET /api/coin-history -- query length bounds', () => {
   test('very long query (2000 chars) does not crash the server', async () => {
     const big = 'a'.repeat(2000);
     const res = await request(app).get('/api/coin-history?query=' + encodeURIComponent(big));
-    expect([200, 400, 404, 500]).toContain(res.status);
+    // 500 is explicitly excluded: a server crash on a 2000-char string is
+    // the failure mode this test exists to detect, not an acceptable outcome.
+    expect([200, 400, 404]).toContain(res.status);
   });
 });

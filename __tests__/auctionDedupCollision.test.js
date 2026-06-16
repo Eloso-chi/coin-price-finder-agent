@@ -20,6 +20,12 @@
 'use strict';
 
 jest.mock('axios');
+// WARNING: fs is mocked GLOBALLY for this file. auctionPriceService reads its
+// per-PCGS-number JSON manifest at first call via fs.readFileSync. dedupeRecords
+// itself is pure (no I/O), so this mock is only here to keep module load quiet.
+// If you add a test that imports anything else that reads real files at module
+// load time, you will get '{}' for every read -- narrow this mock or split the
+// file before doing so.
 jest.mock('fs', () => {
   const actual = jest.requireActual('fs');
   return {
