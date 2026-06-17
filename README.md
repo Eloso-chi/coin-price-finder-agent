@@ -131,6 +131,18 @@ Copy `.env.example` to `.env` and fill in your API keys:
 cp .env.example .env
 ```
 
+**For team members with Azure access:** use the Key Vault bootstrap helper instead of copying secrets by hand:
+
+```bash
+# one-time per machine -- installs Azure CLI prereqs documented in the runbook
+# see docs/runbooks/secret-bootstrap.md
+
+# then pull all 8 dev secrets into .env (mode 600)
+scripts/load-secrets.sh --write
+```
+
+This fetches `EBAY_APP_ID`, `EBAY_CLIENT_SECRET`, `EBAY_CERT_ID`, `PCGS_API_KEY`, `GREYSHEET_API_KEY`, `GREYSHEET_API_TOKEN`, `ADMIN_API_KEY`, and `JWT_SECRET` from Azure Key Vault `coinpricefinder-kv`. Run `scripts/load-secrets.sh` (no flag) first to dry-run. See [docs/runbooks/secret-bootstrap.md](docs/runbooks/secret-bootstrap.md) for new-machine setup including `az login --use-device-code` for callback-blocked environments. (#137, #138)
+
 Required variables:
 
 | Variable | Purpose |
@@ -458,6 +470,8 @@ npx jest __tests__/marketAggregator.test.js        # market matrix aggregator
 npx jest __tests__/marketRoute.test.js             # market route integration
 ```
 
+**Test-only PR review threshold (#136):** any PR that adds or modifies **more than 5 test files MUST run `/review-deep` before merge**, even when no production code changes. Test-only PRs are not exempt -- they get a focused review for assertion strength, false-comfort assertions, mock-vs-production drift, and microtask-flush heuristics. See [.github/copilot-instructions.md](.github/copilot-instructions.md) and the [Recent Changes](#test-only-pr-review-threshold-136-june-14-2026) entry for context.
+
 ### Golden Set + Seeded Runs
 
 Randomized test suites (`pricingPipeline`, `crossRouteConsistency`) use a two-layer coin selection strategy via `selectCoins(label)` from `coinTestConstants.js`:
@@ -724,12 +738,15 @@ scripts/
   sales-aggregator.py              Sales data aggregator -- dashboard mode + deep pagination (extends CSVs beyond 50 rows)
   chain-aggregate.sh               Chain multiple aggregation batches sequentially with anti-bot monitoring
   refresh-stale.sh                 One-command stale data refresh (queries staleness API, builds filter, runs aggregator)
-  cpf-go                           One-command WSL bootstrap + scraper launcher: apt prereqs, repo clone/pull, venv, Playwright Chromium, npm ci, optional cookie refresh, looped ./surface (#258; merge commit reads `#252`). See docs/runbooks/local-scraper-wsl2.md "Fast path".
+  cpf-go                           One-command WSL bootstrap + scraper launcher: apt prereqs, repo clone/pull, venv, Playwright Chromium, npm ci, optional cookie refresh, looped ./surface (#258; merge commit reads `#252`). Page-1 batch size randomized (15-30) per loop pass for bot evasion (#268H). See docs/runbooks/local-scraper-wsl2.md "Fast path".
   run-surface-freshness-loop.sh    Orchestrator invoked by ./surface: sync meta from Azure (#259) -> generate freshness report -> page-1 backlog batch -> optional deep-paginate. Logs each phase and exits non-zero on bot block so cpf-go's --loop knows to stop.
+  load-secrets.sh                  Pull 8 dev secrets (eBay, PCGS, Greysheet, ADMIN_API_KEY, JWT_SECRET) from Azure Key Vault `coinpricefinder-kv` into local `.env` (mode 600 via umask 077). Modes: dryrun (default), `--print`, `--write`. Used by new-machine bootstrap and after secret rotation. (#137; see docs/runbooks/secret-bootstrap.md)
   pricing-health-full.js           Pricing health check runner (--full, --filter, --limit, --concurrency, --out)
   reclassify-comps.js              Batch comp reclassification (weight mismatch detection + reroute to correct dataset)
   build-evidence-index.js          Historical evidence index builder (scans logs + CSVs)
   generate-freshness-report.js     Freshness triage report (5-state: Fresh/Stale/LowSignal/Missing/Dormant + recently-confirmed-stale split)
+  freshness-composition-analyzer.js  Cross-tabulates the freshness report by composition (bullion / numismatic / proof / set / etc.) to surface coverage gaps. (#270H)
+  parallel-key-drift-scanner.js    Silent-drift detector for the #267H class -- finds Terapeak datasets whose normalized key collides with a sibling that has empty/missing comps so live lookups fall through to the wrong bucket. (#272H)
   clean-csvs.js                    CSV junk cleaner (deny-pattern purge across all CSVs)
   greysheet-refresh.js             Bulk Greysheet price snapshot collector (runs automatically every 3 days)
   migrate-to-cosmos.js             One-time migration of history data to Azure Cosmos DB
@@ -745,6 +762,38 @@ scripts/
 ---
 
 ## Recent Changes
+
+### Secret bootstrap runbook + `load-secrets.sh` helper (#137, #138, June 15-16, 2026)
+
+- **[scripts/load-secrets.sh](scripts/load-secrets.sh)** -- Bash helper that fetches 8 dev secrets from Azure Key Vault `coinpricefinder-kv` (EBAY_APP_ID, EBAY_CLIENT_SECRET, EBAY_CERT_ID, PCGS_API_KEY, GREYSHEET_API_KEY, GREYSHEET_API_TOKEN, ADMIN_API_KEY, JWT_SECRET) and merges them into the local `.env` (mode 600 via `umask 077`). Modes: dryrun prints `KEY=<redacted>`; `--print` shows raw values; `--write` does the literal-prefix merge via awk `index()`. Works under Git Bash on Windows + native bash on Linux/WSL.
+- **[docs/runbooks/secret-bootstrap.md](docs/runbooks/secret-bootstrap.md)** -- New-machine bootstrap runbook. Covers az CLI install, device-code login (`az login --use-device-code` for callback-blocked machines), `az account set --subscription 3d54cfba-df7b-4e1d-975f-bafc838033ea`, and the `load-secrets.sh --write` flow. Includes copy-paste agent prompt + troubleshooting table.
+- **Why this exists:** App Service reads secrets via `@Microsoft.KeyVault(...)` references, but local dev shells need raw values in `.env`. Before this, fresh checkouts had to manually copy 8 secrets out of the Azure portal -- error-prone and discouraged use of fresh machines.
+
+### Test-only PR review threshold (#136, June 14, 2026)
+
+- **Rule:** Any PR adding or modifying **more than 5 test files MUST run `/review-deep` before merge**, even when no production code changes. Codified in [.github/copilot-instructions.md](.github/copilot-instructions.md) and enforced by the pre-commit reviewer.
+- **Why:** PR #135 (Wave 3, 12 new test files, 169 cases) was force-merged with `--admin --squash` after only CI + CodeQL ran. The retroactive `/review-deep` surfaced 2 High and 6 Medium findings -- including injection-handling tests that verified nothing about how the input was processed. The thresholded rule prevents this class of false-comfort assertion landing again.
+- The review focuses specifically on test-quality patterns: assertion strength, false-comfort assertions (`expect(...).not.toBe(400)` with no positive verification, `expect([200, 400, 500]).toContain(...)` accepting failure as passing), absent round-trip verification of input handling, mock-vs-production behavior drift, and microtask-flush heuristics that pass spuriously.
+
+### Wave 3 test build-out (#135 + #136 follow-up, June 13-14, 2026)
+
+- 12 new `__tests__/*.test.js` files across env/concurrency/validation/retry/integrity batches.
+- All 13 review findings from the retroactive deep review applied in PR #136, with backlog entries filed for the items deferred to followups (#271H).
+
+### Terapeak hardening trio (#267H, #269H, #272H, June 11-12, 2026)
+
+- **#267H -- `lookupComps` skips empty parallel-key datasets (PR #128).** Previously a normalized-key collision could route a live lookup to an empty sibling dataset; the symptom was "plenty of comps in JSON, FMV reports 0 comps." Fix: when multiple datasets share a normalized key, prefer the populated one; skip empty parallel keys.
+- **#269H -- self-heal Terapeak `/import` 422 (PR #132).** A 422 from the Azure import path used to be permanent because the local meta was never stamped, so the freshness loop re-attempted the same coin forever. Fix: stamp `noDataAt` + increment `noDataCount` on 422 so the dormant-tracking path can demote it. Spec-detected via the meta-sync swallowing local state on POST failure.
+- **#272H -- parallel-key drift scanner (PR #134).** New `scripts/parallel-key-drift-scanner.js` -- offline detector for the #267H class. Walks `terapeak_sold.json`, groups by `normalizeSearchKey()`, flags any group where a populated key collides with an empty sibling. Run periodically to catch silent drift before users see bad FMVs.
+
+### Reverse-proof pool selector in valuationService (#260W, June 9, 2026, PR #126)
+
+- **Fix:** `valuationService` now selects a separate `reverse-proof` comp pool when `expected.finish` matches `Reverse Proof` or `Enhanced Reverse Proof`. Previously, RP queries collapsed into the regular proof pool, which silently dragged FMV down toward silver melt for high-premium RP issues.
+- Pool selection lives in `src/services/valuationService.js`; finish normalization in [src/utils/coinIntent.js](src/utils/coinIntent.js) (`FINISH_CANONICAL`, `isReverseProofFinish`).
+
+### Freshness composition analyzer (#270H, PR #131)
+
+- **[scripts/freshness-composition-analyzer.js](scripts/freshness-composition-analyzer.js)** -- post-processor on the freshness report. Cross-tabulates by composition (bullion / silver-numismatic / bullion-proof / set / base-metal / bar / etc.) and surfaces coverage gaps that a flat report obscures (e.g. "bullion-fractional-gold: 597/600 datasets below 100 comps -- structural, not a refresh problem").
 
 ### Remote-scraper meta sync (#259, June 4, 2026)
 

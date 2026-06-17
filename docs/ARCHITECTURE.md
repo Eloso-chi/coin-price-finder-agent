@@ -29,7 +29,7 @@ server.js                              Express entry point (port 3000)
 ├─ src/services/
 │   ├─ pcgsService.js                  PCGS CoinFacts API (cert, coin#, description)
 │   ├─ ebayService.js                  eBay sold comps (3-tier API cascade + grade-type pool split)
-│   ├─ valuationService.js             FMV blend + buy/sell decision engine
+│   ├─ valuationService.js             FMV blend + buy/sell decision engine; routes Reverse Proof / Enhanced Reverse Proof queries to a separate `reverse-proof` comp pool (#260W) via `isReverseProofFinish()` from `coinIntent`
 │   ├─ greysheetService.js             Greysheet CDN Public API V2 (wholesale pricing)
 │   ├─ alertService.js                 Crash/ops alert notifications (SendGrid)
 │   ├─ auctionPriceService.js          PCGS auction history fetch + local history cache
@@ -102,12 +102,18 @@ server.js                              Express entry point (port 3000)
 │   ├─ ARCHITECTURE.md                 This file -- technical architecture reference
 │   ├─ BACKLOG.md                      Canonical backlog (single source of truth)
 │   ├─ BACKLOG.rules.md                Backlog governance rules & PR hygiene expectations
+│   ├─ runbooks/
+│   │   ├─ secret-bootstrap.md         New-machine secret bootstrap via Azure Key Vault + load-secrets.sh (#138)
+│   │   ├─ local-scraper-wsl2.md       WSL/Surface scraper fast-path runbook
+│   │   ├─ first-launch-surface.md     First-launch checklist for the Surface scraper laptop
+│   │   └─ scraper-travel-mode.md      Codespace travel-mode fallback for the scraper path
 │   └─ testing/
 │       └─ test-monitor.md             Test Monitor usage guide & command reference
 │
 ├─ scripts/
-│   ├─ cpf-go                          One-command WSL bootstrap + scraper launcher (#258; merge commit reads #252)
+│   ├─ cpf-go                          One-command WSL bootstrap + scraper launcher (#258; merge commit reads #252); page-1 batch size randomized 15-30 per loop pass for bot evasion (#268H)
 │   ├─ run-surface-freshness-loop.sh   Orchestrator: meta sync (#259; merge commit reads #253) -> freshness report -> page-1 batch -> deep-paginate
+│   ├─ load-secrets.sh                 Pull 8 dev secrets from Azure Key Vault `coinpricefinder-kv` into `.env` (mode 600); modes dryrun/--print/--write (#137)
 │   ├─ terapeak-export.py              Semi-automated Terapeak CSV exporter (Playwright + blob upload)
 │   ├─ sales-aggregator.py               Sales data aggregator (deep pagination) (extends CSVs beyond 50 rows)
 │   ├─ chain-aggregate.sh                 Chain multiple collect batches with anti-bot monitoring
@@ -122,6 +128,8 @@ server.js                              Express entry point (port 3000)
 │   ├─ reclassify-comps.js             Batch comp reclassification (weight mismatch detection + reroute)
 │   ├─ build-evidence-index.js         Historical evidence index builder
 │   ├─ generate-freshness-report.js    Freshness triage report (5-state decision tree: Fresh/Stale/LowSignal/Missing/Dormant + recently-confirmed-stale split)
+│   ├─ freshness-composition-analyzer.js  Cross-tabulates the freshness report by composition to surface structural coverage gaps (#270H)
+│   ├─ parallel-key-drift-scanner.js   Silent-drift detector for the #267H class -- flags datasets whose normalized key collides with an empty sibling (#272H)
 │   ├─ fmv-drift-monitor.js            FMV drift monitor (#196) -- runs bullion catalog through /api/price, flags rows outside dealer-premium band
 │   ├─ investigate-libertad-batch.js   Libertad lot-evaluator diagnostic (#202) -- re-runs 13-coin batch, flags thin comps + duplicate FMV instability
 │   └─ test-metrics/                   Jest metrics capture + summary reporter
