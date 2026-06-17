@@ -102,3 +102,63 @@ describe('pricing-health-full.js -- credential pre-flight probe (#276H)', () => 
     expect(res.stderr).toBe('');
   });
 });
+
+describe('pricing-health-full.js -- ADMIN_API_KEY hard-fail (#262W)', () => {
+  const src = fs.readFileSync(SCRIPT_PATH, 'utf8');
+
+  test('hard-fail block is present and tagged with #262W', () => {
+    expect(src).toMatch(/#262W/);
+    expect(src).toMatch(/ADMIN_API_KEY REQUIRED/);
+  });
+
+  test('exits with code 3 (distinct from server-down=1 and creds-missing=2)', () => {
+    // The new hard-fail must use exit(3) so operators can distinguish
+    // "missing admin key" from the pre-existing exit codes 1 and 2.
+    expect(src).toMatch(/process\.exit\(3\)/);
+  });
+
+  test('fires only for modes that hit /api/terapeak/datasets', () => {
+    // Default-sample mode (no flags) must NOT require ADMIN_API_KEY --
+    // it works against a fresh dev environment. The guard must check
+    // isFullRun / limit / filter, all of which trigger the dataset fetch.
+    expect(src).toMatch(/needsAdminKey\s*=\s*isFullRun\s*\|\|\s*limit\s*\|\|\s*filter/);
+  });
+
+  test('hard-fail runs BEFORE the /api/health call', () => {
+    // Ordering invariant: the ADMIN_API_KEY check is the cheapest
+    // pre-flight (no network). It must run first so an operator who
+    // forgot the env var sees the actionable error immediately,
+    // without waiting for HTTP timeouts when the server is also down.
+    const adminGuardIdx = src.indexOf('ADMIN_API_KEY REQUIRED');
+    const healthIdx = src.indexOf("'GET', '/api/health'");
+    expect(adminGuardIdx).toBeGreaterThan(-1);
+    expect(healthIdx).toBeGreaterThan(-1);
+    expect(adminGuardIdx).toBeLessThan(healthIdx);
+  });
+});
+
+describe('pricing-health-full.js -- #262W classifier wiring', () => {
+  const src = fs.readFileSync(SCRIPT_PATH, 'utf8');
+
+  test('imports the three new classifier helpers from scripts/lib/', () => {
+    expect(src).toMatch(/require\(['"]\.\/lib\/pricingHealthClassifiers['"]\)/);
+    expect(src).toMatch(/classifyRpMeltFloor/);
+    expect(src).toMatch(/classifyDealerPremium/);
+    expect(src).toMatch(/findFractionalCollisions/);
+  });
+
+  test('captures valuation.spotPrice into result.discovery (dealer-premium input)', () => {
+    // Without spotPrice in the captured shape, classifyDealerPremium
+    // fail-quiets on every coin. This is the actual dependency, not a
+    // cosmetic field, so pin its presence.
+    expect(src).toMatch(/spotPrice:\s*typeof v\.spotPrice/);
+  });
+
+  test('invokes the fractional-collision post-pass over results', () => {
+    // Must run AFTER parallelMap (cross-row analysis), not inside testCoin.
+    const mapIdx = src.indexOf('parallelMap(coins');
+    const collisionIdx = src.indexOf('findFractionalCollisions(results)');
+    expect(mapIdx).toBeGreaterThan(-1);
+    expect(collisionIdx).toBeGreaterThan(mapIdx);
+  });
+});
