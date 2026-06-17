@@ -1367,22 +1367,54 @@ Platinum metal detection wired through the shared pipeline: `coinMetalProfile.js
 
 ---
 
-### #261W. Fractional Gold Maple Leaf -- 1/10 and 1/20 oz Pools Collide, FMV $4,987 (10-50x too high) [P1 -- BUG] -- OPEN 2026-06-04
-- **Symptom**: Pricing-health top-100 run on 2026-06-04 returned identical FMV for two distinct gold weights:
-  - `Canada 1/10 Gold Maple Leaf`: FMV=$4986.93, conf=92, comps=145, method=`bullion-spot-premium`
-  - `Canada 1/20 Gold Maple Leaf`: FMV=$4986.93, conf=92, comps=145, method=`bullion-spot-premium`
-- **Expected**: 1/10 oz ~ $300-400, 1/20 oz ~ $150-200 at June 2026 gold spot. $4986.93 is approximately the 1 oz Maple Leaf FMV -- the queries are matching full-ounce comps and/or 20-coin tube lots.
-- **Telemetry from discovery.removed**: `prefilterPoolSize=1046`, `weightMismatch=334`, `meltFloor=149`, but 145 comps survive and produce a pathological FMV. Same `compCount=145` for both queries strongly suggests the same pool is being returned for both.
-- **Root cause hypothesis** (needs confirmation):
-  - `coinMetalProfile.js#detectWeightFromTitle` may not distinguish "1/10" from "1/20" reliably in eBay titles, especially when sellers write "Fractional Gold Maple" or list multi-coin tubes.
-  - The shared dataset path may be falling back to a tube/multi-coin pool that has 1 oz aggregate prices.
-- **Impact**: This is the highest-value error class in the catalog (a few dollars per fractional coin priced at $5k). Likely affects 1/10, 1/20, 1/4, 1/2 Maple Leaf, Gold Eagle fractional, Britannia fractional, Krugerrand fractional, Panda fractional.
-- **Proposed investigation**:
-  1. Probe `/api/price` with both queries, inspect `comps[].title` to confirm whether full-oz / tube lots are leaking in.
-  2. Check `detectWeightFromTitle` against 50 sample real eBay titles for fractional gold.
-  3. Verify multi-coin lot filtering (`utils/filters.js` -- "tube", "lot of N", quantity detection).
-- **Related**: #S5 (Gold year-specific CSVs, [HIGH]), #244 (telemetry made strike-split visible; this is a different filter), #196 (dealer premium benchmark FMV drift monitor should have caught this if `dealerPremiums.js` has fractional gold benchmarks).
-- **Files**: `src/utils/coinMetalProfile.js` (weight detection), `src/utils/filters.js` (lot/tube deny), `src/services/ebayService.js` (`weightMismatch` filter), tests.
+### #261W. Fractional Gold Maple Leaf -- 1/10 and 1/20 oz Pools Collide, FMV $4,987 (10-50x too high) [P1 -- BUG] -- DONE 2026-06-17
+
+**Status:** Fixed in `src/services/ebayService.js`. Both the comp filter and the comp scorer now scale the melt-sanity ceiling by `expected.weight` instead of using a flat full-oz multiplier. Regression test added at [__tests__/fractionalGoldMeltCeiling.test.js](__tests__/fractionalGoldMeltCeiling.test.js) (13 cases covering filter, scorer, boundary, $50 floor, and 1 oz no-op).
+
+**Symptom (discovered 2026-06-04 pricing-health top-100):**
+- `Canada 1/10 Gold Maple Leaf`: FMV=$4986.93, conf=92, comps=145, method=`bullion-spot-premium`
+- `Canada 1/20 Gold Maple Leaf`: FMV=$4986.93, conf=92, comps=145, method=`bullion-spot-premium`
+- Expected: 1/10 oz ~$300-400, 1/20 oz ~$150-200 at June 2026 gold spot. Identical `compCount=145` for both confirmed the same pool was leaking through.
+
+**Root cause (investigation):**
+Hypotheses A (weight regex confusion) and B (greysheet map gap for 1/20 oz) were both ruled out:
+- `detectWeightFromTitle` regex explicitly enumerates `(1/20|1/10|1/4|1/2)` -- correctly distinguishes them.
+- Greysheet entry for 1/20 oz is missing (documented at `data/greysheetTypeMap.js#L50`) but Terapeak is the comp source for these queries, not Greysheet.
+
+Actual cause: two parallel sites used a melt ceiling based on **full-oz melt** instead of **expected-weight melt**.
+
+| Site | Old check | Effective ceiling at $5k/oz spot, 1/20 oz query |
+|---|---|---|
+| Filter `applyFilters` ~L1010-1024 | `meltPerOz * 1.8` | $9,000 (let 1-oz comps at $5k through) |
+| Scorer `scoreMatch` ~L711-714 | `meltPerOz * 2` | $10,000 (no `price-exceeds-melt` penalty) |
+
+For 1/20 oz queries, the old ceilings were `1.8 / 0.05 = 36x` and `2 / 0.05 = 40x` the **expected**-weight melt -- absurdly loose at any spot price; the bug only surfaced visibly once gold spot rose enough that 1-oz comp prices fell under the flat ceiling.
+
+**Fix:**
+```js
+// Filter
+const meltCeiling = Math.max(expected.meltPerOz * expected.weight * 5, 50);
+// Scorer
+if (comp.totalUsd > expected.meltPerOz * expected.weight * 5 && !detectWeightFromTitle(tLow)) { score -= 20; ... }
+```
+
+5x of expected-weight melt is generous enough for typical fractional premiums (1/20 oz gold often carries 100-300% premium over melt). $50 floor keeps the filter tolerant for cheap silver fractionals.
+
+**Verification:**
+- `__tests__/fractionalGoldMeltCeiling.test.js`: 13/13 pass
+- `applyFilters` / `applyFiltersRegression` / `scoreMatchWeight` / `fractionalGoldMeltCeiling`: 117/117 pass
+- Full suite: 3575/3576 (only #273H flake in `terapeakDataIntegrity`, unrelated, 105/105 in isolation)
+- The pre-existing `applyFilters -- melt ceiling (fractional)` test at `__tests__/applyFilters.test.js#L149-162` still passes because the new `Math.max(..., 50)` floor (= $50) covers the silver-eagle 0.25 oz @ $30/oz case (raw = $37.50, floored to $50).
+
+**Impact closed:**
+- Fractional Gold Maple Leaf 1/10 and 1/20 oz pools no longer collide.
+- Same fix applies generically to all fractional bullion: Gold Eagle, Britannia, Krugerrand, Panda fractional, etc.
+
+**Related:** PR #33 (5% weight tolerance for filter), #266W (port same pattern to scorer -- this PR completes the filter+scorer parity by also fixing the melt-sanity branch in both), #244 (telemetry made the discovery possible).
+
+**Files:**
+- `src/services/ebayService.js` (filter + scorer, with `#261W` comment markers)
+- `__tests__/fractionalGoldMeltCeiling.test.js` (new, 13 cases)
 
 ---
 
