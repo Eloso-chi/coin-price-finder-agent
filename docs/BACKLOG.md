@@ -2459,7 +2459,7 @@ Gated on data: run pricing-health across a Reverse-Proof slate (2023 RP Morgan, 
 - **Files**: `src/services/ebayService.js` (auto-extend logic), `src/services/valuationService.js` (Browse-only threshold for RP pool).
 - **Related**: PR #114, #176 (pool fallback before Browse-only).
 
-### #260W. valuationService has no `reverse-proof` pool selector -- RP queries collapse to silver melt [P1 -- BUG -- REGRESSION] -- OPEN 2026-06-04
+### #260W. valuationService has no `reverse-proof` pool selector -- RP queries collapse to silver melt [P1 -- BUG -- REGRESSION] -- DONE 2026-06-04 (PR #126)
 - **Symptom**: After PR #114, any query that resolves to `targetPool='reverse-proof'` produces FMV at silver-melt-only with `confidence=0` and `compCount=0`, even when the comp-gathering layer returns a healthy pool of comps. Discovered during pricing-health top-100 run on 2026-06-04:
   - 2023 Reverse Proof Morgan Silver Dollar: 203 teak rows -> 150 surviving RP-tagged comps -> `discovery.fmv=$56.31`, `method='raw-blend'`, `compCount=0`, `confidence=0`. `batch.avgEbay=$205.96` on the same comps (3.7x higher) confirms the comps are present but discarded by the valuation engine.
 - **Root cause**: PR #114 added `gradeType='reverse-proof'` in `ebayService.js#classifyGradeType` and the `'reverse-proof'` `targetPool` for prefilter, but did NOT propagate `wantsReverseProof` / `isReverseProof` / finish into `valuationService.evaluate()`. The engine only knows three pools:
@@ -2490,6 +2490,7 @@ Gated on data: run pricing-health across a Reverse-Proof slate (2023 RP Morgan, 
 - **Files**: `src/services/valuationService.js` (primary), `src/routes/priceRoute.js`, `src/routes/pricingBatchRoute.js`, `src/routes/coinHistoryRoute.js`, `src/services/bulkEvaluateService.js` (pass `isReverseProof` through), tests.
 - **Related**: PR #114 (introduced the regression), #244 (telemetry fix that made the silent drops visible elsewhere but not this one), #176 (pool fallback patterns to mirror), #256 (auto-extend lookback -- should be implemented ON TOP of this fix, not instead of it).
 - **Note on numbering**: This entry uses the new per-machine W/H suffix convention (see #264W). PR #118 from the other machine claimed the bare number #260; this entry coexists as #260W under the new convention.
+- **Status (2026-06-17 -- bookkeeping flip)**: Code fix shipped 2026-06-04 in PR #126 (commit `5da13f0` -- "fix(#260W): add reverse-proof pool selector to valuationService"). Backlog entry was not flipped at the time. Verified in `src/services/valuationService.js#L41-L77` (intent detection, `wantsReverseProof` branch, `usRevProof` filter) and `#L456-L470` (`reverseProofCount` telemetry). Detected during #262W investigation; flipped to DONE in a separate doc-only PR.
 
 ---
 
