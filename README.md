@@ -549,7 +549,7 @@ Stryker thresholds (from `stryker.conf.json`): high=80, low=60, break=null. The 
 
 > **Note on baseline comparability:** The 75.47% baseline was captured with `enableFindRelatedTests: true`. The config has since been switched to `false` for accuracy (see code-reviewer note in `stryker.conf.json`). Re-running may yield a slightly *lower* score because more tests will execute per mutant, exposing assertion gaps that `findRelatedTests` was skipping. Treat the next run's score as the new authoritative baseline.
 
-Runs **Jest** across 73 test suites:
+Runs **Jest** across 115 test suites:
 
 | Suite | What it covers |
 |---|---|
@@ -696,7 +696,7 @@ public/
 samples/
   test-collection.xlsx             Sample Excel import fixture
   no-collectors-sheet.xlsx         Error-case fixture (missing sheet)
-__tests__/                         73 Jest test suites (see Tests section)
+__tests__/                         115 Jest test suites (see Tests section)
   fixtures/
     golden_coins.json              Curated golden set coins (14 deterministic test coins)
   helpers/
