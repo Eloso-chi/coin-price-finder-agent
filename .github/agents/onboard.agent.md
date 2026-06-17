@@ -83,7 +83,7 @@ Read these project docs:
 
 Read the first 50 lines of each to understand the module interface (80 lines for priceRoute):
 
-**Services (all 20):**
+**Services (all 22):**
 1. `src/services/ebayService.js` -- 3-tier comp cascade, scoring, filtering
 2. `src/services/valuationService.js` -- FMV blend, confidence, buy/sell decisions
 3. `src/services/terapeakService.js` -- CSV import, fuzzy lookup, eviction
@@ -104,44 +104,79 @@ Read the first 50 lines of each to understand the module interface (80 lines for
 18. `src/services/pcgsQuotaService.js` -- PCGS quota accounting
 19. `src/services/prefetchScheduler.js` -- nightly prefetch orchestration
 20. `src/services/MetalsSpotPriceError.js` -- custom metals provider error type
+21. `src/services/auditService.js` -- audit log writer (action + actor + resource triples)
+22. `src/services/freshnessClassifier.js` -- shared refresh-skip logic (thresholds + shouldSkipRefresh) used by adminService and generate-freshness-report.js (#229)
 
-**Routes (key subset):**
-16. `src/routes/priceRoute.js` -- main pricing endpoint (first 80 lines)
-17. `src/routes/pricingBatchRoute.js` -- batch pricing (up to 25 coins)
-18. `src/routes/bulkEvaluateRoute.js` -- lot evaluator + SSE streaming
-19. `src/routes/marketRoute.js` -- market matrix endpoint
-20. `src/routes/terapeakRoute.js` -- Terapeak data management
-21. `src/routes/adminRoute.js` -- admin dashboard, stale datasets, data health
-22. `src/routes/authRoute.js` -- signup, login, change-password
-23. `src/routes/coinRoute.js` -- collection CRUD (JWT-protected)
+**Routes (all 14):**
+1. `src/routes/priceRoute.js` -- main pricing endpoint (first 80 lines)
+2. `src/routes/pricingBatchRoute.js` -- batch pricing (up to 25 coins)
+3. `src/routes/bulkEvaluateRoute.js` -- lot evaluator + SSE streaming
+4. `src/routes/marketRoute.js` -- market matrix endpoint
+5. `src/routes/terapeakRoute.js` -- Terapeak data management
+6. `src/routes/adminRoute.js` -- admin dashboard, stale datasets, data health
+7. `src/routes/authRoute.js` -- signup, login, change-password
+8. `src/routes/coinRoute.js` -- collection CRUD (JWT-protected)
+9. `src/routes/barPriceRoute.js` -- precious metal bar pricing
+10. `src/routes/metalsRoute.js` -- spot price + metals history endpoints
+11. `src/routes/coinVariantRoute.js` -- coin variant / specialty lookup
+12. `src/routes/excelImportRoute.js` -- Excel collection import
+13. `src/routes/imageProxyRoute.js` -- proxied coin image fetching
+14. `src/routes/coinHistoryRoute.js` -- per-coin price history
 
-**Data + Utils:**
-24. `src/data/greysheetTypeMap.js` -- series-to-GSID mapping + finish detection
-25. `src/data/constants.js` -- zodiac cycle, Perth Lunar helpers, roll quantities
-26. `src/utils/filters.js` -- deny lists, denomination detection, series conflicts, two-way composition mismatch (silver/clad)
-27. `src/utils/cosmosClient.js` -- Cosmos DB client singleton
-28. `src/utils/blobClient.js` -- Blob Storage client
-29. `src/utils/cachePath.js` -- cache directory config
-30. `src/utils/coinMetalProfile.js` -- metal detection, weight detection (detectWeightFromTitle, weightToKeyToken), bullion classification
-31. `src/data/pcgsNumbers.js` -- static PCGS number tables (10 US series + 7 world bullion) + SERIES_MAP routing
-32. `src/data/dealerPremiums.js` -- dealer premium benchmark ranges by bullion series (#196): lookupPremiumRange, classifyPremium, computePremium
+**Data:**
+1. `src/data/greysheetTypeMap.js` -- series-to-GSID mapping + finish detection
+2. `src/data/constants.js` -- zodiac cycle, Perth Lunar helpers, roll quantities
+3. `src/data/pcgsNumbers.js` -- static PCGS number tables (10 US series + 7 world bullion) + SERIES_MAP routing
+4. `src/data/dealerPremiums.js` -- dealer premium benchmark ranges by bullion series (#196): lookupPremiumRange, classifyPremium, computePremium
+5. `src/data/keyDates.js` -- key date / semi-key detection tables
+6. `src/data/mintages.js` -- mintage reference data by series/year/mint
+7. `src/data/halfDollarSeries.js` -- Half Dollar design eras + year-based resolver
+8. `src/data/barSeries.js` -- bar brand/series data (7 brands, 40+ series) + detection helpers
+9. `src/data/lunarReference.js` -- Perth / Royal / RAMint lunar comparison
+
+**Utils:**
+1. `src/utils/filters.js` -- deny lists, denomination detection, series conflicts, two-way composition mismatch (silver/clad)
+2. `src/utils/cosmosClient.js` -- Cosmos DB client singleton
+3. `src/utils/blobClient.js` -- Blob Storage client
+4. `src/utils/cachePath.js` -- cache directory config
+5. `src/utils/coinMetalProfile.js` -- metal detection, weight detection (detectWeightFromTitle, weightToKeyToken), bullion classification
+6. `src/utils/cache.js` -- TTLCache class (in-memory + optional file persistence)
+7. `src/utils/stats.js` -- statistical functions (median, MAD, weighted median)
+8. `src/utils/coinIntent.js` -- canonicalizes {grade, finish, isProof, designation} across coinData / options / pcgs / parsed (#254)
+9. `src/utils/responseValidator.js` -- /api/price response schema + sanity validation
+10. `src/utils/excelMapper.js` -- Excel-to-backup converter (header aliases, series normalization)
+11. `src/utils/redactForPublic.js` -- strips admin-only fields from public responses
+
+**Middleware + Schemas:**
+1. `src/middleware/requireAdminOrKey.js` -- guards admin routes (JWT or ADMIN_API_KEY)
+2. `src/middleware/optionalAdminContext.js` -- enriches request with admin flag if key present
+3. `src/schemas/priceResponse.schema.js` -- JSON schema for /api/price response validation
 
 **Entry point + scripts:**
-33. `server.js` -- Express entry, middleware, route mounting, background timers
-34. `scripts/chain-aggregate.sh` -- chained aggregation batches with anti-bot monitoring (first 30 lines)
-35. `scripts/refresh-stale.sh` -- one-command stale data refresh with --refresh --max-age (first 30 lines)
-36. `scripts/greysheet-refresh.js` -- bulk Greysheet snapshot collector (first 30 lines)
-37. `scripts/clean-csvs.js` -- CSV junk cleaner (first 20 lines)
-38. `scripts/pricing-health-full.js` -- full-dataset pricing health audit (first 20 lines)
-39. `scripts/reclassify-comps.js` -- batch comp reclassification: weight mismatch detection + reroute (first 20 lines)
-40. `scripts/build-evidence-index.js` -- historical evidence index builder (first 20 lines)
-41. `scripts/generate-freshness-report.js` -- freshness triage report (first 20 lines)
-42. `scripts/fmv-drift-monitor.js` -- FMV drift monitor against dealer-premium bands (#196) (first 20 lines)
-43. `scripts/investigate-libertad-batch.js` -- Libertad lot-evaluator diagnostic (#202) (first 20 lines)
+1. `server.js` -- Express entry, middleware, route mounting, background timers
+2. `scripts/chain-aggregate.sh` -- chained aggregation batches with anti-bot monitoring (first 30 lines)
+3. `scripts/refresh-stale.sh` -- one-command stale data refresh with --refresh --max-age (first 30 lines)
+4. `scripts/greysheet-refresh.js` -- bulk Greysheet snapshot collector (first 30 lines)
+5. `scripts/clean-csvs.js` -- CSV junk cleaner (first 20 lines)
+6. `scripts/pricing-health-full.js` -- full-dataset pricing health audit (first 20 lines)
+7. `scripts/reclassify-comps.js` -- batch comp reclassification: weight mismatch detection + reroute (first 20 lines)
+8. `scripts/build-evidence-index.js` -- historical evidence index builder (first 20 lines)
+9. `scripts/generate-freshness-report.js` -- freshness triage report (first 20 lines)
+10. `scripts/fmv-drift-monitor.js` -- FMV drift monitor against dealer-premium bands (#196) (first 20 lines)
+11. `scripts/investigate-libertad-batch.js` -- Libertad lot-evaluator diagnostic (#202) (first 20 lines)
+12. `scripts/cpf-go` -- one-word launcher (Surface / WSL) for the Playwright scraper (#258/#268H) (first 20 lines)
+13. `scripts/parallel-key-drift-scanner.js` -- parallel key drift detection across terapeak meta (#272H) (first 20 lines)
+14. `scripts/analyze-freshness-composition.js` -- freshness composition breakdown by category (#270H) (first 20 lines)
+15. `scripts/machine-id.sh` -- prints machine letter (W or H) for per-machine backlog IDs (#264W) (first 20 lines)
+16. `scripts/audit-duplicate-keys.js` -- finds duplicate keys in terapeak meta (first 20 lines)
+17. `scripts/terapeak-export.py` -- Playwright-based Terapeak data export (first 20 lines)
+18. `scripts/sales-aggregator.py` -- batch Terapeak sales aggregation via Playwright (first 20 lines)
+19. `scripts/sync-terapeak-meta.js` -- syncs terapeak-meta.json from Azure Blob Storage (#253) (first 20 lines)
+20. `scripts/load-secrets.sh` -- fetches 8 dev secrets from Azure Key Vault into .env (#137) (first 20 lines)
 
 **Test infrastructure:**
-44. `__tests__/helpers/coinTestConstants.js` -- shared test helpers, golden set loader, selectCoins()
-45. `__tests__/fixtures/golden_coins.json` -- 14 curated deterministic test coins
+1. `__tests__/helpers/coinTestConstants.js` -- shared test helpers, golden set loader, selectCoins()
+2. `__tests__/fixtures/golden_coins.json` -- 14 curated deterministic test coins
 
 ### Phase 4: Verification
 

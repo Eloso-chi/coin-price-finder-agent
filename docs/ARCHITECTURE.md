@@ -44,6 +44,7 @@ server.js                              Express entry point (port 3000)
 │   ├─ terapeakService.js              Terapeak CSV import, fuzzy lookup, eviction, auto-import, aggregationMeta tracking (Cosmos write-through + hydration + git-tracked sidecar)
 │   ├─ terapeakQuotaService.js         Daily Terapeak query quota tracker
 │   ├─ adminService.js                 Admin dashboard aggregation (stats, stale detection [filters via freshnessClassifier], data health)
+│   ├─ auditService.js                 Audit log writer (action + actor + resource triples)
 │   ├─ freshnessClassifier.js          Shared refresh-skip logic (thresholds + shouldSkipRefresh) used by adminService and generate-freshness-report.js -- #229
 │   ├─ greysheetHistoryService.js      Daily Greysheet price history snapshots
 │   ├─ authService.js                  Server-side auth (bcrypt + JWT, dual-mode Cosmos + local JSON)
