@@ -877,6 +877,33 @@ function normalizeSeries(series) {
 
 ---
 
+### #276H. `pricing-health-full.js` mislabels missing-credentials as "pipeline-leak" -- pre-flight credential probe needed [P3 -- TOOLING / OPERATIONS] -- IN-PROGRESS 2026-06-16
+
+**Origin:** First 25-coin pricing-health run after fresh checkout on this workstation. Every coin reported `pipeline-leak (N teak -> 0 comps)` and `null-fmv`, suggesting filter attrition. Root cause was empty `.env` values for `EBAY_APP_ID`, `EBAY_CLIENT_SECRET`, and `PCGS_API_KEY` -- the comp path never ran. The "pipeline-leak" label was misleading because comps were not *dropped*, they were never *fetched*.
+
+**Issue:** `scripts/pricing-health-full.js` has no pre-flight check that upstream APIs are reachable. A missing-credentials environment burns full run time and looks like a pricing-pipeline regression in the output report.
+
+**Fix (shipped on `fix/pricing-health-credential-preflight`):**
+
+- Added a single `/api/price` probe after the `/api/health` check. Inspects `probe.ebay.us.error.message` and `probe.pcgs.limitations[]` for "credentials not configured" / "API key not configured" patterns.
+- If detected, prints a `=== CREDENTIALS MISSING ===` block listing each missing service and exits with code `2` (distinct from `1` = server-down).
+- Added `--skip-credential-check` flag so Terapeak-only flows can still be tested when upstream auth is intentionally absent.
+
+**Acceptance:**
+
+- Running with empty `.env` exits 2 with the named services in the missing list.
+- Running with valid credentials proceeds to the normal sample loop without observable overhead beyond one extra HTTP call.
+- `--skip-credential-check` flag bypasses the probe.
+
+**Sizing:** ~35 lines added in `scripts/pricing-health-full.js#main`. No production changes.
+
+**Related:**
+- PR (TBD): `fix/pricing-health-credential-preflight` branch.
+
+---
+
+---
+
 ### #249. Unattended Scheduler for Local Scraper Path [P3 -- OPERATIONS] -- BACKLOG
 
 **Status:** Deferred. Phase 1 (dual-path scraper -- Surface laptop + Codespace fallback) will be added first. This entry covers the optional automation layer that runs the scraper on a schedule once the manual workflow is validated.

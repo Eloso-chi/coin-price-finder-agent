@@ -189,6 +189,37 @@ async function main() {
     process.exit(1);
   }
 
+  // #276H: Pre-flight credential check. If upstream API creds are missing
+  // every coin will be marked as a "pipeline-leak" (teak rows -> 0 comps),
+  // which is misleading -- the comp path never even ran. Probe one cheap
+  // /api/price call up front and bail with a clear exit code so operators
+  // don't waste a full run + quota on a known-broken environment.
+  if (!args.includes('--skip-credential-check')) {
+    try {
+      const probe = await httpRequest('POST', '/api/price', { query: '1921 Morgan Silver Dollar' });
+      const missing = [];
+      const ebayErr = probe?.ebay?.us?.error?.message || probe?.ebay?.global?.error?.message || '';
+      if (/credentials not configured|EBAY_APP_ID|EBAY_CLIENT_SECRET/i.test(ebayErr)) missing.push('eBay (EBAY_APP_ID / EBAY_CLIENT_SECRET)');
+      // PCGS verified=false alone is not fatal (cert lookup vs query lookup),
+      // but if the PCGS module reports an explicit "not configured" we flag it.
+      const pcgsLim = (probe?.pcgs?.limitations || []).join(' ');
+      if (/api key not configured|PCGS_API_KEY/i.test(pcgsLim)) missing.push('PCGS (PCGS_API_KEY)');
+      if (missing.length > 0) {
+        console.error('\n=== CREDENTIALS MISSING ===');
+        console.error('The following upstream services are not configured:');
+        for (const m of missing) console.error('  - ' + m);
+        console.error('\nWithout these, every coin will report fmv=null and pipeline-leak.');
+        console.error('Populate .env with the missing values and restart the server, then rerun.');
+        console.error('To proceed anyway (e.g. test Terapeak-only paths), add --skip-credential-check.\n');
+        process.exit(2);
+      }
+    } catch (err) {
+      console.error('Pre-flight credential probe failed: ' + err.message);
+      console.error('(Use --skip-credential-check to bypass this check.)');
+      process.exit(2);
+    }
+  }
+
   // Build coin list
   let coins;
   if (isFullRun || limit || filter) {
