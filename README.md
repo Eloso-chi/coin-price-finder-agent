@@ -22,6 +22,20 @@ Also supports **bullion bars** (any metal, any size), **proof/mint sets** (with 
 
 ---
 
+## Contributing & Governance
+
+This is an active, open-source project with clear contributor expectations:
+
+- **[CONTRIBUTING.md](CONTRIBUTING.md)** — Local setup, testing rules, branching strategy, per-machine backlog ID convention (W/H), PR process, required review gates
+- **[SECURITY.md](SECURITY.md)** — Vulnerability reporting policy, response SLAs, coordinated disclosure
+- **[LICENSE](LICENSE)** — Proprietary All Rights Reserved (aligns with `UNLICENSED` in package.json; public GitHub visibility does not grant reuse rights)
+- **[docs/api-reference.md](docs/api-reference.md)** — Complete HTTP endpoint reference for all 30+ routes
+- **[docs/data-dictionary.md](docs/data-dictionary.md)** — Critical data stores, schemas, and privacy classifications
+
+See also [BACKLOG.md](docs/BACKLOG.md) (roadmap) and [.github/copilot-instructions.md](.github/copilot-instructions.md) (testing & code conventions).
+
+---
+
 ## Frontend — Web UI
 
 The browser UI is a single-page app served from `public/index.html` with a dark theme and nine tabbed panels. Client-side JavaScript is split across three modules loaded in order: `auth.js` → `storage.js` → `my-coins.js`. Authentication and coin storage are handled server-side via JWT + bcrypt.
