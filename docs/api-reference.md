@@ -60,7 +60,7 @@ Comprehensive reference of all HTTP endpoints exposed by the coin-price-finder-a
 | `POST` | `/api/terapeak/import` | 🔒 | Upload a Terapeak CSV (multipart form) |
 | `POST` | `/api/terapeak/import-text` | 🔒 | Paste Terapeak CSV as plain text |
 | `GET` | `/api/terapeak/datasets` | 🔒 | List all imported Terapeak datasets with metadata |
-| `GET` | `/api/terapeak/lookup` | 🔒 | Look up sold comps by keyword search |
+| `GET` | `/api/terapeak/lookup` | None | Look up sold comps by keyword search |
 | `DELETE` | `/api/terapeak/datasets/:key` | 🔒 | Delete specific Terapeak dataset |
 | `DELETE` | `/api/terapeak/datasets` | 🔒 | Clear all Terapeak data |
 
@@ -68,15 +68,18 @@ Comprehensive reference of all HTTP endpoints exposed by the coin-price-finder-a
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| `GET` | `/api/terapeak/quota` | None | Get current daily quota status (used/limit) |
+| `GET` | `/api/terapeak/quota` | 🔒 | Get current daily quota status (used/limit) |
 | `POST` | `/api/terapeak/quota/record` | 🔒 | Log Terapeak API calls to quota counter |
+| `POST` | `/api/terapeak/quota/set-used` | 🔒 | Set used quota count directly |
 | `POST` | `/api/terapeak/quota/reset` | 🔒 | Reset today's quota counter to 0 |
 | `POST` | `/api/terapeak/quota/set-limit` | 🔒 | Change daily quota limit (default 250) |
 | `GET` | `/api/admin/terapeak-meta` | 🔒 | Stream canonical `data/terapeak-meta.json` sidecar with mtime/size headers |
 | `POST` | `/api/terapeak/reimport` | 🔒 | Re-import Terapeak CSVs from Azure Blob Storage |
 | `POST` | `/api/terapeak/purge-stale-csvs` | 🔒 | Delete CSV files older than N days |
 | `GET` | `/api/terapeak/aggregation-status` | 🔒 | Aggregation depth summary + filtered dataset lists |
+| `GET` | `/api/terapeak/scrape-status` | 🔒 | Backward-compatible alias to aggregation status |
 | `POST` | `/api/terapeak/report-no-data` | 🔒 | Increment dormant/no-data tracking for a dataset |
+| `POST` | `/api/terapeak/backfill-aggregation-meta` | 🔒 | One-time backfill of aggregation metadata from historical logs |
 
 ## Admin Dashboard
 

@@ -118,7 +118,10 @@ When behavior, architecture, or workflows change, update docs in the same PR:
 
 ## Security Reporting
 
-A dedicated SECURITY.md policy is recommended. Until that file exists, report vulnerabilities privately to project maintainers and do not open public exploit details in issues or PRs.
+Use [SECURITY.md](SECURITY.md) for the official vulnerability reporting process.
+
+- Report privately via GitHub Security Advisory (preferred) or maintainer contact listed there.
+- Do not post exploit details publicly before a fix is available.
 
 ## Licensing
 

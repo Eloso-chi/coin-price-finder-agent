@@ -24,7 +24,7 @@ Also supports **bullion bars** (any metal, any size), **proof/mint sets** (with 
 
 ## Contributing & Governance
 
-This is an active, open-source project with clear contributor expectations:
+This is an active project with clear contributor expectations:
 
 - **[CONTRIBUTING.md](CONTRIBUTING.md)** — Local setup, testing rules, branching strategy, per-machine backlog ID convention (W/H), PR process, required review gates
 - **[SECURITY.md](SECURITY.md)** — Vulnerability reporting policy, response SLAs, coordinated disclosure

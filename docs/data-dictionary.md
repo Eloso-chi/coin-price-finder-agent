@@ -118,13 +118,19 @@ Example:
 
 ### Container: `users`
 
-Schema mirrors `cache/users.json`. Primary key: `userId` (UUID).
+Schema mirrors `cache/users.json`. Documents are upserted as `{ id: username, username, ...acct }`.
+
+- Item id: `username` (lowercased)
+- Partition key: `username`
 
 ---
 
-### Container: `coins`
+### Container: `user-coins`
 
-Schema mirrors user coins in `cache/user_coins.json`. Primary key: `userId` (for partitioning).
+Schema mirrors user coins in `cache/user_coins.json`.
+
+- Item id: `coinHash`
+- Partition key: `userId`
 
 ---
 
