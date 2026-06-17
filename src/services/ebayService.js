@@ -706,10 +706,15 @@ function scoreMatch(comp, expected) {
   }
 
   // ── Precious metal content cross-check for fractional bullion ──
-  // If melt price per oz is known and comp price far exceeds 1 full oz melt,
-  // it's almost certainly a larger coin than the user is searching for.
+  // #261W: Scale ceiling by expected.weight (5x of expected-weight melt) so
+  // fractional queries don't accept full-oz comps when spot is high. The
+  // previous flat `meltPerOz * 2` ceiling effectively allowed 36x the expected
+  // melt for 1/20 oz queries (2 / 0.05 = 40x). At June 2026 gold ~$5k/oz, a
+  // 1-oz Maple at $5k slipped through 1/20 oz queries (FMV $4987 bug). 5x of
+  // expected melt still allows generous fractional premiums (often 100-300%
+  // over melt for 1/20 oz slabs). Mirrors the filter at applyFilters.
   if (expected.meltPerOz && expected.weight && expected.weight < 1) {
-    if (comp.totalUsd > expected.meltPerOz * 2 && !detectWeightFromTitle(tLow)) {
+    if (comp.totalUsd > expected.meltPerOz * expected.weight * 5 && !detectWeightFromTitle(tLow)) {
       score -= 20; notes.push('price-exceeds-melt');
     }
   }
@@ -1006,12 +1011,17 @@ function applyFilters(comps, options, expected) {
 
   // Precious metal content sanity check: for fractional bullion coins,
   // if no weight is detected in the title and the price is well above
-  // 1 full troy oz of melt, the listing is almost certainly a larger coin.
+  // the expected weight's melt, the listing is almost certainly a larger coin.
+  // #261W: Ceiling is `expected.meltPerOz * expected.weight * 5` -- five times
+  // the EXPECTED-WEIGHT melt, not 1.8x of full-oz melt. The old `meltPerOz * 1.8`
+  // computed to ~$9k for 1/20 oz queries at $5k/oz gold spot, which let 1-oz
+  // comps at $5k pass through (root cause of the $4987 fractional Maple Leaf
+  // bug). 5x still allows fractional premiums up to 400% over melt (typical
+  // 1/20 oz Gold Maples carry 100-300% premium). Floor at $50 keeps the filter
+  // tolerant for cheap silver fractionals where spot * weight is tiny.
   if (expected.meltPerOz && expected.weight && expected.weight < 1) {
     removed.meltSanity = 0;
-    // Threshold: 1.8× the spot melt of a full oz — generous enough to keep
-    // high-premium fractionals but catches obvious 1-oz-priced comps.
-    const meltCeiling = expected.meltPerOz * 1.8;
+    const meltCeiling = Math.max(expected.meltPerOz * expected.weight * 5, 50);
     kept = kept.filter(c => {
       const detW = detectWeightFromTitle(c.title);
       if (detW !== null) return true; // already handled by weight-mismatch filter
