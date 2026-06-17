@@ -8,8 +8,9 @@ Operational scripts for data collection, migration, and maintenance. Most script
 |---|---|
 | Node server running (`node server.js`) | `sales-aggregator.py`, `terapeak-export.py`, `pricing-health-full.js` |
 | VNC desktop + browser session | `terapeak-export.py`, `sales-aggregator.py`, `vnc-login.py` |
-| Azure credentials (Key Vault) | `upload-csvs-to-blob.js`, `migrate-to-cosmos.js`, `greysheet-refresh.js` |
+| Azure credentials (Key Vault) | `upload-csvs-to-blob.js`, `migrate-to-cosmos.js`, `greysheet-refresh.js`, `load-secrets.sh` |
 | Python 3 + playwright | `terapeak-export.py`, `sales-aggregator.py`, `vnc-login.py`, `create_placeholders.py` |
+| `az` CLI logged into the right subscription | `load-secrets.sh` (see [../docs/runbooks/secret-bootstrap.md](../docs/runbooks/secret-bootstrap.md)) |
 
 ## Script Reference
 
@@ -43,12 +44,15 @@ Operational scripts for data collection, migration, and maintenance. Most script
 | `pricing-health-full.js` | Full-dataset pricing health audit | `node scripts/pricing-health-full.js --full` |
 | `lot-estimator-health.js` | Randomized lot parity + consistency health audit (bulk vs individual) | `node scripts/lot-estimator-health.js --lots 8 --seed 18652` |
 | `generate-freshness-report.js` | Dataset freshness triage (5-state + recently-confirmed-stale split) | `node scripts/generate-freshness-report.js [--summary] [--batch N]` |
+| `freshness-composition-analyzer.js` | Cross-tabulate the freshness report by composition (bullion/numismatic/proof/set) to surface structural coverage gaps (#270H) | `node scripts/freshness-composition-analyzer.js` |
+| `parallel-key-drift-scanner.js` | Silent-drift detector for the #267H class -- flags Terapeak datasets whose normalized key collides with an empty sibling (#272H) | `node scripts/parallel-key-drift-scanner.js` |
 | `greysheet-refresh.js` | Bulk Greysheet price snapshot collector | `node scripts/greysheet-refresh.js` |
 | `upload-csvs-to-blob.js` | Upload local Terapeak CSVs to Azure Blob | `node scripts/upload-csvs-to-blob.js [folderPath]` |
 | `migrate-to-cosmos.js` | One-time migration of history data to Cosmos DB | `node scripts/migrate-to-cosmos.js` |
 | `clean-csvs.js` | One-time CSV cleaner (applies DENY_PATTERNS) | `node scripts/clean-csvs.js` |
 | `backfill-sale-dates.js` | Backfill newestSaleDate/oldestSaleDate/compCount into meta sidecar | `node scripts/backfill-sale-dates.js [--dry-run]` |
 | `reclassify-comps.js` | Batch comp reclassification (weight mismatch rerouting) | `node scripts/reclassify-comps.js [--apply]` |
+| `load-secrets.sh` | Pull 8 dev secrets from Azure Key Vault `coinpricefinder-kv` into `.env` (mode 600 via umask 077). Modes: dryrun (default, redacted) / `--print` (raw) / `--write` (literal-prefix merge). (#137) | `scripts/load-secrets.sh` (dry-run) then `scripts/load-secrets.sh --write` |
 
 ### Utilities
 

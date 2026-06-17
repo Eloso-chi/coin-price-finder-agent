@@ -825,6 +825,58 @@ function normalizeSeries(series) {
 
 ---
 
+### #277H. Colorized / specialty-variant coins -- end-to-end disambiguation, comp filtering, and FMV math [P2 -- FEATURE / PRICING-ACCURACY] -- OPEN 2026-06-16
+
+**Origin:** Conversation 2026-06-16 after 25-coin pricing-health run. Question: "how should we deal with colorized coins?" Triggered a full audit of how variant coins (colorized, gilded, privy, high-relief, antiqued, burnished, proof, reverse-proof) flow through search, dataset storage, comp filtering, and valuation.
+
+**Numismatic context:** A mint-issued colorized 1 oz Silver Perth Lunar shares dies + silver content + face value with the BU sibling, but has 1/10 - 1/30 the mintage and retails at 2-5x spot vs the BU's 1.05-1.30x. Aftermarket "novelty" colorized coins (third-party-painted ASEs etc.) trade at a *discount* under base BU -- same word, opposite price direction. Sub-tiers (proof-colorized, gilded-and-colorized, full-color vs spot-color) add a second axis.
+
+**Audit findings:**
+
+- **G1. No UI variant picker.** [public/index.html](public/index.html) has no `<select>` for variant/label. Users must guess and type "colorized" into the free-text query for any of the downstream variant code to engage.
+- **G2. Single Terapeak dataset per coin.** [src/services/terapeakService.js](src/services/terapeakService.js) keys by normalized search string; BU and colorized comps for the same coin commingle unless the original aggregator query already included "colorized". Sales aggregator + freshness report cannot see variant coverage separately.
+- **G3. Variant filter treats all specialty variants as one bucket.** [src/services/ebayService.js](src/services/ebayService.js#L643-L688) and [src/services/ebayService.js](src/services/ebayService.js#L1079-L1118) score and hard-filter against a flat `VARIANT_TOKENS` array. A "colorized" search keeps "gilded" comps, distorting FMV across variant families.
+- **G4. Valuation premium clamp is variant-blind.** [src/services/valuationService.js](src/services/valuationService.js#L173-L180) `bullion-spot-premium` mode caps silver premium at +100% and gold at +40%. Legitimate colorized 1oz Perth Lunars regularly retail $80-$180 vs $35-$40 spot -- a 2-5x premium that the clamp truncates. Systematic underestimate for variant coins.
+- **G5. No mint-issue vs aftermarket distinction.** Aftermarket painted ASEs / Morgans pull a "colorized" search's FMV in the wrong direction.
+- **G6. PCGS price guide not queried with the variant cert#.** Variant-specific wholesale anchor unused.
+- **G7. "High filter attrition 65%" warning has no UX off-ramp** (observed on 2010 Perth Lunar Tiger deep-dive; FMV $65.17, range $37.94-$92.40, confidence 48/100). User sees the warning but has no path to disambiguate.
+
+**Proposed phased approach** (each phase is its own PR; later phases depend on earlier ones for clean data):
+
+- **Phase 1 -- Disambiguation at input (low risk).** Add a "Variant" `<select>` to the search form populated from a curated subset of `ALLOWED_LABELS` in [src/data/constants.js](src/data/constants.js#L80-L88): *Auto-detect (default), Standard (BU), Proof, Reverse Proof, Colorized, Gilded, Privy, High Relief, Antiqued, Burnished*. Wires into existing `req.body.label` pipe -- no server changes needed for the UI. When `label` is set, append a canonical token to the Terapeak dataset key so colorized comps land in their own bucket (old keys keep working alongside). Render a clickable variant chip on results.
+- **Phase 2 -- Variant-aware comp filtering (medium risk).** Replace flat `VARIANT_TOKENS` array in [src/services/ebayService.js](src/services/ebayService.js) with a `VARIANT_FAMILIES` map. Classify query + each comp title into a Set of families (`colorized`, `gilded`, `proof`, `reverseProof`, `privy`, `highRelief`, `antiqued`, `burnished`). Keep rule: family match OR plain BU. Drop: any other family. Add mint-issue vs aftermarket sub-classifier for colorized (+10 for "Perth Mint / RCM / Royal Mint / with COA / PCGS Colorized / NGC Colorized"; -10 for "novelty / painted by / custom / art coin / hand painted").
+- **Phase 3 -- Variant-aware valuation (higher risk).** Add `variantPremiumProfile` to [src/services/valuationService.js](src/services/valuationService.js) opts. When `label === 'Colorized'` and `isBullion`: raise `maxPremium` from 1.00 -> 5.00 for silver, 0.40 -> 2.00 for gold; use variant-filtered comp median only; if <5 variant-matching comps, return `null` FMV with `dataSource='insufficient-variant-comps'` (don't fall back to spot -- wrong number, not missing). Wire PCGS price-guide to use the variant cert# when `expected.finish === 'Colorized'`.
+- **Phase 4 -- Dataset hygiene (pipeline).** One-time migration script: scan existing Terapeak datasets, split variant-heavy ones (>10% variant tokens) into variant-suffixed keys. Dry-run + audit + approval gate before write. Update `sales-aggregator.py` + `freshnessReport` to recognize the new keys.
+
+**Recommendation:** Ship Phase 1 first as its own PR. Small, reversible, gives users disambiguation today, and starts collecting cleanly-tagged search data needed to validate Phases 2-4. Phases 2-3 depend on 1-2 weeks of variant-tagged comp data before tuning new premium ceilings.
+
+**Open questions (deferred until pickup):**
+
+1. Phase 1 only, or full roadmap approved as separate sequential PRs?
+2. Variant labels beyond the curated 9 -- should "First Strike / Early Releases" be treated as FMV-affecting variants or are they slab-only?
+3. Aftermarket novelty colorized handling -- exclude entirely from comps when `label='Colorized'`, or price in own bucket with different premium ceiling? Recommendation: exclude (safer until validated).
+4. Does PCGS price-guide endpoint accept a designation filter, or must we maintain a local variant cert# map?
+
+**Acceptance (Phase 1):**
+
+- Search form exposes Variant `<select>` matching curated label subset.
+- Selecting a variant routes to a variant-suffixed Terapeak dataset key (old keys still work).
+- Result page shows clickable variant chip; clicking clears or swaps.
+- Existing pricing-health 25-coin run remains GREEN (no regression on non-variant queries).
+
+**Sizing:** Phase 1 ~150-250 lines (UI select + 1-2 small server wiring touches + dataset-key suffix). Phases 2-4 sized after Phase 1 lands.
+
+**Related:**
+- 2010 Perth Lunar Tiger deep-dive (this session) -- FMV $65.17, conf 48, "65% filter attrition" warning.
+- [src/data/constants.js](src/data/constants.js#L80-L88) `ALLOWED_LABELS`.
+- [src/services/ebayService.js](src/services/ebayService.js#L643-L688) variant scoring.
+- [src/services/ebayService.js](src/services/ebayService.js#L1079-L1118) variant hard filter.
+- [src/services/valuationService.js](src/services/valuationService.js#L169-L195) bullion-spot-premium clamp.
+- [src/services/terapeakService.js](src/services/terapeakService.js) dataset keying.
+- [src/utils/coinIntent.js](src/utils/coinIntent.js) `FINISH_CANONICAL` (already normalizes most variant words).
+
+---
+
 ### #249. Unattended Scheduler for Local Scraper Path [P3 -- OPERATIONS] -- BACKLOG
 
 **Status:** Deferred. Phase 1 (dual-path scraper -- Surface laptop + Codespace fallback) will be added first. This entry covers the optional automation layer that runs the scraper on a schedule once the manual workflow is validated.
