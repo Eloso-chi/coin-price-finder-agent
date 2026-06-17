@@ -2,6 +2,8 @@
 
 Technical reference for the Coin Price Discovery Agent. Covers module layout, data flow, caching strategy, and API schemas.
 
+For a quick endpoint reference, see [docs/api-reference.md](api-reference.md). For critical data store schemas, see [docs/data-dictionary.md](data-dictionary.md).
+
 ---
 
 ## Module Map
