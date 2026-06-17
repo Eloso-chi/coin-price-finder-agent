@@ -57,4 +57,47 @@ describe('scoreMatch -- weight tolerance (#266W)', () => {
     expect(comp.matchNotes).not.toContain('weight-mismatch');
     expect(comp.matchNotes).not.toContain('weight-not-stated');
   });
+
+  // ── Edge cases requested in PR #143 review ──
+
+  test('boundary: exactly 5% gap (0.95 oz vs 1.0 oz) -> weight-mismatch (strict <)', () => {
+    // 0.95 oz vs 1.0 oz expected: ratio = 0.05 / 1.0 = 0.05, NOT strictly < 0.05.
+    // Confirms the threshold is exclusive on the upper bound.
+    const comp = { title: '2024 Some Bullion 0.95 oz', price: 30 };
+    scoreMatch(comp, { weight: 1, year: 2024 });
+    expect(comp.matchNotes).toContain('weight-mismatch');
+    expect(comp.matchNotes).not.toContain('weight-match');
+  });
+
+  test('1/20 oz Gold Maple Leaf (exact 0.05 vs 0.05 expected) -> weight-match', () => {
+    // Smallest common fractional bullion size. Confirms the relative-ratio
+    // formula stays numerically stable at the low end of the weight range.
+    // (Note: #261W tracks a separate root cause -- missing 1/20 oz entry in
+    // data/greysheetTypeMap.js -- not addressed by the scorer fix.)
+    const comp = { title: '2023 Canada 1/20 oz Gold Maple Leaf BU', price: 200 };
+    scoreMatch(comp, { weight: 0.05, year: 2023 });
+    expect(comp.matchNotes).toContain('weight-match');
+    expect(comp.matchNotes).not.toContain('weight-mismatch');
+  });
+
+  test('just inside tolerance (0.96 oz vs 1.0 oz = 4% gap) -> weight-match', () => {
+    // Sanity check: the acceptance zone is symmetric around the Panda's 3.54%.
+    const comp = { title: '2024 Some Bullion 0.96 oz', price: 30 };
+    scoreMatch(comp, { weight: 1, year: 2024 });
+    expect(comp.matchNotes).toContain('weight-match');
+    expect(comp.matchNotes).not.toContain('weight-mismatch');
+  });
+
+  test('defensive: expected.weight = 0 -> no NaN, no weight notes, no throw', () => {
+    // expected.weight = 0 is falsy, so the outer `if (expected.weight)` guard at
+    // line 686 of ebayService.js prevents the weight-tolerance block from
+    // running. This test asserts that behavior remains stable and that no
+    // weight notes are added (no division-by-zero, no NaN propagation).
+    const comp = { title: '2024 American Silver Eagle 1 oz BU', price: 35 };
+    expect(() => scoreMatch(comp, { weight: 0, year: 2024 })).not.toThrow();
+    expect(comp.matchNotes).not.toContain('weight-match');
+    expect(comp.matchNotes).not.toContain('weight-mismatch');
+    expect(comp.matchNotes).not.toContain('weight-not-stated');
+    expect(comp.matchScore).not.toBeNaN();
+  });
 });
