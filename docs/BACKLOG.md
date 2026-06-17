@@ -1831,6 +1831,117 @@ Current repo state: 63 total PRs, **0 open**. Item was stale-imported; root caus
 
 ---
 
+### #265W. Rotate `ADMIN_API_KEY` + remove hardcoded fallback from `scripts/bar-pricing-health.js` [P1 -- SECURITY] -- OPEN 2026-06-17
+
+**Problem:** The production admin API key value is exposed in git history via
+a hardcoded fallback in `scripts/bar-pricing-health.js` line 14
+(`const API_KEY = process.env.ADMIN_API_KEY || '<literal>';`, present since
+commit `d6e0f17`). Anyone with read access to the repo or its fork history can
+run `git log -p d6e0f17 -- scripts/bar-pricing-health.js` and recover the
+value.
+
+The key has been in Azure Key Vault (`coinpricefinder-kv`, secret
+`ADMIN-API-KEY`, App Service Key Vault reference active) since 2026-04-16, so
+the production lookup path was always safe -- but the script's fallback turned
+local-tooling convenience into a permanent leak.
+
+**Today's state (2026-06-17, after `docs/memory-corpus-migration` PR):**
+- Live tree: value sanitized from `docs/memory/terapeak-runbook.md` and
+  `docs/memory/terapeak-export-automation.md` (replaced with references to
+  `.env` / `scripts/load-secrets.sh`).
+- Live tree: value STILL present at `scripts/bar-pricing-health.js:14`.
+- Git history: value present in all of the above + the original
+  `/memories/repo/` snapshots (machine-local, gitignored, untouched).
+- Backup: machine-local `/memories/repo/terapeak-*.md` on the W machine still
+  contains the value, by design (backups are not edited).
+
+**Fix (do all of the following in one PR, coordinated between W and H):**
+
+1. **Generate new key** (32+ chars, URL-safe):
+   ```bash
+   openssl rand -base64 32 | tr '+/' '-_' | tr -d '='
+   ```
+
+2. **Update Azure Key Vault** -- creates a new secret version; the old version
+   remains until explicitly disabled:
+   ```bash
+   az keyvault secret set \
+     --vault-name coinpricefinder-kv \
+     --name ADMIN-API-KEY \
+     --value "<new value>"
+   ```
+
+3. **Restart App Service** to pick up the new value (Key Vault reference cache
+   can otherwise lag up to 24 h):
+   ```bash
+   az webapp restart \
+     --name coinpricefinder-h3a3b5g0dmdydna4 \
+     --resource-group CoinPriceFinder_group-82d5
+   ```
+
+4. **Re-sync local `.env` on BOTH machines** (W and H) so local tooling keeps
+   working:
+   ```bash
+   bash scripts/load-secrets.sh    # pulls fresh values from Key Vault
+   ```
+
+5. **Remove the hardcoded fallback** in `scripts/bar-pricing-health.js`. Make
+   the script fail fast if `ADMIN_API_KEY` is not set, e.g.:
+   ```js
+   const API_KEY = process.env.ADMIN_API_KEY;
+   if (!API_KEY) {
+     console.error('ADMIN_API_KEY env var is required. Run: bash scripts/load-secrets.sh');
+     process.exit(1);
+   }
+   ```
+
+6. **Verify** the rotation took effect:
+   ```bash
+   # The old (leaked) value should now be rejected -- supply it via env to
+   # avoid pasting it on the command line:
+   #   export OLD_KEY=<paste old value here>
+   curl -sS -o /dev/null -w "%{http_code}\n" \
+     -X POST https://<app>.azurewebsites.net/api/terapeak/quota/reset \
+     -H "x-api-key: $OLD_KEY"              # expect 401/403
+
+   # New value (from refreshed .env) should succeed
+   curl -sS -o /dev/null -w "%{http_code}\n" \
+     -X POST https://<app>.azurewebsites.net/api/terapeak/quota/reset \
+     -H "x-api-key: $ADMIN_API_KEY"        # expect 200
+   ```
+
+7. **(Optional) Disable old Key Vault secret version** once both machines have
+   the new value and verified:
+   ```bash
+   # List versions, then disable the prior one
+   az keyvault secret list-versions \
+     --vault-name coinpricefinder-kv --name ADMIN-API-KEY \
+     --query "[?attributes.created < '2026-06-17']" -o table
+   az keyvault secret set-attributes \
+     --vault-name coinpricefinder-kv --name ADMIN-API-KEY \
+     --version <old-version-id> --enabled false
+   ```
+
+**Out of scope (do NOT do):** Rewriting git history with `git filter-repo` to
+purge the old value. Once rotated, the old value is worthless, and a force-push
+on `main` is destructive and breaks every clone. The leak is closed by rotation,
+not by erasure.
+
+**Coordination:** Both machines must run step 4 within the same window, or
+local tooling on the lagging machine will return 401s. Announce in the shared
+notes before starting; verify both machines done before step 7.
+
+**Files:**
+- `scripts/bar-pricing-health.js`
+- Azure: Key Vault `coinpricefinder-kv` secret `ADMIN-API-KEY`
+- Azure: App Service `coinpricefinder-h3a3b5g0dmdydna4`
+- Local on W and H: `.env` (gitignored)
+
+**Source:** Discovered during the 2026-06-17 `docs/memory-corpus-migration` PR
+audit. See `docs/memory/README.md` "Known remaining exposure" for context.
+
+---
+
 ### 234. parseDescription Misclassifies "Proof-Like" as Proof [P1] -- DONE 2026-06-02
 
 **Status:** Fixed in `src/services/pcgsService.js` -- the standalone-proof branch now uses `/\bproof\b(?![\s-]*like)/i`. 5 regression cases in `__tests__/pcgsService.test.js` cover `Proof-Like`, `Proof Like`, `DMPL`, `MS64 PL`, and a plain-`Proof` sanity check.

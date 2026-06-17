@@ -12,7 +12,8 @@ Bootstrap full project understanding at the start of a new conversation. After r
 
 Before reading anything, scan for files that may have been added since this agent was last updated:
 
-1. List `/memories/repo/` -- read any files not explicitly listed in Phase 1.
+1. List `docs/memory/` (the canonical, git-tracked memory corpus) -- read any files not explicitly listed in Phase 1.
+   - Fallback: `/memories/repo/` (machine-local backup of the pre-2026-06-17 corpus) may contain stale copies. Only consult it if a file is missing from `docs/memory/`. Originals carry a `MIGRATED to docs/memory/...` banner at the top.
 2. Run (Unix/macOS): `find . -name "*.md" -not -path "./node_modules/*" -not -path "./cache/*" -not -path "./.git/*" | sort`
 	Run (PowerShell): `Get-ChildItem -Recurse -File -Filter *.md | Where-Object { $_.FullName -notmatch 'node_modules|\\cache\\|\\.git\\' } | Sort-Object FullName | ForEach-Object FullName`
 	Note any docs not covered by Phases 1-2.
@@ -33,23 +34,32 @@ If new files are discovered, read them and include their contents in the Readine
 
 ### Phase 1: Repo Memory (highest density context)
 
-Read ALL files in `/memories/repo/` in this order:
+Read ALL files in `docs/memory/` (canonical, git-tracked) in this order. As of 2026-06-17 this is the authoritative location -- the legacy `/memories/repo/` directory is a machine-local backup only and may drift.
 
-1. `codebase-overview.md` -- stack, structure, services, auth, env vars, dependencies
-2. `future-edits.md` -- full backlog with status (DONE/OPEN), commit hashes, implementation details
-3. `decision-engine-spec.md` -- valuation engine FMV modes, confidence scoring, buy/sell spreads
-4. `terapeak-runbook.md` -- aggregation operations, VNC setup, troubleshooting
-5. `terapeak-data-structure-analysis.md` -- CSV format, column mapping, data quality
-6. `terapeak-export-automation.md` -- Playwright aggregation architecture
-7. `ebay-search-filtering-analysis.md` -- keyword building, deny lists, scoring
-8. `cache-invalidation-fix.md` -- cache TTL and eviction details
-9. `finding-api-dead.md` -- eBay Finding API decommission context
-10. `label-feature-context.md` -- label/variant feature design
-11. `synthetic-data-audit.md` -- which data is real vs synthetic
-12. `azure-infrastructure.md` -- Key Vault, Cosmos DB, Blob Storage, Azure Files
-13. `numismatic-terminology.md` -- strike types, grade prefixes, pool classification rules, common traps
+1. `docs/memory/codebase-overview.md` -- stack, structure, services, auth, env vars, dependencies
+2. `docs/memory/decision-engine-spec.md` -- valuation engine FMV modes, confidence scoring, buy/sell spreads
+3. `docs/memory/terapeak-runbook.md` -- aggregation operations, VNC setup, troubleshooting (ADMIN_API_KEY value is REDACTED; load from `.env` or Key Vault)
+4. `docs/memory/terapeak-data-structure-analysis.md` -- CSV format, column mapping, data quality
+5. `docs/memory/terapeak-export-automation.md` -- Playwright aggregation architecture (ADMIN_API_KEY value REDACTED)
+6. `docs/memory/terapeak-export-process.md` -- correct export steps
+7. `docs/memory/ebay-search-filtering-analysis.md` -- keyword building, deny lists, scoring
+8. `docs/memory/cache-invalidation-fix.md` -- cache TTL and eviction details
+9. `docs/memory/finding-api-dead.md` -- eBay Finding API decommission context
+10. `docs/memory/label-feature-context.md` -- label/variant feature design
+11. `docs/memory/synthetic-data-audit.md` -- which data is real vs synthetic
+12. `docs/memory/azure-infrastructure.md` -- Key Vault, Cosmos DB, Blob Storage, Azure Files
+13. `docs/memory/numismatic-terminology.md` -- strike types, grade prefixes, pool classification rules, common traps
+14. `docs/memory/audience-gating.md` -- public vs admin response gating (PR #85)
+15. `docs/memory/background-processes-status.md` -- background timers, prefetch scheduler
+16. `docs/memory/bulk-evaluate-feature.md` -- lot evaluator reference
+17. `docs/memory/codespaces-gh-auth.md` -- Codespace gh CLI token quirk
+18. `docs/memory/cosmos-gotchas.md` -- Cosmos DB pitfalls
+19. `docs/memory/key-normalization-fix.md` -- 2026-05-08 key normalization
+20. `docs/memory/agents-and-prompts.md` -- inventory of agents/prompts/skills
+21. `docs/memory/future-edits.md` -- **HISTORICAL ARCHIVE ONLY**, now a deprecation stub. Canonical backlog is `docs/BACKLOG.md`. Skim for the renumber map (memory#183->#228, #185->#226, #186->#227) and per-machine ID convention.
+22. `docs/memory/README.md` -- corpus index, audit notes, migration history
 
-Skip any files that don't exist (the list may change over time).
+If a file is missing in `docs/memory/`, check `/memories/repo/` (the legacy backup) and surface the gap in the Readiness Report under "Gaps Detected".
 Read any additional files found in Phase 0 that are not listed above.
 
 ### Phase 2: Project Docs
