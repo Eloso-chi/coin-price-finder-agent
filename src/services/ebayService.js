@@ -683,10 +683,17 @@ function scoreMatch(comp, expected) {
   }
 
   // ── Weight / size match for bullion coins (25 pts match, –35 mismatch) ──
+  // #266W: Use 5% relative tolerance so coins whose actual metric weight differs
+  // slightly from the troy-ounce nominal still match.  Primary case: 2016+ Chinese
+  // Silver Pandas (30g = 0.9646 oz vs 1.0 oz nominal = 3.5% off).  Mirrors the
+  // comp-filter pattern landed in PR #33.  Without this, correct comps were scored
+  // weight-mismatch (-35) instead of weight-match (+25) -- a 60-point swing that
+  // could demote them out of the top-K window.
   if (expected.weight) {
     const detectedWeight = detectWeightFromTitle(tLow);
     if (detectedWeight !== null) {
-      if (Math.abs(detectedWeight - expected.weight) < 0.01) {
+      const wtRatio = Math.abs(detectedWeight - expected.weight) / Math.max(detectedWeight, expected.weight);
+      if (wtRatio < 0.05) {
         score += 25; notes.push('weight-match');
       } else {
         score -= 35; notes.push('weight-mismatch');
