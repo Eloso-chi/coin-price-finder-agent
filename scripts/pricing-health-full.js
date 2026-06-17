@@ -20,6 +20,13 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
+// #262W -- shared pure classifier helpers (see scripts/lib/ for tests).
+const {
+  classifyRpMeltFloor,
+  classifyDealerPremium,
+  findFractionalCollisions,
+} = require('./lib/pricingHealthClassifiers');
+
 const BASE = process.env.BASE_URL || 'http://localhost:3000';
 
 // -- CLI args --
@@ -120,7 +127,11 @@ async function testCoin(query) {
       usComps: e.comps?.length ?? 0,
       gathered: e.gathered ?? null,
       attritionPct: e.attritionPct ?? null,
-      removed: e.removed || {}
+      removed: e.removed || {},
+      // #262W -- needed by the dealer-premium band check. spotPrice is
+      // meltPerOz * resolvedWeight (coin-level melt value), already
+      // computed by /api/price for bullion queries. Null for non-bullion.
+      spotPrice: typeof v.spotPrice === 'number' ? v.spotPrice : null
     };
 
     // Batch route
@@ -172,6 +183,16 @@ async function testCoin(query) {
       result.issues.push({ type: 'null-fmv', severity: 'RED', teakRows: result.teakRows });
     }
 
+    // #262W: RP/proof melt-floor sanity (spot-premium fallback won
+    // despite >=10 surviving proof comps).
+    const rpIssue = classifyRpMeltFloor({ query, discovery: result.discovery });
+    if (rpIssue) result.issues.push(rpIssue);
+
+    // #262W: dealer-premium band check (compares realized premium to
+    // dealerPremiums.js benchmark range; fail-quiet for unknown series).
+    const premIssue = classifyDealerPremium({ query, discovery: result.discovery });
+    if (premIssue) result.issues.push(premIssue);
+
   } catch (err) {
     result.issues.push({ type: 'error', severity: 'RED', message: err.message });
   }
@@ -181,6 +202,22 @@ async function testCoin(query) {
 
 // -- Main --
 async function main() {
+  // #262W -- Hard-fail at startup if --full mode needs the admin key but
+  // ADMIN_API_KEY is unset. Without the key, /api/terapeak/datasets
+  // returns 401 and the script silently records "0 datasets tested ->
+  // HEALTHY", which is the worst possible operator-facing outcome
+  // (greenlight on a broken environment). Exit code 3 distinguishes
+  // this from server-down (1) and creds-missing (2).
+  const needsAdminKey = isFullRun || limit || filter;
+  if (needsAdminKey && !ADMIN_API_KEY) {
+    console.error('\n=== ADMIN_API_KEY REQUIRED ===');
+    console.error('--full / --limit / --filter mode calls /api/terapeak/datasets,');
+    console.error('which requires the admin key. Set ADMIN_API_KEY in your environment');
+    console.error('and rerun. Default-sample mode (no flags) does not need this key.');
+    console.error('');
+    process.exit(3);
+  }
+
   // Health check
   try {
     await httpRequest('GET', '/api/health');
@@ -271,6 +308,18 @@ async function main() {
     if (!quiet && done % 25 === 0) process.stderr.write(`  ${done}/${coins.length} complete\n`);
     return r;
   }, CONCURRENCY);
+
+  // #262W -- Cross-result fractional-collision pass. Pairs of the form
+  // {series, weight=A} and {series, weight=2A} that return FMVs within
+  // 1% of each other (the #261W signature). Attaches the issue to BOTH
+  // peers so either one shows up in the RED list.
+  const collisions = findFractionalCollisions(results);
+  if (collisions.size > 0) {
+    for (const r of results) {
+      const issue = collisions.get(r.coin);
+      if (issue) r.issues.push(issue);
+    }
+  }
 
   // Summarize
   const red = results.filter(r => r.issues.some(i => i.severity === 'RED'));

@@ -1418,7 +1418,7 @@ if (comp.totalUsd > expected.meltPerOz * expected.weight * 5 && !detectWeightFro
 
 ---
 
-### #262W. pricing-health-full.js classifier misses obvious RED issues [P2 -- TOOLING] -- OPEN 2026-06-04
+### #262W. pricing-health-full.js classifier misses obvious RED issues [P2 -- TOOLING] -- DONE 2026-06-17
 - **Symptom**: `scripts/pricing-health-full.js` rated the top-100 run "HEALTHY" (99 GREEN / 1 YELLOW / 0 RED) when it should have surfaced at least 3 RED items:
   - 2023 Reverse Proof Morgan returning silver melt (caught only as YELLOW low-confidence; the 73%-below-expected FMV was not flagged).
   - Canada 1/10 and 1/20 Gold Maple Leaf returning identical $4986.93 (not flagged at all).
@@ -1435,6 +1435,13 @@ if (comp.totalUsd > expected.meltPerOz * expected.weight * 5 && !detectWeightFro
   5. Update `.github/agents/pricing-health.agent.md` Prerequisites section to call out the env var.
 - **Files**: `scripts/pricing-health-full.js`, `.github/agents/pricing-health.agent.md`.
 - **Related**: #196 (dealer premium drift monitor), #261W (the fractional-gold finding this missed), #260W (the RP Morgan finding this only partially flagged).
+- **Status (2026-06-17)**: All 5 sub-items shipped. Pure classifier logic extracted to `scripts/lib/pricingHealthClassifiers.js` for direct unit testing:
+  1. `findFractionalCollisions` -- post-pass over all results; groups by `(metal, series)`, flags 2:1 weight pairs with FMV within 1%.
+  2. `classifyRpMeltFloor` -- per-coin; flags RED when proof/RP intent + `usComps >= 10` + `method === 'bullion-spot-premium'`.
+  3. `classifyDealerPremium` -- per-coin; calls `lookupPremiumRange` + `computePremium`; flags RED when realized premium is outside the band. Fail-quiet for queries whose series is not in the dealerPremiums coverage table (no false RED).
+  4. Hard-fail at startup with `process.exit(3)` if `--full`/`--limit`/`--filter` is set without `ADMIN_API_KEY`. Distinct from server-down (exit 1) and creds-missing (exit 2).
+  5. Agent doc Prerequisites + Analysis Rules sections updated with the env var requirement and the three new issue types.
+- **Implementation**: NEW `scripts/lib/pricingHealthClassifiers.js`, MOD `scripts/pricing-health-full.js`, MOD `.github/agents/pricing-health.agent.md`, NEW `__tests__/pricingHealthClassifiers.test.js` (33 unit tests), MOD `__tests__/pricingHealthCredentialProbe.test.js` (+8 source-invariant assertions for the new wiring and hard-fail). Full suite: 118 suites / 3616 tests pass.
 
 ---
 

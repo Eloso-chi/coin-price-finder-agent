@@ -45,6 +45,28 @@ cd /workspaces/coin-price-agent/src && node server.js &
 
 Wait for the health endpoint to respond before proceeding.
 
+### ADMIN_API_KEY required for --full / --limit / --filter modes (#262W)
+
+The `--full`, `--limit`, and `--filter` modes call the admin-gated
+`/api/terapeak/datasets` endpoint to pick the coin list. They REQUIRE
+`ADMIN_API_KEY` to be set in the environment. Without it, the script now
+exits with code 3 and a clear "ADMIN_API_KEY REQUIRED" message; prior
+behavior was a silent "0 datasets tested -> HEALTHY" greenlight on a
+broken environment.
+
+The default-sample mode (no flags, 14 hardcoded coins) does NOT need the
+admin key and works against any running server.
+
+```bash
+# Set once per shell before running --full / --limit / --filter:
+export ADMIN_API_KEY="<value from .env or Azure App Settings>"
+```
+
+Exit codes:
+- 1 = server unreachable
+- 2 = upstream credentials (eBay / PCGS) missing (probe failed)
+- 3 = ADMIN_API_KEY missing in a mode that needs it (#262W)
+
 ## Data Collection (SINGLE COMMAND)
 
 Run the health check script in ONE terminal invocation. Choose the mode based on the user's request:
@@ -130,6 +152,35 @@ removed the most comps (weightMismatch, variantMismatch, yearMismatch, etc.).
 | **RED** | `browseOnly === true` for a coin with `teakRows > 20` (Terapeak data not reaching valuation) |
 | **YELLOW** | `lowData === true` |
 | **YELLOW** | `confidence < 50` |
+
+### Proof / Reverse-Proof Melt Floor (#262W)
+
+| Severity | Condition |
+|----------|-----------|
+| **RED** | `query` matches `/\b(?:reverse\s+proof|enhanced\s+reverse\s+proof|proof)\b/i` AND `usComps >= 10` AND `method === 'bullion-spot-premium'` |
+
+Caught by `classifyRpMeltFloor` in `scripts/lib/pricingHealthClassifiers.js`.
+Issue type: `rp-melt-floor`. Indicates the spot+5% fallback won despite
+proof-aware comps being available -- the #260W class of bug.
+
+### Dealer-Premium Band Check (#262W)
+
+| Severity | Condition |
+|----------|-----------|
+| **RED** | Realized premium `(fmv - spotPrice) / spotPrice` falls outside the band defined in `src/data/dealerPremiums.js` for the matched `(series, metal, weight, form)` tuple |
+
+Caught by `classifyDealerPremium`. Issue type: `dealer-premium`. Fail-quiet
+for queries whose series is not in the dealerPremiums coverage table.
+
+### Fractional-Collision (#262W)
+
+| Severity | Condition |
+|----------|-----------|
+| **RED** | Two same-series results with weights in 2:1 ratio (e.g. 1/10 oz vs 1/20 oz) return FMVs within 1% of each other |
+
+Caught by `findFractionalCollisions` as a post-pass over all results.
+Issue type: `fractional-collision`. The #261W class of bug -- fractional
+melt ceiling scaled to a full-ounce comp.
 
 ### Terapeak-to-Valuation Pipeline Leak
 
