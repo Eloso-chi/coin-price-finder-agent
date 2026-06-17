@@ -1969,6 +1969,31 @@ if (wtRatio < 0.05) {
 
 ---
 
+### #267W. Bump `multer` to clear high-severity DoS CVEs [P1 -- SECURITY] -- DONE 2026-06-17
+
+**Status:** Fixed via lockfile-only `npm audit fix`. `multer` resolved from `2.1.1` to `2.2.0` (within existing `^2.0.2` range in `package.json`). CI audit gate (`npm audit --audit-level=high --omit=dev`) now passes.
+
+**Problem:** CI test job was failing on every PR (including #143) due to two HIGH-severity DoS advisories against `multer`:
+- `GHSA-72gw-mp4g-v24j` -- DoS via deeply nested field names
+- `GHSA-3p4h-7m6x-2hcm` -- DoS via incomplete cleanup of aborted uploads
+
+Affected routes (production code paths using `multer`): [src/routes/bulkEvaluateRoute.js](src/routes/bulkEvaluateRoute.js#L8), [src/routes/excelImportRoute.js](src/routes/excelImportRoute.js#L4), [src/routes/terapeakRoute.js](src/routes/terapeakRoute.js#L5).
+
+**Fix:** `npm audit fix` (no `--force`, no breaking changes). Only `package-lock.json` changed -- no API surface change in `multer` 2.1.1 -> 2.2.0.
+
+**Verification:**
+- `npm audit --audit-level=high --omit=dev` -> exit 0 (was failing before)
+- `__tests__/bulkEvaluateRoute.test.js`, `__tests__/bulkEvaluate.test.js`, `__tests__/excelImport.test.js`, `__tests__/terapeakRoute.test.js` -- 123/123 pass
+- Full suite: 3562/3563 (only `terapeakDataIntegrity.test.js` fails in-suite -- known flake #273H, 105/105 pass in isolation, unrelated to this change)
+
+**Out of scope (remaining moderate prod findings):**
+- `qs` 6.15.1 (GHSA-q8mj-m7cp-5q26) pinned by `typed-rest-client`; npm cannot bump it without upstream release. Not blocking CI (moderate).
+- `uuid` <11.1.1 (GHSA-w5hq-g745-h8pq) requires breaking `exceljs` to 3.4.0 (`--force`). Not blocking CI (moderate). Defer to dedicated upgrade.
+
+**Files:** `package-lock.json` (lockfile-only).
+
+---
+
 ### 234. parseDescription Misclassifies "Proof-Like" as Proof [P1] -- DONE 2026-06-02
 
 **Status:** Fixed in `src/services/pcgsService.js` -- the standalone-proof branch now uses `/\bproof\b(?![\s-]*like)/i`. 5 regression cases in `__tests__/pcgsService.test.js` cover `Proof-Like`, `Proof Like`, `DMPL`, `MS64 PL`, and a plain-`Proof` sanity check.
