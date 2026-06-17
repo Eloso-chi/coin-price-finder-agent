@@ -1942,6 +1942,33 @@ audit. See `docs/memory/README.md` "Known remaining exposure" for context.
 
 ---
 
+### #266W. `scoreMatch` weight tolerance: port 5% relative check from filter to scorer [P2 -- BUG] -- DONE 2026-06-17
+
+**Status:** Fixed in `src/services/ebayService.js`. Scorer now mirrors the filter's 5% relative tolerance.  Regression test added at [__tests__/scoreMatchWeight.test.js](__tests__/scoreMatchWeight.test.js).
+
+**Problem:** PR #33 (`fix/weight-mismatch-30g-tolerance`) replaced the comp-FILTER weight check from `Math.abs(detW - expected.weight) < 0.01` to a 5% relative tolerance so 2016+ Chinese Silver Pandas (30g actual = 0.9646 oz vs 1.0 oz nominal = 3.5% off) pass.  The comp-SCORER at `scoreMatch` was never updated and still used the 0.01 oz absolute check.  Correct comps (Pandas, and any other bullion where actual metric weight diverges slightly from troy-ounce nominal) were tagged `weight-mismatch` (-35) instead of `weight-match` (+25) -- a 60-point swing that could demote good comps out of the top-K window or downweight their influence on FMV.
+
+**Discovered:** During 2026-06-17 W-branch hygiene review.  The branch `fix/weight-mismatch-30g-tolerance` (archive tag `archive/2026-06-17/fix/weight-mismatch-30g-tolerance`) showed the filter fix landed in main, but cross-check of the scorer in the same file revealed the parallel bug at `scoreMatch`.
+
+**Fix:**
+```js
+// src/services/ebayService.js (in scoreMatch, around line 687)
+const wtRatio = Math.abs(detectedWeight - expected.weight) / Math.max(detectedWeight, expected.weight);
+if (wtRatio < 0.05) {
+  score += 25; notes.push('weight-match');
+} else {
+  score -= 35; notes.push('weight-mismatch');
+}
+```
+
+**Files:**
+- `src/services/ebayService.js` (scorer block, ~lines 685-700)
+- `__tests__/scoreMatchWeight.test.js` (new, 5 regression cases)
+
+**Related:** PR #33 (filter fix), `#261W` (fractional Gold Maple Leaf has a separate root cause: missing 1/20 oz entry in `data/greysheetTypeMap.js`; not addressed by this fix).
+
+---
+
 ### 234. parseDescription Misclassifies "Proof-Like" as Proof [P1] -- DONE 2026-06-02
 
 **Status:** Fixed in `src/services/pcgsService.js` -- the standalone-proof branch now uses `/\bproof\b(?![\s-]*like)/i`. 5 regression cases in `__tests__/pcgsService.test.js` cover `Proof-Like`, `Proof Like`, `DMPL`, `MS64 PL`, and a plain-`Proof` sanity check.
