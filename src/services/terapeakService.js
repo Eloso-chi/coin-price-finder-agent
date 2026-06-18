@@ -17,8 +17,14 @@ const CACHE_DIR = require('../utils/cachePath').CACHE_DIR;
 const cosmos = require('../utils/cosmosClient');
 const STORE_PATH = path.join(CACHE_DIR, 'terapeak_sold.json');
 
-// Git-tracked sidecar: lightweight aggregationMeta that survives codespace rebuilds
-const META_SIDECAR_PATH = path.join(__dirname, '../../data/terapeak-meta.json');
+// Git-tracked sidecar: lightweight aggregationMeta that survives codespace rebuilds.
+// Resolved at call time so tests can redirect writes to a tmpdir via process.env.META_PATH
+// (see __tests__/setup/meta-path.js and backlog #273H). Without this hook, parallel
+// jest workers race on the real data/terapeak-meta.json -- producing the recurring
+// auditDuplicateKeys.test.js "does NOT mutate" canary failure on CI.
+function _resolveMetaSidecarPath() {
+  return process.env.META_PATH || path.join(__dirname, '../../data/terapeak-meta.json');
+}
 
 // (CACHE_DIR mkdir handled by cachePath.js)
 
@@ -129,7 +135,7 @@ function saveMetaSidecar() {
         }
       }
     }
-    fs.writeFile(META_SIDECAR_PATH, JSON.stringify(meta, null, 2) + '\n', (err) => {
+    fs.writeFile(_resolveMetaSidecarPath(), JSON.stringify(meta, null, 2) + '\n', (err) => {
       if (err && process.env.NODE_ENV !== 'test') {
         console.error('[terapeak] Failed to save meta sidecar:', err.message);
       }
@@ -188,7 +194,7 @@ function loadMetaSidecar() {
   const store = loadStore();
   let hydrated = 0;
   try {
-    const raw = JSON.parse(fs.readFileSync(META_SIDECAR_PATH, 'utf8'));
+    const raw = JSON.parse(fs.readFileSync(_resolveMetaSidecarPath(), 'utf8'));
     for (const [key, meta] of Object.entries(raw)) {
       if (!meta || (!meta.deepAt && !meta.page1At && !meta.newestSaleDate && !meta.identifiers)) continue;
       const existing = store[key]?.aggregationMeta || {};

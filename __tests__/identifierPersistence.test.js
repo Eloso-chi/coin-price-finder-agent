@@ -7,7 +7,9 @@ const path = require('path');
 // Isolate store so tests don't affect production data
 const CACHE_DIR = require('../src/utils/cachePath').CACHE_DIR;
 const STORE_PATH = path.join(CACHE_DIR, 'terapeak_sold.json');
-const META_SIDECAR_PATH = path.join(__dirname, '../data/terapeak-meta.json');
+// #273H: prefer the per-worker tmpdir set by __tests__/setup/meta-path.js so
+// direct test writes land in the same file the service code reads.
+const META_SIDECAR_PATH = process.env.META_PATH || path.join(__dirname, '../data/terapeak-meta.json');
 
 let originalStore;
 let originalMeta;

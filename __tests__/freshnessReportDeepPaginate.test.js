@@ -9,7 +9,7 @@ const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
 
-const META_PATH = path.join(__dirname, '..', 'data', 'terapeak-meta.json');
+const META_PATH = process.env.META_PATH || path.join(__dirname, '..', 'data', 'terapeak-meta.json');
 const REPORT_PATH = path.join(__dirname, '..', 'cache', 'freshness-report.json');
 const SCRIPT = path.join(__dirname, '..', 'scripts', 'generate-freshness-report.js');
 
@@ -30,7 +30,10 @@ afterAll(() => {
 
 function runReport(meta) {
   fs.writeFileSync(META_PATH, JSON.stringify(meta, null, 2));
-  execFileSync('node', [SCRIPT], { encoding: 'utf8' });
+  // Pass env explicitly so the META_PATH override from __tests__/setup/meta-path.js
+  // (#273H) reaches the subprocess -- jest sandboxes process.env so child_process
+  // does NOT inherit mutations by default.
+  execFileSync('node', [SCRIPT], { encoding: 'utf8', env: process.env });
   return JSON.parse(fs.readFileSync(REPORT_PATH, 'utf8'));
 }
 
