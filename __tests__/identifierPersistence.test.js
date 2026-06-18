@@ -118,9 +118,14 @@ describe('identifier persistence', () => {
     const svc = freshService();
     svc.loadMetaSidecar();
 
+    // #266H Phase 2: loadMetaSidecar canonicalizes raw keys on read (so
+    // legacy on-disk keys do not bypass the in-memory canonical-form
+    // migration). Look up by the canonical key, not the raw one.
+    const restoredKey = svc.normalizeSearchKey(SIDECAR_KEY);
+
     // Verify identifiers were restored
     const datasets = svc.listDatasets();
-    const restored = datasets.find(d => d.key === SIDECAR_KEY);
+    const restored = datasets.find(d => d.key === restoredKey);
     expect(restored).toBeDefined();
     expect(restored.identifiers).toEqual(TEST_IDENTIFIERS);
 
