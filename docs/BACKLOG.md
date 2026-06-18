@@ -2358,7 +2358,103 @@ and obscures regressions in unrelated PRs.
 
 ---
 
-### #253. Malformed Dataset Keys Produce Nonsensical FMVs [P2 -- DATA-QUALITY]
+### #253. Malformed Dataset Keys Produce Nonsensical FMVs [P2 -- DATA-QUALITY] -- VERIFIED + RESCOPED 2026-06-18; needs design decision before code
+
+**Status (2026-06-18):** Re-investigated against current `main` and current `data/terapeak-meta.json`. The original repro evidence is partially stale, the BACKLOG misidentifies the FMV mechanism, and Track A as written contradicts an existing intentional design (#188). The underlying problem (wrong-coin contamination producing large nonsensical FMVs) is real, but the fix scope must be revised before any code lands. See "Verification + revised scope (2026-06-18)" block below; original entry preserved beneath it for history.
+
+---
+
+#### Verification + revised scope (2026-06-18)
+
+**1. Three original example coins have all moved state:**
+
+| Original BACKLOG (2026-06-04) | Current state (2026-06-18) |
+|---|---|
+| `2025 canada 1000oz gold maple leaf` -- compCount=0, fmv=$4,493,300 | Key still in meta; **now has 37 comps** (not zero) |
+| `2004 canada 12oz silver maple leaf` -- compCount=0, fmv=$890 | **Key not in meta at all** -- gone |
+| `2003 canada twentieth oz silver maple leaf` -- compCount=0, fmv=$3.71 | Key still in meta; **now has 12 comps** |
+
+To re-derive a current repro we would need to either re-run the Maple pricing-health script or pick fresh examples from the current dataset.
+
+**2. "twentieth oz is parser noise" claim is wrong:**
+
+`twentieth oz` is the canonical token for `1/20 oz` across the codebase. 200+ legitimate keys use it (e.g., `canadian gold maple leaf twentieth oz generic` 211 comps; `1985 china twentieth oz gold panda` 35 comps). `src/utils/coinMetalProfile.js` line 117 explicitly recognizes it: `/\b(?:half|quarter|tenth|twentieth)\s*oz\b/`. Pruning all `twentieth oz` keys would destroy ~200 valid datasets. The Silver Maple 1/20 oz IS unusual but the token itself is legitimate for many other series.
+
+**3. Where the $4.5M FMV actually comes from (NOT a valuation-engine bug):**
+
+The cache value `discovery.fmv: 4493300` is reproduced from caller-side weight multiplication, not from valuationService. All four route callers pass whole-coin melt value (`meltPerOz * weight`) as `opts.spotPrice` into `computeValuation`:
+
+- `src/routes/priceRoute.js:413` -- `spotPrice: meltPerOz * resolvedWeight`
+- `src/routes/pricingBatchRoute.js:272` -- same pattern
+- `src/services/bulkEvaluateService.js:242` -- `const spotPrice = meltPerOz * weight`
+- `src/routes/barPriceRoute.js:152` -- `spotPrice * barWeightForSpot`
+
+The `bullion-spot-only` branch (`src/services/valuationService.js:202`) then does `fmv = spotPrice`, faithfully returning the pre-multiplied value. For `1000oz gold maple leaf` at gold approx $4,493/oz: `4493 * 1000 = 4,493,300`. Math is exact. The engine is doing what callers told it to.
+
+**4. Track A as written contradicts #188 design and an existing test:**
+
+`__tests__/computeValuation.test.js:1481` already asserts:
+```js
+expect(result.valuation.fmvCore).toBe(30.50);  // spot anchor with zero comps
+```
+
+#188 source comment: "no comps survived filtering but spot price is known. Use spot with 0% premium (conservative) rather than falling through to a nominal Greysheet value." Nulling `fmvCore` in this branch is a regression vs #188 intent and would break this test.
+
+The existing zero-comp guard at `src/services/valuationService.js:274` already returns `{ fmvCore: null }` when `fmv == null` at end of all branches. That branch fires only when there is no comp data AND no spot price (non-bullion cases). The `bullion-spot-only` branch deliberately bypasses it.
+
+**5. Track B (prune script) scope is wider than the original entry suggests:**
+
+Sampling current meta surfaces many bogus low-comp keys:
+
+| Pattern | Examples | Mechanism |
+|---|---|---|
+| `1000oz` non-bar coins (7 keys) | `canada 1000oz gold maple leaf` 7c, `china 1000oz gold panda` 1c, `australia 1000oz gold kangaroo` 1c, `1000oz gold libertad` 62c, `2025 canada 1000oz gold maple leaf` 37c | Wrong-coin contamination -- scraper pulled real LBMA 1000oz gold bar listings under coin-keyed entries |
+| `25oz gold maple leaf` (7 year-keys) | `2004/2006/2008/2009/2012/2017 canada 25oz gold maple leaf` (1-10 comps each) | No such Maple Leaf product exists |
+| `25oz` mixed (24 keys overall) | `austria 25oz gold philharmonic` 29c | **The 1/25 oz Philharmonic IS a real product** (introduced 2014); the `25oz` token here is tokenization collapsing `1/25 oz`, not a fictitious weight |
+
+Implications for the whitelist:
+- Must be **per-series** (Maple, Eagle, Britannia, Panda, Libertad, Krugerrand, Philharmonic, Kangaroo, etc.).
+- Must allow Philharmonic 1/25 oz under the `25oz` token (or upstream tokenization needs to distinguish 25oz from 1/25 oz before pruning).
+- Must NOT prune `twentieth oz` keys.
+
+**6. Revised Track A proposal (not yet ratified, needs your decision):**
+
+Instead of nulling `fmvCore`, add an explicit fallback-signal field to the valuation response so consumers can opt to suppress display:
+
+```js
+return {
+  valuation: {
+    fmvCore: spotPrice,             // KEEP per #188
+    method: 'bullion-spot-only',
+    bullionSpotOnly: true,          // NEW explicit signal (already partly exposed via bullionSpot.premiumPct === 0 + compCount === 0, but make it a first-class flag)
+    confidence: 0,
+    lowData: true,
+    ...
+  }
+};
+```
+
+This is backward-compatible (additive field), doesn't break the #188 test, and gives downstream consumers a single boolean to check instead of triangulating across `method` / `compCount` / `confidence`. Whether consumers should THEN suppress display is their call.
+
+**7. Revised Track B proposal:**
+
+- Per-series canonical-weight whitelist in `src/data/constants.js`.
+- `25oz` token handling: either alias to `1/25 oz` and accept for series that mint it (Philharmonic), or detect at parser side before the pruner sees it.
+- Preserve `twentieth oz` everywhere -- legitimate canonical token.
+- Script: dry-run default, `--apply` mutates `data/terapeak-meta.json` + deletes matching `data/terapeak/<key>.csv`, archives pre-delete state.
+- **Execution** has the same coordination concerns as #266H Phase 3 (paused scraper, archive of removed entries). Script-only this session if it's picked up; execution deferred.
+
+**8. Recommendation:**
+
+Track A needs a design decision (do we adopt #6 above, or stick with the BACKLOG's original "null fmvCore" -- which would require backing out #188's test). Track B is a real cleanup with clear value once the whitelist is reviewed. Both are smaller than the original entry implies; the riskier work is the design call on Track A.
+
+Files actually affected by the proposed revisions:
+- Track A (revised): `src/services/valuationService.js` (add `bullionSpotOnly` flag), `__tests__/computeValuation.test.js` (assert the new flag; keep #188 test intact).
+- Track B (revised): NEW `scripts/prune-impossible-weights.js`, NEW `__tests__/pruneImpossibleWeights.test.js`, MOD `src/data/constants.js` (per-series whitelist), MOD `src/utils/coinMetalProfile.js` (optional: distinguish `25oz` from `1/25 oz`).
+
+---
+
+#### Original entry (2026-06-04, retained for history)
 
 **Problem:** Three dataset keys in the Maple pricing-health run are malformed -- they describe weights that don't exist as real products, and one is parser-noise where a fractional weight got tokenized incorrectly. Each produces a 100% attrition RED row, but the more concerning issue is that two of the three return a non-null `fmvCore` extrapolated from spot metal price, which would mislead any caller that ignores `usComps`.
 
