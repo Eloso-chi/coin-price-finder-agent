@@ -877,7 +877,7 @@ function normalizeSeries(series) {
 
 ---
 
-### #276H. `pricing-health-full.js` mislabels missing-credentials as "pipeline-leak" -- pre-flight credential probe needed [P3 -- TOOLING / OPERATIONS] -- IN-PROGRESS 2026-06-16
+### #276H. `pricing-health-full.js` mislabels missing-credentials as "pipeline-leak" -- pre-flight credential probe needed [P3 -- TOOLING / OPERATIONS] -- DONE 2026-06-16 (PR #140)
 
 **Origin:** First 25-coin pricing-health run after fresh checkout on this workstation. Every coin reported `pipeline-leak (N teak -> 0 comps)` and `null-fmv`, suggesting filter attrition. Root cause was empty `.env` values for `EBAY_APP_ID`, `EBAY_CLIENT_SECRET`, and `PCGS_API_KEY` -- the comp path never ran. The "pipeline-leak" label was misleading because comps were not *dropped*, they were never *fetched*.
 
@@ -898,7 +898,7 @@ function normalizeSeries(series) {
 **Sizing:** ~35 lines added in `scripts/pricing-health-full.js#main`. No production changes.
 
 **Related:**
-- PR (TBD): `fix/pricing-health-credential-preflight` branch.
+- PR #140 (merged 2026-06-16): `fix/pricing-health-credential-preflight` branch.
 
 ---
 
@@ -941,7 +941,7 @@ function normalizeSeries(series) {
 
 ---
 
-
+### #248. Freshness queue leaks A + B -- Medium-conf low-vol probe + dry-confirmed-thin escalation [P2 -- DATA-QUALITY] -- DONE 2026-06-03 (PR #100)
 
 **Status:** Fixed via two surgical changes that close gaps left by #245 Fix A and #247:
 1. `evidence-probe` action -- Medium-confidence `is_low_volume_candidate` entries that have never been runtime-touched (`refreshCount === 0`) are demoted to a single P3 page-1 probe instead of being queued as P0/P1 refresh.
@@ -2231,9 +2231,11 @@ node -e "console.log(require('./src/services/pcgsService').parseDescription('BU 
 
 ---
 
-### #250. Image Proxy Numista Allowlist Baseline Failures [P2 -- TEST STABILITY] -- BACKLOG
+### #250. Image Proxy Numista Allowlist Baseline Failures [P2 -- TEST STABILITY] -- DONE 2026-06-18 (verified by audit)
 
-**Problem:** Baseline test failures remain for Numista allowlist behavior in
+**Resolution (2026-06-18 audit):** Both `allows en.numista.com` and `allows www.numista.com` tests now pass on a clean worktree -- `npx jest __tests__/imageProxyRoute.test.js` returns 28/28 green. The fix landed in a downstream PR that touched `src/routes/imageProxyRoute.js` without explicit cross-reference to this entry. Closing as DONE.
+
+**Original problem:** Baseline test failures remained for Numista allowlist behavior in
 `__tests__/imageProxyRoute.test.js`:
 - `allows en.numista.com`
 - `allows www.numista.com`
@@ -2357,9 +2359,14 @@ and obscures regressions in unrelated PRs.
 
 ---
 
-### #254. Route-Layer Silent Drops for Grade / Finish / isProof [P1 -- CORRECTNESS]
+### #254. Route-Layer Silent Drops for Grade / Finish / isProof [P1 -- CORRECTNESS] -- DONE 2026-06-04 (PR #109, #111, #112)
 
-**Status:** Backend hardening shipped on `fix/structured-form-silent-drops` (PR TBD). UI cleanup tracked separately as a follow-up; reverse-proof pool separation tracked as a follow-up.
+**Status:** All tracks shipped on 2026-06-04:
+- Backend `coinIntent` helper + route wiring -- PR #109 (`fix/structured-form-silent-drops`, commits `7b913d6`, `1b61f73`)
+- Docs (README + ARCHITECTURE) -- PR #111 (`docs/254-architecture-readme`, commit `1461b13`)
+- UI Finish dropdown in Identification -- PR #112 (`feat/finish-dropdown`, commit `04215a0`)
+- Live eBay Tracker + Price History silent-drop fix -- commit `7d3826a`
+- Reverse-Proof pool separation (the gated follow-up) -- PR #114 (commit `0dd8688`), reinforced by PR #126 (`5da13f0` -- #260W)
 
 **Problem:** Three input fields the structured form, Quick search, and API callers can reasonably send were silently dropped by `priceRoute.js` and `pricingBatchRoute.js`, producing the wrong comp pool (raw / graded / proof) and therefore the wrong FMV with no telemetry indication:
 
