@@ -160,4 +160,30 @@ describe('_mergeStoreEntries (#266H Phase 2 helper)', () => {
     const out = _mergeStoreEntries(a, b);
     expect(out.lastImport).toBe('2026-06-01T00:00:00Z');
   });
+
+  // Deep-review finding #3: a malformed legacy entry could carry a
+  // non-array `comps` (string, null, object). The previous `a.comps || []`
+  // fallthrough would iterate a string's characters and corrupt the
+  // merged output with phantom string-char comps.
+  test('non-array comps on either side does not corrupt the merge', () => {
+    const realComp = { itemId: 'X1', title: 't', totalUsd: 30 };
+    const outA = _mergeStoreEntries(
+      { searchTerm: 'k', comps: 'corrupted' },
+      { searchTerm: 'k', comps: [realComp] },
+    );
+    expect(outA.comps).toEqual([realComp]);
+    expect(outA.comps.every(c => typeof c === 'object')).toBe(true);
+
+    const outB = _mergeStoreEntries(
+      { searchTerm: 'k', comps: [realComp] },
+      { searchTerm: 'k', comps: null },
+    );
+    expect(outB.comps).toEqual([realComp]);
+
+    const outC = _mergeStoreEntries(
+      { searchTerm: 'k', comps: { not: 'an array' } },
+      { searchTerm: 'k', comps: undefined },
+    );
+    expect(outC.comps).toEqual([]);
+  });
 });

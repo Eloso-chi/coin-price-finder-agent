@@ -265,6 +265,24 @@ describe('Terapeak data integrity — raw CSV vs FMV pipeline', () => {
 
   console.log(`[integrity] Testing ${selected.length} datasets (of ${withEnoughData.length} eligible, ${allDatasets.length} total)`);
 
+  // Deep-review finding #5: every per-dataset assertion below soft-skips
+  // on `lookupResult === null` (see below for why -- importComps reroutes
+  // rows by title-detected metal/weight). That makes the entire describe.each
+  // block tolerant of mass null returns, which could mask a real regression
+  // that broke lookupComps for the majority of inputs. This non-sampled
+  // canary uses a fixed, named, high-volume dataset that MUST resolve --
+  // failure here means lookupComps is broken at the service level, not just
+  // mismatched for a sampled cross-routed edge case.
+  test('canary: lookupComps returns a non-null result for a known-good dataset', () => {
+    // Pick the first eligible dataset deterministically; if the suite has
+    // any data at all, this MUST return a hit (covers the "lookup is
+    // completely broken" regression class that random sampling can miss).
+    const canary = withEnoughData[0];
+    const result = terapeakService.lookupComps(canary.searchTerm);
+    expect(result).not.toBeNull();
+    expect(Array.isArray(result.comps)).toBe(true);
+  });
+
   describe.each(selected.map(d => [d.searchTerm, d.file]))(
     '%s',
     (searchTerm, csvFile) => {
@@ -295,25 +313,25 @@ describe('Terapeak data integrity — raw CSV vs FMV pipeline', () => {
         }
       });
 
-      test('stored comps count is within range of raw CSV rows', () => {
+      test('stored comps count is not catastrophically inflated', () => {
         if (lookupResult === null) return; // covered by "lookupComps returns data"
         // importComps reclassifies each row by its TITLE-detected metal /
         // weight, so rows from CSV "A" can land in dataset "B" (and vice
-        // versa).  That means the storedCount of the dataset that
+        // versa). That means the storedCount of the dataset that
         // lookupComps returns for `searchTerm` has no direct relationship
-        // to the row count of any single source CSV.  Two coarse safety
-        // nets remain:
-        //   1) lookupResult must not be a missing/null stub (covered by
-        //      the "lookupComps returns data" test above).
-        //   2) No single dataset should hoard a runaway share of all rows
-        //      in the corpus -- use the GLOBAL row total as the cap.
+        // to the row count of any single source CSV.
+        //
+        // This assertion is intentionally a coarse sanity net, NOT a tight
+        // bound: with a multi-thousand-row corpus, no real dataset should
+        // ever hold half of all rows. We accept it would only catch a
+        // catastrophic store-pollution bug (e.g. every row routed into
+        // one dataset). A tighter per-dataset bound would require modeling
+        // the cross-route inflow per series, which is not deterministic
+        // enough for a unit-test invariant. See deep-review finding #6.
         const storedCount = lookupResult.comps.length;
         const globalRawTotal = allDatasets.reduce(
           (sum, d) => sum + parseRawCSVPrices(d.file).length, 0
         );
-        // Pre-existing reality: deep-paginated stores can hold 8x a single
-        // CSV's rows; against the GLOBAL total a dataset should never
-        // exceed half the corpus.
         expect(storedCount).toBeLessThanOrEqual(Math.ceil(globalRawTotal * 0.5));
       });
 

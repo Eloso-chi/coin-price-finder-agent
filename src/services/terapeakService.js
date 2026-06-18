@@ -211,15 +211,25 @@ function _mergeStoreEntries(a, b) {
     searchTerm: a.searchTerm || b.searchTerm || null,
     comps: [],
     lastImport: latest(a.lastImport, b.lastImport),
+    // NOTE: arithmetic sum may double-count if both sides represent the
+    // same upstream import event (pre-existing semantics; acceptable for
+    // current callers). Revisit if importCount becomes load-bearing.
     importCount: (a.importCount || 0) + (b.importCount || 0),
     aggregationMeta: _mergeAggregationMeta(a.aggregationMeta || a.scrapeMeta || {}, b.aggregationMeta || b.scrapeMeta || {}),
   };
   if (a.identifiers || b.identifiers) {
     // Prefer whichever side has identifiers (stamped by build-evidence-index.js).
+    // TODO: when both sides have identifiers, pick by identifier_confidence
+    // (High > Medium > Low) instead of arbitrary `a` wins via truthy fallthrough.
     merged.identifiers = a.identifiers || b.identifiers;
   }
   const seen = new Set();
-  for (const list of [a.comps || [], b.comps || []]) {
+  // Defensive: a malformed legacy store entry could carry a non-array `comps`
+  // (e.g. a string). Falling through to `for ... of (string)` would iterate
+  // characters and corrupt the merged output with phantom string-char comps.
+  const aComps = Array.isArray(a.comps) ? a.comps : [];
+  const bComps = Array.isArray(b.comps) ? b.comps : [];
+  for (const list of [aComps, bComps]) {
     for (const c of list) {
       const key = c.itemId
         ? `id:${c.itemId}`
@@ -288,8 +298,17 @@ function loadMetaSidecar() {
   let hydrated = 0;
   try {
     const raw = JSON.parse(fs.readFileSync(_resolveMetaSidecarPath(), 'utf8'));
-    for (const [key, meta] of Object.entries(raw)) {
+    for (const [rawKey, meta] of Object.entries(raw)) {
       if (!meta || (!meta.deepAt && !meta.page1At && !meta.newestSaleDate && !meta.identifiers)) continue;
+      // #266H Phase 2: the on-disk sidecar may still hold pre-Phase-2 raw keys
+      // (e.g. "usa silver eagle 1oz") until the next saveMetaSidecar() cycle
+      // flushes the canonical form back. Canonicalize on read so the meta
+      // merges into the same canonical key `_rekeyStoreInPlace` produced for
+      // the in-memory store -- otherwise we'd re-inject empty legacy stubs
+      // alongside the canonical entries. Mirrors hydrateMetaFromCosmos and
+      // saveMetaSidecar, which already canonicalize.
+      const key = normalizeSearchKey(rawKey);
+      if (!key) continue;
       const existing = store[key]?.aggregationMeta || {};
       const merged = _mergeAggregationMeta(existing, meta);
       if (store[key]) {
@@ -1402,6 +1421,13 @@ function normalizeSearchKey(term) {
     .replace(/\b(\d{4})-0\b/g, '$1-O')
     // Split year-mint tokens: "1956-D" -> "1956 d", "1878-CC" -> "1878 cc"
     .replace(/\b(\d{4})-(cc|d|s|o|w|p)\b/gi, '$1 $2')
+    // Strip the hyphen out of formal grade tokens: "MS-65" -> "ms65",
+    // "PR-69+" -> "pr69+". Dataset CSVs and Cosmos searchTerm values use
+    // the unhyphenated form, and the lookupComps grade-augmented key path
+    // ("^(ms|pr|...)\\d{1,2}\\+?$") cannot match "ms-65". Without this,
+    // a query like "Morgan Dollar MS-65" builds a graded key with both
+    // "ms-65" and "ms65" tokens and matches nothing.
+    .replace(/\b(ms|pr|pf|sp|au|xf|ef|vf|vg|ag|fr|po)\s*-\s*(\d{1,2}\+?)\b/gi, '$1$2')
     // Convert fractions to word forms BEFORE oz collapsing and non-alphanum
     // stripping, so "1/2 oz" -> "half oz" instead of the broken "12oz".
     // CSV filenames use Half_oz, Quarter_oz, Tenth_oz.
@@ -1439,6 +1465,13 @@ function normalizeSearchKey(term) {
     .replace(/\bunited\s+states\s+of\s+america\b/g, 'american')
     .replace(/\bunited\s+states\b/g, 'american')
     .replace(/\bu\.s\.a\.?\b/g, 'american')
+    // Dotted single-word form ("U.S." / "U.S") -- distinct from "U.S.A."
+    // because the bare `\busa\b` / `\bus\b` aliases below only fire after
+    // non-alphanum stripping, by which point the structure (single token
+    // "u.s") would have already collapsed to "us" -- but only if the
+    // dots happen to land at a token boundary. Handle the dotted form
+    // explicitly to cover "U.S. Mint Set", "U.S. Silver Eagle" etc.
+    .replace(/\bu\.s\.?\b/g, 'american')
     .replace(/\busa\b/g, 'american')
     .replace(/\bus\b/g, 'american')
     .replace(/\bunited\s+kingdom\b/g, 'british')
@@ -1466,7 +1499,7 @@ function normalizeSearchKey(term) {
       .trim();
   }
 
-  // ── Sorted-token canonicalization (#266H Phase 2) ────────────────
+  // ── Sorted + deduplicated token canonicalization (#266H Phase 2) ──
   // Sort tokens deterministically so word-order variants collapse to the
   // same canonical key. E.g.
   //   "2010 perth lunar tiger half oz silver"  (audit-form)
@@ -1475,7 +1508,10 @@ function normalizeSearchKey(term) {
   // Token order carries no semantic weight for fuzzy matching (set-based)
   // or for exact-key lookup (caller normalizes too), so a deterministic
   // sort is purely a dedupe win.
-  return s.split(/\s+/).filter(Boolean).sort().join(' ');
+  // Dedupe also collapses repeated tokens introduced by country aliases
+  // -- e.g. "usa american USA" -> ["american","american","american"]
+  // becomes ["american"] -- so the canonical key stays clean.
+  return [...new Set(s.split(/\s+/).filter(Boolean))].sort().join(' ');
 }
 
 /**

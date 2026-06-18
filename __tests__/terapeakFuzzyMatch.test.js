@@ -107,7 +107,7 @@ describe('normalizeSearchKey', () => {
   test('strips special characters but keeps letters, numbers, spaces, hyphens', () => {
     // Year-mint tokens like "1893-S" are split: "1893 s"
     expect(normalizeSearchKey('1893-S Morgan $1')).toBe('1 1893 morgan s');
-    expect(normalizeSearchKey("MS-65+'s Best")).toBe('best ms-65s');
+    expect(normalizeSearchKey("MS-65+'s Best")).toBe('best ms65s');
   });
 
   test('collapses whitespace', () => {
@@ -811,9 +811,12 @@ describe('normalizeSearchKey – exclusion operators', () => {
   });
 
   test('does not strip hyphenated words (e.g. MS-65)', () => {
-    // "MS-65" should NOT be treated as an exclusion
+    // "MS-65" should NOT be treated as an exclusion. The grade hyphen is
+    // canonicalized away (#266H deep-review finding #2) so the resulting
+    // token is "ms65", but the "65" must survive -- the exclusion stripper
+    // requires `[a-z]+` after the dash, so digits never qualify.
     const result = normalizeSearchKey('Morgan MS-65 1893-S');
-    expect(result).toContain('ms-65');
+    expect(result).toContain('ms65');
     expect(result).toContain('1893');
   });
 

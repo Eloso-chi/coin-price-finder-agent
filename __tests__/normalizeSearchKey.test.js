@@ -49,6 +49,33 @@ describe('normalizeSearchKey -- country aliases (#266H Phase 2)', () => {
     expect(adjective).toContain('american');
   });
 
+  // Deep-review finding #4: "U.S." / "U.S" (dotted single-word form, distinct
+  // from "U.S.A.") was previously not aliased -- common in coin descriptions
+  // like "U.S. Mint Set" and "U.S. Silver Eagle".
+  test('dotted U.S. / U.S forms also collapse to american', () => {
+    const adjective = normalizeSearchKey('2024 American Silver Eagle 1oz');
+    expect(normalizeSearchKey('2024 U.S. Silver Eagle 1oz')).toBe(adjective);
+    expect(normalizeSearchKey('2024 U.S Silver Eagle 1oz')).toBe(adjective);
+  });
+
+  test('U.S. Mint Set / US Mint Set / United States Mint Set all collapse', () => {
+    const a = normalizeSearchKey('1947 U.S. Mint Set');
+    const b = normalizeSearchKey('1947 US Mint Set');
+    const c = normalizeSearchKey('1947 United States Mint Set');
+    const d = normalizeSearchKey('1947 American Mint Set');
+    expect(a).toBe(d);
+    expect(b).toBe(d);
+    expect(c).toBe(d);
+  });
+
+  // Deep-review finding #7: repeated tokens after alias collapse (e.g.
+  // "usa american USA" -> three "american" tokens) used to survive the
+  // sort step; dedupe collapses them.
+  test('repeated tokens after alias collapse are deduplicated', () => {
+    expect(normalizeSearchKey('USA American USA')).toBe('american');
+    expect(normalizeSearchKey('china chinese CHINA')).toBe('chinese');
+  });
+
   test('great britain / united kingdom collapse to british', () => {
     const gb = normalizeSearchKey('2025 Great Britain 1oz Gold Britannia');
     const uk = normalizeSearchKey('2025 United Kingdom 1oz Gold Britannia');

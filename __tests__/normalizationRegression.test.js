@@ -91,8 +91,11 @@ describe('normalizeSearchKey -- year-mint normalization (F1 regression)', () => 
 
   test('handles double-letter mint marks', () => {
     expect(normalizeSearchKey('1878-CC')).toBe('1878 cc');
-    // Non-year hyphens should be preserved
-    expect(normalizeSearchKey('MS-65')).toBe('ms-65');
+    // Formal grade hyphens ("MS-65") are canonicalized to the unhyphenated
+    // form ("ms65") so the lookupComps grade-augmented key path -- which
+    // strips ms65/pr69/etc. tokens via /^(ms|pr|...)\d{1,2}\+?$/ -- can
+    // match. Dataset CSV filenames also use the unhyphenated form.
+    expect(normalizeSearchKey('MS-65')).toBe('ms65');
   });
 
   test('zero-to-O normalization for year-mint typo', () => {
