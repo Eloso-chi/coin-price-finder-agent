@@ -65,9 +65,13 @@
     "tmp": "^0.2.6"
   },
   "jest": {
+    "setupFiles": [
+      "<rootDir>/__tests__/setup/meta-path.js"
+    ],
     "testPathIgnorePatterns": [
       "/node_modules/",
-      "/__tests__/helpers/"
+      "/__tests__/helpers/",
+      "/__tests__/setup/"
     ],
     "coverageThreshold": {
       "global": {
