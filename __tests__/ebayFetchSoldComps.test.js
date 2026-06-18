@@ -466,6 +466,173 @@ describe('fetchSoldComps — Terapeak tier', () => {
     expect(leakWarnings.length).toBe(0);
     warnSpy.mockRestore();
   });
+
+  // ── #252: Bullion strike-pool merge ─────────────────────────
+  // For >=1oz bullion (weight set, no isProof, no slab grade specified),
+  // graded comps must NOT be excluded -- 1oz Gold Maple / Gold Eagle /
+  // Krugerrand / Britannia all trade at metal + premium regardless of slab.
+  // Pre-fix, the 2026-06-04 pricing-health Maple run had 9/13 RED rows
+  // driven by `prefilterStrikeSplit` on 1oz Gold Maple datasets.
+
+  test('#252 bullion 1oz: merges graded+raw, drops only proof', async () => {
+    terapeakService.lookupComps.mockReturnValue({
+      searchTerm: '2024 Canada 1 oz Gold Maple Leaf',
+      lastImport: '2026-06-04',
+      comps: [
+        // 3 raw bullion (kept)
+        { title: '2024 Canada 1 oz Gold Maple Leaf .9999',           totalUsd: 4520, soldDate: '2026-05-20', conditionId: '4000', _source: 'terapeak' },
+        { title: '2024 Canadian Gold Maple Leaf 1oz BU',             totalUsd: 4540, soldDate: '2026-05-21', conditionId: '4000', _source: 'terapeak' },
+        { title: '2024 1 oz Gold Canada Maple Leaf Mint',            totalUsd: 4500, soldDate: '2026-05-22', conditionId: '3000', _source: 'terapeak' },
+        // 3 slabbed bullion (would be dropped pre-fix; merged in post-fix)
+        { title: '2024 Canada 1 oz Gold Maple Leaf PCGS MS69',       totalUsd: 4615, soldDate: '2026-05-23', conditionId: '2000', _source: 'terapeak' },
+        { title: '2024 1 oz Gold Maple Leaf NGC MS70',               totalUsd: 4720, soldDate: '2026-05-24', conditionId: '2000', _source: 'terapeak' },
+        { title: '2024 Gold Maple Leaf 1oz PCGS MS70 First Strike',  totalUsd: 4810, soldDate: '2026-05-25', conditionId: '2000', _source: 'terapeak' },
+        // 1 proof (must STILL be excluded -- different market)
+        { title: '2024 Canada 1 oz Gold Maple Leaf Proof',           totalUsd: 5400, soldDate: '2026-05-26', conditionId: '4000', _source: 'terapeak' },
+      ]
+    });
+
+    const result = await ebayService.fetchSoldComps(
+      '2024 Canada 1 oz Gold Maple Leaf', {},
+      { year: 2024, series: 'Canada Gold Maple Leaf', weight: 1, meltPerOz: 4500 }
+    );
+
+    expect(result.apiUsed).toBe('terapeak');
+    // 6 of 7 kept (3 raw + 3 graded); only the proof dropped.
+    expect(result.us.comps.length).toBe(6);
+    // No proof comps leaked in.
+    expect(result.us.comps.some(c => /\bproof\b/i.test(c.title))).toBe(false);
+    // Slabbed bullion survived the pre-filter (the bug fix).
+    expect(result.us.comps.filter(c => /pcgs|ngc/i.test(c.title)).length).toBe(3);
+    // Telemetry: strike-split bucket counts the 1 proof drop; bullion-merge
+    // marker present (value 0) so operators can see the new path was taken.
+    expect(result.us.removed.prefilterStrikeSplit).toBe(1);
+    expect(result.us.removed.prefilterBullionMerge).toBe(0);
+  });
+
+  test('#252 bullion 1oz with explicit slab grade: original strict split (no merge)', async () => {
+    // When the user DOES specify a slab grade, they want graded comps only.
+    // The bullion-merge gate should NOT trigger (wantsGraded = true).
+    terapeakService.lookupComps.mockReturnValue({
+      searchTerm: '2024 Canada 1 oz Gold Maple Leaf MS70',
+      lastImport: '2026-06-04',
+      comps: [
+        // 2 raw bullion (must be dropped -- user asked for graded)
+        { title: '2024 Canada 1 oz Gold Maple Leaf .9999',     totalUsd: 4520, soldDate: '2026-05-20', conditionId: '4000', _source: 'terapeak' },
+        { title: '2024 Canadian Gold Maple Leaf 1oz BU',       totalUsd: 4540, soldDate: '2026-05-21', conditionId: '4000', _source: 'terapeak' },
+        // 3 slabbed bullion (kept)
+        { title: '2024 Canada 1 oz Gold Maple Leaf PCGS MS69', totalUsd: 4615, soldDate: '2026-05-23', conditionId: '2000', _source: 'terapeak' },
+        { title: '2024 1 oz Gold Maple Leaf NGC MS70',         totalUsd: 4720, soldDate: '2026-05-24', conditionId: '2000', _source: 'terapeak' },
+        { title: '2024 Gold Maple Leaf 1oz PCGS MS70',         totalUsd: 4810, soldDate: '2026-05-25', conditionId: '2000', _source: 'terapeak' },
+      ]
+    });
+    // Empty Finding response so any partial-seed fallback doesn't trip the
+    // module-level Finding circuit breaker for downstream tests.
+    axios.get.mockResolvedValue({ data: wrapFindingResponse([]) });
+
+    const result = await ebayService.fetchSoldComps(
+      '2024 Canada 1 oz Gold Maple Leaf MS70', {},
+      { year: 2024, series: 'Canada Gold Maple Leaf', weight: 1, meltPerOz: 4500, grade: 'MS-70' }
+    );
+
+    // Strike-split must drop the 2 raw comps; merge marker absent.
+    expect(result.us.removed.prefilterStrikeSplit).toBe(2);
+    expect(result.us.removed.prefilterBullionMerge).toBeUndefined();
+    // No raw .9999 / BU comps survived.
+    expect(result.us.comps.some(c => /\.9999|\bbu\b/i.test(c.title) && !/pcgs|ngc/i.test(c.title))).toBe(false);
+  });
+
+  test('#252 proof bullion query: graded proof comps still excluded from bullion pool', async () => {
+    // A Proof Gold Maple is a different market. The merge must NOT pull
+    // proof comps in even when the user is querying bullion-weighted coins.
+    terapeakService.lookupComps.mockReturnValue({
+      searchTerm: '2024 Canada 1 oz Gold Maple Leaf Proof',
+      lastImport: '2026-06-04',
+      comps: [
+        // 3 proof comps (kept -- user asked for proof)
+        { title: '2024 Canada 1 oz Gold Maple Leaf Proof',           totalUsd: 5400, soldDate: '2026-05-20', conditionId: '4000', _source: 'terapeak' },
+        { title: '2024 Canada Gold Maple Leaf Proof PCGS PR70',      totalUsd: 5800, soldDate: '2026-05-21', conditionId: '2000', _source: 'terapeak' },
+        { title: '2024 Gold Maple Leaf 1oz Proof OGP COA',           totalUsd: 5450, soldDate: '2026-05-22', conditionId: '3000', _source: 'terapeak' },
+        // 3 raw bullion (must be excluded -- different market)
+        { title: '2024 Canada 1 oz Gold Maple Leaf .9999',           totalUsd: 4520, soldDate: '2026-05-23', conditionId: '4000', _source: 'terapeak' },
+        { title: '2024 Canadian Gold Maple Leaf 1oz BU',             totalUsd: 4540, soldDate: '2026-05-24', conditionId: '4000', _source: 'terapeak' },
+        { title: '2024 1 oz Gold Maple Leaf PCGS MS70',              totalUsd: 4720, soldDate: '2026-05-25', conditionId: '2000', _source: 'terapeak' },
+      ]
+    });
+
+    const result = await ebayService.fetchSoldComps(
+      '2024 Canada 1 oz Gold Maple Leaf Proof', {},
+      { year: 2024, series: 'Canada Gold Maple Leaf', weight: 1, meltPerOz: 4500, isProof: true }
+    );
+
+    expect(result.us.comps.length).toBe(3);
+    expect(result.us.comps.every(c => /\bproof\b/i.test(c.title))).toBe(true);
+    expect(result.us.removed.prefilterStrikeSplit).toBe(3);
+    // Merge marker NOT present -- proof intent bypasses the bullion branch.
+    expect(result.us.removed.prefilterBullionMerge).toBeUndefined();
+  });
+
+  test('#252 fractional bullion (<1oz): keeps strict split (slab premium is real here)', async () => {
+    // 1/10oz Gold Eagle MS70 trades well above bullion. Mitigation per the
+    // backlog: gate the merge on `weight >= 1.0` so fractional bullion keeps
+    // the original strike split.
+    terapeakService.lookupComps.mockReturnValue({
+      searchTerm: '2024 American Gold Eagle 1/10 oz',
+      lastImport: '2026-06-04',
+      comps: [
+        // 3 raw bullion (kept -- targetPool=raw)
+        { title: '2024 American Gold Eagle 1/10 oz BU',        totalUsd: 295, soldDate: '2026-05-20', conditionId: '4000', _source: 'terapeak' },
+        { title: '2024 1/10 oz American Gold Eagle .9167',     totalUsd: 305, soldDate: '2026-05-21', conditionId: '4000', _source: 'terapeak' },
+        { title: '2024 American Gold Eagle 1/10oz Tube Sealed',totalUsd: 290, soldDate: '2026-05-22', conditionId: '3000', _source: 'terapeak' },
+        // 2 slabbed bullion (MUST be dropped -- fractional slab premium is real)
+        { title: '2024 American Gold Eagle 1/10 oz PCGS MS70', totalUsd: 525, soldDate: '2026-05-23', conditionId: '2000', _source: 'terapeak' },
+        { title: '2024 1/10 oz American Gold Eagle NGC MS70',  totalUsd: 510, soldDate: '2026-05-24', conditionId: '2000', _source: 'terapeak' },
+      ]
+    });
+    // Empty Finding response so any partial-seed fallback doesn't trip the
+    // module-level Finding circuit breaker for downstream tests.
+    axios.get.mockResolvedValue({ data: wrapFindingResponse([]) });
+
+    const result = await ebayService.fetchSoldComps(
+      '2024 American Gold Eagle 1/10 oz', {},
+      { year: 2024, series: 'American Gold Eagle', weight: 0.1, meltPerOz: 4500 }
+    );
+
+    // 2 slabbed dropped, merge marker absent (weight < 1.0 gates out the merge).
+    expect(result.us.removed.prefilterStrikeSplit).toBe(2);
+    expect(result.us.removed.prefilterBullionMerge).toBeUndefined();
+    // No slabbed comps survived the prefilter.
+    expect(result.us.comps.some(c => /pcgs|ngc/i.test(c.title))).toBe(false);
+  });
+
+  test('#252 non-bullion 1oz query without weight signal: keeps strict split', async () => {
+    // Defensive: when expected.weight is unset (typical for non-bullion
+    // numismatic queries like Morgan Dollars), the bullion branch must not
+    // trigger.
+    terapeakService.lookupComps.mockReturnValue({
+      searchTerm: '1881-S Morgan Silver Dollar',
+      lastImport: '2026-06-04',
+      comps: [
+        { title: '1881-S Morgan Silver Dollar BU',          totalUsd: 120, soldDate: '2026-05-20', conditionId: '4000', _source: 'terapeak' },
+        { title: '1881-S Morgan Dollar Uncirculated',       totalUsd: 110, soldDate: '2026-05-21', conditionId: '4000', _source: 'terapeak' },
+        { title: '1881-S Morgan Silver Dollar Choice BU',   totalUsd: 130, soldDate: '2026-05-22', conditionId: '3000', _source: 'terapeak' },
+        // Slabbed (must be dropped -- no weight, no bullion branch)
+        { title: '1881-S Morgan Dollar PCGS MS65',          totalUsd: 290, soldDate: '2026-05-23', conditionId: '2000', _source: 'terapeak' },
+        { title: '1881-S Morgan Silver Dollar NGC MS66',    totalUsd: 410, soldDate: '2026-05-24', conditionId: '2000', _source: 'terapeak' },
+      ]
+    });
+
+    const result = await ebayService.fetchSoldComps(
+      '1881-S Morgan Silver Dollar', {},
+      { year: 1881, series: 'Morgan Silver Dollar' }
+    );
+
+    // Without expected.weight, the bullion branch must not trigger.
+    expect(result.us.removed.prefilterStrikeSplit).toBe(2);
+    expect(result.us.removed.prefilterBullionMerge).toBeUndefined();
+    // Slabbed comps dropped.
+    expect(result.us.comps.some(c => /pcgs|ngc/i.test(c.title))).toBe(false);
+  });
 });
 
 // ═════════════════════════════════════════════════════════════

@@ -1435,9 +1435,22 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
     // are not mixed with regular Proof comps (and vice versa). Measurement
     // showed 97--100% cross-contamination on years where both issues exist
     // (e.g. 2023 ASE, 2019-S ASE ERP, 2023-S Morgan Dollar).
+    //
+    // #252: For >=1oz bullion queries (weight set, no proof intent, no slab
+    // grade specified), MERGE the 'graded' and 'raw' pools instead of dropping
+    // graded comps. Graded 1oz Gold Maple / Gold Eagle / Krugerrand / Britannia
+    // still trades at metal + premium -- not at a separate "slabbed" tier worth
+    // excluding from FMV. Pre-fix, 9/13 RED rows in the 2026-06-04 Maple
+    // pricing-health run were 1oz Gold Maple datasets with `prefilterStrikeSplit`
+    // as the dominant drop bucket (45 comps lost on the 2025 issue alone).
+    // Proof + reverse-proof pools remain excluded -- a Proof Gold Maple is a
+    // different market from bullion. Fractional bullion (<1oz) keeps the
+    // strict split because the slab premium is materially different there
+    // (a 1/10oz Gold Eagle MS70 trades well above bullion).
     const wantsProof = !!expected.isProof;
     const wantsReverseProof = wantsProof && isReverseProofFinish(expected.finish);
     const wantsGraded = !!expected.grade;
+    const isBullionMerge = !wantsProof && !wantsGraded && Number(expected.weight) >= 1.0;
     const targetPool = wantsReverseProof
       ? 'reverse-proof'
       : (wantsProof ? 'proof' : (wantsGraded ? 'graded' : 'raw'));
@@ -1445,11 +1458,20 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
     tpComps = tpComps.filter(c => {
       const gt = classifyGradeType(c);
       c.gradeType = gt; // update stored value for downstream consumers
+      if (isBullionMerge) return gt === 'graded' || gt === 'raw';
       return gt === targetPool;
     });
     preFilterRemoved.prefilterStrikeSplit = beforeSplit - tpComps.length;
+    if (isBullionMerge) {
+      // Marker bucket: presence in `removed` (value 0) signals to operators
+      // that the bullion-merge path was taken. Per #252 acceptance criteria.
+      preFilterRemoved.prefilterBullionMerge = 0;
+    }
     if (tpComps.length !== beforeSplit) {
-      console.log(`[ebay] Terapeak grade-split: ${beforeSplit} → ${tpComps.length} (${targetPool} only)`);
+      const label = isBullionMerge
+        ? `bullion-merge graded+raw, weight=${expected.weight}oz`
+        : `${targetPool} only`;
+      console.log(`[ebay] Terapeak grade-split: ${beforeSplit} → ${tpComps.length} (${label})`);
     }
 
     // Filter by time window if soldDate available
