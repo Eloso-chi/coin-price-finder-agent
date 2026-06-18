@@ -100,17 +100,18 @@ describe('detectWeightFromQuery', () => {
 // ═══════════════════════════════════════════════════════════════════════
 describe('normalizeSearchKey', () => {
   test('lowercases and trims', () => {
-    expect(normalizeSearchKey('  Morgan Silver Dollar  ')).toBe('morgan silver dollar');
+    // #266H Phase 2: tokens sorted alphabetically for canonical form.
+    expect(normalizeSearchKey('  Morgan Silver Dollar  ')).toBe('dollar morgan silver');
   });
 
   test('strips special characters but keeps letters, numbers, spaces, hyphens', () => {
     // Year-mint tokens like "1893-S" are split: "1893 s"
-    expect(normalizeSearchKey('1893-S Morgan $1')).toBe('1893 s morgan 1');
-    expect(normalizeSearchKey("MS-65+'s Best")).toBe("ms-65s best");
+    expect(normalizeSearchKey('1893-S Morgan $1')).toBe('1 1893 morgan s');
+    expect(normalizeSearchKey("MS-65+'s Best")).toBe('best ms-65s');
   });
 
   test('collapses whitespace', () => {
-    expect(normalizeSearchKey('Gold   Eagle   1oz')).toBe('gold eagle 1oz');
+    expect(normalizeSearchKey('Gold   Eagle   1oz')).toBe('1oz eagle gold');
   });
 
   test('handles null/undefined', () => {
@@ -120,9 +121,9 @@ describe('normalizeSearchKey', () => {
 
   // Fractions: converted to word forms before oz-collapse
   test('converts fractional oz to word forms', () => {
-    expect(normalizeSearchKey('1/2 oz Libertad')).toBe('half oz libertad');
-    expect(normalizeSearchKey('1/4 oz Gold Eagle')).toBe('quarter oz gold eagle');
-    expect(normalizeSearchKey('1/10 oz Platinum')).toBe('tenth oz platinum');
+    expect(normalizeSearchKey('1/2 oz Libertad')).toBe('half libertad oz');
+    expect(normalizeSearchKey('1/4 oz Gold Eagle')).toBe('eagle gold oz quarter');
+    expect(normalizeSearchKey('1/10 oz Platinum')).toBe('oz platinum tenth');
   });
 });
 

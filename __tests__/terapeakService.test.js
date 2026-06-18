@@ -39,7 +39,8 @@ afterAll(() => {
 // ═══════════════════════════════════════════════════════════════
 describe('normalizeSearchKey', () => {
   test('lowercases and trims', () => {
-    expect(normalizeSearchKey('  Morgan Dollar  ')).toBe('morgan dollar');
+    // #266H Phase 2: tokens sorted alphabetically for canonical form.
+    expect(normalizeSearchKey('  Morgan Dollar  ')).toBe('dollar morgan');
   });
 
   test('strips trailing -0 from year (no zero-to-O conversion)', () => {
@@ -51,15 +52,15 @@ describe('normalizeSearchKey', () => {
   });
 
   test('collapses "1 oz" to "1oz"', () => {
-    expect(normalizeSearchKey('Silver Eagle 1 oz')).toBe('silver eagle 1oz');
+    expect(normalizeSearchKey('Silver Eagle 1 oz')).toBe('1oz eagle silver');
   });
 
   test('strips Roman numerals', () => {
-    expect(normalizeSearchKey('Perth Lunar II Silver')).toBe('perth lunar silver');
+    expect(normalizeSearchKey('Perth Lunar II Silver')).toBe('lunar perth silver');
   });
 
   test('strips special characters', () => {
-    expect(normalizeSearchKey('Silver (BU) .999')).toBe('silver bu 999');
+    expect(normalizeSearchKey('Silver (BU) .999')).toBe('999 bu silver');
   });
 
   test('returns empty string for null/undefined', () => {

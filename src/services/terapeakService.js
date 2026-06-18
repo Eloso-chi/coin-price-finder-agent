@@ -40,6 +40,12 @@ function loadStore() {
   } catch {
     _store = {};
   }
+  // #266H Phase 2: re-key entries whose stored key differs from the current
+  // normalizeSearchKey() output (alias map / sorted-token canonicalization).
+  // When two raw keys collapse to the same canonical key, MERGE comps +
+  // aggregationMeta instead of last-write-wins so no comps are lost. Safe
+  // to call on every load: idempotent once all keys are canonical.
+  _store = _rekeyStoreInPlace(_store);
   return _store;
 }
 
@@ -183,6 +189,93 @@ function _mergeAggregationMeta(existing, incoming) {
     consecutiveDryRefreshes:  maxNum(A.consecutiveDryRefreshes, B.consecutiveDryRefreshes),
     lastRefreshNewComps:      (A.lastRefreshNewComps != null ? A.lastRefreshNewComps : (B.lastRefreshNewComps != null ? B.lastRefreshNewComps : null)),
   };
+}
+
+/**
+ * Merge two persistent-store entries that collide on the same canonical key.
+ * Used by `_rekeyStoreInPlace` during the #266H Phase 2 alias/sorted-token
+ * migration: when an existing legacy key (e.g. "perth lunar 2010 tiger silver
+ * half oz") and a separate key (e.g. "2010 lunar tiger half oz silver") both
+ * normalize to the same canonical form, we MUST merge comps + meta instead
+ * of last-write-wins, or roughly half the existing dataset would silently
+ * disappear from the in-memory store.
+ *
+ * Comps are deduped by itemId, falling back to a title+totalUsd+soldDate key
+ * (the same fingerprint `importComps` already uses).
+ */
+function _mergeStoreEntries(a, b) {
+  if (!a) return b;
+  if (!b) return a;
+  const latest = (x, y) => (!x ? (y || null) : !y ? x : (x > y ? x : y));
+  const merged = {
+    searchTerm: a.searchTerm || b.searchTerm || null,
+    comps: [],
+    lastImport: latest(a.lastImport, b.lastImport),
+    importCount: (a.importCount || 0) + (b.importCount || 0),
+    aggregationMeta: _mergeAggregationMeta(a.aggregationMeta || a.scrapeMeta || {}, b.aggregationMeta || b.scrapeMeta || {}),
+  };
+  if (a.identifiers || b.identifiers) {
+    // Prefer whichever side has identifiers (stamped by build-evidence-index.js).
+    merged.identifiers = a.identifiers || b.identifiers;
+  }
+  const seen = new Set();
+  for (const list of [a.comps || [], b.comps || []]) {
+    for (const c of list) {
+      const key = c.itemId
+        ? `id:${c.itemId}`
+        : `t:${(c.title || '').toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 80)}|${Math.round(c.totalUsd || 0)}|${c.soldDate || ''}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      merged.comps.push(c);
+    }
+  }
+  // Refresh compCount from the deduped union so downstream consumers see
+  // the true post-merge size, not a stale value carried from either side.
+  if (merged.aggregationMeta) {
+    merged.aggregationMeta.compCount = merged.comps.length || merged.aggregationMeta.compCount || null;
+  }
+  return merged;
+}
+
+/**
+ * Re-key a freshly-loaded store so every key matches the current output of
+ * `normalizeSearchKey()`. Collisions (multiple raw keys -> one canonical
+ * key) merge via `_mergeStoreEntries`. Idempotent: a store whose keys are
+ * already canonical is returned untouched (same object identity OK).
+ *
+ * Runs once per process on the first `loadStore()` call. After Phase 2
+ * ships, this acts as a transparent in-place migration so existing
+ * `data/terapeak.json` entries continue to be found by callers using the
+ * new canonical-key form -- no separate offline migrator required.
+ */
+function _rekeyStoreInPlace(store) {
+  if (!store || typeof store !== 'object') return store || {};
+  // Fast path: scan entries and detect if any key needs renaming. If not,
+  // skip the rebuild to keep object identity for unchanged stores (tests
+  // that mutate `_store` directly continue to work).
+  const keys = Object.keys(store);
+  let needsRebuild = false;
+  for (const k of keys) {
+    if (normalizeSearchKey(k) !== k) { needsRebuild = true; break; }
+  }
+  if (!needsRebuild) return store;
+
+  const out = {};
+  for (const k of keys) {
+    const entry = store[k];
+    const canonical = normalizeSearchKey(k);
+    if (!canonical) {
+      // Pathological: a stored key that normalizes to empty string. Drop
+      // rather than collide every such entry into the empty-string key.
+      continue;
+    }
+    if (out[canonical]) {
+      out[canonical] = _mergeStoreEntries(out[canonical], entry);
+    } else {
+      out[canonical] = entry;
+    }
+  }
+  return out;
 }
 
 /**
@@ -861,20 +954,28 @@ function lookupComps(keywords, opts = {}) {
   // Detect grade from query or explicit hint so we can prefer grade-specific datasets.
   const queryGrade = _extractGrade(cleanKeywords) || (opts.grade ? opts.grade.toUpperCase().replace(/[\s-]/g, '') : null);
 
-  // Exact match — but only use it when no grade hint is pushing us toward
-  // a grade-specific dataset.  When a grade hint exists, fall through to
-  // fuzzy matching so the grade bonus can select the right dataset.
-  // Empty-dataset guard (#267H): if the exact-key dataset has zero comps
-  // (an empty stub), fall through to fuzzy so a populated parallel-key
-  // dataset can win.  Returning an empty stub here would short-circuit the
-  // whole pipeline and report "no sold comps" even when data exists.
+  // Exact match -- but only when no queryGrade is pushing us toward a
+  // grade-specific dataset.  With a grade hint, fall through to the
+  // grade-augmented canonical key below so an `opts.grade` hint can
+  // reach a grade-specific dataset even when the keywords are ungraded.
+  // Empty-dataset guard (#267H): if the exact-key dataset has zero
+  // comps (an empty stub), fall through to fuzzy so a populated
+  // parallel-key dataset can win.
   if (store[normalizedSearch] && !queryGrade && (store[normalizedSearch].comps || []).length > 0) {
     return store[normalizedSearch];
   }
-  // Also try exact match with grade appended (e.g. "1883 morgan silver dollar ms65")
+  // Grade-augmented canonical key (sort-aware -- #266H Phase 2).  Post-
+  // sort the grade token may be mid-string in `normalizedSearch`, so we
+  // can't rely on a trailing-grade regex strip.  Instead split into
+  // tokens, drop any existing grade token, push the query grade, and
+  // re-sort to produce the canonical key.
   if (queryGrade) {
-    const gradedKey = normalizedSearch.replace(/\s+(ms|pr|pf|sp|au|xf|ef|vf|vg|ag|fr|po)\s*\d{1,2}\+?\s*$/i, '').trim()
-      + ' ' + queryGrade.toLowerCase();
+    const tokens = normalizedSearch
+      .split(/\s+/)
+      .filter(Boolean)
+      .filter(tok => !/^(ms|pr|pf|sp|au|xf|ef|vf|vg|ag|fr|po)\d{1,2}\+?$/i.test(tok));
+    tokens.push(queryGrade.toLowerCase());
+    const gradedKey = tokens.sort().join(' ');
     if (store[gradedKey] && (store[gradedKey].comps || []).length > 0) return store[gradedKey];
   }
 
@@ -1292,33 +1393,60 @@ function purgeStaleCSVs(folderPath, maxDays = 180) {
 // ── Helpers ─────────────────────────────────────────────────
 
 function normalizeSearchKey(term) {
-  return (term || '')
+  let s = (term || '')
     .toLowerCase()
     // Strip eBay exclusion operators (e.g. "-gold", "-silver") -- these are
     // eBay search syntax, not meaningful tokens for Terapeak fuzzy matching.
     .replace(/(?:^|\s)-[a-z]+/g, ' ')
-    // Normalize zero→O in year-mint tokens: "1883-0" → "1883-O" (common typo)
+    // Normalize zero->O in year-mint tokens: "1883-0" -> "1883-O" (common typo)
     .replace(/\b(\d{4})-0\b/g, '$1-O')
-    // Split year-mint tokens: "1956-D" → "1956 d", "1878-CC" → "1878 cc"
+    // Split year-mint tokens: "1956-D" -> "1956 d", "1878-CC" -> "1878 cc"
     .replace(/\b(\d{4})-(cc|d|s|o|w|p)\b/gi, '$1 $2')
     // Convert fractions to word forms BEFORE oz collapsing and non-alphanum
-    // stripping, so "1/2 oz" → "half oz" instead of the broken "12oz".
+    // stripping, so "1/2 oz" -> "half oz" instead of the broken "12oz".
     // CSV filenames use Half_oz, Quarter_oz, Tenth_oz.
     // Order matters: longer fractions (1/10, 1/20) before shorter (1/2, 1/4).
     .replace(/\b1\/20\s*oz\b/g, 'twentieth oz')
     .replace(/\b1\/10\s*oz\b/g, 'tenth oz')
     .replace(/\b1\/4\s*oz\b/g, 'quarter oz')
     .replace(/\b1\/2\s*oz\b/g, 'half oz')
+    // Decimal-fraction forms used by some listings: "0.5 oz" -> "half oz", etc.
+    // Order matters: longer (0.05, 0.1) before shorter (0.25, 0.5).
+    .replace(/\b0\.05\s*oz\b/g, 'twentieth oz')
+    .replace(/\b0\.1\s*oz\b/g, 'tenth oz')
+    .replace(/\b0\.25\s*oz\b/g, 'quarter oz')
+    .replace(/\b0\.5\s*oz\b/g, 'half oz')
     // Also handle already-collapsed forms from legacy Cosmos data where slashes
-    // were stripped before fraction conversion: "12oz" → "half oz", etc.
+    // were stripped before fraction conversion: "12oz" -> "half oz", etc.
     // Order matters: longer patterns (110oz, 120oz) before shorter (12oz, 14oz).
     .replace(/\b120oz\b/g, 'twentieth oz')
     .replace(/\b110oz\b/g, 'tenth oz')
     .replace(/\b14oz\b/g, 'quarter oz')
     .replace(/\b12oz\b/g, 'half oz')
-    // Collapse "N oz" → "Noz" so "1 oz" matches dataset keys like "1oz".
+    // Word-form "one ounce" / "one oz" -> "1oz" so it matches dataset keys.
+    .replace(/\bone\s+(?:troy\s+)?(?:ounce|oz)\b/g, '1oz')
+    // Strip optional "troy" qualifier so "1 troy oz" -> "1 oz" before the
+    // numeric oz collapse below.
+    .replace(/\b(\d+(?:[/.]\d+)?)\s*troy\s*oz\b/g, '$1 oz')
+    // Collapse "N oz" -> "Noz" so "1 oz" matches dataset keys like "1oz".
     // Must run BEFORE non-alphanumeric stripping so fractions like "1/2 oz" are handled.
     .replace(/\b(\d+(?:[/.]\d+)?)\s*oz\b/g, '$1oz')
+    // ── Country / mint aliases (#266H Phase 2) ──────────────────────
+    // Collapse country/region adjective <-> noun variants so duplicate keys
+    // like "2025 mexican silver libertad half oz" and "2025 mexico half oz
+    // silver libertad" canonicalize to a single dataset. Multi-word phrases
+    // must run BEFORE non-alphanumeric stripping so the space survives.
+    .replace(/\bunited\s+states\s+of\s+america\b/g, 'american')
+    .replace(/\bunited\s+states\b/g, 'american')
+    .replace(/\bu\.s\.a\.?\b/g, 'american')
+    .replace(/\busa\b/g, 'american')
+    .replace(/\bus\b/g, 'american')
+    .replace(/\bunited\s+kingdom\b/g, 'british')
+    .replace(/\bgreat\s+britain\b/g, 'british')
+    .replace(/\bgreat\s+britian\b/g, 'british') // common misspelling
+    .replace(/\bmexico\b/g, 'mexican')
+    .replace(/\bchina\b/g, 'chinese')
+    .replace(/\broyal\s+mint\b/g, 'royalmint')
     // Strip standalone Roman numerals (i, ii, iii, iv, v) -- these are series
     // labels (e.g. "Lunar III") that don't appear in Terapeak dataset keys
     // and poison fuzzy matching by inflating the token count.
@@ -1326,6 +1454,28 @@ function normalizeSearchKey(term) {
     .replace(/[^a-z0-9\s-]/g, '')
     .replace(/\s+/g, ' ')
     .trim();
+
+  // ── Series-redundant country stripping (#266H Phase 2) ───────────
+  // Krugerrand is exclusively South African; the country tokens add no
+  // disambiguation value and create duplicate keys for the same coin.
+  if (/\bkrugerrand\b/.test(s)) {
+    s = s
+      .replace(/\bsouth\s+africa(?:n)?\b/g, '')
+      .replace(/\bsouthafrica(?:n)?\b/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  // ── Sorted-token canonicalization (#266H Phase 2) ────────────────
+  // Sort tokens deterministically so word-order variants collapse to the
+  // same canonical key. E.g.
+  //   "2010 perth lunar tiger half oz silver"  (audit-form)
+  //   "perth lunar 2010 tiger silver half oz"  (vendor-form)
+  // both -> "2010 half lunar oz perth silver tiger".
+  // Token order carries no semantic weight for fuzzy matching (set-based)
+  // or for exact-key lookup (caller normalizes too), so a deterministic
+  // sort is purely a dedupe win.
+  return s.split(/\s+/).filter(Boolean).sort().join(' ');
 }
 
 /**
@@ -1642,6 +1792,8 @@ module.exports = {
   // Exposed for testing
   mapColumn,
   _mergeAggregationMeta,
+  _mergeStoreEntries,
+  _rekeyStoreInPlace,
   rowToComp,
   _resetStoreCache() { _store = null; },
   _cancelPendingSaves() {

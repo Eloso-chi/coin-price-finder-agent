@@ -20,21 +20,22 @@ const { normalizeSearchKey, detectWeightFromQuery } = require('../src/services/t
 // ═══════════════════════════════════════════════════════════════
 describe('normalizeSearchKey -- fraction handling (F5 regression)', () => {
   test('1/2 oz converts to "half oz"', () => {
-    expect(normalizeSearchKey('1/2 oz Silver Libertad')).toBe('half oz silver libertad');
+    // #266H Phase 2: tokens sorted alphabetically for canonical form.
+    expect(normalizeSearchKey('1/2 oz Silver Libertad')).toBe('half libertad oz silver');
   });
 
   test('1/4 oz converts to "quarter oz"', () => {
-    expect(normalizeSearchKey('1/4 oz Gold Eagle')).toBe('quarter oz gold eagle');
+    expect(normalizeSearchKey('1/4 oz Gold Eagle')).toBe('eagle gold oz quarter');
   });
 
   test('1/10 oz converts to "tenth oz"', () => {
-    expect(normalizeSearchKey('1/10 oz Platinum Eagle')).toBe('tenth oz platinum eagle');
+    expect(normalizeSearchKey('1/10 oz Platinum Eagle')).toBe('eagle oz platinum tenth');
   });
 
   test('fractions with no space before oz', () => {
-    expect(normalizeSearchKey('1/2oz Libertad')).toBe('half oz libertad');
-    expect(normalizeSearchKey('1/4oz Gold Eagle')).toBe('quarter oz gold eagle');
-    expect(normalizeSearchKey('1/10oz Platinum')).toBe('tenth oz platinum');
+    expect(normalizeSearchKey('1/2oz Libertad')).toBe('half libertad oz');
+    expect(normalizeSearchKey('1/4oz Gold Eagle')).toBe('eagle gold oz quarter');
+    expect(normalizeSearchKey('1/10oz Platinum')).toBe('oz platinum tenth');
   });
 
   test('does NOT produce mangled forms like 12oz, 14oz, 110oz', () => {
@@ -47,19 +48,19 @@ describe('normalizeSearchKey -- fraction handling (F5 regression)', () => {
   });
 
   test('integer oz still collapses ("1 oz" -> "1oz")', () => {
-    expect(normalizeSearchKey('Silver Eagle 1 oz')).toBe('silver eagle 1oz');
-    expect(normalizeSearchKey('Silver Eagle 2 oz')).toBe('silver eagle 2oz');
-    expect(normalizeSearchKey('Silver Eagle 10 oz')).toBe('silver eagle 10oz');
+    expect(normalizeSearchKey('Silver Eagle 1 oz')).toBe('1oz eagle silver');
+    expect(normalizeSearchKey('Silver Eagle 2 oz')).toBe('2oz eagle silver');
+    expect(normalizeSearchKey('Silver Eagle 10 oz')).toBe('10oz eagle silver');
   });
 
   test('already-word-form fractions pass through correctly', () => {
-    expect(normalizeSearchKey('half oz Silver Libertad')).toBe('half oz silver libertad');
-    expect(normalizeSearchKey('quarter oz Gold Eagle')).toBe('quarter oz gold eagle');
-    expect(normalizeSearchKey('tenth oz Platinum Eagle')).toBe('tenth oz platinum eagle');
+    expect(normalizeSearchKey('half oz Silver Libertad')).toBe('half libertad oz silver');
+    expect(normalizeSearchKey('quarter oz Gold Eagle')).toBe('eagle gold oz quarter');
+    expect(normalizeSearchKey('tenth oz Platinum Eagle')).toBe('eagle oz platinum tenth');
   });
 
-  test('gram weights are not broken', () => {
-    expect(normalizeSearchKey('2017 China 30g Silver Panda')).toBe('2017 china 30g silver panda');
+  test('gram weights are not broken (#266H: "china" alias -> "chinese")', () => {
+    expect(normalizeSearchKey('2017 China 30g Silver Panda')).toBe('2017 30g chinese panda silver');
   });
 });
 
@@ -76,8 +77,8 @@ describe('normalizeSearchKey -- year-mint normalization (F1 regression)', () => 
   });
 
   test('splits year-mint in context of full coin name', () => {
-    expect(normalizeSearchKey('1878-CC Morgan Silver Dollar')).toBe('1878 cc morgan silver dollar');
-    expect(normalizeSearchKey('1893-S Morgan Silver Dollar MS65')).toBe('1893 s morgan silver dollar ms65');
+    expect(normalizeSearchKey('1878-CC Morgan Silver Dollar')).toBe('1878 cc dollar morgan silver');
+    expect(normalizeSearchKey('1893-S Morgan Silver Dollar MS65')).toBe('1893 dollar morgan ms65 s silver');
   });
 
   test('CSV filename with year-mint matches meta key', () => {
@@ -105,11 +106,11 @@ describe('normalizeSearchKey -- year-mint normalization (F1 regression)', () => 
 // ═══════════════════════════════════════════════════════════════
 describe('normalizeSearchKey -- Roman numeral stripping', () => {
   test('strips standalone Roman numerals I through V', () => {
-    expect(normalizeSearchKey('Perth Lunar I Silver')).toBe('perth lunar silver');
-    expect(normalizeSearchKey('Perth Lunar II Silver')).toBe('perth lunar silver');
-    expect(normalizeSearchKey('Perth Lunar III Silver')).toBe('perth lunar silver');
-    expect(normalizeSearchKey('Perth Lunar IV Silver')).toBe('perth lunar silver');
-    expect(normalizeSearchKey('Perth Lunar V Silver')).toBe('perth lunar silver');
+    expect(normalizeSearchKey('Perth Lunar I Silver')).toBe('lunar perth silver');
+    expect(normalizeSearchKey('Perth Lunar II Silver')).toBe('lunar perth silver');
+    expect(normalizeSearchKey('Perth Lunar III Silver')).toBe('lunar perth silver');
+    expect(normalizeSearchKey('Perth Lunar IV Silver')).toBe('lunar perth silver');
+    expect(normalizeSearchKey('Perth Lunar V Silver')).toBe('lunar perth silver');
   });
 
   test('does not strip Roman numerals embedded in words', () => {
@@ -291,7 +292,7 @@ describe('country/adjective normalization', () => {
 // ═══════════════════════════════════════════════════════════════
 describe('normalizeSearchKey -- eBay exclusion operators', () => {
   test('strips -gold and -silver exclusion operators', () => {
-    expect(normalizeSearchKey('Morgan Dollar -gold -proof')).toBe('morgan dollar');
+    expect(normalizeSearchKey('Morgan Dollar -gold -proof')).toBe('dollar morgan');
   });
 
   test('does not strip hyphenated year-mints', () => {
@@ -321,46 +322,46 @@ describe('real-world regression cases', () => {
 
   test('Type 4 ghost: mangled fraction (14oz from 1/4 oz)', () => {
     const newFixed = normalizeSearchKey('1/4 oz');
-    expect(newFixed).toBe('quarter oz');
+    expect(newFixed).toBe('oz quarter');
     expect(newFixed).not.toBe('14oz');
   });
 
   test('Type 4 ghost: mangled fraction (110oz from 1/10 oz)', () => {
     const newFixed = normalizeSearchKey('1/10 oz');
-    expect(newFixed).toBe('tenth oz');
+    expect(newFixed).toBe('oz tenth');
     expect(newFixed).not.toBe('110oz');
   });
 
   test('Walking Liberty half dollar year-mint', () => {
     expect(normalizeSearchKey('1936-S Walking Liberty Half MS64'))
-      .toBe('1936 s walking liberty half ms64');
+      .toBe('1936 half liberty ms64 s walking');
   });
 
   test('Perth Lunar series with Roman numeral', () => {
     expect(normalizeSearchKey('2024 Perth Lunar III Dragon Gold Quarter'))
-      .toBe('2024 perth lunar dragon gold quarter');
+      .toBe('2024 dragon gold lunar perth quarter');
   });
 
   test('integer oz forms are stable', () => {
     // Make sure the fix didn't break integer oz collapsing
     expect(normalizeSearchKey('2020 American Silver Eagle 1oz'))
-      .toBe('2020 american silver eagle 1oz');
+      .toBe('1oz 2020 american eagle silver');
     expect(normalizeSearchKey('2020 American Silver Eagle 1 oz'))
-      .toBe('2020 american silver eagle 1oz');
+      .toBe('1oz 2020 american eagle silver');
   });
 
-  test('30g panda format is stable', () => {
+  test('30g panda format is stable (#266H: "china" alias -> "chinese")', () => {
     expect(normalizeSearchKey('2017 China 30g Silver Panda'))
-      .toBe('2017 china 30g silver panda');
+      .toBe('2017 30g chinese panda silver');
   });
 
   test('graded coin format is stable', () => {
     expect(normalizeSearchKey('1893-S Morgan Silver Dollar MS65'))
-      .toBe('1893 s morgan silver dollar ms65');
+      .toBe('1893 dollar morgan ms65 s silver');
   });
 
   test('bar format is stable', () => {
     expect(normalizeSearchKey('10oz 999 Silver Bar'))
-      .toBe('10oz 999 silver bar');
+      .toBe('10oz 999 bar silver');
   });
 });
