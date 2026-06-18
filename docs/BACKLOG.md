@@ -451,7 +451,19 @@ PR A is a *preventive* fix: it rewrites 133 `.meta` files to match the CSV filen
 
 ---
 
-### #266H. Ship Phase 2 + Phase 3 of #246 -- normalizeSearchKey alias map + duplicate-key merger [P2 -- DATA-QUALITY] -- OPEN 2026-06-15
+### #266H. Ship Phase 2 + Phase 3 of #246 -- normalizeSearchKey alias map + duplicate-key merger [P2 -- DATA-QUALITY] -- Phase 2 DONE 2026-06-18 (PR #155); Phase 3 OPEN
+
+**Status (2026-06-18):** Phase 2 shipped in PR #155. Phase 3 (one-shot merger script) remains OPEN -- see the Phase 3 block below.
+
+**Phase 2 resolution (PR #155, merge commit `e7ca5bf`):**
+- `normalizeSearchKey()` extended with country aliases (`mexican` <-> `mexico`, `chinese` <-> `china`, `american` <-> `usa` / `us` / `u.s.` / `united states`, `british` <-> `great britain` / `united kingdom`, `royalmint` <-> `royal mint`), decimal-fraction oz forms (`0.05`/`0.1`/`0.25`/`0.5 oz`), `one oz` / `troy oz` aliases, Krugerrand south-africa stripping, and deterministic sorted+deduped token canonicalization (alphabetical, `new Set(...)` dedupe).
+- Formal grade hyphens are also canonicalized away (`MS-65` -> `ms65`) so the `lookupComps` grade-augmented key path actually matches.
+- Lazy in-place migration on `loadStore()` via `_rekeyStoreInPlace` + `_mergeStoreEntries` -- legacy keys are rewritten to canonical form on first load, and collisions MERGE comps + aggregationMeta instead of last-write-wins. `loadMetaSidecar` now canonicalizes raw keys on read so a pre-Phase-2 sidecar cannot re-inject legacy stubs.
+- New tests: `__tests__/normalizeSearchKey.test.js` (per-alias + golden duplicate-pair regression from `docs/reports/duplicate-keys-report.json`), `__tests__/rekeyStore.test.js` (migration fast-path identity, collision merge, fingerprint dedupe, defensive non-array `comps` guard), `__tests__/loadMetaSidecarCanonicalize.test.js` (legacy raw keys canonicalize on read).
+- Full suite: 3981/3981 stable across 3 consecutive runs at fixup-commit verification; CI green at merge (test, CodeQL JS/TS, Python, Actions).
+- Deep-review (`.github/skills/code-review/SKILL.md` framework) ran on PR #155 -- 4 S2-High findings + 3 S3-Medium + 2 S4-Low; all applied in fixup commit `694cb4f` before merge.
+
+**Original problem statement (Phase 2 + Phase 3, retained for Phase 3 history):**
 
 **Problem:** #246 shipped only Phase 1 (read-only audit). The PR B (`normalizeSearchKey` extension) and PR C (`scripts/merge-duplicate-keys.js --apply --migrate-cosmos`) phases were deferred. In the 12 days since the committed audit (2026-06-02), duplicate-key drift has continued and `data/terapeak-meta.json` is actively double-scraping a growing set of variant pairs.
 
@@ -701,7 +713,9 @@ Fix 2 is the narrow patch; Fix 1 is the structural one. Recommend doing both: Fi
 
 ---
 
-### #273H. `auditDuplicateKeys` <-> `identifierPersistence` jest-worker race on `data/terapeak-meta.json` [P2 -- TEST-INFRA / CI-FLAKE] -- OPEN 2026-06-16
+### #273H. `auditDuplicateKeys` <-> `identifierPersistence` jest-worker race on `data/terapeak-meta.json` [P2 -- TEST-INFRA / CI-FLAKE] -- DONE 2026-06-18 (PR #153)
+
+**Resolution (PR #153, merge commit `f8ce824`):** Shipped fix #1 from the options list (preferred). Added a `_resolveMetaSidecarPath()` hook in `src/services/terapeakService.js` (`process.env.META_PATH || path.join(__dirname, '../../data/terapeak-meta.json')`) and the same env hook on `scripts/generate-freshness-report.js`. New `__tests__/setup/meta-path.js` jest `setupFiles` entry creates a per-worker tmpdir, seeds it with the real meta file, and points `process.env.META_PATH` at the tmp copy. `__tests__/freshnessReport*.test.js` updated to pass `env: process.env` explicitly to `execFileSync` (jest sandboxes `process.env`, so child processes do NOT inherit `setupFiles` mutations by default). `__tests__/identifierPersistence.test.js` prefers `process.env.META_PATH` for its direct writes. `package.json` registers the setup hook and ignores `__tests__/setup/` from test discovery. `__tests__/auditDuplicateKeys.test.js` and `scripts/audit-duplicate-keys.js` were intentionally left untouched -- both stay pointed at the real repo path as the canary. Verification at merge: targeted META suites (9 files, 154 tests) x20 with `--maxWorkers=auto` -> 20/20 green; full suite 3x back-to-back -> 3923/3923 each; `data/terapeak-meta.json` sha256 unchanged before vs after each full run.
 
 **Origin:** Three Dependabot PRs in a row (#123 eslint, #134 Wave 2 Batch G, #125 csv-parse 7.0.0) have failed CI on the *exact same* assertion -- `__tests__/auditDuplicateKeys.test.js:53` `expect(metaHashAfter).toBe(metaHashBefore)` -- despite the change under review having zero relationship to `audit-duplicate-keys.js` or to the meta sidecar. Each time, the suite passes when run in isolation (`npx jest __tests__/auditDuplicateKeys.test.js` -> 5/5 green), and each PR was force-merged with `--admin`. The pattern is now a tax on every dependency bump and any future PR that happens to spin up the right worker layout.
 
@@ -2287,7 +2301,9 @@ and obscures regressions in unrelated PRs.
 
 ---
 
-### #252. Bullion Strike-Pool Split Misclassifies Graded Bullion as Off-Pool [P1 -- DATA-QUALITY]
+### #252. Bullion Strike-Pool Split Misclassifies Graded Bullion as Off-Pool [P1 -- DATA-QUALITY] -- DONE 2026-06-18 (PR #154)
+
+**Resolution (PR #154, merge commit `7b72a67`):** Implemented the proposed-fix sketch. `src/services/ebayService.js` (around L1438-L1474): when `expected.weight >= 1.0` and the query is neither proof nor explicit-grade, merges the `graded` and `raw` pools instead of dropping graded comps. Proof + reverse-proof comps stay excluded. Strict split is preserved for (a) fractional bullion `< 1oz` (slab premium IS real for 1/10oz Gold Eagle MS70 etc.), (b) explicit slab grade in the query, (c) proof intent, and (d) non-bullion queries with no weight signal. New `prefilterBullionMerge` telemetry bucket (value 0) is emitted on `result.us.removed` whenever the bullion branch fires, and the console log distinguishes `bullion-merge graded+raw, weight=Noz` vs `raw only`. 5 new cases added to `__tests__/ebayFetchSoldComps.test.js` covering the merge, the explicit-slab-grade fallback, the proof-bullion exclusion, the fractional-bullion guard, and the no-weight-signal defensive path. Verification at merge: full suite 3x consecutive -> 3928/3928 passed; lint clean (0 new warnings); ASCII-only confirmed.
 
 **Problem:** The pre-filter strike/grade-pool split in `fetchSoldComps` (introduced for #182, made visible by #244) treats slabbed bullion as off-pool for raw-bullion queries. For a query like `2024 Canada 1 oz Gold Maple Leaf` the parser sets neither `isProof` nor `grade`, so `targetPool = 'raw'`. Any Terapeak comp with `conditionId=2000` (slabbed PCGS/NGC) -- which is a large share of premium bullion listings -- gets classified as `graded` and dropped via `prefilterStrikeSplit` before scoring or filters ever run.
 
