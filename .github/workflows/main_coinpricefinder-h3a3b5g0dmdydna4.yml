@@ -53,7 +53,7 @@ jobs:
         # CSV` soft threshold trips). Multi-seed robustness moves to #239 Batch 3.
         env:
           COIN_TEST_SEED: ci-batch1-stable
-        run: npx jest --verbose --coverage --coverageReporters=text-summary --coverageReporters=text --coverageReporters=json-summary --testPathIgnorePatterns='node_modules|__tests__/helpers'
+        run: npx jest --verbose --coverage --coverageReporters=text-summary --coverageReporters=text --coverageReporters=json-summary --testPathIgnorePatterns='node_modules|__tests__/helpers|__tests__/setup'
 
       - name: Coverage summary to job summary
         if: always()
