@@ -451,9 +451,9 @@ PR A is a *preventive* fix: it rewrites 133 `.meta` files to match the CSV filen
 
 ---
 
-### #266H. Ship Phase 2 + Phase 3 of #246 -- normalizeSearchKey alias map + duplicate-key merger [P2 -- DATA-QUALITY] -- Phase 2 DONE 2026-06-18 (PR #155); Phase 3 OPEN
+### #266H. Ship Phase 2 + Phase 3 of #246 -- normalizeSearchKey alias map + duplicate-key merger [P2 -- DATA-QUALITY] -- Phase 2 DONE 2026-06-18 (PR #155); Phase 3 script DONE 2026-06-02 (#246 commits); Phase 3 LIVE MIGRATION OPEN
 
-**Status (2026-06-18):** Phase 2 shipped in PR #155. Phase 3 (one-shot merger script) remains OPEN -- see the Phase 3 block below.
+**Status (2026-06-18):** Phase 2 shipped in PR #155. The Phase 3 merger SCRIPT was already shipped on 2026-06-02 as part of the original #246 work and was incorrectly tracked here as missing. What remains OPEN is the one-shot LIVE MIGRATION run -- executing `node scripts/merge-duplicate-keys.js --apply` (and optionally `--migrate-cosmos`) against the production `data/terapeak-meta.json` and the Cosmos `terapeak-sold` container. See the "Phase 3 execution -- remaining open work" block below.
 
 **Phase 2 resolution (PR #155, merge commit `e7ca5bf`):**
 - `normalizeSearchKey()` extended with country aliases (`mexican` <-> `mexico`, `chinese` <-> `china`, `american` <-> `usa` / `us` / `u.s.` / `united states`, `british` <-> `great britain` / `united kingdom`, `royalmint` <-> `royal mint`), decimal-fraction oz forms (`0.05`/`0.1`/`0.25`/`0.5 oz`), `one oz` / `troy oz` aliases, Krugerrand south-africa stripping, and deterministic sorted+deduped token canonicalization (alphabetical, `new Set(...)` dedupe).
@@ -462,6 +462,33 @@ PR A is a *preventive* fix: it rewrites 133 `.meta` files to match the CSV filen
 - New tests: `__tests__/normalizeSearchKey.test.js` (per-alias + golden duplicate-pair regression from `docs/reports/duplicate-keys-report.json`), `__tests__/rekeyStore.test.js` (migration fast-path identity, collision merge, fingerprint dedupe, defensive non-array `comps` guard), `__tests__/loadMetaSidecarCanonicalize.test.js` (legacy raw keys canonicalize on read).
 - Full suite: 3981/3981 stable across 3 consecutive runs at fixup-commit verification; CI green at merge (test, CodeQL JS/TS, Python, Actions).
 - Deep-review (`.github/skills/code-review/SKILL.md` framework) ran on PR #155 -- 4 S2-High findings + 3 S3-Medium + 2 S4-Low; all applied in fixup commit `694cb4f` before merge.
+
+**Phase 3 script resolution (already shipped 2026-06-02 under #246):**
+- `scripts/merge-duplicate-keys.js` (28KB) implements the full spec from the "Phase 3 -- one-shot merger (PR C)" block below: dry-run default, `--apply`, `--migrate-cosmos`, `--from-archive=PATH`, `--verbose`, `--quiet`. Picks winner by (matches `normalizeSearchKey` -> highest compCount -> shortest), merges via `_mergeAggregationMeta` from terapeakService, archives losers to `data/archive/terapeak-meta-orphans-<ISO>.json`, and propagates the merge through to the Cosmos `terapeak-sold` container with itemId + title+price+date dedup.
+- Test coverage: `__tests__/mergeDuplicateKeys.test.js` -- 19 tests covering script syntactic validity, dry-run-by-default invariant, `--migrate-cosmos` requires `--apply`, `--from-archive` parsing, and all pure helper logic (`deepCanonical`, `pickWinner`, `mergeComps`, `buildPlan`, `cosmosDocId`). Currently green on `main`.
+- Git history: commits `565d221` (initial implementation), `e220f7c` (`--from-archive` flag for Cosmos-only follow-up), `d6308b1` (Cosmos partition-key bug fix + 4 code-review items applied), all on `main` since 2026-06-02.
+- Verified 2026-06-18 against current meta: a dry-run produces 120 candidate merge groups for the now-broader Phase-2 alias map (versus 144 groups when audit-only ran in early June). Plan output written to `docs/reports/merge-duplicate-keys-plan.json`.
+
+**Phase 3 execution -- remaining open work (live migration):**
+- The merger script has never been executed with `--apply` against the production meta file. With Phase 2 (the broader alias map) now shipped, the dry-run surfaces ~120 duplicate groups that will collapse into single canonical keys once the migration runs.
+- Pre-execution checklist:
+  1. Pause the scraper on the H/other machine (Ctrl-C between coins). The migration window mutates `data/terapeak-meta.json` and would race with `/api/terapeak/import` POSTs.
+  2. Take a manual Cosmos backup of the `terapeak-sold` container (manual export -- not automated in the script).
+  3. Confirm the meta file is otherwise quiescent (no prefetch scheduler tick in flight).
+- Recommended sequence:
+  ```bash
+  node scripts/merge-duplicate-keys.js                       # 1. dry-run, review plan
+  node scripts/merge-duplicate-keys.js --apply               # 2. meta-only migration; writes orphan archive
+  # spot-check 2-3 merged coins via /api/price; run audit-duplicate-keys.js to confirm shrink
+  node scripts/merge-duplicate-keys.js --apply --migrate-cosmos   # 3. propagate through to Cosmos
+  ```
+  If Cosmos migration fails or is interrupted, `--from-archive=data/archive/terapeak-meta-orphans-<ISO>.json` can rerun the Cosmos-only step against the saved orphan set.
+- Post-execution verification:
+  - `node scripts/audit-duplicate-keys.js` reports `duplicateGroupCount` strictly lower than the pre-migration baseline (current baseline: 120 groups in the 2026-06-18 dry-run plan).
+  - Cosmos query for any merged key returns the unioned comps (no comp lost to last-write-wins).
+  - Cross-route consistency check (`@pricing-health`) on a sampled merged coin returns the same FMV from `/api/price`, `/api/pricing-batch`, `/api/bulk-evaluate`, and `/api/market/ebay`.
+  - Resume scraper on the H/other machine.
+- Not in scope of this remaining work: any code change. Pure data-migration execution.
 
 **Original problem statement (Phase 2 + Phase 3, retained for Phase 3 history):**
 
