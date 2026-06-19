@@ -309,6 +309,29 @@ describe('POST /api/terapeak/import -- 422 self-heal (#269H)', () => {
     expect(status).toBe(422);
     expect(body.error).toMatch(/No valid comps/i);
   });
+
+  test('noDataCount is capped at NO_DATA_CAP (5) for parity with importComps (#271H Item 1)', async () => {
+    // Simulate a dataset already at the cap. Another 422 must NOT push it to 6.
+    terapeakService.listDatasets.mockReturnValue([
+      {
+        key: 'capped 422 coin',
+        searchTerm: 'capped 422 coin',
+        compCount: 0,
+        aggregationMeta: { noDataCount: 5, noDataAt: '2026-06-10T00:00:00Z' },
+      },
+    ]);
+
+    const { status } = await postMultipart(
+      '/api/terapeak/import',
+      { searchTerm: 'capped 422 coin' },
+      { filename: 'empty.csv', content: 'Title,Sold Price\n' },
+      TEST_ADMIN_KEY,
+    );
+
+    expect(status).toBe(422);
+    expect(_updateCalls).toHaveLength(1);
+    expect(_updateCalls[0].updates.noDataCount).toBe(5);
+  });
 });
 
 // ═══════════════════════════════════════════════════════════════

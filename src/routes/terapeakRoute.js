@@ -37,9 +37,16 @@ function _stampNoDataMeta(searchTerm, clientPage1At) {
     const normalizedKey = terapeakService.normalizeSearchKey(searchTerm);
     const existing = datasets.find(d => d.key === normalizedKey);
     const prevCount = existing?.aggregationMeta?.noDataCount || 0;
+    // #271H Item 1: cap at NO_DATA_CAP (5) for parity with the importComps
+    // dormancy path in src/services/terapeakService.js. Functionally harmless
+    // above 5 (classifier only checks >=2) but unbounded growth obscures the
+    // "how many strikes" signal in the sidecar and diverges from the
+    // documented contract proved by
+    // __tests__/terapeakServiceNoDataStamp.test.js "noDataCount is capped at 5".
+    const NO_DATA_CAP = 5;
     terapeakService.updateDatasetMeta(searchTerm, {
       noDataAt: now,
-      noDataCount: prevCount + 1,
+      noDataCount: Math.min(NO_DATA_CAP, prevCount + 1),
       page1At: clientPage1At || now,
     });
   } catch (err) {
@@ -439,22 +446,35 @@ router.post('/report-no-data', requireAdmin, express.json(), (req, res) => {
   if (!searchTerm || typeof searchTerm !== 'string') {
     return res.status(400).json({ error: 'searchTerm is required' });
   }
-  const store = terapeakService.listDatasets();
-  const normalizedKey = terapeakService.normalizeSearchKey(searchTerm);
-  const existing = store.find(d => d.key === normalizedKey);
-  const prevCount = existing?.aggregationMeta?.noDataCount || 0;
 
-  const result = terapeakService.updateDatasetMeta(searchTerm, {
-    noDataAt: new Date().toISOString(),
-    noDataCount: prevCount + 1,
-  });
+  // #271H Item 3: wrap the meta-write in try/catch so a storage failure does
+  // not leak as a 500 to the python scraper. Mirrors the throw-safety pattern
+  // in _stampNoDataMeta above -- the contract with the client is "we received
+  // your no-data report"; failure to persist the bookkeeping should not
+  // appear as an HTTP error.
+  try {
+    const store = terapeakService.listDatasets();
+    const normalizedKey = terapeakService.normalizeSearchKey(searchTerm);
+    const existing = store.find(d => d.key === normalizedKey);
+    const prevCount = existing?.aggregationMeta?.noDataCount || 0;
 
-  res.json({
-    status: 'ok',
-    key: result.key,
-    noDataCount: result.aggregationMeta.noDataCount,
-    noDataAt: result.aggregationMeta.noDataAt,
-  });
+    // #271H Item 1: cap at NO_DATA_CAP (5) -- same rationale as _stampNoDataMeta.
+    const NO_DATA_CAP = 5;
+    const result = terapeakService.updateDatasetMeta(searchTerm, {
+      noDataAt: new Date().toISOString(),
+      noDataCount: Math.min(NO_DATA_CAP, prevCount + 1),
+    });
+
+    res.json({
+      status: 'ok',
+      key: result.key,
+      noDataCount: result.aggregationMeta.noDataCount,
+      noDataAt: result.aggregationMeta.noDataAt,
+    });
+  } catch (err) {
+    console.error('[terapeak] /report-no-data meta-write failed for', searchTerm, '--', err.message);
+    res.json({ status: 'ok', key: terapeakService.normalizeSearchKey(searchTerm), noDataCount: null, noDataAt: null, warning: 'meta-write-failed' });
+  }
 });
 
 /**
