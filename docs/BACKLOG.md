@@ -920,12 +920,18 @@ function normalizeSeries(series) {
 
 ### #278H. `imageProxyRoute.test.js` `accepts .<ext>` cases hit live `en.numista.com` -- recurring CI flake [P2 -- TEST-INFRA / CI-FLAKE] -- DONE 2026-06-19
 
-**Resolution (2026-06-19):** Fix shipped to `__tests__/imageProxyRoute.test.js` -- the `path extension validation` describe block now stubs `https.get` in `beforeAll` so the route's error handler runs (502) instead of waiting on a live request to `en.numista.com`. The assertion `expect(res.status).not.toBe(400)` still validates the same thing (path-extension parser admitted the URL); the upstream fetch was never the unit under test there. Verified:
-- `npx jest __tests__/imageProxyRoute.test.js` -- 28/28 passing in 0.97 s (was 4.4 s).
-- Same suite under a `setupFiles` shim that fails DNS lookups for `*.numista.com` -- still 28/28 in 0.81 s. No network dependency remains.
-- Full suite (`npx jest`) green: 130/130 suites, 3981/3981 tests, no cross-suite regression.
+**Resolution (2026-06-19):** Fix shipped to `__tests__/imageProxyRoute.test.js` -- `https.get` is now stubbed at file scope (via a top-level `beforeAll`/`afterAll`), so any test in the file that reaches the upstream-fetch stage gets an immediate synthetic error and the route's error handler responds 502. The route's URL-parser, allowlist, and path-extension parser still run end-to-end; only the live network call is short-circuited.
 
-The `upstream response handling` describe block (which uses a real localhost `http.createServer` on 127.0.0.1) is untouched; it's an in-process loopback test and was never the flake source.
+The stub deliberately covers BOTH originally-failing test blocks:
+- `path extension validation > accepts .<ext>` (6 cases) -- the direct flake source from PR #159.
+- `SSRF host allowlist > allows en.numista.com` and `allows www.numista.com` (2 cases) -- same network-dependency profile, hadn't flaked yet but would have eventually (deep-review S3 finding rolled into the same PR).
+
+The `upstream response handling` describe block is intentionally untouched -- it uses a real localhost `http.createServer` on 127.0.0.1, which the route reaches via `http.get` (not `https.get`), so the stub never intercepts it.
+
+Verified:
+- `npx jest __tests__/imageProxyRoute.test.js` -- 28/28 in 0.63 s (was 4.4 s pre-fix).
+- Same suite with a `setupFiles` shim that fails DNS for `*.numista.com` -- still 28/28 in 0.55 s. No network dependency remains.
+- Full suite `npx jest` -- 130/130 suites, 3981/3981 tests in 88 s (was 115 s; whole-suite speedup from eliminating network waits).
 
 ---
 

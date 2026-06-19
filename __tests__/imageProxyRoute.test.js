@@ -15,6 +15,37 @@ const app = express();
 app.use('/api/image-proxy', imageProxy);
 
 /* ════════════════════════════════════════════════════════════
+ *  Global https.get stub (#278H -- CI flake fix)
+ *
+ *  Several tests below build URLs against `https://en.numista.com/...`
+ *  to exercise route-internal decisions (allowlist accept, path-extension
+ *  accept). They do NOT need the upstream fetch to succeed -- they only
+ *  assert the route did not 4xx out of the validator. We stub https.get
+ *  globally so any test that reaches the upstream-fetch stage gets an
+ *  immediate synthetic error (route responds 502), avoiding flaky live
+ *  requests to en.numista.com from CI runners with degraded egress.
+ *
+ *  The `upstream response handling` describe block below is unaffected:
+ *  its tests use a real localhost http.createServer over plain HTTP,
+ *  which routes through http.get (not https.get) and is never stubbed.
+ * ════════════════════════════════════════════════════════════ */
+let httpsGetSpy;
+
+beforeAll(() => {
+  httpsGetSpy = jest.spyOn(https, 'get').mockImplementation(() => {
+    const fakeReq = new EventEmitter();
+    fakeReq.destroy = () => {};
+    // Defer so the route's `.on('error', ...)` listener has time to attach.
+    setImmediate(() => fakeReq.emit('error', new Error('stubbed: no network in tests')));
+    return fakeReq;
+  });
+});
+
+afterAll(() => {
+  httpsGetSpy.mockRestore();
+});
+
+/* ════════════════════════════════════════════════════════════
  *  Missing / Invalid URL
  * ════════════════════════════════════════════════════════════ */
 describe('parameter validation', () => {
@@ -109,29 +140,13 @@ describe('SSRF host allowlist', () => {
 /* ════════════════════════════════════════════════════════════
  *  Path Extension Validation
  *
- *  These tests only assert that the route's path-extension parser
- *  accepts/rejects the URL (status 400 vs not-400). They do NOT
- *  need the upstream fetch to succeed. We stub https.get so the
- *  route's error handler runs (502), avoiding any live network call
- *  to en.numista.com which was a recurring CI flake source (#278H).
+ *  See file-level beforeAll above: https.get is stubbed for the whole
+ *  file so the `accepts .<ext>` cases below complete without hitting
+ *  en.numista.com (the original #278H flake source). The route's
+ *  path-extension parser still runs end-to-end; only the upstream
+ *  fetch is short-circuited.
  * ════════════════════════════════════════════════════════════ */
 describe('path extension validation', () => {
-  let httpsGetSpy;
-
-  beforeAll(() => {
-    httpsGetSpy = jest.spyOn(https, 'get').mockImplementation(() => {
-      const fakeReq = new EventEmitter();
-      fakeReq.destroy = () => {};
-      // Defer so the route's `.on('error', ...)` listener has time to attach.
-      setImmediate(() => fakeReq.emit('error', new Error('stubbed: no network in tests')));
-      return fakeReq;
-    });
-  });
-
-  afterAll(() => {
-    httpsGetSpy.mockRestore();
-  });
-
   test('blocks non-image extensions (.html)', async () => {
     const res = await request(app).get('/api/image-proxy?url=' + encodeURIComponent('https://en.numista.com/page.html'));
     expect(res.status).toBe(400);
