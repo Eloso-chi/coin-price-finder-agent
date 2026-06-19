@@ -705,7 +705,9 @@ Fix 2 is the narrow patch; Fix 1 is the structural one. Recommend doing both: Fi
 
 ---
 
-### #271H. Followups from PR #132 deep review -- noDataCount cap, integration test, /report-no-data parity [P3 -- TECH-DEBT / TEST-HARDENING] -- OPEN 2026-06-16
+### #271H. Followups from PR #132 deep review -- noDataCount cap, integration test, /report-no-data parity [P3 -- TECH-DEBT / TEST-HARDENING] -- DONE 2026-06-19 (PR #163)
+
+**Resolution (PR #163, merge commit `98ffa48`):** All four items shipped plus the cap case for the 422SelfHeal suite (Item 6). `src/routes/terapeakRoute.js` `_stampNoDataMeta` now caps `noDataCount` at `NO_DATA_CAP = 5` via `Math.min(NO_DATA_CAP, prevCount + 1)` (parity with `importComps`), and `/report-no-data` was restructured to (a) wrap `updateDatasetMeta` in try/catch returning 200 + `warning: 'meta-write-failed'` on failure, (b) read `prevCount` from `listDatasets` in its own narrow try ahead of the main try, (c) return `noDataCount: prevCount` (numeric, never null) on the catch path so the python scraper at `scripts/terapeak-export.py:_report_no_data` does not throw `TypeError` on `int(None) >= 2` (deep-review S2.1 fix in commit `e9324c2`). New `__tests__/terapeakReportNoDataRoute.test.js` (8 cases) provides zero->full coverage of the endpoint; new `__tests__/terapeakImport422DormancyIntegration.test.js` (1 case) ties real route -> real terapeakService -> real freshnessClassifier together for end-to-end dormancy proof; `__tests__/terapeakImport422SelfHeal.test.js` gained one cap-parity case. Verification at merge: 20/20 in the trio, 3991/3991 full suite. Deep review on the fix commit returned APPROVED FOR MERGE with zero new findings.
 
 **Origin:** Deep code review of PR #132 (#269H fix) surfaced four non-blocking quality issues that were deferred from the merge so Wave 1 could ship clean. Bundling here.
 
