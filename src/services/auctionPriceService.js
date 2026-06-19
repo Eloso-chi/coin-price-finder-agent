@@ -152,18 +152,55 @@ function saveCoinFile(pcgsNo, data) {
 
 /**
  * Deduplicate auction records. Key: LotNo + Auctioneer + Date + Price.
+ *
+ * Collision strategy: FIELD-MERGE (#274H option 3, BACKLOG.md).
+ *   When two records share the key, non-null/non-undefined fields from the
+ *   incoming record overwrite the existing values; null/undefined incoming
+ *   fields do NOT clobber existing non-null values. This preserves the
+ *   richest payload across multiple scrapes and lets corrected metadata
+ *   (e.g., a re-published Heritage grade `MS65` -> `MS66`) propagate while
+ *   protecting against thin/partial re-scrapes overwriting full payloads.
+ *
+ * Mutation contract: returns a NEW `merged` array. Existing records are
+ * shallow-cloned before merge, so the caller's `existing` array elements
+ * are NOT mutated in place.
+ *
+ * @param {object[]} existing - records already on disk
+ * @param {object[]} incoming - records from the latest fetch
+ * @returns {{ merged: object[], added: number }} merged list + count of
+ *   genuinely new records (collisions do NOT count toward `added`).
  */
 function dedupeRecords(existing, incoming) {
-  const keySet = new Set(existing.map(r => `${r.LotNo}|${r.Auctioneer}|${r.Date}|${r.Price}`));
-  const newRecords = [];
+  const keyOf = (r) => `${r.LotNo}|${r.Auctioneer}|${r.Date}|${r.Price}`;
+
+  // Shallow-clone existing so the caller's array elements are not mutated.
+  const merged = existing.map(r => ({ ...r }));
+  const indexByKey = new Map();
+  for (let i = 0; i < merged.length; i++) {
+    const k = keyOf(merged[i]);
+    if (!indexByKey.has(k)) indexByKey.set(k, i);
+  }
+
+  let added = 0;
   for (const record of incoming) {
-    const key = `${record.LotNo}|${record.Auctioneer}|${record.Date}|${record.Price}`;
-    if (!keySet.has(key)) {
-      keySet.add(key);
-      newRecords.push(record);
+    const key = keyOf(record);
+    if (!indexByKey.has(key)) {
+      indexByKey.set(key, merged.length);
+      merged.push(record);
+      added++;
+    } else {
+      // Field-merge: incoming non-null/non-undefined fields win.
+      const target = merged[indexByKey.get(key)];
+      for (const field of Object.keys(record)) {
+        const v = record[field];
+        if (v !== null && v !== undefined) {
+          target[field] = v;
+        }
+      }
     }
   }
-  return { merged: [...existing, ...newRecords], added: newRecords.length };
+
+  return { merged, added };
 }
 
 // ── Public API ──────────────────────────────────────────────
