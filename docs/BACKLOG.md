@@ -918,6 +918,37 @@ function normalizeSeries(series) {
 
 ---
 
+### #278H. `imageProxyRoute.test.js` `accepts .<ext>` cases hit live `en.numista.com` -- recurring CI flake [P2 -- TEST-INFRA / CI-FLAKE] -- OPEN 2026-06-19
+
+**Origin:** PR #159 (BACKLOG-only doc change, +20/-1, zero code surface) failed CI twice in a row on `__tests__/imageProxyRoute.test.js`:
+- Run `27831753807` job `82369996217`: `accepts .jpg` timed out after 5002 ms.
+- Rerun on the same SHA: `accepts .webp` timed out after 5002 ms.
+- Locally on the same commit: `28/28 passed in 4.4 s`.
+
+The fact that a different sibling test fails on each rerun (different extensions, same suite) is the random-pick fingerprint of an external-network flake, not a code regression. PR #159 was admin-merged through it (commit `0fb5b84`) since the diff couldn't have caused a route-test failure.
+
+**Root cause hypothesis:** The `path extension validation` describe block in [__tests__/imageProxyRoute.test.js](__tests__/imageProxyRoute.test.js#L110) makes `request(app).get('/api/image-proxy?url=' + encodeURIComponent('https://en.numista.com/photo.<ext>'))` calls. Inside `src/routes/imageProxyRoute.js`, the proxy actually resolves and follows the URL, so the test depends on GitHub Actions runners being able to reach `en.numista.com` within Jest's 5000 ms default. When the runner has degraded egress to that host (which seems to happen on a small but non-zero fraction of jobs), each `accepts .<ext>` case has an independent ~5 s timeout race -- and any one missing breaks the suite.
+
+**Why #250 didn't fix it:** #250 (DONE 2026-06-18) addressed the *allowlist* logic for `en.numista.com` / `www.numista.com` -- the route correctly admits Numista URLs again. It did not change the fact that the `.jpg` / `.webp` / `.png` / `.gif` / `.avif` cases reach across the public internet at test time. The test class is now correctness-passing but still infrastructure-fragile.
+
+**Proposed fix (one of):**
+- **(a) Mock the upstream fetch [PREFERRED].** Stub `https.request` / `fetch` for `en.numista.com` in the test's `beforeEach` so the proxy returns a synthetic 200 with a 1x1 image body. The validation under test is path-extension parsing on the *request URL*, not the upstream response -- mocking removes the only network dependency without changing test intent.
+- **(b) Bump the per-test timeout** to e.g. 15000 ms. Cheap and small but only narrows the flake window; doesn't eliminate it.
+- **(c) Move these specific cases into a `slow` / `network` jest project** that runs only under an opt-in env flag, and exclude them from required CI.
+
+(a) is the right scope -- 5 small mocks vs ongoing flake tax across every PR.
+
+**Acceptance:**
+- Run `npx jest __tests__/imageProxyRoute.test.js` in airplane mode (no DNS to `en.numista.com`); all extension cases still pass.
+- 5 consecutive PR CIs without a `.test.js` timeout on `imageProxyRoute`.
+
+**Related:**
+- #250 (Numista allowlist baseline -- DONE 2026-06-18).
+- #273H (jest-worker race on `terapeak-meta.json` -- DONE 2026-06-18 PR #153). Same flake-class, different mechanism.
+- PR #159 admin-merge precedent for "doc-only PR through unrelated CI flake".
+
+---
+
 ### #276H. `pricing-health-full.js` mislabels missing-credentials as "pipeline-leak" -- pre-flight credential probe needed [P3 -- TOOLING / OPERATIONS] -- DONE 2026-06-16 (PR #140)
 
 **Origin:** First 25-coin pricing-health run after fresh checkout on this workstation. Every coin reported `pipeline-leak (N teak -> 0 comps)` and `null-fmv`, suggesting filter attrition. Root cause was empty `.env` values for `EBAY_APP_ID`, `EBAY_CLIENT_SECRET`, and `PCGS_API_KEY` -- the comp path never ran. The "pipeline-leak" label was misleading because comps were not *dropped*, they were never *fetched*.
