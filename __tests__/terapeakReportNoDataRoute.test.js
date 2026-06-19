@@ -208,7 +208,41 @@ describe('POST /api/terapeak/report-no-data (#271H Item 4)', () => {
     expect(status).toBe(200);
     expect(body.status).toBe('ok');
     expect(body.warning).toBe('meta-write-failed');
-    expect(body.noDataCount).toBeNull();
+    // noDataCount must be a finite number (the previous value, since the
+    // increment did NOT take effect). Returning null would crash the python
+    // scraper at `int(count) >= 2` -- see scripts/terapeak-export.py:_report_no_data.
+    expect(typeof body.noDataCount).toBe('number');
+    expect(body.noDataCount).toBe(0); // brand-new dataset -> prevCount=0
     expect(body.noDataAt).toBeNull();
+  });
+
+  test('meta-write failure preserves prevCount in response (existing entry)', async () => {
+    // prevCount=3 on disk. The increment fails, so the response must report 3
+    // (the unchanged on-disk value), NOT 4 (the failed target) and NOT null.
+    terapeakService.listDatasets.mockReturnValue([
+      {
+        key: 'failing coin',
+        searchTerm: 'failing coin',
+        compCount: 0,
+        aggregationMeta: { noDataCount: 3, noDataAt: '2026-06-14T00:00:00Z' },
+      },
+    ]);
+    terapeakService.updateDatasetMeta.mockImplementationOnce(() => {
+      throw new Error('disk full');
+    });
+
+    const { status, body } = await postJson(
+      '/api/terapeak/report-no-data',
+      { searchTerm: 'failing coin' },
+      TEST_ADMIN_KEY,
+    );
+
+    expect(status).toBe(200);
+    expect(body.warning).toBe('meta-write-failed');
+    expect(body.noDataCount).toBe(3);
+    // Sanity: int(body.noDataCount) -- the python expression -- must not throw.
+    // Smoke this in JS by checking the value satisfies the same numeric
+    // invariant the scraper relies on.
+    expect(Number.isFinite(body.noDataCount)).toBe(true);
   });
 });

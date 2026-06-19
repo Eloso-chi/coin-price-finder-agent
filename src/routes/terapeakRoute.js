@@ -447,17 +447,32 @@ router.post('/report-no-data', requireAdmin, express.json(), (req, res) => {
     return res.status(400).json({ error: 'searchTerm is required' });
   }
 
+  // Resolve the key + read the previous count up front so the catch path
+  // below can return a numerically-sane payload even when the meta-write
+  // fails. (See #271H Item 3 + python-scraper compatibility note below.)
+  const normalizedKey = terapeakService.normalizeSearchKey(searchTerm);
+  let prevCount = 0;
+  try {
+    const store = terapeakService.listDatasets();
+    const existing = store.find(d => d.key === normalizedKey);
+    prevCount = existing?.aggregationMeta?.noDataCount || 0;
+  } catch (_) {
+    // listDatasets failed (e.g. sidecar unreadable). prevCount stays 0;
+    // the outer try/catch on updateDatasetMeta will surface the failure.
+  }
+
   // #271H Item 3: wrap the meta-write in try/catch so a storage failure does
   // not leak as a 500 to the python scraper. Mirrors the throw-safety pattern
   // in _stampNoDataMeta above -- the contract with the client is "we received
   // your no-data report"; failure to persist the bookkeeping should not
   // appear as an HTTP error.
+  //
+  // Failure-path response shape: noDataCount is set to the PREVIOUS count
+  // (the increment did NOT take effect) rather than null. The python caller
+  // at scripts/terapeak-export.py:_report_no_data does `int(count) >= 2`,
+  // which would otherwise raise TypeError on null and surface as a generic
+  // "request failed" exception, masking the structured `warning` marker.
   try {
-    const store = terapeakService.listDatasets();
-    const normalizedKey = terapeakService.normalizeSearchKey(searchTerm);
-    const existing = store.find(d => d.key === normalizedKey);
-    const prevCount = existing?.aggregationMeta?.noDataCount || 0;
-
     // #271H Item 1: cap at NO_DATA_CAP (5) -- same rationale as _stampNoDataMeta.
     const NO_DATA_CAP = 5;
     const result = terapeakService.updateDatasetMeta(searchTerm, {
@@ -473,7 +488,13 @@ router.post('/report-no-data', requireAdmin, express.json(), (req, res) => {
     });
   } catch (err) {
     console.error('[terapeak] /report-no-data meta-write failed for', searchTerm, '--', err.message);
-    res.json({ status: 'ok', key: terapeakService.normalizeSearchKey(searchTerm), noDataCount: null, noDataAt: null, warning: 'meta-write-failed' });
+    res.json({
+      status: 'ok',
+      key: normalizedKey,
+      noDataCount: prevCount,
+      noDataAt: null,
+      warning: 'meta-write-failed',
+    });
   }
 });
 
