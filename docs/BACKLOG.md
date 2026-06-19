@@ -2358,9 +2358,28 @@ and obscures regressions in unrelated PRs.
 
 ---
 
-### #253. Malformed Dataset Keys Produce Nonsensical FMVs [P2 -- DATA-QUALITY] -- VERIFIED + RESCOPED 2026-06-18; needs design decision before code
+### #253. Malformed Dataset Keys Produce Nonsensical FMVs [P2 -- DATA-QUALITY] -- Track B scoped 2026-06-19 (whitelist-only, no code yet); Track A still needs design decision
+
+**Status (2026-06-19):** Track B path is locked. Track A still pending. No code shipped yet for either track -- this is bookkeeping only.
 
 **Status (2026-06-18):** Re-investigated against current `main` and current `data/terapeak-meta.json`. The original repro evidence is partially stale, the BACKLOG misidentifies the FMV mechanism, and Track A as written contradicts an existing intentional design (#188). The underlying problem (wrong-coin contamination producing large nonsensical FMVs) is real, but the fix scope must be revised before any code lands. See "Verification + revised scope (2026-06-18)" block below; original entry preserved beneath it for history.
+
+---
+
+#### Decision log (2026-06-19)
+
+**Track B path: option (a) -- whitelist-only.**
+
+Per the 2026-06-18 verification, the `25oz` token is ambiguous: bogus for Maple/Panda but legitimate for the Austrian Philharmonic 1/25 oz product (introduced 2014). Two paths were considered:
+
+- **(a) Whitelist-only [SELECTED]:** Treat `25oz` as legitimate via the per-series allow-list (Philharmonic gets it, Maple/Panda do not). No parser change. Tighter scope, smaller blast radius.
+- **(b) Parser fix [DEFERRED to follow-up]:** Canonicalize `1/25 oz` to a distinct token upstream so `25oz` is unambiguously fictitious. Cleaner long-term but rewrites ~200 keys via lazy-migration round; adds risk on top of the in-flight #266H Phase 3 live-migration work.
+
+**Follow-up filed:** if option (a)'s whitelist proves brittle in practice (e.g., new series ships a `1/25 oz` coin and we forget to add it), revisit option (b) as a successor item. Until then, the per-series whitelist is the single source of truth.
+
+**Track A:** still pending design decision (revised approach: keep `fmvCore` non-null per #188, add an explicit `bullionSpotOnly` flag for downstream consumers). No commitment yet.
+
+**This session: BACKLOG bookkeeping only.** No script, no whitelist constants, no tests. Entry remains OPEN; the actual Track B implementation is the next code item to pick up when ready, and its `--apply` execution (if it lands) carries the same paused-scraper / archived-orphans coordination concerns as #266H Phase 3.
 
 ---
 
