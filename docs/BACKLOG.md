@@ -2663,7 +2663,7 @@ Gated on data: run pricing-health across a Reverse-Proof slate (2023 RP Morgan, 
 
 **Verification:**
 - `classifyGradeType()` in [src/services/ebayService.js](src/services/ebayService.js#L186) still returns `'reverse-proof'` for both Reverse Proof and Enhanced Reverse Proof titles -- regex `REVERSE_PROOF_RE = /\b(enhanced[\s-]+)?reverse[\s-]+proof\b/i` at line 160 matches both.
-- `valuationService.evaluate()` at [src/services/valuationService.js](src/services/valuationService.js#L48) still uses the merged `gradeType === 'reverse-proof'` filter; `isReverseProofFinish()` from `src/utils/coinIntent.js` does not distinguish ERP from RP.
+- `valuationService.evaluate()` at [src/services/valuationService.js](src/services/valuationService.js#L55) still uses the merged `gradeType === 'reverse-proof'` filter; `isReverseProofFinish()` from `src/utils/coinIntent.js` does not distinguish ERP from RP.
 - The merged-pool behavior is codified by an explicit test at [__tests__/coinHistoryRoute.test.js](__tests__/coinHistoryRoute.test.js#L290): "Enhanced Reverse Proof query routes to reverse-proof pool".
 - Greysheet-tier pricing is NOT affected -- [src/data/greysheetTypeMap.js](src/data/greysheetTypeMap.js#L231) returns `'enhanced reverse proof'` distinct from `'reverse proof'`. Only the eBay-comp pool is shared.
 
@@ -2696,7 +2696,7 @@ Gated on data: run pricing-health across a Reverse-Proof slate (2023 RP Morgan, 
 **Verification:**
 - **Auto-extend lookback** -- DONE generically. [src/services/ebayService.js](src/services/ebayService.js#L1545) constructs `lookbackTiers = [requestedDays, 180, 365]` and widens whenever `soldCount < opts.usMinComps`, printing `[ebay] Auto-extended lookback Xd -> Yd to get N sold comps`. Applies to every query class including `targetPool === 'reverse-proof'`.
 - **Year +/-1 tolerance for numismatic queries** -- DONE generically. [src/services/ebayService.js](src/services/ebayService.js#L1052): `yearTolerance = expected.weight ? 0 : 1` -- bullion gets 0, all numismatic queries (including RP) get +/-1 by default.
-- **Surface thin-pool warning** -- DONE. [src/services/valuationService.js](src/services/valuationService.js#L442) sets `lowData: soldCount < 3`. The RP branch at [src/services/valuationService.js](src/services/valuationService.js#L64) warns explicitly when `usRevProof.length < 3` (added by #260W in PR #126).
+- **Surface thin-pool warning** -- DONE. [src/services/valuationService.js](src/services/valuationService.js#L442) sets `lowData: soldCount < 3`. The RP branch at [src/services/valuationService.js](src/services/valuationService.js#L74) warns explicitly when `usRevProof.length < 3` (added by #260W in PR #126).
 - **Stale concrete example** -- The original entry cites "2013-W RP returns 3 comps after the PR #114 split". The current `data/terapeak-meta.json` has no 2013-W RP key at all. Live RP datasets range 15-240 comps -- all well above the `lowData` and `usMinComps` thresholds.
 
 **Remaining sliver NOT implemented:**
