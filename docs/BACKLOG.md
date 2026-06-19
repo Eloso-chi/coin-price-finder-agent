@@ -918,7 +918,24 @@ function normalizeSeries(series) {
 
 ---
 
-### #278H. `imageProxyRoute.test.js` `accepts .<ext>` cases hit live `en.numista.com` -- recurring CI flake [P2 -- TEST-INFRA / CI-FLAKE] -- OPEN 2026-06-19
+### #278H. `imageProxyRoute.test.js` `accepts .<ext>` cases hit live `en.numista.com` -- recurring CI flake [P2 -- TEST-INFRA / CI-FLAKE] -- DONE 2026-06-19
+
+**Resolution (2026-06-19):** Fix shipped to `__tests__/imageProxyRoute.test.js` -- `https.get` is now stubbed at file scope (via a top-level `beforeAll`/`afterAll`), so any test in the file that reaches the upstream-fetch stage gets an immediate synthetic error and the route's error handler responds 502. The route's URL-parser, allowlist, and path-extension parser still run end-to-end; only the live network call is short-circuited.
+
+The stub deliberately covers BOTH originally-failing test blocks:
+- `path extension validation > accepts .<ext>` (6 cases) -- the direct flake source from PR #159.
+- `SSRF host allowlist > allows en.numista.com` and `allows www.numista.com` (2 cases) -- same network-dependency profile, hadn't flaked yet but would have eventually (deep-review S3 finding rolled into the same PR).
+
+The `upstream response handling` describe block is intentionally untouched -- it uses a real localhost `http.createServer` on 127.0.0.1, which the route reaches via `http.get` (not `https.get`), so the stub never intercepts it.
+
+Verified:
+- `npx jest __tests__/imageProxyRoute.test.js` -- 28/28 in 0.63 s (was 4.4 s pre-fix).
+- Same suite with a `setupFiles` shim that fails DNS for `*.numista.com` -- still 28/28 in 0.55 s. No network dependency remains.
+- Full suite `npx jest` -- 130/130 suites, 3981/3981 tests in 88 s (was 115 s; whole-suite speedup from eliminating network waits).
+
+---
+
+### #278H (original). `imageProxyRoute.test.js` `accepts .<ext>` cases hit live `en.numista.com` -- recurring CI flake [P2 -- TEST-INFRA / CI-FLAKE] -- OPEN 2026-06-19
 
 **Origin:** PR #159 (BACKLOG-only doc change, +20/-1, zero code surface) failed CI twice in a row on `__tests__/imageProxyRoute.test.js`:
 - Run `27831753807` job `82369996217`: `accepts .jpg` timed out after 5002 ms.
@@ -932,15 +949,13 @@ The fact that a different sibling test fails on each rerun (different extensions
 **Why #250 didn't fix it:** #250 (DONE 2026-06-18) addressed the *allowlist* logic for `en.numista.com` / `www.numista.com` -- the route correctly admits Numista URLs again. It did not change the fact that the `.jpg` / `.webp` / `.png` / `.gif` / `.avif` cases reach across the public internet at test time. The test class is now correctness-passing but still infrastructure-fragile.
 
 **Proposed fix (one of):**
-- **(a) Mock the upstream fetch [PREFERRED].** Stub `https.request` / `fetch` for `en.numista.com` in the test's `beforeEach` so the proxy returns a synthetic 200 with a 1x1 image body. The validation under test is path-extension parsing on the *request URL*, not the upstream response -- mocking removes the only network dependency without changing test intent.
+- **(a) Mock the upstream fetch [SELECTED -- shipped 2026-06-19].** Stub `https.request` / `fetch` for `en.numista.com` in the test's `beforeEach` so the proxy returns a synthetic 200 with a 1x1 image body. The validation under test is path-extension parsing on the *request URL*, not the upstream response -- mocking removes the only network dependency without changing test intent.
 - **(b) Bump the per-test timeout** to e.g. 15000 ms. Cheap and small but only narrows the flake window; doesn't eliminate it.
 - **(c) Move these specific cases into a `slow` / `network` jest project** that runs only under an opt-in env flag, and exclude them from required CI.
 
-(a) is the right scope -- 5 small mocks vs ongoing flake tax across every PR.
-
 **Acceptance:**
-- Run `npx jest __tests__/imageProxyRoute.test.js` in airplane mode (no DNS to `en.numista.com`); all extension cases still pass.
-- 5 consecutive PR CIs without a `.test.js` timeout on `imageProxyRoute`.
+- Run `npx jest __tests__/imageProxyRoute.test.js` in airplane mode (no DNS to `en.numista.com`); all extension cases still pass. -- VERIFIED 2026-06-19.
+- 5 consecutive PR CIs without a `.test.js` timeout on `imageProxyRoute`. -- To be observed post-merge.
 
 **Related:**
 - #250 (Numista allowlist baseline -- DONE 2026-06-18).
