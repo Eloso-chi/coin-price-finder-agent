@@ -2657,14 +2657,54 @@ Gated on data: run pricing-health across a Reverse-Proof slate (2023 RP Morgan, 
 
 ## Reverse Proof Pool Follow-ups (PR #114)
 
-### #255. Split Enhanced Reverse Proof into its own pool [P3 -- DATA-QUALITY] -- BACKLOG
+### #255. Split Enhanced Reverse Proof into its own pool [P3 -- DATA-QUALITY] -- DEFERRED 2026-06-19
+
+**Disposition (2026-06-19):** Verified the original technical claim is still accurate but real-world impact is currently zero. Deferred -- re-open if pricing-health flags an actual mispricing.
+
+**Verification:**
+- `classifyGradeType()` in [src/services/ebayService.js](src/services/ebayService.js#L186) still returns `'reverse-proof'` for both Reverse Proof and Enhanced Reverse Proof titles -- regex `REVERSE_PROOF_RE = /\b(enhanced[\s-]+)?reverse[\s-]+proof\b/i` at line 160 matches both.
+- `valuationService.evaluate()` at [src/services/valuationService.js](src/services/valuationService.js#L48) still uses the merged `gradeType === 'reverse-proof'` filter; `isReverseProofFinish()` from `src/utils/coinIntent.js` does not distinguish ERP from RP.
+- The merged-pool behavior is codified by an explicit test at [__tests__/coinHistoryRoute.test.js](__tests__/coinHistoryRoute.test.js#L290): "Enhanced Reverse Proof query routes to reverse-proof pool".
+- Greysheet-tier pricing is NOT affected -- [src/data/greysheetTypeMap.js](src/data/greysheetTypeMap.js#L231) returns `'enhanced reverse proof'` distinct from `'reverse proof'`. Only the eBay-comp pool is shared.
+
+**Real-world impact check (current `data/terapeak-meta.json`):**
+- ERP datasets present: 2 (both 2019-S American Silver Eagle, near-duplicate keys differing only in token order).
+- Plain RP datasets present: 6 unique (all 2023 -- ASE, Morgan, Morgan/Peace sets).
+- Zero overlap: no year/coin in the live dataset has both an RP and an ERP entry.
+- Known real-world conflict candidate: 2019-S Apollo 11 Half Dollar was issued by the US Mint in both RP and ERP finishes. Zero Apollo 11 keys exist in `data/terapeak-meta.json`, so no user has actually priced one through this system.
+
+**Re-open trigger:** If pricing-health surfaces a coin where RP and ERP comps coexist for the same year (e.g., Apollo 11 commemoratives become a priced coin, or US Mint ships a future product with both finishes in one year), implement the proposed fix below.
+
+**Cost of doing nothing now:** Zero observed.
+**Cost of implementing speculatively:** Touches `classifyGradeType` + pool selection in both `ebayService.js` and `valuationService.js`, mirrored in `coinHistoryRoute.js`, plus updates to the codifying test at `__tests__/coinHistoryRoute.test.js#L290` and 3-4 new tests. Not justified by current data.
+
+---
+
+### #255 (original). Split Enhanced Reverse Proof into its own pool [P3 -- DATA-QUALITY] -- OPEN 2026-06-19
 - **Context**: PR #114 (`feat/reverse-proof-pool-separation`) introduced a `'reverse-proof'` grade pool. Both "Reverse Proof" and "Enhanced Reverse Proof" titles classify as `'reverse-proof'` and share the pool. Pool selection uses `expected.finish` to route the query, so the user's selected finish does flow in correctly, but within-pool scoring is the only thing distinguishing RP from ERP comps.
 - **Why low priority**: No current coin year issues both a Reverse Proof and an Enhanced Reverse Proof of the same coin (ERP exists only for 2019-S ASE, and that year has no plain RP). The risk is purely hypothetical until the US Mint or another issuer produces both in the same year.
 - **Proposed fix**: Add an `'enhanced-reverse-proof'` grade type. `classifyGradeType()` checks for "enhanced reverse proof" before "reverse proof". Pool selection routes `expected.finish === 'Enhanced Reverse Proof'` to the new pool.
 - **Files**: `src/services/ebayService.js` (classifier + pool selection), `src/routes/coinHistoryRoute.js` (mirror), tests.
 - **Related**: PR #114, #189 (numismatic terminology).
 
-### #256. Auto-extend lookback or year-fan-out for thin Reverse Proof pools [P3 -- DATA-QUALITY] -- BACKLOG
+---
+
+### #256. Auto-extend lookback or year-fan-out for thin Reverse Proof pools [P3 -- DATA-QUALITY] -- DONE 2026-06-19 (SUPERSEDED by commit `dd0ef1e`)
+
+**Disposition (2026-06-19):** Closed as SUPERSEDED. The primary proposal (auto-extend lookback when comps are thin) shipped generically AFTER this backlog entry was filed, in commit `dd0ef1e` -- "feat: auto-extend lookback when sold comps are scarce + show lookback in UI". It applies to RP queries automatically. The remaining sliver of the proposal has no concrete failure case in current data.
+
+**Verification:**
+- **Auto-extend lookback** -- DONE generically. [src/services/ebayService.js](src/services/ebayService.js#L1545) constructs `lookbackTiers = [requestedDays, 180, 365]` and widens whenever `soldCount < opts.usMinComps`, printing `[ebay] Auto-extended lookback Xd -> Yd to get N sold comps`. Applies to every query class including `targetPool === 'reverse-proof'`.
+- **Year +/-1 tolerance for numismatic queries** -- DONE generically. [src/services/ebayService.js](src/services/ebayService.js#L1052): `yearTolerance = expected.weight ? 0 : 1` -- bullion gets 0, all numismatic queries (including RP) get +/-1 by default.
+- **Surface thin-pool warning** -- DONE. [src/services/valuationService.js](src/services/valuationService.js#L442) sets `lowData: soldCount < 3`. The RP branch at [src/services/valuationService.js](src/services/valuationService.js#L64) warns explicitly when `usRevProof.length < 3` (added by #260W in PR #126).
+- **Stale concrete example** -- The original entry cites "2013-W RP returns 3 comps after the PR #114 split". The current `data/terapeak-meta.json` has no 2013-W RP key at all. Live RP datasets range 15-240 comps -- all well above the `lowData` and `usMinComps` thresholds.
+
+**Remaining sliver NOT implemented:**
+- RP-specific year fan-out *beyond* the existing +/-1 tolerance, "for RP coins where the same finish is unchanged across multiple years". This was speculative in the original entry. With no concrete failure case in the current dataset, there is nothing to validate against. Re-file as a new entry if a real thin-pool example appears.
+
+---
+
+### #256 (original). Auto-extend lookback or year-fan-out for thin Reverse Proof pools [P3 -- DATA-QUALITY] -- OPEN 2026-06-19
 - **Symptom**: Year-specific RP pools can be very thin in the default 180d window (e.g., 2013-W RP returns 3 comps after the PR #114 split). Existing `lowData` flag surfaces this but FMV becomes noisy.
 - **Proposed fix**: When `targetPool === 'reverse-proof'` and the surviving pool has <5 comps, extend lookback to 365d before falling back to Browse-only. Also consider widening the year window by +/-1 for RP coins where the same finish is unchanged across multiple years.
 - **Files**: `src/services/ebayService.js` (auto-extend logic), `src/services/valuationService.js` (Browse-only threshold for RP pool).
