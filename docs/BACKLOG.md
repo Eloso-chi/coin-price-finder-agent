@@ -451,9 +451,9 @@ PR A is a *preventive* fix: it rewrites 133 `.meta` files to match the CSV filen
 
 ---
 
-### #266H. Ship Phase 2 + Phase 3 of #246 -- normalizeSearchKey alias map + duplicate-key merger [P2 -- DATA-QUALITY] -- Phase 2 DONE 2026-06-18 (PR #155); Phase 3 script DONE 2026-06-02 (#246 commits); Phase 3 LIVE MIGRATION OPEN
+### #266H. Ship Phase 2 + Phase 3 of #246 -- normalizeSearchKey alias map + duplicate-key merger [P2 -- DATA-QUALITY] -- Phase 2 DONE 2026-06-18 (PR #155); Phase 3 OPEN
 
-**Status (2026-06-18):** Phase 2 shipped in PR #155. The Phase 3 merger SCRIPT was already shipped on 2026-06-02 as part of the original #246 work and was incorrectly tracked here as missing. What remains OPEN is the one-shot LIVE MIGRATION run -- executing `node scripts/merge-duplicate-keys.js --apply` (and optionally `--migrate-cosmos`) against the production `data/terapeak-meta.json` and the Cosmos `terapeak-sold` container. See the "Phase 3 execution -- remaining open work" block below.
+**Status (2026-06-18):** Phase 2 shipped in PR #155. Phase 3 (one-shot merger script) remains OPEN -- see the Phase 3 block below.
 
 **Phase 2 resolution (PR #155, merge commit `e7ca5bf`):**
 - `normalizeSearchKey()` extended with country aliases (`mexican` <-> `mexico`, `chinese` <-> `china`, `american` <-> `usa` / `us` / `u.s.` / `united states`, `british` <-> `great britain` / `united kingdom`, `royalmint` <-> `royal mint`), decimal-fraction oz forms (`0.05`/`0.1`/`0.25`/`0.5 oz`), `one oz` / `troy oz` aliases, Krugerrand south-africa stripping, and deterministic sorted+deduped token canonicalization (alphabetical, `new Set(...)` dedupe).
@@ -462,33 +462,6 @@ PR A is a *preventive* fix: it rewrites 133 `.meta` files to match the CSV filen
 - New tests: `__tests__/normalizeSearchKey.test.js` (per-alias + golden duplicate-pair regression from `docs/reports/duplicate-keys-report.json`), `__tests__/rekeyStore.test.js` (migration fast-path identity, collision merge, fingerprint dedupe, defensive non-array `comps` guard), `__tests__/loadMetaSidecarCanonicalize.test.js` (legacy raw keys canonicalize on read).
 - Full suite: 3981/3981 stable across 3 consecutive runs at fixup-commit verification; CI green at merge (test, CodeQL JS/TS, Python, Actions).
 - Deep-review (`.github/skills/code-review/SKILL.md` framework) ran on PR #155 -- 4 S2-High findings + 3 S3-Medium + 2 S4-Low; all applied in fixup commit `694cb4f` before merge.
-
-**Phase 3 script resolution (already shipped 2026-06-02 under #246):**
-- `scripts/merge-duplicate-keys.js` (28KB) implements the full spec from the "Phase 3 -- one-shot merger (PR C)" block below: dry-run default, `--apply`, `--migrate-cosmos`, `--from-archive=PATH`, `--verbose`, `--quiet`. Picks winner by (matches `normalizeSearchKey` -> highest compCount -> shortest), merges via `_mergeAggregationMeta` from terapeakService, archives losers to `data/archive/terapeak-meta-orphans-<ISO>.json`, and propagates the merge through to the Cosmos `terapeak-sold` container with itemId + title+price+date dedup.
-- Test coverage: `__tests__/mergeDuplicateKeys.test.js` -- 19 tests covering script syntactic validity, dry-run-by-default invariant, `--migrate-cosmos` requires `--apply`, `--from-archive` parsing, and all pure helper logic (`deepCanonical`, `pickWinner`, `mergeComps`, `buildPlan`, `cosmosDocId`). Currently green on `main`.
-- Git history: commits `565d221` (initial implementation), `e220f7c` (`--from-archive` flag for Cosmos-only follow-up), `d6308b1` (Cosmos partition-key bug fix + 4 code-review items applied), all on `main` since 2026-06-02.
-- Verified 2026-06-18 against current meta: a dry-run produces 120 candidate merge groups for the now-broader Phase-2 alias map (versus 144 groups when audit-only ran in early June). Plan output written to `docs/reports/merge-duplicate-keys-plan.json`.
-
-**Phase 3 execution -- remaining open work (live migration):**
-- The merger script has never been executed with `--apply` against the production meta file. With Phase 2 (the broader alias map) now shipped, the dry-run surfaces ~120 duplicate groups that will collapse into single canonical keys once the migration runs.
-- Pre-execution checklist:
-  1. Pause the scraper on the H/other machine (Ctrl-C between coins). The migration window mutates `data/terapeak-meta.json` and would race with `/api/terapeak/import` POSTs.
-  2. Take a manual Cosmos backup of the `terapeak-sold` container (manual export -- not automated in the script).
-  3. Confirm the meta file is otherwise quiescent (no prefetch scheduler tick in flight).
-- Recommended sequence:
-  ```bash
-  node scripts/merge-duplicate-keys.js                       # 1. dry-run, review plan
-  node scripts/merge-duplicate-keys.js --apply               # 2. meta-only migration; writes orphan archive
-  # spot-check 2-3 merged coins via /api/price; run audit-duplicate-keys.js to confirm shrink
-  node scripts/merge-duplicate-keys.js --apply --migrate-cosmos   # 3. propagate through to Cosmos
-  ```
-  If Cosmos migration fails or is interrupted, `--from-archive=data/archive/terapeak-meta-orphans-<ISO>.json` can rerun the Cosmos-only step against the saved orphan set.
-- Post-execution verification:
-  - `node scripts/audit-duplicate-keys.js` reports `duplicateGroupCount` strictly lower than the pre-migration baseline (current baseline: 120 groups in the 2026-06-18 dry-run plan).
-  - Cosmos query for any merged key returns the unioned comps (no comp lost to last-write-wins).
-  - Cross-route consistency check (`@pricing-health`) on a sampled merged coin returns the same FMV from `/api/price`, `/api/pricing-batch`, `/api/bulk-evaluate`, and `/api/market/ebay`.
-  - Resume scraper on the H/other machine.
-- Not in scope of this remaining work: any code change. Pure data-migration execution.
 
 **Original problem statement (Phase 2 + Phase 3, retained for Phase 3 history):**
 
@@ -705,9 +678,7 @@ Fix 2 is the narrow patch; Fix 1 is the structural one. Recommend doing both: Fi
 
 ---
 
-### #271H. Followups from PR #132 deep review -- noDataCount cap, integration test, /report-no-data parity [P3 -- TECH-DEBT / TEST-HARDENING] -- DONE 2026-06-19 (PR #163)
-
-**Resolution (PR #163, merge commit `98ffa48`):** All four items shipped plus the cap case for the 422SelfHeal suite (Item 6). `src/routes/terapeakRoute.js` `_stampNoDataMeta` now caps `noDataCount` at `NO_DATA_CAP = 5` via `Math.min(NO_DATA_CAP, prevCount + 1)` (parity with `importComps`), and `/report-no-data` was restructured to (a) wrap `updateDatasetMeta` in try/catch returning 200 + `warning: 'meta-write-failed'` on failure, (b) read `prevCount` from `listDatasets` in its own narrow try ahead of the main try, (c) return `noDataCount: prevCount` (numeric, never null) on the catch path so the python scraper at `scripts/terapeak-export.py:_report_no_data` does not throw `TypeError` on `int(None) >= 2` (deep-review S2.1 fix in commit `e9324c2`). New `__tests__/terapeakReportNoDataRoute.test.js` (8 cases) provides zero->full coverage of the endpoint; new `__tests__/terapeakImport422DormancyIntegration.test.js` (1 case) ties real route -> real terapeakService -> real freshnessClassifier together for end-to-end dormancy proof; `__tests__/terapeakImport422SelfHeal.test.js` gained one cap-parity case. Verification at merge: 20/20 in the trio, 3991/3991 full suite. Deep review on the fix commit returned APPROVED FOR MERGE with zero new findings.
+### #271H. Followups from PR #132 deep review -- noDataCount cap, integration test, /report-no-data parity [P3 -- TECH-DEBT / TEST-HARDENING] -- OPEN 2026-06-16
 
 **Origin:** Deep code review of PR #132 (#269H fix) surfaced four non-blocking quality issues that were deferred from the merge so Wave 1 could ship clean. Bundling here.
 
@@ -932,37 +903,85 @@ The `upstream response handling` describe block is intentionally untouched -- it
 
 Verified:
 - `npx jest __tests__/imageProxyRoute.test.js` -- 28/28 in 0.63 s (was 4.4 s pre-fix).
-- Same suite with a `setupFiles` shim that fails DNS for `*.numista.com` -- still 28/28 in 0.55 s. No network dependency remains.
 - Full suite `npx jest` -- 130/130 suites, 3981/3981 tests in 88 s (was 115 s; whole-suite speedup from eliminating network waits).
-
----
-
-### #278H (original). `imageProxyRoute.test.js` `accepts .<ext>` cases hit live `en.numista.com` -- recurring CI flake [P2 -- TEST-INFRA / CI-FLAKE] -- OPEN 2026-06-19
-
-**Origin:** PR #159 (BACKLOG-only doc change, +20/-1, zero code surface) failed CI twice in a row on `__tests__/imageProxyRoute.test.js`:
-- Run `27831753807` job `82369996217`: `accepts .jpg` timed out after 5002 ms.
-- Rerun on the same SHA: `accepts .webp` timed out after 5002 ms.
-- Locally on the same commit: `28/28 passed in 4.4 s`.
-
-The fact that a different sibling test fails on each rerun (different extensions, same suite) is the random-pick fingerprint of an external-network flake, not a code regression. PR #159 was admin-merged through it (commit `0fb5b84`) since the diff couldn't have caused a route-test failure.
-
-**Root cause hypothesis:** The `path extension validation` describe block in [__tests__/imageProxyRoute.test.js](__tests__/imageProxyRoute.test.js#L110) makes `request(app).get('/api/image-proxy?url=' + encodeURIComponent('https://en.numista.com/photo.<ext>'))` calls. Inside `src/routes/imageProxyRoute.js`, the proxy actually resolves and follows the URL, so the test depends on GitHub Actions runners being able to reach `en.numista.com` within Jest's 5000 ms default. When the runner has degraded egress to that host (which seems to happen on a small but non-zero fraction of jobs), each `accepts .<ext>` case has an independent ~5 s timeout race -- and any one missing breaks the suite.
-
-**Why #250 didn't fix it:** #250 (DONE 2026-06-18) addressed the *allowlist* logic for `en.numista.com` / `www.numista.com` -- the route correctly admits Numista URLs again. It did not change the fact that the `.jpg` / `.webp` / `.png` / `.gif` / `.avif` cases reach across the public internet at test time. The test class is now correctness-passing but still infrastructure-fragile.
-
-**Proposed fix (one of):**
-- **(a) Mock the upstream fetch [SELECTED -- shipped 2026-06-19].** Stub `https.request` / `fetch` for `en.numista.com` in the test's `beforeEach` so the proxy returns a synthetic 200 with a 1x1 image body. The validation under test is path-extension parsing on the *request URL*, not the upstream response -- mocking removes the only network dependency without changing test intent.
-- **(b) Bump the per-test timeout** to e.g. 15000 ms. Cheap and small but only narrows the flake window; doesn't eliminate it.
-- **(c) Move these specific cases into a `slow` / `network` jest project** that runs only under an opt-in env flag, and exclude them from required CI.
-
-**Acceptance:**
-- Run `npx jest __tests__/imageProxyRoute.test.js` in airplane mode (no DNS to `en.numista.com`); all extension cases still pass. -- VERIFIED 2026-06-19.
-- 5 consecutive PR CIs without a `.test.js` timeout on `imageProxyRoute`. -- To be observed post-merge.
 
 **Related:**
 - #250 (Numista allowlist baseline -- DONE 2026-06-18).
 - #273H (jest-worker race on `terapeak-meta.json` -- DONE 2026-06-18 PR #153). Same flake-class, different mechanism.
-- PR #159 admin-merge precedent for "doc-only PR through unrelated CI flake".
+
+**Files:** `__tests__/imageProxyRoute.test.js`
+
+---
+
+### #279H. Page-1 export loop still blocks on synchronous upload per coin -- overlap upload with next scrape [P2 -- PERFORMANCE / SCRAPER] -- OPEN 2026-06-19
+
+**Problem:** `scripts/terapeak-export.py` still uploads each CSV synchronously in the main page-1 loop (`ok, msg = upload_csv(...)`). The browser waits on network/API latency before starting the next coin. Deep pagination already has async upload overlap, but page-1 does not.
+
+**Proposed change:**
+1. Switch page-1 loop to use `upload_csv_async(...)` and drain with `drain_upload()` at safe boundaries.
+2. Preserve current semantics for no-data/dormant progression (422 handling and `report-no-data`).
+3. Add final guaranteed drain on all exits (normal completion, session-expired stop, crash stop).
+4. Keep a fallback path: if async upload times out repeatedly, fall back to synchronous upload for remainder of run.
+
+**Expected gain:**
+- Overlap hides most per-coin upload wait.
+- Estimated +5% to +15% end-to-end throughput in current loop shape.
+- Practical pass-level savings: roughly 40 to 100 seconds for 27-35 coin passes, depending on API latency.
+
+**Acceptance:**
+- No ingestion regressions (new/dup counts remain stable vs baseline over matched sample).
+- No lost final upload on early exit.
+- Pass runtime reduced on A/B comparison over at least 3 passes each.
+
+**Files:** `scripts/terapeak-export.py`
+
+---
+
+### #280H. Static "human behavior" delays are conservative and always-on -- add adaptive pacing by risk signal [P2 -- BOT-EVASION / PERFORMANCE] -- OPEN 2026-06-19
+
+**Problem:** The scraper always applies heavy idle/scroll/pause behavior even when session health is stable. This reduces throughput substantially and may be overpaying for stealth on low-risk stretches.
+
+**Proposed change:**
+1. Introduce pacing modes (`normal`, `elevated`) driven by runtime risk signals.
+2. Risk-up triggers: redirects/challenge hints, rising no-export streak, repeated timeout/crash, frequent 422/no-valid-comps for a block of terms.
+3. In `normal`: shorten baseline delays and reduce extra idle/scroll loops.
+4. In `elevated`: restore/increase current delays, add longer breaks, recycle browser sooner.
+5. Expose env toggles for operators (`SCRAPER_PACING_MODE`, optional thresholds) with safe defaults.
+
+**Expected gain:**
+- Better average throughput without removing anti-bot behavior.
+- Estimated +15% to +30% faster in stable sessions while retaining conservative fallback when risk rises.
+
+**Acceptance:**
+- No increase in bot-block stop frequency over a one-week observation window.
+- Improved pass completion speed in stable windows.
+- Logs show pacing mode transitions and trigger reason.
+
+**Files:** `scripts/terapeak-export.py`, `scripts/sales-aggregator.py`
+
+---
+
+### #281H. Loop orchestration does redundant full freshness/report work and pure random queueing -- optimize for burn-down efficiency [P3 -- OPERATIONS / PERFORMANCE] -- OPEN 2026-06-19
+
+**Problem:** The loop currently runs full sync/report cycles multiple times per pass and uses fully shuffled queue order. This helps randomness but leaves easy efficiency gains on the table for P0/P1 burn-down.
+
+**Proposed change:**
+1. Keep randomness but switch from pure shuffle to weighted shuffle (priority-aware random ordering).
+2. Reduce redundant report generation when a stage made zero ingestion changes.
+3. Optional cadence split: quick report every pass, full report every N passes.
+4. Preserve current `--include-thin` and backlog semantics.
+
+**Expected gain:**
+- Lower per-pass orchestration overhead.
+- Faster urgent backlog depletion without deterministic access patterns.
+- Estimated +8% to +20% effective burn-down improvement (combined ordering + overhead reduction).
+
+**Acceptance:**
+- No change to classification correctness vs current freshness report.
+- Measurable reduction in per-pass non-scrape overhead.
+- P0 queue decline rate improves across comparable run windows.
+
+**Files:** `scripts/run-surface-freshness-loop.sh`, `scripts/generate-freshness-report.js`, `scripts/terapeak-export.py`
 
 ---
 
@@ -2406,122 +2425,7 @@ and obscures regressions in unrelated PRs.
 
 ---
 
-### #253. Malformed Dataset Keys Produce Nonsensical FMVs [P2 -- DATA-QUALITY] -- Track B scoped 2026-06-19 (whitelist-only, no code yet); Track A still needs design decision
-
-**Status (2026-06-19):** Track B path is locked. Track A still pending. No code shipped yet for either track -- this is bookkeeping only.
-
-**Status (2026-06-18):** Re-investigated against current `main` and current `data/terapeak-meta.json`. The original repro evidence is partially stale, the BACKLOG misidentifies the FMV mechanism, and Track A as written contradicts an existing intentional design (#188). The underlying problem (wrong-coin contamination producing large nonsensical FMVs) is real, but the fix scope must be revised before any code lands. See "Verification + revised scope (2026-06-18)" block below; original entry preserved beneath it for history.
-
----
-
-#### Decision log (2026-06-19)
-
-**Track B path: option (a) -- whitelist-only.**
-
-Per the 2026-06-18 verification, the `25oz` token is ambiguous: bogus for Maple/Panda but legitimate for the Austrian Philharmonic 1/25 oz product (introduced 2014). Two paths were considered:
-
-- **(a) Whitelist-only [SELECTED]:** Treat `25oz` as legitimate via the per-series allow-list (Philharmonic gets it, Maple/Panda do not). No parser change. Tighter scope, smaller blast radius.
-- **(b) Parser fix [DEFERRED to follow-up]:** Canonicalize `1/25 oz` to a distinct token upstream so `25oz` is unambiguously fictitious. Cleaner long-term but rewrites ~200 keys via lazy-migration round; adds risk on top of the in-flight #266H Phase 3 live-migration work.
-
-**Follow-up filed:** if option (a)'s whitelist proves brittle in practice (e.g., new series ships a `1/25 oz` coin and we forget to add it), revisit option (b) as a successor item. Until then, the per-series whitelist is the single source of truth.
-
-**Track A:** still pending design decision (revised approach: keep `fmvCore` non-null per #188, add an explicit `bullionSpotOnly` flag for downstream consumers). No commitment yet.
-
-**This session: BACKLOG bookkeeping only.** No script, no whitelist constants, no tests. Entry remains OPEN; the actual Track B implementation is the next code item to pick up when ready, and its `--apply` execution (if it lands) carries the same paused-scraper / archived-orphans coordination concerns as #266H Phase 3.
-
----
-
-#### Verification + revised scope (2026-06-18)
-
-**1. Three original example coins have all moved state:**
-
-| Original BACKLOG (2026-06-04) | Current state (2026-06-18) |
-|---|---|
-| `2025 canada 1000oz gold maple leaf` -- compCount=0, fmv=$4,493,300 | Key still in meta; **now has 37 comps** (not zero) |
-| `2004 canada 12oz silver maple leaf` -- compCount=0, fmv=$890 | **Key not in meta at all** -- gone |
-| `2003 canada twentieth oz silver maple leaf` -- compCount=0, fmv=$3.71 | Key still in meta; **now has 12 comps** |
-
-To re-derive a current repro we would need to either re-run the Maple pricing-health script or pick fresh examples from the current dataset.
-
-**2. "twentieth oz is parser noise" claim is wrong:**
-
-`twentieth oz` is the canonical token for `1/20 oz` across the codebase. 200+ legitimate keys use it (e.g., `canadian gold maple leaf twentieth oz generic` 211 comps; `1985 china twentieth oz gold panda` 35 comps). `src/utils/coinMetalProfile.js` line 117 explicitly recognizes it: `/\b(?:half|quarter|tenth|twentieth)\s*oz\b/`. Pruning all `twentieth oz` keys would destroy ~200 valid datasets. The Silver Maple 1/20 oz IS unusual but the token itself is legitimate for many other series.
-
-**3. Where the $4.5M FMV actually comes from (NOT a valuation-engine bug):**
-
-The cache value `discovery.fmv: 4493300` is reproduced from caller-side weight multiplication, not from valuationService. All four route callers pass whole-coin melt value (`meltPerOz * weight`) as `opts.spotPrice` into `computeValuation`:
-
-- `src/routes/priceRoute.js:413` -- `spotPrice: meltPerOz * resolvedWeight`
-- `src/routes/pricingBatchRoute.js:272` -- same pattern
-- `src/services/bulkEvaluateService.js:242` -- `const spotPrice = meltPerOz * weight`
-- `src/routes/barPriceRoute.js:152` -- `spotPrice * barWeightForSpot`
-
-The `bullion-spot-only` branch (`src/services/valuationService.js:202`) then does `fmv = spotPrice`, faithfully returning the pre-multiplied value. For `1000oz gold maple leaf` at gold approx $4,493/oz: `4493 * 1000 = 4,493,300`. Math is exact. The engine is doing what callers told it to.
-
-**4. Track A as written contradicts #188 design and an existing test:**
-
-`__tests__/computeValuation.test.js:1481` already asserts:
-```js
-expect(result.valuation.fmvCore).toBe(30.50);  // spot anchor with zero comps
-```
-
-#188 source comment: "no comps survived filtering but spot price is known. Use spot with 0% premium (conservative) rather than falling through to a nominal Greysheet value." Nulling `fmvCore` in this branch is a regression vs #188 intent and would break this test.
-
-The existing zero-comp guard at `src/services/valuationService.js:274` already returns `{ fmvCore: null }` when `fmv == null` at end of all branches. That branch fires only when there is no comp data AND no spot price (non-bullion cases). The `bullion-spot-only` branch deliberately bypasses it.
-
-**5. Track B (prune script) scope is wider than the original entry suggests:**
-
-Sampling current meta surfaces many bogus low-comp keys:
-
-| Pattern | Examples | Mechanism |
-|---|---|---|
-| `1000oz` non-bar coins (7 keys) | `canada 1000oz gold maple leaf` 7c, `china 1000oz gold panda` 1c, `australia 1000oz gold kangaroo` 1c, `1000oz gold libertad` 62c, `2025 canada 1000oz gold maple leaf` 37c | Wrong-coin contamination -- scraper pulled real LBMA 1000oz gold bar listings under coin-keyed entries |
-| `25oz gold maple leaf` (7 year-keys) | `2004/2006/2008/2009/2012/2017 canada 25oz gold maple leaf` (1-10 comps each) | No such Maple Leaf product exists |
-| `25oz` mixed (24 keys overall) | `austria 25oz gold philharmonic` 29c | **The 1/25 oz Philharmonic IS a real product** (introduced 2014); the `25oz` token here is tokenization collapsing `1/25 oz`, not a fictitious weight |
-
-Implications for the whitelist:
-- Must be **per-series** (Maple, Eagle, Britannia, Panda, Libertad, Krugerrand, Philharmonic, Kangaroo, etc.).
-- Must allow Philharmonic 1/25 oz under the `25oz` token (or upstream tokenization needs to distinguish 25oz from 1/25 oz before pruning).
-- Must NOT prune `twentieth oz` keys.
-
-**6. Revised Track A proposal (not yet ratified, needs your decision):**
-
-Instead of nulling `fmvCore`, add an explicit fallback-signal field to the valuation response so consumers can opt to suppress display:
-
-```js
-return {
-  valuation: {
-    fmvCore: spotPrice,             // KEEP per #188
-    method: 'bullion-spot-only',
-    bullionSpotOnly: true,          // NEW explicit signal (already partly exposed via bullionSpot.premiumPct === 0 + compCount === 0, but make it a first-class flag)
-    confidence: 0,
-    lowData: true,
-    ...
-  }
-};
-```
-
-This is backward-compatible (additive field), doesn't break the #188 test, and gives downstream consumers a single boolean to check instead of triangulating across `method` / `compCount` / `confidence`. Whether consumers should THEN suppress display is their call.
-
-**7. Revised Track B proposal:**
-
-- Per-series canonical-weight whitelist in `src/data/constants.js`.
-- `25oz` token handling: either alias to `1/25 oz` and accept for series that mint it (Philharmonic), or detect at parser side before the pruner sees it.
-- Preserve `twentieth oz` everywhere -- legitimate canonical token.
-- Script: dry-run default, `--apply` mutates `data/terapeak-meta.json` + deletes matching `data/terapeak/<key>.csv`, archives pre-delete state.
-- **Execution** has the same coordination concerns as #266H Phase 3 (paused scraper, archive of removed entries). Script-only this session if it's picked up; execution deferred.
-
-**8. Recommendation:**
-
-Track A needs a design decision (do we adopt #6 above, or stick with the BACKLOG's original "null fmvCore" -- which would require backing out #188's test). Track B is a real cleanup with clear value once the whitelist is reviewed. Both are smaller than the original entry implies; the riskier work is the design call on Track A.
-
-Files actually affected by the proposed revisions:
-- Track A (revised): `src/services/valuationService.js` (add `bullionSpotOnly` flag), `__tests__/computeValuation.test.js` (assert the new flag; keep #188 test intact).
-- Track B (revised): NEW `scripts/prune-impossible-weights.js`, NEW `__tests__/pruneImpossibleWeights.test.js`, MOD `src/data/constants.js` (per-series whitelist), MOD `src/utils/coinMetalProfile.js` (optional: distinguish `25oz` from `1/25 oz`).
-
----
-
-#### Original entry (2026-06-04, retained for history)
+### #253. Malformed Dataset Keys Produce Nonsensical FMVs [P2 -- DATA-QUALITY]
 
 **Problem:** Three dataset keys in the Maple pricing-health run are malformed -- they describe weights that don't exist as real products, and one is parser-noise where a fractional weight got tokenized incorrectly. Each produces a 100% attrition RED row, but the more concerning issue is that two of the three return a non-null `fmvCore` extrapolated from spot metal price, which would mislead any caller that ignores `usComps`.
 
@@ -2659,54 +2563,14 @@ Gated on data: run pricing-health across a Reverse-Proof slate (2023 RP Morgan, 
 
 ## Reverse Proof Pool Follow-ups (PR #114)
 
-### #255. Split Enhanced Reverse Proof into its own pool [P3 -- DATA-QUALITY] -- DEFERRED 2026-06-19
-
-**Disposition (2026-06-19):** Verified the original technical claim is still accurate but real-world impact is currently zero. Deferred -- re-open if pricing-health flags an actual mispricing.
-
-**Verification:**
-- `classifyGradeType()` in [src/services/ebayService.js](src/services/ebayService.js#L186) still returns `'reverse-proof'` for both Reverse Proof and Enhanced Reverse Proof titles -- regex `REVERSE_PROOF_RE = /\b(enhanced[\s-]+)?reverse[\s-]+proof\b/i` at line 160 matches both.
-- `valuationService.evaluate()` at [src/services/valuationService.js](src/services/valuationService.js#L55) still uses the merged `gradeType === 'reverse-proof'` filter; `isReverseProofFinish()` from `src/utils/coinIntent.js` does not distinguish ERP from RP.
-- The merged-pool behavior is codified by an explicit test at [__tests__/coinHistoryRoute.test.js](__tests__/coinHistoryRoute.test.js#L290): "Enhanced Reverse Proof query routes to reverse-proof pool".
-- Greysheet-tier pricing is NOT affected -- [src/data/greysheetTypeMap.js](src/data/greysheetTypeMap.js#L231) returns `'enhanced reverse proof'` distinct from `'reverse proof'`. Only the eBay-comp pool is shared.
-
-**Real-world impact check (current `data/terapeak-meta.json`):**
-- ERP datasets present: 2 (both 2019-S American Silver Eagle, near-duplicate keys differing only in token order).
-- Plain RP datasets present: 6 unique (all 2023 -- ASE, Morgan, Morgan/Peace sets).
-- Zero overlap: no year/coin in the live dataset has both an RP and an ERP entry.
-- Known real-world conflict candidate: 2019-S Apollo 11 Half Dollar was issued by the US Mint in both RP and ERP finishes. Zero Apollo 11 keys exist in `data/terapeak-meta.json`, so no user has actually priced one through this system.
-
-**Re-open trigger:** If pricing-health surfaces a coin where RP and ERP comps coexist for the same year (e.g., Apollo 11 commemoratives become a priced coin, or US Mint ships a future product with both finishes in one year), implement the proposed fix below.
-
-**Cost of doing nothing now:** Zero observed.
-**Cost of implementing speculatively:** Touches `classifyGradeType` + pool selection in both `ebayService.js` and `valuationService.js`, mirrored in `coinHistoryRoute.js`, plus updates to the codifying test at `__tests__/coinHistoryRoute.test.js#L290` and 3-4 new tests. Not justified by current data.
-
----
-
-### #255 (original). Split Enhanced Reverse Proof into its own pool [P3 -- DATA-QUALITY] -- OPEN 2026-06-19
+### #255. Split Enhanced Reverse Proof into its own pool [P3 -- DATA-QUALITY] -- BACKLOG
 - **Context**: PR #114 (`feat/reverse-proof-pool-separation`) introduced a `'reverse-proof'` grade pool. Both "Reverse Proof" and "Enhanced Reverse Proof" titles classify as `'reverse-proof'` and share the pool. Pool selection uses `expected.finish` to route the query, so the user's selected finish does flow in correctly, but within-pool scoring is the only thing distinguishing RP from ERP comps.
 - **Why low priority**: No current coin year issues both a Reverse Proof and an Enhanced Reverse Proof of the same coin (ERP exists only for 2019-S ASE, and that year has no plain RP). The risk is purely hypothetical until the US Mint or another issuer produces both in the same year.
 - **Proposed fix**: Add an `'enhanced-reverse-proof'` grade type. `classifyGradeType()` checks for "enhanced reverse proof" before "reverse proof". Pool selection routes `expected.finish === 'Enhanced Reverse Proof'` to the new pool.
 - **Files**: `src/services/ebayService.js` (classifier + pool selection), `src/routes/coinHistoryRoute.js` (mirror), tests.
 - **Related**: PR #114, #189 (numismatic terminology).
 
----
-
-### #256. Auto-extend lookback or year-fan-out for thin Reverse Proof pools [P3 -- DATA-QUALITY] -- DONE 2026-06-19 (SUPERSEDED by commit `dd0ef1e`)
-
-**Disposition (2026-06-19):** Closed as SUPERSEDED. The primary proposal (auto-extend lookback when comps are thin) shipped generically AFTER this backlog entry was filed, in commit `dd0ef1e` -- "feat: auto-extend lookback when sold comps are scarce + show lookback in UI". It applies to RP queries automatically. The remaining sliver of the proposal has no concrete failure case in current data.
-
-**Verification:**
-- **Auto-extend lookback** -- DONE generically. [src/services/ebayService.js](src/services/ebayService.js#L1545) constructs `lookbackTiers = [requestedDays, 180, 365]` and widens whenever `soldCount < opts.usMinComps`, printing `[ebay] Auto-extended lookback Xd -> Yd to get N sold comps`. Applies to every query class including `targetPool === 'reverse-proof'`.
-- **Year +/-1 tolerance for numismatic queries** -- DONE generically. [src/services/ebayService.js](src/services/ebayService.js#L1052): `yearTolerance = expected.weight ? 0 : 1` -- bullion gets 0, all numismatic queries (including RP) get +/-1 by default.
-- **Surface thin-pool warning** -- DONE. [src/services/valuationService.js](src/services/valuationService.js#L442) sets `lowData: soldCount < 3`. The RP branch at [src/services/valuationService.js](src/services/valuationService.js#L74) warns explicitly when `usRevProof.length < 3` (added by #260W in PR #126).
-- **Stale concrete example** -- The original entry cites "2013-W RP returns 3 comps after the PR #114 split". The current `data/terapeak-meta.json` has no 2013-W RP key at all. Live RP datasets range 15-240 comps -- all well above the `lowData` and `usMinComps` thresholds.
-
-**Remaining sliver NOT implemented:**
-- RP-specific year fan-out *beyond* the existing +/-1 tolerance, "for RP coins where the same finish is unchanged across multiple years". This was speculative in the original entry. With no concrete failure case in the current dataset, there is nothing to validate against. Re-file as a new entry if a real thin-pool example appears.
-
----
-
-### #256 (original). Auto-extend lookback or year-fan-out for thin Reverse Proof pools [P3 -- DATA-QUALITY] -- OPEN 2026-06-19
+### #256. Auto-extend lookback or year-fan-out for thin Reverse Proof pools [P3 -- DATA-QUALITY] -- BACKLOG
 - **Symptom**: Year-specific RP pools can be very thin in the default 180d window (e.g., 2013-W RP returns 3 comps after the PR #114 split). Existing `lowData` flag surfaces this but FMV becomes noisy.
 - **Proposed fix**: When `targetPool === 'reverse-proof'` and the surviving pool has <5 comps, extend lookback to 365d before falling back to Browse-only. Also consider widening the year window by +/-1 for RP coins where the same finish is unchanged across multiple years.
 - **Files**: `src/services/ebayService.js` (auto-extend logic), `src/services/valuationService.js` (Browse-only threshold for RP pool).

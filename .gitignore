@@ -8,6 +8,9 @@ cache/
 # Local scratch (assistant-generated helper scripts, ad-hoc queries, etc.)
 .local/
 
+# Python virtual environments (any variant created locally)
+.venv*/
+
 # Azure
 iisnode/
 *.publishsettings
