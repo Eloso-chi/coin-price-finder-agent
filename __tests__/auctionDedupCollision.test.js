@@ -4,16 +4,22 @@
 //
 // Contract under test:
 //   The key is LotNo|Auctioneer|Date|Price. Records with the same key are
-//   treated as duplicates; the FIRST occurrence wins (existing > incoming).
+//   field-merged (#274H option 3): non-null/non-undefined fields from the
+//   incoming record overwrite the existing values; null/undefined incoming
+//   fields do NOT clobber existing non-null values. This preserves the
+//   richest payload across multiple scrapes and lets corrected metadata
+//   (e.g., a re-published Heritage grade MS65 -> MS66) propagate while
+//   protecting against thin/partial re-scrapes overwriting full payloads.
 //
 //   Boundaries:
 //     - empty existing + empty incoming -> []
 //     - empty existing + N incoming -> N (all new)
-//     - same record present in both -> dedup'd to 1
-//     - records differing only in non-key fields BUT sharing the key -> dedup'd
-//       (this is a contract test that documents the collision behavior)
+//     - same record present in both -> dedup'd to 1, no merge effect
+//     - records differing only in non-key fields BUT sharing the key ->
+//       merged: incoming non-null fields win, null/undefined fields preserved
 //     - records with undefined LotNo / Auctioneer / Date / Price still produce
 //       a deterministic key (string interpolation)
+//     - caller's `existing` array elements are NOT mutated in place
 //
 // We mock the heavy dependencies that auctionPriceService loads at require time
 // (axios, fs file I/O for manifest, env vars).
@@ -79,17 +85,93 @@ describe('_dedupeRecords -- collision behavior', () => {
     expect(added).toBe(0);
   });
 
-  test('records sharing the key but differing in non-key fields are dedup\'d', () => {
-    const existing = [rec('L1', 'Heritage', '2026-01-01', 100, { grade: 'MS65' })];
-    const incoming = [rec('L1', 'Heritage', '2026-01-01', 100, { grade: 'MS66', note: 'late update' })];
+  test('records sharing the key but differing in non-key fields field-merge (#274H option 3)', () => {
+    // Concrete example: Heritage re-publishes the same lot with a corrected
+    // grade (MS65 -> MS66) and an additional note. The corrected fields must
+    // win; the existing record's added fields stay; counts as 0 added (key
+    // already present).
+    const existing = [rec('L1', 'Heritage', '2026-01-01', 100, {
+      grade: 'MS65',
+      holder: 'PCGS',
+    })];
+    const incoming = [rec('L1', 'Heritage', '2026-01-01', 100, {
+      grade: 'MS66',
+      note: 'late update',
+    })];
     const { merged, added } = _dedupeRecords(existing, incoming);
     expect(merged).toHaveLength(1);
     expect(added).toBe(0);
-    // EXISTING wins -- the incoming record is dropped, even though its
-    // non-key fields differ. This documents the contract: callers must
-    // not rely on dedupeRecords to merge differing payloads under the
-    // same key.
-    expect(merged[0].grade).toBe('MS65');
+    // Incoming non-null fields win
+    expect(merged[0].grade).toBe('MS66');
+    // Existing fields not touched by incoming stay
+    expect(merged[0].holder).toBe('PCGS');
+    // New incoming fields are added
+    expect(merged[0].note).toBe('late update');
+  });
+
+  test('field-merge: null/undefined incoming fields do NOT clobber existing non-null', () => {
+    // Defends against thin re-scrapes: an incoming record that is missing
+    // `grade` or has it set to null must NOT erase the existing grade.
+    const existing = [rec('L1', 'Heritage', '2026-01-01', 100, {
+      grade: 'MS66',
+      holder: 'PCGS',
+      note: 'original',
+    })];
+    const incoming = [rec('L1', 'Heritage', '2026-01-01', 100, {
+      grade: null,         // null -> do NOT clobber
+      holder: undefined,   // undefined -> do NOT clobber
+      note: 'updated',     // truthy -> wins
+    })];
+    const { merged, added } = _dedupeRecords(existing, incoming);
+    expect(added).toBe(0);
+    expect(merged[0].grade).toBe('MS66');
+    expect(merged[0].holder).toBe('PCGS');
+    expect(merged[0].note).toBe('updated');
+  });
+
+  test('field-merge: falsy-but-defined incoming values (0, "", false) DO win', () => {
+    // Edge case: a zero, empty string, or false IS a valid value -- only
+    // null/undefined should be treated as "absent" for merge purposes.
+    const existing = [rec('L1', 'Heritage', '2026-01-01', 100, {
+      premium: 1.25,
+      flagged: true,
+      note: 'note',
+    })];
+    const incoming = [rec('L1', 'Heritage', '2026-01-01', 100, {
+      premium: 0,
+      flagged: false,
+      note: '',
+    })];
+    const { merged } = _dedupeRecords(existing, incoming);
+    expect(merged[0].premium).toBe(0);
+    expect(merged[0].flagged).toBe(false);
+    expect(merged[0].note).toBe('');
+  });
+
+  test('field-merge: caller-supplied `existing` array elements are NOT mutated in place', () => {
+    // The function must shallow-clone existing records before merging, so
+    // callers holding a separate reference to the input array see no change.
+    const originalExisting = rec('L1', 'Heritage', '2026-01-01', 100, { grade: 'MS65' });
+    const existing = [originalExisting];
+    const incoming = [rec('L1', 'Heritage', '2026-01-01', 100, { grade: 'MS66' })];
+    _dedupeRecords(existing, incoming);
+    // Caller's original record is unchanged
+    expect(originalExisting.grade).toBe('MS65');
+    expect(existing[0]).toBe(originalExisting);
+  });
+
+  test('field-merge applies to intra-incoming key collisions as well', () => {
+    // Two incoming records with the same key: the second field-merges into
+    // the first. Added stays at 1 (one new key introduced).
+    const incoming = [
+      rec('L1', 'Heritage', '2026-01-01', 100, { grade: 'MS65', note: 'first' }),
+      rec('L1', 'Heritage', '2026-01-01', 100, { grade: 'MS66' }),
+    ];
+    const { merged, added } = _dedupeRecords([], incoming);
+    expect(merged).toHaveLength(1);
+    expect(added).toBe(1);
+    expect(merged[0].grade).toBe('MS66');
+    expect(merged[0].note).toBe('first');
   });
 
   test('different Price under same LotNo+Auctioneer+Date is treated as a different record', () => {
