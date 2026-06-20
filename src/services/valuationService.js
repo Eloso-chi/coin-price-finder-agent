@@ -127,10 +127,15 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
   const usPrices  = usComps.map(c => c.totalUsd).filter(p => p != null);
   const glPrices  = glComps.map(c => c.totalUsd).filter(p => p != null);
 
-  // Weighted median using match-score based weights + recency
+  // Weighted median using match-score based weights + recency.
+  // #283H -- pass proof / reverse-proof intent so the recency half-life is
+  // computed correctly. Proof / RP bullion is collector-paced (mintage,
+  // grade, date desirability) NOT metal-paced -- it must use the 90-day
+  // numismatic half-life even though `isBullion` is true. See
+  // `computeWeightedMedian` below for the dispatch.
   const isBullion = !!(opts.isBullion);
-  const usWM   = computeWeightedMedian(usComps, { isBullion });
-  const glWM   = computeWeightedMedian(glComps, { isBullion });
+  const usWM   = computeWeightedMedian(usComps, { isBullion, wantsProof, wantsReverseProof });
+  const glWM   = computeWeightedMedian(glComps, { isBullion, wantsProof, wantsReverseProof });
   const usMed  = stats.median(usPrices);
   const glMed  = stats.median(glPrices);
 
@@ -637,16 +642,25 @@ function blendSources(available, defaultWeights) {
 
 /**
  * Compute weighted median of comps using matchScore + recency.
- * Bullion coins use a steeper recency curve (30-day half-life vs 90-day)
- * because their values track underlying spot metal prices.
+ * BU bullion coins use a steeper recency curve (30-day half-life vs 90-day)
+ * because their values track underlying spot metal prices.  Proof and
+ * reverse-proof bullion are explicitly excluded from the 30-day curve and
+ * use the 90-day numismatic half-life -- see #283H.
  */
-function computeWeightedMedian(comps, { isBullion = false } = {}) {
+function computeWeightedMedian(comps, { isBullion = false, wantsProof = false, wantsReverseProof = false } = {}) {
   const valid = comps.filter(c => c.totalUsd != null);
   if (!valid.length) return null;
 
-  // Bullion half-life: 30 days (rapid metal price tracking)
-  // Numismatic half-life: 90 days (slower collector-market shifts)
-  const halfLifeDays = isBullion ? 30 : 90;
+  // BU bullion half-life: 30 days (rapid metal price tracking)
+  // Numismatic AND proof / RP bullion half-life: 90 days (collector-market
+  //   shifts, mintage and grade desirability drive price -- not spot).
+  // #283H -- proof / RP bullion is collector-paced, not metal-paced.
+  // Failure modes when proof was using 30-day under the old logic:
+  //   1. Thin pool + one fresh outlier dominated the weighted median.
+  //   2. Stale-but-correct low-mintage comps were effectively discarded.
+  //   3. Mid-metal-spike queries reported phantom proof premium that
+  //      decayed once spot reverted.
+  const halfLifeDays = (isBullion && !wantsProof && !wantsReverseProof) ? 30 : 90;
 
   const now = Date.now();
   const values = [];
@@ -768,4 +782,9 @@ function _emptyDecisions(askingPrice) {
   };
 }
 
-module.exports = { computeValuation };
+module.exports = {
+  computeValuation,
+  // #283H -- exported for unit tests pinning the proof / RP half-life
+  // dispatch.  Not used by production callers.
+  computeWeightedMedian,
+};

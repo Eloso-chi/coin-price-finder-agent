@@ -1036,7 +1036,17 @@ Verified:
 
 ---
 
-### #283H. Proof / RP bullion uses 30-day half-life like BU -- should use 90-day (collector-paced, not metal-paced) [P3 -- PRICING-ACCURACY] -- OPEN 2026-06-20
+### #283H. Proof / RP bullion uses 30-day half-life like BU -- should use 90-day (collector-paced, not metal-paced) [P3 -- PRICING-ACCURACY] -- DONE 2026-06-20 (PR #169)
+
+**Resolution (PR #169):** Shipped the 5-line override per spec. `computeWeightedMedian` now accepts `wantsProof` and `wantsReverseProof` and computes `halfLifeDays = (isBullion && !wantsProof && !wantsReverseProof) ? 30 : 90`.  Proof / RP bullion now uses the 90-day numismatic curve; BU bullion retains the 30-day curve unchanged.  Both `computeValuation` call sites updated to pass the new flags through.
+
+`computeWeightedMedian` was added to `module.exports` for unit testing (production callers continue to go through `computeValuation`).  11 unit tests added in `__tests__/valuationServiceProofHalfLife.test.js` pinning: (a) the helper's dispatch directly (BU/proof/RP/numismatic combinations + back-compat default args + empty-pool contract) and (b) end-to-end via `computeValuation` for proof / RP / BU intent.  Test scenario: 4 stable comps at $200 sold 200 days ago + 1 fresh outlier at $400 sold today -- under 30-day half-life the fresh outlier dominates (median $400); under 90-day half-life the older comps push back (median $200).  Pinned at 228/228 across all related suites.
+
+**Deferred for future evidence (this PR ships the override only):** open questions 1-3 below remain open.  No "proof-fmv-jumpy" classifier added to `pricing-health` yet; deferred to a separate observability ticket if needed.
+
+---
+
+**[Historical context]**
 
 **Origin:** Surfaced during #282H deep-review discussion. With #282H merged, proof / RP bullion traffic correctly routes through `raw-blend` / `certified-blend` using a proof-only `ebayMedian`. That median is computed by `computeWeightedMedian()` in [src/services/valuationService.js](src/services/valuationService.js#L634-L640), which sets the recency half-life from a single boolean:
 
