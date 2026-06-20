@@ -768,7 +768,9 @@ Pick one of the three fixes below. Any one of them closes the issue; preference 
 
 ---
 
-### #274H. `dedupeRecords` merge-strategy decision -- first-wins silently discards corrected re-scrape payloads [P3 -- CORRECTNESS / DATA-QUALITY] -- OPEN 2026-06-16
+### #274H. `dedupeRecords` merge-strategy decision -- first-wins silently discards corrected re-scrape payloads [P3 -- CORRECTNESS / DATA-QUALITY] -- DONE 2026-06-19 (PR #165)
+
+**Resolution (PR #165, merge commit `4076e95`):** Shipped **option 3 (field-merge)** per user decision. `dedupeRecords` in `src/services/auctionPriceService.js` now does: when two records share the `LotNo|Auctioneer|Date|Price` key, non-null/non-undefined fields from the incoming record overwrite the existing values; null/undefined incoming fields do NOT clobber existing non-null values. Existing records are shallow-cloned before merge so caller arrays are not mutated in place. Intra-incoming key collisions also field-merge into the first record. The `added` counter unchanged (collisions still don't count as new). Falsy-but-defined values (`0`, `""`, `false`) ARE treated as present and win -- only `null`/`undefined` are 'absent'. Test `__tests__/auctionDedupCollision.test.js` "records sharing the key but differing in non-key fields" rewritten to assert the new field-merge contract; FOUR new cases added (null/undefined preservation, falsy-but-defined wins, shallow-clone contract, intra-incoming field-merge). Verification at merge: 32/32 in collision + errorPaths suites, 3995/3995 full suite. Deep review on the fix returned APPROVED FOR MERGE with zero S1/S2 findings; two S3 follow-ups logged but not blockers (monitoring-threshold sanity-check and end-to-end Heritage re-grade integration test).
 
 **Origin:** Surfaced by the retroactive deep review of PR #135 (Wave 3 test build-out, finding S3 in `__tests__/auctionDedupCollision.test.js`).
 
