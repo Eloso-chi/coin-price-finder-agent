@@ -550,6 +550,15 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
         spotPrice: +spotPrice.toFixed(2),
         premiumPct: 0,
         ebayMedian: null,
+      } : method === 'bullion-greysheet-anchor' ? {
+        // #282H -- expose anchor weights so admin clients can see how FMV was
+        // composed (mirrors the diagnostic shape of the other two bullion modes).
+        spotPrice: +spotPrice.toFixed(2),
+        premiumPct: +((fmv / spotPrice - 1) * 100).toFixed(1),
+        ebayMedian: null,
+        greysheetVal: +greysheetVal.toFixed(2),
+        greysheetWeight: 0.7,
+        spotWeight: 0.3,
       } : null,
       rrv,
     },

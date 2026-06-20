@@ -173,6 +173,27 @@ describe('#282H Fix 1 -- proof intent skips bullion-spot-premium', () => {
     expect(result.valuation.gradePool.wantsProof).toBe(false);
     expect(result.valuation.gradePool.wantsReverseProof).toBe(false);
   });
+
+  test('reverse-proof bullion with thin (<3) RP pool still avoids spot+premium', () => {
+    // Mirror of the proof-thin-pool test above for RP intent.  With only 2 RP
+    // comps, the previous bug would still hit bullion-spot-premium because
+    // isBullion=true and ebayMedian (from the 2-comp RP pool) > spotPrice * 0.5.
+    // With the skipSpotMath guard, the engine routes through the comp-blend
+    // path with a lowData warning, never clamping to silver_spot * 2.
+    const rp = makeComps([380, 410], { gradeType: 'reverse-proof' });
+    const result = computeValuation(
+      mockPcgs(),
+      mockEbay({ usComps: rp }),
+      null,
+      'Proof',
+      { isBullion: true, isProof: true, isReverseProof: true, spotPrice: silverSpot }
+    );
+    expect(result.valuation.method).not.toBe('bullion-spot-premium');
+    expect(result.valuation.method).not.toBe('bullion-spot-only');
+    expect(result.valuation.method).not.toBe('bullion-greysheet-anchor');
+    expect(result.valuation.gradePool.wantsReverseProof).toBe(true);
+    expect(result.valuation.lowData).toBe(true);
+  });
 });
 
 // ════════════════════════════════════════════════════════════════
@@ -212,6 +233,23 @@ describe('#282H Fix 3 -- bullion-greysheet-anchor fallback', () => {
     );
     expect(result.valuation.method).toBe('bullion-spot-only');
     expect(result.valuation.fmvCore).toBe(silverSpot);
+  });
+
+  test('Greysheet exactly at 80% of spot -> bullion-greysheet-anchor (>= boundary inclusive)', () => {
+    // Pin the boundary: guard is `greysheetVal >= spotPrice * 0.8`, so an
+    // exact-80% Greysheet must still trigger the anchor, not fall through
+    // to bullion-spot-only. Silver spot $30, Greysheet $24 (exactly 80%).
+    // FMV = 0.7 * 24 + 0.3 * 30 = 16.8 + 9 = $25.80.
+    const greysheet = { greyVal: 24, cpgVal: 26 };
+    const result = computeValuation(
+      mockPcgs(),
+      mockEbay({ usComps: [] }),
+      null,
+      null,
+      { isBullion: true, spotPrice: silverSpot, greysheet }
+    );
+    expect(result.valuation.method).toBe('bullion-greysheet-anchor');
+    expect(result.valuation.fmvCore).toBeCloseTo(25.8, 1);
   });
 
   test('no eBay + no Greysheet -> bullion-spot-only (legacy behavior)', () => {
@@ -264,5 +302,28 @@ describe('#282H Fix 3 -- bullion-greysheet-anchor fallback', () => {
     expect(result.valuation.fmvCore).toBeNull();
     expect(result.valuation.method).not.toBe('bullion-greysheet-anchor');
     expect(result.valuation.method).not.toBe('bullion-spot-only');
+  });
+
+  test('bullion-greysheet-anchor exposes diagnostic shape on valuation.bullionSpot', () => {
+    // #282H -- new method must serialize alongside the other two bullion
+    // modes so admin clients can see how FMV was composed.
+    const greysheet = { greyVal: 35, cpgVal: 38 };
+    const result = computeValuation(
+      mockPcgs(),
+      mockEbay({ usComps: [] }),
+      null,
+      null,
+      { isBullion: true, spotPrice: silverSpot, greysheet }
+    );
+    expect(result.valuation.method).toBe('bullion-greysheet-anchor');
+    const bs = result.valuation.bullionSpot;
+    expect(bs).not.toBeNull();
+    expect(bs.spotPrice).toBeCloseTo(silverSpot, 1);
+    expect(bs.greysheetVal).toBeCloseTo(35, 1);
+    expect(bs.greysheetWeight).toBe(0.7);
+    expect(bs.spotWeight).toBe(0.3);
+    expect(bs.ebayMedian).toBeNull();
+    // FMV = 0.7 * 35 + 0.3 * 30 = 33.5 -> premiumPct vs spot = (33.5/30 - 1)*100 = 11.7
+    expect(bs.premiumPct).toBeCloseTo(11.7, 1);
   });
 });

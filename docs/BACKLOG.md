@@ -1034,6 +1034,65 @@ Verified:
 
 ---
 
+### #283H. Proof / RP bullion uses 30-day half-life like BU -- should use 90-day (collector-paced, not metal-paced) [P3 -- PRICING-ACCURACY] -- OPEN 2026-06-20
+
+**Origin:** Surfaced during #282H deep-review discussion. With #282H merged, proof / RP bullion traffic correctly routes through `raw-blend` / `certified-blend` using a proof-only `ebayMedian`. That median is computed by `computeWeightedMedian()` in [src/services/valuationService.js](src/services/valuationService.js#L634-L640), which sets the recency half-life from a single boolean:
+
+```js
+const halfLifeDays = isBullion ? 30 : 90;
+```
+
+Every bullion query -- BU Silver Eagle, BU Gold Maple, Silver Libertad **Proof**, **Reverse Proof** -- shares the 30-day half-life. The 30-day choice is correct for BU (a generic Silver Eagle is just silver; its price moves with spot), but wrong for proof / RP, which are collector products whose price is driven by mintage, slab grade, and date desirability -- not silver / gold spot. A 2010 Silver Libertad Proof was ~$250 in 2022 silver and ~$250 in 2026 silver.
+
+**Recency weight comparison** (`recencyWeight = 1 / (1 + daysSince / halfLife)`):
+
+| Comp age | `halfLife=30` | `halfLife=90` |
+|---|---|---|
+| 0 days | 1.00 | 1.00 |
+| 30 days | 0.50 | 0.75 |
+| 90 days | 0.25 | 0.50 |
+| 180 days | 0.14 | 0.33 |
+| 365 days | 0.08 | 0.20 |
+
+**Failure modes** (each one is hypothetical until validated with a follow-up health pass; the catastrophic "$127 for every proof date" bug from #282H is already gone):
+
+1. **Thin proof pool with one fresh outlier.** 8 proof comps in the last year, seven at $180-$210, one fresh Best-Offer sale at $400. Under 30-day half-life the $400 comp weighs 0.91 and the year-old $190 comp weighs 0.07 -- weighted median pulls toward the outlier. Under 90-day half-life the older comps push back ~3x harder.
+2. **Stale-but-correct comps effectively discarded.** Low-mintage dates (1992 Gold Libertad Proof etc.) often have 4 comps in 12 months. Under 30-day, only the 1-2 most recent dominate, leaving an effective 1-2-comp sample -- no smoothing of buyer-specific noise.
+3. **Temporary metal-spike contamination.** If silver spikes 20% in a month, BU Silver Libertad should rally 20% (correct). Proof Libertad historically does not. But the same comps-aging math is applied to both pools, so a proof query mid-spike heavily weights the in-spike sales and reports a phantom 15-20% proof premium that decays as soon as spot reverts.
+
+**Why this didn't surface in #282H validation:** The `rp-melt-floor` classifier in [scripts/lib/pricingHealthClassifiers.js](scripts/lib/pricingHealthClassifiers.js) fires on `method === 'bullion-spot-premium'`. Once #282H reroutes proof traffic to `raw-blend`, the classifier stops looking. FMVs are no longer catastrophically wrong, just noisier than they should be in the most-recent-sale direction. We do not currently have a classifier that catches "proof FMV moved >X% in 30 days without a comparable comp-volume change".
+
+**Proposed change** (5-line override at L640):
+
+```js
+const halfLifeDays = (isBullion && !wantsProof && !wantsReverseProof) ? 30 : 90;
+```
+
+(`wantsProof` / `wantsReverseProof` would need to be passed through `computeWeightedMedian`'s call sites at L132-133 since those flags currently live in the outer scope.)
+
+**Acceptance:**
+
+- Re-run `pricing-health-full --filter "Libertad Proof"` before and after the change; capture FMV-stability delta (date-to-date FMV variance should narrow).
+- Non-regression: BU Silver Eagle / Gold Maple / etc. health classification unchanged (30-day half-life retained for them).
+- Add unit test pinning that proof intent on bullion uses 90d half-life and BU on bullion uses 30d.
+
+**Open questions (deferred to pickup):**
+
+1. Is 90 days the right number, or should proof default to the same 90d as numismatics, or to a wider window (e.g. 180d) to handle low-mintage dates with sparse comp history? Probably needs evidence from a follow-up pricing-health pass before deciding.
+2. Should this also widen for `bullion-multioz` (5oz / 10oz collector pieces) and proof-bar variants, or strictly proof / RP?
+3. Add a "proof FMV stability" classifier to `pricing-health` first (so a regression from the half-life change is observable), or ship the engine change with a manual before/after diff?
+
+**Recommendation:** Land #282H, run libertad pricing-health daily for a week to gather evidence of failure mode (1) or (2), then open this ticket as a separate small PR with the override + tests + before/after report. Do NOT bundle with #282H.
+
+**Files:** [src/services/valuationService.js](src/services/valuationService.js#L132-L133) (signature update for `wantsProof` / `wantsReverseProof` passthrough), [src/services/valuationService.js](src/services/valuationService.js#L634-L640) (`halfLifeDays` calc), `__tests__/valuationServiceProofLadder.test.js` (extend), `scripts/lib/pricingHealthClassifiers.js` (optional new "proof-fmv-jumpy" classifier).
+
+**Related:**
+
+- #282H (proof skip-gate; necessary precondition that proof traffic actually reaches `computeWeightedMedian` instead of the spot+premium override).
+- #184 (proof pool isolation).
+
+---
+
 ### #276H. `pricing-health-full.js` mislabels missing-credentials as "pipeline-leak" -- pre-flight credential probe needed [P3 -- TOOLING / OPERATIONS] -- DONE 2026-06-16 (PR #140)
 
 **Origin:** First 25-coin pricing-health run after fresh checkout on this workstation. Every coin reported `pipeline-leak (N teak -> 0 comps)` and `null-fmv`, suggesting filter attrition. Root cause was empty `.env` values for `EBAY_APP_ID`, `EBAY_CLIENT_SECRET`, and `PCGS_API_KEY` -- the comp path never ran. The "pipeline-leak" label was misleading because comps were not *dropped*, they were never *fetched*.
