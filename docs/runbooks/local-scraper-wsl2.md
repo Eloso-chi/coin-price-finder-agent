@@ -168,6 +168,28 @@ Terapeak loads, then close the window. The script writes the jar to
 
 ## Daily use
 
+### Canonical startup (deterministic)
+
+Use the operator wrapper instead of ad-hoc command chains. It enforces a
+strict sequence and writes run state to `cache/terapeak-startup-state.json`.
+
+```bash
+# One pass, interactive login included
+bash scripts/terapeak-operator.sh
+
+# Continuous freshness-only loop using existing cookies
+bash scripts/terapeak-operator.sh --no-login --loop --pause-between 600 --page1-batch 25
+```
+
+The wrapper always does:
+1. `terapeak-startup-preflight.sh --mode login`
+2. `terapeak-export.py --login` (unless `--no-login`)
+3. `terapeak-startup-preflight.sh --mode loop`
+4. `run-surface-freshness-loop.sh --skip-deep --skip-probe`
+
+If preflight fails, fix the reported issue first; do not continue with manual
+startup commands.
+
 ### Fast path: `scripts/cpf-go` (#252)
 
 One command handles login, dependency checks, freshness report, scraper run,

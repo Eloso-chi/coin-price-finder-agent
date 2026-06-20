@@ -57,6 +57,7 @@
 | `@ux-reviewer` | UX/IA/a11y review (WCAG 2.2, Nielsen heuristics, component states, performance UX); focused + comprehensive modes |
 | `@onboard` | Project onboarding assistant |
 | `@pricing-health` | End-to-end pricing flow validator -- picks coins, traces through all routes, flags comp attrition anomalies |
+| `@terapeak-operator` | Deterministic local Terapeak startup operator (preflight -> login -> freshness-only loop) |
 | `/review-deep` | Invoke full code review |
 | `/apply-approved` | Implement approved findings |
 | `/pre-commit` | Quick pre-commit check |
