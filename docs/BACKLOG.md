@@ -860,6 +860,7 @@ function normalizeSeries(series) {
 - **Phase 1 -- Disambiguation at input (low risk).** Add a "Variant" `<select>` to the search form populated from a curated subset of `ALLOWED_LABELS` in [src/data/constants.js](src/data/constants.js#L80-L88): *Auto-detect (default), Standard (BU), Proof, Reverse Proof, Colorized, Gilded, Privy, High Relief, Antiqued, Burnished*. Wires into existing `req.body.label` pipe -- no server changes needed for the UI. When `label` is set, append a canonical token to the Terapeak dataset key so colorized comps land in their own bucket (old keys keep working alongside). Render a clickable variant chip on results.
 - **Phase 2 -- Variant-aware comp filtering (medium risk).** Replace flat `VARIANT_TOKENS` array in [src/services/ebayService.js](src/services/ebayService.js) with a `VARIANT_FAMILIES` map. Classify query + each comp title into a Set of families (`colorized`, `gilded`, `proof`, `reverseProof`, `privy`, `highRelief`, `antiqued`, `burnished`). Keep rule: family match OR plain BU. Drop: any other family. Add mint-issue vs aftermarket sub-classifier for colorized (+10 for "Perth Mint / RCM / Royal Mint / with COA / PCGS Colorized / NGC Colorized"; -10 for "novelty / painted by / custom / art coin / hand painted").
 - **Phase 3 -- Variant-aware valuation (higher risk).** Add `variantPremiumProfile` to [src/services/valuationService.js](src/services/valuationService.js) opts. When `label === 'Colorized'` and `isBullion`: raise `maxPremium` from 1.00 -> 5.00 for silver, 0.40 -> 2.00 for gold; use variant-filtered comp median only; if <5 variant-matching comps, return `null` FMV with `dataSource='insufficient-variant-comps'` (don't fall back to spot -- wrong number, not missing). Wire PCGS price-guide to use the variant cert# when `expected.finish === 'Colorized'`.
+  - **Update 2026-06-19:** The proof-specific slice of this phase ships separately in #282H under a stricter contract: instead of widening `maxPremium` for proof, the engine now SKIPS the `bullion-spot-premium` branch entirely when proof / reverse-proof intent is set, using the existing proof-only comp pool via the standard comp-blend path (raw-blend / certified-blend). For colorized / gilded / privy / high-relief etc. the original Phase 3 plan (variant-aware maxPremium ceiling) still applies -- those variants share dies and silver content with their BU siblings, so spot+premium with a wider clamp is structurally sound for them; proof does not, which is why it gets a different treatment.
 - **Phase 4 -- Dataset hygiene (pipeline).** One-time migration script: scan existing Terapeak datasets, split variant-heavy ones (>10% variant tokens) into variant-suffixed keys. Dry-run + audit + approval gate before write. Update `sales-aggregator.py` + `freshnessReport` to recognize the new keys.
 
 **Recommendation:** Ship Phase 1 first as its own PR. Small, reversible, gives users disambiguation today, and starts collecting cleanly-tagged search data needed to validate Phases 2-4. Phases 2-3 depend on 1-2 weeks of variant-tagged comp data before tuning new premium ceilings.
@@ -982,6 +983,113 @@ Verified:
 - P0 queue decline rate improves across comparable run windows.
 
 **Files:** `scripts/run-surface-freshness-loop.sh`, `scripts/generate-freshness-report.js`, `scripts/terapeak-export.py`
+
+---
+
+### #282H. Proof valuation: skip spot-premium math, Greysheet anchor for BU fallback, weight sanity cap [P2 -- CORRECTNESS / PRICING-ACCURACY] -- IN PROGRESS 2026-06-19
+
+**Origin:** 143-coin Libertad pricing-health run (cache/health-report-libertads-20260619-193020.json) returned 78 HEALTHY / 14 YELLOW / **51 RED**. The 51 REDs split into three root causes:
+
+1. **30 proof Silver Libertads (1986-2025)** all collapsed to FMV $123-$129 regardless of date. Classifier `rp-melt-floor` flagged them: proof intent + >=10 surviving proof comps + method `bullion-spot-premium`. Root cause: `bullion-spot-premium` branch in [src/services/valuationService.js](src/services/valuationService.js#L173-L180) fires for any `isBullion=true` query and clamps premium to spot * 2 for silver / spot * 1.4 for gold. For proof coins whose real market price is $100-$500+ regardless of metal content, this silently truncates real collector premiums and collapses dozens of distinct dates to one number. The proof pool isolation gate (lines L80-86, added in #184 / #260W) was already correct -- the bug was that the spot-premium override ran AFTER pool selection and ignored the carefully-filtered proof comp median.
+
+2. **"1000oz gold libertad" -> FMV $4,156,700.** Junk Terapeak dataset whose stored comp titles were all "L#NNNN 1/1000oz Gold ... Niue novelty" pieces selling for $21-$60. `detectWeightFromTitle` in [src/utils/coinMetalProfile.js](src/utils/coinMetalProfile.js) parsed "1000oz" -> 1000 troy oz, spotPrice = gold_spot * 1000, all 39 comps then dropped by meltFloor, fell to `bullion-spot-only` -> spotPrice ($4.15M). Casa de Moneda has never struck a 1000oz coin -- this is a typo / phantom dataset.
+
+3. **Out of scope for this ticket:** 2024 Mexico 1 oz Gold Libertad shows 99/118 comps dropped as metalMismatch (silver comps polluting the gold dataset) and 2025 Silver Libertad Proof shows 84 prefilterStrikeSplit drops (year-too-new heuristic). Both are dataset-hygiene / prefilter tuning issues tracked separately.
+
+**Numismatic context:** Numismatic premium for proof and reverse-proof coins is structurally decoupled from spot. Limited mintage + slab grade + key-date status set the price, not silver/gold spot. The spot+premium model is the WRONG model for proof, not just the wrong constant -- widening `maxPremium` would not fix it. Pool isolation already gives a clean proof-only ebayMedian; the engine just needs to use it.
+
+**Approved changes (this PR):**
+
+- **Fix 1 -- skipSpotMath gate.** Add `const skipSpotMath = wantsProof || wantsReverseProof;` near the blend section in [src/services/valuationService.js](src/services/valuationService.js). Guard BOTH the `bullion-spot-premium` gate (L173) AND the `bullion-spot-only` / `bullion-greysheet-anchor` fallback gate (L213) with `&& !skipSpotMath`. Proof traffic with proof comps flows to the comp-blend path (raw-blend / certified-blend) which correctly uses the proof-only ebayMedian + PCGS guide + Greysheet. Proof traffic with NO proof comps and no guide / Greysheet returns null FMV with a sharper explanation citing "no proof comps; BU not substituted (would give a wrong number, not a missing one)".
+
+- **Fix 2 -- weight sanity cap.** Add `MAX_PLAUSIBLE_WEIGHT_OZ = 200` constant to [src/utils/coinMetalProfile.js](src/utils/coinMetalProfile.js) and guard the integer-oz match in `detectWeightFromTitle`. Returns `null` for anything above 200 oz rather than silently rewriting "1000oz" to 1000. 200oz ceiling is generous enough to accept any retail bullion bar (100oz silver is the largest commonly-listed; the 1-tonne Perth Mint gold coin is one-of-a-kind, not retail). Refusing is safer than silently rewriting user input -- callers fall through to other detection paths or treat weight as unknown.
+
+- **Fix 3 -- Greysheet-anchor BU fallback ladder.** Revise the bullion-no-comps fallback in [src/services/valuationService.js](src/services/valuationService.js#L213) to a 2-step ladder (BU only; proof skipped by `skipSpotMath`):
+  1. If `greysheetVal != null && greysheetVal >= spotPrice * 0.8` -> `fmv = 0.7 * greysheetVal + 0.3 * spotPrice`, method `bullion-greysheet-anchor`. Greysheet is dealer wholesale (CDN), licensed and curated; when it sits meaningfully above spot it represents a real, defensible bullion FMV. The 30% spot weight keeps the number responsive to metal-price moves. The 80%-of-spot guard rejects nominal / stale Greysheet rows that would drag FMV well below current metal value.
+  2. Otherwise -> legacy `bullion-spot-only` (FMV = spot, 0% premium). Unchanged behavior for the case where no anchoring is possible.
+
+- **Documentation updates (this PR):** This BACKLOG entry; cross-reference note in #277H Phase 3 (below) explaining that the proof-specific slice ships here instead of being folded into the larger variant-disambiguation phase; FMV-mode section in [docs/memory/decision-engine-spec.md](docs/memory/decision-engine-spec.md) updated to describe the new `bullion-greysheet-anchor` method and the proof skip-gate.
+
+**Deferred (NOT in this PR):**
+
+- One-off admin DELETE for the phantom "1000oz gold libertad" Terapeak dataset (operator action after merge).
+- Dataset-hygiene investigation for 2024 Mexico 1 oz Gold Libertad metalMismatch drops.
+- prefilterStrikeSplit tuning for 2025 (new-year) coins.
+
+**Acceptance:**
+
+- 30 `rp-melt-floor` RED proof Libertads disappear from the next pricing-health run. Some proof coins with very thin pools may newly surface as YELLOW low-confidence (honest reporting -- previously masked by the false-positive FMV).
+- "1000oz gold libertad" row either drops to ~$40 with low confidence (Fix 2 reroutes weight detection) or is filtered out entirely.
+- Non-regression: 50-coin random pricing-health stays all-HEALTHY; existing `bullion-spot-premium` BU tests continue to pass.
+- New tests pin the contract: proof + 10+ comps avoids spot-premium; proof + 0 comps + no anchors returns null with explicit explanation; BU + no comps + Greysheet >= 80% spot uses `bullion-greysheet-anchor`; BU + no comps + no Greysheet stays on `bullion-spot-only`; 1000oz title returns null weight; 100oz / 200oz / kilo titles unchanged.
+
+**Files:** `src/services/valuationService.js`, `src/utils/coinMetalProfile.js`, `__tests__/coinMetalProfileWeightCap.test.js` (new), `__tests__/valuationServiceProofLadder.test.js` (new), `docs/BACKLOG.md` (this entry + #277H note), `docs/memory/decision-engine-spec.md`.
+
+**Related:**
+
+- #184 (proof pool isolation -- the necessary precondition this PR builds on).
+- #260W (reverse-proof pool routing -- same rationale, different tier).
+- #277H Phase 3 (variant-aware valuation roadmap -- the colorized / specialty premium-clamp work; this PR ships the proof-specific slice early under a stricter contract).
+- #188 (original `bullion-spot-only` fallback -- retained as the bottom of the new ladder).
+
+---
+
+### #283H. Proof / RP bullion uses 30-day half-life like BU -- should use 90-day (collector-paced, not metal-paced) [P3 -- PRICING-ACCURACY] -- OPEN 2026-06-20
+
+**Origin:** Surfaced during #282H deep-review discussion. With #282H merged, proof / RP bullion traffic correctly routes through `raw-blend` / `certified-blend` using a proof-only `ebayMedian`. That median is computed by `computeWeightedMedian()` in [src/services/valuationService.js](src/services/valuationService.js#L634-L640), which sets the recency half-life from a single boolean:
+
+```js
+const halfLifeDays = isBullion ? 30 : 90;
+```
+
+Every bullion query -- BU Silver Eagle, BU Gold Maple, Silver Libertad **Proof**, **Reverse Proof** -- shares the 30-day half-life. The 30-day choice is correct for BU (a generic Silver Eagle is just silver; its price moves with spot), but wrong for proof / RP, which are collector products whose price is driven by mintage, slab grade, and date desirability -- not silver / gold spot. A 2010 Silver Libertad Proof was ~$250 in 2022 silver and ~$250 in 2026 silver.
+
+**Recency weight comparison** (`recencyWeight = 1 / (1 + daysSince / halfLife)`):
+
+| Comp age | `halfLife=30` | `halfLife=90` |
+|---|---|---|
+| 0 days | 1.00 | 1.00 |
+| 30 days | 0.50 | 0.75 |
+| 90 days | 0.25 | 0.50 |
+| 180 days | 0.14 | 0.33 |
+| 365 days | 0.08 | 0.20 |
+
+**Failure modes** (each one is hypothetical until validated with a follow-up health pass; the catastrophic "$127 for every proof date" bug from #282H is already gone):
+
+1. **Thin proof pool with one fresh outlier.** 8 proof comps in the last year, seven at $180-$210, one fresh Best-Offer sale at $400. Under 30-day half-life the $400 comp weighs 0.91 and the year-old $190 comp weighs 0.07 -- weighted median pulls toward the outlier. Under 90-day half-life the older comps push back ~3x harder.
+2. **Stale-but-correct comps effectively discarded.** Low-mintage dates (1992 Gold Libertad Proof etc.) often have 4 comps in 12 months. Under 30-day, only the 1-2 most recent dominate, leaving an effective 1-2-comp sample -- no smoothing of buyer-specific noise.
+3. **Temporary metal-spike contamination.** If silver spikes 20% in a month, BU Silver Libertad should rally 20% (correct). Proof Libertad historically does not. But the same comps-aging math is applied to both pools, so a proof query mid-spike heavily weights the in-spike sales and reports a phantom 15-20% proof premium that decays as soon as spot reverts.
+
+**Why this didn't surface in #282H validation:** The `rp-melt-floor` classifier in [scripts/lib/pricingHealthClassifiers.js](scripts/lib/pricingHealthClassifiers.js) fires on `method === 'bullion-spot-premium'`. Once #282H reroutes proof traffic to `raw-blend`, the classifier stops looking. FMVs are no longer catastrophically wrong, just noisier than they should be in the most-recent-sale direction. We do not currently have a classifier that catches "proof FMV moved >X% in 30 days without a comparable comp-volume change".
+
+**Proposed change** (5-line override at L640):
+
+```js
+const halfLifeDays = (isBullion && !wantsProof && !wantsReverseProof) ? 30 : 90;
+```
+
+(`wantsProof` / `wantsReverseProof` would need to be passed through `computeWeightedMedian`'s call sites at L132-133 since those flags currently live in the outer scope.)
+
+**Acceptance:**
+
+- Re-run `pricing-health-full --filter "Libertad Proof"` before and after the change; capture FMV-stability delta (date-to-date FMV variance should narrow).
+- Non-regression: BU Silver Eagle / Gold Maple / etc. health classification unchanged (30-day half-life retained for them).
+- Add unit test pinning that proof intent on bullion uses 90d half-life and BU on bullion uses 30d.
+
+**Open questions (deferred to pickup):**
+
+1. Is 90 days the right number, or should proof default to the same 90d as numismatics, or to a wider window (e.g. 180d) to handle low-mintage dates with sparse comp history? Probably needs evidence from a follow-up pricing-health pass before deciding.
+2. Should this also widen for `bullion-multioz` (5oz / 10oz collector pieces) and proof-bar variants, or strictly proof / RP?
+3. Add a "proof FMV stability" classifier to `pricing-health` first (so a regression from the half-life change is observable), or ship the engine change with a manual before/after diff?
+
+**Recommendation:** Land #282H, run libertad pricing-health daily for a week to gather evidence of failure mode (1) or (2), then open this ticket as a separate small PR with the override + tests + before/after report. Do NOT bundle with #282H.
+
+**Files:** [src/services/valuationService.js](src/services/valuationService.js#L132-L133) (signature update for `wantsProof` / `wantsReverseProof` passthrough), [src/services/valuationService.js](src/services/valuationService.js#L634-L640) (`halfLifeDays` calc), `__tests__/valuationServiceProofLadder.test.js` (extend), `scripts/lib/pricingHealthClassifiers.js` (optional new "proof-fmv-jumpy" classifier).
+
+**Related:**
+
+- #282H (proof skip-gate; necessary precondition that proof traffic actually reaches `computeWeightedMedian` instead of the spot+premium override).
+- #184 (proof pool isolation).
 
 ---
 

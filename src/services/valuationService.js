@@ -166,11 +166,25 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
   let fmv = null;
   let method;
 
+  // #282H -- Skip spot+premium math entirely for proof / reverse-proof intent.
+  //
+  // Numismatic premium for proof and reverse-proof coins is structurally
+  // decoupled from spot.  These are limited-mintage collector products whose
+  // market price is driven by mintage, demand, slab grade, and key-date status
+  // -- not by silver/gold spot.  The spot+premium model (FMV = spot * (1+pct),
+  // pct clamped to 100% silver / 40% gold) silently truncates legitimate proof
+  // premiums at ~$60-$130 for silver and ~$2,800 for gold, collapsing dozens
+  // of distinct proof dates to the same number.  Pool isolation (above) already
+  // gives us a clean proof-only ebayMedian; let the comp-blend path use it.
+  // The wantsProof / wantsReverseProof gate above already raises a clear
+  // explanation when the proof pool is empty (no fallback to BU comps).
+  const skipSpotMath = wantsProof || wantsReverseProof;
+
   // #53: Bullion spot+premium FMV mode.
   // For bullion coins where we have both a spot price and eBay comps,
   // derive the current market premium from comps and anchor FMV to live spot.
   // This tracks metal price moves instantly instead of lagging with 30-day median.
-  if (isBullion && spotPrice > 0 && ebayMedian != null && ebayMedian > spotPrice * 0.5) {
+  if (isBullion && spotPrice > 0 && ebayMedian != null && ebayMedian > spotPrice * 0.5 && !skipSpotMath) {
     const rawPremium = (ebayMedian - spotPrice) / spotPrice;
     // Clamp premium to reasonable bounds: -5% to +100% for silver, -5% to +40% for gold
     // (gold premiums are tighter; silver rounds/bars can carry 20-80% retail premium)
@@ -207,17 +221,47 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
     }
   }
 
-  // #188: Bullion spot-only fallback — no comps survived filtering but spot price is known.
-  // Use spot with 0% premium (conservative) rather than falling through to a nominal Greysheet value.
-  if (fmv == null && isBullion && spotPrice > 0 && ebayMedian == null) {
-    fmv = spotPrice;
-    method = 'bullion-spot-only';
-    if (isAdmin) {
-      explanation.push(
-        `Bullion spot fallback (no comps): spot $${spotPrice.toFixed(2)} used as FMV with 0% premium.`
-      );
+  // #188 + #282H: Bullion fallback ladder when no eBay comps survived filtering.
+  //
+  // Ladder (only fires for non-proof / non-reverse-proof bullion):
+  //   1. Greysheet-anchor: wholesale guide >= 80% of spot -- 70% Greysheet + 30% spot.
+  //      Greysheet is dealer wholesale (CDN), licensed and curated; when it sits
+  //      meaningfully above spot it represents a real, defensible bullion FMV.
+  //      The 30% spot weight keeps the number responsive to metal-price moves.
+  //      The 80%-of-spot guard rejects nominal / stale Greysheet rows that would
+  //      drag FMV well below current metal value.
+  //   2. Bare spot: no comps AND no usable Greysheet -- spot with 0% premium
+  //      remains the conservative floor (#188 behavior, retained).
+  //
+  // For proof / reverse-proof intent we skip this entire ladder: substituting
+  // BU bullion math for a proof query (regardless of spot or Greysheet) gives
+  // the wrong number, not a missing one.  The null-FMV return below handles
+  // the proof-empty case with a clear explanation instead.
+  if (fmv == null && isBullion && spotPrice > 0 && ebayMedian == null && !skipSpotMath) {
+    if (greysheetVal != null && greysheetVal >= spotPrice * 0.8) {
+      fmv = greysheetVal * 0.7 + spotPrice * 0.3;
+      method = 'bullion-greysheet-anchor';
+      if (isAdmin) {
+        explanation.push(
+          `Bullion Greysheet anchor (no eBay comps): wholesale $${greysheetVal.toFixed(2)} >= 80% of spot $${spotPrice.toFixed(2)}; `
+          + `FMV = 70% Greysheet + 30% spot = $${fmv.toFixed(2)}.`
+        );
+      } else {
+        explanation.push('No recent sold comps; wholesale guide used as primary anchor, lightly blended with current spot.');
+      }
     } else {
-      explanation.push('Bullion fallback: no comps available; FMV set to current spot price.');
+      fmv = spotPrice;
+      method = 'bullion-spot-only';
+      if (isAdmin) {
+        const gsNote = greysheetVal != null
+          ? ` (Greysheet $${greysheetVal.toFixed(2)} below 80% of spot, not used as anchor)`
+          : ' (no Greysheet available)';
+        explanation.push(
+          `Bullion spot fallback (no comps): spot $${spotPrice.toFixed(2)} used as FMV with 0% premium${gsNote}.`
+        );
+      } else {
+        explanation.push('Bullion fallback: no comps available; FMV set to current spot price.');
+      }
     }
   }
 
@@ -269,7 +313,19 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
   } // end if (fmv == null) — bullion spot+premium may have set it above
 
   if (fmv == null) {
-    explanation.push('NO DATA: unable to compute FMV — no comps or guide prices available.');
+    // #282H -- when proof intent is set but no proof / RP comps and no guide
+    // values existed, make the explanation explicit about why we did not fall
+    // back to BU bullion math.  Avoids the silent "no FMV" result giving the
+    // impression of a pipeline bug.
+    if (wantsProof || wantsReverseProof) {
+      const tier = wantsReverseProof ? 'reverse-proof' : 'proof';
+      explanation.push(
+        `NO DATA: no ${tier} comps, no PCGS price guide, no Greysheet for this ${tier} coin -- `
+        + 'BU bullion comps and spot+premium math are not substituted (would give a wrong number, not a missing one).'
+      );
+    } else {
+      explanation.push('NO DATA: unable to compute FMV -- no comps or guide prices available.');
+    }
     return {
       valuation: { fmvCore: null, rangeLow: null, rangeHigh: null, confidence: 0, explanation },
       decisions: _emptyDecisions(askingPrice)
@@ -494,6 +550,15 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
         spotPrice: +spotPrice.toFixed(2),
         premiumPct: 0,
         ebayMedian: null,
+      } : method === 'bullion-greysheet-anchor' ? {
+        // #282H -- expose anchor weights so admin clients can see how FMV was
+        // composed (mirrors the diagnostic shape of the other two bullion modes).
+        spotPrice: +spotPrice.toFixed(2),
+        premiumPct: +((fmv / spotPrice - 1) * 100).toFixed(1),
+        ebayMedian: null,
+        greysheetVal: +greysheetVal.toFixed(2),
+        greysheetWeight: 0.7,
+        spotWeight: 0.3,
       } : null,
       rrv,
     },

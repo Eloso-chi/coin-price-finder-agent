@@ -119,6 +119,17 @@ const FRACTIONAL_WEIGHT_RE = /\b(?:half|quarter|tenth|twentieth)\s*oz\b/;
 /** Multi-oz bullion (2oz and above) */
 const MULTI_OZ_RE = /\b(?:[2-9]|[1-9]\d+)oz\b/;
 
+/**
+ * #282H -- Upper bound for a plausible single-coin weight in troy ounces.
+ * The heaviest mass-produced bullion piece is the Perth Mint 1 tonne gold
+ * coin (32,150 oz, one-of-a-kind, not retail) and the heaviest retail
+ * coin/bar in normal eBay traffic is ~100 oz (1 kilo silver is 32 oz;
+ * the largest commonly-listed silver bar is 100 oz). 200 oz is a generous
+ * ceiling that catches obvious typos ("1000oz") without blocking legit
+ * 100oz / kilo / multi-kilo bars.
+ */
+const MAX_PLAUSIBLE_WEIGHT_OZ = 200;
+
 /** Proof bullion */
 const PROOF_RE = /\bproof\b/;
 
@@ -222,7 +233,17 @@ function detectWeightFromTitle(title) {
   if (/\bquarter\s*(?:troy\s+)?(?:ounce|ozt?|oz)\b/i.test(t))  return 0.25;
   if (/\bhalf\s*(?:troy\s+)?(?:ounce|ozt?|oz)\b/i.test(t))     return 0.5;
   const m = t.match(new RegExp('\\b(\\d+(?:\\.\\d+)?)\\s*' + OZ, 'i'));
-  if (m) return parseFloat(m[1]);
+  if (m) {
+    const w = parseFloat(m[1]);
+    // #282H -- Sanity cap. Casa de Moneda has never struck a 1000oz Libertad;
+    // a single coin weighing 1000+ troy oz does not exist in retail bullion.
+    // When a title says "1000oz", it is almost always a typo, a series number,
+    // or an unrelated lot descriptor (e.g. "L#1000 1/1000oz Niue novelty").
+    // Returning null is safer than silently rewriting user input -- callers
+    // then fall through to other detection paths or treat weight as unknown.
+    if (!Number.isFinite(w) || w <= 0 || w > MAX_PLAUSIBLE_WEIGHT_OZ) return null;
+    return w;
+  }
   return null;
 }
 

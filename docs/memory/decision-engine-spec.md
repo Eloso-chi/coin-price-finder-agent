@@ -6,12 +6,13 @@ Consumed by: priceRoute, barPriceRoute, pricingBatchRoute, bulkEvaluateService
 ## FMV Computation -- Three Modes
 
 ### 1. Bullion Spot+Premium (method: `bullion-spot-premium`)
-- **Trigger**: `isBullion && spotPrice > 0 && ebayMedian > spotPrice * 0.5`
+- **Trigger**: `isBullion && spotPrice > 0 && ebayMedian > spotPrice * 0.5 && !skipSpotMath`
 - **Formula**: `FMV = spotPrice * (1 + premiumPct)`
 - **Premium**: derived from `(ebayMedian - spotPrice) / spotPrice`
 - **Premium clamp**: [-5%, +40% gold (>$500/oz), +100% silver]
 - **Greysheet blend**: if available, 85% spot-premium + 15% wholesale
 - **Why**: tracks metal price moves instantly instead of lagging with 30-day median
+- **#282H -- skipSpotMath gate**: `skipSpotMath = wantsProof || wantsReverseProof`. Proof and reverse-proof intent SKIP this branch entirely (their premiums are decoupled from spot; clamping at silver_spot * 2 / gold_spot * 1.4 silently collapses dozens of dates to one number). Proof traffic flows to certified-blend / raw-blend using the proof-only comp pool.
 
 ### 2. Certified Blend (method: `certified-blend`)
 - **Trigger**: `pcgs.verified == true` and not bullion-spot-premium
@@ -31,8 +32,20 @@ Consumed by: priceRoute, barPriceRoute, pricingBatchRoute, bulkEvaluateService
 - **Weights**: eBay 70%, PCGS Guide 10%, Greysheet 20%
 - **No auction**: raw coins rarely appear in auction records
 
-### Fallback
-- If ALL sources unavailable: returns `{ fmvCore: null, confidence: 0 }`
+### Bullion fallback ladder (no eBay comps)
+
+When `isBullion && spotPrice > 0 && ebayMedian == null && !skipSpotMath`, the engine walks a 2-step ladder (#282H, supersedes the bare-spot-only fallback from #188):
+
+1. **`bullion-greysheet-anchor`** -- if `greysheetVal != null && greysheetVal >= spotPrice * 0.8`:
+   - `FMV = 0.7 * greysheetVal + 0.3 * spotPrice`
+   - Greysheet is dealer wholesale (CDN), licensed and curated; when it sits at least 80% of spot it represents a real, defensible bullion FMV. The 30% spot weight keeps the number responsive to metal-price moves; the 80% guard rejects nominal / stale rows that would drag FMV well below current metal value.
+2. **`bullion-spot-only`** -- otherwise:
+   - `FMV = spotPrice` (0% premium, conservative floor; preserves #188 behavior).
+
+Proof / reverse-proof intent skips this ladder entirely (`skipSpotMath`). When proof comps are also empty and no proof Greysheet / PCGS guide is available, the engine returns `fmvCore: null` with an explicit explanation citing "no proof comps; BU not substituted (would give a wrong number, not a missing one)".
+
+### Fallback (NO DATA)
+- If ALL sources unavailable (no comps, no guide, no Greysheet, AND no usable spot/bullion path): returns `{ fmvCore: null, confidence: 0 }` with a `NO DATA` explanation.
 
 ## Weighted Median (eBay component)
 

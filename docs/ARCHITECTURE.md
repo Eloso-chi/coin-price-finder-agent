@@ -971,6 +971,8 @@ The valuation engine separates eBay comps by `gradeType` (three-way split):
 
 This ensures unslabbed proof coins (e.g. Proof Libertads in OGP) don't inflate raw BU valuations.
 
+**#282H -- proof / RP skip the bullion spot+premium branch.** Once the proof comp pool is selected, the engine also sets `skipSpotMath = wantsProof || wantsReverseProof`. This routes proof traffic through the standard comp-blend path (`raw-blend` / `certified-blend`) rather than the `bullion-spot-premium` math, whose silver / gold premium clamps (spot * 2 / spot * 1.4) would silently collapse dozens of distinct proof dates to one FMV. For BU bullion queries with no eBay comps, the fallback ladder is `bullion-greysheet-anchor` (Greysheet >= 80% of spot) -> `bullion-spot-only`. See [docs/memory/decision-engine-spec.md](docs/memory/decision-engine-spec.md) for the full mode list and triggers.
+
 ---
 
 ## Environment Variables
