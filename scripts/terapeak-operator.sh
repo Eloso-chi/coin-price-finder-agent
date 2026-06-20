@@ -24,6 +24,15 @@ COIN_TYPE=""
 EXTRA_ARGS=()
 
 STATE_FILE="cache/terapeak-startup-state.json"
+LOCK_FILE="cache/terapeak-operator.lock"
+LOCK_PID_FILE="cache/terapeak-operator.lock.pid"
+
+RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)-$$"
+STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+CURRENT_STAGE="init"
+PYTHON_BIN=""
+
+LOCK_FD=0
 
 usage() {
   cat <<'EOF'
@@ -47,18 +56,48 @@ Examples:
 EOF
 }
 
+resolve_python_bin() {
+  # Prefer active venv, then known project venvs, then system python3.
+  if [[ -n "${VIRTUAL_ENV:-}" ]] && [[ -x "$VIRTUAL_ENV/bin/python" ]]; then
+    PYTHON_BIN="$VIRTUAL_ENV/bin/python"
+    return
+  fi
+
+  local candidates=(
+    "$PROJECT_DIR/.venv-u24b/bin/python"
+    "$PROJECT_DIR/.venv-u24/bin/python"
+    "$PROJECT_DIR/.venv/bin/python"
+  )
+  local candidate
+  for candidate in "${candidates[@]}"; do
+    if [[ -x "$candidate" ]]; then
+      PYTHON_BIN="$candidate"
+      return
+    fi
+  done
+
+  if command -v python3 >/dev/null 2>&1; then
+    PYTHON_BIN="$(command -v python3)"
+    return
+  fi
+
+  echo "[operator] python3 not found and no project venv detected" >&2
+  exit 1
+}
+
 write_state() {
   local stage="$1"
   local status="$2"
   local message="$3"
+  local exit_code="${4:-0}"
   mkdir -p cache
-  python3 - "$STATE_FILE" "$stage" "$status" "$message" <<'PY'
+  "$PYTHON_BIN" - "$STATE_FILE" "$stage" "$status" "$message" "$RUN_ID" "$STARTED_AT" "$exit_code" <<'PY'
 import json
 import os
 import sys
 from datetime import datetime, timezone
 
-path, stage, status, message = sys.argv[1:5]
+path, stage, status, message, run_id, started_at, exit_code = sys.argv[1:8]
 state = {}
 if os.path.exists(path):
     try:
@@ -68,16 +107,35 @@ if os.path.exists(path):
         state = {}
 
 state.update({
+    "runId": run_id,
+    "startedAt": started_at,
     "updatedAt": datetime.now(timezone.utc).isoformat(),
     "stage": stage,
     "status": status,
     "message": message,
     "pid": os.getpid(),
+    "exitCode": int(exit_code),
 })
 
-with open(path, 'w', encoding='utf-8') as fh:
+if status in ("ok", "failed"):
+    state["endedAt"] = datetime.now(timezone.utc).isoformat()
+
+tmp = f"{path}.tmp"
+with open(tmp, 'w', encoding='utf-8') as fh:
     json.dump(state, fh, indent=2, sort_keys=True)
+os.replace(tmp, path)
 PY
+}
+
+cleanup() {
+  local rc=$?
+  if [[ $rc -ne 0 ]]; then
+    write_state "$CURRENT_STAGE" "failed" "Operator failed in stage: $CURRENT_STAGE" "$rc" || true
+  fi
+  if [[ -f "$LOCK_PID_FILE" ]] && [[ "$(cat "$LOCK_PID_FILE" 2>/dev/null || true)" == "$$" ]]; then
+    rm -f "$LOCK_PID_FILE"
+  fi
+  exit $rc
 }
 
 while [[ $# -gt 0 ]]; do
@@ -125,6 +183,19 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+resolve_python_bin
+
+mkdir -p cache
+exec {LOCK_FD}>"$LOCK_FILE"
+if ! flock -n "$LOCK_FD"; then
+  holder="$(cat "$LOCK_PID_FILE" 2>/dev/null || echo "unknown")"
+  echo "[operator] Another Terapeak operator run is active (pid=$holder). Exiting." >&2
+  exit 1
+fi
+echo "$$" > "$LOCK_PID_FILE"
+
+trap cleanup EXIT
+
 if ! [[ "$PAUSE_SECONDS" =~ ^[0-9]+$ ]]; then
   echo "pause-between must be a positive integer" >&2
   exit 1
@@ -137,23 +208,27 @@ fi
 
 PASS=1
 
+CURRENT_STAGE="preflight-login"
 write_state "preflight-login" "running" "Checking startup prerequisites"
 bash scripts/terapeak-startup-preflight.sh --env-file "$ENV_FILE" --mode login
 write_state "preflight-login" "ok" "Startup prerequisites satisfied"
 
 if [[ "$DO_LOGIN" == true ]]; then
+  CURRENT_STAGE="login"
   write_state "login" "running" "Starting interactive eBay login"
   # shellcheck disable=SC1090
   set -a; source "$ENV_FILE"; set +a
-  python3 scripts/terapeak-export.py --login
+  "$PYTHON_BIN" scripts/terapeak-export.py --login
   write_state "login" "ok" "Interactive login completed"
 fi
 
+CURRENT_STAGE="preflight-loop"
 write_state "preflight-loop" "running" "Validating cookie health for loop"
 bash scripts/terapeak-startup-preflight.sh --env-file "$ENV_FILE" --mode loop
 write_state "preflight-loop" "ok" "Loop preflight passed"
 
 while true; do
+  CURRENT_STAGE="loop-pass"
   write_state "loop-pass" "running" "Starting pass ${PASS}"
   echo "== Terapeak operator pass ${PASS} =="
 
@@ -194,5 +269,6 @@ while true; do
   PASS=$((PASS + 1))
 done
 
-write_state "done" "ok" "Operator run finished successfully"
+CURRENT_STAGE="done"
+write_state "done" "ok" "Operator run finished successfully" 0
 echo "[operator] done"

@@ -173,6 +173,16 @@ Terapeak loads, then close the window. The script writes the jar to
 Use the operator wrapper instead of ad-hoc command chains. It enforces a
 strict sequence and writes run state to `cache/terapeak-startup-state.json`.
 
+The wrapper auto-resolves Python in this order:
+1. Active venv (`$VIRTUAL_ENV/bin/python`)
+2. `.venv-u24b/bin/python`
+3. `.venv-u24/bin/python`
+4. `.venv/bin/python`
+5. system `python3`
+
+It also enforces a single-instance lock (`cache/terapeak-operator.lock`) so
+you cannot accidentally launch overlapping operator runs.
+
 ```bash
 # One pass, interactive login included
 bash scripts/terapeak-operator.sh
@@ -189,6 +199,16 @@ The wrapper always does:
 
 If preflight fails, fix the reported issue first; do not continue with manual
 startup commands.
+
+If no project venv is found and system python is missing dependencies, create
+or update a repo venv first:
+
+```bash
+python3 -m venv .venv-u24
+source .venv-u24/bin/activate
+pip install playwright requests
+python3 -m playwright install chromium
+```
 
 ### Fast path: `scripts/cpf-go` (#252)
 
