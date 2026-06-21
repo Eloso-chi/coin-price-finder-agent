@@ -165,6 +165,58 @@ const PROOF_RE = /\bproof\b(?![\s-]*like)/i;
 // route to a dedicated 'reverse-proof' pool.
 const REVERSE_PROOF_RE = /\b(enhanced[\s-]+)?reverse[\s-]+proof\b/i;
 
+// Variant family detection for specialty bullion/numismatic editions.
+// Used by both scoreMatch (soft ranking) and applyFilters (hard filter).
+const VARIANT_FAMILY_TOKENS = {
+  colorized: ['colorized', 'coloured', 'colorised', 'colorized edition', 'colorized coin', 'coloured coin', 'enameled', 'enamelled', 'painted', 'full color', 'full-colour', 'spot color', 'spot-colour'],
+  gilded: ['gilded', 'guilded', 'gold plated', 'gold-plated', 'golden finish', 'gilt'],
+  reverseProof: ['enhanced reverse proof', 'reverse proof'],
+  proof: ['prooflike', 'proof-like'],
+  privy: ['privy'],
+  highRelief: ['high relief', 'ultra high relief', 'uhr'],
+  antiqued: ['antiqued', 'antique finish'],
+  burnished: ['burnished']
+};
+
+const COLORIZED_MINT_ISSUED_TOKENS = ['perth mint', 'royal canadian mint', 'rcm', 'royal mint', 'with coa', 'coa', 'pcgs colorized', 'ngc colorized'];
+const COLORIZED_AFTERMARKET_TOKENS = ['novelty', 'painted by', 'custom', 'art coin', 'hand painted', 'hand-painted'];
+
+function detectVariantFamilies(text) {
+  const tLow = (text || '').toLowerCase();
+  const families = new Set();
+  if (!tLow) return families;
+
+  if (REVERSE_PROOF_RE.test(tLow)) families.add('reverseProof');
+  if (/\bproof\b(?![\s-]*like)/i.test(tLow) && !families.has('reverseProof')) {
+    families.add('proof');
+  }
+
+  for (const [family, tokens] of Object.entries(VARIANT_FAMILY_TOKENS)) {
+    if (family === 'reverseProof' || family === 'proof') continue;
+    if (tokens.some(tok => tLow.includes(tok))) families.add(family);
+  }
+  return families;
+}
+
+function colorizedMintSignal(title) {
+  const tLow = (title || '').toLowerCase();
+  if (!tLow) return 0;
+  if (COLORIZED_MINT_ISSUED_TOKENS.some(tok => tLow.includes(tok))) return 10;
+  if (COLORIZED_AFTERMARKET_TOKENS.some(tok => tLow.includes(tok))) return -10;
+  return 0;
+}
+
+function queryWantsColorized(expected) {
+  const rawQuery = (expected && expected._rawQuery ? expected._rawQuery : '').toLowerCase();
+  const label = (expected && expected.label ? expected.label : '').toLowerCase().trim();
+  const finish = (expected && expected.finish ? expected.finish : '').toLowerCase().trim();
+  return detectVariantFamilies(rawQuery).has('colorized')
+    || label === 'colorized'
+    || label === 'colourized'
+    || finish === 'colorized'
+    || finish === 'colourized';
+}
+
 function isReverseProofTitle(title) {
   return REVERSE_PROOF_RE.test(title || '');
 }
@@ -640,46 +692,38 @@ function scoreMatch(comp, expected) {
     score += 3; notes.push('lunar-match');
   }
 
-  // ── Variant mismatch: gilded / coloured / proof / first strike etc. ──
-  // When the query doesn't ask for a specialty variant, penalise comps whose
-  // title explicitly advertises one — these carry heavy premiums over BU.
-  const VARIANT_TOKENS = ['golden', 'gilded', 'guilded', 'gold plated', 'gold-plated',
-    'colorized', 'coloured', 'colorised', 'colour', 'color', 'enameled', 'purple',
-    'yellow', 'lilac', 'teal',
-    'reverse proof', 'burnished', 'enhanced reverse proof',
-    'satin finish', 'first strike', 'first day', 'first release',
-    'first releases', 'antiqued', 'high relief', 'piedfort', 'privy',
-    'prooflike', 'ruthenium', 'hologram',
-    'flag label', 'brown label', 'blue label', 'black label',
-    'mercanti', 'moy signed', 'reagan'];
-  const queryLower = (expected._rawQuery || '').toLowerCase();
-  const labelLower = (expected.label || '').toLowerCase();
-  const queryVariantTokens = VARIANT_TOKENS.filter(t => queryLower.includes(t));
-  const hasVariantInQuery = queryVariantTokens.length > 0
-    || (expected.finish && expected.finish !== 'Uncirculated')
-    || !!labelLower;
-  if (!hasVariantInQuery) {
-    const hasVariantInTitle = VARIANT_TOKENS.some(t => tLow.includes(t));
-    if (hasVariantInTitle) {
+  // ── Variant mismatch (colorized-first policy) ──
+  // Hard variant treatment is reserved for colorized only:
+  // - default (non-colorized query): penalize colorized titles
+  // - colorized query: prefer colorized; penalize non-colorized specialty variants
+  const wantsColorized = queryWantsColorized(expected);
+  const titleFamilies = detectVariantFamilies(tLow);
+  const isTitleColorized = titleFamilies.has('colorized');
+  if (!wantsColorized) {
+    if (isTitleColorized) {
       score -= 30; notes.push('variant-mismatch');
     }
-  } else if (labelLower) {
-    // Label specified: reward comps whose title contains the label, penalize those without
-    if (tLow.includes(labelLower)) {
-      score += 10; notes.push('label-match');
-    } else {
-      score -= 20; notes.push('label-mismatch');
-    }
-  } else if (queryVariantTokens.length > 0) {
-    // Query asks for a specific variant (e.g. "purple") -- penalize comps that
-    // have a DIFFERENT variant token but NOT the one the query wants.
-    const titleVariantTokens = VARIANT_TOKENS.filter(t => tLow.includes(t));
-    const hasRequestedVariant = queryVariantTokens.some(t => tLow.includes(t));
-    if (titleVariantTokens.length > 0 && !hasRequestedVariant) {
-      score -= 30; notes.push('variant-wrong-color');
-    } else if (hasRequestedVariant) {
+  } else if (titleFamilies.size > 0) {
+    if (isTitleColorized) {
       score += 5; notes.push('variant-match');
+    } else {
+      score -= 30; notes.push('variant-wrong-colorized-family');
     }
+  }
+
+  if (wantsColorized && isTitleColorized) {
+    const mintSignal = colorizedMintSignal(tLow);
+    if (mintSignal > 0) {
+      score += mintSignal;
+      notes.push('colorized-mint-issued');
+    } else if (mintSignal < 0) {
+      score += mintSignal;
+      notes.push('colorized-aftermarket');
+    }
+  }
+
+  if (titleFamilies.has('privy')) {
+    notes.push('privy-info');
   }
 
   // ── Weight / size match for bullion coins (25 pts match, –35 mismatch) ──
@@ -1092,43 +1136,25 @@ function applyFilters(comps, options, expected) {
     });
   }
 
-  // Variant-mismatch hard filter: remove comps with specialty variant tokens
-  // (golden, coloured, gilded, etc.) when the query didn't ask for them.
-  // These carry heavy premiums that distort FMV for regular BU coins.
+  // Variant hard filter (colorized-first policy):
+  // - default (non-colorized query): remove only colorized comps
+  // - colorized query: keep colorized OR plain BU; reject non-colorized specialty variants
   {
-    const VARIANT_TOKENS = ['golden', 'gilded', 'guilded', 'gold plated', 'gold-plated',
-      'colorized', 'coloured', 'colorised', 'color', 'enameled', 'purple',
-      'yellow', 'lilac', 'teal',
-      'reverse proof', 'burnished', 'enhanced reverse proof',
-      'satin finish', 'antiqued', 'high relief', 'piedfort', 'privy',
-      'prooflike', 'ruthenium', 'hologram',
-      'flag label', 'brown label', 'blue label', 'black label',
-      'mercanti', 'moy signed', 'reagan'];
-    const qLow = (expected._rawQuery || '').toLowerCase();
-    const labelLow = (expected.label || '').toLowerCase();
-    const queryVariantTokensHF = VARIANT_TOKENS.filter(t => qLow.includes(t));
-    const queryWantsVariant = queryVariantTokensHF.length > 0
-      || (expected.finish && expected.finish !== 'Uncirculated')
-      || !!labelLow;
-    if (!queryWantsVariant) {
+    const wantsColorizedHF = queryWantsColorized(expected);
+    if (!wantsColorizedHF) {
       removed.variantMismatch = 0;
       kept = kept.filter(c => {
-        const tLow = (c.title || '').toLowerCase();
-        const hasVariant = VARIANT_TOKENS.some(t => tLow.includes(t));
-        if (hasVariant) { removed.variantMismatch++; return false; }
+        const titleFamiliesHF = detectVariantFamilies(c.title);
+        if (titleFamiliesHF.has('colorized')) { removed.variantMismatch++; return false; }
         return true;
       });
-    } else if (queryVariantTokensHF.length > 0) {
-      // Query asks for a specific variant -- keep comps that either:
-      // (a) match the requested variant, or (b) are plain BU (no variant tokens).
-      // Reject comps with a DIFFERENT variant.
+    } else {
+      // Colorized query -- keep colorized family OR plain BU.
       removed.variantWrongColor = 0;
       kept = kept.filter(c => {
-        const tLow = (c.title || '').toLowerCase();
-        const titleHasAnyVariant = VARIANT_TOKENS.some(t => tLow.includes(t));
-        if (!titleHasAnyVariant) return true; // plain BU -- keep
-        const matchesRequested = queryVariantTokensHF.some(t => tLow.includes(t));
-        if (matchesRequested) return true; // matches the requested variant
+        const titleFamiliesHF = detectVariantFamilies(c.title);
+        if (titleFamiliesHF.size === 0) return true; // plain BU -- keep
+        if (titleFamiliesHF.has('colorized')) return true;
         removed.variantWrongColor++;
         return false;
       });

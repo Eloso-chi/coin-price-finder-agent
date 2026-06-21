@@ -177,26 +177,55 @@ describe('applyFilters — melt floor (1oz+)', () => {
 // ═══════════════════════════════════════════════════════════════
 
 describe('applyFilters — variant mismatch', () => {
-  const VARIANT_TITLES = [
-    '2024 Silver Eagle Gilded BU',
-    '2024 Silver Eagle Colorized',
-    '2024 Silver Eagle Reverse Proof',
-    '2024 Silver Eagle Burnished',
-    '2024 Silver Eagle High Relief',
-    '2024 Silver Eagle Antiqued',
-  ];
-
-  test.each(VARIANT_TITLES)('removes variant: "%s"', (title) => {
+  test('removes colorized variant for plain BU query', () => {
+    const title = '2024 Silver Eagle Colorized';
     const comps = [makeComp({ title, matchScore: 70 })];
     const { kept, removed } = applyFilters(comps, {}, { _rawQuery: '2024 Silver Eagle BU' });
     expect(kept.length).toBe(0);
     expect(removed.variantMismatch).toBe(1);
   });
 
+  test('keeps non-colorized specialty variants for plain BU query', () => {
+    const comps = [
+      makeComp({ title: '2024 Silver Eagle Gilded BU', matchScore: 70 }),
+      makeComp({ title: '2024 Silver Eagle Reverse Proof', matchScore: 70 }),
+      makeComp({ title: '2024 Silver Eagle Privy Mark', matchScore: 70 }),
+    ];
+    const { kept, removed } = applyFilters(comps, {}, { _rawQuery: '2024 Silver Eagle BU' });
+    expect(kept.length).toBe(3);
+    expect(removed.variantMismatch).toBe(0);
+  });
+
   test('allows variant when query requests it', () => {
     const comps = [makeComp({ title: '2024 Silver Eagle Reverse Proof', matchScore: 70 })];
     const { kept } = applyFilters(comps, {}, { _rawQuery: '2024 Silver Eagle Reverse Proof' });
     expect(kept.length).toBe(1);
+  });
+
+  test('colorized query keeps colorized and plain BU, removes other specialty families', () => {
+    const comps = [
+      makeComp({ title: '2024 Silver Eagle Colorized Perth Mint with COA', matchScore: 70 }),
+      makeComp({ title: '2024 Silver Eagle BU', matchScore: 70 }),
+      makeComp({ title: '2024 Silver Eagle Gilded', matchScore: 70 }),
+      makeComp({ title: '2024 Silver Eagle Reverse Proof', matchScore: 70 }),
+    ];
+    const { kept, removed } = applyFilters(comps, {}, { _rawQuery: '2024 Silver Eagle Colorized' });
+    expect(kept.length).toBe(2);
+    expect(kept.some(c => /Colorized/i.test(c.title))).toBe(true);
+    expect(kept.some(c => /\bBU\b/i.test(c.title))).toBe(true);
+    expect(removed.variantWrongColor).toBe(2);
+  });
+
+  test('label-only family intent applies family-aware filtering', () => {
+    const comps = [
+      makeComp({ title: '2024 Silver Eagle Colorized', matchScore: 70 }),
+      makeComp({ title: '2024 Silver Eagle Privy Mark', matchScore: 70 }),
+      makeComp({ title: '2024 Silver Eagle Gilded', matchScore: 70 }),
+      makeComp({ title: '2024 Silver Eagle BU', matchScore: 70 }),
+    ];
+    const { kept, removed } = applyFilters(comps, {}, { label: 'Colorized' });
+    expect(kept.length).toBe(2);
+    expect(removed.variantWrongColor).toBe(2);
   });
 });
 
@@ -488,6 +517,34 @@ describe('scoreMatch()', () => {
       _rawQuery: '2024 Silver Eagle 1 oz'
     });
     expect(comp.matchNotes).toContain('weight-mismatch');
+  });
+
+  test('colorized mint-issued scores above aftermarket colorized', () => {
+    const mintIssued = makeComp({ title: '2024 Silver Eagle Colorized Perth Mint with COA' });
+    const aftermarket = makeComp({ title: '2024 Silver Eagle Colorized hand painted custom art coin' });
+    const expected = {
+      year: 2024,
+      series: 'Silver Eagle',
+      _rawQuery: '2024 Silver Eagle Colorized'
+    };
+
+    scoreMatch(mintIssued, expected);
+    scoreMatch(aftermarket, expected);
+
+    expect(mintIssued.matchNotes).toContain('colorized-mint-issued');
+    expect(aftermarket.matchNotes).toContain('colorized-aftermarket');
+    expect(mintIssued.matchScore).toBeGreaterThan(aftermarket.matchScore);
+  });
+
+  test('privy is informational-only (no mismatch penalty)', () => {
+    const privyComp = makeComp({ title: '2024 Silver Eagle Privy Mark BU' });
+    scoreMatch(privyComp, {
+      year: 2024,
+      series: 'Silver Eagle',
+      _rawQuery: '2024 Silver Eagle BU'
+    });
+    expect(privyComp.matchNotes).toContain('privy-info');
+    expect(privyComp.matchNotes).not.toContain('variant-mismatch');
   });
 });
 
