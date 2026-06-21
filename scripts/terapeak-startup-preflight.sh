@@ -139,10 +139,20 @@ if ! compgen -G "$HOME/.cache/ms-playwright/chromium-*" >/dev/null; then
 fi
 ok "Playwright Chromium payload present"
 
+# Check for flock availability (required for single-instance lock in operator)
+command -v flock >/dev/null 2>&1 || \
+  fail "flock command not found (required for operator lock). Install util-linux package."
+ok "flock command available"
+
 if [[ "$MODE" == "loop" ]]; then
-  if ! "$PYTHON_BIN" scripts/cookie-health-check.py >/tmp/terapeak-cookie-health.out 2>&1; then
+  # Use mktemp for isolation when multiple preflights might run in parallel
+  probe_out=""
+  probe_out="$(mktemp)"
+  trap "rm -f '$probe_out'" RETURN
+  
+  if ! "$PYTHON_BIN" scripts/cookie-health-check.py >"$probe_out" 2>&1; then
     rc=$?
-    cat /tmp/terapeak-cookie-health.out >&2 || true
+    cat "$probe_out" >&2 || true
     fail "Cookie health is not ready for loop start (exit $rc)"
   fi
   ok "Cookie health is READY for loop mode"

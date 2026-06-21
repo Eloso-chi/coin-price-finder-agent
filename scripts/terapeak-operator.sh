@@ -186,6 +186,21 @@ done
 resolve_python_bin
 
 mkdir -p cache
+# Validate flock before attempting lock
+command -v flock >/dev/null 2>&1 || {
+  echo "[operator] flock command not found (required for single-instance lock)." >&2
+  echo "[operator] Install util-linux package and try again." >&2
+  exit 1
+}
+
+# Set default UPLOAD_MODE (api for immediate ingestion per runbook-recommended local profile)
+: "${UPLOAD_MODE:=api}"
+export UPLOAD_MODE
+
+if [[ "$UPLOAD_MODE" != "api" ]]; then
+  echo "[operator:INFO] UPLOAD_MODE=$UPLOAD_MODE (inherited from environment)." >&2
+fi
+
 exec {LOCK_FD}>"$LOCK_FILE"
 if ! flock -n "$LOCK_FD"; then
   holder="$(cat "$LOCK_PID_FILE" 2>/dev/null || echo "unknown")"
