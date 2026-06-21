@@ -375,8 +375,10 @@ Notes:
 
 ### Upload mode (UPLOAD_MODE) -- #251
 
-The Surface launcher and `run-surface-freshness-loop.sh` set `UPLOAD_MODE=api`
-unless you override it. The exporter (`terapeak-export.py`) supports three modes:
+Direct `surface` / `run-surface-freshness-loop.sh` runs default to
+`UPLOAD_MODE=blob` when unset. The canonical `scripts/terapeak-operator.sh`
+wrapper defaults `UPLOAD_MODE=api` and exports it before invoking the loop.
+The exporter (`terapeak-export.py`) supports three modes:
 
 | Mode  | Behavior                                                                                     | Ingestion latency                                                |
 |-------|----------------------------------------------------------------------------------------------|------------------------------------------------------------------|
@@ -384,8 +386,9 @@ unless you override it. The exporter (`terapeak-export.py`) supports three modes
 | `blob`| Upload to Azure Blob only. No API fallback. Errors if blob env vars are missing.             | Deferred until server startup or explicit `/api/terapeak/reimport`. |
 | `auto`| Legacy: blob first if configured, else API.                                                  | Mixed -- not recommended for daily ops.                          |
 
-Local-ops profile (recommended): leave `UPLOAD_MODE` unset and do NOT set
-`TERAPEAK_BLOB_ACCOUNT` / `TERAPEAK_BLOB_CONTAINER`. Bulk-backfill profile:
+Local-ops profile (recommended): use `bash scripts/terapeak-operator.sh`
+and leave `UPLOAD_MODE` unset (operator defaults to `api`), while keeping
+`TERAPEAK_BLOB_ACCOUNT` / `TERAPEAK_BLOB_CONTAINER` unset. Bulk-backfill profile:
 set `UPLOAD_MODE=blob` plus blob env vars and follow up with a manual call to
 `POST /api/terapeak/reimport`.
 

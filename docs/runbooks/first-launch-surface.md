@@ -85,7 +85,7 @@ just orientation; the runbook is the source of truth.
 > setup completes: health-check (no `--probe`) -> `--login` flow ->
 > health-check `--probe` -> a 15-coin `--run` batch against the App Service
 > `APP_URL`. Use `bash scripts/bootstrap-surface-wsl.sh` for fast setup, then
-> `bash scripts/run-surface-freshness-loop.sh --env-file ~/.env.surface` for
+> `bash scripts/terapeak-operator.sh` for
 > repeatable long-run batches.
 
 ---

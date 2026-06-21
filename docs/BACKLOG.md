@@ -2492,7 +2492,7 @@ and obscures regressions in unrelated PRs.
 
 ### #251. Local vs Codespaces Scraper Parity and Write-Path Hardening [P1 -- OPERATIONS/DATA-INTEGRITY] -- DONE 2026-06-03
 
-**Status:** Shipped. Exporter now has an explicit `UPLOAD_MODE` selector (default `api`), the Surface loop wrapper sets `UPLOAD_MODE=api` unless overridden, blob mode no longer silently falls back to the API, and an optional `VERIFY_IMPORT=1` switch surfaces deferred-ingestion warnings. Runbooks (Surface + travel) and `scripts/README.md` carry a single parity matrix and a decision table. A source-level contract test pins the contract.
+**Status:** Shipped. Exporter now has an explicit `UPLOAD_MODE` selector (default `api`), blob mode no longer silently falls back to the API, and an optional `VERIFY_IMPORT=1` switch surfaces deferred-ingestion warnings. Current launcher defaults are split by entrypoint: direct `surface` / `run-surface-freshness-loop.sh` runs default to `UPLOAD_MODE=blob` when unset, while `scripts/terapeak-operator.sh` defaults to `UPLOAD_MODE=api` and exports it before invoking the loop. Runbooks (Surface + travel) and `scripts/README.md` carry the parity matrix and decision table. A source-level contract test pins the contract.
 
 **Verified Azure write-path truths (recorded for reference):**
 1. `POST /api/terapeak/import` runs `importComps` immediately and drives freshness/dormancy progression.
@@ -2502,11 +2502,11 @@ and obscures regressions in unrelated PRs.
 
 **Files:**
 - MOD `scripts/terapeak-export.py` (UPLOAD_MODE + VERIFY_IMPORT + blob-only branch with no API fallback)
-- MOD `scripts/run-surface-freshness-loop.sh` (default `UPLOAD_MODE=api`, exported; warn on overrides)
+- MOD `scripts/run-surface-freshness-loop.sh` (default `UPLOAD_MODE=blob`, exported; warn on non-api runs)
 - MOD `docs/runbooks/local-scraper-wsl2.md` (parity matrix + operator notes)
 - MOD `docs/runbooks/scraper-travel-mode.md` (parity matrix + operator notes)
 - MOD `scripts/README.md` (UPLOAD_MODE section + decision table)
-- NEW `__tests__/terapeakExportUploadMode.test.js` (5 source-contract assertions, all green)
+- NEW `__tests__/terapeakExportUploadMode.test.js` (source-contract assertions, all green)
 
 **Out of scope (kept for follow-up):**
 - Making Cosmos write-through blocking/transactional inside `/api/terapeak/import`.

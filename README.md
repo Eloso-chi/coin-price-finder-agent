@@ -753,6 +753,8 @@ scripts/
   chain-aggregate.sh               Chain multiple aggregation batches sequentially with anti-bot monitoring
   refresh-stale.sh                 One-command stale data refresh (queries staleness API, builds filter, runs aggregator)
   cpf-go                           One-command WSL bootstrap + scraper launcher: apt prereqs, repo clone/pull, venv, Playwright Chromium, npm ci, optional cookie refresh, looped ./surface (#258; merge commit reads `#252`). Page-1 batch size randomized (15-30) per loop pass for bot evasion (#268H). See docs/runbooks/local-scraper-wsl2.md "Fast path".
+  terapeak-operator.sh             Canonical deterministic Terapeak launcher: preflight(login) -> optional login -> preflight(loop) -> freshness pass (#168)
+  terapeak-startup-preflight.sh    Startup gate for env/runtime/tooling/cookie health checks (login or loop mode) (#168)
   run-surface-freshness-loop.sh    Orchestrator invoked by ./surface: sync meta from Azure (#259) -> generate freshness report -> page-1 backlog batch -> optional deep-paginate. Logs each phase and exits non-zero on bot block so cpf-go's --loop knows to stop.
   load-secrets.sh                  Pull 8 dev secrets (eBay, PCGS, Greysheet, ADMIN_API_KEY, JWT_SECRET) from Azure Key Vault `coinpricefinder-kv` into local `.env` (mode 600 via umask 077). Modes: dryrun (default), `--print`, `--write`. Used by new-machine bootstrap and after secret rotation. (#137; see docs/runbooks/secret-bootstrap.md)
   pricing-health-full.js           Pricing health check runner (--full, --filter, --limit, --concurrency, --out)
@@ -776,6 +778,16 @@ scripts/
 ---
 
 ## Recent Changes
+
+### Deterministic Terapeak startup operator (#168, June 21, 2026)
+
+- Added `scripts/terapeak-operator.sh` and `scripts/terapeak-startup-preflight.sh` as the canonical startup flow (`preflight-login -> login -> preflight-loop -> freshness pass`) with lock + state tracking.
+- Added `.github/agents/terapeak-operator.agent.md` so chat can run the canonical launcher without ad-hoc command construction.
+- Added startup hardening checks (explicit `flock` dependency gate, isolated preflight temp output via `mktemp`).
+- Upload-mode default behavior is now split by entrypoint:
+  - `scripts/terapeak-operator.sh` defaults `UPLOAD_MODE=api` for immediate ingestion.
+  - Direct `surface` / `run-surface-freshness-loop.sh` runs default `UPLOAD_MODE=blob` when unset.
+  - Set `UPLOAD_MODE` explicitly when you need non-default behavior.
 
 ### Secret bootstrap runbook + `load-secrets.sh` helper (#137, #138, June 15-16, 2026)
 
@@ -825,7 +837,6 @@ scripts/
 - **`scripts/cpf-go`** -- one-command bootstrap + run wrapper for the WSL/Surface scraper path. Sections: WSL sanity check -> apt prereqs (node v22, python3-venv) -> repo clone/pull -> Python venv + Playwright Chromium -> `npm ci` -> env sanity (`.env.surface`, `load-cpf-env.sh`) -> optional interactive cookie refresh via `terapeak-export.py --login` -> exec/loop `./surface --skip-probe`.
 - **Flags:** `--no-login` (reuse cookies), `--loop` (re-run until non-zero exit), `--pause-between=SEC` (default 300). All other flags forwarded to `./surface` / `run-surface-freshness-loop.sh`.
 - **`.gitattributes`** -- enforces LF on `*.sh` and `scripts/cpf-go`. CRLF endings cause bash to treat the trailing `\r` as an extra argument and crash the freshness loop with `Unknown argument:`.
-- Full runbook coverage in [docs/runbooks/local-scraper-wsl2.md](docs/runbooks/local-scraper-wsl2.md) including operational guardrails (Akamai cooldown, 3-strike bot detection, concurrent-scraper warning, sleep prevention) and quick status snippets.
 - Full runbook coverage in [docs/runbooks/local-scraper-wsl2.md](docs/runbooks/local-scraper-wsl2.md) including operational guardrails (Akamai cooldown, 3-strike bot detection, concurrent-scraper warning, sleep prevention) and quick status snippets.
 
 ### Freshness Classifier Alignment (#229, May 31, 2026)

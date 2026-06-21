@@ -22,6 +22,8 @@ Operational scripts for data collection, migration, and maintenance. Most script
 | `sales-aggregator.py` | Deep pagination aggregator (pages 2-6) with dashboard mode | `python3 scripts/sales-aggregator.py` (dashboard) or `--run --limit 10` |
 | `bootstrap-surface-wsl.sh` | One-command Surface/WSL bootstrap for PR250 flow (deps, venv, Playwright, env templates) | `bash scripts/bootstrap-surface-wsl.sh` |
 | `surface` | One-word launcher for the Surface freshness loop (loads validated env + runs loop) | `surface` |
+| `terapeak-operator.sh` | Canonical deterministic launcher: preflight(login) -> optional login -> preflight(loop) -> freshness pass | `bash scripts/terapeak-operator.sh` |
+| `terapeak-startup-preflight.sh` | Startup gate for runtime/env/tooling/cookie health checks (login or loop mode) | `bash scripts/terapeak-startup-preflight.sh --mode login` |
 | `run-surface-freshness-loop.sh` | Surface/WSL wrapper: report -> page 1 backlog -> report -> deep backlog -> report | `bash scripts/run-surface-freshness-loop.sh --env-file ~/.env.surface` |
 | `vnc-login.py` | Opens browser, waits for eBay login, saves cookies | `python3 scripts/vnc-login.py` |
 | `create_placeholders.py` | Create placeholder CSVs + meta files for export backlog | `python3 scripts/create_placeholders.py` |
@@ -168,9 +170,10 @@ The exporter `terapeak-export.py` honors `UPLOAD_MODE` for choosing the persiste
 | `auto`| Legacy: blob first if configured, fall back to API.                                             | Compatibility for old workflows.     | Mixed -- not recommended for daily ops. |
 
 Defaults:
-- The `surface` launcher and `run-surface-freshness-loop.sh` set `UPLOAD_MODE=api` unless the operator overrides it.
+- Direct `surface` / `run-surface-freshness-loop.sh` runs default `UPLOAD_MODE=blob` when unset.
+- The canonical `scripts/terapeak-operator.sh` wrapper defaults `UPLOAD_MODE=api` and exports it before calling the loop script.
 - Operator notes:
-  - Local-ops profile: leave `UPLOAD_MODE` unset (defaults to `api`) and do NOT set `TERAPEAK_BLOB_ACCOUNT`/`TERAPEAK_BLOB_CONTAINER`.
+  - Local-ops profile: use `bash scripts/terapeak-operator.sh` and leave `UPLOAD_MODE` unset (operator defaults to `api`).
   - Bulk-backfill profile: set `UPLOAD_MODE=blob` plus blob env vars, then explicitly invoke `POST /api/terapeak/reimport` to ingest.
   - Set `VERIFY_IMPORT=1` to log explicit warnings whenever the upload path cannot confirm immediate ingestion (e.g. blob mode).
 

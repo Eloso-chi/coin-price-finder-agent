@@ -115,10 +115,11 @@ python3 scripts/terapeak-export.py --batch 10
 
 ### Upload mode (UPLOAD_MODE) -- #251
 
-Travel mode follows the same parity defaults as Surface: `UPLOAD_MODE=api`
-(immediate import via `APP_URL/api/terapeak/import`). Set `UPLOAD_MODE=blob`
-only for explicit bulk-backfill profiles, in which case ingestion is deferred
-until server startup or an explicit `POST /api/terapeak/reimport` call.
+Direct travel-mode runs via `run-surface-freshness-loop.sh` default
+`UPLOAD_MODE=blob` when unset. If you need immediate import through
+`APP_URL/api/terapeak/import`, set `UPLOAD_MODE=api` explicitly in your
+session before starting the run. Keep `UPLOAD_MODE=blob` for explicit
+bulk-backfill profiles where deferred ingestion is expected.
 
 Do NOT set `TERAPEAK_BLOB_ACCOUNT` / `TERAPEAK_BLOB_CONTAINER` for the
 default travel workflow -- they cause `auto` mode to attempt blob-first uploads.

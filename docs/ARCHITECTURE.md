@@ -115,6 +115,8 @@ server.js                              Express entry point (port 3000)
 │
 ├─ scripts/
 │   ├─ cpf-go                          One-command WSL bootstrap + scraper launcher (#258; merge commit reads #252); page-1 batch size randomized 15-30 per loop pass for bot evasion (#268H)
+│   ├─ terapeak-operator.sh             Canonical deterministic launcher: preflight(login) -> optional login -> preflight(loop) -> freshness pass (#168)
+│   ├─ terapeak-startup-preflight.sh    Startup preflight gate (runtime/env/tooling/cookie health) for operator flow (#168)
 │   ├─ run-surface-freshness-loop.sh   Orchestrator: meta sync (#259; merge commit reads #253) -> freshness report -> page-1 batch -> deep-paginate
 │   ├─ load-secrets.sh                 Pull 8 dev secrets from Azure Key Vault `coinpricefinder-kv` into `.env` (mode 600); modes dryrun/--print/--write (#137)
 │   ├─ terapeak-export.py              Semi-automated Terapeak CSV exporter (Playwright + blob upload)

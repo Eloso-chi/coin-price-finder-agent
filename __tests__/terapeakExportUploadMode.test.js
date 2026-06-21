@@ -4,7 +4,9 @@
  * Source-level contract test for scripts/terapeak-export.py. The exporter
  * must expose an explicit UPLOAD_MODE selector (api|blob|auto) defaulting to
  * `api`, must have a blob branch that does NOT fall back to the API, and the
- * surface loop wrapper must default UPLOAD_MODE to `api`.
+ * launcher defaults must remain explicit:
+ * - run-surface-freshness-loop.sh defaults UPLOAD_MODE to `blob`
+ * - terapeak-operator.sh defaults UPLOAD_MODE to `api`
  *
  * This is a static-source assertion, not a runtime test. We do not invoke
  * Python from the JS test runner -- the goal is to fail loudly if a future
@@ -16,6 +18,7 @@ const path = require('path');
 
 const EXPORT_SCRIPT = path.join(__dirname, '..', 'scripts', 'terapeak-export.py');
 const LOOP_SCRIPT = path.join(__dirname, '..', 'scripts', 'run-surface-freshness-loop.sh');
+const OPERATOR_SCRIPT = path.join(__dirname, '..', 'scripts', 'terapeak-operator.sh');
 
 describe('#251 UPLOAD_MODE contract (terapeak-export.py)', () => {
   let source;
@@ -51,11 +54,18 @@ describe('#251 UPLOAD_MODE contract (terapeak-export.py)', () => {
   });
 });
 
-describe('#251 surface loop defaults UPLOAD_MODE to api', () => {
-  test('run-surface-freshness-loop.sh sets UPLOAD_MODE default to api', () => {
+describe('#251 launcher UPLOAD_MODE defaults', () => {
+  test('run-surface-freshness-loop.sh sets UPLOAD_MODE default to blob', () => {
     const loop = fs.readFileSync(LOOP_SCRIPT, 'utf8');
-    // Parameter-expansion default assignment: ${UPLOAD_MODE:=api}
-    expect(loop).toMatch(/\$\{\s*UPLOAD_MODE\s*:?=\s*api\s*\}/);
+    // Parameter-expansion default assignment: ${UPLOAD_MODE:=blob}
+    expect(loop).toMatch(/\$\{\s*UPLOAD_MODE\s*:?=\s*blob\s*\}/);
     expect(loop).toMatch(/export\s+UPLOAD_MODE/);
+  });
+
+  test('terapeak-operator.sh sets UPLOAD_MODE default to api', () => {
+    const operator = fs.readFileSync(OPERATOR_SCRIPT, 'utf8');
+    // Parameter-expansion default assignment: ${UPLOAD_MODE:=api}
+    expect(operator).toMatch(/\$\{\s*UPLOAD_MODE\s*:?=\s*api\s*\}/);
+    expect(operator).toMatch(/export\s+UPLOAD_MODE/);
   });
 });
