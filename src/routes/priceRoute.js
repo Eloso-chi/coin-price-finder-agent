@@ -147,6 +147,18 @@ router.post('/', async (req, res) => {
     const rawLabel = coinData?.label || identification.parsed?.label || null;
     const validLabel = (rawLabel && ALLOWED_LABELS.has(rawLabel)) ? rawLabel : null;
 
+    // #277H Phase 1: specialty variant labels route to a separate Terapeak dataset
+    // key by appending the canonical variant token to eBay keywords. Slab pedigree
+    // labels (First Strike, Early Releases, First Day of Issue) and Type 1/2 are
+    // NOT appended -- they don't warrant a separate comp pool.
+    const VARIANT_LABEL_TOKENS = new Set([
+      'Colorized', 'Gilded', 'Privy', 'High Relief', 'Antiqued', 'Burnished',
+      'Hologram', 'Gold Plated', 'Ruthenium',
+    ]);
+    const variantSuffix = (validLabel && VARIANT_LABEL_TOKENS.has(validLabel))
+      ? validLabel.toLowerCase()
+      : null;
+
     let ebayKeywords;
     if (isRoll) {
       // For rolls/tubes, build targeted keywords (PCGS won't price these)
@@ -220,6 +232,11 @@ router.post('/', async (req, res) => {
           ebayKeywords += ' ' + perthSeriesLabel;
         }
       }
+    }
+
+    // ── #277H Phase 1: append variant suffix to route Terapeak lookup to variant key ──
+    if (variantSuffix && !ebayKeywords.toLowerCase().includes(variantSuffix)) {
+      ebayKeywords += ' ' + variantSuffix;
     }
 
     // ── 3. Fetch eBay comps (US + Global) ──

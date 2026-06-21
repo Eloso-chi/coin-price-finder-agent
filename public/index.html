@@ -1330,14 +1330,31 @@
             <span class="hint">Sheldon scale — PCGS, NGC, or raw estimate</span>
           </div>
           <div class="field">
-            <label for="coinLabel">Label / Pedigree</label>
+            <label for="coinLabel">Label / Variant</label>
             <select id="coinLabel">
-              <option value="">(none)</option>
-              <option value="First Strike">First Strike</option>
-              <option value="Early Releases">Early Releases</option>
-              <option value="First Day of Issue">First Day of Issue</option>
+              <option value="">(none / auto)</option>
+              <optgroup label="Specialty Variants">
+                <option value="Colorized">Colorized</option>
+                <option value="Gilded">Gilded</option>
+                <option value="Privy">Privy</option>
+                <option value="High Relief">High Relief</option>
+                <option value="Antiqued">Antiqued</option>
+                <option value="Burnished">Burnished</option>
+                <option value="Hologram">Hologram</option>
+                <option value="Gold Plated">Gold Plated</option>
+                <option value="Ruthenium">Ruthenium</option>
+              </optgroup>
+              <optgroup label="Slab Pedigree">
+                <option value="First Strike">First Strike</option>
+                <option value="Early Releases">Early Releases</option>
+                <option value="First Day of Issue">First Day of Issue</option>
+              </optgroup>
+              <optgroup label="Type / Design">
+                <option value="Type 1">Type 1</option>
+                <option value="Type 2">Type 2</option>
+              </optgroup>
             </select>
-            <span class="hint">PCGS / NGC slab pedigree label only. Finishes (Proof, Reverse Proof, Burnished, etc.) now live in the Finish dropdown.</span>
+            <span class="hint">Specialty variant routes to a separate Terapeak dataset for that variant. Finishes (Proof, Reverse Proof, etc.) live in the Finish dropdown.</span>
           </div>
           <div class="field">
             <label for="askingPrice">Asking Price</label>

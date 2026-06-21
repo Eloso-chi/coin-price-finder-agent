@@ -451,7 +451,7 @@ PR A is a *preventive* fix: it rewrites 133 `.meta` files to match the CSV filen
 
 ---
 
-### #266H. Ship Phase 2 + Phase 3 of #246 -- normalizeSearchKey alias map + duplicate-key merger [P2 -- DATA-QUALITY] -- Phase 2 DONE 2026-06-18 (PR #155); Phase 3 OPEN
+### #266H. Ship Phase 2 + Phase 3 of #246 -- normalizeSearchKey alias map + duplicate-key merger [P2 -- DATA-QUALITY] -- Phase 2 DONE 2026-06-18 (PR #155); Phase 3 script DONE 2026-06-18 (PR #157); live migration OPEN
 
 **Status (2026-06-18):** Phase 2 shipped in PR #155. Phase 3 (one-shot merger script) remains OPEN -- see the Phase 3 block below.
 
@@ -678,7 +678,7 @@ Fix 2 is the narrow patch; Fix 1 is the structural one. Recommend doing both: Fi
 
 ---
 
-### #271H. Followups from PR #132 deep review -- noDataCount cap, integration test, /report-no-data parity [P3 -- TECH-DEBT / TEST-HARDENING] -- OPEN 2026-06-16
+### #271H. Followups from PR #132 deep review -- noDataCount cap, integration test, /report-no-data parity [P3 -- TECH-DEBT / TEST-HARDENING] -- DONE 2026-06-19 (PR #163)
 
 **Origin:** Deep code review of PR #132 (#269H fix) surfaced four non-blocking quality issues that were deferred from the merge so Wave 1 could ship clean. Bundling here.
 
@@ -841,7 +841,7 @@ function normalizeSeries(series) {
 
 ---
 
-### #277H. Colorized / specialty-variant coins -- end-to-end disambiguation, comp filtering, and FMV math [P2 -- FEATURE / PRICING-ACCURACY] -- OPEN 2026-06-16
+### #277H. Colorized / specialty-variant coins -- end-to-end disambiguation, comp filtering, and FMV math [P2 -- FEATURE / PRICING-ACCURACY] -- Phase 1 DONE 2026-06-21; Phases 2-4 OPEN
 
 **Origin:** Conversation 2026-06-16 after 25-coin pricing-health run. Question: "how should we deal with colorized coins?" Triggered a full audit of how variant coins (colorized, gilded, privy, high-relief, antiqued, burnished, proof, reverse-proof) flow through search, dataset storage, comp filtering, and valuation.
 
@@ -988,7 +988,7 @@ Verified:
 
 ---
 
-### #282H. Proof valuation: skip spot-premium math, Greysheet anchor for BU fallback, weight sanity cap [P2 -- CORRECTNESS / PRICING-ACCURACY] -- IN PROGRESS 2026-06-19
+### #282H. Proof valuation: skip spot-premium math, Greysheet anchor for BU fallback, weight sanity cap [P2 -- CORRECTNESS / PRICING-ACCURACY] -- DONE 2026-06-20 (PR #167)
 
 **Origin:** 143-coin Libertad pricing-health run (cache/health-report-libertads-20260619-193020.json) returned 78 HEALTHY / 14 YELLOW / **51 RED**. The 51 REDs split into three root causes:
 
