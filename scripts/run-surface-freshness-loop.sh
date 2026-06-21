@@ -161,7 +161,7 @@ fi
 # overrides it (e.g. UPLOAD_MODE=blob for a bulk-backfill profile). The
 # default is API so freshness/dormancy progression is immediate and the
 # Surface/Codespaces flows behave identically.
-: "${UPLOAD_MODE:=api}"
+: "${UPLOAD_MODE:=blob}"
 export UPLOAD_MODE
 if [[ "$UPLOAD_MODE" != "api" ]]; then
   echo "[warn] UPLOAD_MODE=$UPLOAD_MODE -- non-default; ingestion may be deferred." >&2

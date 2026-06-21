@@ -223,6 +223,24 @@ Tracks wasted compute, agent time, and Azure cost caused by bugs, agent violatio
 
 ---
 
+### INC-012: Terapeak Startup Thrash -- Wrong Distro + Quoting Churn Before Successful Loop
+
+| Field | Value |
+|-------|-------|
+| Date | 2026-06-20 |
+| Category | `agent-violation` / `recovery-ops` |
+| Root Cause | Agent did not immediately apply the known fast path and burned cycles on nested `wsl bash -lc` orchestration in the wrong runtime. The default `Ubuntu` distro (`devcontainers` user, Ubuntu 26.04) does not support Playwright Chromium/Firefox, but this was only confirmed after repeated launch attempts. Additional waste came from over-quoted one-liners that intermittently truncated commands and required retries. |
+| Impact | User lost time waiting through repeated startup attempts; compute was consumed on failed setup/login loops before switching to the supported `Ubuntu-24.04` interactive flow. The scraper eventually started correctly and entered freshness-only loop mode after manual login/captcha. |
+| Mistakes | 1) Did not prioritize the runbook fast path from turn 1. 2) Did not preflight distro compatibility (`Ubuntu-24.04` vs default `Ubuntu 26.04`) before first Playwright launch. 3) Used fragile nested one-liners instead of immediate interactive shell execution for long commands. |
+| Codespace | ~35 min rework / failed launches = **$0.11** |
+| Copilot | ~25 premium requests (retries, diagnostics, terminal churn) = **$1.00** |
+| Azure | $0.00 |
+| **Total** | **$1.11** |
+| Resolution | Switched to `Ubuntu-24.04`, completed interactive `--login`, validated healthy cookie jar, and launched `run-surface-freshness-loop.sh --skip-deep --skip-probe` in a persistent loop. |
+| Rules Added | 12) For scraper startup, preflight distro first: if Playwright target is Ubuntu 26.04, switch immediately to `Ubuntu-24.04`. 13) Use interactive shell + stepwise commands for scraper bring-up; avoid nested quoted one-liners for long orchestration. 14) Startup sequence order is fixed: login (`terapeak-export.py --login`) -> cookie-health -> freshness loop (`--skip-deep` when requested). |
+
+---
+
 ## Summary
 
 | # | Date | Category | Description | Total Cost |
@@ -238,14 +256,15 @@ Tracks wasted compute, agent time, and Azure cost caused by bugs, agent violatio
 | INC-009 | May 31 | agent-violation / recovery-ops | Backlog drift -- 17 items stale-marked, required 4-pass reconciliation | $1.67 |
 | INC-010 | May 26-31 | observability-debt / agent-violation | Red-on-green CI: heredoc bug masked healthy prefetch for 5 days | $0.29 |
 | INC-011 | Jun 2 | data-corruption / code-bug / agent-violation | Backfill script truncated sidecar (95% loss) -- missing hydration + missing integration test | $0.99 |
-| | | | **Running Total** | **$12.77** |
+| INC-012 | Jun 20 | agent-violation / recovery-ops | Terapeak startup thrash before successful freshness-only loop | $1.11 |
+| | | | **Running Total** | **$13.88** |
 
 ---
 
 ## Metrics
 
-- **Total waste (all time):** $12.77
-- **Worst category:** data-corruption ($6.93 / 54%)
-- **Agent violations:** 7 incidents, $6.26
+- **Total waste (all time):** $13.88
+- **Worst category:** data-corruption ($6.93 / 50%)
+- **Agent violations:** 8 incidents, $7.37
 - **Code bugs:** 2 incidents, $2.53
-- **Preventable (with rules now in place):** $12.21 (INC-001 through INC-011)
+- **Preventable (with rules now in place):** $13.32 (INC-001 through INC-012)

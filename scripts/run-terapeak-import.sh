@@ -37,6 +37,9 @@ ok()   { echo -e "   ${GREEN}✓ $1${NC}"; }
 warn() { echo -e "   ${YELLOW}⚠ $1${NC}"; }
 fail() { echo -e "   ${RED}✗ $1${NC}"; exit 1; }
 
+# ── Set upload mode for consistent behavior ─────────────
+export UPLOAD_MODE=blob
+
 # ── Parse args (pass through to terapeak-export.py) ─────
 SKIP_LOGIN=false
 EXPORT_ARGS=()

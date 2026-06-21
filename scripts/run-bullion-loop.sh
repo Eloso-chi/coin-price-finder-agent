@@ -4,6 +4,7 @@
 
 cd /workspaces/coin-price-agent
 export DISPLAY=:1
+export UPLOAD_MODE=blob
 
 BACKLOG="cache/freshness-batch-bullion-stale.json"
 LIMIT=50

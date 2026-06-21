@@ -5,6 +5,8 @@
 
 set -e
 
+export UPLOAD_MODE=blob
+
 BACKLOG="cache/freshness-batch-nogold.json"
 BATCH_SIZE=50
 BATCH_NUM=1
