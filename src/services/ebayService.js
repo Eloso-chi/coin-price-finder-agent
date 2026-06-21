@@ -217,6 +217,18 @@ function queryWantsColorized(expected) {
     || finish === 'colourized';
 }
 
+function queryWantsProof(expected) {
+  const rawQuery = expected && expected._rawQuery ? expected._rawQuery : '';
+  const grade = expected && expected.grade ? expected.grade : '';
+  const finish = expected && expected.finish ? expected.finish : '';
+  return !!(expected && expected.isProof)
+    || /^(proof|pr|pf)/i.test(grade)
+    || (finish === 'Proof')
+    || isReverseProofFinish(finish)
+    || REVERSE_PROOF_RE.test(rawQuery)
+    || /\bproof\b/i.test(rawQuery);
+}
+
 function isReverseProofTitle(title) {
   return REVERSE_PROOF_RE.test(title || '');
 }
@@ -700,8 +712,12 @@ function scoreMatch(comp, expected) {
   const titleFamilies = detectVariantFamilies(tLow);
   const isTitleColorized = titleFamilies.has('colorized');
   if (!wantsColorized) {
+    const hasOnlyPrivy = titleFamilies.size === 1 && titleFamilies.has('privy');
+    const hasProofFamily = titleFamilies.has('proof') || titleFamilies.has('reverseProof');
     if (isTitleColorized) {
       score -= 30; notes.push('variant-mismatch');
+    } else if (titleFamilies.size > 0 && !hasOnlyPrivy && !(userWantsProof && hasProofFamily)) {
+      score -= 20; notes.push('variant-specialty-mismatch');
     }
   } else if (titleFamilies.size > 0) {
     if (isTitleColorized) {
@@ -1137,16 +1153,23 @@ function applyFilters(comps, options, expected) {
   }
 
   // Variant hard filter (colorized-first policy):
-  // - default (non-colorized query): remove only colorized comps
+  // - default (non-colorized query): remove specialty variants that can skew FMV,
+  //   but allow privy-only comps and proof pools when user explicitly asks proof
   // - colorized query: keep colorized OR plain BU; reject non-colorized specialty variants
   {
     const wantsColorizedHF = queryWantsColorized(expected);
+    const wantsProofHF = queryWantsProof(expected);
     if (!wantsColorizedHF) {
       removed.variantMismatch = 0;
       kept = kept.filter(c => {
         const titleFamiliesHF = detectVariantFamilies(c.title);
-        if (titleFamiliesHF.has('colorized')) { removed.variantMismatch++; return false; }
-        return true;
+        if (titleFamiliesHF.size === 0) return true;
+        const hasOnlyPrivyHF = titleFamiliesHF.size === 1 && titleFamiliesHF.has('privy');
+        if (hasOnlyPrivyHF) return true;
+        const hasProofFamilyHF = titleFamiliesHF.has('proof') || titleFamiliesHF.has('reverseProof');
+        if (wantsProofHF && hasProofFamilyHF) return true;
+        removed.variantMismatch++;
+        return false;
       });
     } else {
       // Colorized query -- keep colorized family OR plain BU.

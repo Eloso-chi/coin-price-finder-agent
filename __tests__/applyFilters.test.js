@@ -185,21 +185,34 @@ describe('applyFilters — variant mismatch', () => {
     expect(removed.variantMismatch).toBe(1);
   });
 
-  test('keeps non-colorized specialty variants for plain BU query', () => {
+  test('plain BU query removes specialty variants except privy', () => {
     const comps = [
       makeComp({ title: '2024 Silver Eagle Gilded BU', matchScore: 70 }),
       makeComp({ title: '2024 Silver Eagle Reverse Proof', matchScore: 70 }),
       makeComp({ title: '2024 Silver Eagle Privy Mark', matchScore: 70 }),
+      makeComp({ title: '2024 Silver Eagle High Relief', matchScore: 70 }),
     ];
     const { kept, removed } = applyFilters(comps, {}, { _rawQuery: '2024 Silver Eagle BU' });
-    expect(kept.length).toBe(3);
-    expect(removed.variantMismatch).toBe(0);
+    expect(kept.length).toBe(1);
+    expect(kept[0].title).toMatch(/Privy/i);
+    expect(removed.variantMismatch).toBe(3);
   });
 
   test('allows variant when query requests it', () => {
     const comps = [makeComp({ title: '2024 Silver Eagle Reverse Proof', matchScore: 70 })];
     const { kept } = applyFilters(comps, {}, { _rawQuery: '2024 Silver Eagle Reverse Proof' });
     expect(kept.length).toBe(1);
+  });
+
+  test('reverse-proof query keeps reverse-proof and rejects colorized', () => {
+    const comps = [
+      makeComp({ title: '2024 Silver Eagle Reverse Proof', matchScore: 70 }),
+      makeComp({ title: '2024 Silver Eagle Colorized', matchScore: 70 }),
+    ];
+    const { kept, removed } = applyFilters(comps, {}, { _rawQuery: '2024 Silver Eagle Reverse Proof' });
+    expect(kept.length).toBe(1);
+    expect(kept[0].title).toMatch(/Reverse Proof/i);
+    expect(removed.variantMismatch).toBe(1);
   });
 
   test('colorized query keeps colorized and plain BU, removes other specialty families', () => {
