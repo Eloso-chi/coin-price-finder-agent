@@ -109,12 +109,42 @@ Important threshold:
 
 ## Documentation Expectations
 
-When behavior, architecture, or workflows change, update docs in the same PR:
+Every PR must update documentation in the same change set when it touches the
+matching code surface, OR include an explicit no-doc justification in the PR
+template's Documentation section. This is enforced by the PR template
+checklist and by the Pre-commit Reviewer agent.
 
-- README.md for user/dev-facing behavior and setup
-- docs/ARCHITECTURE.md for module/data-flow details
-- .github/agents/onboard.agent.md when onboarding instructions drift
-- docs/BACKLOG.md and docs/BACKLOG.rules.md when backlog governance or status changes
+Use the following mapping to decide which doc surfaces are affected:
+
+| Code change | Doc surface(s) to update |
+|---|---|
+| New or changed route (`src/routes/`) | `docs/api-reference.md`; `README.md` routes table if user-facing |
+| New or changed service contract (`src/services/`) | `docs/ARCHITECTURE.md`; `docs/memory/codebase-overview.md` if structure shifts |
+| Data model, schema, or storage layout (`src/data/`, `src/schemas/`, `data/**`) | `docs/data-dictionary.md` |
+| Terapeak / CSV format or import behavior | `docs/memory/terapeak-data-structure-analysis.md`; `docs/memory/terapeak-runbook.md` |
+| Azure infra (Cosmos, Key Vault, Blob, Files) | `docs/memory/azure-infrastructure.md`; relevant `docs/runbooks/*.md` |
+| New environment variable | `README.md` env table; `docs/ARCHITECTURE.md` if it shapes data flow |
+| New operational procedure | `docs/runbooks/*.md`; link from `README.md` if user-facing |
+| New or changed agent / prompt / skill | `docs/memory/agents-and-prompts.md` AND `.github/agents/onboard.agent.md` (Phase 2 read list) |
+| New top-level file under `docs/memory/` or `docs/runbooks/` | `.github/agents/onboard.agent.md` (read list) AND `docs/memory/README.md` (index) |
+| Backlog item or backlog governance | `docs/BACKLOG.md` / `docs/BACKLOG.rules.md` (already gated by Backlog section) |
+| Public API response shape | `docs/api-reference.md`; `docs/data-dictionary.md` |
+| Security policy, auth, or audit behavior | `SECURITY.md`; `docs/ARCHITECTURE.md` |
+
+Drift is a real cost on this project: stale docs mislead future contributors
+and onboarded agents. When in doubt, update the doc -- a few lines is cheaper
+than the next reader's confusion.
+
+### When adding a new doc file
+
+If you create a new file under `docs/memory/` or `docs/runbooks/`, you must
+also:
+
+1. Register it in `.github/agents/onboard.agent.md` (Phase 1 or Phase 2 read
+   list) so onboarded agents discover it.
+2. Reference it from `docs/memory/README.md` (corpus index).
+3. Add a one-line entry to `docs/memory/agents-and-prompts.md` if it documents
+   an agent, prompt, or skill.
 
 ## Security Reporting
 

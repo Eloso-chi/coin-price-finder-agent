@@ -34,6 +34,37 @@
 - [ ] New tests added (describe)
 - [ ] Manual verification (describe)
 
+## Documentation
+
+<!-- REQUIRED: every PR must either update docs or explicitly justify why not. -->
+<!-- See CONTRIBUTING.md "Documentation Expectations" for the full mapping. -->
+<!-- Tick every doc surface this PR updates. Tick "No documentation update needed" -->
+<!-- ONLY if none of the surfaces below are affected. -->
+
+- [ ] `README.md` (user/dev-facing behavior, setup, env vars)
+- [ ] `docs/ARCHITECTURE.md` (module map, data flow, schemas)
+- [ ] `docs/api-reference.md` (HTTP endpoint surface)
+- [ ] `docs/data-dictionary.md` (data stores, schemas, classifications)
+- [ ] `docs/memory/*.md` (long-lived corpus knowledge)
+- [ ] `docs/runbooks/*.md` (operational procedures)
+- [ ] `.github/agents/onboard.agent.md` (onboard read list / Phase order)
+- [ ] `docs/memory/agents-and-prompts.md` (agent/prompt/skill inventory)
+- [ ] `docs/BACKLOG.md` / `docs/BACKLOG.rules.md` (backlog governance or status)
+- [ ] `SECURITY.md` (auth, middleware, audit, secrets, OWASP-relevant changes)
+- [ ] Other (specify):
+- [ ] No documentation update needed
+
+### Justification (required if "No documentation update needed" is checked)
+
+<!-- Explain why no docs change is warranted. Trivial test-only changes, -->
+<!-- pure refactors with no behavior change, and dependency bumps are -->
+<!-- common valid reasons. Spell it out so the reviewer can confirm. -->
+<!-- -->
+<!-- IMPORTANT: do NOT tick BOTH a doc-surface box AND "No documentation -->
+<!-- update needed". Pick one. Reviewers will reject contradictory ticks. -->
+
+
+
 ## Risk & Rollback
 
 <!-- What could go wrong? How to revert? -->
