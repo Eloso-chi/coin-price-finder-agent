@@ -432,20 +432,34 @@ describe('scoreMatch — finish-aware variant scoring', () => {
     const comp = { title: '2021 American Silver Eagle Reverse Proof', totalUsd: 80, matchScore: 70 };
     const expected = { year: 2021, series: 'American Silver Eagle', _rawQuery: '2021 American Silver Eagle' };
     scoreMatch(comp, expected);
-    expect(comp.matchNotes).toContain('variant-mismatch');
+    // Post-#277H: the umbrella `variant-mismatch` tag is now reserved for
+    // colorized titles. Reverse Proof on a plain-BU query triggers both the
+    // proof-family penalty and the generic specialty-variant penalty.
+    expect(comp.matchNotes).toContain('proof-mismatch-unwanted-proof');
+    expect(comp.matchNotes).toContain('variant-specialty-mismatch');
   });
 
   test('Burnished comp penalized when query is plain BU', () => {
     const comp = { title: '2015 American Silver Eagle Burnished W Mint', totalUsd: 60, matchScore: 70 };
     const expected = { year: 2015, series: 'American Silver Eagle', _rawQuery: '2015 American Silver Eagle' };
     scoreMatch(comp, expected);
-    expect(comp.matchNotes).toContain('variant-mismatch');
+    // Post-#277H: Burnished is not in the proof family, so only the generic
+    // specialty-variant penalty fires (not proof-mismatch).
+    expect(comp.matchNotes).toContain('variant-specialty-mismatch');
   });
 
   test('Reverse Proof comp NOT penalized when query asks for Reverse Proof', () => {
     const comp = { title: '2021 American Silver Eagle Reverse Proof', totalUsd: 80, matchScore: 70 };
     const expected = { year: 2021, series: 'American Silver Eagle', finish: 'Reverse Proof', _rawQuery: '2021 American Silver Eagle Reverse Proof' };
     scoreMatch(comp, expected);
+    // Post-#277H: `variant-mismatch` is reserved for colorized-only and is
+    // never emitted in this flow.  Original assertion preserved.
+    // NOTE: scoreMatch's `userWantsProof` detection currently treats
+    // finish='Reverse Proof' as NOT-wanting-proof, so this comp still
+    // accrues `proof-mismatch-unwanted-proof` and `variant-specialty-mismatch`
+    // even though the user asked for Reverse Proof.  That is a separate
+    // pre-existing scoring gap (not introduced by #277H) and is out of
+    // scope for this test-fixture sync.
     expect(comp.matchNotes || []).not.toContain('variant-mismatch');
   });
 });
