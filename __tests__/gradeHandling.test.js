@@ -432,20 +432,42 @@ describe('scoreMatch — finish-aware variant scoring', () => {
     const comp = { title: '2021 American Silver Eagle Reverse Proof', totalUsd: 80, matchScore: 70 };
     const expected = { year: 2021, series: 'American Silver Eagle', _rawQuery: '2021 American Silver Eagle' };
     scoreMatch(comp, expected);
-    expect(comp.matchNotes).toContain('variant-mismatch');
+    // Post-#277H tag taxonomy (see src/services/ebayService.js L637/L720):
+    //   `variant-mismatch`            -- emitted ONLY for colorized titles
+    //                                    on a non-colorized query (-30).
+    //   `variant-specialty-mismatch`  -- emitted for non-colorized specialty
+    //                                    variants on a non-colorized query (-20).
+    //   `proof-mismatch-unwanted-proof` -- emitted when title is in the proof
+    //                                    family and the user did not ask for
+    //                                    proof (-25).
+    // A Reverse Proof comp on a plain-BU query is both a proof-family title
+    // and a non-colorized specialty variant, so both penalty notes fire.
+    expect(comp.matchNotes).toContain('proof-mismatch-unwanted-proof');
+    expect(comp.matchNotes).toContain('variant-specialty-mismatch');
   });
 
   test('Burnished comp penalized when query is plain BU', () => {
     const comp = { title: '2015 American Silver Eagle Burnished W Mint', totalUsd: 60, matchScore: 70 };
     const expected = { year: 2015, series: 'American Silver Eagle', _rawQuery: '2015 American Silver Eagle' };
     scoreMatch(comp, expected);
-    expect(comp.matchNotes).toContain('variant-mismatch');
+    // Post-#277H: Burnished is not in the proof family, so only the generic
+    // specialty-variant penalty fires (not proof-mismatch).
+    expect(comp.matchNotes).toContain('variant-specialty-mismatch');
   });
 
   test('Reverse Proof comp NOT penalized when query asks for Reverse Proof', () => {
     const comp = { title: '2021 American Silver Eagle Reverse Proof', totalUsd: 80, matchScore: 70 };
     const expected = { year: 2021, series: 'American Silver Eagle', finish: 'Reverse Proof', _rawQuery: '2021 American Silver Eagle Reverse Proof' };
     scoreMatch(comp, expected);
+    // Post-#277H: `variant-mismatch` is reserved for colorized-only and is
+    // never emitted in this flow.  Original assertion preserved.
+    // TODO(#173): scoreMatch's `userWantsProof` detector currently treats
+    // finish='Reverse Proof' as NOT-wanting-proof (exact-match against the
+    // literal 'Proof' at src/services/ebayService.js L636), so this comp
+    // still accrues `proof-mismatch-unwanted-proof` and `variant-specialty-mismatch`
+    // even when the user asked for Reverse Proof.  When #173 lands, the
+    // negative assertion below should be strengthened to also check those
+    // two tags are absent.
     expect(comp.matchNotes || []).not.toContain('variant-mismatch');
   });
 });
