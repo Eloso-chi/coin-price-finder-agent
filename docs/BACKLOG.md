@@ -1674,6 +1674,58 @@ if (comp.totalUsd > expected.meltPerOz * expected.weight * 5 && !detectWeightFro
 
 ---
 
+### #268W. Adaptive lookback for sparse-comp / old issues [P2 -- DATA-QUALITY] -- OPEN 2026-06-22
+
+**Problem:** The default Terapeak lookback window is 180 days (see `src/routes/priceRoute.js#L89`, `src/services/ebayService.js#L1396`). For old or scarce key dates with thin recent activity, the 180-day cutoff at the `prefilterTimeWindow` stage drops a meaningful fraction of otherwise-valid comps. The existing tier escalation at `src/services/ebayService.js#L1594-L1596` only fires when the requested window is *below* the next tier (`< 180` -> 180, `< 365` -> 365), so a query that already requested 180 days never escalates to 365 even when survivors are merely "low" not "starved".
+
+**Evidence (2026-06-22 25-Panda pricing-health, `cache/health-panda25.json`):** `1999 China 1 oz Silver Panda`: teakRows=112, survivors=50, attrition=55.4%. Top dropper `prefilterTimeWindow=32` (29% of pool dropped purely on age), second dropper `prefilterStrikeSplit=17` (Proof Pandas correctly excluded). The 32 dropped comps are legitimate sales of the same coin from >180 days ago. Coin is a 27-year-old issue -- recent activity is naturally thin. Status: GREEN on the run (50 survivors > YELLOW threshold) but the FMV is built on a smaller sample than it could be.
+
+**Proposed approach (sketch):**
+- After `withinWindow` is computed at `src/services/ebayService.js#L1530`, if `withinWindow.length < <some-floor>` (proposal: `usMinComps * 1.5`, so ~15) AND `requestedDays <= 180`, transparently widen `cutoff` to 365 days and recompute (single re-pass over the same `tpComps`).
+- Stamp `lookback.extended = true` and an `extendedReason = 'sparse-survivors'` field so consumers can distinguish "we widened for this coin" from "we used the requested window".
+- Track the additional drops still attributed to the same bucket `prefilterTimeWindow` (no new bucket needed) but report the extended window in `lookback.used`.
+
+**Why not bundled with the 30g threshold PR (the 2026-06-22 #252 extension):** Different subsystem (lookback tuning vs strike-split), different risk profile (lookback widening can let stale comps influence FMV; the bullion-merge widening is provably comp-class-correct), needs its own test design (esp. interaction with `usMinComps` and with the existing tier-escalation logic). Not actively driving any RED row today.
+
+**Acceptance criteria:**
+- Re-running the 25-Panda pricing-health shows the 1999 row's `prefilterTimeWindow` drop reduced and `lookback.extended = true` reported.
+- A non-scarce coin (e.g. 2024 Silver Panda) keeps `lookback.extended = false` (the floor isn't tripped).
+- No regression in existing lookback-tier tests.
+
+**Risk:** Stale-comp leakage if the window extends too aggressively on series with rapidly-moving prices. Mitigation: only widen for queries where survivors are below the floor, never above; preserve the existing `extended` telemetry so operators can see when it fires.
+
+**Files (anticipated):** `src/services/ebayService.js`, `__tests__/ebayFetchSoldComps.test.js`, possibly `scripts/pricing-health-full.js` if a new classifier is wanted.
+
+---
+
+### #269W. Bullion-form allowlist (long-term replacement for numeric weight threshold in strike-pool merge) [P3 -- DESIGN] -- OPEN 2026-06-22
+
+**Problem:** The bullion-merge gate in `src/services/ebayService.js` (the `isBullionMerge` block around L1505) uses a numeric weight floor (originally `>= 1.0` oz in #252, widened to `>= 0.9` in #268W) to decide whether to merge graded + raw pools. Every threshold tweak is a guess: 30g Pandas needed 0.9; the next near-oz form we surface (1 kg silver bars, 25g rounds, 50g Australian Lunar series, etc.) may need another tweak. The principled fix is to ask the orthogonal question "is this a recognised bullion form?" -- a series allowlist crossed with known size SKUs -- rather than guessing a numeric band.
+
+**Why not in the 30g threshold PR (the 2026-06-22 #252 extension):** Scope. The threshold widening unblocks current pricing-health regressions with a one-line change and minimal new test surface. An allowlist is a new module, a maintenance commitment, and an API design question (does it live in `data/`, in `coinMetalProfile`, in a new `bullionForms.js`?). Deserves its own design discussion.
+
+**Proposed approach (sketch, needs discussion before APPLY):**
+1. Add `data/bullionForms.js` exporting a structured table: `{ series: 'china silver panda', forms: [{ year_from: 2016, weight_g: 30 }, { year_from: 1989, year_to: 2015, weight_g: 31.103 }] }` etc.
+2. Cover the common series: Panda (Silver + Gold), Maple (Silver + Gold), Eagle (Silver + Gold + Platinum), Krugerrand (Silver + Gold), Britannia (Silver + Gold), Libertad (Silver + Gold), Kookaburra, Koala, Philharmonic, Lunar.
+3. Replace the numeric `isBullionMerge` gate with a lookup: `isBullionMerge = !wantsProof && !wantsGraded && isRecognisedBullionForm(expected.series, expected.year, expected.weight)`.
+4. Keep the numeric gate as a fallback for series not yet in the allowlist (prevents regression for coins we haven't catalogued).
+
+**Why P3 (deferred):** The 0.9 floor in the 2026-06-22 #252 extension already covers every 2026+ catalog item we have evidence for. The allowlist is the cleaner long-term design but does not change correctness today.
+
+**Acceptance criteria (when picked up):**
+- Allowlist covers >= 10 major bullion series.
+- All `#252` regression tests still pass.
+- New tests confirm the allowlist correctly classifies year-form combinations the numeric gate would have missed (e.g. a hypothetical 25g bullion round that's actually bullion vs a 25g numismatic medal that isn't).
+- Numeric fallback preserved for unknown series.
+
+**Risk:** Maintenance burden (allowlist drifts as new series ship). Mitigation: cover only the high-FMV bullion series where the merge actually matters; let everything else fall through to the numeric fallback.
+
+**Files (anticipated):** `data/bullionForms.js` (new), `src/services/ebayService.js` (gate logic), `__tests__/bullionForms.test.js` (new).
+
+**Related:** #252 (original strike-split fix + 2026-06-22 numeric threshold extension this would replace), #268W (adaptive lookback for sparse-comp issues).
+
+---
+
 ## Scraper Performance -- Additional Open Items
 
 ### ~~198. Smart SPA Render Wait Instead of 3s Hard Pause [DONE]~~
@@ -2516,9 +2568,11 @@ and obscures regressions in unrelated PRs.
 
 ---
 
-### #252. Bullion Strike-Pool Split Misclassifies Graded Bullion as Off-Pool [P1 -- DATA-QUALITY] -- DONE 2026-06-18 (PR #154)
+### #252. Bullion Strike-Pool Split Misclassifies Graded Bullion as Off-Pool [P1 -- DATA-QUALITY] -- DONE 2026-06-18 (PR #154), EXTENDED 2026-06-22 (30g threshold widening)
 
 **Resolution (PR #154, merge commit `7b72a67`):** Implemented the proposed-fix sketch. `src/services/ebayService.js` (around L1438-L1474): when `expected.weight >= 1.0` and the query is neither proof nor explicit-grade, merges the `graded` and `raw` pools instead of dropping graded comps. Proof + reverse-proof comps stay excluded. Strict split is preserved for (a) fractional bullion `< 1oz` (slab premium IS real for 1/10oz Gold Eagle MS70 etc.), (b) explicit slab grade in the query, (c) proof intent, and (d) non-bullion queries with no weight signal. New `prefilterBullionMerge` telemetry bucket (value 0) is emitted on `result.us.removed` whenever the bullion branch fires, and the console log distinguishes `bullion-merge graded+raw, weight=Noz` vs `raw only`. 5 new cases added to `__tests__/ebayFetchSoldComps.test.js` covering the merge, the explicit-slab-grade fallback, the proof-bullion exclusion, the fractional-bullion guard, and the no-weight-signal defensive path. Verification at merge: full suite 3x consecutive -> 3928/3928 passed; lint clean (0 new warnings); ASCII-only confirmed.
+
+**Extension (2026-06-22, this PR):** Floor lowered from `>= 1.0` to `>= 0.9` troy oz to cover 30g near-oz bullion forms. Discovered via 25-Panda pricing-health run: 2016+ Chinese Silver Pandas are minted at 30g (= 0.9645 troy oz) since the China Mint switched away from the troy ounce that year. Pre-extension the parser landed those at `weight=0.9645` which failed the `>= 1.0` gate, sending every 2016+ Panda dataset down the strict strike-split path and dropping 40-75% of comps as slabbed (concrete worst case: 2017 China 30g Silver Panda, 91/122 = 75% attrition with `prefilterStrikeSplit` dominating). Worse, the SAME physical 2016 Panda queried as "1 oz" vs "30g" produced 97 vs 66 survivors on the SAME 143-row upstream dataset, breaking same-coin FMV reproducibility across query phrasings. The 0.9 floor (~28g) preserves the strict split for fractional bullion at or below 0.75 oz (1/2 oz Krugerrand, 3/4 oz Britannia, etc.) where the slab premium IS material. Two new boundary tests added to `__tests__/ebayFetchSoldComps.test.js`: 30g Silver Panda triggers merge; 3/4 oz Gold Britannia keeps strict split. Adaptive lookback for sparse-comp issues (e.g. 1999 1oz Panda's 32-comp `prefilterTimeWindow` drop seen in the same run) is tracked separately as #268W. A longer-term form-allowlist replacement is tracked separately as #269W.
 
 **Problem:** The pre-filter strike/grade-pool split in `fetchSoldComps` (introduced for #182, made visible by #244) treats slabbed bullion as off-pool for raw-bullion queries. For a query like `2024 Canada 1 oz Gold Maple Leaf` the parser sets neither `isProof` nor `grade`, so `targetPool = 'raw'`. Any Terapeak comp with `conditionId=2000` (slabbed PCGS/NGC) -- which is a large share of premium bullion listings -- gets classified as `graded` and dropped via `prefilterStrikeSplit` before scoring or filters ever run.
 

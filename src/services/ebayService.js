@@ -1485,21 +1485,36 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
     // showed 97--100% cross-contamination on years where both issues exist
     // (e.g. 2023 ASE, 2019-S ASE ERP, 2023-S Morgan Dollar).
     //
-    // #252: For >=1oz bullion queries (weight set, no proof intent, no slab
-    // grade specified), MERGE the 'graded' and 'raw' pools instead of dropping
-    // graded comps. Graded 1oz Gold Maple / Gold Eagle / Krugerrand / Britannia
-    // still trades at metal + premium -- not at a separate "slabbed" tier worth
-    // excluding from FMV. Pre-fix, 9/13 RED rows in the 2026-06-04 Maple
-    // pricing-health run were 1oz Gold Maple datasets with `prefilterStrikeSplit`
-    // as the dominant drop bucket (45 comps lost on the 2025 issue alone).
+    // #252: For near-oz bullion queries (weight >= 0.9oz, no proof intent, no
+    // slab grade specified), MERGE the 'graded' and 'raw' pools instead of
+    // dropping graded comps. Graded 1oz Gold Maple / Gold Eagle / Krugerrand /
+    // Britannia still trades at metal + premium -- not at a separate "slabbed"
+    // tier worth excluding from FMV. Pre-fix, 9/13 RED rows in the 2026-06-04
+    // Maple pricing-health run were 1oz Gold Maple datasets with
+    // `prefilterStrikeSplit` as the dominant drop bucket (45 comps lost on the
+    // 2025 issue alone).
+    //
+    // 2026-06-22 extension: floor lowered from 1.0 to 0.9 troy oz (~28g) to
+    // cover 30g bullion forms. China Mint switched Pandas (Silver + Gold) from
+    // 1 troy oz to 30g (= 0.9645 oz) starting in 2016; pre-fix the parser
+    // landed those at weight=0.9645 which failed the >=1.0 gate, sending every
+    // 2016+ Panda dataset down the strict strike-split path and discarding
+    // 40-75% of comps as slabbed. Worse, the SAME physical 2016 Panda produced
+    // different comp pools depending on whether the query said "1 oz" or "30g"
+    // (97 vs 66 survivors on the same 143-row dataset), breaking same-coin FMV
+    // reproducibility. 0.9 oz floor preserves the strict split for fractional
+    // bullion <=0.75oz (1/2 oz Krugerrand, 3/4 oz Maple, etc.) where the slab
+    // premium IS material. A longer-term form-allowlist replacement is tracked
+    // separately in BACKLOG.
+    //
     // Proof + reverse-proof pools remain excluded -- a Proof Gold Maple is a
-    // different market from bullion. Fractional bullion (<1oz) keeps the
+    // different market from bullion. Fractional bullion (<0.9oz) keeps the
     // strict split because the slab premium is materially different there
     // (a 1/10oz Gold Eagle MS70 trades well above bullion).
     const wantsProof = !!expected.isProof;
     const wantsReverseProof = wantsProof && isReverseProofFinish(expected.finish);
     const wantsGraded = !!expected.grade;
-    const isBullionMerge = !wantsProof && !wantsGraded && Number(expected.weight) >= 1.0;
+    const isBullionMerge = !wantsProof && !wantsGraded && Number(expected.weight) >= 0.9;
     const targetPool = wantsReverseProof
       ? 'reverse-proof'
       : (wantsProof ? 'proof' : (wantsGraded ? 'graded' : 'raw'));

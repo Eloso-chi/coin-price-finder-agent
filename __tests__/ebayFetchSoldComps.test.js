@@ -468,11 +468,14 @@ describe('fetchSoldComps — Terapeak tier', () => {
   });
 
   // ── #252: Bullion strike-pool merge ─────────────────────────
-  // For >=1oz bullion (weight set, no isProof, no slab grade specified),
-  // graded comps must NOT be excluded -- 1oz Gold Maple / Gold Eagle /
-  // Krugerrand / Britannia all trade at metal + premium regardless of slab.
-  // Pre-fix, the 2026-06-04 pricing-health Maple run had 9/13 RED rows
-  // driven by `prefilterStrikeSplit` on 1oz Gold Maple datasets.
+  // For near-oz bullion (weight >= 0.9 oz, no isProof, no slab grade
+  // specified), graded comps must NOT be excluded -- 1oz Gold Maple / Gold
+  // Eagle / Krugerrand / Britannia AND 30g Pandas all trade at metal +
+  // premium regardless of slab. Pre-fix, the 2026-06-04 pricing-health Maple
+  // run had 9/13 RED rows driven by `prefilterStrikeSplit` on 1oz Gold Maple
+  // datasets. 2026-06-22 follow-up: floor lowered from 1.0 to 0.9 oz so 30g
+  // Pandas (0.9645 oz, the China Mint standard since 2016) also take the
+  // merged path.
 
   test('#252 bullion 1oz: merges graded+raw, drops only proof', async () => {
     terapeakService.lookupComps.mockReturnValue({
@@ -572,9 +575,9 @@ describe('fetchSoldComps — Terapeak tier', () => {
     expect(result.us.removed.prefilterBullionMerge).toBeUndefined();
   });
 
-  test('#252 fractional bullion (<1oz): keeps strict split (slab premium is real here)', async () => {
+  test('#252 fractional bullion (<0.9oz): keeps strict split (slab premium is real here)', async () => {
     // 1/10oz Gold Eagle MS70 trades well above bullion. Mitigation per the
-    // backlog: gate the merge on `weight >= 1.0` so fractional bullion keeps
+    // backlog: gate the merge on `weight >= 0.9` so fractional bullion keeps
     // the original strike split.
     terapeakService.lookupComps.mockReturnValue({
       searchTerm: '2024 American Gold Eagle 1/10 oz',
@@ -599,6 +602,80 @@ describe('fetchSoldComps — Terapeak tier', () => {
     );
 
     // 2 slabbed dropped, merge marker absent (weight < 1.0 gates out the merge).
+    expect(result.us.removed.prefilterStrikeSplit).toBe(2);
+    expect(result.us.removed.prefilterBullionMerge).toBeUndefined();
+    // No slabbed comps survived the prefilter.
+    expect(result.us.comps.some(c => /pcgs|ngc/i.test(c.title))).toBe(false);
+  });
+
+  test('#252 2026-06-22 extension: 30g Silver Panda (0.9645 oz) triggers bullion-merge', async () => {
+    // Repro of the 2026-06-22 pricing-health finding: 2016+ Chinese Silver
+    // Pandas are minted at 30g (= 0.9645 troy oz), not 1 oz. Pre-extension
+    // they failed the `weight >= 1.0` gate and were sent down the strict
+    // strike-split path -- dropping 40-75% of comps as slabbed. Same physical
+    // coin queried as "30g" vs "1 oz" produced different comp pools on the
+    // SAME upstream dataset (66 vs 97 survivors for 2016), breaking same-coin
+    // FMV reproducibility. Floor lowered to 0.9 oz so 30g forms also merge.
+    terapeakService.lookupComps.mockReturnValue({
+      searchTerm: '2017 China 30g Silver Panda',
+      lastImport: '2026-06-04',
+      comps: [
+        // 2 raw bullion (kept)
+        { title: '2017 China 30g Silver Panda BU',                totalUsd: 82, soldDate: '2026-05-20', conditionId: '4000', _source: 'terapeak' },
+        { title: '2017 Chinese Silver Panda 30 gram .999',        totalUsd: 80, soldDate: '2026-05-21', conditionId: '4000', _source: 'terapeak' },
+        // 3 slabbed bullion (would be dropped pre-extension; merged in post-extension)
+        { title: '2017 China 30g Silver Panda NGC MS69',          totalUsd: 88, soldDate: '2026-05-22', conditionId: '2000', _source: 'terapeak' },
+        { title: '2017 Silver Panda 30g PCGS MS70 First Strike',  totalUsd: 105, soldDate: '2026-05-23', conditionId: '2000', _source: 'terapeak' },
+        { title: '2017 China 30 Gram Silver Panda NGC MS70',      totalUsd: 102, soldDate: '2026-05-24', conditionId: '2000', _source: 'terapeak' },
+        // 1 proof (must STILL be excluded -- different market)
+        { title: '2017 China 30g Silver Panda Proof',             totalUsd: 180, soldDate: '2026-05-25', conditionId: '4000', _source: 'terapeak' },
+      ]
+    });
+
+    const result = await ebayService.fetchSoldComps(
+      '2017 China 30g Silver Panda', {},
+      { year: 2017, series: 'China Silver Panda', weight: 0.9645216776247046, meltPerOz: 22 }
+    );
+
+    expect(result.apiUsed).toBe('terapeak');
+    // 5 of 6 kept (2 raw + 3 graded); only the proof dropped.
+    expect(result.us.comps.length).toBe(5);
+    // No proof comps leaked in.
+    expect(result.us.comps.some(c => /\bproof\b/i.test(c.title))).toBe(false);
+    // Slabbed bullion survived the pre-filter (the extension fix).
+    expect(result.us.comps.filter(c => /pcgs|ngc/i.test(c.title)).length).toBe(3);
+    // Telemetry: strike-split bucket counts the 1 proof drop; bullion-merge
+    // marker present (value 0) so operators can see the new path was taken.
+    expect(result.us.removed.prefilterStrikeSplit).toBe(1);
+    expect(result.us.removed.prefilterBullionMerge).toBe(0);
+  });
+
+  test('#252 2026-06-22 extension: 0.75 oz fractional (3/4oz Britannia) keeps strict split (boundary)', async () => {
+    // Boundary test: 0.75 oz sits below the new 0.9 oz floor, so the strict
+    // strike-split must still apply. Protects against a future regression
+    // that lowers the floor further than intended (e.g. to 0.5).
+    terapeakService.lookupComps.mockReturnValue({
+      searchTerm: '2024 Great Britain 3/4 oz Gold Britannia',
+      lastImport: '2026-06-04',
+      comps: [
+        // 2 raw bullion (kept -- targetPool=raw)
+        { title: '2024 Great Britain 3/4 oz Gold Britannia BU',       totalUsd: 3400, soldDate: '2026-05-20', conditionId: '4000', _source: 'terapeak' },
+        { title: '2024 UK 3/4oz Gold Britannia .9999',                totalUsd: 3420, soldDate: '2026-05-21', conditionId: '4000', _source: 'terapeak' },
+        // 2 slabbed bullion (MUST be dropped -- fractional slab premium is real)
+        { title: '2024 Great Britain 3/4 oz Gold Britannia PCGS MS70',totalUsd: 3850, soldDate: '2026-05-22', conditionId: '2000', _source: 'terapeak' },
+        { title: '2024 UK 3/4oz Gold Britannia NGC MS70',             totalUsd: 3825, soldDate: '2026-05-23', conditionId: '2000', _source: 'terapeak' },
+      ]
+    });
+    // Empty Finding response so any partial-seed fallback doesn't trip the
+    // module-level Finding circuit breaker for downstream tests.
+    axios.get.mockResolvedValue({ data: wrapFindingResponse([]) });
+
+    const result = await ebayService.fetchSoldComps(
+      '2024 Great Britain 3/4 oz Gold Britannia', {},
+      { year: 2024, series: 'Great Britain Gold Britannia', weight: 0.75, meltPerOz: 4500 }
+    );
+
+    // 2 slabbed dropped, merge marker absent (weight < 0.9 gates out the merge).
     expect(result.us.removed.prefilterStrikeSplit).toBe(2);
     expect(result.us.removed.prefilterBullionMerge).toBeUndefined();
     // No slabbed comps survived the prefilter.
