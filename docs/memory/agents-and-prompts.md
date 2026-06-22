@@ -24,6 +24,7 @@ The `.github` directory is hidden -- use explicit paths.
 | `freshness-triage.agent.md` | Freshness Triage | Read-only | Generates freshness report, presents prioritized triage. |
 | `pricing-health.agent.md` | Pricing Health | Read-only | End-to-end pricing flow validation, comp attrition audit, cross-route FMV comparison. |
 | `numismatic-audit.agent.md` | Numismatic Audit | Read-only | Audits classification/filter functions against `.github/skills/numismatics/SKILL.md` ground truth. Catches grade/finish/pool misclassification (e.g. Proof-Like as Proof, Burnished into proof pool, raw into graded pool). |
+| `terapeak-operator.agent.md` | Terapeak Operator | Mixed | Runs the canonical local Terapeak startup flow with strict preflight, interactive login, and freshness-only loop mode. Use when: starting a reliable Terapeak run from chat without ad-hoc command construction. |
 | `test-coverage.agent.md` | Test Coverage Engineer | Write | Identifies behavioral gaps, writes new tests using existing helpers. |
 | `test-monitor.agent.md` | Test Monitor | Write | Test health monitoring, flaky diagnosis, slow test optimization. |
 | `ux-reviewer.agent.md` | UX Reviewer | Read-only | WCAG 2.2 AA, responsive design, dark theme, Nielsen heuristics. |

@@ -50,6 +50,7 @@
 - [ ] `.github/agents/onboard.agent.md` (onboard read list / Phase order)
 - [ ] `docs/memory/agents-and-prompts.md` (agent/prompt/skill inventory)
 - [ ] `docs/BACKLOG.md` / `docs/BACKLOG.rules.md` (backlog governance or status)
+- [ ] `SECURITY.md` (auth, middleware, audit, secrets, OWASP-relevant changes)
 - [ ] Other (specify):
 - [ ] No documentation update needed
 
@@ -58,6 +59,9 @@
 <!-- Explain why no docs change is warranted. Trivial test-only changes, -->
 <!-- pure refactors with no behavior change, and dependency bumps are -->
 <!-- common valid reasons. Spell it out so the reviewer can confirm. -->
+<!-- -->
+<!-- IMPORTANT: do NOT tick BOTH a doc-surface box AND "No documentation -->
+<!-- update needed". Pick one. Reviewers will reject contradictory ticks. -->
 
 
 

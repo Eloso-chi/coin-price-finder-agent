@@ -140,14 +140,15 @@ surfaces. Do NOT raise per-file noise -- one consolidated WARN is enough.
 | Staged path matches | Suggest updating |
 |---|---|
 | `src/routes/**` | `docs/api-reference.md`; `README.md` routes table if user-facing |
-| `src/services/**` (excluding pure internal refactors) | `docs/ARCHITECTURE.md`; the relevant `docs/memory/*.md` for that subsystem |
+| `src/services/**` (excluding pure internal refactors -- e.g. variable rename, dead-code removal, log-string edit) | `docs/ARCHITECTURE.md`; the relevant `docs/memory/*.md` for that subsystem |
+| Public response shape changes in `src/routes/**` or `src/schemas/**` (added/removed/renamed fields, type changes, status code changes) | `docs/api-reference.md`; `docs/data-dictionary.md` |
 | `src/data/**`, `src/schemas/**`, top-level `data/**` | `docs/data-dictionary.md` |
 | `src/services/terapeakService.js`, `data/terapeak/**` | `docs/memory/terapeak-data-structure-analysis.md`; `docs/memory/terapeak-runbook.md` |
 | `src/utils/cosmosClient.js`, `src/utils/blobClient.js`, anything Key Vault | `docs/memory/azure-infrastructure.md`; relevant `docs/runbooks/*.md` |
 | New env var anywhere (`process.env.NEW_VAR`) | `README.md` env table; `docs/ARCHITECTURE.md` |
 | `.github/agents/**`, `.github/prompts/**`, `.github/skills/**` | `docs/memory/agents-and-prompts.md` AND `.github/agents/onboard.agent.md` if structure shifts |
 | New file under `docs/memory/**` or `docs/runbooks/**` | `.github/agents/onboard.agent.md` (read list) AND `docs/memory/README.md` (index) |
-| `src/middleware/**`, `src/services/authService.js`, `src/services/auditService.js` | `SECURITY.md`; `docs/ARCHITECTURE.md` |
+| `src/middleware/**`, `src/services/authService.js`, `src/services/auditService.js`, OR any change to auth headers / RBAC / rate limits / input validation / secrets handling | `SECURITY.md`; `docs/ARCHITECTURE.md` |
 
 If the user explicitly states their no-doc justification (test-only, pure
 refactor with no behavior change, dependency bump, etc.) then downgrade to
