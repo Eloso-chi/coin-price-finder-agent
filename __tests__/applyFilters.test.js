@@ -471,6 +471,73 @@ describe('applyFilters — composite real-world scenario', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════
+//  Colorized mint-signal scoring (Phase 1-2 validation)
+// ═══════════════════════════════════════════════════════════════
+
+describe('scoreMatch — colorized mint-signal scoring', () => {
+  test('colorized mint-issued comp scores higher than aftermarket', () => {
+    const mintIssuedComp = makeComp({
+      title: '2024 Silver Eagle Colorized Perth Mint with COA MS-70',
+      matchScore: 80,
+    });
+    const aftermarketComp = makeComp({
+      title: '2024 Silver Eagle Colorized Hand Painted Custom MS-70',
+      matchScore: 80,
+    });
+
+    // Both comps start at score 80
+    const query = { _rawQuery: '2024 Silver Eagle Colorized', label: 'Colorized' };
+
+    scoreMatch(mintIssuedComp, query);
+    scoreMatch(aftermarketComp, query);
+
+    // Mint-issued should score higher than aftermarket due to +10/-10 signal
+    expect(mintIssuedComp.matchScore).toBeGreaterThan(aftermarketComp.matchScore);
+    expect(mintIssuedComp.matchNotes).toContain('colorized-mint-issued');
+    expect(aftermarketComp.matchNotes).toContain('colorized-aftermarket');
+  });
+
+  test('privy comps are informational only (not filtered)', () => {
+    const privyComp = makeComp({
+      title: '2024 Silver Eagle Privy Mark MS-70',
+      matchScore: 75,
+    });
+
+    // scoreMatch should add privy-info note
+    scoreMatch(privyComp, { _rawQuery: '2024 Silver Eagle BU' });
+    
+    // Then applyFilters should keep the privy comp (informational only, not blocked)
+    const { kept, removed } = applyFilters([privyComp], {}, { _rawQuery: '2024 Silver Eagle BU' });
+    
+    expect(kept.length).toBe(1);
+    expect(kept[0].matchNotes).toContain('privy-info');
+    // Privy should not cause variant-mismatch removal (informational only)
+    expect(removed.variantMismatch || 0).toBe(0);
+  });
+
+  test('non-colorized query ignores mint-signal scoring', () => {
+    const mintComp = makeComp({
+      title: '2024 Silver Eagle Perth Mint with COA MS-70',
+      matchScore: 75,
+    });
+    const plainComp = makeComp({
+      title: '2024 Silver Eagle BU MS-70',
+      matchScore: 75,
+    });
+
+    // Non-colorized query should not apply +10 signal
+    const query = { _rawQuery: '2024 Silver Eagle BU' };
+    
+    scoreMatch(mintComp, query);
+    scoreMatch(plainComp, query);
+
+    // Both should score similarly (no colorized-mint-issued bonus applied)
+    expect(mintComp.matchNotes).not.toContain('colorized-mint-issued');
+    expect(plainComp.matchNotes).not.toContain('colorized-mint-issued');
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════
 //  scoreMatch direct tests
 // ═══════════════════════════════════════════════════════════════
 
