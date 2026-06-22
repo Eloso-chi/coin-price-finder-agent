@@ -34,7 +34,24 @@ If new files are discovered, read them and include their contents in the Readine
 
 ### Phase 1: Repo Memory (highest density context)
 
-Read ALL files in `docs/memory/` (canonical, git-tracked) in this order. As of 2026-06-17 this is the authoritative location -- the legacy `/memories/repo/` directory is a machine-local backup only and may drift.
+Read ALL files in `docs/memory/` (canonical, git-tracked). As of 2026-06-17
+this is the authoritative location -- the legacy `/memories/repo/` directory
+is a machine-local backup only and may drift.
+
+First, glob the directory so no file is silently missed (this is the
+source of truth; the priority list below is for ordering, not filtering):
+
+```bash
+ls docs/memory/*.md
+```
+
+Read every file returned by that glob. Use the priority list below to decide
+**which to read first** (most-foundational context first). Any file in
+`docs/memory/` not listed below MUST still be read after the priority
+files and noted in the Readiness Report under "New/Undocumented Files" so
+this list can be refreshed.
+
+Priority order:
 
 1. `docs/memory/codebase-overview.md` -- stack, structure, services, auth, env vars, dependencies
 2. `docs/memory/decision-engine-spec.md` -- valuation engine FMV modes, confidence scoring, buy/sell spreads
@@ -60,7 +77,10 @@ Read ALL files in `docs/memory/` (canonical, git-tracked) in this order. As of 2
 22. `docs/memory/README.md` -- corpus index, audit notes, migration history
 
 If a file is missing in `docs/memory/`, check `/memories/repo/` (the legacy backup) and surface the gap in the Readiness Report under "Gaps Detected".
-Read any additional files found in Phase 0 that are not listed above.
+Any file returned by the glob but not in the priority list above is **not**
+optional reading -- it just gets read after the priority files. Surface its
+existence under "New/Undocumented Files" so the priority list can be
+maintained.
 
 ### Phase 2: Project Docs
 
@@ -233,3 +253,11 @@ After reading, produce a **Readiness Report** with:
 	Unix/macOS: `npm test -- --silent 2>&1 | tail -5` and `git log --oneline -5`
 	PowerShell: `npm test -- --silent` and `git log --oneline -5`
 - If the codebase has grown beyond what's documented, note the gaps in the report.
+- **Doc-coverage gate awareness.** PRs in this repo are expected to update
+  documentation in the same change set when code behavior, architecture, or
+  workflows change. The expectation is encoded in
+  [`.github/pull_request_template.md`](../../.github/pull_request_template.md),
+  [`CONTRIBUTING.md`](../../CONTRIBUTING.md) (Documentation Expectations), and
+  the Pre-commit Reviewer agent (Documentation Coverage check). Surface any
+  drift you notice between code and docs in the Readiness Report under
+  "Gaps Detected".

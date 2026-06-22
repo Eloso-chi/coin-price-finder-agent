@@ -118,6 +118,42 @@ If the user provides a commit message, check:
 - Is it descriptive (not just "fix" or "update")?
 - Does it match what the staged changes actually do?
 
+#### G. Documentation Coverage (WARN if missing)
+
+Inspect the staged paths to decide whether docs must be updated alongside the
+code. The full mapping lives in `CONTRIBUTING.md` under "Documentation
+Expectations" -- the rules below are the staged-diff heuristics for that
+mapping.
+
+```bash
+git diff --cached --name-only
+```
+
+If the diff includes only `__tests__/**`, `coverage/**`, `package-lock.json`,
+`*.lock`, `.gitignore`-style hygiene, or other non-behavior changes, skip
+this check (PASS).
+
+Otherwise, apply the matchers below. For each match where no listed doc was
+also touched in the staged diff, raise a single WARN with the suggested
+surfaces. Do NOT raise per-file noise -- one consolidated WARN is enough.
+
+| Staged path matches | Suggest updating |
+|---|---|
+| `src/routes/**` | `docs/api-reference.md`; `README.md` routes table if user-facing |
+| `src/services/**` (excluding pure internal refactors) | `docs/ARCHITECTURE.md`; the relevant `docs/memory/*.md` for that subsystem |
+| `src/data/**`, `src/schemas/**`, top-level `data/**` | `docs/data-dictionary.md` |
+| `src/services/terapeakService.js`, `data/terapeak/**` | `docs/memory/terapeak-data-structure-analysis.md`; `docs/memory/terapeak-runbook.md` |
+| `src/utils/cosmosClient.js`, `src/utils/blobClient.js`, anything Key Vault | `docs/memory/azure-infrastructure.md`; relevant `docs/runbooks/*.md` |
+| New env var anywhere (`process.env.NEW_VAR`) | `README.md` env table; `docs/ARCHITECTURE.md` |
+| `.github/agents/**`, `.github/prompts/**`, `.github/skills/**` | `docs/memory/agents-and-prompts.md` AND `.github/agents/onboard.agent.md` if structure shifts |
+| New file under `docs/memory/**` or `docs/runbooks/**` | `.github/agents/onboard.agent.md` (read list) AND `docs/memory/README.md` (index) |
+| `src/middleware/**`, `src/services/authService.js`, `src/services/auditService.js` | `SECURITY.md`; `docs/ARCHITECTURE.md` |
+
+If the user explicitly states their no-doc justification (test-only, pure
+refactor with no behavior change, dependency bump, etc.) then downgrade to
+PASS but record the justification in the report so the PR reviewer can
+confirm. Do not bypass silently.
+
 ### Step 3: Report
 
 Print a concise report:
@@ -132,6 +168,7 @@ Print a concise report:
 | Data model sync | PASS / WARN |
 | Lint errors | PASS / WARN |
 | UX / IA review | PASS / WARN |
+| Documentation coverage | PASS / WARN |
 
 [Details for any BLOCK or WARN items]
 

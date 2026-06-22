@@ -59,6 +59,27 @@ The `.github` directory is hidden -- use explicit paths.
 6. Present findings to user for approval
 7. If approved, run **Implementer** (via `/apply-approved`)
 
+## Doc-Coverage Gate (added 2026-06-22)
+
+Every PR must update documentation in the same change set when it touches a
+matching code surface, OR include an explicit no-doc justification. The
+expectation is enforced in three places:
+
+1. **`.github/pull_request_template.md`** -- Documentation section with a
+   checklist of doc surfaces and a required justification field.
+2. **`CONTRIBUTING.md`** -- "Documentation Expectations" section with the
+   full code-surface to doc-surface mapping table.
+3. **`.github/agents/pre-commit-reviewer.agent.md`** -- Documentation
+   Coverage check (Step 2.G) that inspects staged paths and WARNs when a
+   matching doc was not also updated.
+
+When adding a new file under `docs/memory/` or `docs/runbooks/`, also
+register it in:
+
+- `.github/agents/onboard.agent.md` (Phase 1 or Phase 2 read list)
+- `docs/memory/README.md` (corpus index)
+- this file (if it documents an agent / prompt / skill)
+
 ## Invocation Note
 
 These agents are workspace-scoped (`.github/agents/`). They are NOT listed in
