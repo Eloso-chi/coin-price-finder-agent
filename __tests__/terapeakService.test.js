@@ -138,6 +138,21 @@ describe('parseCSV', () => {
     expect(comps.length).toBeLessThanOrEqual(1);
   });
 
+  test('filters [Removed] Item rows (eBay-pulled listings)', () => {
+    // eBay removes listings for shill bidding, counterfeit, or banned
+    // sellers.  Terapeak exports these as "[Removed] Item NNN".  By
+    // eBay's own action these are not reliable comps and including them
+    // drags weighted FMV down (see 1871-CC investigation).
+    const csv = header +
+      '1889 Morgan Dollar,$40.00,$5.00,2025-06-01,111\n' +
+      '[Removed] Item 198318128442,$15.78,$12.84,2026-05-03,198318128442\n' +
+      '[Removed] Item 366345577502,$29.00,$0.00,2026-04-16,366345577502\n';
+    const { comps, skipped } = parseCSV(csv, 'Morgan Dollar');
+    expect(comps.length).toBe(1);
+    expect(comps[0].title).toBe('1889 Morgan Dollar');
+    expect(skipped).toBe(2);
+  });
+
   test('skips rows with zero or negative price', () => {
     const csv = header +
       '1889 Morgan Dollar,$0.00,$0.00,2025-06-01,111\n';

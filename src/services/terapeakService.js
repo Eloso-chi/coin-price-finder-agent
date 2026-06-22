@@ -566,6 +566,16 @@ function rowToComp(mappedRow, searchTerm) {
   const title = mappedRow.title || '';
   if (!title) return null;
 
+  // Skip eBay-removed listings.  Terapeak exports rows with title
+  // "[Removed] Item NNN" when eBay pulled the original listing
+  // (shill bidding, counterfeit, banned seller, etc.).  By eBay's own
+  // action these are not reliable comps -- the seller never legitimately
+  // realized the price -- and including them drags weighted FMV down
+  // because the rows are recent and survive default match scoring.
+  // See investigation of 1871-CC Seated Liberty Half Dollar FMV
+  // divergence (rawMedian $429.50 vs weighted $68.65) for details.
+  if (/^\[removed\]\s/i.test(title)) return null;
+
   // Skip denied listings -- but keep roll/tube listings (they are valid
   // for roll-specific pricing and would be filtered by applyFilters when
   // the search is not roll-specific)
@@ -703,6 +713,15 @@ function parseCSV(csvData, searchTerm) {
     const mapped = {};
     for (const [rawCol, canonName] of Object.entries(colMapping)) {
       mapped[canonName] = record[rawCol];
+    }
+
+    // Skip eBay-removed listings BEFORE the carry-forward step so the
+    // poisoned title is not propagated to subsequent blank rows that
+    // belong to a different (legitimate) listing further up in the CSV.
+    // See rowToComp() for why these rows must be dropped.
+    if (mapped.title && /^\[removed\]\s/i.test(mapped.title.trim())) {
+      skipped++;
+      continue;
     }
 
     // Carry forward title from previous row when blank (multi-sale listings)
