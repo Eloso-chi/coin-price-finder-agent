@@ -157,14 +157,29 @@ fi
 : "${APP_URL:?APP_URL must be set}"
 : "${COOKIE_FILE:?COOKIE_FILE must be set}"
 
-# #251 -- enforce deterministic upload path unless the operator explicitly
-# overrides it (e.g. UPLOAD_MODE=blob for a bulk-backfill profile). The
-# default is API so freshness/dormancy progression is immediate and the
-# Surface/Codespaces flows behave identically.
-: "${UPLOAD_MODE:=blob}"
+# #251 -- enforce deterministic upload path. The choice between `api` and
+# `blob` depends on which machine the loop runs from:
+#   - Surface laptop (has TERAPEAK_BLOB_ACCOUNT/CONTAINER configured): use
+#     `blob` so CSVs land in Azure Storage and survive even when the dev
+#     server isn't running. Ingestion is deferred until server startup or
+#     POST /api/terapeak/reimport.
+#   - Codespace / local dev (no blob env vars): use `api` so the running
+#     localhost:3000 server ingests immediately and freshness/dormancy
+#     progression is visible without an extra reimport step.
+# Operators can override either default by exporting UPLOAD_MODE before
+# invoking this script.
+if [[ -z "${UPLOAD_MODE:-}" ]]; then
+  if [[ -n "${TERAPEAK_BLOB_ACCOUNT:-}" && -n "${TERAPEAK_BLOB_CONTAINER:-}" ]]; then
+    UPLOAD_MODE=blob
+  else
+    UPLOAD_MODE=api
+  fi
+fi
 export UPLOAD_MODE
-if [[ "$UPLOAD_MODE" != "api" ]]; then
-  echo "[warn] UPLOAD_MODE=$UPLOAD_MODE -- non-default; ingestion may be deferred." >&2
+if [[ "$UPLOAD_MODE" == "blob" ]]; then
+  echo "[info] UPLOAD_MODE=blob -- ingestion deferred until server startup or /api/terapeak/reimport." >&2
+elif [[ "$UPLOAD_MODE" != "api" ]]; then
+  echo "[warn] UPLOAD_MODE=$UPLOAD_MODE -- non-standard mode; behavior depends on terapeak-export.py handling." >&2
 fi
 
 if [[ -n "$FOCUS_REGEX" && -n "$COIN_TYPE" ]]; then
