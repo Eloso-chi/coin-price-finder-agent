@@ -275,6 +275,9 @@ while true; do
 
   write_state "loop-pass" "ok" "Pass ${PASS} completed"
 
+  # Print progress metrics after each pass
+  bash scripts/operator-monitor.sh "$PROJECT_DIR" "$PASS"
+
   if [[ "$LOOP" != true ]]; then
     break
   fi

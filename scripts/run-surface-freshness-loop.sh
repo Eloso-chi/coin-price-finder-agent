@@ -14,6 +14,8 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 cd "$PROJECT_DIR"
 
+PYTHON_BIN=""
+
 ENV_FILE=""
 STALE_DAYS=15
 PAGE1_BATCH=15
@@ -57,6 +59,34 @@ EOF
 
 step() {
   printf '\n== %s ==\n' "$1"
+}
+
+resolve_python_bin() {
+  if [[ -n "${VIRTUAL_ENV:-}" ]] && [[ -x "$VIRTUAL_ENV/bin/python" ]]; then
+    PYTHON_BIN="$VIRTUAL_ENV/bin/python"
+    return
+  fi
+
+  local candidates=(
+    "$PROJECT_DIR/.venv-u24b/bin/python"
+    "$PROJECT_DIR/.venv-u24/bin/python"
+    "$PROJECT_DIR/.venv/bin/python"
+  )
+  local candidate
+  for candidate in "${candidates[@]}"; do
+    if [[ -x "$candidate" ]]; then
+      PYTHON_BIN="$candidate"
+      return
+    fi
+  done
+
+  if command -v python3 >/dev/null 2>&1; then
+    PYTHON_BIN="$(command -v python3)"
+    return
+  fi
+
+  echo "[freshness-loop] python3 not found and no project venv detected" >&2
+  exit 1
 }
 
 resolve_focus_regex() {
@@ -157,6 +187,8 @@ fi
 : "${APP_URL:?APP_URL must be set}"
 : "${COOKIE_FILE:?COOKIE_FILE must be set}"
 
+resolve_python_bin
+
 # #251 -- enforce deterministic upload path unless the operator explicitly
 # overrides it (e.g. UPLOAD_MODE=blob for a bulk-backfill profile). The
 # default is API so freshness/dormancy progression is immediate and the
@@ -180,7 +212,7 @@ fi
 REPORT_FILE="cache/freshness-report.json"
 
 print_report_summary() {
-  python3 - "$REPORT_FILE" <<'PY'
+  "$PYTHON_BIN" - "$REPORT_FILE" <<'PY'
 import json
 import sys
 
@@ -233,7 +265,7 @@ sync_meta_from_app() {
     rm -f "$tmp"
     return 0
   fi
-  if ! python3 -c "import json,sys; json.load(open(sys.argv[1]))" "$tmp" >/dev/null 2>&1; then
+  if ! "$PYTHON_BIN" -c "import json,sys; json.load(open(sys.argv[1]))" "$tmp" >/dev/null 2>&1; then
     echo "[warn] meta sync returned non-JSON payload; keeping existing data/terapeak-meta.json" >&2
     rm -f "$tmp"
     return 0
@@ -253,16 +285,16 @@ generate_report() {
 }
 
 step "Cookie health check"
-python3 scripts/cookie-health-check.py
+"$PYTHON_BIN" scripts/cookie-health-check.py
 if [[ "$SKIP_PROBE" != true ]]; then
-  python3 scripts/cookie-health-check.py --probe
+  "$PYTHON_BIN" scripts/cookie-health-check.py --probe
 fi
 
 generate_report
 
 step "Run page-1 backlog batch"
 PAGE1_ARGS=(
-  python3 scripts/terapeak-export.py
+  "$PYTHON_BIN" scripts/terapeak-export.py
   --run
   --backlog "$REPORT_FILE"
   --limit "$PAGE1_BATCH"
@@ -280,7 +312,7 @@ generate_report
 if [[ "$SKIP_DEEP" != true ]]; then
   step "Run deep-pagination backlog"
   DEEP_ARGS=(
-    python3 scripts/sales-aggregator.py
+    "$PYTHON_BIN" scripts/sales-aggregator.py
     --backlog "$REPORT_FILE"
     --run
     --limit "$DEEP_LIMIT"
