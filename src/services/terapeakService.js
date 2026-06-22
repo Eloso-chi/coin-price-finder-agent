@@ -574,7 +574,7 @@ function rowToComp(mappedRow, searchTerm) {
   // because the rows are recent and survive default match scoring.
   // See investigation of 1871-CC Seated Liberty Half Dollar FMV
   // divergence (rawMedian $429.50 vs weighted $68.65) for details.
-  if (/^\[removed\]\s/i.test(title)) return null;
+  if (/^\[removed\]\s/i.test(title.trim())) return null;
 
   // Skip denied listings -- but keep roll/tube listings (they are valid
   // for roll-specific pricing and would be filtered by applyFilters when

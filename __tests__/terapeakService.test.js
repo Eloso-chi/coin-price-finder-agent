@@ -153,6 +153,29 @@ describe('parseCSV', () => {
     expect(skipped).toBe(2);
   });
 
+  test('[Removed] interleaved does not poison carry-forward', () => {
+    // Critical edge case: a [Removed] row between two legit listings,
+    // with blank-title carry-forward rows AFTER the [Removed].  The
+    // blanks must inherit the prior LEGIT title, not the [Removed] one
+    // (and not be dropped).  See 1871-CC investigation for the real
+    // CSV that exhibited this pattern.
+    const csv = header +
+      '1889 Morgan Dollar AU58,$120.00,$5.00,2025-06-01,A1\n' +
+      '[Removed] Item 999999999999,$15.00,$0.00,2025-06-02,999999999999\n' +
+      ',$118.00,$5.00,2025-06-03,\n' +
+      ',$125.00,$5.00,2025-06-04,\n';
+    const { comps, skipped } = parseCSV(csv, 'Morgan Dollar');
+    // 1 [Removed] dropped, 3 legit kept (original + 2 carry-forward)
+    expect(comps).toHaveLength(3);
+    expect(skipped).toBe(1);
+    // Carry-forward rows must inherit the legit prior title, not [Removed]
+    expect(comps[1].title).toBe('1889 Morgan Dollar AU58');
+    expect(comps[2].title).toBe('1889 Morgan Dollar AU58');
+    // Prices intact
+    expect(comps[1].totalUsd).toBe(123);
+    expect(comps[2].totalUsd).toBe(130);
+  });
+
   test('skips rows with zero or negative price', () => {
     const csv = header +
       '1889 Morgan Dollar,$0.00,$0.00,2025-06-01,111\n';
