@@ -432,9 +432,16 @@ describe('scoreMatch — finish-aware variant scoring', () => {
     const comp = { title: '2021 American Silver Eagle Reverse Proof', totalUsd: 80, matchScore: 70 };
     const expected = { year: 2021, series: 'American Silver Eagle', _rawQuery: '2021 American Silver Eagle' };
     scoreMatch(comp, expected);
-    // Post-#277H: the umbrella `variant-mismatch` tag is now reserved for
-    // colorized titles. Reverse Proof on a plain-BU query triggers both the
-    // proof-family penalty and the generic specialty-variant penalty.
+    // Post-#277H tag taxonomy (see src/services/ebayService.js L637/L720):
+    //   `variant-mismatch`            -- emitted ONLY for colorized titles
+    //                                    on a non-colorized query (-30).
+    //   `variant-specialty-mismatch`  -- emitted for non-colorized specialty
+    //                                    variants on a non-colorized query (-20).
+    //   `proof-mismatch-unwanted-proof` -- emitted when title is in the proof
+    //                                    family and the user did not ask for
+    //                                    proof (-25).
+    // A Reverse Proof comp on a plain-BU query is both a proof-family title
+    // and a non-colorized specialty variant, so both penalty notes fire.
     expect(comp.matchNotes).toContain('proof-mismatch-unwanted-proof');
     expect(comp.matchNotes).toContain('variant-specialty-mismatch');
   });
@@ -454,12 +461,13 @@ describe('scoreMatch — finish-aware variant scoring', () => {
     scoreMatch(comp, expected);
     // Post-#277H: `variant-mismatch` is reserved for colorized-only and is
     // never emitted in this flow.  Original assertion preserved.
-    // NOTE: scoreMatch's `userWantsProof` detection currently treats
-    // finish='Reverse Proof' as NOT-wanting-proof, so this comp still
-    // accrues `proof-mismatch-unwanted-proof` and `variant-specialty-mismatch`
-    // even though the user asked for Reverse Proof.  That is a separate
-    // pre-existing scoring gap (not introduced by #277H) and is out of
-    // scope for this test-fixture sync.
+    // TODO(#173): scoreMatch's `userWantsProof` detector currently treats
+    // finish='Reverse Proof' as NOT-wanting-proof (exact-match against the
+    // literal 'Proof' at src/services/ebayService.js L636), so this comp
+    // still accrues `proof-mismatch-unwanted-proof` and `variant-specialty-mismatch`
+    // even when the user asked for Reverse Proof.  When #173 lands, the
+    // negative assertion below should be strengthened to also check those
+    // two tags are absent.
     expect(comp.matchNotes || []).not.toContain('variant-mismatch');
   });
 });
