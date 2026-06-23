@@ -102,9 +102,21 @@ In `run-surface-freshness-loop.sh`, function `manage_batch_state()`:
 manage_batch_state() {
     local state_file="$PROJECT_DIR/cache/loop-run-state.json"
     local lock_file="$PROJECT_DIR/cache/loop-run-state.lock"
+    local lock_held=0
+
+    cleanup_batch_lock() {
+        if [[ "$lock_held" -eq 1 ]]; then
+            flock -u 9 || true
+            exec 9>&- || true
+            lock_held=0
+        fi
+    }
+
+    trap cleanup_batch_lock RETURN
     mkdir -p "$PROJECT_DIR/cache"
     exec 9>"$lock_file"
-    flock 9
+    flock -w 10 9
+    lock_held=1
     
     if [[ ! -f "$state_file" ]]; then
         # First run: initialize
@@ -113,23 +125,23 @@ manage_batch_state() {
             > "$state_file"
         BATCH_NUMBER=1
     else
-        local last_batch=$(jq -r '.batch_number' "$state_file")
+        local current_batch=$(jq -r '.batch_number // 1' "$state_file")
         local batch_start=$(jq -r '.batch_start_time' "$state_file")
         local now=$(date +%s)
         local elapsed=$((now - batch_start))
         
         if [[ $elapsed -gt 300 ]]; then
             # >5 min since batch start: increment
-            jq --arg ts "$(date -Iseconds)" '.batch_number += 1 | .batch_start_time = ($ts | fromdateiso8601)' "$state_file" > /tmp/state.json
-            mv /tmp/state.json "$state_file"
-            BATCH_NUMBER=$((last_batch + 1))
+            local next_batch=$((current_batch + 1))
+            jq --arg ts "$(date -Iseconds)" --arg batch "$next_batch" \
+                '.batch_number = ($batch | tonumber) | .batch_start_time = ($ts | fromdateiso8601)' \
+                "$state_file" > "$state_file.tmp" && mv "$state_file.tmp" "$state_file"
+            BATCH_NUMBER="$next_batch"
         else
             # <5 min: keep same batch (restart detection)
-            BATCH_NUMBER=$last_batch
+            BATCH_NUMBER="$current_batch"
         fi
     fi
-    flock -u 9
-    exec 9>&-
     export BATCH_NUMBER
 }
 ```
@@ -148,6 +160,7 @@ def update_live_status(term, new_comps=None, dups=None, progress_pct=None, statu
     try:
         batch_num = os.environ.get("BATCH_NUMBER", "1")
         status_file = PROJECT_DIR / "cache" / "loop-status-live.json"
+        status_file.parent.mkdir(parents=True, exist_ok=True)
         
         status_data = {
             "batch_number": int(batch_num),
@@ -158,11 +171,27 @@ def update_live_status(term, new_comps=None, dups=None, progress_pct=None, statu
             "status": status,
             "timestamp": datetime.now().isoformat()
         }
-        
-        with open(status_file, "w") as f:
-            json.dump(status_data, f)
-    except Exception:
-        pass  # Silent fail, don't interrupt scraping
+
+        fd, tmp_path = tempfile.mkstemp(
+            dir=str(status_file.parent),
+            prefix=".loop-status-live.",
+            suffix=".json",
+        )
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                json.dump(status_data, f)
+            try:
+                os.replace(tmp_path, status_file)
+            except OSError:
+                shutil.move(tmp_path, status_file)
+        except Exception:
+            try:
+                os.unlink(tmp_path)
+            except Exception:
+                pass
+            raise
+    except Exception as exc:
+        print(f"[warn] live status write failed for '{term}': {exc}", file=sys.stderr)
 ```
 
 **Calls:** Made at each coin result (success, no-export, failed).

@@ -46,6 +46,7 @@ import csv
 import json
 import os
 import re
+import shutil
 import tempfile
 import sys
 import time
@@ -164,15 +165,20 @@ def update_live_status(term, new_comps=None, dups=None, progress_pct=None, statu
         try:
             with os.fdopen(fd, "w", encoding="utf-8") as f:
                 json.dump(status_data, f)
-            os.replace(tmp_path, status_file)
+            try:
+                os.replace(tmp_path, status_file)
+            except OSError:
+                # Fallback for filesystems where replace can fail (for example SMB mounts).
+                shutil.move(tmp_path, status_file)
         except Exception:
             try:
                 os.unlink(tmp_path)
             except Exception:
                 pass
             raise
-    except Exception:
-        pass  # Silent fail, don't interrupt scraping
+    except Exception as exc:
+        # Keep scraping resilient but surface status-write issues to operators.
+        print(f"[warn] live status write failed for '{term}': {exc}", file=sys.stderr)
 
 
 def has_display():

@@ -291,37 +291,51 @@ manage_batch_state() {
   local current_time
   current_time=$(date +%s)
   local restart_window=300  # 5 minutes in seconds
+  local lock_held=0
+
+  cleanup_batch_lock() {
+    if [[ "$lock_held" -eq 1 ]]; then
+      flock -u 9 || true
+      exec 9>&- || true
+      lock_held=0
+    fi
+  }
+
+  trap cleanup_batch_lock RETURN
 
   mkdir -p "$PROJECT_DIR/cache"
 
   # Serialize state updates so overlapping invocations cannot corrupt or double-increment.
   exec 9>"$lock_file"
-  flock 9
+  flock -w 10 9
+  lock_held=1
 
   if [[ -f "$state_file" ]]; then
     local last_batch_time
     last_batch_time=$(jq -r '.batch_start_time // 0' "$state_file" 2>/dev/null || echo "0")
+    local current_batch
+    current_batch=$(jq -r '.batch_number // 1' "$state_file" 2>/dev/null || echo "1")
     local time_diff=$((current_time - last_batch_time))
 
     if [[ $time_diff -ge $restart_window ]]; then
       # New cycle -- increment batch
-      local current_batch
-      current_batch=$(jq -r '.batch_number // 1' "$state_file" 2>/dev/null || echo "1")
       local next_batch=$((current_batch + 1))
       jq --arg ts "$(date -Iseconds)" \
          --arg batch "$next_batch" \
          '.batch_number = ($batch | tonumber) | .batch_start_time = ($ts | fromdateiso8601)' \
          "$state_file" > "$state_file.tmp" && mv "$state_file.tmp" "$state_file"
+      BATCH_NUMBER="$next_batch"
+    else
+      BATCH_NUMBER="$current_batch"
     fi
   else
     # First run
     jq -n --arg ts "$(date -Iseconds)" \
           '{batch_number: 1, run_start_time: ($ts | fromdateiso8601), batch_start_time: ($ts | fromdateiso8601)}' \
           > "$state_file"
+    BATCH_NUMBER=1
   fi
-
-  flock -u 9
-  exec 9>&-
+  export BATCH_NUMBER
 }
 
 step "Cookie health check"
@@ -333,11 +347,6 @@ fi
 generate_report
 
 manage_batch_state
-BATCH_NUMBER=$(jq -r '.batch_number // 1' "$PROJECT_DIR/cache/loop-run-state.json" 2>/dev/null || {
-  echo "[warn] loop-run-state.json missing/corrupt; using batch #1" >&2
-  echo "1"
-})
-export BATCH_NUMBER
 
 step "Run page-1 backlog batch (batch #$BATCH_NUMBER)"
 PAGE1_ARGS=(
