@@ -466,6 +466,48 @@ describe('fetchSoldComps — Terapeak tier', () => {
     expect(leakWarnings.length).toBe(0);
     warnSpy.mockRestore();
   });
+
+  // ── Pool-isolation guard (reverted #252, see #270W) ──────────
+  // Reverted PR #154 attempted to merge graded comps INTO the raw FMV stream
+  // for >=1oz bullion queries (no isProof, no explicit grade). The merge
+  // violated the pool-isolation contract in docs/memory/numismatic-terminology.md
+  // and was reverted on 2026-06-23. This test pins the restored behavior so a
+  // future PR cannot reintroduce pool merging without a failing test.
+  test('raw bullion query (weight>=1, no grade, no proof) keeps strict raw pool -- DO NOT relax without re-reading docs/memory/numismatic-terminology.md', async () => {
+    terapeakService.lookupComps.mockReturnValue({
+      searchTerm: '2024 Canada 1 oz Gold Maple Leaf',
+      lastImport: '2026-06-04',
+      comps: [
+        // 3 raw bullion (kept -- targetPool=raw)
+        { title: '2024 Canada 1 oz Gold Maple Leaf .9999',     totalUsd: 4520, soldDate: '2026-05-20', conditionId: '4000', _source: 'terapeak' },
+        { title: '2024 Canadian Gold Maple Leaf 1oz BU',       totalUsd: 4540, soldDate: '2026-05-21', conditionId: '4000', _source: 'terapeak' },
+        { title: '2024 1 oz Gold Canada Maple Leaf Mint',      totalUsd: 4500, soldDate: '2026-05-22', conditionId: '3000', _source: 'terapeak' },
+        // 3 slabbed bullion (MUST be dropped -- strict raw pool)
+        { title: '2024 Canada 1 oz Gold Maple Leaf PCGS MS69', totalUsd: 4615, soldDate: '2026-05-23', conditionId: '2000', _source: 'terapeak' },
+        { title: '2024 1 oz Gold Maple Leaf NGC MS70',         totalUsd: 4720, soldDate: '2026-05-24', conditionId: '2000', _source: 'terapeak' },
+        { title: '2024 Gold Maple Leaf 1oz PCGS MS70',         totalUsd: 4810, soldDate: '2026-05-25', conditionId: '2000', _source: 'terapeak' },
+        // 1 proof (MUST be dropped -- different pool)
+        { title: '2024 Canada 1 oz Gold Maple Leaf Proof',     totalUsd: 5400, soldDate: '2026-05-26', conditionId: '4000', _source: 'terapeak' },
+      ]
+    });
+
+    const result = await ebayService.fetchSoldComps(
+      '2024 Canada 1 oz Gold Maple Leaf', {},
+      { year: 2024, series: 'Canada Gold Maple Leaf', weight: 1, meltPerOz: 4500 }
+    );
+
+    expect(result.apiUsed).toBe('terapeak');
+    // Only the 3 raw comps survive the prefilter.
+    expect(result.us.comps.length).toBe(3);
+    // No graded slab comps leaked in (the exact violation #252 introduced).
+    expect(result.us.comps.some(c => /pcgs|ngc/i.test(c.title))).toBe(false);
+    // No proof comps leaked in.
+    expect(result.us.comps.some(c => /\bproof\b/i.test(c.title))).toBe(false);
+    // 4 dropped via strike-split (3 graded slab + 1 proof).
+    expect(result.us.removed.prefilterStrikeSplit).toBe(4);
+    // The reverted bullion-merge telemetry bucket must NOT be present.
+    expect(result.us.removed.prefilterBullionMerge).toBeUndefined();
+  });
 });
 
 // ═════════════════════════════════════════════════════════════

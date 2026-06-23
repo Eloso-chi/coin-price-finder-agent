@@ -1489,11 +1489,11 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
     // raw, graded, and proof are THREE DISTINCT POOLS. Even for modern
     // bullion (Gold Maple, Eagle, Krugerrand, Britannia, Panda), the slab
     // pool trades differently from raw because every series has scarce
-    // dates / varieties / first-strike labels where MS-70 slabs command
-    // material premium. The strict split below upholds that contract.
-    // For sparse-raw-comp problems, see BACKLOG #270W (the right fixes
-    // are wider lookback, better seeding, or two-pool FMV surfacing --
-    // NEVER pool merging).
+    // dates / varieties / high-grade slab tiers (MS-70, etc.) where the
+    // graded pool commands material premium. The strict split below
+    // upholds that contract. For sparse-raw-comp problems, see BACKLOG
+    // #270W (the right fixes are wider lookback, better seeding, or
+    // two-pool FMV surfacing -- NEVER pool merging).
     const wantsProof = !!expected.isProof;
     const wantsReverseProof = wantsProof && isReverseProofFinish(expected.finish);
     const wantsGraded = !!expected.grade;
