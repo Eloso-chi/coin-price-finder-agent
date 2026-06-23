@@ -21,11 +21,12 @@ the corpus into git so both machines see the same content.
 | Files migrated | 21 markdown files |
 | Banner added | Originals at `/memories/repo/` carry a `MIGRATED to docs/memory/...` notice and are retained as a non-authoritative backup. |
 
-## Inventory (22 files)
+## Inventory (23 files)
 
 | File | Purpose |
 |------|---------|
 | `agents-and-prompts.md` | Inventory of all `.github/agents/`, `.github/prompts/`, and `.github/skills/` |
+| `agent-loading-order.md` | How Copilot loads memory scopes / agents / prompts / skills; where new content belongs (added under #271W F18) |
 | `audience-gating.md` | Public vs admin response gating (PR #85) |
 | `azure-infrastructure.md` | Key Vault, Cosmos DB, Blob Storage, App Service |
 | `background-processes-status.md` | Background timers, prefetch scheduler (2026-05-26) |

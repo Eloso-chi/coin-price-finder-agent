@@ -73,8 +73,9 @@ Priority order:
 18. `docs/memory/cosmos-gotchas.md` -- Cosmos DB pitfalls
 19. `docs/memory/key-normalization-fix.md` -- 2026-05-08 key normalization
 20. `docs/memory/agents-and-prompts.md` -- inventory of agents/prompts/skills
-21. `docs/memory/future-edits.md` -- **HISTORICAL ARCHIVE ONLY**, now a deprecation stub. Canonical backlog is `docs/BACKLOG.md`. Skim for the renumber map (memory#183->#228, #185->#226, #186->#227) and per-machine ID convention.
-22. `docs/memory/README.md` -- corpus index, audit notes, migration history
+21. `docs/memory/agent-loading-order.md` -- how Copilot loads user / repo / session memory + agents / prompts / skills; where new content belongs (added under #271W F18)
+22. `docs/memory/future-edits.md` -- **HISTORICAL ARCHIVE ONLY**, now a deprecation stub. Canonical backlog is `docs/BACKLOG.md`. Skim for the renumber map (memory#183->#228, #185->#226, #186->#227) and per-machine ID convention.
+23. `docs/memory/README.md` -- corpus index, audit notes, migration history
 
 If a file is missing in `docs/memory/`, check `/memories/repo/` (the legacy backup) and surface the gap in the Readiness Report under "Gaps Detected".
 Any file returned by the glob but not in the priority list above is **not**

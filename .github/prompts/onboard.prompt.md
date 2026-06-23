@@ -18,7 +18,7 @@ Run a full codebase onboarding using the **Onboard** agent.
 1. Read `.github/agents/onboard.agent.md` for the full operating procedure.
 2. Follow all five phases:
    - **Phase 0:** Discovery scan -- find new docs, agents, and scripts not yet in the procedure.
-   - **Phase 1:** Read all `/memories/repo/` files (codebase overview, backlog, decision engine, runbooks, analysis docs).
+   - **Phase 1:** Read all `docs/memory/` files (canonical git-tracked corpus: codebase overview, backlog, decision engine, runbooks, analysis docs). The legacy `/memories/repo/` is a machine-local backup only; consult only if a file is missing from `docs/memory/`.
    - **Phase 2:** Read project docs (`README.md`, `docs/ARCHITECTURE.md`, `.github/copilot-instructions.md`, `docs/testing/test-monitor.md`, `data/terapeak/README.md`, `.github/skills/code-review/SKILL.md`).
    - **Phase 3:** Scan all 16 services, key routes, data/utils, scripts, and test infrastructure.
    - **Phase 4:** Run tests + git log, then produce a Readiness Report with exact numbers.
