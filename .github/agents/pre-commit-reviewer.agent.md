@@ -75,7 +75,9 @@ also updated:
 | `src/services/authService.js` (signup/login) | `public/js/auth.js` calls match |
 | `src/services/coinStorageService.js` (coinHash) | `public/js/storage.js` (client coinHash uses same fields) |
 | `src/services/ebayService.js` (scoreMatch) | `__tests__/coinSearch.*.test.js` updated |
+| `src/services/ebayService.js` (classifyGradeType, PROOF_RE, applyFilters strike-split, `prefilterStrikeSplit`) | Run `@numismatic-audit` Step 5b and verify PASS; PR body MUST cite `docs/memory/numismatic-terminology.md` MANDATORY contract + `.github/skills/numismatics/SKILL.md` "MANDATORY: Pool-Isolation Contract" (added under #271W F5 after INC-013 -- see `docs/WASTE-LEDGER.md`) |
 | `src/services/valuationService.js` (FMV formula) | `__tests__/computeValuation.test.js` updated |
+| `src/services/valuationService.js` (pool selection, pool fallback) | Run `@numismatic-audit` Step 5b and verify PASS; PR body MUST cite `docs/memory/numismatic-terminology.md` + verify fallback sets `dataSource` and downgrades `confidence` (does NOT silently blend pools -- INC-013 prevention) |
 | `src/services/bulkEvaluateService.js` (lot formula) | `__tests__/bulkEvaluateService.test.js` updated |
 | `src/data/keyDates.js` | `__tests__/keyDates.test.js` + `__tests__/keyDateCoverage.test.js` |
 | `src/data/greysheetTypeMap.js` | `__tests__/greysheetTypeMap.test.js` updated |

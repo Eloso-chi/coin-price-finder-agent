@@ -65,6 +65,23 @@ Read `.github/skills/code-review/SKILL.md` to load the shared review framework.
 - Run `npm test` to confirm current test status.
 - Run `get_errors` to check for lint/compile issues.
 
+### Step 3b: Load Domain Context (added under #271W F4 after INC-013)
+
+Generic correctness/security/performance heuristics do not catch domain-contract violations. Before delegating to sub-reviewers, load the canonical doc(s) that govern the files in scope:
+
+| Files in scope | Required reading |
+|---|---|
+| `src/services/ebayService.js`, `src/services/valuationService.js`, anything touching `classifyGradeType` / `applyFilters` / `prefilterStrikeSplit` / pool selection | `docs/memory/numismatic-terminology.md` (full "DO NOT MERGE POOLS" preamble) AND `.github/skills/numismatics/SKILL.md` ("MANDATORY: Pool-Isolation Contract" section). Plan to invoke `@numismatic-audit` Step 5b as part of the review. |
+| `src/services/terapeakService.js`, `data/terapeak/**`, `scripts/terapeak-*.py` | `docs/memory/terapeak-data-structure-analysis.md` AND `docs/memory/terapeak-runbook.md`. |
+| `src/services/authService.js`, `src/middleware/**`, `src/services/auditService.js`, anything auth / RBAC / rate-limits | `SECURITY.md` AND `docs/memory/azure-infrastructure.md` (Key Vault sections). |
+| `src/services/adminService.js`, `src/utils/redactForPublic.js`, response-shape changes in `src/routes/**` | `docs/memory/audience-gating.md`. |
+| Any disk-write path (`saveStore`, `saveMetaSidecar`, new `fs.writeFile` calls) | `docs/WASTE-LEDGER.md` INC-002 (debounce-race postmortem) AND verify `NODE_ENV === 'test'` guard is present. |
+| Anything that prefetches or caches (`src/utils/cache.js`, `src/services/prefetchScheduler.js`, `src/services/freshnessClassifier.js`) | `docs/memory/cache-invalidation-fix.md` AND `docs/memory/background-processes-status.md`. |
+
+Findings produced from this step go into **Category 8 (Domain Correctness)** when synthesizing the report (see `.github/skills/code-review/SKILL.md` section 8).
+
+**Why this step exists:** INC-013 ($10.03, see `docs/WASTE-LEDGER.md`) -- a deep reviewer approved PR #154 GREEN without having read `docs/memory/numismatic-terminology.md`, so the pool-isolation violation went undetected for 5 days. Loading the governing doc is now load-bearing, not optional context.
+
 ### Step 4: Delegate Sub-Reviews
 
 Launch two sub-agents **in parallel** using `runSubagent`:
