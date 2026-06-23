@@ -2795,6 +2795,14 @@ Gated on data: run pricing-health across a Reverse-Proof slate (2023 RP Morgan, 
 - Then evaluate #2 vs #3 based on how much raw signal still remains after the first two.
 - #5 is an audit-then-fix; queue it after the first two if pricing-health still RED.
 
+**Shipped:**
+
+| Option | PR | Merge SHA | Date | Notes |
+|---|---|---|---|---|
+| #4 -- Honest insufficient-comps return | #186 | `faa852f` | 2026-06-23 | M-tier. Default raw-intent branch now uses strict raw pool (`usComps = usRaw`, no fallback to `usCompsAll`). When raw pool is empty -> `fmvCore: null`, `lowData: true`, `dataSource.label: 'metal-only'`. Null-FMV early return made schema-compliant (emits `dataSource` + `gradePool` telemetry). 7 new pool-isolation tests in `computeValuation.test.js`; 1 existing test (`'no-signal contract: RP comps...'`) updated from defending old violating behavior to defending strict isolation. `valuationInvariants` fixtures threaded with `userGrade`/`opts` intent flags. `@numismatic-audit` Step 5b: PASS. Deep review: GREEN, 0 findings. Discovered the analogous violation in the wantsGraded branch (L120) -- see #272W. |
+
+Options #1, #2, #3, #5 remain OPEN.
+
 **Acceptance criteria (any candidate fix):**
 - 2026-06-04 Maple + Eagle pricing-health re-run: <= 1 RED row on Gold 1oz datasets (down from 9).
 - No graded comps appear in any reported raw FMV pool (`result.us.comps` are all `gradeType === 'raw'` when target was raw).
@@ -2864,3 +2872,70 @@ WASTE-LEDGER `INC-013` row already documents full remediation. No dangling cross
 **Cross-reference:** `docs/WASTE-LEDGER.md` INC-013, audit report in session a9bc389e (chat transcript).
 
 **Acceptance criteria:** all 19 findings marked closed in the table above (sub-PR column populated), and no dangling cross-references remain from doc-to-doc or doc-to-skill (re-grep `pool-isolation-rule.md` and other unresolved citations after the cleanup batch lands).
+
+---
+
+### #272W. Latent pool-isolation violation in `wantsGraded` branch of `computeValuation` [P1 -- DATA-QUALITY] -- OPEN 2026-06-23
+
+**Discovered while implementing:** #270W Option #4 (PR #186, merge `faa852f`, 2026-06-23). While reading `src/services/valuationService.js` to fix the analogous violation in the default raw-intent branch, the same anti-pattern was found in the `wantsGraded` branch and documented inline at lines 151-156 of that file. It was kept out of scope for #186 per scope discipline.
+
+**Problem:** `src/services/valuationService.js` line ~120 (current `main`, post-`faa852f`):
+
+```javascript
+} else if (wantsGraded) {
+  usComps = usGraded.length >= 3 ? usGraded : usCompsAll;  // SILENT POOL MERGE
+  glComps = glGraded.length >= 3 ? glGraded : glCompsAll;  // SILENT POOL MERGE
+  ...
+}
+```
+
+When the user explicitly asks for a graded coin (via `userGrade`) but the graded pool is thin (< 3 comps), the engine silently falls back to `usCompsAll` -- which **merges raw + proof + reverse-proof comps into the graded FMV**. This is the exact same family of violation that #186 (#270W Option #4) just fixed for the raw branch, and the same family as INC-013 (reverted PR #154, `docs/WASTE-LEDGER.md`).
+
+**Concrete failure mode:** A query for a graded scarce-date Morgan dollar (e.g. 1893-S MS-65) where only 1-2 true MS-65 slabs sold recently would silently anchor on raw circulated comps + proof issues -- producing an FMV that is wildly low (raw dilution) AND falsely represented as a "graded" FMV.
+
+**Hard constraints (same MANDATORY pool-isolation contract as #270W):**
+1. MUST NOT merge graded + raw comps into a single FMV.
+2. MUST NOT merge graded + proof, graded + reverse-proof, or any cross-pool blend.
+3. Any computed graded FMV is attributed to exactly ONE pool.
+4. Cite `docs/memory/numismatic-terminology.md` MANDATORY: Pool-Isolation Contract in the fix PR body.
+
+**Proposed fix (mirror of #270W Option #4):** Make the graded pool strict:
+
+```javascript
+} else if (wantsGraded) {
+  usComps = usGraded;  // STRICT -- no fallback
+  glComps = glGraded;  // STRICT -- no fallback
+  // Honest explanation messages depending on graded pool size:
+  //  - >= 3 graded with non-graded available: "Using N graded comps (M excluded -- pool isolation)"
+  //  - 1-2 graded: "thin graded pool" warning
+  //  - 0 graded: "no graded comps; non-graded excluded to preserve pool isolation; graded FMV cannot be derived from comps"
+  ...
+}
+```
+
+When the graded pool is empty AND the engine cannot otherwise produce a graded FMV (no PCGS guide, no Greysheet bid), the path naturally falls through to the existing null-FMV early return (which #186 already made schema-compliant with `dataSource.label: 'metal-only'` and `gradePool` telemetry).
+
+**Open questions for scoping (user decision before implementation):**
+1. **Threshold:** mirror #270W Option #4 and trigger strict only when `usGraded === 0`, OR be more aggressive (any time `usGraded < 3`)? #270W chose the conservative path (only when 0); this is consistent.
+2. **PCGS-guide-only graded FMV:** when graded pool is empty but PCGS price guide for the exact grade exists, should the engine compute graded FMV from the guide alone (with downgraded confidence + label `'guide-only'`), or honest null? PCGS guide is grade-specific so it does NOT cross pools; this is an honest input. Recommend allowing guide-only FMV with a new `dataSource.label` value (`'guide-only'`).
+3. **Greysheet handling:** Greysheet bid is also grade-specific (CDN Bid sheet) -- same as PCGS guide, doesn't cross pools. Same recommendation.
+
+**Acceptance criteria:**
+- `src/services/valuationService.js:120` (or wherever the wantsGraded branch is after the fix) uses `usComps = usGraded` strictly with no fallback to non-graded pool.
+- New tests in `__tests__/computeValuation.test.js` mirroring the 7 added by #186 for the raw branch:
+  - acceptance: raw comps DO NOT leak into graded FMV when graded pool empty
+  - acceptance: proof comps DO NOT leak into graded FMV when graded pool empty
+  - acceptance: 2 graded + 5 raw comps -- strict graded pool, NO merge to mixed
+  - acceptance: 3 graded + 5 raw comps -- graded-only with exclusion telemetry
+  - (if guide-only path is added) acceptance: PCGS guide for matching grade produces FMV with `dataSource.label: 'guide-only'`
+  - acceptance: null-FMV early return path still emits schema-compliant shape
+  - cross-pool isolation regression guard for the unchanged proof / reverse-proof branches
+- `@numismatic-audit` Step 5b: PASS.
+- All callers of `computeValuation` continue to null-coalesce `fmvCore` (already verified during #186: `routes/priceRoute.js:544`, `routes/pricingBatchRoute.js:285`, `services/bulkEvaluateService.js:257`).
+- Existing test at `__tests__/computeValuation.test.js:514` (`'falls back to all comps when preferred pool too small'`) -- this test currently defends the violating behavior and must be updated or deleted in the fix PR (same pattern as #186 did for the `'no-signal contract: RP comps'` test).
+
+**Files (anticipated):** `src/services/valuationService.js` (wantsGraded branch only), `__tests__/computeValuation.test.js` (new tests + update `'falls back to all comps when preferred pool too small'`), `__tests__/valuationInvariants.test.js` (verify fixtures still pass with strict graded pool -- should be no change since fixtures already pass `userGrade` post-#186).
+
+**Tier:** M (touches valuationService.js pool selection -- hot file, INC-013 family; full review required including `@numismatic-audit` Step 5b and deep review per `.github/skills/workflow/SKILL.md`).
+
+**Cross-reference:** `docs/memory/numismatic-terminology.md` MANDATORY: Pool-Isolation Contract; `docs/WASTE-LEDGER.md` INC-013; #270W (parent umbrella -- this is the graded-branch counterpart of Option #4); PR #186 (commit `4c0fc60`, merge `faa852f`) inline comment at `valuationService.js:151-156` recording the discovery context.
