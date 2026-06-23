@@ -47,18 +47,33 @@ The `.github` directory is hidden -- use explicit paths.
 | Path | Purpose |
 |---|---|
 | `.github/skills/code-review/SKILL.md` | Shared review framework (severity defs, finding schema, report structure) |
-| `.github/skills/numismatics/SKILL.md` | Domain knowledge: classification decision tree, finish detection, audit checklist |
+| `.github/skills/numismatics/SKILL.md` | Domain knowledge: classification decision tree, finish detection, audit checklist, MANDATORY Pool-Isolation Contract |
 | `.github/skills/testing/TESTING-PLAN.md` | Testing standards, batch plan, coverage targets |
+| `.github/skills/workflow/SKILL.md` | Canonical PR workflow (hard rule, tiered execution, 8-step lifecycle, WASTE-LEDGER carve-out) |
+| `.github/skills/process-discipline/SKILL.md` | Hot-file -> INC mapping + WASTE-LEDGER author guide (schema, rate card, citation discipline) |
 
-## PR Workflow (from operating-rules.md)
+## PR Workflow
 
-1. Create feature branch
-2. Make changes
-3. Run **Pre-commit Reviewer** (via `/pre-commit` or invoking agent directly)
-4. Create PR
-5. Run **Code Reviewer** (via `/review-deep` or invoking agent directly)
-6. Present findings to user for approval
-7. If approved, run **Implementer** (via `/apply-approved`)
+Canonical workflow: see [`.github/skills/workflow/SKILL.md`](../../.github/skills/workflow/SKILL.md).
+
+Summary (the SKILL is authoritative; this is a pointer):
+
+1. Create feature branch from latest `main`
+2. Make changes (read hot-file INC mapping in
+   [`.github/skills/process-discipline/SKILL.md`](../../.github/skills/process-discipline/SKILL.md)
+   before editing any flagged surface)
+3. Run **Pre-commit Reviewer** (`@pre-commit-reviewer` or `/pre-commit`)
+4. Commit (no `--no-verify` reflex) and push (`unset GITHUB_TOKEN GH_TOKEN`
+   first in Codespace)
+5. Open PR using `.github/pull_request_template.md`
+6. For M / L tier: run **Code Reviewer** (`@code-reviewer.approval-gated`
+   or `/review-deep`) and present findings
+7. After user approval, merge with `gh pr merge <N> --admin --merge
+   --delete-branch`
+
+Carve-out: `docs/WASTE-LEDGER.md` postmortem entries referencing
+already-merged or already-closed PRs may commit direct to `main` (see
+workflow SKILL "WASTE-LEDGER Carve-Out" for constraints).
 
 ## Doc-Coverage Gate (added 2026-06-22)
 
