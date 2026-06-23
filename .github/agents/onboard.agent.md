@@ -55,17 +55,17 @@ Priority order:
 
 1. `docs/memory/codebase-overview.md` -- stack, structure, services, auth, env vars, dependencies
 2. `docs/memory/decision-engine-spec.md` -- valuation engine FMV modes, confidence scoring, buy/sell spreads
-3. `docs/memory/terapeak-runbook.md` -- aggregation operations, VNC setup, troubleshooting (ADMIN_API_KEY value is REDACTED; load from `.env` or Key Vault)
-4. `docs/memory/terapeak-data-structure-analysis.md` -- CSV format, column mapping, data quality
-5. `docs/memory/terapeak-export-automation.md` -- Playwright aggregation architecture (ADMIN_API_KEY value REDACTED)
-6. `docs/memory/terapeak-export-process.md` -- correct export steps
-7. `docs/memory/ebay-search-filtering-analysis.md` -- keyword building, deny lists, scoring
-8. `docs/memory/cache-invalidation-fix.md` -- cache TTL and eviction details
-9. `docs/memory/finding-api-dead.md` -- eBay Finding API decommission context
-10. `docs/memory/label-feature-context.md` -- label/variant feature design
-11. `docs/memory/synthetic-data-audit.md` -- which data is real vs synthetic
-12. `docs/memory/azure-infrastructure.md` -- Key Vault, Cosmos DB, Blob Storage, Azure Files
-13. `docs/memory/numismatic-terminology.md` -- strike types, grade prefixes, pool classification rules, common traps
+3. `docs/memory/numismatic-terminology.md` -- **CRITICAL DOMAIN CONTRACT.** Strike types, grade prefixes, pool classification rules (raw / graded / proof are THREE DISTINCT POOLS and must never be merged for FMV), common traps. Promoted to #3 under #271W F10 after INC-013 (pool-isolation violation, $10.03 cost) demonstrated this must be read before any pricing/comp work, not after the operational docs.
+4. `docs/memory/terapeak-runbook.md` -- aggregation operations, VNC setup, troubleshooting (ADMIN_API_KEY value is REDACTED; load from `.env` or Key Vault)
+5. `docs/memory/terapeak-data-structure-analysis.md` -- CSV format, column mapping, data quality
+6. `docs/memory/terapeak-export-automation.md` -- Playwright aggregation architecture (ADMIN_API_KEY value REDACTED)
+7. `docs/memory/terapeak-export-process.md` -- correct export steps
+8. `docs/memory/ebay-search-filtering-analysis.md` -- keyword building, deny lists, scoring
+9. `docs/memory/cache-invalidation-fix.md` -- cache TTL and eviction details
+10. `docs/memory/finding-api-dead.md` -- eBay Finding API decommission context
+11. `docs/memory/label-feature-context.md` -- label/variant feature design
+12. `docs/memory/synthetic-data-audit.md` -- which data is real vs synthetic
+13. `docs/memory/azure-infrastructure.md` -- Key Vault, Cosmos DB, Blob Storage, Azure Files
 14. `docs/memory/audience-gating.md` -- public vs admin response gating (PR #85)
 15. `docs/memory/background-processes-status.md` -- background timers, prefetch scheduler
 16. `docs/memory/bulk-evaluate-feature.md` -- lot evaluator reference
@@ -90,19 +90,20 @@ Read these project docs:
 2. `docs/ARCHITECTURE.md` -- module map, data flow, schemas, caching, env vars, valuation engine
 3. `docs/BACKLOG.md` -- canonical backlog (single source of truth for planned/in-progress/done work)
 4. `docs/BACKLOG.rules.md` -- backlog governance rules, approval gates, PR hygiene expectations
-5. `.github/copilot-instructions.md` -- testing rules, safety, conventions
-6. `docs/testing/test-monitor.md` -- test budget, metrics, golden set, flaky test diagnosis
-7. `data/terapeak/README.md` -- data authenticity, CSV format docs, import instructions
-8. `.github/skills/code-review/SKILL.md` -- shared review framework (severity, finding schema)
-9. `.github/skills/numismatics/SKILL.md` -- domain knowledge: classification decision tree, finish detection, audit checklist
-10. `.github/skills/testing/TESTING-PLAN.md` -- testing strategy and expectations
-11. `docs/runbooks/local-scraper-wsl2.md` -- Surface laptop + WSL2 setup for the preferred scraper path (#250)
-12. `docs/runbooks/scraper-travel-mode.md` -- Codespace fallback scraper workflow, host-browser cookie export, per-machine `COOKIE_FILE` discipline (#250)
-13. `CONTRIBUTING.md` -- contributor workflow, setup, testing rules, branching strategy, PR process, required reviews
-14. `SECURITY.md` -- vulnerability reporting policy, response SLAs, coordinated disclosure, safe harbor
-15. `LICENSE` -- proprietary All Rights Reserved notice (aligns with UNLICENSED in package.json)
-16. `docs/api-reference.md` -- comprehensive HTTP endpoint reference (30+ endpoints organized by feature)
-17. `docs/data-dictionary.md` -- critical data stores, schemas, privacy classifications, CSV format, test fixtures
+5. `docs/WASTE-LEDGER.md` -- **READ THE LAST 5 INCIDENTS IN FULL.** Recent failures encode rules the agent must not re-violate (e.g., INC-002 disk-write-under-test guard, INC-003 server-must-be-background, INC-008 branch-protection, INC-011 backfill-missing-integration-test, INC-013 pool-isolation). Added under #271W F12.
+6. `.github/copilot-instructions.md` -- testing rules, safety, conventions
+7. `docs/testing/test-monitor.md` -- test budget, metrics, golden set, flaky test diagnosis
+8. `data/terapeak/README.md` -- data authenticity, CSV format docs, import instructions
+9. `.github/skills/code-review/SKILL.md` -- shared review framework (severity, finding schema)
+10. `.github/skills/numismatics/SKILL.md` -- domain knowledge: classification decision tree, finish detection, audit checklist
+11. `.github/skills/testing/TESTING-PLAN.md` -- testing strategy and expectations
+12. `docs/runbooks/local-scraper-wsl2.md` -- Surface laptop + WSL2 setup for the preferred scraper path (#250)
+13. `docs/runbooks/scraper-travel-mode.md` -- Codespace fallback scraper workflow, host-browser cookie export, per-machine `COOKIE_FILE` discipline (#250)
+14. `CONTRIBUTING.md` -- contributor workflow, setup, testing rules, branching strategy, PR process, required reviews
+15. `SECURITY.md` -- vulnerability reporting policy, response SLAs, coordinated disclosure, safe harbor
+16. `LICENSE` -- proprietary All Rights Reserved notice (aligns with UNLICENSED in package.json)
+17. `docs/api-reference.md` -- comprehensive HTTP endpoint reference (30+ endpoints organized by feature)
+18. `docs/data-dictionary.md` -- critical data stores, schemas, privacy classifications, CSV format, test fixtures
 
 ### Phase 3: Key Source Files (scan exports/structure only)
 
@@ -234,6 +235,16 @@ After reading, produce a **Readiness Report** with:
 
 ### Open Backlog (Top 5)
 - [Top 5 open items by priority]
+
+### Hard Rules (load-bearing -- do NOT violate)
+
+List the rules below verbatim in the report so the user sees you internalized them. Each rule cites the authoritative doc; if a rule's doc is missing or out of date, surface that under "Gaps Detected" instead of silently dropping the rule.
+
+1. **Pool-isolation.** Raw, graded, and proof are three distinct pools. Never merge them for a single FMV. No `bullionMerge` / `poolMerge` / `crossPool` / `mergePools` symbols. `prefilterStrikeSplit` is a correct-rejection counter, NOT a metric to minimize. Source: `docs/memory/numismatic-terminology.md` MANDATORY contract; `.github/skills/numismatics/SKILL.md` MANDATORY: Pool-Isolation Contract; `docs/WASTE-LEDGER.md` INC-013.
+2. **NODE_ENV=test disk-write guard.** All disk-write functions (`saveStore`, `saveMetaSidecar`, etc.) must no-op when `NODE_ENV === 'test'`. Adding a new disk-write path requires the same guard and a test that asserts the guard fires. Source: `docs/WASTE-LEDGER.md` INC-002.
+3. **Server is background-only.** `node server.js` MUST always be started with `isBackground: true`. It never exits; foreground launches block the terminal. Kill port 3000 first: `kill $(lsof -t -i:3000) 2>/dev/null`. Source: `docs/WASTE-LEDGER.md` INC-003; operating-rules.md server-management section.
+4. **No direct commits to main.** Branch-protected. Every change goes through a feature branch + PR + pre-commit review + (for M-tier) deep review. The only carve-out is `docs/WASTE-LEDGER.md` postmortem entries that reference already-merged or already-closed PRs (added 2026-06-23 in operating-rules.md). Reverts and doc-only PRs are NOT exempt. Source: `docs/WASTE-LEDGER.md` INC-008, INC-013 rule #18.
+5. **"More survivors" is not a success metric.** Any pre-filter that counts rejections (e.g., `prefilterStrikeSplit`) is a correctness signal -- a high value means the pool is sparse, not that the gate is broken. Fix sparse-pool symptoms via lookback / better seeding / honest null, never by widening the gate. Source: `docs/memory/numismatic-terminology.md`; `docs/WASTE-LEDGER.md` INC-013 rule #16.
 
 ### Gaps Detected
 - [Any new files found in Phase 0 not covered by the procedure]
