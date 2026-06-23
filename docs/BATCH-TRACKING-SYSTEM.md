@@ -101,11 +101,15 @@ In `run-surface-freshness-loop.sh`, function `manage_batch_state()`:
 ```bash
 manage_batch_state() {
     local state_file="$PROJECT_DIR/cache/loop-run-state.json"
+    local lock_file="$PROJECT_DIR/cache/loop-run-state.lock"
+    mkdir -p "$PROJECT_DIR/cache"
+    exec 9>"$lock_file"
+    flock 9
     
     if [[ ! -f "$state_file" ]]; then
         # First run: initialize
-        jq -n --arg t "$(date +%s)" \
-            '{batch_number: 1, run_start_time: $t | tonumber, batch_start_time: $t | tonumber}' \
+        jq -n --arg ts "$(date -Iseconds)" \
+            '{batch_number: 1, run_start_time: ($ts | fromdateiso8601), batch_start_time: ($ts | fromdateiso8601)}' \
             > "$state_file"
         BATCH_NUMBER=1
     else
@@ -116,7 +120,7 @@ manage_batch_state() {
         
         if [[ $elapsed -gt 300 ]]; then
             # >5 min since batch start: increment
-            jq '.batch_number += 1 | .batch_start_time = '$(date +%s) "$state_file" > /tmp/state.json
+            jq --arg ts "$(date -Iseconds)" '.batch_number += 1 | .batch_start_time = ($ts | fromdateiso8601)' "$state_file" > /tmp/state.json
             mv /tmp/state.json "$state_file"
             BATCH_NUMBER=$((last_batch + 1))
         else
@@ -124,6 +128,8 @@ manage_batch_state() {
             BATCH_NUMBER=$last_batch
         fi
     fi
+    flock -u 9
+    exec 9>&-
     export BATCH_NUMBER
 }
 ```

@@ -287,19 +287,26 @@ generate_report() {
 # Batch tracking for status reporting
 manage_batch_state() {
   local state_file="$PROJECT_DIR/cache/loop-run-state.json"
-  local current_time=$(date +%s)
+  local lock_file="$PROJECT_DIR/cache/loop-run-state.lock"
+  local current_time
+  current_time=$(date +%s)
   local restart_window=300  # 5 minutes in seconds
-  
+
+  mkdir -p "$PROJECT_DIR/cache"
+
+  # Serialize state updates so overlapping invocations cannot corrupt or double-increment.
+  exec 9>"$lock_file"
+  flock 9
+
   if [[ -f "$state_file" ]]; then
-    local last_batch_time=$(jq -r '.batch_start_time // 0' "$state_file" 2>/dev/null || echo "0")
+    local last_batch_time
+    last_batch_time=$(jq -r '.batch_start_time // 0' "$state_file" 2>/dev/null || echo "0")
     local time_diff=$((current_time - last_batch_time))
-    
-    if [[ $time_diff -lt $restart_window ]]; then
-      # Recent restart within window -- continue with same batch number
-      :
-    else
+
+    if [[ $time_diff -ge $restart_window ]]; then
       # New cycle -- increment batch
-      local current_batch=$(jq -r '.batch_number // 1' "$state_file" 2>/dev/null || echo "1")
+      local current_batch
+      current_batch=$(jq -r '.batch_number // 1' "$state_file" 2>/dev/null || echo "1")
       local next_batch=$((current_batch + 1))
       jq --arg ts "$(date -Iseconds)" \
          --arg batch "$next_batch" \
@@ -308,11 +315,13 @@ manage_batch_state() {
     fi
   else
     # First run
-    mkdir -p "$PROJECT_DIR/cache"
     jq -n --arg ts "$(date -Iseconds)" \
           '{batch_number: 1, run_start_time: ($ts | fromdateiso8601), batch_start_time: ($ts | fromdateiso8601)}' \
           > "$state_file"
   fi
+
+  flock -u 9
+  exec 9>&-
 }
 
 step "Cookie health check"
@@ -324,7 +333,10 @@ fi
 generate_report
 
 manage_batch_state
-BATCH_NUMBER=$(jq -r '.batch_number // 1' "$PROJECT_DIR/cache/loop-run-state.json" 2>/dev/null || echo "1")
+BATCH_NUMBER=$(jq -r '.batch_number // 1' "$PROJECT_DIR/cache/loop-run-state.json" 2>/dev/null || {
+  echo "[warn] loop-run-state.json missing/corrupt; using batch #1" >&2
+  echo "1"
+})
 export BATCH_NUMBER
 
 step "Run page-1 backlog batch (batch #$BATCH_NUMBER)"

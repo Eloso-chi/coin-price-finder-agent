@@ -46,6 +46,7 @@ import csv
 import json
 import os
 import re
+import tempfile
 import sys
 import time
 from datetime import datetime, timedelta
@@ -142,6 +143,7 @@ def update_live_status(term, new_comps=None, dups=None, progress_pct=None, statu
     try:
         batch_num = os.environ.get("BATCH_NUMBER", "1")
         status_file = PROJECT_DIR / "cache" / "loop-status-live.json"
+        status_file.parent.mkdir(parents=True, exist_ok=True)
         
         status_data = {
             "batch_number": int(batch_num),
@@ -152,9 +154,23 @@ def update_live_status(term, new_comps=None, dups=None, progress_pct=None, statu
             "status": status,
             "timestamp": datetime.now().isoformat()
         }
-        
-        with open(status_file, "w") as f:
-            json.dump(status_data, f)
+
+        # Atomic replace avoids partially-written JSON during overlapping updates.
+        fd, tmp_path = tempfile.mkstemp(
+            dir=str(status_file.parent),
+            prefix=".loop-status-live.",
+            suffix=".json",
+        )
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                json.dump(status_data, f)
+            os.replace(tmp_path, status_file)
+        except Exception:
+            try:
+                os.unlink(tmp_path)
+            except Exception:
+                pass
+            raise
     except Exception:
         pass  # Silent fail, don't interrupt scraping
 
@@ -1640,15 +1656,12 @@ def do_export_run(args):
                     meta["lastRefreshAt"] = now
                 ok, msg = upload_csv(dest, term, aggregation_meta=meta)
                 if ok:
-                    # Extract new/dups from msg like "16 new, 43 dups"
+                    # Extract new/dups from upload message (e.g. "16 new, 43 dups").
                     new_c, dup_c = None, None
-                    try:
-                        parts = msg.split(", ")
-                        if len(parts) == 2:
-                            new_c = int(parts[0].split()[0])
-                            dup_c = int(parts[1].split()[0])
-                    except (ValueError, IndexError):
-                        pass
+                    m = re.search(r"(\d+)\s+new\b.*?(\d+)\s+dups?\b", msg, flags=re.IGNORECASE)
+                    if m:
+                        new_c = int(m.group(1))
+                        dup_c = int(m.group(2))
                     
                     update_live_status(term, new_c, dup_c, int(pct), "running")
                     print(f"OK ({msg})")
