@@ -53,8 +53,8 @@ side), or honest `fmvCore: null`.
 
 | Export | Lines | Purpose |
 |---|---|---|
-| `computeValuation(pcgs, ebay, askingPrice, userGrade, opts)` | L30-560 | Top-level entry: routes by pool, picks FMV mode, scores confidence, derives buy/sell, returns full decision payload |
-| `computeWeightedMedian(comps, { isBullion, wantsProof, wantsReverseProof })` | L620-650 | Weighted median over comps using `matchScore` + recency half-life (BU bullion 30d, numismatic 90d, proof / RP 90d per #283H) |
+| `computeValuation(pcgs, ebay, askingPrice, userGrade, opts)` | L39-671 | Top-level entry: routes by pool, picks FMV mode, scores confidence, derives buy/sell, returns full decision payload |
+| `computeWeightedMedian(comps, { isBullion, wantsProof, wantsReverseProof })` | L672-806 | Weighted median over comps using `matchScore` + recency half-life (BU bullion 30d, numismatic 90d, proof / RP 90d per #283H) |
 
 Internal helpers worth knowing (not exported but referenced):
 
