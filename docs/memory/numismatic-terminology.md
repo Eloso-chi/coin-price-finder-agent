@@ -2,6 +2,53 @@
 
 Use this when classifying coins, building filters, or making pricing decisions.
 
+## DO NOT MERGE POOLS -- Pool-Isolation Contract (MANDATORY)
+
+**Raw, Graded, and Proof are THREE DISTINCT POOLS.** They trade in three different
+markets. They must never be merged in FMV computation. This applies to ALL series,
+including modern bullion (Gold Maple, Gold Eagle, Krugerrand, Britannia, Panda,
+Libertad).
+
+**Why this is mandatory even for "liquid" bullion:**
+
+- Every series contains scarce dates, varieties, and first-year / anniversary /
+  key-date issues where slabbed comps trade at a different price level than raw
+  comps of the same coin. Even when the average modern-bullion year trades
+  close to melt regardless of holder, the cross-pool dispersion is wide enough
+  to make a blended FMV wrong for both pools.
+- Raw, Graded, and Proof are observed by `classifyGradeType()` as three
+  distinct pools (see Code Mapping section below). `valuationService.js`
+  additionally routes reverse-proof comps to their own pool (see #260W); the
+  Proof Subtypes section in this doc describes the manufacturing relationship
+  but the code's pool routing is what governs FMV.
+
+**Forbidden anti-patterns:**
+
+- Merging the graded comps into the raw FMV stream for "high-melt-share" coins.
+- Conflating MS-70 slab prices with BU raw prices into a single mean / median.
+- Using a "weight threshold" (e.g. `>= 1.0 oz`) as a license to merge pools.
+- Reporting a "primary FMV" computed from a blended pool.
+
+**Approved patterns for sparse-raw-pool problems** (the symptom that tempts merging):
+
+- Adaptive lookback on the raw pool alone (extend the Terapeak window).
+- Better Terapeak seeding for raw-bullion datasets.
+- Two-pool FMV surfacing (return `fmvRaw` and `fmvSlab` side-by-side as
+  distinct numbers; do not blend).
+- Honest `fmvCore: null` + `confidence: 'unreliable'` when the target pool is
+  empty after all recovery attempts.
+
+**History:** PR #154 (#252, merged 2026-06-18) implemented bullion-merge gating
+in `src/services/ebayService.js` and was reverted on 2026-06-23 because it
+violated this contract. The follow-up tracking is **BACKLOG #270W**. Any future
+PR touching `classifyGradeType`, the `applyFilters` pool gates, or the
+`prefilterStrikeSplit` block must cite this file in the PR body and explain
+which pool boundary is being crossed and why.
+
+See also: `/memories/repo/pool-isolation-rule.md` (agent-side mandatory read).
+
+---
+
 ## Strike Types (Manufacturing Method)
 
 | Strike | Definition | Grade Prefix | Mutually Exclusive With |

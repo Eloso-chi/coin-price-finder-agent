@@ -2516,9 +2516,11 @@ and obscures regressions in unrelated PRs.
 
 ---
 
-### #252. Bullion Strike-Pool Split Misclassifies Graded Bullion as Off-Pool [P1 -- DATA-QUALITY] -- DONE 2026-06-18 (PR #154)
+### #252. Bullion Strike-Pool Split Misclassifies Graded Bullion as Off-Pool [P1 -- DATA-QUALITY] -- REVERTED 2026-06-23 (PR #154 reverted; correct path forward tracked in #270W)
 
-**Resolution (PR #154, merge commit `7b72a67`):** Implemented the proposed-fix sketch. `src/services/ebayService.js` (around L1438-L1474): when `expected.weight >= 1.0` and the query is neither proof nor explicit-grade, merges the `graded` and `raw` pools instead of dropping graded comps. Proof + reverse-proof comps stay excluded. Strict split is preserved for (a) fractional bullion `< 1oz` (slab premium IS real for 1/10oz Gold Eagle MS70 etc.), (b) explicit slab grade in the query, (c) proof intent, and (d) non-bullion queries with no weight signal. New `prefilterBullionMerge` telemetry bucket (value 0) is emitted on `result.us.removed` whenever the bullion branch fires, and the console log distinguishes `bullion-merge graded+raw, weight=Noz` vs `raw only`. 5 new cases added to `__tests__/ebayFetchSoldComps.test.js` covering the merge, the explicit-slab-grade fallback, the proof-bullion exclusion, the fractional-bullion guard, and the no-weight-signal defensive path. Verification at merge: full suite 3x consecutive -> 3928/3928 passed; lint clean (0 new warnings); ASCII-only confirmed.
+**REVERTED 2026-06-23 (pool-isolation violation):** PR #154's "merge graded+raw for >=1oz bullion" approach was reverted because it violates the pool-isolation contract documented in `docs/memory/numismatic-terminology.md`: raw, graded, and proof are THREE DISTINCT POOLS as observed by `classifyGradeType()` and must never be merged in FMV computation. Even for modern bullion (Gold Maple, Gold Eagle, Krugerrand, Britannia, Panda), the slab pool trades differently from raw because every series contains scarce dates, varieties, and first-year / anniversary issues -- the cross-pool dispersion is wide enough to make a blended FMV wrong for both pools. PR #154's `+191 survivors` metric was pool pollution, not a correctness improvement. The original symptom (sparse raw-bullion comps producing thin FMV) is a real problem and is now tracked as **#270W** with pool-preserving solutions (adaptive lookback, better Terapeak seeding for raw, two-pool FMV surfacing, honest "insufficient comps" return). Do NOT re-implement pool merging without first re-reading `docs/memory/numismatic-terminology.md` and `/memories/repo/pool-isolation-rule.md`.
+
+**Original resolution (now reverted) -- PR #154, merge commit `7b72a67`:** Implemented the proposed-fix sketch. `src/services/ebayService.js` (around L1438-L1474): when `expected.weight >= 1.0` and the query is neither proof nor explicit-grade, merges the `graded` and `raw` pools instead of dropping graded comps. Proof + reverse-proof comps stay excluded. Strict split is preserved for (a) fractional bullion `< 1oz` (slab premium IS real for 1/10oz Gold Eagle MS70 etc.), (b) explicit slab grade in the query, (c) proof intent, and (d) non-bullion queries with no weight signal. New `prefilterBullionMerge` telemetry bucket (value 0) is emitted on `result.us.removed` whenever the bullion branch fires, and the console log distinguishes `bullion-merge graded+raw, weight=Noz` vs `raw only`. 5 new cases added to `__tests__/ebayFetchSoldComps.test.js` covering the merge, the explicit-slab-grade fallback, the proof-bullion exclusion, the fractional-bullion guard, and the no-weight-signal defensive path. Verification at merge: full suite 3x consecutive -> 3928/3928 passed; lint clean (0 new warnings); ASCII-only confirmed.
 
 **Problem:** The pre-filter strike/grade-pool split in `fetchSoldComps` (introduced for #182, made visible by #244) treats slabbed bullion as off-pool for raw-bullion queries. For a query like `2024 Canada 1 oz Gold Maple Leaf` the parser sets neither `isProof` nor `grade`, so `targetPool = 'raw'`. Any Terapeak comp with `conditionId=2000` (slabbed PCGS/NGC) -- which is a large share of premium bullion listings -- gets classified as `graded` and dropped via `prefilterStrikeSplit` before scoring or filters ever run.
 
@@ -2761,3 +2763,47 @@ Gated on data: run pricing-health across a Reverse-Proof slate (2023 RP Morgan, 
   - Azure -> WSL pulled by `sync_meta_from_app()` before each freshness report (#259)
   - Azure -> Windows pulled by `npm run sync:meta` on demand (#260)
 - **Follow-up candidate (not blocking)**: integrate sync into `generate-freshness-report.js` itself as an opt-in flag (e.g. `--sync-from APP_URL`), so the report is always honest by default on any machine. Track separately if/when raised.
+
+---
+
+### #270W. Restore proper raw-bullion FMV without pool merging [P1 -- DATA-QUALITY] -- OPEN 2026-06-23
+
+**Context:** Replaces the reverted #252. The original symptom is real and still on the table: the 2026-06-04 Maple pricing-health run had 9/13 RED rows on 1oz Gold Maple Leaf datasets, with `prefilterStrikeSplit` as the top drop bucket (1-45 comps per dataset, worst case 2025 Maple Leaf at 164 gathered / 3 survived / 98.2% attrition). PR #154 attempted to fix this by merging the `graded` and `raw` pools for >=1oz bullion. That approach was reverted on 2026-06-23 because it violates the pool-isolation contract in `docs/memory/numismatic-terminology.md` -- raw, graded, and proof are three distinct pools as observed by `classifyGradeType()`, and modern bullion series still contain scarce dates / varieties / first-year issues where the cross-pool dispersion is wide enough to make a blended FMV wrong for both pools.
+
+**Hard constraints (mandatory for any candidate solution):**
+1. MUST NOT merge raw + graded comps into a single FMV.
+2. MUST NOT merge raw + proof or graded + proof.
+3. MUST NOT merge reverse-proof into any other pool.
+4. Any computed FMV is attributed to exactly ONE pool; multi-pool reporting requires side-by-side surfacing, not blending.
+5. Any PR touching `classifyGradeType`, the `applyFilters` pool gates, or the `prefilterStrikeSplit` block in `src/services/ebayService.js` must cite `docs/memory/numismatic-terminology.md` in the PR body and explain which pool boundary is being crossed and why.
+
+**Options to evaluate (final scope deferred -- user will decide):**
+
+1. **Adaptive lookback for sparse raw-bullion comps.** Today the Terapeak window is fixed. When the raw pool returns fewer than `usMinComps` after strike-split, extend the lookback 120d -> 180d -> 365d on the raw pool only. Pros: simple, deterministic, doesn't touch pool boundaries, leverages the existing freshness pipeline. Cons: only works if older raw comps exist in the dataset; for newly-issued bullion years there may be no fix.
+
+2. **Better Terapeak seeding for raw bullion.** The scraper today seeds queries that bias toward graded inventory (PCGS/NGC URLs tend to surface slabbed comps). Add a raw-bullion seed pass per series (Gold Maple, Gold Eagle, Krugerrand, Britannia, Panda, Libertad) that explicitly excludes `condition=2000` and targets BU / .9999 / Mint / Tube listings. Pros: structural fix at the data layer, no logic change in `ebayService.js`. Cons: requires scraper changes + a refresh cycle before benefit shows up in FMV. Cross-reference: #253 Track B proposes a canonical-weight whitelist in `data/constants.js`; the seeder here must use the same source of truth (do not duplicate the whitelist).
+
+3. **Two-pool FMV surfacing.** Return BOTH `fmvRaw` and `fmvSlab` side-by-side when both pools have enough comps -- as two distinct numbers, never blended. Frontend renders both. The "primary FMV" defaults to the pool inferred from the query (no slab grade -> raw; explicit grade -> slab). Pros: pool-preserving, lets the operator see both numbers directly, fixes the operator-confusion problem that #252 was trying to paper over. Cons: schema change in response, UI work in `/api/price` consumers, conventions for how to display the secondary pool. Concrete precedent (needs verification before implementation): published price guides for bullion typically separate raw spot-plus-spread from certified-condition pricing -- confirm with the Greysheet / CDN-Bid API contract during scoping.
+
+4. **Honest "insufficient comps" return.** When the raw pool is empty after strike-split AND adaptive lookback fails, return `fmvCore: null` + `confidence: 'unreliable'` + `lowData: true` + `dataSource: 'metal-only'`. Force callers to render the gap instead of fabricating a number. Pros: trivial to implement, no pool boundary crossed, no false confidence in thin data. Cons: rolls some current "GREEN with 1-3 comps" rows back to "honest YELLOW" -- this is a feature, not a bug, but it will change pricing-health output.
+
+5. **Looser deny-list / relevance gates on the raw pool specifically.** Audit `applyFilters` to see whether some raw-bullion comps are being dropped by overly-aggressive deny-list / weight-tolerance / spread gates that are appropriate for numismatic series but too tight for liquid bullion. Tighten or loosen per-pool. Pros: keeps the strict pool split but recovers signal from comps that should have passed. Cons: more nuanced; needs a per-pool config and per-series exception list; risk of regressing other categories if not careful.
+
+**Recommended sequence (subject to user approval):**
+- Land #4 first (low risk, immediate honesty win).
+- Then #1 (adaptive lookback) -- biggest impact for the smallest surface area, no boundary crossed.
+- Then evaluate #2 vs #3 based on how much raw signal still remains after the first two.
+- #5 is an audit-then-fix; queue it after the first two if pricing-health still RED.
+
+**Acceptance criteria (any candidate fix):**
+- 2026-06-04 Maple + Eagle pricing-health re-run: <= 1 RED row on Gold 1oz datasets (down from 9).
+- No graded comps appear in any reported raw FMV pool (`result.us.comps` are all `gradeType === 'raw'` when target was raw).
+- No proof / reverse-proof comps appear in raw or graded pools (no regression of the existing pool isolation).
+- The "primary FMV" returned for a query without an explicit slab grade is computed from raw comps only (or returned as null with `confidence: 'unreliable'` if raw pool is empty).
+- New unit tests in `__tests__/ebayFetchSoldComps.test.js` for whichever option(s) ship: each must include a "graded comps do not leak into raw FMV" assertion and a "proof comps do not leak into raw or graded FMV" assertion.
+
+**Files (anticipated, depending on option chosen):** `src/services/ebayService.js` (raw-pool lookback / pool-isolation guards), `src/services/valuationService.js` (honest insufficient-comps return), `src/services/terapeakService.js` (seeding for option 2), `schemas/priceResponse.schema.js` (two-pool surfacing for option 3), `__tests__/ebayFetchSoldComps.test.js`, `__tests__/computeValuation.test.js`, BACKLOG follow-ups.
+
+**Forbidden anti-patterns (record of the 2026-06-18 to 2026-06-23 pollution event):** pool merging in any form, treating slabbed bullion as equivalent to raw bullion in a single FMV stream, using `prefilterStrikeSplit` count as a success metric (it is a correct rejection counter -- a high value is a sparse-pool signal, not a bug to "fix" by widening the gate).
+
+**Cross-reference:** `docs/memory/numismatic-terminology.md` (canonical pool-isolation rule), `/memories/repo/pool-isolation-rule.md` (agent-side mandatory read before any related PR), original symptom in #252 (reverted), related work in #253 / #260W / #244.

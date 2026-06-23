@@ -1485,21 +1485,18 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
     // showed 97--100% cross-contamination on years where both issues exist
     // (e.g. 2023 ASE, 2019-S ASE ERP, 2023-S Morgan Dollar).
     //
-    // #252: For >=1oz bullion queries (weight set, no proof intent, no slab
-    // grade specified), MERGE the 'graded' and 'raw' pools instead of dropping
-    // graded comps. Graded 1oz Gold Maple / Gold Eagle / Krugerrand / Britannia
-    // still trades at metal + premium -- not at a separate "slabbed" tier worth
-    // excluding from FMV. Pre-fix, 9/13 RED rows in the 2026-06-04 Maple
-    // pricing-health run were 1oz Gold Maple datasets with `prefilterStrikeSplit`
-    // as the dominant drop bucket (45 comps lost on the 2025 issue alone).
-    // Proof + reverse-proof pools remain excluded -- a Proof Gold Maple is a
-    // different market from bullion. Fractional bullion (<1oz) keeps the
-    // strict split because the slab premium is materially different there
-    // (a 1/10oz Gold Eagle MS70 trades well above bullion).
+    // Pool-isolation contract (see docs/memory/numismatic-terminology.md):
+    // raw, graded, and proof are THREE DISTINCT POOLS. Even for modern
+    // bullion (Gold Maple, Eagle, Krugerrand, Britannia, Panda), the slab
+    // pool trades differently from raw because every series has scarce
+    // dates / varieties / high-grade slab tiers (MS-70, etc.) where the
+    // graded pool commands material premium. The strict split below
+    // upholds that contract. For sparse-raw-comp problems, see BACKLOG
+    // #270W (the right fixes are wider lookback, better seeding, or
+    // two-pool FMV surfacing -- NEVER pool merging).
     const wantsProof = !!expected.isProof;
     const wantsReverseProof = wantsProof && isReverseProofFinish(expected.finish);
     const wantsGraded = !!expected.grade;
-    const isBullionMerge = !wantsProof && !wantsGraded && Number(expected.weight) >= 1.0;
     const targetPool = wantsReverseProof
       ? 'reverse-proof'
       : (wantsProof ? 'proof' : (wantsGraded ? 'graded' : 'raw'));
@@ -1507,20 +1504,11 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
     tpComps = tpComps.filter(c => {
       const gt = classifyGradeType(c);
       c.gradeType = gt; // update stored value for downstream consumers
-      if (isBullionMerge) return gt === 'graded' || gt === 'raw';
       return gt === targetPool;
     });
     preFilterRemoved.prefilterStrikeSplit = beforeSplit - tpComps.length;
-    if (isBullionMerge) {
-      // Marker bucket: presence in `removed` (value 0) signals to operators
-      // that the bullion-merge path was taken. Per #252 acceptance criteria.
-      preFilterRemoved.prefilterBullionMerge = 0;
-    }
     if (tpComps.length !== beforeSplit) {
-      const label = isBullionMerge
-        ? `bullion-merge graded+raw, weight=${expected.weight}oz`
-        : `${targetPool} only`;
-      console.log(`[ebay] Terapeak grade-split: ${beforeSplit} → ${tpComps.length} (${label})`);
+      console.log(`[ebay] Terapeak grade-split: ${beforeSplit} → ${tpComps.length} (${targetPool} only)`);
     }
 
     // Filter by time window if soldDate available
