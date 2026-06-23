@@ -51,6 +51,8 @@ The `.github` directory is hidden -- use explicit paths.
 | `.github/skills/testing/TESTING-PLAN.md` | Testing standards, batch plan, coverage targets |
 | `.github/skills/workflow/SKILL.md` | Canonical PR workflow (hard rule, tiered execution, 8-step lifecycle, WASTE-LEDGER carve-out) |
 | `.github/skills/process-discipline/SKILL.md` | Hot-file -> INC mapping + WASTE-LEDGER author guide (schema, rate card, citation discipline) |
+| `.github/skills/valuation/SKILL.md` | FMV / confidence / buy-sell decision engine routing reference; cites decision-engine-spec, pool-isolation contract, INC-013 |
+| `.github/skills/comp-data/SKILL.md` | eBay 3-tier cascade + Terapeak ingestion / lookup; cites terapeak-runbook, pool-isolation contract, INC-001/002/004/011/013 |
 
 ## PR Workflow
 
