@@ -45,8 +45,6 @@ PR touching `classifyGradeType`, the `applyFilters` pool gates, or the
 `prefilterStrikeSplit` block must cite this file in the PR body and explain
 which pool boundary is being crossed and why.
 
-See also: `/memories/repo/pool-isolation-rule.md` (agent-side mandatory read).
-
 ---
 
 ## Strike Types (Manufacturing Method)
