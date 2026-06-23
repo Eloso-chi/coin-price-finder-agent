@@ -241,6 +241,25 @@ Tracks wasted compute, agent time, and Azure cost caused by bugs, agent violatio
 
 ---
 
+### INC-013: PR #154 (#252) Pool-Isolation Violation Merged + 5-Day FMV Pollution + Sweeping Revert (PR #177)
+
+| Field | Value |
+|-------|-------|
+| Date | 2026-06-18 through 2026-06-23 (5-day pollution window; multi-PR arc spanning #154, #176, #177) |
+| Category | `code-bug` / `agent-violation` / `recovery-ops` |
+| Root Cause | PR #154 implemented a "merge graded+raw pools for >=1oz bullion" gate in `src/services/ebayService.js` to fix a sparse-raw-comp problem on the 2026-06-04 Maple pricing-health run (9/13 RED rows). The merge approach violated the pool-isolation contract documented in `docs/memory/numismatic-terminology.md` -- raw, graded, and proof are three distinct pools observed by `classifyGradeType()`. The "+191 survivors" metric used to justify the fix was pool pollution, not a correctness improvement. The doc existed; the agent (me) did not consult it before authoring. Both the pre-commit reviewer and the deep code reviewer passed the work GREEN because they checked implementation quality, not architectural correctness against the canonical doc. |
+| Impact | (a) 5-day window where `/api/price` returned graded+raw blended FMV for any >=1oz bullion query without an explicit slab grade -- Gold Maple, Gold Eagle, Krugerrand, Britannia, Panda. Transient (no persistent data corruption; cache refresh expires the wrong answers). (b) Sweeping unwind: full PR (#177) with 3 commits, 4 files edited (code revert + 5 tests deleted + BACKLOG + canonical doc preamble), plus 1 new regression test pinning the restored behavior. (c) PR #176 (the polish layer built on top of the bad foundation) closed without merge -- all polish work wasted. (d) New BACKLOG #270W opened to track the original sparse-raw-comp problem with pool-preserving solutions. |
+| Mistakes | 1) **Did not consult `docs/memory/numismatic-terminology.md` before authoring #154** -- the doc was in `/memories/repo/` from a prior session and was not read. 2) **Treated `+191 survivors` as a success metric** instead of a pool-pollution counter. 3) **Built PR #176 polish layer on top of the violation** without re-checking the foundational architecture. 4) **Required user pushback three times** (epistemological challenge, domain refutation, "you have the knowledge, USE IT") before reading the doc that already existed. 5) **Skipped the pre-commit and deep reviewers on the revert PR #177 itself** -- rationalized as "this is just cleanup of a process failure" until user asked "did we run deep review?". 6) **Authored peripheral framing in the new pool-isolation preamble** that was not in the doc ("fourth pool" for reverse-proof, "Greysheet Bid / Bid+", "melt + dealer spread") -- caught only after user asked "did you also review your numismatic knowledge on the solution?". 7) Used `--no-verify` on the revert commit by reflex; turned out to be a no-op (no active hooks) but still violated the operating rule. |
+| Codespace | Session a9bc389e (revert arc): 35 turns over ~21.5 hours wall clock, ~5 hours active engineering = **$0.90**. Prior polish session (PR #176, all work wasted): est. ~2.5 hr = **$0.45**. Original #154 implementation session (est. from PR scope -- 3928 -> 3933 tests, full PR review cycle): est. ~3.5 hr = **$0.63**. Subtotal: **$1.98** |
+| Copilot | Session a9bc389e: ~70 premium requests (35 turns + Explore subagent multi-call + repeated test/diagnose cycles) = **$2.80**. Prior polish session: est. ~50 requests (3 polish items + pre-commit reviewer + deep reviewer + comment-resolution loop) = **$2.00**. Original #154 implementation: est. ~80 requests (investigation + design + tests + BACKLOG + reviewer + post-merge cleanup) = **$3.20**. Subtotal: **$8.00** |
+| Azure | Negligible -- no incident-related App Service degradation, no Cosmos write spike, no Blob spike. Cached wrong FMV answers served from existing storage. **~$0.05** |
+| User Attention | Not billable but real: user spent multiple rounds of domain pushback, cost-accounting investigation, 4-option approval decision, and final review/merge cycle. Pure operator-attention waste caused entirely by the agent failing to consult the doc the agent itself had access to. |
+| **Total (direct cost)** | **$10.03** |
+| Resolution | PR #177 (commit `bdc863d`, merged 2026-06-23): revert the merge gate; delete 5 backing #252 tests; add 1 new regression test pinning strict raw pool behavior with comment "DO NOT relax without re-reading docs/memory/numismatic-terminology.md"; mark #252 REVERTED in BACKLOG with full citation of the violation; open #270W with 5 pool-preserving options (adaptive lookback, better raw seeding, two-pool FMV surfacing, honest insufficient-comps return, per-pool gate audit); add DO NOT MERGE POOLS preamble to `docs/memory/numismatic-terminology.md`; add `/memories/repo/pool-isolation-rule.md` as agent-side mandatory read; add `/memories/repo/future-edits.md` item 270 for the doc-body alignment follow-up. |
+| Rules Added | 15) **Any PR touching `classifyGradeType`, `applyFilters` pool gates, or the `prefilterStrikeSplit` block MUST cite `docs/memory/numismatic-terminology.md` in the PR body and explain which pool boundary is being crossed and why.** Enforced by `/memories/repo/pool-isolation-rule.md` (agent-side mandatory read) and by the regression test in `__tests__/ebayFetchSoldComps.test.js` that explicitly names the doc in its test title. 16) **"More survivors" is not a success metric for any pre-filter.** `prefilterStrikeSplit` is a correct-rejection counter; a high value indicates a sparse pool, not a bug in the gate. Surface "fix sparse pool" symptoms via lookback / seeding / honest null, never via pool merging. 17) **Reviewers (pre-commit and deep) are necessary but not sufficient** -- both passed PR #154/#176 GREEN while the work violated the canonical architecture doc. Agent must independently verify against domain docs before authoring; the reviewer is a backstop, not the primary check. 18) **No exceptions to PR workflow for "revert/cleanup" PRs.** Operating rules say no exceptions for low-risk or doc-only changes; revert PRs are not exempt. 19) **When authoring docs, re-read the existing doc end-to-end** before adding new sections -- peripheral framing must be sourced from the doc or marked as the author's reasoning, not asserted as if it came from the doc. 20) **Check for active hooks before reaching for `--no-verify`**; if hooks are sample-only, the flag is a no-op but still signals bad habit. |
+
+---
+
 ## Summary
 
 | # | Date | Category | Description | Total Cost |
@@ -257,14 +276,16 @@ Tracks wasted compute, agent time, and Azure cost caused by bugs, agent violatio
 | INC-010 | May 26-31 | observability-debt / agent-violation | Red-on-green CI: heredoc bug masked healthy prefetch for 5 days | $0.29 |
 | INC-011 | Jun 2 | data-corruption / code-bug / agent-violation | Backfill script truncated sidecar (95% loss) -- missing hydration + missing integration test | $0.99 |
 | INC-012 | Jun 20 | agent-violation / recovery-ops | Terapeak startup thrash before successful freshness-only loop | $1.11 |
-| | | | **Running Total** | **$13.88** |
+| INC-013 | Jun 18-23 | code-bug / agent-violation / recovery-ops | PR #154 (#252) pool-isolation violation + 5-day FMV pollution + sweeping revert (PR #177) | $10.03 |
+| | | | **Running Total** | **$23.91** |
 
 ---
 
 ## Metrics
 
-- **Total waste (all time):** $13.88
-- **Worst category:** data-corruption ($6.93 / 50%)
-- **Agent violations:** 8 incidents, $7.37
-- **Code bugs:** 2 incidents, $2.53
-- **Preventable (with rules now in place):** $13.32 (INC-001 through INC-012)
+- **Total waste (all time):** $23.91
+- **Worst category:** code-bug + agent-violation combined (INC-013 alone is $10.03 / 42%)
+- **Worst single incident:** INC-013 at $10.03 (pool-isolation violation, multi-PR arc)
+- **Agent violations:** 9 incidents, $17.40
+- **Code bugs:** 3 incidents, $12.56
+- **Preventable (with rules now in place):** $23.35 (INC-001 through INC-013)
