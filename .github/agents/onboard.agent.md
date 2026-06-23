@@ -99,13 +99,15 @@ Read these project docs:
 11. `.github/skills/testing/TESTING-PLAN.md` -- testing strategy and expectations
 12. `.github/skills/workflow/SKILL.md` -- canonical PR workflow (hard rule, tiered execution, 8-step lifecycle, WASTE-LEDGER carve-out) -- added under #271W F6
 13. `.github/skills/process-discipline/SKILL.md` -- hot-file -> INC mapping + WASTE-LEDGER author guide -- added under #271W F9
-14. `docs/runbooks/local-scraper-wsl2.md` -- Surface laptop + WSL2 setup for the preferred scraper path (#250)
-15. `docs/runbooks/scraper-travel-mode.md` -- Codespace fallback scraper workflow, host-browser cookie export, per-machine `COOKIE_FILE` discipline (#250)
-16. `CONTRIBUTING.md` -- contributor workflow, setup, testing rules, branching strategy, PR process, required reviews
-17. `SECURITY.md` -- vulnerability reporting policy, response SLAs, coordinated disclosure, safe harbor
-18. `LICENSE` -- proprietary All Rights Reserved notice (aligns with UNLICENSED in package.json)
-19. `docs/api-reference.md` -- comprehensive HTTP endpoint reference (30+ endpoints organized by feature)
-20. `docs/data-dictionary.md` -- critical data stores, schemas, privacy classifications, CSV format, test fixtures
+14. `.github/skills/valuation/SKILL.md` -- FMV / confidence / buy-sell decision engine routing reference (pool routing, FMV modes, confidence scoring, buy/sell tiers) -- added under #271W F7
+15. `.github/skills/comp-data/SKILL.md` -- eBay 3-tier cascade + Terapeak ingestion / lookup (cascade, scoring, attrition, lookupComps guard chain, CSV format) -- added under #271W F8
+16. `docs/runbooks/local-scraper-wsl2.md` -- Surface laptop + WSL2 setup for the preferred scraper path (#250)
+17. `docs/runbooks/scraper-travel-mode.md` -- Codespace fallback scraper workflow, host-browser cookie export, per-machine `COOKIE_FILE` discipline (#250)
+18. `CONTRIBUTING.md` -- contributor workflow, setup, testing rules, branching strategy, PR process, required reviews
+19. `SECURITY.md` -- vulnerability reporting policy, response SLAs, coordinated disclosure, safe harbor
+20. `LICENSE` -- proprietary All Rights Reserved notice (aligns with UNLICENSED in package.json)
+21. `docs/api-reference.md` -- comprehensive HTTP endpoint reference (30+ endpoints organized by feature)
+22. `docs/data-dictionary.md` -- critical data stores, schemas, privacy classifications, CSV format, test fixtures
 
 ### Phase 3: Key Source Files (scan exports/structure only)
 
