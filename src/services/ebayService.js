@@ -5,6 +5,29 @@
 // Includes request throttling, aggressive caching, exponential backoff
 // CommonJS
 
+/**
+ * GOVERNING DOCS (must be read before editing pool-isolation surfaces -- added under #271W F16):
+ *
+ * - `docs/memory/numismatic-terminology.md` -- MANDATORY pool-isolation contract.
+ *   Raw, graded, and proof are THREE DISTINCT POOLS; never merge for FMV.
+ * - `.github/skills/numismatics/SKILL.md` -- MANDATORY: Pool-Isolation Contract
+ *   section + applyFilters audit checklist.
+ * - `docs/WASTE-LEDGER.md` INC-013 -- $10.03 cost of the last violation
+ *   (PR #154 added a bullion-merge gate that lasted 5 days; reverted under PR #177).
+ *
+ * Pool-contract surfaces in this file:
+ * - `classifyGradeType()` -- the pool boundary classifier.
+ * - `applyFilters()` strike-split block (`prefilterStrikeSplit` counter) --
+ *   the exact gate PR #154 violated. MUST remain single-line strict equality
+ *   (`gt === targetPool`); no weight gates, no `allow*` flags, no `||` clauses.
+ * - `prefilterStrikeSplit` is a CORRECT-REJECTION counter, not a metric to minimize.
+ *   A high value indicates a sparse pool, NOT a broken gate.
+ *
+ * Audit invocation: `@numismatic-audit` Step 5b. Run before any PR that touches
+ * the surfaces above. Cite the MANDATORY contract sections in the PR body
+ * (enforced by `.github/agents/pre-commit-reviewer.agent.md` Data Model Sync).
+ */
+
 const axios = require('axios');
 const { TTLCache } = require('../utils/cache');
 const stats = require('../utils/stats');

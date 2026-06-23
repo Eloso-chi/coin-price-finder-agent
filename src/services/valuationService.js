@@ -1,6 +1,28 @@
 // src/services/valuationService.js -- FMV estimation + dealer buy/sell decisions
 // CommonJS
 
+/**
+ * GOVERNING DOCS (must be read before editing pool selection or FMV blending -- added under #271W F16):
+ *
+ * - `docs/memory/decision-engine-spec.md` -- FMV modes, confidence scoring,
+ *   buy/sell spreads.
+ * - `docs/memory/numismatic-terminology.md` -- MANDATORY pool-isolation contract.
+ *   Raw, graded, and proof are THREE DISTINCT POOLS; never merge for FMV.
+ *   Pool fallback MUST set `dataSource` and downgrade `confidence` when an
+ *   alternate pool is used; NEVER silently blend.
+ * - `.github/skills/numismatics/SKILL.md` -- MANDATORY: Pool-Isolation Contract
+ *   section.
+ * - `docs/memory/audience-gating.md` -- audience-gated valuation reasoning
+ *   (Tier A, PR #232). Public responses must not redistribute licensed
+ *   wholesale data or expose source-brand attribution.
+ * - `docs/WASTE-LEDGER.md` INC-013 -- $10.03 cost of the last pool-isolation
+ *   violation.
+ *
+ * Audit invocation: `@numismatic-audit` Step 5b. Run before any PR that touches
+ * pool selection or FMV blending. Cite the MANDATORY contract sections in the
+ * PR body (enforced by `.github/agents/pre-commit-reviewer.agent.md`).
+ */
+
 const stats = require('../utils/stats');
 const { isReverseProofFinish } = require('../utils/coinIntent');
 
