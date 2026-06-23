@@ -71,3 +71,21 @@
 
 - Risk:
 - Rollback:
+
+## Review Gates
+
+<!-- Per `.github/skills/workflow/SKILL.md` tiered execution model. -->
+<!-- Pick ONE tier. Reviewers may upgrade; do not downgrade without author concurrence. -->
+
+- Tier (pick one):
+  - [ ] **XS** -- pure cleanup, zero behavioral change (pre-commit only)
+  - [ ] **S** -- single-file doc / non-load-bearing agent tweak (pre-commit + self-review)
+  - [ ] **M** -- multi-file change affecting agent behavior, SKILL content, source services (pre-commit + deep review)
+  - [ ] **L** -- schema change, route signature change, migration, auth or money (pre-commit + deep review + targeted sub-reviews + manual smoke)
+
+- Gates run:
+  - [ ] Pre-commit reviewer (`@pre-commit-reviewer`) -- report attached or PASS confirmed
+  - [ ] Deep review (`@code-reviewer.approval-gated`) -- required for M / L; report attached
+  - [ ] `@numismatic-audit` Step 5b -- required if PR touches pool-isolation surfaces (ebayService classifyGradeType / applyFilters, valuationService pool selection)
+  - [ ] Tests pass (`npm test`)
+  - [ ] No `--no-verify` (or active hooks verified absent)

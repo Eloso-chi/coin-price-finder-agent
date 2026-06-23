@@ -61,7 +61,9 @@ git diff --cached | grep -iE '(api.?key|secret|token|password|bearer |basic |AKI
 npm test
 ```
 
-All 40 suites must pass. If any fail, BLOCK with the failure details.
+All test suites must pass. If any fail, BLOCK with the failure details.
+(Current count tracked in `docs/testing/test-monitor.md` -- the gate is
+pass/fail, not a fixed count.)
 
 #### C. Data Model Sync (WARN if out of sync)
 
