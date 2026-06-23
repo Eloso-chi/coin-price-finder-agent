@@ -11,13 +11,16 @@ Libertad).
 
 **Why this is mandatory even for "liquid" bullion:**
 
-- Every series contains scarce dates, varieties, and first-strike / first-year /
-  anniversary issues where MS-70 / First-Strike slabs command material premium
-  over the melt-plus-spread that raw bullion commands.
-- The graded pool prices in the cost of authentication, presentation, and the
-  certified-condition premium. The raw pool prices in melt + dealer spread.
-- A reverse-proof is a different product entirely from a business-strike or a
-  regular proof, and is its own fourth pool.
+- Every series contains scarce dates, varieties, and first-year / anniversary /
+  key-date issues where slabbed comps trade at a different price level than raw
+  comps of the same coin. Even when the average modern-bullion year trades
+  close to melt regardless of holder, the cross-pool dispersion is wide enough
+  to make a blended FMV wrong for both pools.
+- Raw, Graded, and Proof are observed by `classifyGradeType()` as three
+  distinct pools (see Code Mapping section below). `valuationService.js`
+  additionally routes reverse-proof comps to their own pool (see #260W); the
+  Proof Subtypes section in this doc describes the manufacturing relationship
+  but the code's pool routing is what governs FMV.
 
 **Forbidden anti-patterns:**
 
@@ -30,8 +33,8 @@ Libertad).
 
 - Adaptive lookback on the raw pool alone (extend the Terapeak window).
 - Better Terapeak seeding for raw-bullion datasets.
-- Two-pool FMV surfacing (return `fmvRaw` and `fmvSlab` side-by-side, like
-  Greysheet Bid / Bid+).
+- Two-pool FMV surfacing (return `fmvRaw` and `fmvSlab` side-by-side as
+  distinct numbers; do not blend).
 - Honest `fmvCore: null` + `confidence: 'unreliable'` when the target pool is
   empty after all recovery attempts.
 
