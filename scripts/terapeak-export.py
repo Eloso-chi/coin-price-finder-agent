@@ -137,6 +137,28 @@ import random
 import math
 
 
+def update_live_status(term, new_comps=None, dups=None, progress_pct=None, status="running"):
+    """Update live status file for external monitoring (status query)."""
+    try:
+        batch_num = os.environ.get("BATCH_NUMBER", "1")
+        status_file = PROJECT_DIR / "cache" / "loop-status-live.json"
+        
+        status_data = {
+            "batch_number": int(batch_num),
+            "current_coin": term,
+            "new_comps": new_comps,
+            "duplicates": dups,
+            "progress_pct": progress_pct,
+            "status": status,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        with open(status_file, "w") as f:
+            json.dump(status_data, f)
+    except Exception:
+        pass  # Silent fail, don't interrupt scraping
+
+
 def has_display():
     """Check if a graphical display is available (X11/Wayland)."""
     return bool(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
@@ -1618,11 +1640,29 @@ def do_export_run(args):
                     meta["lastRefreshAt"] = now
                 ok, msg = upload_csv(dest, term, aggregation_meta=meta)
                 if ok:
+                    # Extract new/dups from msg like "16 new, 43 dups"
+                    new_c, dup_c = None, None
+                    try:
+                        parts = msg.split(", ")
+                        if len(parts) == 2:
+                            new_c = int(parts[0].split()[0])
+                            dup_c = int(parts[1].split()[0])
+                    except (ValueError, IndexError):
+                        pass
+                    
+                    update_live_status(term, new_c, dup_c, int(pct), "running")
                     print(f"OK ({msg})")
                     uploaded += 1
                     success += 1
                     progress.setdefault("completed", []).append(term)
+                    # Clean up CSV after successful API upload (blob mode defers ingestion)
+                    if UPLOAD_MODE == "api":
+                        try:
+                            Path(dest).unlink(missing_ok=True)
+                        except Exception:
+                            pass
                 else:
+                    update_live_status(term, None, None, int(pct), "failed")
                     print(f"SAVED but upload failed: {msg}")
                     # Treat 422/no-valid-comps as an empty scrape signal so
                     # dormant tracking can converge instead of retrying forever.
@@ -1631,6 +1671,7 @@ def do_export_run(args):
                     failed += 1
                     progress.setdefault("failed", []).append(term)
             else:
+                update_live_status(term, 0, 0, int(pct), "no-export")
                 print("NO EXPORT (no results or button not found)")
                 _report_no_data(term)
                 failed += 1

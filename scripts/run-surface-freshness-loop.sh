@@ -193,7 +193,7 @@ resolve_python_bin
 # overrides it (e.g. UPLOAD_MODE=blob for a bulk-backfill profile). The
 # default is API so freshness/dormancy progression is immediate and the
 # Surface/Codespaces flows behave identically.
-: "${UPLOAD_MODE:=blob}"
+: "${UPLOAD_MODE:=api}"
 export UPLOAD_MODE
 if [[ "$UPLOAD_MODE" != "api" ]]; then
   echo "[warn] UPLOAD_MODE=$UPLOAD_MODE -- non-default; ingestion may be deferred." >&2
@@ -284,6 +284,37 @@ generate_report() {
   print_report_summary
 }
 
+# Batch tracking for status reporting
+manage_batch_state() {
+  local state_file="$PROJECT_DIR/cache/loop-run-state.json"
+  local current_time=$(date +%s)
+  local restart_window=300  # 5 minutes in seconds
+  
+  if [[ -f "$state_file" ]]; then
+    local last_batch_time=$(jq -r '.batch_start_time // 0' "$state_file" 2>/dev/null || echo "0")
+    local time_diff=$((current_time - last_batch_time))
+    
+    if [[ $time_diff -lt $restart_window ]]; then
+      # Recent restart within window -- continue with same batch number
+      :
+    else
+      # New cycle -- increment batch
+      local current_batch=$(jq -r '.batch_number // 1' "$state_file" 2>/dev/null || echo "1")
+      local next_batch=$((current_batch + 1))
+      jq --arg ts "$(date -Iseconds)" \
+         --arg batch "$next_batch" \
+         '.batch_number = ($batch | tonumber) | .batch_start_time = ($ts | fromdateiso8601)' \
+         "$state_file" > "$state_file.tmp" && mv "$state_file.tmp" "$state_file"
+    fi
+  else
+    # First run
+    mkdir -p "$PROJECT_DIR/cache"
+    jq -n --arg ts "$(date -Iseconds)" \
+          '{batch_number: 1, run_start_time: ($ts | fromdateiso8601), batch_start_time: ($ts | fromdateiso8601)}' \
+          > "$state_file"
+  fi
+}
+
 step "Cookie health check"
 "$PYTHON_BIN" scripts/cookie-health-check.py
 if [[ "$SKIP_PROBE" != true ]]; then
@@ -292,7 +323,11 @@ fi
 
 generate_report
 
-step "Run page-1 backlog batch"
+manage_batch_state
+BATCH_NUMBER=$(jq -r '.batch_number // 1' "$PROJECT_DIR/cache/loop-run-state.json" 2>/dev/null || echo "1")
+export BATCH_NUMBER
+
+step "Run page-1 backlog batch (batch #$BATCH_NUMBER)"
 PAGE1_ARGS=(
   "$PYTHON_BIN" scripts/terapeak-export.py
   --run

@@ -297,6 +297,9 @@ Any other flags are forwarded to `./surface` (and then
 # Are scraper processes still alive?
 pgrep -af 'cpf-go|run-surface|terapeak-export|playwright' || echo 'idle'
 
+# Current batch and coin being scraped:
+bash scripts/loop-status.sh
+
 # How many search terms have been touched this session?
 python3 -c "
 import json
@@ -375,40 +378,156 @@ Notes:
 
 ### Upload mode (UPLOAD_MODE) -- #251
 
-Direct `surface` / `run-surface-freshness-loop.sh` runs default to
-`UPLOAD_MODE=blob` when unset. The canonical `scripts/terapeak-operator.sh`
-wrapper defaults `UPLOAD_MODE=api` and exports it before invoking the loop.
-The exporter (`terapeak-export.py`) supports three modes:
+The `run-surface-freshness-loop.sh` and `terapeak-export.py` support three upload modes:
 
 | Mode  | Behavior                                                                                     | Ingestion latency                                                |
 |-------|----------------------------------------------------------------------------------------------|------------------------------------------------------------------|
-| `api` | POST every CSV to `APP_URL/api/terapeak/import`. Immediate import + dormancy progression.    | Immediate.                                                       |
-| `blob`| Upload to Azure Blob only. No API fallback. Errors if blob env vars are missing.             | Deferred until server startup or explicit `/api/terapeak/reimport`. |
+| `api` | **DEFAULT** (as of 2026-06-23). POST every CSV to `APP_URL/api/terapeak/import`. Immediate import + dormancy progression. CSVs deleted after successful upload.| Immediate. |
+| `blob`| Upload to Azure Blob only. Requires `TERAPEAK_BLOB_ACCOUNT` + `TERAPEAK_BLOB_CONTAINER` env vars. Errors if missing.             | Deferred until server startup or explicit `/api/terapeak/reimport`. |
 | `auto`| Legacy: blob first if configured, else API.                                                  | Mixed -- not recommended for daily ops.                          |
 
-Local-ops profile (recommended): use `bash scripts/terapeak-operator.sh`
-and leave `UPLOAD_MODE` unset (operator defaults to `api`), while keeping
-`TERAPEAK_BLOB_ACCOUNT` / `TERAPEAK_BLOB_CONTAINER` unset. Bulk-backfill profile:
-set `UPLOAD_MODE=blob` plus blob env vars and follow up with a manual call to
-`POST /api/terapeak/reimport`.
+**Default behavior (recommended):** Leave `UPLOAD_MODE` unset. The loop defaults to `UPLOAD_MODE=api`, which:
+- Uploads immediately to the app
+- Deletes the local CSV from `cache/` after successful upload
+- Keeps persistent `data/terapeak/*.csv` intact (git-tracked backups)
 
-Set `VERIFY_IMPORT=1` to surface explicit warnings whenever the upload path
-cannot confirm immediate ingestion (always the case in blob mode).
+Local-ops profile (recommended): use `bash scripts/run-surface-freshness-loop.sh` or `bash scripts/terapeak-operator.sh` and leave `UPLOAD_MODE` unset (defaults to `api`), while keeping `TERAPEAK_BLOB_ACCOUNT` / `TERAPEAK_BLOB_CONTAINER` unset.
+
+Set `VERIFY_IMPORT=1` to surface explicit warnings whenever the upload path cannot confirm immediate ingestion.
+
+---
+
+### Live status tracking
+
+The loop exports batch number and live coin progress to JSON files for real-time monitoring without polling the full log. See [BATCH-TRACKING-SYSTEM.md](../BATCH-TRACKING-SYSTEM.md) for full details.
+
+**Quick status check:**
+
+```bash
+# What batch are we on, and which coin is being scraped?
+bash scripts/loop-status.sh
+```
+
+Output format:
+
+```
+═══════════════════════════════════════════════════════
+LOOP STATUS
+═══════════════════════════════════════════════════════
+
+  Batch #:        3
+  Run started:    2026-06-23 02:42:00
+
+  Current coin:   1878-S Morgan Silver Dollar
+  New comps:      85
+  Duplicates:     130
+  Progress:       73%
+  Status:         running
+
+═══════════════════════════════════════════════════════
+```
+
+**State files:**
+- `cache/loop-run-state.json` — batch counter + run timing (increments every 5 min)
+- `cache/loop-status-live.json` — current coin, comps, progress
+
+**Batch restart detection:** If the script restarts within 5 minutes of the last batch start, the batch number stays the same (crash recovery). After 5 minutes of real time, a new batch is assigned.
+
+---
+
+### Direct UPLOAD_MODE configuration (legacy)
 
 ## When the session goes stale
 
-Symptoms:
-- `cookie-health-check.py --probe` returns CHALLENGED.
-- Scraper logs show `/splashui/captchaP` redirects.
-- Persistent 401s from `/api/terapeak/import` (different cause, but check both).
+### Bot detection and CAPTCHA challenges
 
-Recovery, in order:
-1. `python3 scripts/terapeak-export.py --login`. Solve CAPTCHA in the headed
-   window. New jar overwrites `$COOKIE_FILE`.
-2. If CAPTCHA keeps re-appearing immediately after solving, **stop**. Your IP
-   is on a temporary Akamai blocklist. Wait 6-24h.
-3. Never copy a Codespace-sourced jar onto the Surface (or vice versa) to
-   "fix" it -- you will permanently degrade trust on the receiving machine.
+#### Preflight status codes
+
+The startup sequence runs a **health check** before attempting any scrapes. It probes the eBay Terapeak research endpoint and returns one of:
+
+| Exit code | Status | Remedy |
+|-----------|--------|--------|
+| 0 | `HEALTHY` | Session OK, proceed with scraping. |
+| 1 | `EXPIRED` | Cookies are stale or missing. Run `--login` to refresh. |
+| 2 | `CHALLENGED` | eBay is serving CAPTCHA (Akamai flagged the IP). Wait 6-24h, then re-login. |
+| 3 | `MISSING` | No cookies yet (first-time setup). Run `--login`. |
+
+**Check current session health:**
+
+```bash
+python3 scripts/cookie-health-check.py
+echo "Exit code: $?"
+```
+
+#### When preflight returns CHALLENGED
+
+```
+FINAL STATUS: CHALLENGED (exit code 2)
+  Remedy: same as EXPIRED. eBay is serving a CAPTCHA challenge,
+          which means the IP/fingerprint is no longer trusted.
+          Avoid further scrape attempts from this machine for a few hours.
+```
+
+**Action items:**
+1. **Stop immediately.** Do not retry. Each retry will hit the same CAPTCHA.
+2. **Wait 6-24 hours.** Akamai's IP blocklist is temporary. On residential ISPs, 6-12h is typical; data-center IPs may stay blocked longer.
+3. **Wait for loop to exit.** If a continuous loop is running, it will exit cleanly on the third consecutive CAPTCHA detection. You do not need to kill it manually (though you can).
+4. **After waiting, re-login** with `python3 scripts/terapeak-export.py --login` to refresh the cookie jar.
+
+#### Loop exit on bot detection
+
+The scraper is programmed to detect three consecutive bot blocks and exit gracefully:
+
+```bash
+# Continuous loop with 600s pause between passes
+bash scripts/run-surface-freshness-loop.sh --env-file ~/.env.surface --page1-batch 15 --deep-limit 2
+
+# Loop will run passes until:
+# - 3 consecutive CAPTCHA blocks are detected, OR
+# - Backlog is exhausted (no more coins to scrape)
+#
+# Then exits cleanly. Check exit code:
+echo $?
+# 0 = normal end, 1 = bot block, 2+ = error
+```
+
+#### Symptoms of stale or blocked sessions
+
+Symptoms:
+- `cookie-health-check.py --probe` returns CHALLENGED (or output shows `/splashui/captchaP`).
+- Scraper logs show `Akamai/hCaptcha challenge` or `/splashui/captcha` redirects.
+- `terapeak-export.py` logs show consistent `BOT BLOCK` attempts followed by 120-300s cooldowns.
+- Persistent 401s from `/api/terapeak/import` (different cause; check API key, not cookies).
+
+#### Recovery steps
+
+Recovery, in priority order:
+1. **Stop all scraper processes:**
+   ```bash
+   pkill -f 'run-surface-freshness-loop'
+   pkill -f 'terapeak-export'
+   pkill -f 'ms-playwright/chromium'
+   ```
+
+2. **Check health:**
+   ```bash
+   python3 scripts/cookie-health-check.py
+   # Exit codes: 0=OK, 1=expired, 2=challenged, 3=missing
+   ```
+
+3. **If CHALLENGED (exit 2):** Wait 6-24h. Do not retry. Your IP is on a temporary blocklist.
+
+4. **If EXPIRED (exit 1):** Re-login immediately:
+   ```bash
+   python3 scripts/terapeak-export.py --login
+   ```
+   Solve the CAPTCHA in the headed browser window, navigate to `https://www.ebay.com/sh/research`, then close the window. New cookies are saved to `$COOKIE_FILE`.
+
+5. **If MISSING (exit 3):** First-time setup. Run `--login` as above.
+
+6. **Never copy cookies between machines.** Each machine (Surface, Codespace, etc.) must have its own jar. Copying degrads trust and accelerates bot detection on the receiving machine.
+
+---
 
 ## Operational rules
 
