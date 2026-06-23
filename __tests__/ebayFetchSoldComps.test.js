@@ -475,7 +475,11 @@ describe('fetchSoldComps — Terapeak tier', () => {
   // run had 9/13 RED rows driven by `prefilterStrikeSplit` on 1oz Gold Maple
   // datasets. 2026-06-22 follow-up: floor lowered from 1.0 to 0.9 oz so 30g
   // Pandas (0.9645 oz, the China Mint standard since 2016) also take the
-  // merged path.
+  // merged path. Threshold semantics post-extension:
+  //   weight >= 0.9          -> bullion-merge (graded + raw pools kept)
+  //   weight in (0.75, 0.9)  -> strict split (25g near-bullion etc.; known
+  //                            undershoot tracked by BACKLOG #269W)
+  //   weight <= 0.75         -> strict split (true fractional bullion)
 
   test('#252 bullion 1oz: merges graded+raw, drops only proof', async () => {
     terapeakService.lookupComps.mockReturnValue({
@@ -650,18 +654,21 @@ describe('fetchSoldComps — Terapeak tier', () => {
     expect(result.us.removed.prefilterBullionMerge).toBe(0);
   });
 
-  test('#252 2026-06-22 extension: 0.75 oz fractional (3/4oz Britannia) keeps strict split (boundary)', async () => {
-    // Boundary test: 0.75 oz sits below the new 0.9 oz floor, so the strict
-    // strike-split must still apply. Protects against a future regression
-    // that lowers the floor further than intended (e.g. to 0.5).
+  test('#252 2026-06-22 extension: 3/4 oz fractional (Gold Britannia, 0.75 oz) keeps strict split', async () => {
+    // Real-world fractional case well below the 0.9 floor. Confirms that the
+    // common fractional sizes (1/2, 3/4 oz) still take the strict strike-split
+    // path where slab premium is materially different from raw bullion.
+    // Floor-precision (0.8999 vs 0.9) is pinned by the boundary test below.
     terapeakService.lookupComps.mockReturnValue({
       searchTerm: '2024 Great Britain 3/4 oz Gold Britannia',
       lastImport: '2026-06-04',
       comps: [
-        // 2 raw bullion (kept -- targetPool=raw)
+        // 2 raw bullion (kept by prefilter; downstream relevance/score gates
+        // may further reduce -- that's outside the scope of this test).
         { title: '2024 Great Britain 3/4 oz Gold Britannia BU',       totalUsd: 3400, soldDate: '2026-05-20', conditionId: '4000', _source: 'terapeak' },
         { title: '2024 UK 3/4oz Gold Britannia .9999',                totalUsd: 3420, soldDate: '2026-05-21', conditionId: '4000', _source: 'terapeak' },
-        // 2 slabbed bullion (MUST be dropped -- fractional slab premium is real)
+        // 2 slabbed bullion (MUST be dropped by strict split -- fractional
+        // slab premium is real).
         { title: '2024 Great Britain 3/4 oz Gold Britannia PCGS MS70',totalUsd: 3850, soldDate: '2026-05-22', conditionId: '2000', _source: 'terapeak' },
         { title: '2024 UK 3/4oz Gold Britannia NGC MS70',             totalUsd: 3825, soldDate: '2026-05-23', conditionId: '2000', _source: 'terapeak' },
       ]
@@ -675,11 +682,57 @@ describe('fetchSoldComps — Terapeak tier', () => {
       { year: 2024, series: 'Great Britain Gold Britannia', weight: 0.75, meltPerOz: 4500 }
     );
 
-    // 2 slabbed dropped, merge marker absent (weight < 0.9 gates out the merge).
+    // Prefilter telemetry: 2 slabbed dropped by strict split, merge marker
+    // ABSENT (weight 0.75 < 0.9 floor gates out the merge path).
     expect(result.us.removed.prefilterStrikeSplit).toBe(2);
     expect(result.us.removed.prefilterBullionMerge).toBeUndefined();
-    // No slabbed comps survived the prefilter.
+    // Whatever survives downstream filters must not include slabbed comps.
     expect(result.us.comps.some(c => /pcgs|ngc/i.test(c.title))).toBe(false);
+  });
+
+  test('#252 2026-06-22 extension: true boundary at weight=0.9 (>= floor merges, < floor stays strict)', async () => {
+    // Pins the exact floor inflection point on the PREFILTER (which is what
+    // the #252 extension changed): weight=0.8999 must NOT trigger the merge
+    // path; weight=0.9 MUST trigger it. Catches off-by-epsilon regressions
+    // like `>= 0.9` accidentally becoming `> 0.9` or an unintended
+    // `toFixed(1)` rounding. We assert on the prefilter telemetry buckets
+    // (`prefilterStrikeSplit` count + `prefilterBullionMerge` marker presence)
+    // because they are set right at the gate and preserved through every
+    // downstream fallback path -- this isolates the test from unrelated
+    // scoreMatch / outlier behavior. Reuses one fixture so only weight differs.
+    const fixture = () => ({
+      searchTerm: 'boundary fixture',
+      lastImport: '2026-06-04',
+      comps: [
+        // 2 raw bullion
+        { title: 'Generic 1 oz Silver Round BU',           totalUsd: 40, soldDate: '2026-05-20', conditionId: '4000', _source: 'terapeak' },
+        { title: 'Generic Silver Round .999 1 oz',         totalUsd: 41, soldDate: '2026-05-21', conditionId: '4000', _source: 'terapeak' },
+        // 2 slabbed bullion (kept by merge when weight >= 0.9, dropped by
+        // strict split when weight < 0.9)
+        { title: 'Generic 1 oz Silver Round NGC MS69',     totalUsd: 50, soldDate: '2026-05-22', conditionId: '2000', _source: 'terapeak' },
+        { title: 'Generic Silver Round 1 oz PCGS MS70',    totalUsd: 55, soldDate: '2026-05-23', conditionId: '2000', _source: 'terapeak' },
+      ]
+    });
+
+    // Just below floor (0.8999) -- strict split: 2 slabbed dropped, no merge marker.
+    terapeakService.lookupComps.mockReturnValue(fixture());
+    axios.get.mockResolvedValue({ data: wrapFindingResponse([]) });
+    const below = await ebayService.fetchSoldComps(
+      'boundary below', {},
+      { year: 2024, series: 'Generic Silver Round', weight: 0.8999, meltPerOz: 35 }
+    );
+    expect(below.us.removed.prefilterStrikeSplit).toBe(2);
+    expect(below.us.removed.prefilterBullionMerge).toBeUndefined();
+
+    // At floor (0.9) -- bullion merge: no slabbed dropped by the gate, marker present.
+    terapeakService.lookupComps.mockReturnValue(fixture());
+    axios.get.mockResolvedValue({ data: wrapFindingResponse([]) });
+    const atFloor = await ebayService.fetchSoldComps(
+      'boundary at floor', {},
+      { year: 2024, series: 'Generic Silver Round', weight: 0.9, meltPerOz: 35 }
+    );
+    expect(atFloor.us.removed.prefilterStrikeSplit).toBe(0);
+    expect(atFloor.us.removed.prefilterBullionMerge).toBe(0);
   });
 
   test('#252 non-bullion 1oz query without weight signal: keeps strict split', async () => {

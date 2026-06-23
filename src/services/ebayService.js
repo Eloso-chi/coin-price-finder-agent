@@ -1502,10 +1502,16 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
     // 40-75% of comps as slabbed. Worse, the SAME physical 2016 Panda produced
     // different comp pools depending on whether the query said "1 oz" or "30g"
     // (97 vs 66 survivors on the same 143-row dataset), breaking same-coin FMV
-    // reproducibility. 0.9 oz floor preserves the strict split for fractional
-    // bullion <=0.75oz (1/2 oz Krugerrand, 3/4 oz Maple, etc.) where the slab
-    // premium IS material. A longer-term form-allowlist replacement is tracked
-    // separately in BACKLOG.
+    // reproducibility. Threshold semantics post-extension:
+    //   weight >= 0.9          -> bullion-merge (graded + raw pools kept)
+    //   weight in (0.75, 0.9)  -> strict split (e.g. 25g ~0.804 oz rounds and
+    //                            similar near-bullion forms; correct for now
+    //                            but a known undershoot tracked by #269W,
+    //                            which proposes a series-aware form allowlist)
+    //   weight <= 0.75         -> strict split (fractional bullion: 3/4 oz
+    //                            Britannia, 1/2 oz Krugerrand, 1/4 oz Maple,
+    //                            1/10 oz Eagle, etc.) where the slab premium
+    //                            IS materially different from raw bullion.
     //
     // Proof + reverse-proof pools remain excluded -- a Proof Gold Maple is a
     // different market from bullion. Fractional bullion (<0.9oz) keeps the
