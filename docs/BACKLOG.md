@@ -2518,7 +2518,7 @@ and obscures regressions in unrelated PRs.
 
 ### #252. Bullion Strike-Pool Split Misclassifies Graded Bullion as Off-Pool [P1 -- DATA-QUALITY] -- REVERTED 2026-06-23 (PR #154 reverted; correct path forward tracked in #270W)
 
-**REVERTED 2026-06-23 (pool-isolation violation):** PR #154's "merge graded+raw for >=1oz bullion" approach was reverted because it violates the pool-isolation contract documented in `docs/memory/numismatic-terminology.md`: raw, graded, and proof are THREE DISTINCT POOLS as observed by `classifyGradeType()` and must never be merged in FMV computation. Even for modern bullion (Gold Maple, Gold Eagle, Krugerrand, Britannia, Panda), the slab pool trades differently from raw because every series contains scarce dates, varieties, and first-year / anniversary issues -- the cross-pool dispersion is wide enough to make a blended FMV wrong for both pools. PR #154's `+191 survivors` metric was pool pollution, not a correctness improvement. The original symptom (sparse raw-bullion comps producing thin FMV) is a real problem and is now tracked as **#270W** with pool-preserving solutions (adaptive lookback, better Terapeak seeding for raw, two-pool FMV surfacing, honest "insufficient comps" return). Do NOT re-implement pool merging without first re-reading `docs/memory/numismatic-terminology.md` and `/memories/repo/pool-isolation-rule.md`.
+**REVERTED 2026-06-23 (pool-isolation violation):** PR #154's "merge graded+raw for >=1oz bullion" approach was reverted because it violates the pool-isolation contract documented in `docs/memory/numismatic-terminology.md`: raw, graded, and proof are THREE DISTINCT POOLS as observed by `classifyGradeType()` and must never be merged in FMV computation. Even for modern bullion (Gold Maple, Gold Eagle, Krugerrand, Britannia, Panda), the slab pool trades differently from raw because every series contains scarce dates, varieties, and first-year / anniversary issues -- the cross-pool dispersion is wide enough to make a blended FMV wrong for both pools. PR #154's `+191 survivors` metric was pool pollution, not a correctness improvement. The original symptom (sparse raw-bullion comps producing thin FMV) is a real problem and is now tracked as **#270W** with pool-preserving solutions (adaptive lookback, better Terapeak seeding for raw, two-pool FMV surfacing, honest "insufficient comps" return). Do NOT re-implement pool merging without first re-reading `docs/memory/numismatic-terminology.md`.
 
 **Original resolution (now reverted) -- PR #154, merge commit `7b72a67`:** Implemented the proposed-fix sketch. `src/services/ebayService.js` (around L1438-L1474): when `expected.weight >= 1.0` and the query is neither proof nor explicit-grade, merges the `graded` and `raw` pools instead of dropping graded comps. Proof + reverse-proof comps stay excluded. Strict split is preserved for (a) fractional bullion `< 1oz` (slab premium IS real for 1/10oz Gold Eagle MS70 etc.), (b) explicit slab grade in the query, (c) proof intent, and (d) non-bullion queries with no weight signal. New `prefilterBullionMerge` telemetry bucket (value 0) is emitted on `result.us.removed` whenever the bullion branch fires, and the console log distinguishes `bullion-merge graded+raw, weight=Noz` vs `raw only`. 5 new cases added to `__tests__/ebayFetchSoldComps.test.js` covering the merge, the explicit-slab-grade fallback, the proof-bullion exclusion, the fractional-bullion guard, and the no-weight-signal defensive path. Verification at merge: full suite 3x consecutive -> 3928/3928 passed; lint clean (0 new warnings); ASCII-only confirmed.
 
@@ -2806,4 +2806,47 @@ Gated on data: run pricing-health across a Reverse-Proof slate (2023 RP Morgan, 
 
 **Forbidden anti-patterns (record of the 2026-06-18 to 2026-06-23 pollution event):** pool merging in any form, treating slabbed bullion as equivalent to raw bullion in a single FMV stream, using `prefilterStrikeSplit` count as a success metric (it is a correct rejection counter -- a high value is a sparse-pool signal, not a bug to "fix" by widening the gate).
 
-**Cross-reference:** `docs/memory/numismatic-terminology.md` (canonical pool-isolation rule), `/memories/repo/pool-isolation-rule.md` (agent-side mandatory read before any related PR), original symptom in #252 (reverted), related work in #253 / #260W / #244.
+**Cross-reference:** `docs/memory/numismatic-terminology.md` (canonical pool-isolation rule -- contains the full mandatory contract), original symptom in #252 (reverted), related work in #253 / #260W / #244.
+
+---
+
+### #271W. Documentation, agent, and skill gaps from INC-013 audit [P2 -- AGENT-HARDENING] -- OPEN 2026-06-23
+
+**Context:** Post-INC-013 audit (see `docs/WASTE-LEDGER.md`) surfaced 19 numbered findings (F1-F19) across documentation, agent definitions, and the skills inventory. INC-013 happened despite the relevant memory doc (`docs/memory/numismatic-terminology.md`) existing -- because the agent never read it, the deep reviewer never read it, and the SKILL that wraps the domain didn't contain the mandatory contract. Closing the foot-guns requires changes in 4 surfaces: skills directory, agent definitions, onboarding procedure, and template/process docs.
+
+**Findings (closed under this umbrella):**
+
+| # | Sev | Area | Sub-PR |
+|---|---|---|---|
+| F1 | S1 | Doc | THIS PR -- strip dangling `/memories/repo/pool-isolation-rule.md` refs from 3 docs + correct WASTE-LEDGER INC-013 entry |
+| F2 | S1 | Skill | Sub-PR -- expand `.github/skills/numismatics/SKILL.md` with MANDATORY pool-isolation contract + applyFilters audit |
+| F3 | S1 | Agent | Sub-PR (with F2) -- add Step 5b pool-isolation gate check to `.github/agents/numismatic-audit.agent.md` |
+| F4 | S2 | Agent | Sub-PR -- `.github/agents/code-reviewer.approval-gated.agent.md` gains Step 3b Domain Context Load; code-review SKILL gains 8th category Domain Correctness |
+| F5 | S2 | Agent | Sub-PR (with F4) -- `.github/agents/pre-commit-reviewer.agent.md` Data Model Sync gains row for `classifyGradeType` / `applyFilters` -> trigger `@numismatic-audit` + `numismatic-terminology.md` |
+| F6 | S2 | Process | Sub-PR -- create `.github/skills/workflow/SKILL.md` (canonical PR workflow), shrink `/memories/operating-rules.md` to a pointer, add explicit "Never commit directly to `main`" to `CONTRIBUTING.md` |
+| F7 | S2 | Skill | Sub-PR -- create `.github/skills/valuation/SKILL.md` (FMV, confidence, buy/sell, pool routing) |
+| F8 | S2 | Skill | Sub-PR (with F7) -- create `.github/skills/comp-data/SKILL.md` (eBay cascade, scoring, attrition, Terapeak quota/format) |
+| F9 | S2 | Skill | Sub-PR (with F6) -- create `.github/skills/process-discipline/SKILL.md` with hot-file -> INC mapping and WASTE-LEDGER author guide |
+| F10 | S3 | Onboard | Sub-PR -- promote `numismatic-terminology.md` to Phase 1 priority #3 |
+| F11 | S3 | Onboard | Sub-PR (with F10) -- add "Hard Rules" section to Readiness Report template |
+| F12 | S3 | Onboard | Sub-PR (with F10) -- add WASTE-LEDGER (last 5 INC) to Phase 2 read list |
+| F13 | S3 | Doc | Cleanup batch -- update `.github/prompts/onboard.prompt.md` to point to `docs/memory/` (was stale `/memories/repo/`) |
+| F14 | S3 | Memory | Cleanup batch -- add MIGRATED banners or retire `/memories/repo/coin-price-agent-overview.md` and `future-edits.md` |
+| F15 | S3 | Template | Cleanup batch -- add Review Gates section to `.github/pull_request_template.md` |
+| F16 | S3 | Doc | Sub-PR (with F4) -- add JSDoc header banners to key services pointing to governing memory doc(s) + skill(s) |
+| F17 | S4 | Doc | Cleanup batch -- skills inventory drift in `docs/memory/agents-and-prompts.md` |
+| F18 | S4 | Doc | Cleanup batch -- create agent-loading-order doc |
+| F19 | S4 | Doc | Cleanup batch -- update "All 40 suites" stale count in pre-commit reviewer |
+
+**Sequencing (per operating-rules tiered execution):**
+1. F1 + this umbrella entry (THIS PR -- XS, pre-commit only)
+2. F2 + F3 (M, full review)
+3. F10 + F11 + F12 (M, full review)
+4. F4 + F5 + F16 (M, full review)
+5. F6 + F9 + workflow skill + process-discipline skill (M, full review)
+6. F7 + F8 (M, full review)
+7. F13 + F14 + F15 + F17 + F18 + F19 cleanup batch (XS, pre-commit only)
+
+**Cross-reference:** `docs/WASTE-LEDGER.md` INC-013, audit report in session a9bc389e (chat transcript).
+
+**Acceptance criteria:** all 19 findings marked closed in the table above (sub-PR column populated), and no dangling cross-references remain from doc-to-doc or doc-to-skill (re-grep `pool-isolation-rule.md` and other unresolved citations after the cleanup batch lands).
