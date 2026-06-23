@@ -99,6 +99,11 @@ const FIXTURES = [
       usComps: [200, 210, 215, 220, 225].map(p =>
         makeComp(p, { gradeType: 'graded' })),
     }),
+    // #270W Option #4: must pass userGrade to route through the
+    // wantsGraded branch. Without this, the engine cannot infer
+    // graded intent and (correctly, per pool-isolation contract) will
+    // not blend graded comps into raw FMV.
+    userGrade: 'MS65',
   },
   {
     name: 'proof query (PR70)',
@@ -107,6 +112,10 @@ const FIXTURES = [
       usComps: [80, 85, 90, 95, 100].map(p =>
         makeComp(p, { gradeType: 'proof', title: 'Silver Eagle Proof PR70' })),
     }),
+    // #270W Option #4: must pass opts.isProof so engine routes to proof
+    // pool. Without this signal, proof comps will NOT be silently merged
+    // into a raw FMV (pool isolation).
+    opts: { isProof: true },
   },
   {
     name: 'reverse proof query',
@@ -146,8 +155,8 @@ describe('valuation -- structural shape (I1)', () => {
     'gradePool', 'method',
   ];
 
-  test.each(FIXTURES_FULL)('$name', ({ pcgs, ebay }) => {
-    const { valuation } = computeValuation(pcgs, ebay);
+  test.each(FIXTURES_FULL)('$name', ({ pcgs, ebay, userGrade, opts }) => {
+    const { valuation } = computeValuation(pcgs, ebay, null, userGrade, opts || {});
     for (const key of REQUIRED_KEYS) {
       expect(valuation).toHaveProperty(key);
     }
@@ -171,8 +180,8 @@ describe('valuation -- structural shape (I1)', () => {
 describe('valuation -- range invariants (I2, I3)', () => {
   test.each(FIXTURES)(
     '$name: rangeLow >= 0 and rangeLow <= fmvCore <= rangeHigh',
-    ({ pcgs, ebay }) => {
-      const { valuation } = computeValuation(pcgs, ebay);
+    ({ pcgs, ebay, userGrade, opts }) => {
+      const { valuation } = computeValuation(pcgs, ebay, null, userGrade, opts || {});
       const { fmvCore, rangeLow, rangeHigh } = valuation;
 
       if (fmvCore == null) {
@@ -192,8 +201,8 @@ describe('valuation -- range invariants (I2, I3)', () => {
 // ============================================================
 
 describe('valuation -- confidence in [0,100] (I4)', () => {
-  test.each(FIXTURES)('$name', ({ pcgs, ebay }) => {
-    const { valuation } = computeValuation(pcgs, ebay);
+  test.each(FIXTURES)('$name', ({ pcgs, ebay, userGrade, opts }) => {
+    const { valuation } = computeValuation(pcgs, ebay, null, userGrade, opts || {});
     expect(valuation.confidence).toBeGreaterThanOrEqual(0);
     expect(valuation.confidence).toBeLessThanOrEqual(100);
     expect(Number.isFinite(valuation.confidence)).toBe(true);
@@ -205,8 +214,8 @@ describe('valuation -- confidence in [0,100] (I4)', () => {
 // ============================================================
 
 describe('valuation -- compCount is a non-negative integer (I5)', () => {
-  test.each(FIXTURES_FULL)('$name', ({ pcgs, ebay }) => {
-    const { valuation } = computeValuation(pcgs, ebay);
+  test.each(FIXTURES_FULL)('$name', ({ pcgs, ebay, userGrade, opts }) => {
+    const { valuation } = computeValuation(pcgs, ebay, null, userGrade, opts || {});
     expect(Number.isInteger(valuation.compCount)).toBe(true);
     expect(valuation.compCount).toBeGreaterThanOrEqual(0);
   });
@@ -217,8 +226,8 @@ describe('valuation -- compCount is a non-negative integer (I5)', () => {
 // ============================================================
 
 describe('valuation -- usedPool and proofIntent enums (I6, I7)', () => {
-  test.each(FIXTURES_FULL)('$name', ({ pcgs, ebay }) => {
-    const { valuation } = computeValuation(pcgs, ebay);
+  test.each(FIXTURES_FULL)('$name', ({ pcgs, ebay, userGrade, opts }) => {
+    const { valuation } = computeValuation(pcgs, ebay, null, userGrade, opts || {});
     expect(VALID_USED_POOLS.has(valuation.gradePool.usedPool)).toBe(true);
     expect(VALID_PROOF_INTENT.has(valuation.gradePool.proofIntent)).toBe(true);
   });
@@ -231,8 +240,8 @@ describe('valuation -- usedPool and proofIntent enums (I6, I7)', () => {
 describe('valuation -- method is set when fmvCore is non-null (I8)', () => {
   test.each(FIXTURES.filter(f => f.ebay.us.comps.length > 0))(
     '$name',
-    ({ pcgs, ebay }) => {
-      const { valuation } = computeValuation(pcgs, ebay);
+    ({ pcgs, ebay, userGrade, opts }) => {
+      const { valuation } = computeValuation(pcgs, ebay, null, userGrade, opts || {});
       if (valuation.fmvCore != null) {
         expect(typeof valuation.method).toBe('string');
         expect(valuation.method.length).toBeGreaterThan(0);
@@ -246,8 +255,8 @@ describe('valuation -- method is set when fmvCore is non-null (I8)', () => {
 // ============================================================
 
 describe('valuation -- dataSource.soldRatio in [0,1] (I9)', () => {
-  test.each(FIXTURES_FULL)('$name', ({ pcgs, ebay }) => {
-    const { valuation } = computeValuation(pcgs, ebay);
+  test.each(FIXTURES_FULL)('$name', ({ pcgs, ebay, userGrade, opts }) => {
+    const { valuation } = computeValuation(pcgs, ebay, null, userGrade, opts || {});
     const { soldRatio } = valuation.dataSource;
     expect(soldRatio).toBeGreaterThanOrEqual(0);
     expect(soldRatio).toBeLessThanOrEqual(1);
@@ -298,8 +307,8 @@ describe('valuation -- compCount monotonicity (I11)', () => {
 
 describe('top-level result -- valuation + decisions present', () => {
   test.each(FIXTURES)('$name returns { valuation, decisions }',
-    ({ pcgs, ebay }) => {
-      const result = computeValuation(pcgs, ebay);
+    ({ pcgs, ebay, userGrade, opts }) => {
+      const result = computeValuation(pcgs, ebay, null, userGrade, opts || {});
       expect(result).toHaveProperty('valuation');
       expect(result).toHaveProperty('decisions');
     }

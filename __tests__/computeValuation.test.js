@@ -1184,13 +1184,17 @@ describe('computeValuation — reverse-proof pool separation (#260W)', () => {
     expect(result.valuation.fmvCore).toBeGreaterThan(250);
   });
 
-  test('no-signal contract: RP comps with zero RP flags route through default raw branch', () => {
+  test('no-signal contract: RP comps with zero RP flags do NOT leak into raw FMV (#270W Option #4)', () => {
     // Inverse of the precedence test. Without any RP signal from the route
     // layer (no opts.isReverseProof, no opts.finish matching /reverse[\s-]*proof/i),
     // the engine cannot infer RP intent. It falls back to the default raw
-    // branch, which uses usCompsAll when usRaw is empty -- so the RP comps
-    // ARE used, but as part of the "raw" pool. This locks in the contract
-    // that the engine never invents RP intent on its own.
+    // branch. Pre-#270W, this branch used `usCompsAll` when `usRaw` was empty
+    // -- so the RP comps WERE used as if they were raw (silent pool merge).
+    // #270W Option #4 fixed this: the raw pool is strict and stays empty;
+    // the engine returns null fmvCore + lowData + dataSource.label='metal-only'
+    // instead of fabricating a raw FMV from non-raw comps. This locks in BOTH
+    // the contract that the engine never invents RP intent on its own AND
+    // the pool-isolation contract (raw must not be blended with proof/RP).
     const revProof = makeComps([300, 310, 320], { gradeType: 'reverse-proof' });
     const result = computeValuation(
       mockPcgs(),
@@ -1201,7 +1205,14 @@ describe('computeValuation — reverse-proof pool separation (#260W)', () => {
     );
     expect(result.valuation.gradePool.wantsReverseProof).toBe(false);
     expect(result.valuation.gradePool.usedPool).toBe('raw');
-    expect(result.valuation.compCount).toBe(3);
+    expect(result.valuation.gradePool.rawCount).toBe(0);
+    expect(result.valuation.gradePool.reverseProofCount).toBe(3);
+    expect(result.valuation.fmvCore).toBeNull();
+    expect(result.valuation.lowData).toBe(true);
+    expect(result.valuation.dataSource.label).toBe('metal-only');
+    const text = result.valuation.explanation.join(' | ');
+    expect(text).toMatch(/no raw comps available/i);
+    expect(text).toMatch(/pool isolation/i);
   });
 
   test('RP pool reports reverseProofCount in gradePool telemetry', () => {
@@ -1791,5 +1802,158 @@ describe('computeValuation -- audience gating (#232)', () => {
     expect(pub.valuation.rangeLow).toBeCloseTo(adm.valuation.rangeLow, 4);
     expect(pub.valuation.rangeHigh).toBeCloseTo(adm.valuation.rangeHigh, 4);
     expect(pub.valuation.confidence).toBe(adm.valuation.confidence);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  #270W Option #4 -- honest insufficient-comps return
+//  (strict raw pool + metal-only label + schema-compliant null FMV)
+//  Per docs/memory/numismatic-terminology.md MANDATORY pool-isolation
+//  contract: raw / graded / proof / reverse-proof are 4 DISTINCT pools.
+//  Pre-#270W the default raw branch fell back to usCompsAll when raw < 3,
+//  silently merging graded/proof comps into the raw FMV (INC-013 family).
+// ═══════════════════════════════════════════════════════════════
+describe('computeValuation -- #270W Option #4 honest insufficient-comps', () => {
+  test('acceptance: graded comps DO NOT leak into raw FMV when raw pool empty', () => {
+    // 5 graded comps, 0 raw, no userGrade. Pre-#270W: graded leaked into raw
+    // FMV via usCompsAll fallback. Post-#270W: raw pool stays empty, null FMV.
+    const graded = makeComps([200, 210, 220, 215, 205], { gradeType: 'graded' });
+    const result = computeValuation(
+      mockPcgs(),
+      mockEbay({ usComps: graded }),
+      null,
+      null,  // no userGrade -> default raw branch
+      {}
+    );
+    expect(result.valuation.fmvCore).toBeNull();
+    expect(result.valuation.lowData).toBe(true);
+    expect(result.valuation.dataSource.label).toBe('metal-only');
+    expect(result.valuation.gradePool.usedPool).toBe('raw');
+    expect(result.valuation.gradePool.rawCount).toBe(0);
+    expect(result.valuation.gradePool.gradedCount).toBe(5);
+    const text = result.valuation.explanation.join(' | ');
+    expect(text).toMatch(/no raw comps available/i);
+    expect(text).toMatch(/pool isolation/i);
+    // Defensive: never describe the FMV as "may include graded/proof"
+    expect(text).not.toMatch(/may include graded\/proof/i);
+  });
+
+  test('acceptance: proof comps DO NOT leak into raw FMV when raw pool empty', () => {
+    const proof = makeComps([300, 310, 320, 315, 305], { gradeType: 'proof' });
+    const result = computeValuation(
+      mockPcgs(),
+      mockEbay({ usComps: proof }),
+      null,
+      null,
+      {}
+    );
+    expect(result.valuation.fmvCore).toBeNull();
+    expect(result.valuation.gradePool.usedPool).toBe('raw');
+    expect(result.valuation.gradePool.rawCount).toBe(0);
+    expect(result.valuation.gradePool.proofCount).toBe(5);
+    expect(result.valuation.dataSource.label).toBe('metal-only');
+  });
+
+  test('acceptance: 2 raw + 5 graded comps -- strict raw pool, NO merge to mixed', () => {
+    // Pre-#270W: usRaw.length=2 < 3 triggered usCompsAll fallback (7 comps
+    // including 5 graded), polluting raw FMV with graded prices.
+    // Post-#270W: usComps = usRaw strictly (2 comps), no mixing.
+    const raw    = makeComps([50, 55], { gradeType: 'raw' });
+    const graded = makeComps([200, 210, 220, 215, 205], { gradeType: 'graded' });
+    const result = computeValuation(
+      mockPcgs(),
+      mockEbay({ usComps: [...raw, ...graded] }),
+      null,
+      null,
+      {}
+    );
+    // FMV must come from the 2 raw comps, NOT from a 7-comp blend.
+    // 7-comp median would be ~205; raw-only median is ~52.5.
+    expect(result.valuation.fmvCore).toBeLessThan(80);
+    expect(result.valuation.gradePool.usedPool).toBe('raw');
+    expect(result.valuation.gradePool.rawCount).toBe(2);
+    expect(result.valuation.gradePool.gradedCount).toBe(5);
+    expect(result.valuation.gradePool.poolCount).toBe(2);
+    const text = result.valuation.explanation.join(' | ');
+    expect(text).toMatch(/thin raw pool/i);
+    expect(text).toMatch(/pool isolation/i);
+    expect(text).not.toMatch(/may include graded\/proof/i);
+  });
+
+  test('acceptance: 3 raw + 5 graded comps -- raw-only with exclusion telemetry', () => {
+    // Boundary case: raw is at threshold (3). Should still be strict raw-only
+    // and the explanation should report how many were excluded.
+    const raw    = makeComps([50, 55, 60], { gradeType: 'raw' });
+    const graded = makeComps([200, 210, 220, 215, 205], { gradeType: 'graded' });
+    const result = computeValuation(
+      mockPcgs(),
+      mockEbay({ usComps: [...raw, ...graded] }),
+      null,
+      null,
+      {}
+    );
+    expect(result.valuation.fmvCore).toBeLessThan(80);
+    expect(result.valuation.gradePool.poolCount).toBe(3);
+    const text = result.valuation.explanation.join(' | ');
+    expect(text).toMatch(/using 3 raw comps/i);
+    expect(text).toMatch(/5 graded\/proof comps excluded/i);
+  });
+
+  test('bullion with empty raw pool: spot+premium FMV + dataSource.label = metal-only', () => {
+    // Only graded comps available, but coin is bullion. With strict raw pool,
+    // usComps is empty -> ebayMedian=null -> bullion-spot-only fires.
+    // dataSource.label should be 'metal-only' (not 'sold-data').
+    const graded = makeComps([2050, 2060, 2070], { gradeType: 'graded' });
+    const result = computeValuation(
+      mockPcgs(),
+      mockEbay({ usComps: graded }),
+      null,
+      null,
+      { isBullion: true, spotPrice: 2000 }
+    );
+    expect(result.valuation.method).toBe('bullion-spot-only');
+    expect(result.valuation.fmvCore).toBe(2000);
+    expect(result.valuation.dataSource.label).toBe('metal-only');
+    expect(result.valuation.dataSource.totalComps).toBe(0);
+  });
+
+  test('null-FMV early return: emits schema-required dataSource and gradePool telemetry', () => {
+    // No PCGS data, no comps, no bullion -> null-FMV early return path.
+    // Must still emit dataSource (priceResponse schema requires it) and
+    // gradePool (observability) so downstream consumers don't crash.
+    const result = computeValuation(
+      null,  // no PCGS
+      mockEbay(),  // no comps
+      null,
+      null,
+      {}
+    );
+    expect(result.valuation.fmvCore).toBeNull();
+    expect(result.valuation.lowData).toBe(true);
+    expect(result.valuation.dataSource).toBeDefined();
+    expect(result.valuation.dataSource.label).toBe('metal-only');
+    expect(result.valuation.dataSource.totalComps).toBe(0);
+    expect(result.valuation.dataSource.soldCount).toBe(0);
+    expect(result.valuation.gradePool).toBeDefined();
+    expect(result.valuation.gradePool.usedPool).toBe('raw');
+    expect(result.valuation.gradePool.poolCount).toBe(0);
+  });
+
+  test('cross-pool isolation: proof intent with proof comps unaffected by #270W change', () => {
+    // Regression guard: the proof branch already had strict isolation (#184).
+    // #270W changes only the default raw branch. Proof intent must still
+    // use proof comps cleanly.
+    const proof = makeComps([300, 310, 320, 315, 305], { gradeType: 'proof' });
+    const result = computeValuation(
+      mockPcgs(),
+      mockEbay({ usComps: proof }),
+      null,
+      null,
+      { isProof: true }
+    );
+    expect(result.valuation.fmvCore).toBeGreaterThan(250);
+    expect(result.valuation.fmvCore).toBeLessThan(400);
+    expect(result.valuation.gradePool.usedPool).toBe('proof');
+    expect(result.valuation.gradePool.proofCount).toBe(5);
   });
 });
