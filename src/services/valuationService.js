@@ -136,13 +136,31 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
       explanation.push(`Only ${usGraded.length} graded comps — using all ${usCompsAll.length} comps (may include raw).`);
     }
   } else {
-    usComps = usRaw.length >= 3 ? usRaw : usCompsAll;
-    glComps = glRaw.length >= 3 ? glRaw : glCompsAll;
-    if (usRaw.length >= 3 && (usGraded.length > 0 || usProof.length > 0)) {
-      const excluded = usGraded.length + usProof.length;
-      explanation.push(`Using ${usRaw.length} raw comps for FMV (${excluded} graded/proof comps excluded).`);
-    } else if ((usGraded.length > 0 || usProof.length > 0) && usRaw.length < 3) {
-      explanation.push(`Only ${usRaw.length} raw comps — using all ${usCompsAll.length} comps (may include graded/proof).`);
+    // Default raw intent (no userGrade, no proof flag). Use the raw pool
+    // STRICTLY -- never blend graded / proof comps into raw FMV.
+    // #270W Option #4: pool-isolation contract per
+    // docs/memory/numismatic-terminology.md MANDATORY: Pool-Isolation Contract.
+    // Previously (pre-#270W) this branch fell back to `usCompsAll` when
+    // `usRaw.length < 3`, which silently merged graded / proof comps into
+    // the raw FMV. That is the same family of violation INC-013 documented;
+    // the strict pool may yield 0 comps for thin raw-bullion datasets, which
+    // is handled honestly below (null fmvCore for non-bullion;
+    // spot+premium with `dataSource.label = 'metal-only'` for bullion).
+    //
+    // NOTE: the `wantsGraded` branch above still has an analogous fallback to
+    // `usCompsAll` when graded < 3 and raw is insufficient to swap. That is
+    // a separate pool-isolation gap tracked in BACKLOG #270W and is NOT fixed
+    // in this PR (Option #4 scope is raw intent only).
+    usComps = usRaw;
+    glComps = glRaw;
+    const excludedUs = usGraded.length + usProof.length + usRevProof.length;
+    if (usRaw.length >= 3 && excludedUs > 0) {
+      explanation.push(`Using ${usRaw.length} raw comps for FMV (${excludedUs} graded/proof comps excluded -- pool isolation).`);
+    } else if (usRaw.length > 0 && usRaw.length < 3) {
+      const exclNote = excludedUs > 0 ? ` (${excludedUs} graded/proof comps excluded -- pool isolation)` : '';
+      explanation.push(`\u26a0 Only ${usRaw.length} raw comp${usRaw.length === 1 ? '' : 's'} -- thin raw pool${exclNote}.`);
+    } else if (usRaw.length === 0 && excludedUs > 0) {
+      explanation.push(`\u26a0 No raw comps available; ${excludedUs} graded/proof comps excluded to preserve pool isolation. Raw FMV cannot be derived from comps.`);
     }
   }
 
@@ -354,7 +372,46 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
       explanation.push('NO DATA: unable to compute FMV -- no comps or guide prices available.');
     }
     return {
-      valuation: { fmvCore: null, rangeLow: null, rangeHigh: null, confidence: 0, explanation },
+      valuation: {
+        fmvCore: null,
+        rangeLow: null,
+        rangeHigh: null,
+        confidence: 0,
+        lowData: true,
+        compCount: 0,
+        explanation,
+        // #270W Option #4: null-FMV path still emits the required `dataSource`
+        // shape (priceResponse.schema.js declares it required). 'metal-only'
+        // signals "no comp data; only metal-level information was available".
+        dataSource: {
+          soldCount: 0,
+          activeCount: 0,
+          totalComps: 0,
+          soldRatio: 0,
+          browseOnly: false,
+          label: 'metal-only',
+        },
+        // #270W Option #4: emit gradePool telemetry even on the null-FMV
+        // path so observability consumers (pricing-health, batch reports)
+        // can see which pool was attempted and why it was empty.
+        gradePool: {
+          wantsGraded,
+          wantsProof,
+          wantsReverseProof,
+          proofIntent: wantsReverseProof ? 'reverse-proof' : wantsProof ? 'proof' : null,
+          usedPool: wantsReverseProof ? 'reverse-proof'
+            : wantsProof ? 'proof'
+            : wantsGraded ? 'graded'
+            : 'raw',
+          gradedCount: usGraded.length,
+          rawCount: usRaw.length,
+          proofCount: usProof.length,
+          reverseProofCount: usRevProof.length,
+          poolCount: usComps.length,
+          totalCount: usCompsAll.length,
+          poolFallback: false,
+        },
+      },
       decisions: _emptyDecisions(askingPrice)
     };
   }
@@ -383,6 +440,12 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
   // If all or most comps are active listings, flag it
   const browseOnly = soldCount === 0 && activeCount > 0;
   const mostlyBrowse = soldRatio < 0.3 && activeCount > 0;
+  // #270W Option #4: when the chosen pool has 0 comps but FMV was still
+  // produced (bullion-greysheet-anchor or bullion-spot-only methods),
+  // label the dataSource as 'metal-only' so consumers can render the
+  // "no comp data; metal-anchored FMV" status honestly instead of the
+  // misleading default of 'sold-data'.
+  const metalOnly = totalComps === 0;
 
   if (terapeakCount > 0) {
     if (isAdmin) {
@@ -531,7 +594,10 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
         totalComps,
         soldRatio: +soldRatio.toFixed(2),
         browseOnly,
-        label: browseOnly ? 'asking-prices-only' : mostlyBrowse ? 'mostly-asking' : 'sold-data'
+        label: metalOnly ? 'metal-only'
+          : browseOnly ? 'asking-prices-only'
+          : mostlyBrowse ? 'mostly-asking'
+          : 'sold-data'
       },
       gradePool: {
         wantsGraded,
