@@ -95,15 +95,17 @@ Read these project docs:
 7. `docs/testing/test-monitor.md` -- test budget, metrics, golden set, flaky test diagnosis
 8. `data/terapeak/README.md` -- data authenticity, CSV format docs, import instructions
 9. `.github/skills/code-review/SKILL.md` -- shared review framework (severity, finding schema)
-10. `.github/skills/numismatics/SKILL.md` -- domain knowledge: classification decision tree, finish detection, audit checklist
+10. `.github/skills/numismatics/SKILL.md` -- domain knowledge: classification decision tree, finish detection, audit checklist, MANDATORY Pool-Isolation Contract
 11. `.github/skills/testing/TESTING-PLAN.md` -- testing strategy and expectations
-12. `docs/runbooks/local-scraper-wsl2.md` -- Surface laptop + WSL2 setup for the preferred scraper path (#250)
-13. `docs/runbooks/scraper-travel-mode.md` -- Codespace fallback scraper workflow, host-browser cookie export, per-machine `COOKIE_FILE` discipline (#250)
-14. `CONTRIBUTING.md` -- contributor workflow, setup, testing rules, branching strategy, PR process, required reviews
-15. `SECURITY.md` -- vulnerability reporting policy, response SLAs, coordinated disclosure, safe harbor
-16. `LICENSE` -- proprietary All Rights Reserved notice (aligns with UNLICENSED in package.json)
-17. `docs/api-reference.md` -- comprehensive HTTP endpoint reference (30+ endpoints organized by feature)
-18. `docs/data-dictionary.md` -- critical data stores, schemas, privacy classifications, CSV format, test fixtures
+12. `.github/skills/workflow/SKILL.md` -- canonical PR workflow (hard rule, tiered execution, 8-step lifecycle, WASTE-LEDGER carve-out) -- added under #271W F6
+13. `.github/skills/process-discipline/SKILL.md` -- hot-file -> INC mapping + WASTE-LEDGER author guide -- added under #271W F9
+14. `docs/runbooks/local-scraper-wsl2.md` -- Surface laptop + WSL2 setup for the preferred scraper path (#250)
+15. `docs/runbooks/scraper-travel-mode.md` -- Codespace fallback scraper workflow, host-browser cookie export, per-machine `COOKIE_FILE` discipline (#250)
+16. `CONTRIBUTING.md` -- contributor workflow, setup, testing rules, branching strategy, PR process, required reviews
+17. `SECURITY.md` -- vulnerability reporting policy, response SLAs, coordinated disclosure, safe harbor
+18. `LICENSE` -- proprietary All Rights Reserved notice (aligns with UNLICENSED in package.json)
+19. `docs/api-reference.md` -- comprehensive HTTP endpoint reference (30+ endpoints organized by feature)
+20. `docs/data-dictionary.md` -- critical data stores, schemas, privacy classifications, CSV format, test fixtures
 
 ### Phase 3: Key Source Files (scan exports/structure only)
 

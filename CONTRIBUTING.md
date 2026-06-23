@@ -73,6 +73,18 @@ Example:
 
 ## Pull Request Process
 
+**Never commit directly to `main`.** Every change -- code, docs, config,
+agents, skills, tests, data, schemas -- goes through a feature branch + PR.
+The canonical workflow lives in
+[.github/skills/workflow/SKILL.md](.github/skills/workflow/SKILL.md)
+(tiered execution model, 8-step lifecycle, author checklist).
+
+The only carve-out is `docs/WASTE-LEDGER.md` postmortem entries that
+reference an already-merged or already-closed PR / branch -- see the
+"WASTE-LEDGER Carve-Out" section of the workflow SKILL for the
+constraints. All other doc changes (BACKLOG, runbooks, memory docs,
+CONTRIBUTING itself) follow the full workflow.
+
 Every PR must do at least one of the following:
 
 - Reference an existing backlog item
