@@ -2810,7 +2810,21 @@ Gated on data: run pricing-health across a Reverse-Proof slate (2023 RP Morgan, 
 
 ---
 
-### #271W. Documentation, agent, and skill gaps from INC-013 audit [P2 -- AGENT-HARDENING] -- OPEN 2026-06-23
+### #271W. Documentation, agent, and skill gaps from INC-013 audit [P2 -- AGENT-HARDENING] -- CLOSED 2026-06-23
+
+**Closed by:** 7 sub-PRs landed on `main` between 2026-06-23 commits `c8ca857` (PR #178) and `3825b2f` (PR #184 merge). All 19 findings (F1-F19) addressed; F14 and F17 verified already-done in PR #184 (citations in PR body). Constituent PRs:
+
+| PR | Findings | Merge SHA |
+|---|---|---|
+| #178 | F1 | `c8ca857` |
+| #179 | F2 + F3 | `108a86e` |
+| #180 | F10 + F11 + F12 | `6d6884c` |
+| #181 | F4 + F5 + F16 | `90ac351` |
+| #182 | F6 + F9 | `e5cec9a` |
+| #183 | F7 + F8 | `5dbc9ed` |
+| #184 | F13 + F14 + F15 + F17 + F18 + F19 | `3825b2f` |
+
+WASTE-LEDGER `INC-013` row already documents full remediation. No dangling cross-references to `pool-isolation-rule.md` remain post-cleanup (re-verified under F1 / PR #178).
 
 **Context:** Post-INC-013 audit (see `docs/WASTE-LEDGER.md`) surfaced 19 numbered findings (F1-F19) across documentation, agent definitions, and the skills inventory. INC-013 happened despite the relevant memory doc (`docs/memory/numismatic-terminology.md`) existing -- because the agent never read it, the deep reviewer never read it, and the SKILL that wraps the domain didn't contain the mandatory contract. Closing the foot-guns requires changes in 4 surfaces: skills directory, agent definitions, onboarding procedure, and template/process docs.
 

@@ -155,6 +155,33 @@ git pull --ff-only
 git remote prune origin   # clean up tracking refs for deleted remote branches
 ```
 
+### 9. Post-merge bookkeeping (BACKLOG status flip)
+
+GitHub auto-closes the PR on merge, but `docs/BACKLOG.md` rows do NOT
+flip automatically. Closing the row is part of the workflow, not an
+optional follow-up.
+
+**Two patterns, pick the right one:**
+
+- **Single-PR umbrella** (the PR fully closes one backlog item): flip
+  the umbrella row status inside the PR's own diff. The `## Backlog
+  Update` section of the PR body cites the in-diff flip.
+- **Multi-PR umbrella** (an umbrella with sub-PRs, e.g. `#271W`): the
+  FINAL sub-PR -- the one closing the last finding -- flips the
+  umbrella row in its own diff, citing all constituent merge SHAs. The
+  prior sub-PRs only flip their own row (sub-PR column populated)
+  and leave the umbrella status as `OPEN`.
+
+**If the flip was missed:** open a follow-up XS-tier PR named
+`chore(#NNN): mark backlog closed`. It must:
+
+- touch ONLY `docs/BACKLOG.md`,
+- cite all constituent PR numbers and merge SHAs,
+- pass pre-commit reviewer (no deep review required for XS).
+
+This is a regular PR, NOT a carve-out -- the reviewer's job is to
+verify each cited merge SHA actually landed on `main`.
+
 ---
 
 ## WASTE-LEDGER Carve-Out (added 2026-06-23, moved from operating-rules.md under #271W F6)
