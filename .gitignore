@@ -54,3 +54,8 @@ data/archive/terapeak-meta.before-azure-sync-*.json
 
 # Local meta backups produced by ad-hoc dormancy hotfixes (see #269H).
 data/terapeak-meta.*.bak.json
+
+# Maintenance script outputs (regenerated on every run by
+# scripts/merge-duplicate-keys.js and similar). Not source-of-truth; the
+# planning script is deterministic against the current meta file.
+/docs/reports/
