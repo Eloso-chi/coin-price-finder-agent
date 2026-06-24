@@ -30,12 +30,15 @@ STATE_FILE="cache/terapeak-startup-state.json"
 LOCK_FILE="cache/terapeak-operator.lock"
 LOCK_PID_FILE="cache/terapeak-operator.lock.pid"
 RUN_LOG_FILE=""
-PASS_LOG_DIR="cache/terapeak-operator-passes"
+PASS_LOG_ROOT_DIR="cache/terapeak-operator-passes"
+PASS_LOG_DIR=""
 
 RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)-$$"
 STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 CURRENT_STAGE="init"
 PYTHON_BIN=""
+
+PASS_LOG_DIR="${PASS_LOG_ROOT_DIR}/${RUN_ID}"
 
 LOCK_FD=0
 
