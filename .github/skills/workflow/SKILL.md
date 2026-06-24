@@ -40,6 +40,36 @@ downgrade without author concurrence.
 
 ---
 
+## Scope Isolation Rule
+
+When a change set naturally spans data refreshes, operator behavior, and CI,
+split it into separate PRs so each PR has one rollback surface.
+
+Required split (when applicable):
+
+- **Data checkpoint PR**: `data/terapeak/**` + `data/terapeak-meta.json` only.
+- **Operator behavior PR**: `scripts/terapeak-operator.sh` and closely related
+  operator scripts only.
+- **CI/workflow PR**: `.github/workflows/**` only.
+
+Do not mix these surfaces in one PR unless an emergency exception is approved.
+
+### Emergency Exception (mixed-scope PR)
+
+Allowed only when delaying a combined change is likely to increase risk
+(for example, active data-loss prevention/recovery work).
+
+Required controls:
+
+1. Add `EXCEPTION APPROVED:` in the PR body with approver + reason.
+2. Add `Exception rollback plan` section with exact revert/cherry-pick steps.
+3. Open follow-up PR(s) to re-separate concerns after stabilization.
+4. Reference related INC entry or backlog item tracking the exception.
+
+Absent all four controls, mixed-scope PRs are out of policy.
+
+---
+
 ## Step-by-Step
 
 ### 1. Create feature branch
