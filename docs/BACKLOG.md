@@ -3119,3 +3119,142 @@ Stage 4 -- `coinIntent.js` / `coinMetalProfile.js` updated to parse the new `fin
 **Tier:** M (touches `ebayService.js` variant hard filter -- hot path; new intent helpers; new pool semantics with behavioral change to colorized branch; full review required including `@numismatic-audit` Step 5b and deep review per `.github/skills/workflow/SKILL.md`).
 
 **Cross-reference:** `docs/memory/numismatic-terminology.md` MANDATORY: Pool-Isolation Contract; `docs/WASTE-LEDGER.md` INC-013 (same violation family, opposite direction -- the colorized-mixed branch is INC-013-shaped); #270W (sibling -- this is the variant-pool counterpart of the strike-pool work); #272W (sibling -- both apply pool isolation to a previously-mixed branch); PR #188 (#270W Option #1) investigation that surfaced this gap; chat transcript `a9bc389e-48bf-48ba-b577-789b39c918e8`.
+
+---
+
+### #275W. Unify Terapeak lookback telemetry across "alone" and "supplemented" paths [P2 -- TELEMETRY] -- OPEN 2026-06-24
+
+**Discovered while:** post-#270W Option #1 (PR #188, commit `cb38e45`) thin-comp validation probe on 2026-06-24. Probed `/api/price` for 18 curated queries chosen to span > 180 days in the Terapeak cache (so the 180d default window would be thin). Result: 7/18 queries silently extended to 365d but their `ebay.lookback` was missing the `tier`, `source`, `candidatesPerTier`, and `reason` fields. Server log confirmed the path taken: `Terapeak partial: N comps (need 8), supplementing with APIs… / Only N sold comps at 180d, extending lookback…` -- i.e. the **legacy supplemented path**, not the #270W Terapeak ladder.
+
+**Problem:**
+
+`src/services/ebayService.js` has **two** lookback emission sites that disagree:
+
+| Aspect | Path #1 (L1670, "Terapeak alone is enough") | Path #2 (L1910, "Terapeak partial + eBay supplemented") |
+|---|---|---|
+| Trigger condition | Terapeak post-strike-split pool >= `usMinComps` (default 8) | Terapeak post-strike-split pool has 1..7 comps (or 0 with API fallback) |
+| Ladder seed | `TERAPEAK_LADDER = [180, 365, 730]` (L1580) | `lookbackTiers = [requested, 180, 365]` (L1691) -- **caps at 365** |
+| Lookback shape | `{requested, used, extended, tier, source: 'terapeak', candidatesPerTier, reason}` | `{requested, used, extended}` only -- legacy 3-field shape |
+| Operator can see WHICH tier won? | YES (`tier` field) | NO |
+| Operator can see PER-TIER counts? | YES (`candidatesPerTier` array) | NO |
+| Operator can see WHY it extended? | YES (`reason: 'raw-pool-thin'`) | NO |
+| 730d safety net available? | YES | **NO** (capped at 365) |
+
+The asymmetry is unintentional: PR #188 (#270W Option #1) added the ladder + telemetry to path #1 but left path #2 untouched. The "tiered Terapeak lookback ladder" was meant to be the **single** authoritative source of lookback decisions, but only one of two emission sites was rewritten.
+
+**Concrete failure modes:**
+
+*Operator visibility:* a thin-comp query (e.g. `1987 American Gold Eagle 1 oz` -- 1 raw comp after strike-split) returns `lookback: {requested: 180, used: 365, extended: true}`. The operator cannot tell from the response alone:
+- whether 730d was attempted,
+- how many comps each tier would have produced,
+- why the extension fired (raw-pool-thin? partial-supplement? circuit-tripped API?),
+- which data source(s) the final pool came from.
+
+This is exactly the operator-visibility gap that the `candidatesPerTier` diagnostic was designed to close in PR #188 -- and it works perfectly for path #1, but is silently bypassed for the more common path #2.
+
+*Coverage cap:* path #2 stops at 365d. A query that goes through path #2 with newest sale > 365d ago will fail to find comps (or return them with no time-window filter at all), where the path #1 equivalent would attempt 730d before falling back to `all`. As of 2026-06-24 the live cache has 0 datasets with newest sale > 365d, so this is currently a latent gap -- but it WILL fire when datasets age beyond 365d.
+
+**Evidence (2026-06-24 probe, see chat transcript `a9bc389e-48bf-48ba-b577-789b39c918e8`):**
+
+Natural-window probe (`timeWindowDays: 180`, 18 queries) routed through path #2 for 7 queries -- all returned the legacy 3-field lookback shape:
+
+```
+1987 American Gold Eagle 1 oz   req=180 used=365 tier=(none) ext=true   candsPerTier=(none)
+2017 American Gold Eagle 1 oz   req=180 used=365 tier=(none) ext=true   candsPerTier=(none)
+2024 American Gold Eagle 1 oz   req=180 used=365 tier=(none) ext=true   candsPerTier=(none)
+2017 American Gold Buffalo 1 oz req=180 used=365 tier=(none) ext=true   candsPerTier=(none)
+2026 Perth Lunar Horse 1 oz gold req=180 used=365 tier=(none) ext=true  candsPerTier=(none)
+2016 Perth Lunar Monkey 1 oz silver req=180 used=365 tier=(none) ext=true candsPerTier=(none)
+1986 American Gold Eagle 1 oz   req=180 used=365 tier=(none) ext=true   candsPerTier=(none)
+```
+
+Forced-narrow probe (`timeWindowDays: 30`, 15 queries) routed 14/15 through path #1 and returned full telemetry, confirming #270W code is wired correctly -- only path #2 is missing the upgrade:
+
+```
+1939-D Washington Quarter   req=30 used=180 tier=180 ext=true  candsPerTier=30=2,180=31,365=34,730=34,all=34
+1921 Morgan Silver Dollar   req=30 used=180 tier=180 ext=true  candsPerTier=30=0,180=79,365=145,730=145,all=145
+1882-S Morgan Silver Dollar req=30 used=180 tier=180 ext=true  candsPerTier=30=3,180=144,365=183,730=183,all=183
+```
+
+**Proposed implementation:**
+
+Stage 1 -- extract a shared `buildLookback({requested, chosenTierDays, tier, source, candidatesPerTier, reason})` helper in `src/services/ebayService.js` near the existing tier-ladder code. Both emission sites call this helper. Helper is the single source of truth for the lookback object's shape.
+
+Stage 2 -- replace path #2's legacy ladder seed at L1691 with the same `TERAPEAK_LADDER`-style design used in path #1:
+
+```javascript
+// Before (L1690-1697):
+const lookbackTiers = [requestedDays];
+if (requestedDays < 180) lookbackTiers.push(180);
+if (requestedDays < 365) lookbackTiers.push(365);
+const uniqueTiers = [...new Set(lookbackTiers)];
+
+// After (mirrors path #1 L1580-1586):
+const API_LADDER = [180, 365, 730]; // matches TERAPEAK_LADDER
+const seed = [requestedDays];
+for (const t of API_LADDER) if (t > requestedDays) seed.push(t);
+const uniqueTiers = [...new Set(seed)].sort((a, b) => a - b);
+```
+
+Stage 3 -- thread `apiCandidatesPerTier` through the existing per-tier API loop (L1697-1900 region). For each tier, after the API call returns, push `{days: tierDays, count: kept.length}` to the diagnostic array. Same shape as path #1's `tpCandidatesPerTier`.
+
+Stage 4 -- at L1910, replace the legacy 3-field construction with the helper call:
+
+```javascript
+// Before:
+const lookback = {
+  requested: requestedDays,
+  used: actualDays,
+  extended: actualDays > requestedDays
+};
+
+// After:
+const lookback = buildLookback({
+  requested: requestedDays,
+  chosenTierDays: actualDays,
+  tier: actualDays === requestedDays ? 'requested' : actualDays,
+  source: apiUsed === 'terapeak' ? 'terapeak' : `terapeak+${apiUsed}`,
+  candidatesPerTier: apiCandidatesPerTier,
+  reason: actualDays > requestedDays ? 'raw-pool-thin-supplemented' : null
+});
+```
+
+Stage 5 -- update the path #1 emission site (L1670) to use the same helper, with `source: 'terapeak'` and the existing `reason: 'raw-pool-thin'`. No behavioral change, just shape consolidation.
+
+**Open questions for scoping (user decision before implementation):**
+
+1. **730d cap parity:** confirm path #2 should match path #1's `[180, 365, 730]` (extending the cap from 365 -> 730). Alternative: keep path #2 capped at 365 since it already has eBay API fallback before the 'all' tier. Recommend: extend to 730 -- the operator-visibility argument applies even more when supplemented, and the API ladder is already paying for 365 calls; one extra call for 730 is cheap insurance. Acceptable cost: at most 1 extra eBay API call per thin query.
+
+2. **`source` taxonomy:** path #1 uses `source: 'terapeak'`. For path #2 the source is mixed -- terapeak seed + Finding API supplement + maybe Browse API fallback. Options: (a) single string like `'terapeak+ebay'`, (b) array like `['terapeak', 'finding-api']`, (c) keep `source` simple but add `sources: [...]`. Recommend (c) -- preserves the single-string contract while adding a multi-source diagnostic.
+
+3. **`candidatesPerTier` for path #2:** path #1's `candidatesPerTier` is per-Terapeak-tier (cheap, in-memory filter). Path #2's per-tier counts would be per-API-call (expensive). Options: (a) capture only the API result count per tier (one extra integer per call -- free), (b) skip the diagnostic for path #2 and add a separate `apiAttempts` field, (c) capture both Terapeak-tier counts AND API-tier counts in a unified `candidatesPerTier`. Recommend (a) -- matches the existing field name and shape, cost is zero, operator gets meaningful per-tier counts.
+
+4. **Reason vocabulary:** path #1 uses `reason: 'raw-pool-thin'`. Path #2 reasons could be `'raw-pool-thin-supplemented'`, `'terapeak-partial-extend'`, or kept identical to path #1 for simplicity. Recommend distinct strings so operators can filter telemetry by path; the path #1 reason stays `'raw-pool-thin'` (or rename to `'terapeak-pool-thin'` for clarity), path #2 reason is `'terapeak-partial-supplement-extend'`.
+
+**Acceptance criteria:**
+- New shared helper `buildLookback({...})` in `src/services/ebayService.js`; both emission sites call it.
+- Path #2 ladder seed extended from `[requested, 180, 365]` to `[requested, 180, 365, 730]` (deduplicated, sorted).
+- Path #2 lookback returns the full shape `{requested, used, extended, tier, source, sources, candidatesPerTier, reason}` (same fields as path #1).
+- Probe queries that hit path #2 (e.g. `1987 American Gold Eagle 1 oz`, `2017 American Gold Buffalo 1 oz`) show populated `tier`, `source`, `candidatesPerTier`, `reason` fields in the response.
+- 730d tier appears in `candidatesPerTier` for path #2 queries whose newest sale is > 365d ago (currently 0 such datasets exist, so a synthetic test fixture validates the code path).
+- `priceResponse.schema.js` updated to accept the new `tier`, `source`, `sources`, `candidatesPerTier`, `reason` fields as optional on the existing `lookback` object (and to require them on extended responses).
+- New tests in `__tests__/ebayFetchSoldComps.test.js`:
+  - `lookback shape is identical between path #1 and path #2 for the same query` (synthetic harness that forces each path with a mocked Terapeak pool size)
+  - `path #2 extends to 730d when 365d still insufficient` (synthetic fixture with newest sale > 365d ago)
+  - `path #2 emits source: 'terapeak+finding-api' when supplemented from the Finding API` (synthetic API mock)
+  - `path #2 emits candidatesPerTier with per-API-call counts` (mocked API returns 0/3/8 across 180/365/730)
+- Existing 4087 tests remain green (the only behavioral change is the lookback shape; no FMV math touched).
+- `@numismatic-audit` Step 5b: PASS (no pool boundary touched).
+- Deep review per `.github/skills/workflow/SKILL.md`: 0 S1/S2/S3 findings.
+
+**Out of scope (deferred to follow-ups):**
+- Backfilling tier telemetry into historical responses (this is forward-only).
+- Bookkeeping update for #270W Options #1/#4 status table -- separate trivial PR.
+- Extending the tier ladder into the global-API path (`globalResult`, L1828-1850) -- low priority; very few queries hit global-only.
+- Operator dashboard / UI that surfaces `candidatesPerTier` to humans -- belongs in a separate UX ticket.
+
+**Files (anticipated):** `src/services/ebayService.js` (extract helper, rewrite path #2 ladder + emission, refactor path #1 emission to use helper), `schemas/priceResponse.schema.js` (accept new fields), `__tests__/ebayFetchSoldComps.test.js` (new shape-parity + 730d + multi-source + per-tier-counts tests).
+
+**Tier:** M (touches `ebayService.js` hot path; introduces a shared helper consumed by both lookback emission sites; behavioral change to path #2 ladder cap; full review required including `@numismatic-audit` Step 5b and deep review per `.github/skills/workflow/SKILL.md`).
+
+**Cross-reference:** PR #188 / commit `cb38e45` (#270W Option #1 -- shipped the tier ladder for path #1 only); `src/services/ebayService.js` L1580-1620 (path #1 ladder construction), L1668-1681 (path #1 lookback emission), L1690-1700 (path #2 legacy ladder seed), L1910-1914 (path #2 legacy lookback emission); chat transcript `a9bc389e-48bf-48ba-b577-789b39c918e8` (2026-06-24 thin-comp validation probe that surfaced this gap).
