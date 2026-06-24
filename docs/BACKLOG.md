@@ -2875,7 +2875,7 @@ WASTE-LEDGER `INC-013` row already documents full remediation. No dangling cross
 
 ---
 
-### #272W. Latent pool-isolation violation in `wantsGraded` branch of `computeValuation` [P1 -- DATA-QUALITY] -- DONE 2026-06-24 (PR pending)
+### #272W. Latent pool-isolation violation in `wantsGraded` branch of `computeValuation` [P1 -- DATA-QUALITY] -- DONE 2026-06-24 (PR #197)
 
 **Discovered while implementing:** #270W Option #4 (PR #186, merge `faa852f`, 2026-06-23). While reading `src/services/valuationService.js` to fix the analogous violation in the default raw-intent branch, the same anti-pattern was found in the `wantsGraded` branch and documented inline at lines 151-156 of that file. It was kept out of scope for #186 per scope discipline.
 
@@ -2951,7 +2951,7 @@ When the graded pool is empty AND the engine cannot otherwise produce a graded F
 | Test inventory (D6) | `__tests__/computeValuation.test.js`: `'falls back to all comps when preferred pool too small'` test FLIPPED to assert strict pool; 8 new pool-isolation tests added (raw / proof / RP non-leak, 2+5 thin pool, 3+5 graded-only, guide-only label, null-FMV schema-compliance, V2 last-resort trigger, V2 guide-signal guard, proof-branch regression guard); 1 unrelated PCGS-verified test patched to supply graded comps under the new strict semantics. Cross-suite: `__tests__/metalMismatchFilter.test.js` `buildComps` helper sets `gradeType: 'graded'`; `__tests__/errorPaths.test.js` `'graded query with all raw comps'` test FLIPPED to assert honest null FMV. |
 | Tier (D7) | M -- pre-commit reviewer + deep review + `@numismatic-audit` Step 5b. |
 
-**Files changed (PR pending):**
+**Files changed (PR #197):**
 - `src/services/valuationService.js` -- wantsGraded branch rewritten strict; `metalOnly` / `guideOnly` derivation and `dataSource.label` expression refined; stale out-of-scope comment in default raw branch updated.
 - `__tests__/computeValuation.test.js` -- 1 flipped + 8 new tests + 1 unrelated verified-PCGS test patched.
 - `__tests__/metalMismatchFilter.test.js` -- `buildComps` helper updated.
