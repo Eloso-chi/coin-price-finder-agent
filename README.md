@@ -179,7 +179,7 @@ Optional variables:
 | `PORT` | Server port | `3000` |
 | `EBAY_CACHE_TTL_MS` | eBay cache lifetime | `3600000` (1 hour) |
 | `EBAY_US_MIN_COMPS` | Minimum US comps before global fallback | `8` |
-| `EBAY_DEFAULT_LOOKBACK_DAYS` | Default eBay sold-comp lookback window (auto-extends to 365 if too few comps) | `180` |
+| `EBAY_DEFAULT_LOOKBACK_DAYS` | Default eBay sold-comp lookback window. Tier ladder extends through 365 -> 730 -> `all` when the Terapeak-only pool is thin (#270W Option #1, PR #188). Supplemented path still caps at 365 (tracked: #275W). | `180` |
 | `BLOB_REIMPORT_MS` | Periodic blob re-import interval (30 min default) | `1800000` |
 | `CACHE_DIR` | Directory for persistent JSON caches (Azure Files mount point) | `./cache` |
 | `COSMOS_ENDPOINT` | Azure Cosmos DB endpoint (enables dual-mode write-through) | *(none -- file-only)* |
@@ -916,7 +916,7 @@ scripts/
 ### Data Fixes
 
 - **Proof mintage fallback** -- `lookupMintage()` returns `{ mintage: null }` when proof finish is requested but no proof table exists, instead of falling through to the BU mintage table.
-- **`EBAY_DEFAULT_LOOKBACK_DAYS`** env var documented (default: 180, auto-extends to 365 if too few comps).
+- **`EBAY_DEFAULT_LOOKBACK_DAYS`** env var documented (default: 180). Per #270W Option #1 (PR #188), the Terapeak-only tier ladder extends through 365 -> 730 -> `all` when the requested window is thin. The supplemented path still caps at 365 (tracked: #275W).
 
 ### Terapeak Data Pipeline
 
