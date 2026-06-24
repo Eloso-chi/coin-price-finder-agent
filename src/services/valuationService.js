@@ -586,6 +586,12 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
       rangeHigh,
       confidence,
       lowData: soldCount < 3,
+      // #270W Option #1: surfaced when the comp pool came from a wider
+      // Terapeak lookback tier than the requested window (or from the
+      // 'all' / no-time-limit fallback). Per user decision on the PR, this
+      // is a transparency flag only -- no confidence numeric is reduced
+      // here. UI consumers can decide whether to badge the result.
+      lookbackExtended: !!(ebay?.lookback?.extended),
       compCount: soldCount,
       explanation,
       dataSource: {
