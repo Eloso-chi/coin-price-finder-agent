@@ -2939,3 +2939,183 @@ When the graded pool is empty AND the engine cannot otherwise produce a graded F
 **Tier:** M (touches valuationService.js pool selection -- hot file, INC-013 family; full review required including `@numismatic-audit` Step 5b and deep review per `.github/skills/workflow/SKILL.md`).
 
 **Cross-reference:** `docs/memory/numismatic-terminology.md` MANDATORY: Pool-Isolation Contract; `docs/WASTE-LEDGER.md` INC-013; #270W (parent umbrella -- this is the graded-branch counterpart of Option #4); PR #186 (commit `4c0fc60`, merge `faa852f`) inline comment at `valuationService.js:151-156` recording the discovery context.
+
+---
+
+### #273W. First-class intent + strict pool isolation for `colorized`, `antiqued`, `gilded`, `burnished`, `high-relief` variant families [P2 -- DATA-QUALITY] -- OPEN 2026-06-24
+
+**Discovered while:** post-#270W Option #1 (PR #188, branch `feat/270W-option-1-tiered-lookback`) pricing-health investigation. After running 75 health queries (25 Panda / 25 Libertad / 25 Morgan) and validating the "pool routing dominates dropout" thesis, drill-down on `variantMismatch` rejections for the two highest-variant-share libertads (2023 Mexican Silver Libertad, 2018 Mexico 1 oz Silver Libertad) found:
+- 2023 Libertad: 25/25 rejections were aftermarket painted/gilded/antiqued novelties -- ALL CORRECT.
+- 2018 Libertad: 22/23 rejections were the **official Banco de Mexico Antiqued Finish Libertad** (mintage ~40,000), prices cluster $300-$400. A real, mint-issued, marketable variant with its own price level -- NOT aftermarket noise.
+
+The variant filter correctly excludes these from the raw BU pool. But the system has NO PATH to compute FMV for a query that asks for them (e.g. "2018 Mexico Libertad Antiqued Finish"), because the only positive-intent variant families that exist are `colorized` (mixed with plain BU -- see below) and `proof` / `reverse-proof` (full strike-split pools). The families `antiqued`, `gilded`, `burnished`, `high-relief` exist in `detectVariantFamilies` (`src/services/ebayService.js` L207) but only as **rejection criteria** -- there is no `queryWantsAntiqued` / `queryWantsBurnished` / `queryWantsGilded` / `queryWantsHighRelief` helper, and no routing branch.
+
+Additionally, the existing `wantsColorized` branch (L1199-1209) keeps `colorized OR plain BU` -- mixing the two pools into one FMV. This is the same family of violation as INC-013 (cross-pool contamination, `docs/WASTE-LEDGER.md`) in the opposite direction: instead of mixing graded into raw, it mixes colorized into raw. Fixed in the same ticket for consistency (shared code location, shared principle, shared review cost).
+
+**Problem:**
+
+`src/services/ebayService.js` variant hard-filter at L1183-1209 has two branches today:
+
+```javascript
+const wantsColorizedHF = queryWantsColorized(expected);
+const wantsProofHF     = queryWantsProof(expected);
+if (!wantsColorizedHF) {
+  // DEFAULT: reject any title with a non-privy variant family (unless proof+wantsProof)
+  ...
+} else {
+  // COLORIZED BRANCH: keep colorized OR plain BU (VIOLATES pool isolation)
+  ...
+}
+```
+
+Gaps:
+1. No intent helpers for antiqued, burnished, gilded, high-relief.
+2. No routing branch for any of those four families.
+3. Existing colorized branch mixes colorized + plain BU into one FMV (pool-isolation violation).
+4. No mint-vs-aftermarket scoring for the four new families (parallel to existing `colorizedMintSignal` at L222).
+
+**Concrete failure modes:**
+
+*Antiqued (worked example: 2018 Mexico Libertad Antiqued Finish):*
+- 22 antiqued comps in `cache/terapeak_sold.json` key `1oz 2018 libertad mexican silver`, all `gradeType=raw`, prices $300-$400.
+- User queries `"2018 Mexico 1 oz Silver Libertad Antiqued Finish"`.
+- Strike-split routes all 22 to raw pool (correct -- they're not slabbed/proof).
+- Variant hard filter: `wantsColorized=false`, `wantsProof=false`, no `wantsAntiqued` helper -> default reject -> all 22 dropped as `variantMismatch`.
+- FMV falls through to plain raw BU pool (~$120) or returns thin-comp null FMV.
+- User receives WRONG FMV ($120 vs market $350) or no FMV at all.
+
+*Colorized (existing branch violation):*
+- User queries `"2001 Chinese Silver Panda Colorized"` (Banco-issued Colored Obverse Panda, market ~$80-$170).
+- 30 colorized comps in dataset, all `gradeType=raw`, prices $59-$250.
+- Plain raw 2001 Panda BU comps in same pool, prices ~$30-$70.
+- Current branch keeps BOTH -> blended FMV ~$60 (wrong: dilutes the colorized premium with plain BU).
+- Correct behavior: STRICT colorized-only -> FMV ~$100 (median of colorized comps).
+
+*Burnished (American Silver Eagle):* 2006-W onward burnished ASE has its own collector market (mintage 470k-yr vs millions for plain BU) and trades at ~2x plain BU. Current system has no path.
+
+*High-Relief (2009 UHR American Gold Eagle):* UHR commands ~$500-$1000 premium over standard AGE; high-relief American Liberty 2017 similar. No path today.
+
+**Hard constraints (MANDATORY pool-isolation contract):**
+1. MUST NOT merge `colorized` comps with plain raw BU comps when serving a colorized query (tightens existing branch).
+2. MUST NOT merge `antiqued` / `burnished` / `gilded` / `highRelief` with plain raw BU when serving their respective queries.
+3. When the requested family pool is empty AND no guide/sheet covers the variant, return null FMV with `dataSource.label = 'metal-only'` and `gradePool` telemetry (same path as #270W Option #4 / PR #186 raw-pool empty case).
+4. Aftermarket comps within a family (negative mintSignal) MUST be filterable out so a `wantsGilded` query does not produce FMV from Day-of-the-Dead Calavera novelties.
+5. Cite `docs/memory/numismatic-terminology.md` MANDATORY: Pool-Isolation Contract in the fix PR body.
+
+**Proposed fix (single unified change):**
+
+Stage 1 -- add four new positive-intent helpers (parity with `queryWantsColorized`):
+
+```javascript
+function queryWantsAntiqued(expected) {
+  const raw = (expected?._rawQuery || '').toLowerCase();
+  const label = (expected?.label || '').toLowerCase();
+  const finish = (expected?.finish || '').toLowerCase();
+  return /\bantique[d]?\b/.test(raw)
+    || label === 'antiqued' || finish === 'antiqued' || finish === 'antique finish';
+}
+function queryWantsBurnished(expected)  { /* same shape, tokens: 'burnished' */ }
+function queryWantsGilded(expected)     { /* same shape, tokens: 'gilded','gilt','gold plated' */ }
+function queryWantsHighRelief(expected) { /* same shape, tokens: 'high relief','uhr','ultra high relief' */ }
+```
+
+Stage 2 -- unify the variant hard filter into ONE branch with a `targetFamily` switch (replaces L1183-1209):
+
+```javascript
+const wantsProofHF      = queryWantsProof(expected);
+const wantsColorizedHF  = queryWantsColorized(expected);
+const wantsAntiquedHF   = queryWantsAntiqued(expected);
+const wantsBurnishedHF  = queryWantsBurnished(expected);
+const wantsGildedHF     = queryWantsGilded(expected);
+const wantsHighReliefHF = queryWantsHighRelief(expected);
+
+// Precedence (most-specific first): highRelief > antiqued > burnished > gilded > colorized
+const targetFamily =
+  wantsHighReliefHF ? 'highRelief' :
+  wantsAntiquedHF   ? 'antiqued'   :
+  wantsBurnishedHF  ? 'burnished'  :
+  wantsGildedHF     ? 'gilded'     :
+  wantsColorizedHF  ? 'colorized'  : null;
+
+if (targetFamily) {
+  // STRICT family-only pool -- DO NOT mix with plain BU.
+  removed.variantPoolMismatch = 0;
+  kept = kept.filter(c => {
+    const fams = detectVariantFamilies(c.title);
+    if (fams.has(targetFamily)) {
+      // Aftermarket guard: reject if mintSignal < 0 for this family
+      const signalFn = MINT_SIGNAL_BY_FAMILY[targetFamily]; // colorizedMintSignal, antiquedMintSignal, etc.
+      if (signalFn && signalFn(c.title) < 0) {
+        removed.variantPoolMismatch++;
+        return false;
+      }
+      return true;
+    }
+    removed.variantPoolMismatch++;
+    return false;
+  });
+} else {
+  // EXISTING default-reject branch (unchanged): reject any non-privy variant title;
+  // allow proof family iff wantsProofHF (unchanged behavior).
+  removed.variantMismatch = 0;
+  kept = kept.filter(c => {
+    const fams = detectVariantFamilies(c.title);
+    if (fams.size === 0) return true;
+    const onlyPrivy = fams.size === 1 && fams.has('privy');
+    if (onlyPrivy) return true;
+    const hasProofFamily = fams.has('proof') || fams.has('reverseProof');
+    if (wantsProofHF && hasProofFamily) return true;
+    removed.variantMismatch++;
+    return false;
+  });
+}
+```
+
+Stage 3 -- add mint-vs-aftermarket signal functions for the four new families, parallel to existing `colorizedMintSignal` (L222):
+
+```javascript
+const ANTIQUED_MINT_ISSUED_TOKENS = ['banco de mexico','perth mint','royal mint','royal canadian mint','rcm']; // mint-issued antiqued
+const ANTIQUED_AFTERMARKET_TOKENS = ['private mint','custom','novelty','aftermarket'];
+function antiquedMintSignal(title) { /* +10 mint / -10 aftermarket / 0 unknown */ }
+// + burnishedMintSignal, gildedMintSignal, highReliefMintSignal in the same shape
+```
+
+Stage 4 -- `coinIntent.js` / `coinMetalProfile.js` updated to parse the new `finish` values (`antiqued`, `burnished`, `gilded`, `high relief`) from query strings and expected blobs so the new intent helpers receive populated `_rawQuery` / `finish` fields.
+
+**Open questions for scoping (user decision before implementation):**
+
+1. **Precedence ordering** (when query mentions two families, e.g. "antiqued + gilded combo"): proposed `highRelief > antiqued > burnished > gilded > colorized` -- most-specific first. Alternative: reject ambiguous queries entirely and ask user to disambiguate. Recommend the precedence approach (simpler, matches `colorized > proof` implicit precedence in current code).
+
+2. **Burnished + graded overlap:** 2006-W and later burnished ASEs commonly appear slabbed (PCGS/NGC MS70). For a `"burnished ASE"` query, should the burnished pool be standalone (only ungraded burnished) or paired with a `wantsBurnishedSlab` modifier? Defer to a follow-up if needed; default behavior: burnished pool = raw burnished only; graded burnished requires explicit `wantsGraded + wantsBurnished` combination.
+
+3. **PCGS / Greysheet guide for variants:** PCGS price guide DOES list 2018 Antiqued Libertad and 2009 UHR AGE. Should empty antiqued/highRelief pool fall back to PCGS guide (with `dataSource.label='guide-only'`)? Recommend YES, consistent with the open question #2 from #272W.
+
+4. **Aftermarket scoring strictness:** colorized aftermarket scoring currently uses tokens like `'novelty'`, `'painted by'`, `'custom'`. Should the four new family-mintSignal functions be similarly strict (always reject `mintSignal < 0`) or lenient (warn-only)? Recommend strict for FMV correctness; tag the rejection as `variantAftermarket` for observability.
+
+**Acceptance criteria:**
+- New helpers `queryWantsAntiqued`, `queryWantsBurnished`, `queryWantsGilded`, `queryWantsHighRelief` added to `src/services/ebayService.js` matching the shape of `queryWantsColorized`.
+- Variant hard filter at L1183 replaced by the unified `targetFamily` switch above, with documented precedence.
+- Existing `wantsColorized` branch tightened from "colorized OR plain BU" to strict "colorized-only" (this is a behavioral change; the test that defends the mixed behavior must be updated -- same pattern as the test update in #186).
+- New family-specific mint-vs-aftermarket signal functions (`antiquedMintSignal`, `burnishedMintSignal`, `gildedMintSignal`, `highReliefMintSignal`) parallel to `colorizedMintSignal`.
+- `coinIntent.js` / `coinMetalProfile.js` parse the new finish tokens from raw query strings.
+- New tests in `__tests__/ebayFetchSoldComps.test.js`:
+  - `queryWantsAntiqued: 2018 Antiqued Libertad routes to antiqued-only pool, 22 antiqued comps retained, plain BU rejected`
+  - `queryWantsBurnished: 2019-W Burnished ASE retains burnished, rejects plain BU`
+  - `queryWantsHighRelief: 2009 UHR AGE retains UHR, rejects standard relief`
+  - `queryWantsGilded: aftermarket gilded rejected even on gilded query (mintSignal < 0)`
+  - precedence: query with both `antiqued` and `colorized` tokens chooses antiqued per the documented order
+  - regression guard: query with no variant intent still rejects all variants (existing default-branch behavior unchanged)
+- New tests in `__tests__/computeValuation.test.js`:
+  - antiqued pool produces its own FMV, distinct from raw BU FMV for the same year
+  - colorized-strict produces higher FMV than the current colorized-mixed behavior (regression-as-fix test pinning the new strict numerics)
+  - empty antiqued pool returns null FMV with `dataSource.label='metal-only'` (parity with #270W Option #4 raw-empty case)
+- Existing test pinning the old colorized-mixed behavior (if any -- audit `__tests__/ebayFetchSoldComps.test.js` for `wantsColorized` tests that assert plain BU stays) must be updated to defend the new strict behavior. Document the test flip in the PR body, same pattern as the `'no-signal contract: RP comps'` test flip in #186.
+- `@numismatic-audit` Step 5b: PASS.
+- Deep review per `.github/skills/workflow/SKILL.md`: 0 S1/S2/S3 findings.
+- Existing 4087 tests remain green (post-update).
+
+**Files (anticipated):** `src/services/ebayService.js` (intent helpers + unified variant hard filter + four mint-signal fns), `src/utils/coinIntent.js` and/or `src/utils/coinMetalProfile.js` (finish parsing for new tokens), `__tests__/ebayFetchSoldComps.test.js` (new tests + colorized-strict update), `__tests__/computeValuation.test.js` (new FMV tests), `docs/memory/numismatic-terminology.md` (document the new family pools in the pool-isolation contract section).
+
+**Tier:** M (touches `ebayService.js` variant hard filter -- hot path; new intent helpers; new pool semantics with behavioral change to colorized branch; full review required including `@numismatic-audit` Step 5b and deep review per `.github/skills/workflow/SKILL.md`).
+
+**Cross-reference:** `docs/memory/numismatic-terminology.md` MANDATORY: Pool-Isolation Contract; `docs/WASTE-LEDGER.md` INC-013 (same violation family, opposite direction -- the colorized-mixed branch is INC-013-shaped); #270W (sibling -- this is the variant-pool counterpart of the strike-pool work); #272W (sibling -- both apply pool isolation to a previously-mixed branch); PR #188 (#270W Option #1) investigation that surfaced this gap; chat transcript `a9bc389e-48bf-48ba-b577-789b39c918e8`.
