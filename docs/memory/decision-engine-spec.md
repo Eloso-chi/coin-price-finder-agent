@@ -59,11 +59,14 @@ Proof / reverse-proof intent skips this ladder entirely (`skipSpotMath`). When p
 
 ## Grade Pool Split
 
-Before valuation, comps are separated:
-1. `classifyGradeType()` labels each comp as `graded` or `raw`
-2. If user specified a grade -> prefer graded pool
-3. If no grade -> prefer raw pool
-4. Fallback: if preferred pool has < 3 comps, use all comps
+Before valuation, comps are separated into four mutually exclusive pools:
+1. `classifyGradeType()` labels each comp as `graded`, `proof`, `reverseProof`, or `raw`
+2. If user grade is "Proof"/"PF"/"PR" -> use proof pool **unconditionally** (0 comps returns null FMV; never falls back to raw -- #184)
+3. If user grade is "Reverse Proof"/"Rev Pf"/"RP" -> use reverse-proof pool strictly (#260W)
+4. If user specified any other grade -> use graded pool strictly (#272W); if `gradedSold === 0` AND no PCGS price guide AND no Greysheet anchor AND `rawSold >= 10`, the engine emits a last-resort raw blend (`poolFallback: true`, -10 confidence, `usedPool: 'raw (fallback)'`, `dataSource.label` unchanged) -- this is the tightened #176 V2 fallback
+5. If no grade -> use raw pool strictly (#270W Option #4 / PR #186); no fallback to all-comps
+6. **There is no "if preferred pool < 3 comps then use all comps" fallback for any pool.** Pool isolation is mandatory per `docs/memory/numismatic-terminology.md` MANDATORY: Pool-Isolation Contract (see INC-013 in `docs/WASTE-LEDGER.md`).
+7. When `totalComps === 0` but a grade-specific guide signal exists (PCGS price guide or Greysheet anchor), the engine emits FMV from the guide and labels the response `dataSource.label = 'guide-only'` (#272W). When no comps and no guide are available and the bullion ladder fires, the label is `'metal-only'`. Otherwise null FMV with an explicit `lowData` flag.
 
 ## Confidence Scoring (0-100)
 

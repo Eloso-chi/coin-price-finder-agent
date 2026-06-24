@@ -614,7 +614,7 @@ The cascade maximizes data quality while handling API limitations. Terapeak loca
 
 **Throttling:** A global 1,100 ms minimum gap between any eBay API call prevents rate-limit issues.
 
-**Grade-type pool split:** After comps are collected, `classifyGradeType()` classifies each comp into one of three pools: `graded` (PCGS/NGC slabbed or formal grade in title), `proof` (slabbed or unslabbed proof coins -- title contains "proof" but not "proof-like"; slabbed proofs with `conditionId=2000` are detected via proof regex in title -- #182), or `raw` (everything else). The valuation engine selects the appropriate pool based on user intent: graded if a grade is specified, proof if grade is "Proof"/"PF"/"PR", raw otherwise. For proof queries, the proof pool is used unconditionally regardless of count (1-2 comps flags `lowData`; 0 comps returns null FMV -- #184). Non-proof pools fall back to all comps if fewer than 3 entries. Designation-aware scoring (#183): `scoreMatch()` applies +10 for DCAM/CAM match, -15 for mismatch on proof coins. This prevents proof coin prices (typically 2-5x BU) from contaminating raw coin valuations.
+**Grade-type pool split:** After comps are collected, `classifyGradeType()` classifies each comp into one of three pools: `graded` (PCGS/NGC slabbed or formal grade in title), `proof` (slabbed or unslabbed proof coins -- title contains "proof" but not "proof-like"; slabbed proofs with `conditionId=2000` are detected via proof regex in title -- #182), or `raw` (everything else). The valuation engine selects the appropriate pool based on user intent: graded if a grade is specified, proof if grade is "Proof"/"PF"/"PR", raw otherwise. For proof queries, the proof pool is used unconditionally regardless of count (1-2 comps flags `lowData`; 0 comps returns null FMV -- #184). **All three pools are strictly isolated** -- raw queries use only raw comps (#270W Option #4 / PR #186) and graded queries use only graded comps (#272W); no silent fallback to all-comps when the preferred pool is thin (see `docs/memory/numismatic-terminology.md` -- Pool-Isolation Contract; INC-013 in `docs/WASTE-LEDGER.md`). When a graded query has zero graded comps AND no PCGS price guide AND no Greysheet anchor, the engine may return a last-resort raw blend only if at least 10 raw sold comps exist (the tightened #176 V2 fallback); otherwise FMV is null with `dataSource.label = 'guide-only'` (guide present but no comps) or `'metal-only'` (bullion fallback). Designation-aware scoring (#183): `scoreMatch()` applies +10 for DCAM/CAM match, -15 for mismatch on proof coins. This prevents proof coin prices (typically 2-5x BU) from contaminating raw coin valuations.
 
 **Scoring:** Each comp is scored via `scoreMatch(item, expected)`:
 - **+10** per matching attribute (year, mint, series, grade, metal, zodiac)
@@ -959,11 +959,10 @@ The eBay component uses `computeWeightedMedian(comps)` instead of a simple media
 
 The valuation engine separates eBay comps by `gradeType` (three-way split):
 
-1. If user grade is "Proof"/"PF"/"PR" → prefer `proof` comps pool
-2. If user specified any other grade → prefer `graded` comps pool
-3. If no grade specified → prefer `raw` comps pool (excludes both graded AND proof)
-4. If preferred pool has < 3 comps → fall back to all comps
-5. Explanation notes which pool was used and how many were excluded
+1. If user grade is "Proof"/"PF"/"PR" → use `proof` comps pool unconditionally (never falls back to BU/raw; 0 comps returns null FMV -- #184)
+2. If user specified any other grade → use `graded` comps pool strictly (#272W); if `gradedSold === 0` AND no PCGS price guide AND no Greysheet anchor AND `rawSold >= 10`, the engine returns a last-resort raw blend (tightened #176 V2 fallback) with `poolFallback: true` and a -10 confidence penalty; otherwise FMV is null with `dataSource.label = 'guide-only'` or `'metal-only'`
+3. If no grade specified → use `raw` comps pool strictly (#270W Option #4 / PR #186); excludes both graded AND proof; no fallback to all-comps when raw pool is thin
+4. Explanation notes which pool was used, how many were excluded, and (when the #176 V2 fallback fires) why graded→raw was permitted
 
 `classifyGradeType()` priority chain:
 - conditionId 2000 ("Certified") → `graded`

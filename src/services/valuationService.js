@@ -112,28 +112,60 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
       if (excluded > 0) explanation.push(`Using ${usProof.length} proof comps for FMV (${excluded} non-proof comps excluded).`);
     }
   } else if (wantsGraded) {
-    usComps = usGraded.length >= 3 ? usGraded : usCompsAll;
-    glComps = glGraded.length >= 3 ? glGraded : glCompsAll;
-    // #176: Pool fallback — if graded pool has fewer than 5 SOLD comps but
-    // raw pool has significantly more sold data, prefer raw over a thin/Browse
-    // graded pool.  Terapeak sold data is always more reliable than Browse API
-    // asking prices or a tiny graded sample.
-    const gradedSold = usComps.filter(c => c._source === 'terapeak' || c._source === 'finding');
+    // #272W: Strict graded pool. Pool-Isolation Contract per
+    // docs/memory/numismatic-terminology.md MANDATORY: Pool-Isolation Contract.
+    //
+    // Previously (pre-#272W) this branch fell back to `usCompsAll` when
+    // `usGraded.length < 3`, silently merging raw + proof + reverse-proof
+    // comps into the "graded" FMV. Same family of violation as INC-013
+    // (#252 revert) and #270W Option #4 (which fixed the raw branch).
+    //
+    // The strict graded pool may yield 0 comps for thin graded datasets.
+    // That is handled honestly downstream: when PCGS guide / Greysheet are
+    // available, the certified-blend ladder produces FMV labeled
+    // `dataSource.label = 'guide-only'`; when those are also absent, the
+    // null-FMV early return fires with schema-compliant telemetry.
+    usComps = usGraded;
+    glComps = glGraded;
+
+    // #176 (tightened by #272W): graded->raw swap is now a last-resort
+    // fallback, NOT a general thin-pool optimization.
+    //
+    // Original #176 (commit ccdf711, 2026-05-03) traded off "thin graded
+    // sold pool padded with Browse asking prices" vs "fat raw sold pool".
+    // That trade-off predates the Pool-Isolation Contract (post-INC-013)
+    // and the certified-blend ladder's PCGS-guide / Greysheet handling.
+    //
+    // Today, when graded comps are absent, a grade-specific signal from
+    // PCGS price guide or Greysheet (CDN Bid) provides a clean 'guide-only'
+    // FMV without crossing pools. The graded->raw swap is therefore
+    // restricted to the residual case where NO grade-specific signal
+    // exists at all (no graded sold comps, no PCGS guide, no Greysheet)
+    // and the raw pool has enough sold data to be more honest than null.
+    //
+    // Telemetry preserved from original #176: `poolFallback: true`,
+    // `usedPool: 'raw (fallback)'`, and the -10 confidence penalty in
+    // computeConfidence flag the result so consumers know the FMV reflects
+    // the raw market, not the graded market.
+    const gradedSold = usGraded.filter(c => c._source === 'terapeak' || c._source === 'finding');
     const rawSold = usRaw.filter(c => c._source === 'terapeak' || c._source === 'finding');
-    if (gradedSold.length < 5 && rawSold.length >= 10) {
+    const hasGuideSignal = (pcgs?.priceGuide?.valueUsd != null) || (opts.greysheet?.greyVal != null);
+    if (gradedSold.length === 0 && rawSold.length >= 10 && !hasGuideSignal) {
       usComps = usRaw;
-      glComps = glRaw.length >= 3 ? glRaw : glCompsAll;
+      glComps = glRaw;  // #272W D3: strict raw pool, no glCompsAll fallback
       poolFallback = true;
-      explanation.push(`⚠ Only ${gradedSold.length} sold graded comps — using ${rawSold.length} raw sold comps for more reliable FMV.`);
-    } else if (gradedSold.length === 0 && usRaw.length >= 5) {
-      usComps = usRaw;
-      glComps = glRaw.length >= 3 ? glRaw : glCompsAll;
-      poolFallback = true;
-      explanation.push(`⚠ No sold graded comps — using ${usRaw.length} raw comps instead of asking-price fallback.`);
-    } else if (usGraded.length >= 3 && usRaw.length > 0) {
-      explanation.push(`Using ${usGraded.length} graded comps for FMV (${usRaw.length} raw comps excluded).`);
-    } else if (usRaw.length > 0 && usGraded.length < 3) {
-      explanation.push(`Only ${usGraded.length} graded comps — using all ${usCompsAll.length} comps (may include raw).`);
+      explanation.push(`\u26a0 No sold graded comps and no grade-specific price-guide data -- using ${rawSold.length} raw sold comps as last-resort fallback (confidence reduced).`);
+    } else {
+      // Strict graded-pool explanations.
+      const excludedUs = usRaw.length + usProof.length + usRevProof.length;
+      if (usGraded.length >= 3 && excludedUs > 0) {
+        explanation.push(`Using ${usGraded.length} graded comps for FMV (${excludedUs} non-graded comps excluded -- pool isolation).`);
+      } else if (usGraded.length > 0 && usGraded.length < 3) {
+        const exclNote = excludedUs > 0 ? ` (${excludedUs} non-graded comps excluded -- pool isolation)` : '';
+        explanation.push(`\u26a0 Only ${usGraded.length} graded comp${usGraded.length === 1 ? '' : 's'} -- thin graded pool${exclNote}.`);
+      } else if (usGraded.length === 0 && excludedUs > 0) {
+        explanation.push(`\u26a0 No graded comps available; ${excludedUs} non-graded comps excluded to preserve pool isolation. Graded FMV will be derived from PCGS guide / Greysheet if available, otherwise null.`);
+      }
     }
   } else {
     // Default raw intent (no userGrade, no proof flag). Use the raw pool
@@ -147,10 +179,9 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
     // is handled honestly below (null fmvCore for non-bullion;
     // spot+premium with `dataSource.label = 'metal-only'` for bullion).
     //
-    // NOTE: the `wantsGraded` branch above still has an analogous fallback to
-    // `usCompsAll` when graded < 3 and raw is insufficient to swap. That is
-    // a separate pool-isolation gap tracked in BACKLOG #270W and is NOT fixed
-    // in this PR (Option #4 scope is raw intent only).
+    // #272W: the analogous wantsGraded fallback to `usCompsAll` has now
+    // been removed -- the wantsGraded branch above is strict per the same
+    // Pool-Isolation Contract.
     usComps = usRaw;
     glComps = glRaw;
     const excludedUs = usGraded.length + usProof.length + usRevProof.length;
@@ -440,12 +471,18 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
   // If all or most comps are active listings, flag it
   const browseOnly = soldCount === 0 && activeCount > 0;
   const mostlyBrowse = soldRatio < 0.3 && activeCount > 0;
-  // #270W Option #4: when the chosen pool has 0 comps but FMV was still
-  // produced (bullion-greysheet-anchor or bullion-spot-only methods),
-  // label the dataSource as 'metal-only' so consumers can render the
-  // "no comp data; metal-anchored FMV" status honestly instead of the
-  // misleading default of 'sold-data'.
-  const metalOnly = totalComps === 0;
+  // #270W Option #4 / #272W: when the chosen pool has 0 comps but FMV was
+  // still produced, label the dataSource by the actual FMV source family
+  // so consumers can render the "no comp data" status honestly instead of
+  // the misleading default of 'sold-data':
+  //   - 'metal-only' when FMV came from bullion spot / Greysheet bullion math
+  //     (methods: 'bullion-spot-only', 'bullion-greysheet-anchor')
+  //   - 'guide-only' (#272W new) when FMV came from grade-specific PCGS
+  //     price guide / Greysheet via certified-blend or raw-blend ladders.
+  //     Surfaced when wantsGraded query has 0 graded comps but PCGS guide
+  //     is available; previously this incorrectly labeled as 'metal-only'.
+  const metalOnly = totalComps === 0 && (method === 'bullion-spot-only' || method === 'bullion-greysheet-anchor');
+  const guideOnly = totalComps === 0 && !metalOnly;
 
   if (terapeakCount > 0) {
     if (isAdmin) {
@@ -601,6 +638,7 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
         soldRatio: +soldRatio.toFixed(2),
         browseOnly,
         label: metalOnly ? 'metal-only'
+          : guideOnly ? 'guide-only'
           : browseOnly ? 'asking-prices-only'
           : mostlyBrowse ? 'mostly-asking'
           : 'sold-data'
