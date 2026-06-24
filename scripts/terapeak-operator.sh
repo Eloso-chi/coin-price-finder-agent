@@ -18,6 +18,9 @@ DO_LOGIN=true
 LOOP=false
 PAUSE_SECONDS=600
 PAGE1_BATCH=15
+BATCH_MIN=15
+BATCH_MAX=30
+USER_PASSED_PAGE1_BATCH=0
 INCLUDE_THIN=false
 FOCUS_REGEX=""
 COIN_TYPE=""
@@ -26,11 +29,16 @@ EXTRA_ARGS=()
 STATE_FILE="cache/terapeak-startup-state.json"
 LOCK_FILE="cache/terapeak-operator.lock"
 LOCK_PID_FILE="cache/terapeak-operator.lock.pid"
+RUN_LOG_FILE=""
+PASS_LOG_ROOT_DIR="cache/terapeak-operator-passes"
+PASS_LOG_DIR=""
 
 RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)-$$"
 STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 CURRENT_STAGE="init"
 PYTHON_BIN=""
+
+PASS_LOG_DIR="${PASS_LOG_ROOT_DIR}/${RUN_ID}"
 
 LOCK_FD=0
 
@@ -44,6 +52,8 @@ Options:
   --loop                Keep running passes until one fails
   --pause-between SEC   Sleep between loop passes (default: 600)
   --page1-batch N       Page-1 batch size (default: 15)
+  --batch-min N         Min randomized page-1 batch size per pass (default: 15)
+  --batch-max N         Max randomized page-1 batch size per pass (default: 30)
   --include-thin        Include thin-market queue entries
   --focus REGEX         Focus terms matching REGEX
   --coin-type NAME      Built-in alias focus (libertads, morgans, etc.)
@@ -52,8 +62,26 @@ Options:
 Examples:
   bash scripts/terapeak-operator.sh
   bash scripts/terapeak-operator.sh --no-login --loop --pause-between 600 --page1-batch 25
+  bash scripts/terapeak-operator.sh --loop --batch-min 15 --batch-max 30
   bash scripts/terapeak-operator.sh --loop --skip-deep
 EOF
+}
+
+pick_batch_size() {
+  local lo="$1"
+  local hi="$2"
+
+  if (( lo == hi )); then
+    printf '%d' "$lo"
+    return
+  fi
+
+  if command -v shuf >/dev/null 2>&1; then
+    shuf -i "${lo}-${hi}" -n 1
+  else
+    local span=$((hi - lo + 1))
+    printf '%d' $((lo + RANDOM % span))
+  fi
 }
 
 resolve_python_bin() {
@@ -157,7 +185,16 @@ while [[ $# -gt 0 ]]; do
       shift 2
       ;;
     --page1-batch)
+      USER_PASSED_PAGE1_BATCH=1
       PAGE1_BATCH="$2"
+      shift 2
+      ;;
+    --batch-min)
+      BATCH_MIN="$2"
+      shift 2
+      ;;
+    --batch-max)
+      BATCH_MAX="$2"
       shift 2
       ;;
     --include-thin)
@@ -186,6 +223,12 @@ done
 resolve_python_bin
 
 mkdir -p cache
+mkdir -p "$PASS_LOG_DIR"
+
+RUN_LOG_FILE="cache/terapeak-operator-${RUN_ID}.log"
+# Mirror all operator output to a run-level log while preserving terminal output.
+exec > >(tee -a "$RUN_LOG_FILE") 2>&1
+echo "[operator] run log: $RUN_LOG_FILE"
 # Validate flock before attempting lock
 command -v flock >/dev/null 2>&1 || {
   echo "[operator] flock command not found (required for single-instance lock)." >&2
@@ -221,6 +264,16 @@ if ! [[ "$PAGE1_BATCH" =~ ^[0-9]+$ ]]; then
   exit 1
 fi
 
+if ! [[ "$BATCH_MIN" =~ ^[0-9]+$ ]] || ! [[ "$BATCH_MAX" =~ ^[0-9]+$ ]]; then
+  echo "batch-min and batch-max must be positive integers" >&2
+  exit 1
+fi
+
+if (( BATCH_MIN < 1 )) || (( BATCH_MAX < BATCH_MIN )); then
+  echo "require 1 <= batch-min <= batch-max" >&2
+  exit 1
+fi
+
 PASS=1
 
 CURRENT_STAGE="preflight-login"
@@ -243,16 +296,27 @@ bash scripts/terapeak-startup-preflight.sh --env-file "$ENV_FILE" --mode loop
 write_state "preflight-loop" "ok" "Loop preflight passed"
 
 while true; do
+  pass_page1_batch="$PAGE1_BATCH"
+  if [[ "$USER_PASSED_PAGE1_BATCH" != "1" ]]; then
+    pass_page1_batch="$(pick_batch_size "$BATCH_MIN" "$BATCH_MAX")"
+    echo "[operator] Pass ${PASS} randomized --page1-batch=${pass_page1_batch} (range ${BATCH_MIN}..${BATCH_MAX})"
+  else
+    echo "[operator] Pass ${PASS} fixed --page1-batch=${pass_page1_batch} (user-specified)"
+  fi
+
   CURRENT_STAGE="loop-pass"
   write_state "loop-pass" "running" "Starting pass ${PASS}"
   echo "== Terapeak operator pass ${PASS} =="
+  PASS_LOG_FILE="${PASS_LOG_DIR}/pass-$(printf '%04d' "$PASS").log"
+  : > "$PASS_LOG_FILE"
+  echo "[operator] pass log: $PASS_LOG_FILE"
 
   LOOP_ARGS=(
     bash scripts/run-surface-freshness-loop.sh
     --env-file "$ENV_FILE"
     --skip-deep
     --skip-probe
-    --page1-batch "$PAGE1_BATCH"
+    --page1-batch "$pass_page1_batch"
   )
   if [[ "$INCLUDE_THIN" == true ]]; then
     LOOP_ARGS+=(--include-thin)
@@ -267,7 +331,7 @@ while true; do
     LOOP_ARGS+=("${EXTRA_ARGS[@]}")
   fi
 
-  if ! "${LOOP_ARGS[@]}"; then
+  if ! "${LOOP_ARGS[@]}" 2>&1 | tee -a "$PASS_LOG_FILE"; then
     write_state "loop-pass" "failed" "Pass ${PASS} failed"
     echo "[operator] Pass ${PASS} failed; exiting." >&2
     exit 1

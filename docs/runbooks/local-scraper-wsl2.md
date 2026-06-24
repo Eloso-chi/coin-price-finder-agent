@@ -189,6 +189,9 @@ bash scripts/terapeak-operator.sh
 
 # Continuous freshness-only loop using existing cookies
 bash scripts/terapeak-operator.sh --no-login --loop --pause-between 600 --page1-batch 25
+
+# Continuous loop with randomized page-1 batch size per pass (default window 15..30)
+bash scripts/terapeak-operator.sh --no-login --loop --pause-between 600 --batch-min 15 --batch-max 30
 ```
 
 The wrapper always does:
@@ -264,9 +267,15 @@ Any other flags are forwarded to `./surface` (and then
 | `--skip-deep` | Skip the deep-pagination stage (sales-aggregator.py). Page-1 only. |
 | `--include-thin` | Include P3 monitor / evidence-probe entries in the backlog. |
 | `--page1-batch N` | Number of terms per page-1 batch (default 15). |
+| `--batch-min N` | Minimum randomized page-1 batch per pass when `--page1-batch` is not explicitly set (default 15). |
+| `--batch-max N` | Maximum randomized page-1 batch per pass when `--page1-batch` is not explicitly set (default 30). |
 | `--deep-limit N` | Number of terms per deep-pagination batch (default 10). |
 | `--focus "REGEX"` | Filter the backlog to terms matching `REGEX` (case-insensitive). |
 | `--coin-type NAME` | Built-in alias (`libertads`, `morgans`, `eagles`, `pandas`, `lunars`, `barbers`). |
+
+Operator log outputs:
+- Run log: `cache/terapeak-operator-<RUN_ID>.log`
+- Per-pass logs (persistent across restarts): `cache/terapeak-operator-passes/<RUN_ID>/pass-XXXX.log`
 
 #### Operational guardrails
 

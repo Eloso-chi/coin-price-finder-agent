@@ -22,7 +22,7 @@ Operational scripts for data collection, migration, and maintenance. Most script
 | `sales-aggregator.py` | Deep pagination aggregator (pages 2-6) with dashboard mode | `python3 scripts/sales-aggregator.py` (dashboard) or `--run --limit 10` |
 | `bootstrap-surface-wsl.sh` | One-command Surface/WSL bootstrap for PR250 flow (deps, venv, Playwright, env templates) | `bash scripts/bootstrap-surface-wsl.sh` |
 | `surface` | One-word launcher for the Surface freshness loop (loads validated env + runs loop) | `surface` |
-| `terapeak-operator.sh` | Canonical deterministic launcher: preflight(login) -> optional login -> preflight(loop) -> freshness pass | `bash scripts/terapeak-operator.sh` |
+| `terapeak-operator.sh` | Canonical deterministic launcher: preflight(login) -> optional login -> preflight(loop) -> freshness pass. Supports per-pass randomized page-1 batch window (`--batch-min/--batch-max`) and run-scoped pass logs under `cache/terapeak-operator-passes/<RUN_ID>/` | `bash scripts/terapeak-operator.sh` |
 | `terapeak-startup-preflight.sh` | Startup gate for runtime/env/tooling/cookie health checks (login or loop mode) | `bash scripts/terapeak-startup-preflight.sh --mode login` |
 | `run-surface-freshness-loop.sh` | Surface/WSL wrapper: report -> page 1 backlog -> report -> deep backlog -> report | `bash scripts/run-surface-freshness-loop.sh --env-file ~/.env.surface` |
 | `vnc-login.py` | Opens browser, waits for eBay login, saves cookies | `python3 scripts/vnc-login.py` |
