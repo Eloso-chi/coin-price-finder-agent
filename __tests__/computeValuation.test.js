@@ -665,6 +665,24 @@ describe('computeValuation — grade pool', () => {
     )).toBe(true);
   });
 
+  test('#272W boundary guard: 0 graded sold + 9 raw sold (just below threshold) -- V2 swap does NOT fire, null fmvCore', () => {
+    // Defends D2 against silent relaxation of the rawSold >= 10 threshold.
+    // A typo lowering this to `> 9` or `>= 9` would silently restore the
+    // pre-#272W cross-pool blending behavior for thin pools. The honest
+    // outcome at rawSold === 9 is null FMV + lowData -- NOT a raw blend
+    // labeled as graded.
+    const raw = makeComps([50, 52, 54, 56, 58, 60, 62, 64, 66], {
+      gradeType: 'raw',
+      _source: 'terapeak',
+    });
+    const result = computeValuation(mockPcgs(), mockEbay({ usComps: raw }), null, 'MS-64');
+    expect(result.valuation.gradePool.poolFallback).toBe(false);
+    expect(result.valuation.gradePool.usedPool).toBe('graded');
+    expect(result.valuation.gradePool.poolCount).toBe(0);
+    expect(result.valuation.fmvCore).toBeNull();
+    expect(result.valuation.lowData).toBe(true);
+  });
+
   test('#272W: V2 swap does NOT fire when PCGS guide signal exists (guide-only preferred over raw fallback)', () => {
     // Same raw-sold setup as the previous test, but with a PCGS guide.
     // Per #272W D2, the guide-only path is preferred over the raw fallback
