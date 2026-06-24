@@ -1390,7 +1390,31 @@ async function fetchFindingTier(keywords, timeWindowDays, maxPages, locatedIn) {
  *
  * Within each, tiered: US first, global second.
  *
- * Returns an extra `lookback` object: { requested, used, extended }
+ * Returns an extra `lookback` object describing the time window the comps
+ * actually came from:
+ *
+ *   API path (Finding / Browse / Insights):
+ *     { requested, used, extended }
+ *     - requested: original opts.timeWindowDays (default 180)
+ *     - used: number of days actually queried (may be > requested if
+ *       the API-path auto-extend ladder fired)
+ *     - extended: boolean -- whether the API ladder widened the window
+ *
+ *   Terapeak path (#270W Option #1):
+ *     { requested, used, extended, tier, source, candidatesPerTier, reason }
+ *     - requested: original opts.timeWindowDays (default 180)
+ *     - used: tier-days when a windowed tier won; null when the 'all'
+ *       (no-time-limit) fallback fired
+ *     - extended: true when any tier wider than requested won, OR when
+ *       'all' won
+ *     - tier: number (180 | 365 | 730) | 'all' -- which tier was chosen
+ *     - source: 'terapeak'
+ *     - candidatesPerTier: diagnostic array [{ days, count }] showing
+ *       what each tier WOULD have returned (operator visibility)
+ *     - reason: 'raw-pool-thin' when extended; null otherwise
+ *
+ *   Empty fast-path (no EBAY_APP_ID):
+ *     { requested, used, extended: false }
  */
 async function fetchSoldComps(keywords, options = {}, expected = {}) {
   // Ensure _rawQuery is available for variant filtering
@@ -1534,19 +1558,68 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
       console.log(`[ebay] Terapeak grade-split: ${beforeSplit} → ${tpComps.length} (${targetPool} only)`);
     }
 
-    // Filter by time window if soldDate available
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - requestedDays);
-    const withinWindow = tpComps.filter(c => {
-      if (!c.soldDate) return true; // keep comps without dates
-      return new Date(c.soldDate) >= cutoff;
-    });
-    // Use windowed comps if enough, otherwise use all terapeak comps
-    const pool = withinWindow.length >= opts.usMinComps ? withinWindow : tpComps;
-    // Only attribute the time-window drop when the window result is actually
-    // used as the pool (fallback path keeps stale comps and reports 0 here).
-    if (pool === withinWindow) {
-      preFilterRemoved.prefilterTimeWindow = tpComps.length - withinWindow.length;
+    // ── Tiered lookback ladder (#270W Option #1) ──
+    // Replaces the prior binary fallback (`withinWindow >= usMinComps ?
+    // withinWindow : tpComps`) which silently used ALL Terapeak comps
+    // (up to the 3-year import horizon) whenever the requested window was
+    // thin -- losing any signal of "how stale did we get". Now tries
+    // progressively wider tiers and picks the FIRST tier that meets
+    // usMinComps; an 'all' tier (no time limit) is always appended as a
+    // guaranteed last-resort fallback so behavior is no worse than before.
+    //
+    // Per-pool isolation is intrinsic: strike-split above already reduced
+    // `tpComps` to the target pool (raw / graded / proof / reverse-proof),
+    // so widening the window only deepens the SAME pool -- raw never picks
+    // up graded comps via the ladder. See L1518 pool-isolation contract.
+    //
+    // Telemetry: `lookback.candidatesPerTier` reports what each tier WOULD
+    // have returned (operator visibility for prioritising #270W Option
+    // #2/#5; the BACKLOG entry calls this out as the diagnostic that
+    // proves whether a series is genuinely sparse vs. just outside the
+    // requested window).
+    const TERAPEAK_LADDER = [180, 365, 730];
+    const tpTierSeed = [requestedDays];
+    for (const t of TERAPEAK_LADDER) {
+      if (t > requestedDays) tpTierSeed.push(t);
+    }
+    const tpTiers = [...new Set(tpTierSeed)].sort((a, b) => a - b);
+
+    const tpCandidatesPerTier = [];
+    let pool = null;
+    let tpChosenTier = null;       // number | 'all'
+    let tpChosenTierDays = null;   // number | null  (null only when 'all' won)
+    for (const tierDays of tpTiers) {
+      const tierCutoff = new Date();
+      tierCutoff.setDate(tierCutoff.getDate() - tierDays);
+      const tierPool = tpComps.filter(c => {
+        if (!c.soldDate) return true; // keep comps without dates (legacy behavior)
+        return new Date(c.soldDate) >= tierCutoff;
+      });
+      tpCandidatesPerTier.push({ days: tierDays, count: tierPool.length });
+      if (pool === null && tierPool.length >= opts.usMinComps) {
+        pool = tierPool;
+        tpChosenTier = tierDays;
+        tpChosenTierDays = tierDays;
+      }
+    }
+    // 'all' tier (no time limit) -- always appended for diagnostic visibility,
+    // and used as the chosen pool only if no windowed tier met usMinComps.
+    tpCandidatesPerTier.push({ days: null, count: tpComps.length });
+    if (pool === null) {
+      pool = tpComps;
+      tpChosenTier = 'all';
+      tpChosenTierDays = null;
+    }
+
+    const tpLookbackExtended =
+      tpChosenTier === 'all' ||
+      (tpChosenTierDays !== null && tpChosenTierDays > requestedDays);
+
+    // Only attribute the time-window drop when a windowed tier (not 'all')
+    // was chosen -- matches the pre-#270W semantic at this slot (the prior
+    // binary fallback reported 0 when it used tpComps wholesale).
+    if (tpChosenTier !== 'all') {
+      preFilterRemoved.prefilterTimeWindow = tpComps.length - pool.length;
     }
 
     // #165: Detect if comps came from a generic (non-year-specific) dataset.
@@ -1589,7 +1662,20 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
       // Still no global — leave empty
       globalResult = { stats: null, comps: [], removed: {}, error: null };
 
-      const lookback = { requested: requestedDays, used: requestedDays, extended: false };
+      // #270W Option #1: telemetry-rich lookback. `used` is null when the
+      // 'all' tier (no time limit) won so consumers can distinguish
+      // "requested window worked" from "had to abandon time filter".
+      // `candidatesPerTier` is the diagnostic that lets operators see how
+      // many comps each tier would have produced (per BACKLOG #270W).
+      const lookback = {
+        requested: requestedDays,
+        used: tpChosenTierDays,
+        extended: tpLookbackExtended,
+        tier: tpChosenTier,
+        source: 'terapeak',
+        candidatesPerTier: tpCandidatesPerTier,
+        reason: tpLookbackExtended ? 'raw-pool-thin' : null,
+      };
       const result = { keywords, us: usResult, global: globalResult, usedFallback: false, apiUsed, lookback };
       cache.set(cacheKey, result);
       return result;

@@ -565,6 +565,254 @@ describe('fetchSoldComps — Finding API', () => {
 });
 
 // ═════════════════════════════════════════════════════════════
+//  Terapeak tiered lookback (#270W Option #1)
+// ═════════════════════════════════════════════════════════════
+// Replaces the prior binary `withinWindow >= usMinComps ? withinWindow :
+// tpComps` fallback in ebayService.js (~L1538). The new behavior tries
+// progressively wider tiers (180 -> 365 -> 730) and picks the FIRST tier
+// meeting usMinComps. An 'all' tier (no time limit) is always appended
+// as a guaranteed last-resort fallback, preserving the pre-#270W "no
+// comp left behind" semantic while making the staleness EXPLICIT via
+// lookback.tier / lookback.extended / lookback.candidatesPerTier.
+//
+// Per-pool isolation invariant: the strike-split filter runs BEFORE the
+// tier ladder, so widening a thin raw pool can NEVER pull in graded or
+// proof comps. The last test in this block pins that invariant.
+//
+// Date math uses fake timers so soldDate strings on fixtures map to
+// predictable tier ages.
+describe('fetchSoldComps -- Terapeak tiered lookback (#270W Option #1)', () => {
+  const NOW = new Date('2026-06-15T00:00:00Z'); // fixed wall clock
+
+  beforeEach(() => {
+    jest.useFakeTimers();
+    jest.setSystemTime(NOW);
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  // Build a raw Terapeak comp with soldDate exactly `daysAgo` before NOW.
+  function rawCompDaysAgo(daysAgo, priceSeed = 30) {
+    const d = new Date(NOW);
+    d.setDate(d.getDate() - daysAgo);
+    return {
+      title: `2020 American Silver Eagle 1 oz BU age${daysAgo}d`,
+      totalUsd: priceSeed,
+      soldDate: d.toISOString().slice(0, 10),
+      conditionId: '4000',
+      _source: 'terapeak',
+    };
+  }
+
+  test('tier 180 wins when enough recent comps exist -- no extension', async () => {
+    terapeakService.lookupComps.mockReturnValue({
+      searchTerm: '2020 American Silver Eagle 1 oz',
+      lastImport: NOW.toISOString().slice(0, 10),
+      comps: [
+        rawCompDaysAgo(10),  rawCompDaysAgo(40),  rawCompDaysAgo(90),
+        rawCompDaysAgo(120), rawCompDaysAgo(150),
+      ],
+    });
+
+    const result = await ebayService.fetchSoldComps('2020 American Silver Eagle', {}, {
+      year: 2020, series: 'American Silver Eagle', weight: 1, metal: 'silver'
+    });
+
+    expect(result.apiUsed).toBe('terapeak');
+    expect(result.lookback.source).toBe('terapeak');
+    expect(result.lookback.tier).toBe(180);
+    expect(result.lookback.used).toBe(180);
+    expect(result.lookback.extended).toBe(false);
+    expect(result.lookback.reason).toBeNull();
+    // candidatesPerTier: each windowed tier ascending, plus terminal 'all' (days: null)
+    expect(result.lookback.candidatesPerTier).toEqual([
+      { days: 180,  count: 5 },
+      { days: 365,  count: 5 },
+      { days: 730,  count: 5 },
+      { days: null, count: 5 },
+    ]);
+  });
+
+  test('tier 365 wins when 180 is thin', async () => {
+    terapeakService.lookupComps.mockReturnValue({
+      searchTerm: '2020 American Silver Eagle 1 oz',
+      lastImport: NOW.toISOString().slice(0, 10),
+      comps: [
+        rawCompDaysAgo(30), rawCompDaysAgo(120),                        // tier 180: 2 (< 3)
+        rawCompDaysAgo(200), rawCompDaysAgo(260), rawCompDaysAgo(320),  // tier 365: +3 (5 total)
+      ],
+    });
+
+    const result = await ebayService.fetchSoldComps('2020 American Silver Eagle', {}, {
+      year: 2020, series: 'American Silver Eagle', weight: 1, metal: 'silver'
+    });
+
+    expect(result.apiUsed).toBe('terapeak');
+    expect(result.lookback.tier).toBe(365);
+    expect(result.lookback.used).toBe(365);
+    expect(result.lookback.extended).toBe(true);
+    expect(result.lookback.reason).toBe('raw-pool-thin');
+    expect(result.lookback.candidatesPerTier).toEqual([
+      { days: 180,  count: 2 },
+      { days: 365,  count: 5 },
+      { days: 730,  count: 5 },
+      { days: null, count: 5 },
+    ]);
+  });
+
+  test('tier 730 wins when 180 and 365 are both thin', async () => {
+    terapeakService.lookupComps.mockReturnValue({
+      searchTerm: '2020 American Silver Eagle 1 oz',
+      lastImport: NOW.toISOString().slice(0, 10),
+      comps: [
+        rawCompDaysAgo(30),                                                       // tier 180: 1
+        rawCompDaysAgo(200),                                                      // tier 365: +1 (2 total, still < 3)
+        rawCompDaysAgo(400), rawCompDaysAgo(500), rawCompDaysAgo(600),            // tier 730: +3 (5 total)
+      ],
+    });
+
+    const result = await ebayService.fetchSoldComps('2020 American Silver Eagle', {}, {
+      year: 2020, series: 'American Silver Eagle', weight: 1, metal: 'silver'
+    });
+
+    expect(result.apiUsed).toBe('terapeak');
+    expect(result.lookback.tier).toBe(730);
+    expect(result.lookback.used).toBe(730);
+    expect(result.lookback.extended).toBe(true);
+    expect(result.lookback.reason).toBe('raw-pool-thin');
+    expect(result.lookback.candidatesPerTier).toEqual([
+      { days: 180,  count: 1 },
+      { days: 365,  count: 2 },
+      { days: 730,  count: 5 },
+      { days: null, count: 5 },
+    ]);
+  });
+
+  test("'all' tier wins when every windowed tier is thin (used: null sentinel)", async () => {
+    // 3 raw comps, all > 730d old. usMinComps=3, so no windowed tier qualifies;
+    // 'all' wins as last-resort fallback. `used` is null to flag "no time filter".
+    terapeakService.lookupComps.mockReturnValue({
+      searchTerm: '2020 American Silver Eagle 1 oz',
+      lastImport: NOW.toISOString().slice(0, 10),
+      comps: [
+        rawCompDaysAgo(900), rawCompDaysAgo(1000), rawCompDaysAgo(1050),
+      ],
+    });
+
+    const result = await ebayService.fetchSoldComps('2020 American Silver Eagle', {}, {
+      year: 2020, series: 'American Silver Eagle', weight: 1, metal: 'silver'
+    });
+
+    expect(result.apiUsed).toBe('terapeak');
+    expect(result.lookback.tier).toBe('all');
+    expect(result.lookback.used).toBeNull();
+    expect(result.lookback.extended).toBe(true);
+    expect(result.lookback.reason).toBe('raw-pool-thin');
+    expect(result.lookback.candidatesPerTier).toEqual([
+      { days: 180,  count: 0 },
+      { days: 365,  count: 0 },
+      { days: 730,  count: 0 },
+      { days: null, count: 3 },
+    ]);
+  });
+
+  // Pool-isolation regression guard (#270W Option #1).
+  // The strike-split runs BEFORE the tier ladder, so widening the raw pool's
+  // window can NEVER absorb graded/proof comps. This test pins that contract:
+  // a query with NO grade/proof intent (raw pool) must see candidatesPerTier
+  // counts derived from raw comps only, even when graded/proof comps are
+  // recent and would otherwise dominate.
+  //
+  // eBay conditionId legend (see classifyGradeType): '4000' = used / raw
+  // (BU, circulated), '2000' = certified slab (PCGS/NGC). The strike-split
+  // routes '2000' comps into the 'graded' pool and '4000' comps into the
+  // 'raw' pool (proof titles win regardless via PROOF_RE).
+  test('per-pool isolation -- raw extension cannot leak graded/proof comps', async () => {
+    terapeakService.lookupComps.mockReturnValue({
+      searchTerm: '2020 American Silver Eagle 1 oz',
+      lastImport: NOW.toISOString().slice(0, 10),
+      comps: [
+        // 3 raw, all ancient -> forces 'all' tier on the raw pool:
+        { title: '2020 American Silver Eagle 1 oz BU #1', totalUsd: 30,
+          soldDate: '2024-01-01', conditionId: '4000', _source: 'terapeak' },
+        { title: '2020 American Silver Eagle 1 oz BU #2', totalUsd: 31,
+          soldDate: '2024-01-02', conditionId: '4000', _source: 'terapeak' },
+        { title: '2020 American Silver Eagle 1 oz BU #3', totalUsd: 32,
+          soldDate: '2024-01-03', conditionId: '4000', _source: 'terapeak' },
+        // 5 graded MS70 RECENT -- would dominate every tier if isolation broke:
+        ...Array.from({ length: 5 }, (_, i) => ({
+          title: `2020 American Silver Eagle PCGS MS70 #${i}`, totalUsd: 95 + i,
+          soldDate: '2026-06-01', conditionId: '2000', _source: 'terapeak',
+        })),
+      ],
+    });
+
+    const result = await ebayService.fetchSoldComps('2020 American Silver Eagle', {}, {
+      year: 2020, series: 'American Silver Eagle', weight: 1, metal: 'silver'
+    });
+
+    expect(result.apiUsed).toBe('terapeak');
+    // Raw pool has 3 ancient comps -> 'all' tier wins with count=3 at every slot.
+    // If isolation were broken, recent MS70s would push tier 180 to 5 and win.
+    expect(result.lookback.tier).toBe('all');
+    expect(result.lookback.candidatesPerTier).toEqual([
+      { days: 180,  count: 0 },
+      { days: 365,  count: 0 },
+      { days: 730,  count: 0 },
+      { days: null, count: 3 },
+    ]);
+    // Final kept pool is raw-only (any MS70 leakage would show up as > 3).
+    expect(result.us.comps.length).toBe(3);
+  });
+
+  // Custom requestedDays: verify the tier-seed logic when the caller passes
+  // a non-default window. timeWindowDays: 90 means the seed list starts at
+  // 90, then prepends each of [180, 365, 730] that strictly widen it. With
+  // 6 comps at distances [30, 60, 100, 150, 250, 400] days the ladder
+  // should produce counts [2, 4, 5, 6, 6] for tiers [90, 180, 365, 730, all]
+  // and pick tier 180 (first to reach usMinComps=3 with 4 comps).
+  test('custom timeWindowDays=90 -- tier ladder includes the custom window as its first rung', async () => {
+    terapeakService.lookupComps.mockReturnValue({
+      searchTerm: '2020 American Silver Eagle 1 oz',
+      lastImport: NOW.toISOString().slice(0, 10),
+      comps: [
+        rawCompDaysAgo(30),  rawCompDaysAgo(60),    // within 90d:  2
+        rawCompDaysAgo(100), rawCompDaysAgo(150),   // within 180d: +2 (4)
+        rawCompDaysAgo(250),                        // within 365d: +1 (5)
+        rawCompDaysAgo(400),                        // within 730d: +1 (6)
+      ],
+    });
+
+    const result = await ebayService.fetchSoldComps(
+      '2020 American Silver Eagle',
+      { timeWindowDays: 90 },
+      { year: 2020, series: 'American Silver Eagle', weight: 1, metal: 'silver' }
+    );
+
+    expect(result.apiUsed).toBe('terapeak');
+    // Tier 90 has only 2 comps (< usMinComps=3) -> ladder continues to 180,
+    // which has 4 comps and wins.
+    expect(result.lookback.requested).toBe(90);
+    expect(result.lookback.tier).toBe(180);
+    expect(result.lookback.used).toBe(180);
+    expect(result.lookback.extended).toBe(true);
+    expect(result.lookback.reason).toBe('raw-pool-thin');
+    // candidatesPerTier MUST include the custom 90d window as the first
+    // rung (proves the seed list begins with requestedDays, not with the
+    // hard-coded LADDER constant).
+    expect(result.lookback.candidatesPerTier).toEqual([
+      { days: 90,   count: 2 },
+      { days: 180,  count: 4 },
+      { days: 365,  count: 5 },
+      { days: 730,  count: 6 },
+      { days: null, count: 6 },
+    ]);
+  });
+});
+
+// ═════════════════════════════════════════════════════════════
 //  Browse API fallback
 // ═════════════════════════════════════════════════════════════
 describe('fetchSoldComps — Browse API fallback', () => {

@@ -42,6 +42,7 @@ function mockEbay(overrides = {}) {
       stats: { count: glComps.length },
     },
     usedFallback: overrides.usedFallback || false,
+    ...(overrides.lookback ? { lookback: overrides.lookback } : {}),
   };
 }
 
@@ -1955,5 +1956,79 @@ describe('computeValuation -- #270W Option #4 honest insufficient-comps', () => 
     expect(result.valuation.fmvCore).toBeLessThan(400);
     expect(result.valuation.gradePool.usedPool).toBe('proof');
     expect(result.valuation.gradePool.proofCount).toBe(5);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  lookbackExtended flag propagation (#270W Option #1)
+// ═══════════════════════════════════════════════════════════════
+// Propagates ebayService's `lookback.extended` (set when the comp pool
+// came from a wider tier than the requested window) up to
+// `valuation.lookbackExtended`. Per the PR's locked design decision,
+// this is a transparency flag only -- no confidence numeric is reduced.
+describe('computeValuation -- lookbackExtended flag (#270W Option #1)', () => {
+  test('lookbackExtended is false when ebay.lookback is absent', () => {
+    const comps = makeComps([30, 32, 34, 36, 38]);
+    const result = computeValuation(mockPcgs(), mockEbay({ usComps: comps }));
+    expect(result.valuation.lookbackExtended).toBe(false);
+  });
+
+  test('lookbackExtended is false when ebay.lookback.extended is false', () => {
+    const comps = makeComps([30, 32, 34, 36, 38]);
+    const result = computeValuation(mockPcgs(), mockEbay({
+      usComps: comps,
+      lookback: { requested: 180, used: 180, extended: false, tier: 180, source: 'terapeak' },
+    }));
+    expect(result.valuation.lookbackExtended).toBe(false);
+  });
+
+  test('lookbackExtended is true when ebay.lookback.extended is true', () => {
+    const comps = makeComps([30, 32, 34, 36, 38]);
+    const result = computeValuation(mockPcgs(), mockEbay({
+      usComps: comps,
+      lookback: {
+        requested: 180, used: 365, extended: true, tier: 365,
+        source: 'terapeak', reason: 'raw-pool-thin',
+        candidatesPerTier: [
+          { days: 180, count: 2 }, { days: 365, count: 5 },
+          { days: 730, count: 5 }, { days: null, count: 5 },
+        ],
+      },
+    }));
+    expect(result.valuation.lookbackExtended).toBe(true);
+  });
+
+  test('lookbackExtended is true when the all-tier fallback fired (used: null)', () => {
+    const comps = makeComps([30, 32, 34]);
+    const result = computeValuation(mockPcgs(), mockEbay({
+      usComps: comps,
+      lookback: {
+        requested: 180, used: null, extended: true, tier: 'all',
+        source: 'terapeak', reason: 'raw-pool-thin',
+        candidatesPerTier: [
+          { days: 180, count: 0 }, { days: 365, count: 0 },
+          { days: 730, count: 0 }, { days: null, count: 3 },
+        ],
+      },
+    }));
+    expect(result.valuation.lookbackExtended).toBe(true);
+  });
+
+  // Per the PR's locked design (Flag-only, no confidence delta), the
+  // confidence number must NOT change just because the lookback was
+  // extended. This test pins that decision so a future "extend lookback
+  // therefore penalise" change cannot land silently.
+  test('lookback extension does NOT change confidence numeric', () => {
+    const comps = makeComps([30, 32, 34, 36, 38]);
+    const baseline = computeValuation(mockPcgs(), mockEbay({
+      usComps: comps,
+      lookback: { requested: 180, used: 180, extended: false, tier: 180, source: 'terapeak' },
+    }));
+    const extended = computeValuation(mockPcgs(), mockEbay({
+      usComps: comps,
+      lookback: { requested: 180, used: 365, extended: true, tier: 365, source: 'terapeak', reason: 'raw-pool-thin' },
+    }));
+    expect(extended.valuation.confidence).toBe(baseline.valuation.confidence);
+    expect(extended.valuation.fmvCore).toBe(baseline.valuation.fmvCore);
   });
 });
