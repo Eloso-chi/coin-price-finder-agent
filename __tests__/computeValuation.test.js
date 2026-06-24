@@ -177,9 +177,20 @@ describe('computeValuation — confidence', () => {
     expect(manyResult.valuation.confidence).toBeGreaterThan(fewResult.valuation.confidence);
   });
 
-  test('PCGS verified → confidence bonus', () => {
-    const comps = makeComps([100, 105, 110]);
-    const noVerify = computeValuation(mockPcgs({ verified: false }), mockEbay({ usComps: comps }));
+  test('PCGS verified -> confidence bonus', () => {
+    // #272W: post pool-isolation, the verified case must supply graded
+    // comps to be a fair comparison. Previously this test relied on the
+    // V1 silent merge of raw comps into the graded pool for the verified
+    // case to inflate sample size. With strict graded pool, both runs
+    // now use 3 graded comps so the +10 verified + PCGS-guide bonuses
+    // are visible without being swamped by zero-comp penalties.
+    const comps = makeComps([100, 105, 110], { gradeType: 'graded' });
+    const noVerify = computeValuation(
+      mockPcgs({ verified: false }),
+      mockEbay({ usComps: comps }),
+      null,
+      'MS-64'
+    );
     const verified = computeValuation(
       mockPcgs({ verified: true, priceGuide: { valueUsd: 105 } }),
       mockEbay({ usComps: comps }),
@@ -511,13 +522,183 @@ describe('computeValuation — grade pool', () => {
     expect(result.valuation.fmvCore).toBeLessThan(80);
   });
 
-  test('falls back to all comps when preferred pool too small', () => {
+  // #272W: This test previously defended the pre-#272W V1 violation
+  // (silent fallback to usCompsAll mixing raw + proof + RP into graded
+  // FMV when graded pool was thin). Per #272W D1 (strict graded pool
+  // always), the same scenario now keeps the strict graded pool and
+  // emits a "thin graded pool" warning instead of merging.
+  test('#272W: strict graded pool kept when graded pool too small (no merge to usCompsAll)', () => {
     const graded = makeComps([100], { gradeType: 'graded' }); // only 1
     const raw = makeComps([50, 55, 60, 65, 70], { gradeType: 'raw' });
     const allComps = [...graded, ...raw];
     const result = computeValuation(mockPcgs(), mockEbay({ usComps: allComps }), null, 'MS-64');
-    // Should fall back to all 6 comps since only 1 graded
-    expect(result.valuation.gradePool.poolCount).toBe(6);
+    // Strict pool: only the 1 graded comp, NOT all 6.
+    expect(result.valuation.gradePool.poolCount).toBe(1);
+    expect(result.valuation.gradePool.gradedCount).toBe(1);
+    expect(result.valuation.gradePool.rawCount).toBe(5);
+    expect(result.valuation.gradePool.poolFallback).toBe(false);
+    // FMV should reflect the 1 graded comp (~100), NOT a raw-polluted blend (~60).
+    expect(result.valuation.fmvCore).toBeGreaterThan(80);
+    // Thin-pool warning must be present.
+    expect(result.valuation.explanation.some(e => /thin graded pool/i.test(e))).toBe(true);
+    // lowData must be true since soldCount < 3.
+    expect(result.valuation.lowData).toBe(true);
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  // #272W -- Pool-Isolation Contract for wantsGraded branch
+  // (mirrors #186 / #270W Option #4 acceptance tests for the raw branch)
+  // ─────────────────────────────────────────────────────────────
+
+  test('#272W: raw comps DO NOT leak into graded FMV when graded pool empty (no guide signal)', () => {
+    const raw = makeComps([50, 52, 54, 56, 58], { gradeType: 'raw' });
+    const result = computeValuation(mockPcgs(), mockEbay({ usComps: raw }), null, 'MS-65');
+    // Without PCGS guide / Greysheet / >=10 raw sold, FMV must be null
+    // -- raw comps must not be substituted for a graded FMV answer.
+    expect(result.valuation.fmvCore).toBeNull();
+    expect(result.valuation.gradePool.wantsGraded).toBe(true);
+    expect(result.valuation.gradePool.gradedCount).toBe(0);
+    expect(result.valuation.gradePool.poolCount).toBe(0);
+    expect(result.valuation.gradePool.poolFallback).toBe(false);
+  });
+
+  test('#272W: proof comps DO NOT leak into graded FMV when graded pool empty', () => {
+    const proof = makeComps([200, 210, 220, 230, 240], { gradeType: 'proof' });
+    const result = computeValuation(mockPcgs(), mockEbay({ usComps: proof }), null, 'MS-65');
+    // Proof comps are a separate pool; they must never feed a graded FMV.
+    expect(result.valuation.fmvCore).toBeNull();
+    expect(result.valuation.gradePool.wantsGraded).toBe(true);
+    expect(result.valuation.gradePool.proofCount).toBe(5);
+    expect(result.valuation.gradePool.gradedCount).toBe(0);
+    expect(result.valuation.gradePool.poolCount).toBe(0);
+  });
+
+  test('#272W: reverse-proof comps DO NOT leak into graded FMV when graded pool empty', () => {
+    const rp = makeComps([300, 310, 320, 330, 340], { gradeType: 'reverse-proof' });
+    const result = computeValuation(mockPcgs(), mockEbay({ usComps: rp }), null, 'MS-65');
+    expect(result.valuation.fmvCore).toBeNull();
+    expect(result.valuation.gradePool.wantsGraded).toBe(true);
+    expect(result.valuation.gradePool.reverseProofCount).toBe(5);
+    expect(result.valuation.gradePool.gradedCount).toBe(0);
+    expect(result.valuation.gradePool.poolCount).toBe(0);
+  });
+
+  test('#272W: 2 graded + 5 raw -- strict graded pool, no merge, "thin graded pool" warning emitted', () => {
+    const graded = makeComps([100, 105], { gradeType: 'graded' });
+    const raw = makeComps([50, 55, 60, 65, 70], { gradeType: 'raw' });
+    const result = computeValuation(mockPcgs(), mockEbay({ usComps: [...graded, ...raw] }), null, 'MS-64');
+    expect(result.valuation.gradePool.poolCount).toBe(2);
+    expect(result.valuation.gradePool.gradedCount).toBe(2);
+    expect(result.valuation.gradePool.rawCount).toBe(5);
+    expect(result.valuation.gradePool.poolFallback).toBe(false);
+    expect(result.valuation.explanation.some(e => /thin graded pool/i.test(e))).toBe(true);
+    expect(result.valuation.explanation.some(e => /pool isolation/i.test(e))).toBe(true);
+  });
+
+  test('#272W: 3 graded + 5 raw -- graded-only with exclusion telemetry, no merge', () => {
+    const graded = makeComps([100, 105, 110], { gradeType: 'graded' });
+    const raw = makeComps([50, 55, 60, 65, 70], { gradeType: 'raw' });
+    const result = computeValuation(mockPcgs(), mockEbay({ usComps: [...graded, ...raw] }), null, 'MS-64');
+    expect(result.valuation.gradePool.poolCount).toBe(3);
+    expect(result.valuation.gradePool.gradedCount).toBe(3);
+    expect(result.valuation.gradePool.poolFallback).toBe(false);
+    expect(result.valuation.explanation.some(e =>
+      /Using 3 graded comps for FMV \(5 non-graded comps excluded -- pool isolation\)/.test(e)
+    )).toBe(true);
+    // FMV reflects graded (~100-110), not raw (~50-70).
+    expect(result.valuation.fmvCore).toBeGreaterThan(85);
+  });
+
+  test('#272W: 0 graded comps + PCGS guide + Greysheet -- FMV from certified-blend, label = "guide-only"', () => {
+    const pcgs = mockPcgs({
+      verified: true,
+      grade: 'MS-65',
+      pcgsNo: '7000',
+      priceGuide: { valueUsd: 250 },
+    });
+    const result = computeValuation(
+      pcgs,
+      mockEbay({ usComps: [] }),
+      null,
+      'MS-65',
+      { greysheet: { greyVal: 220, cpgVal: 280 } }
+    );
+    // FMV produced from grade-specific guide signals, NOT from any pool.
+    expect(result.valuation.fmvCore).toBeGreaterThan(0);
+    expect(result.valuation.gradePool.poolCount).toBe(0);
+    expect(result.valuation.gradePool.poolFallback).toBe(false);
+    // New label distinguishes guide-only from metal-only.
+    expect(result.valuation.dataSource.label).toBe('guide-only');
+    expect(result.valuation.dataSource.totalComps).toBe(0);
+  });
+
+  test('#272W: 0 graded comps + 0 guide + 0 Greysheet (non-bullion) -- null fmvCore, schema-compliant', () => {
+    const result = computeValuation(mockPcgs(), mockEbay({ usComps: [] }), null, 'MS-65');
+    // Honest null FMV rather than fabricating a value from absent data.
+    expect(result.valuation.fmvCore).toBeNull();
+    expect(result.valuation.confidence).toBe(0);
+    expect(result.valuation.lowData).toBe(true);
+    // Schema-compliant dataSource block still present.
+    expect(result.valuation.dataSource).toBeDefined();
+    expect(result.valuation.dataSource.totalComps).toBe(0);
+    expect(result.valuation.dataSource.label).toBe('metal-only');
+    // Schema-compliant gradePool block still present.
+    expect(result.valuation.gradePool).toBeDefined();
+    expect(result.valuation.gradePool.wantsGraded).toBe(true);
+    expect(result.valuation.gradePool.gradedCount).toBe(0);
+  });
+
+  test('#272W last-resort fallback: 0 graded sold + 10 raw sold + no guide signal -- V2 swap fires', () => {
+    // 10 raw sold + no graded sold + no PCGS guide + no Greysheet
+    // is the only scenario where the legacy #176 graded->raw swap is
+    // still preferable to a null FMV. Telemetry honestly reflects it.
+    const raw = makeComps([50, 52, 54, 56, 58, 60, 62, 64, 66, 68], {
+      gradeType: 'raw',
+      _source: 'terapeak',
+    });
+    const result = computeValuation(mockPcgs(), mockEbay({ usComps: raw }), null, 'MS-64');
+    expect(result.valuation.gradePool.poolFallback).toBe(true);
+    expect(result.valuation.gradePool.usedPool).toBe('raw (fallback)');
+    expect(result.valuation.fmvCore).toBeGreaterThan(0);
+    expect(result.valuation.explanation.some(e =>
+      /last-resort fallback/i.test(e)
+    )).toBe(true);
+  });
+
+  test('#272W: V2 swap does NOT fire when PCGS guide signal exists (guide-only preferred over raw fallback)', () => {
+    // Same raw-sold setup as the previous test, but with a PCGS guide.
+    // Per #272W D2, the guide-only path is preferred over the raw fallback
+    // because it is grade-specific (no pool crossing).
+    const pcgs = mockPcgs({ verified: true, priceGuide: { valueUsd: 300 } });
+    const raw = makeComps([50, 52, 54, 56, 58, 60, 62, 64, 66, 68], {
+      gradeType: 'raw',
+      _source: 'terapeak',
+    });
+    const result = computeValuation(pcgs, mockEbay({ usComps: raw }), null, 'MS-64');
+    expect(result.valuation.gradePool.poolFallback).toBe(false);
+    expect(result.valuation.gradePool.usedPool).toBe('graded');
+    expect(result.valuation.gradePool.poolCount).toBe(0);
+    expect(result.valuation.dataSource.label).toBe('guide-only');
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  // #272W regression guard: proof / reverse-proof branches must not
+  // be affected by the wantsGraded fix.
+  // ─────────────────────────────────────────────────────────────
+  test('#272W regression: proof intent still strict (raw + graded NOT merged into proof FMV)', () => {
+    const proof = makeComps([200, 210], { gradeType: 'proof' }); // only 2
+    const raw = makeComps([50, 55, 60, 65, 70], { gradeType: 'raw' });
+    const graded = makeComps([100, 105, 110], { gradeType: 'graded' });
+    const result = computeValuation(
+      mockPcgs(),
+      mockEbay({ usComps: [...proof, ...raw, ...graded] }),
+      null,
+      'PR-69',
+      { isProof: true }
+    );
+    expect(result.valuation.gradePool.wantsProof).toBe(true);
+    expect(result.valuation.gradePool.poolCount).toBe(2);
+    expect(result.valuation.gradePool.proofCount).toBe(2);
   });
 });
 

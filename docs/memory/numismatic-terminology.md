@@ -37,13 +37,23 @@ Libertad).
   distinct numbers; do not blend).
 - Honest `fmvCore: null` + `confidence: 'unreliable'` when the target pool is
   empty after all recovery attempts.
+- Grade-specific PCGS price guide / Greysheet anchor with
+  `dataSource.label = 'guide-only'` (#272W) -- preserves pool isolation while
+  still emitting an FMV when graded comps are absent and a real grade-aware
+  guide value is available. Does NOT cross-pool blend.
 
 **History:** PR #154 (#252, merged 2026-06-18) implemented bullion-merge gating
 in `src/services/ebayService.js` and was reverted on 2026-06-23 because it
-violated this contract. The follow-up tracking is **BACKLOG #270W**. Any future
-PR touching `classifyGradeType`, the `applyFilters` pool gates, or the
-`prefilterStrikeSplit` block must cite this file in the PR body and explain
-which pool boundary is being crossed and why.
+violated this contract. Raw branch made strict by **#270W Option #4 / PR #186**.
+Graded branch made strict by **#272W** (this also tightened the #176 V2
+last-resort raw fallback so it only fires when `gradedSold === 0` AND
+`rawSold >= 10` AND no PCGS price guide AND no Greysheet anchor, and added the
+new `dataSource.label = 'guide-only'` for grade-aware-guide-only responses).
+Any future PR touching `classifyGradeType`, the `applyFilters` pool gates, the
+`prefilterStrikeSplit` block, OR the `wantsGraded` / `wantsProof` /
+`wantsReverseProof` / default-raw branches of `src/services/valuationService.js`
+must cite this file in the PR body and explain which pool boundary is being
+crossed and why.
 
 ---
 

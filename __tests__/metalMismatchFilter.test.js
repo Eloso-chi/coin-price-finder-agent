@@ -140,11 +140,14 @@ describe('computeValuation — soldRatio confidence thresholds', () => {
   }
 
   function buildComps(soldCount, browseCount, price) {
+    // #272W: graded query (userGrade='MS-64' below) requires graded comps;
+    // otherwise the strict graded pool yields 0 comps and the soldRatio
+    // threshold logic these tests pin can't be exercised.
     const sold = Array.from({ length: soldCount }, () =>
-      makeComp({ totalUsd: price, matchScore: 70, _source: 'finding' })
+      makeComp({ totalUsd: price, matchScore: 70, _source: 'finding', gradeType: 'graded' })
     );
     const browse = Array.from({ length: browseCount }, () =>
-      makeComp({ totalUsd: price, matchScore: 70, _source: 'browse' })
+      makeComp({ totalUsd: price, matchScore: 70, _source: 'browse', gradeType: 'graded' })
     );
     return [...sold, ...browse];
   }

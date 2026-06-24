@@ -2875,7 +2875,7 @@ WASTE-LEDGER `INC-013` row already documents full remediation. No dangling cross
 
 ---
 
-### #272W. Latent pool-isolation violation in `wantsGraded` branch of `computeValuation` [P1 -- DATA-QUALITY] -- OPEN 2026-06-23
+### #272W. Latent pool-isolation violation in `wantsGraded` branch of `computeValuation` [P1 -- DATA-QUALITY] -- DONE 2026-06-24 (PR pending)
 
 **Discovered while implementing:** #270W Option #4 (PR #186, merge `faa852f`, 2026-06-23). While reading `src/services/valuationService.js` to fix the analogous violation in the default raw-intent branch, the same anti-pattern was found in the `wantsGraded` branch and documented inline at lines 151-156 of that file. It was kept out of scope for #186 per scope discipline.
 
@@ -2939,6 +2939,26 @@ When the graded pool is empty AND the engine cannot otherwise produce a graded F
 **Tier:** M (touches valuationService.js pool selection -- hot file, INC-013 family; full review required including `@numismatic-audit` Step 5b and deep review per `.github/skills/workflow/SKILL.md`).
 
 **Cross-reference:** `docs/memory/numismatic-terminology.md` MANDATORY: Pool-Isolation Contract; `docs/WASTE-LEDGER.md` INC-013; #270W (parent umbrella -- this is the graded-branch counterpart of Option #4); PR #186 (commit `4c0fc60`, merge `faa852f`) inline comment at `valuationService.js:151-156` recording the discovery context.
+
+**Shipped:**
+
+| Change | Detail |
+|---|---|
+| Strict graded pool (D1) | `usComps = usGraded` always, no count threshold. Matches proof / RP branch semantics. |
+| #176 V2 swap tightened (D2) | graded->raw swap now only fires when `gradedSold === 0` AND `rawSold >= 10` AND no PCGS guide AND no Greysheet. Last-resort fallback for the residual case where no grade-specific signal exists. Telemetry preserved: `poolFallback: true`, `usedPool: 'raw (fallback)'`, -10 confidence penalty. |
+| Strict global pool inside V2 (D3) | `glComps = glRaw` when V2 fires (no `glCompsAll` fallback). |
+| New `'guide-only'` `dataSource.label` (D4, D5) | Distinguishes "0 comps, FMV from grade-specific PCGS guide / Greysheet" from existing `'metal-only'` (0 comps, FMV from spot / bullion Greysheet math). Refined `metalOnly` derivation to check the FMV method. |
+| Test inventory (D6) | `__tests__/computeValuation.test.js`: `'falls back to all comps when preferred pool too small'` test FLIPPED to assert strict pool; 8 new pool-isolation tests added (raw / proof / RP non-leak, 2+5 thin pool, 3+5 graded-only, guide-only label, null-FMV schema-compliance, V2 last-resort trigger, V2 guide-signal guard, proof-branch regression guard); 1 unrelated PCGS-verified test patched to supply graded comps under the new strict semantics. Cross-suite: `__tests__/metalMismatchFilter.test.js` `buildComps` helper sets `gradeType: 'graded'`; `__tests__/errorPaths.test.js` `'graded query with all raw comps'` test FLIPPED to assert honest null FMV. |
+| Tier (D7) | M -- pre-commit reviewer + deep review + `@numismatic-audit` Step 5b. |
+
+**Files changed (PR pending):**
+- `src/services/valuationService.js` -- wantsGraded branch rewritten strict; `metalOnly` / `guideOnly` derivation and `dataSource.label` expression refined; stale out-of-scope comment in default raw branch updated.
+- `__tests__/computeValuation.test.js` -- 1 flipped + 8 new tests + 1 unrelated verified-PCGS test patched.
+- `__tests__/metalMismatchFilter.test.js` -- `buildComps` helper updated.
+- `__tests__/errorPaths.test.js` -- 1 flipped test.
+- `docs/BACKLOG.md` -- this status flip.
+
+**Test results:** 4097/4097 pass (baseline 4087; +10 net new tests, 6 modified). 136 suites. ~100s.
 
 ---
 

@@ -160,16 +160,25 @@ describe('Error paths — Greysheet unavailable', () => {
 // ═══════════════════════════════════════════════════════════════
 
 describe('Error paths — grade pool edge cases', () => {
-  test('graded query with all raw comps → pool fallback to raw', () => {
+  // #272W: this test previously defended the pre-#272W V1 silent pool
+  // merge (graded query + 0 graded comps -> usCompsAll fallback merging raw
+  // comps into the graded FMV). With the strict graded pool, the same
+  // scenario now honestly returns null FMV when there is also no
+  // grade-specific signal (no PCGS guide / Greysheet) AND the raw pool
+  // is below the V2 last-resort threshold (rawSold < 10). The legacy
+  // graded->raw V2 fallback (now tightened) is covered separately in
+  // __tests__/computeValuation.test.js by '#272W last-resort fallback'.
+  test('#272W: graded query with thin raw comps and no guide -> null FMV (honest pool isolation)', () => {
     const rawComps = makeComps([100, 110, 120, 130, 140], { gradeType: 'raw' });
     const pcgs = mockPcgs({ grade: 'MS-65' });
     const result = computeValuation(pcgs, mockEbay({ usComps: rawComps }), null, 65);
-    // Should still produce an FMV (via fallback)
-    expect(result.valuation.fmvCore).not.toBeNull();
-    // Grade pool info should indicate fallback
-    if (result.valuation.gradePool) {
-      expect(result.valuation.gradePool.wantsGraded).toBe(true);
-    }
+    // Strict graded pool: 0 graded comps and rawSold (5) < 10 with no
+    // guide signal -> honest null rather than mixing raw into graded FMV.
+    expect(result.valuation.fmvCore).toBeNull();
+    expect(result.valuation.gradePool.wantsGraded).toBe(true);
+    expect(result.valuation.gradePool.gradedCount).toBe(0);
+    expect(result.valuation.gradePool.rawCount).toBe(5);
+    expect(result.valuation.gradePool.poolFallback).toBe(false);
   });
 
   test('single comp → FMV computed but low confidence', () => {
