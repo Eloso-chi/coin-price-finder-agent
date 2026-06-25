@@ -1,15 +1,9 @@
 // __tests__/terapeakImport422SelfHeal.test.js
-// Regression test for backlog #269H -- when /api/terapeak/import responds
-// with HTTP 422 ("No valid comps found in CSV"), the server must
-// self-heal: bump noDataCount, stamp noDataAt, and stamp page1At in
-// aggregationMeta. This eliminates the wasted-retry loop where the local
-// scraper kept re-fetching the same coin forever because the meta state
-// never converged after a 422.
+// Regression guard: 422 parse failures on /api/terapeak/import and
+// /api/terapeak/import-text must NOT mutate dataset metadata.
 //
-// Before this fix: 422 was returned but no metadata was written, so the
-// freshness classifier kept seeing the coin as stale on every pass.
-// After this fix: 2 consecutive 422s promote the coin to dormant via the
-// existing classifier rule (noDataCount >= 2 && noDataAt within window).
+// No-data/dormancy markers are only written through /report-no-data
+// or importComps page-1 empty-refresh paths.
 
 'use strict';
 
@@ -163,81 +157,42 @@ function postJson(path, body, apiKey) {
 // ═══════════════════════════════════════════════════════════════
 //  /import -- 422 self-heal (#269H acceptance criteria)
 // ═══════════════════════════════════════════════════════════════
-describe('POST /api/terapeak/import -- 422 self-heal (#269H)', () => {
-  test('records noDataCount + noDataAt + page1At in meta on 422', async () => {
-    const before = Date.now();
+describe('POST /api/terapeak/import -- 422 does not write meta', () => {
+  test('does not write noData/page1 markers on 422', async () => {
     const { status, body } = await postMultipart(
       '/api/terapeak/import',
       { searchTerm: '1997 American Gold Eagle Tenth oz' },
       { filename: 'empty.csv', content: 'Title,Sold Price\n' },
       TEST_ADMIN_KEY,
     );
-    const after = Date.now();
 
     expect(status).toBe(422);
     expect(body.error).toMatch(/No valid comps/i);
 
-    // Acceptance: meta-write must occur exactly once on 422
-    expect(_updateCalls).toHaveLength(1);
-    const [{ term, updates }] = _updateCalls;
-    expect(term).toBe('1997 American Gold Eagle Tenth oz');
-
-    // Acceptance: noDataCount bumped, noDataAt stamped, page1At stamped
-    expect(updates).toHaveProperty('noDataCount');
-    expect(updates.noDataCount).toBeGreaterThanOrEqual(1);
-    expect(updates).toHaveProperty('noDataAt');
-    expect(Date.parse(updates.noDataAt)).toBeGreaterThanOrEqual(before);
-    expect(Date.parse(updates.noDataAt)).toBeLessThanOrEqual(after + 1);
-    expect(updates).toHaveProperty('page1At');
-    expect(Date.parse(updates.page1At)).toBeGreaterThanOrEqual(before);
-    expect(Date.parse(updates.page1At)).toBeLessThanOrEqual(after + 1);
+    // 422 invalid/empty upload should not be interpreted as successful no-data refresh.
+    expect(_updateCalls).toHaveLength(0);
 
     // Acceptance: importComps NOT called (no valid comps to store)
     expect(_importCalls).toHaveLength(0);
   });
 
-  test('two consecutive 422s bump noDataCount to >= 2 (dormant trigger)', async () => {
-    // listDatasets returns a coin with noDataCount=1 (simulating prior pass)
-    terapeakService.listDatasets.mockReturnValue([
-      {
-        key: '1997 american gold eagle tenth oz',
-        searchTerm: '1997 American Gold Eagle Tenth oz',
-        compCount: 0,
-        aggregationMeta: { noDataCount: 1, noDataAt: '2026-06-14T00:00:00Z' },
-      },
-    ]);
-
+  test('two consecutive 422s still do not touch metadata', async () => {
+    const first = await postMultipart(
+      '/api/terapeak/import',
+      { searchTerm: '1997 American Gold Eagle Tenth oz' },
+      { filename: 'empty-a.csv', content: 'Title,Sold Price\n' },
+      TEST_ADMIN_KEY,
+    );
     const { status } = await postMultipart(
       '/api/terapeak/import',
       { searchTerm: '1997 American Gold Eagle Tenth oz' },
-      { filename: 'empty.csv', content: 'Title,Sold Price\n' },
+      { filename: 'empty-b.csv', content: 'Title,Sold Price\n' },
       TEST_ADMIN_KEY,
     );
 
+    expect(first.status).toBe(422);
     expect(status).toBe(422);
-    expect(_updateCalls).toHaveLength(1);
-    // After 2nd strike, noDataCount must be 2 -- this is the dormant threshold
-    // per src/services/freshnessClassifier.js DORMANT_MIN_NO_DATA_COUNT
-    expect(_updateCalls[0].updates.noDataCount).toBe(2);
-  });
-
-  test('honors client-supplied page1At over server-stamped one', async () => {
-    const clientStamp = '2026-06-16T12:00:00.000Z';
-    const { status } = await postMultipart(
-      '/api/terapeak/import',
-      {
-        searchTerm: '1982 Gold Krugerrand Quarter Oz',
-        page1At: clientStamp,
-      },
-      { filename: 'empty.csv', content: 'Title,Sold Price\n' },
-      TEST_ADMIN_KEY,
-    );
-
-    expect(status).toBe(422);
-    expect(_updateCalls).toHaveLength(1);
-    expect(_updateCalls[0].updates.page1At).toBe(clientStamp);
-    // noDataAt is always server-stamped, never client-supplied
-    expect(_updateCalls[0].updates.noDataAt).not.toBe(clientStamp);
+    expect(_updateCalls).toHaveLength(0);
   });
 
   test('does NOT write meta on 400 (missing file)', async () => {
@@ -309,37 +264,13 @@ describe('POST /api/terapeak/import -- 422 self-heal (#269H)', () => {
     expect(status).toBe(422);
     expect(body.error).toMatch(/No valid comps/i);
   });
-
-  test('noDataCount is capped at NO_DATA_CAP (5) for parity with importComps (#271H Item 1)', async () => {
-    // Simulate a dataset already at the cap. Another 422 must NOT push it to 6.
-    terapeakService.listDatasets.mockReturnValue([
-      {
-        key: 'capped 422 coin',
-        searchTerm: 'capped 422 coin',
-        compCount: 0,
-        aggregationMeta: { noDataCount: 5, noDataAt: '2026-06-10T00:00:00Z' },
-      },
-    ]);
-
-    const { status } = await postMultipart(
-      '/api/terapeak/import',
-      { searchTerm: 'capped 422 coin' },
-      { filename: 'empty.csv', content: 'Title,Sold Price\n' },
-      TEST_ADMIN_KEY,
-    );
-
-    expect(status).toBe(422);
-    expect(_updateCalls).toHaveLength(1);
-    expect(_updateCalls[0].updates.noDataCount).toBe(5);
-  });
 });
 
 // ═══════════════════════════════════════════════════════════════
 //  /import-text -- same self-heal behavior
 // ═══════════════════════════════════════════════════════════════
-describe('POST /api/terapeak/import-text -- 422 self-heal (#269H)', () => {
-  test('records noDataCount + noDataAt + page1At in meta on 422', async () => {
-    const before = Date.now();
+describe('POST /api/terapeak/import-text -- 422 does not write meta', () => {
+  test('does not write noData/page1 markers on 422', async () => {
     const { status, body } = await postJson(
       '/api/terapeak/import-text',
       {
@@ -348,19 +279,10 @@ describe('POST /api/terapeak/import-text -- 422 self-heal (#269H)', () => {
       },
       TEST_ADMIN_KEY,
     );
-    const after = Date.now();
 
     expect(status).toBe(422);
     expect(body.error).toMatch(/No valid comps/i);
-
-    expect(_updateCalls).toHaveLength(1);
-    const [{ term, updates }] = _updateCalls;
-    expect(term).toBe('1989 China Twentieth Oz Gold Panda');
-    expect(updates.noDataCount).toBeGreaterThanOrEqual(1);
-    expect(Date.parse(updates.noDataAt)).toBeGreaterThanOrEqual(before);
-    expect(Date.parse(updates.noDataAt)).toBeLessThanOrEqual(after + 1);
-    expect(Date.parse(updates.page1At)).toBeGreaterThanOrEqual(before);
-    expect(Date.parse(updates.page1At)).toBeLessThanOrEqual(after + 1);
+    expect(_updateCalls).toHaveLength(0);
   });
 
   test('does NOT write meta on successful 200 (happy path unchanged)', async () => {

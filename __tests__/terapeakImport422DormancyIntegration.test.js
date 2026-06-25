@@ -1,17 +1,9 @@
 // __tests__/terapeakImport422DormancyIntegration.test.js
-// Backlog #271H Item 2: end-to-end integration test that joins the real
-// terapeakService write path with the real freshnessClassifier read path.
+// End-to-end integration test that joins the real route + service write path
+// with the real freshnessClassifier read path for dormant behavior.
 //
-// Why this test exists
-// --------------------
-// The first #269H acceptance bullet ("coin is marked dormant after 2 consecutive
-// 422s and excluded from subsequent passes") was previously proved transitively:
-//   - terapeakImport422SelfHeal.test.js asserts noDataCount=2 after two 422s.
-//   - freshnessClassifier tests assert noDataCount>=2 + recent noDataAt =>
-//     isDormant=true => shouldSkipRefresh skip=true.
-// No single test ran the real route -> real service -> real classifier chain.
-// This file closes that gap with a single end-to-end assertion against the
-// real terapeakService (no service mock) and the real freshnessClassifier.
+// Dormancy is now driven by explicit no-results reporting via
+// POST /api/terapeak/report-no-data, not by 422 parse failures.
 //
 // META_PATH isolation: jest's setupFiles hook at __tests__/setup/meta-path.js
 // redirects every worker to its own tmp meta sidecar, so this test writing the
@@ -109,25 +101,61 @@ function postMultipart(path, fields, fileField, apiKey) {
   });
 }
 
-describe('#269H end-to-end: 2 consecutive 422s mark the dataset dormant (#271H Item 2)', () => {
-  test('route -> service -> classifier chain: noDataCount reaches >=2 and shouldSkipRefresh skip=true with reason=dormant', async () => {
-    // First 422 -- empty CSV produces 0 valid comps
-    const r1 = await postMultipart(
-      '/api/terapeak/import',
-      { searchTerm: SEARCH_TERM },
-      { filename: 'empty1.csv', content: 'Title,Sold Price\n' },
-      TEST_ADMIN_KEY,
-    );
-    expect(r1.status).toBe(422);
+function postJson(path, body, apiKey) {
+  return new Promise((resolve, reject) => {
+    const data = JSON.stringify(body);
+    const url = new URL(baseUrl + path);
+    const opts = {
+      hostname: url.hostname,
+      port: url.port,
+      path: url.pathname,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(data),
+      },
+    };
+    if (apiKey) opts.headers['x-api-key'] = apiKey;
 
-    // Second 422 -- same shape
-    const r2 = await postMultipart(
+    const req = http.request(opts, (res) => {
+      let buf = '';
+      res.on('data', (c) => (buf += c));
+      res.on('end', () => {
+        try { resolve({ status: res.statusCode, body: JSON.parse(buf) }); }
+        catch { resolve({ status: res.statusCode, body: buf }); }
+      });
+    });
+    req.on('error', reject);
+    req.write(data);
+    req.end();
+  });
+}
+
+describe('end-to-end: two report-no-data calls mark the dataset dormant', () => {
+  test('route -> service -> classifier chain: noDataCount reaches >=2 and shouldSkipRefresh skip=true with reason=dormant', async () => {
+    // First create a skeleton dataset key (without comps) via 422 import.
+    const seed = await postMultipart(
       '/api/terapeak/import',
       { searchTerm: SEARCH_TERM },
-      { filename: 'empty2.csv', content: 'Title,Sold Price\n' },
+      { filename: 'empty-seed.csv', content: 'Title,Sold Price\n' },
       TEST_ADMIN_KEY,
     );
-    expect(r2.status).toBe(422);
+    expect(seed.status).toBe(422);
+
+    // Explicit no-results reports drive noDataCount and dormancy.
+    const r1 = await postJson(
+      '/api/terapeak/report-no-data',
+      { searchTerm: SEARCH_TERM },
+      TEST_ADMIN_KEY,
+    );
+    expect(r1.status).toBe(200);
+
+    const r2 = await postJson(
+      '/api/terapeak/report-no-data',
+      { searchTerm: SEARCH_TERM },
+      TEST_ADMIN_KEY,
+    );
+    expect(r2.status).toBe(200);
 
     // Read meta back from the real service (in-memory, no debounce wait needed)
     const key = terapeakService.normalizeSearchKey(SEARCH_TERM);
