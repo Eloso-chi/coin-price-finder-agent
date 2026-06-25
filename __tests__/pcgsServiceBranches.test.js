@@ -235,3 +235,35 @@ describe('parseDescription -- zodiac/lunar enrichment', () => {
     expect(parsed.series).not.toMatch(/Perth|Lunar|Silver|Gold|Platinum|RCM|Chinese|Australian|Royal/);
   });
 });
+
+// ============================================================
+// parseDescription -- keyword ordering invariant
+// (safeguard for the lunar enrichment tests above)
+// ============================================================
+
+describe('parseDescription -- keyword ordering invariant', () => {
+  test('compound "perth lunar" matches before bare "year of the X" (loop breaks early)', () => {
+    // INVARIANT: The lunar enrichment tests above deliberately avoid compound
+    // 'X lunar' substrings (e.g. 'perth lunar', 'british lunar') because the
+    // parser's keyword list in src/services/pcgsService.js (~L487) places
+    // those compounds BEFORE the bare 'year of the X' entries (~L488). The
+    // loop breaks on the first match, so an input containing BOTH yields
+    // the compound match WITHOUT entering the enrichment block.
+    //
+    // This test asserts that invariant directly. If a future change reorders
+    // the keyword list so bare 'year of the rat' precedes 'perth lunar',
+    // this test fails -- and the enrichment tests above would silently
+    // exercise the wrong code path.
+    //
+    // Input contains BOTH triggers:
+    //   - 'perth lunar' (compound, earlier in keyword list)
+    //   - 'year of the rat' (bare, later in keyword list)
+    // Expected: compound wins, no enrichment, series is bare title-cased 'Perth Lunar'.
+    const parsed = pcgsService.parseDescription(
+      'Perth Lunar Year of the Rat 1oz silver',
+    );
+    expect(parsed.series).toBe('Perth Lunar');
+    // Enrichment block did NOT run -- bare 'year of the' never appended.
+    expect(parsed.series).not.toMatch(/year of the/i);
+  });
+});

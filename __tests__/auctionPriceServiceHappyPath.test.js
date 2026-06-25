@@ -72,19 +72,15 @@ function makeAuctionRecords(n, startPrice = 100, startMonth = 1, startYear = 202
  */
 function setupFresh(opts = {}) {
   jest.resetModules();
+  // jest.clearAllMocks() clears call history on every registered mock; combined
+  // with resetModules() (which gives us fresh module instances) this is the
+  // idiomatic Jest 30 reset pattern. The explicit mockReturnValue below is
+  // still needed because we want isBreakerTripped to reflect the opts arg
+  // instead of the factory default of () => false.
+  jest.clearAllMocks();
   const axios = require('axios');
   const fs = require('fs');
   const pcgsQuota = require('../src/services/pcgsQuotaService');
-
-  axios.get.mockReset();
-  fs.existsSync.mockReset();
-  fs.mkdirSync.mockReset();
-  fs.writeFileSync.mockReset();
-  fs.readFileSync.mockReset();
-  pcgsQuota.recordCall.mockClear();
-  pcgsQuota.syncFromHeaders.mockClear();
-  pcgsQuota.tripBreaker.mockClear();
-  pcgsQuota.isBreakerTripped.mockReset();
   pcgsQuota.isBreakerTripped.mockReturnValue(!!opts.breakerTripped);
 
   if (opts.cleanFs !== false) {
