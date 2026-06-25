@@ -377,8 +377,9 @@ command.
 Notes:
 - The loop uses `--limit` for page-1 batches (not `--batch`) to avoid
   resume-history skipping of valid backlog refresh candidates.
-- `SAVED but upload failed` with HTTP 422 (`No valid comps found`) is treated
-  as a no-data attempt and contributes to dormancy convergence.
+- `SAVED but upload failed` with HTTP 422 (`No valid comps found`) is **not**
+  treated as a no-data attempt for dormancy. Dormancy progression only advances
+  through explicit no-result reporting (`POST /api/terapeak/report-no-data`).
 - P3 monitor/evidence-probe entries are excluded by default; include them with
   `--include-thin` when you intentionally want monitor passes.
 

@@ -23,36 +23,6 @@ const upload = multer({
   }
 });
 
-// ── #269H helper: self-heal on 422 ──────────────────────────
-// When an /import or /import-text call yields zero valid comps, stamp the
-// no-data meta so the freshness classifier converges to dormant after the
-// second consecutive miss (DORMANT_MIN_NO_DATA_COUNT=2). page1At is also
-// stamped so the "lastFetchedAt non-null" invariant holds even when the
-// upload itself produced no usable rows. Any meta-write failure is swallowed
-// here -- the 422 response to the client is the contract we must preserve.
-function _stampNoDataMeta(searchTerm, clientPage1At) {
-  try {
-    const now = new Date().toISOString();
-    const datasets = terapeakService.listDatasets();
-    const normalizedKey = terapeakService.normalizeSearchKey(searchTerm);
-    const existing = datasets.find(d => d.key === normalizedKey);
-    const prevCount = existing?.aggregationMeta?.noDataCount || 0;
-    // #271H Item 1: cap at NO_DATA_CAP (5) for parity with the importComps
-    // dormancy path in src/services/terapeakService.js. Functionally harmless
-    // above 5 (classifier only checks >=2) but unbounded growth obscures the
-    // "how many strikes" signal in the sidecar and diverges from the
-    // documented contract proved by
-    // __tests__/terapeakServiceNoDataStamp.test.js "noDataCount is capped at 5".
-    const NO_DATA_CAP = 5;
-    terapeakService.updateDatasetMeta(searchTerm, {
-      noDataAt: now,
-      noDataCount: Math.min(NO_DATA_CAP, prevCount + 1),
-      page1At: clientPage1At || now,
-    });
-  } catch (err) {
-    console.error('[terapeak] #269H meta stamp failed for', searchTerm, '--', err.message);
-  }
-}
 
 /**
  * POST /api/terapeak/import
@@ -86,12 +56,8 @@ router.post('/import', requireAdmin, upload.single('file'), (req, res) => {
     const { comps, skipped, columns, unmappedColumns, totalRows } = terapeakService.parseCSV(req.file.buffer, searchTerm);
 
     if (comps.length === 0) {
-      // #269H: self-heal on "No valid comps" 422. Stamp the meta so the
-      // freshness classifier converges (noDataCount >= 2 -> dormant) and
-      // the scraper stops re-fetching this coin forever even when the
-      // client doesn't follow up with /report-no-data. page1At ensures
-      // lastFetchedAt is non-null for every coin the scraper has touched.
-      _stampNoDataMeta(searchTerm, req.body?.page1At);
+      // Invalid/empty uploads should not mutate refresh/no-data metadata.
+      // True no-results should be reported via /report-no-data.
       return res.status(422).json({
         error: 'No valid comps found in CSV',
         details: {
@@ -155,8 +121,6 @@ router.post('/import-text', requireAdmin, express.json(), (req, res) => {
     const { comps, skipped, columns, unmappedColumns, totalRows } = terapeakService.parseCSV(csvText, searchTerm);
 
     if (comps.length === 0) {
-      // #269H: self-heal on 422. See /import handler for full rationale.
-      _stampNoDataMeta(searchTerm, req.body?.page1At);
       return res.status(422).json({
         error: 'No valid comps found in CSV text',
         details: { totalRows, skipped, mappedColumns: columns, unmappedColumns }
@@ -462,8 +426,7 @@ router.post('/report-no-data', requireAdmin, express.json(), (req, res) => {
   }
 
   // #271H Item 3: wrap the meta-write in try/catch so a storage failure does
-  // not leak as a 500 to the python scraper. Mirrors the throw-safety pattern
-  // in _stampNoDataMeta above -- the contract with the client is "we received
+  // not leak as a 500 to the python scraper. The contract with the client is "we received
   // your no-data report"; failure to persist the bookkeeping should not
   // appear as an HTTP error.
   //
