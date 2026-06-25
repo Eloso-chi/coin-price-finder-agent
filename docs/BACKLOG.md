@@ -3278,3 +3278,92 @@ Stage 5 -- update the path #1 emission site (L1670) to use the same helper, with
 **Tier:** M (touches `ebayService.js` hot path; introduces a shared helper consumed by both lookback emission sites; behavioral change to path #2 ladder cap; full review required including `@numismatic-audit` Step 5b and deep review per `.github/skills/workflow/SKILL.md`).
 
 **Cross-reference:** PR #188 / commit `cb38e45` (#270W Option #1 -- shipped the tier ladder for path #1 only); `src/services/ebayService.js` L1580-1620 (path #1 ladder construction), L1668-1681 (path #1 lookback emission), L1690-1700 (path #2 legacy ladder seed), L1910-1914 (path #2 legacy lookback emission); chat transcript `a9bc389e-48bf-48ba-b577-789b39c918e8` (2026-06-24 thin-comp validation probe that surfaced this gap).
+
+---
+
+### #276W. `/api/price` vs `/api/pricing-batch` produce different FMV for 1/10 oz fractional Gold Eagle [P1 -- DATA-QUALITY] -- OPEN 2026-06-24
+
+**Discovered while:** running `npm test -- --coverage` on `main` (HEAD `375421a`, post-#272W merge) on 2026-06-24 as part of coverage analysis after PR #197. The cross-route consistency suite in `__tests__/terapeakDataIntegrity.test.js` randomly sampled 5 datasets and hit the `2024 American Gold Eagle 1/10 oz` query.
+
+**Problem:**
+
+For the same query (`"2024 American Gold Eagle 1/10 oz"`), the two routes return FMVs that differ by **exactly 10x** -- which matches the fractional weight factor (1/10 oz = 0.10). One route appears to be applying the fractional weight divisor and the other is not.
+
+Failing test:
+
+```
+FAIL __tests__/terapeakDataIntegrity.test.js (66.897 s)
+  cross-route consistency with real data
+    2024 American Gold Eagle 1/10 oz: /api/price and /api/pricing-batch produce consistent FMV
+
+    expect(received).toBe(expected)
+    Expected: 3.05    <- singleFmv  (response.valuation.fmvCore from /api/price)
+    Received: 30.5    <- batchFmv   (response.results[0].fmv from /api/pricing-batch)
+```
+
+The assertion lives at `__tests__/terapeakDataIntegrity.test.js` L543 (`expect(singleFmv).toBe(batchFmv)`), wired to both real routes via `supertest` with `axios` mocked. The same suite passes for the other 4 sampled coins on the same run, so the failure is specific to this fractional-bullion identifier, not a generic cross-route divergence.
+
+**Sampling note:** The cross-route suite picks 5 random datasets each run (`pickRandomDatasets(withData, 5)` at L518). The 1/10 oz Gold Eagle bug is **deterministic when sampled** -- but visibility is intermittent because the random sampler doesn't always pick this coin. This explains why the test has been green on most runs.
+
+**Concrete failure modes:**
+
+- A user querying `/api/price` for a 1/10 oz fractional gold coin gets a FMV that is **1/10 of the correct value** (or 10x, depending on which route is the bug).
+- The same coin queried via `/api/pricing-batch` returns a different FMV.
+- Operator can construct any wallet-impacting comparison between the two routes and get inconsistent answers.
+- Cross-metal mismatch is plausible for ALL fractional bullion (1/2, 1/4, 1/10, 1/20 oz) -- not just Gold Eagles.
+
+**Hypothesis (NOT yet verified -- investigation is part of this item):**
+
+The 10x ratio strongly suggests one route applies `weightOz` (or a derived per-ounce-to-per-coin conversion) and the other does not. Neither `src/routes/priceRoute.js` nor `src/routes/pricingBatchRoute.js` directly references `weightOz` or `fractional`, so the divergence is downstream -- likely in:
+
+- different code paths into `valuationService.computeValuation()` (one passes `metalContext`, one does not),
+- different normalization of `coinMetalProfile.weightOz` between single-query and batch-query call sites,
+- one route falling through to `metalOnly` short-circuit (which applies fractional weight) while the other reaches `sold-data` (which may not), or
+- the spot-price multiplier being applied at different layers.
+
+The investigation must NOT assume the hypothesis is correct -- the first deliverable is a root-cause writeup, not a fix.
+
+**Proposed implementation:**
+
+Stage 1 -- reproduce deterministically. Pin the random seed of the cross-route sampler or write a focused regression test in `__tests__/terapeakDataIntegrity.test.js` (or a new `__tests__/fractionalBullionCrossRoute.test.js`) that ALWAYS queries the 1/10 oz Gold Eagle, plus 1/4 and 1/2 oz variants and a Silver Eagle 1 oz control. Confirm which route is producing the wrong value by hand-checking against the metal-only FMV from spot.
+
+Stage 2 -- diff the call graph. Add `DEBUG` logging or a temporary trace to both routes that emits every intermediate (metal-only FMV, guide FMV, sold pool FMV, blend weights, final FMV) for the same query. Compare side-by-side.
+
+Stage 3 -- root-cause writeup as a comment on this backlog entry. NO code changes until the root cause is confirmed in writing and the user approves the fix scope.
+
+Stage 4 -- fix. Likely either (a) a missing argument at one route's `computeValuation()` call site, (b) a missing `coinMetalProfile.weightOz` lookup in the batch route, or (c) the spot multiplier being applied at the wrong layer. Whatever the fix, it MUST close the gap symmetrically -- both routes share the same single source of truth for the metal-only branch.
+
+Stage 5 -- expand the cross-route consistency test to cover all known fractional weights deterministically (no more random sampling for the bullion cases). Random sampling stays for non-bullion to keep the suite broad.
+
+**Open questions for scoping (user decision before implementation):**
+
+1. **Which route is wrong?** $3.05 for a 1/10 oz Gold Eagle is plausible if the test data has a low-comp sold pool (raw fractional Gold Eagles in worn condition often trade at melt + small premium = roughly $300-$400 / 10 = $30-$40 melt-equivalent). $30.5 is plausible as raw melt for a 1/10 oz Gold Eagle at ~$3000/oz spot (or as a per-oz quote that forgot to scale down). Cannot determine which is wrong without running the trace. Investigation is part of the work.
+
+2. **Scope:** is this just `/api/price` vs `/api/pricing-batch`, or do `/api/coin` and `/api/bulk-evaluate` also diverge? Recommend probe both before fixing, file separately if they diverge differently.
+
+3. **Test sampling strategy:** keep random sampling for the cross-route suite, or pin all fractional bullion identifiers as a non-random subset? Recommend pinned + random hybrid -- never lose visibility on fractional bullion again.
+
+4. **Cross-reference to #261W:** is the previously-tracked fractional bullion cross-metal mismatch (#261W, separate cross-cutting concern) the same root cause, or a sibling symptom of the same upstream gap? Worth confirming during root-cause analysis.
+
+**Acceptance criteria:**
+
+- Root cause documented as a comment on this entry (which route, which line, which omitted parameter or call-site) BEFORE any fix is written.
+- Deterministic regression test exists that pins 1/10, 1/4, 1/2 oz Gold Eagle and Silver Eagle 1 oz fractional control -- runs on every test pass, no random sampling for these.
+- `/api/price` FMV and `/api/pricing-batch` `results[0].fmv` are identical for the pinned fractional set (delta tolerance: 0 cents).
+- `/api/coin` and `/api/bulk-evaluate` checked for the same divergence; either confirmed identical or filed as separate backlog items.
+- The fix lands as a single-source-of-truth refactor -- not a copy-paste patch in two routes.
+- Existing 4097 tests remain green; the previously-failing test (and the new deterministic regression tests) move to green.
+- `@numismatic-audit` Step 5b: PASS (no pool boundary touched -- this is a unit/weight handling fix, not a pool-membership fix).
+- Deep review per `.github/skills/workflow/SKILL.md`: 0 S1/S2/S3 findings.
+
+**Out of scope (deferred to follow-ups):**
+
+- Fractional bullion cross-metal mismatch beyond gold (silver, platinum, palladium) -- file as separate items if discovered during investigation.
+- UI/dashboard surfacing of "weight-normalized" FMV vs "per-coin" FMV.
+- Migration of any historical responses that recorded the wrong FMV.
+
+**Files (anticipated):** `src/routes/priceRoute.js`, `src/routes/pricingBatchRoute.js`, possibly `src/services/valuationService.js` (if the divergence is at the call-site shape rather than inside the route), `src/utils/coinMetalProfile.js` (if weightOz lookup is the issue), `__tests__/terapeakDataIntegrity.test.js` (regression coverage), possibly `__tests__/fractionalBullionCrossRoute.test.js` (new pinned suite).
+
+**Tier:** M (touches at least two route handlers and probably one service; cross-route FMV correctness is a high-confidence-impact area; full review required including `@numismatic-audit` Step 5b and deep review per `.github/skills/workflow/SKILL.md`).
+
+**Cross-reference:** test failure surfaced 2026-06-24 in chat transcript `a9bc389e-48bf-48ba-b577-789b39c918e8` while running coverage analysis after PR #197 (#272W) merged; `__tests__/terapeakDataIntegrity.test.js` L501-560 (cross-route consistency suite, random sampler at L518); possibly related to #261W (fractional bullion cross-metal mismatch -- separate but adjacent concern).
