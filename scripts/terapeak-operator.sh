@@ -30,6 +30,9 @@ STATE_FILE="cache/terapeak-startup-state.json"
 LOCK_FILE="cache/terapeak-operator.lock"
 LOCK_PID_FILE="cache/terapeak-operator.lock.pid"
 RUN_LOG_FILE=""
+HISTORY_LOG_FILE="cache/terapeak-operator-history.log"
+LATEST_RUN_FILE="cache/terapeak-operator-latest-run.txt"
+LATEST_PASS_DIR_FILE="cache/terapeak-operator-latest-pass-dir.txt"
 PASS_LOG_ROOT_DIR="cache/terapeak-operator-passes"
 PASS_LOG_DIR=""
 
@@ -226,9 +229,14 @@ mkdir -p cache
 mkdir -p "$PASS_LOG_DIR"
 
 RUN_LOG_FILE="cache/terapeak-operator-${RUN_ID}.log"
-# Mirror all operator output to a run-level log while preserving terminal output.
-exec > >(tee -a "$RUN_LOG_FILE") 2>&1
+# Mirror all operator output to run-level and rolling history logs.
+exec > >(tee -a "$RUN_LOG_FILE" "$HISTORY_LOG_FILE") 2>&1
+printf '%s\n' "$RUN_LOG_FILE" > "$LATEST_RUN_FILE"
+printf '%s\n' "$PASS_LOG_DIR" > "$LATEST_PASS_DIR_FILE"
 echo "[operator] run log: $RUN_LOG_FILE"
+echo "[operator] history log: $HISTORY_LOG_FILE"
+echo "[operator] latest run pointer: $LATEST_RUN_FILE"
+echo "[operator] latest pass-dir pointer: $LATEST_PASS_DIR_FILE"
 # Validate flock before attempting lock
 command -v flock >/dev/null 2>&1 || {
   echo "[operator] flock command not found (required for single-instance lock)." >&2
@@ -339,8 +347,8 @@ while true; do
 
   write_state "loop-pass" "ok" "Pass ${PASS} completed"
 
-  # Print progress metrics after each pass
-  bash scripts/operator-monitor.sh "$PROJECT_DIR" "$PASS"
+  # Print progress metrics after each pass and persist them into pass log.
+  bash scripts/operator-monitor.sh "$PROJECT_DIR" "$PASS" "$PASS_LOG_FILE" | tee -a "$PASS_LOG_FILE"
 
   if [[ "$LOOP" != true ]]; then
     break

@@ -5,6 +5,7 @@ set -euo pipefail
 
 PROJECT_DIR="${1:-.}"
 PASS_NUM="${2:-?}"
+SOURCE_LOG="${3:-}"
 
 freshness_report="$PROJECT_DIR/cache/freshness-report.json"
 
@@ -42,12 +43,39 @@ PY
 }
 
 print_recent_coin_results() {
-  local latest_log
-  latest_log=$(find "$PROJECT_DIR/cache" -maxdepth 1 -name '*.log' -printf '%T@ %p\n' 2>/dev/null | sort -nr | head -1 | cut -d' ' -f2-)
+  local latest_log=""
+  if [[ -n "$SOURCE_LOG" && -f "$SOURCE_LOG" ]]; then
+    latest_log="$SOURCE_LOG"
+  else
+    latest_log=$(find "$PROJECT_DIR/cache" -maxdepth 1 -name '*.log' -printf '%T@ %p\n' 2>/dev/null | sort -nr | head -1 | cut -d' ' -f2-)
+  fi
+
   [[ -n "$latest_log" ]] || return
 
-  if ! grep -q 'OK (' "$latest_log" 2>/dev/null; then
-    return
+  local batch_size=0
+  local batch_line
+  batch_line=$(grep -E '^Exporting [0-9]+ coins\.\.\.' "$latest_log" 2>/dev/null | tail -n 1 || true)
+  if [[ -n "$batch_line" ]]; then
+    batch_size=$(echo "$batch_line" | sed -E 's/^Exporting ([0-9]+) coins\.\.\./\1/')
+  fi
+
+  local total_new=0
+  local total_dups=0
+  local ok_count=0
+  local no_export_count=0
+  local succeeded_count=0
+  local failed_count=0
+
+  local succeeded_line
+  succeeded_line=$(grep -E '^  Succeeded:[[:space:]]+[0-9]+' "$latest_log" 2>/dev/null | tail -n 1 || true)
+  if [[ -n "$succeeded_line" ]]; then
+    succeeded_count=$(echo "$succeeded_line" | sed -E 's/^  Succeeded:[[:space:]]+([0-9]+).*/\1/')
+  fi
+
+  local failed_line
+  failed_line=$(grep -E '^  Failed:[[:space:]]+[0-9]+' "$latest_log" 2>/dev/null | tail -n 1 || true)
+  if [[ -n "$failed_line" ]]; then
+    failed_count=$(echo "$failed_line" | sed -E 's/^  Failed:[[:space:]]+([0-9]+).*/\1/')
   fi
 
   echo "Recent Coin Results (last pass):"
@@ -64,6 +92,36 @@ print_recent_coin_results() {
         ;;
     esac
   done
+
+  while IFS= read -r line; do
+    new_count=${line##*OK (}
+    new_count=${new_count%% new,*}
+    dup_count=${line##*, }
+    dup_count=${dup_count%% dups)*}
+    total_new=$((total_new + new_count))
+    total_dups=$((total_dups + dup_count))
+    ok_count=$((ok_count + 1))
+  done < <(grep -E '^\s+\[[[:space:][:digit:]%]+\].*OK \([0-9]+ new, [0-9]+ dups\)' "$latest_log" 2>/dev/null)
+
+  no_export_count=$(grep -c '^NO EXPORT' "$latest_log" 2>/dev/null || true)
+
+  if [[ "$ok_count" -eq 0 && "$no_export_count" -eq 0 ]]; then
+    if [[ "$batch_size" -gt 0 || "$succeeded_count" -gt 0 || "$failed_count" -gt 0 ]]; then
+      if [[ "$batch_size" -gt 0 ]]; then
+        printf '\nBatch total: summary-only (succeeded: %s, failed: %s) out of %s coins\n' "$succeeded_count" "$failed_count" "$batch_size"
+      else
+        printf '\nBatch total: summary-only (succeeded: %s, failed: %s)\n' "$succeeded_count" "$failed_count"
+      fi
+    fi
+    return
+  fi
+
+  printf '\nBatch total: %s new, %s dups, %s no-export' "$total_new" "$total_dups" "$no_export_count"
+  if [[ "$batch_size" -gt 0 ]]; then
+    printf ' out of %s coins\n' "$batch_size"
+  else
+    printf '\n'
+  fi
 }
 
 staged_csvs=$(count_staged_csvs)
