@@ -50,7 +50,10 @@ OK_RE = re.compile(r"OK\s*\((\d+)\s+new,\s*(\d+)\s+dups\)")
 WARN_EMPTY_RE = re.compile(r"WARNING:\s*No data rows found", re.IGNORECASE)
 NO_EXPORT_RE = re.compile(r"^NO EXPORT", re.IGNORECASE)
 DORMANT_RE = re.compile(r"\(dormant:", re.IGNORECASE)
-HTTP_FAIL_RE = re.compile(r"HTTP\s+(\d{3})", re.IGNORECASE)
+# Only treat 4xx/5xx HTTP statuses as failures. A bare HTTP 2xx/3xx anywhere
+# in a coin's continuation lines (e.g. an upstream "HTTP 200 OK" trace) must
+# NOT flip the coin to status=failed. See PR #200 review finding #1.
+HTTP_FAIL_RE = re.compile(r"HTTP\s+([45]\d{2})", re.IGNORECASE)
 FAILED_TAIL_RE = re.compile(r"^\s*Failed:\s*(\d+)", re.IGNORECASE)
 SUCCEEDED_TAIL_RE = re.compile(r"^\s*Succeeded:\s*(\d+)", re.IGNORECASE)
 

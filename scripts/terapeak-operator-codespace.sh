@@ -231,12 +231,27 @@ preflight_cookies() {
 }
 
 # ---- single-instance lock ---------------------------------------------------
+# Lock correctness lives in flock on FD 9 (kernel releases on process death).
+# The .pid sidecar is informational only -- a stale .pid can be left behind by
+# SIGKILL, so on conflict we use kill -0 to confirm the holder is alive before
+# blaming it. See PR #200 review finding #3.
 exec 9>"$LOCK_FILE"
 if ! flock -n 9; then
-  echo "[operator-cs:FAIL] another instance is already running (lock: $LOCK_FILE)" >&2
+  conflict_msg="[operator-cs:FAIL] another instance is already running (lock: $LOCK_FILE)"
+  if [[ -f "$LOCK_FILE.pid" ]]; then
+    other_pid="$(cat "$LOCK_FILE.pid" 2>/dev/null || true)"
+    if [[ -n "$other_pid" ]] && kill -0 "$other_pid" 2>/dev/null; then
+      conflict_msg="$conflict_msg [pid=$other_pid alive]"
+    elif [[ -n "$other_pid" ]]; then
+      conflict_msg="$conflict_msg [pid=$other_pid stale -- but flock still held; try again]"
+    fi
+  fi
+  echo "$conflict_msg" >&2
   exit 3
 fi
 trap 'flock -u 9 2>/dev/null || true; rm -f "$LOCK_FILE.pid" 2>/dev/null || true' EXIT
+# Overwrite any stale .pid from a prior SIGKILL'd run (flock acquisition above
+# proves no live holder).
 echo "$$" > "$LOCK_FILE.pid"
 
 # ---- main -------------------------------------------------------------------

@@ -179,10 +179,14 @@ sub_totals() {
 }
 
 sub_stop_conditions() {
-  # Look at the operator master logs for stop reasons; correlate with last passes
+  # Look at the operator master logs for stop reasons; correlate with last passes.
+  # NOTE: the "status" column emitted here is the sum of succeeded coins across
+  # the run (a count, not a state). True stop reasons (ok/fail/sigkill) require
+  # parsing the master log; tracked as a follow-up. Header renamed for honesty
+  # under PR #200 review finding #4.
   local n="${SUB_ARG:-5}"
   {
-    printf "run_id\tlast_pass\tfinal_status\tnew_total\tdup_total\n"
+    printf "run_id\tlast_pass\tfinal_succeeded\tnew_total\tdup_total\n"
     jq -sr "[.[]] | group_by(.run_id)
       | map({
           run_id: .[0].run_id,

@@ -139,7 +139,14 @@ bash scripts/show-terapeak-runs.sh --since 2026-06-29 runs   # date filter
 ```
 
 Both ledger files are append-only; no rotation, no truncation. They survive
-across runs and codespace restarts.
+across runs and codespace stop/resume within the same workspace. The ledger
+lives under `cache/` (gitignored), so a fresh clone or recreated codespace
+starts from empty. For long-term cross-machine history, periodically sync
+`cache/terapeak-runs/*.jsonl` to blob storage or commit a snapshot via a
+separate data-checkpoint PR.
+
+Smoke-test the parser before changes: `python3 scripts/test_parse_terapeak_pass.py`
+(asserts pass/coin record fields against a synthetic fixture; exit 0 = pass).
 
 ## Two Scripts
 
