@@ -56,7 +56,7 @@ Priority order:
 1. `docs/memory/codebase-overview.md` -- stack, structure, services, auth, env vars, dependencies
 2. `docs/memory/decision-engine-spec.md` -- valuation engine FMV modes, confidence scoring, buy/sell spreads
 3. `docs/memory/numismatic-terminology.md` -- **CRITICAL DOMAIN CONTRACT.** Strike types, grade prefixes, pool classification rules (raw / graded / proof are THREE DISTINCT POOLS and must never be merged for FMV), common traps. Promoted to #3 under #271W F10 after INC-013 (pool-isolation violation, $10.03 cost) demonstrated this must be read before any pricing/comp work, not after the operational docs.
-4. `docs/memory/terapeak-runbook.md` -- aggregation operations, VNC setup, troubleshooting (ADMIN_API_KEY value is REDACTED; load from `.env` or Key Vault)
+4. `docs/memory/terapeak-runbook.md` -- aggregation operations, VNC setup, troubleshooting, long-running operator (W/codespace) via `scripts/terapeak-operator-codespace.sh`, structured run history ledger under `cache/terapeak-runs/` (#200), codespace keepalive TTY-reset mechanism (ADMIN_API_KEY value is REDACTED; load from `.env` or Key Vault)
 5. `docs/memory/terapeak-data-structure-analysis.md` -- CSV format, column mapping, data quality
 6. `docs/memory/terapeak-export-automation.md` -- Playwright aggregation architecture (ADMIN_API_KEY value REDACTED)
 7. `docs/memory/terapeak-export-process.md` -- correct export steps
@@ -204,10 +204,14 @@ Read the first 50 lines of each to understand the module interface (80 lines for
 18. `scripts/sales-aggregator.py` -- batch Terapeak sales aggregation via Playwright (first 20 lines)
 19. `scripts/sync-terapeak-meta.js` -- syncs terapeak-meta.json from Azure Blob Storage (#253) (first 20 lines)
 20. `scripts/load-secrets.sh` -- fetches 8 dev secrets from Azure Key Vault into .env (#137) (first 20 lines)
+21. `scripts/terapeak-operator-codespace.sh` -- W-machine (codespace) operator sibling of `terapeak-operator.sh` (#200): no venv, unlimited loop by default, single-instance `flock` lock (first 30 lines)
+22. `scripts/_parse-terapeak-pass.py` -- best-effort parser; appends per-pass + per-coin records to `cache/terapeak-runs/{passes,coins}.jsonl` (#200) (first 20 lines)
+23. `scripts/show-terapeak-runs.sh` -- jq-backed viewer for the run ledger (#200); subcommands `recent`, `runs`, `run <RUN_ID>`, `coin <pattern>`, `totals`, `stop-conditions` (first 20 lines)
 
 **Test infrastructure:**
 1. `__tests__/helpers/coinTestConstants.js` -- shared test helpers, golden set loader, selectCoins()
 2. `__tests__/fixtures/golden_coins.json` -- 14 curated deterministic test coins
+3. `scripts/test_parse_terapeak_pass.py` -- unit tests for `_parse-terapeak-pass.py` (synthetic fixture; `python3 scripts/test_parse_terapeak_pass.py` exits 0 on pass) (#200)
 
 ### Phase 4: Verification
 

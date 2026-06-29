@@ -136,7 +136,7 @@ Use the following mapping to decide which doc surfaces are affected:
 | Terapeak / CSV format or import behavior | `docs/memory/terapeak-data-structure-analysis.md`; `docs/memory/terapeak-runbook.md` |
 | Azure infra (Cosmos, Key Vault, Blob, Files) | `docs/memory/azure-infrastructure.md`; relevant `docs/runbooks/*.md` |
 | New environment variable | `README.md` env table; `docs/ARCHITECTURE.md` if it shapes data flow |
-| New operational procedure | `docs/runbooks/*.md`; link from `README.md` if user-facing |
+| New operational procedure | `docs/runbooks/*.md` (preferred for first-launch / setup / recovery) OR an existing `docs/memory/*-runbook.md` section (acceptable when the procedure extends a runbook already documented in the memory corpus, e.g. PR #200's operator-codespace section in `docs/memory/terapeak-runbook.md`); link from `README.md` if user-facing |
 | New or changed agent / prompt / skill | `docs/memory/agents-and-prompts.md` AND `.github/agents/onboard.agent.md` (Phase 2 read list) |
 | New top-level file under `docs/memory/` or `docs/runbooks/` | `.github/agents/onboard.agent.md` (read list) AND `docs/memory/README.md` (index) |
 | Backlog item or backlog governance | `docs/BACKLOG.md` / `docs/BACKLOG.rules.md` (already gated by Backlog section) |

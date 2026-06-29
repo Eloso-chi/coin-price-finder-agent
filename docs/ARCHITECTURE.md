@@ -94,6 +94,7 @@ server.js                              Express entry point (port 3000)
 │   ├─ metals_history.json             Daily spot price snapshots
 │   ├─ greysheet_history.json          Daily Greysheet price snapshots
 │   ├─ terapeak_sold.json              Imported Terapeak comp data (~3,306 datasets)
+│   ├─ terapeak-runs/                  Append-only JSONL ledger for operator-codespace runs (#200): `passes.jsonl` (one record per pass), `coins.jsonl` (one record per coin attempt)
 │   ├─ users.json                      Server-side user accounts (bcrypt hashes + UUIDs)
 │   └─ user_coins.json                 Server-side coin collections (plaintext JSON by userId)
 │
@@ -115,7 +116,11 @@ server.js                              Express entry point (port 3000)
 │
 ├─ scripts/
 │   ├─ cpf-go                          One-command WSL bootstrap + scraper launcher (#258; merge commit reads #252); page-1 batch size randomized 15-30 per loop pass for bot evasion (#268H)
-│   ├─ terapeak-operator.sh             Canonical deterministic launcher: preflight(login) -> optional login -> preflight(loop) -> freshness pass (#168); randomized page-1 batching window (`--batch-min/--batch-max`) and run-scoped pass logs (`cache/terapeak-operator-passes/<RUN_ID>/pass-XXXX.log`) (#191)
+│   ├─ terapeak-operator.sh             Canonical deterministic launcher (H-machine / WSL Surface): preflight(login) -> optional login -> preflight(loop) -> freshness pass (#168); randomized page-1 batching window (`--batch-min/--batch-max`) and run-scoped pass logs (`cache/terapeak-operator-passes/<RUN_ID>/pass-XXXX.log`) (#191)
+│   ├─ terapeak-operator-codespace.sh   Codespace (W-machine) operator sibling (#200): no `~/.env.surface` dependency, system `python3`, unlimited loop by default (`--max-passes 0`), single-instance `flock` lock, jittered pause 600s +/- 90s. Per-run logs under `cache/terapeak-operator-codespace-passes/<RUN_ID>/`
+│   ├─ _parse-terapeak-pass.py          Best-effort parser invoked by the codespace operator after each pass; appends to `cache/terapeak-runs/passes.jsonl` + `coins.jsonl`. Parse failures log to stderr but never fail the operator loop (#200)
+│   ├─ show-terapeak-runs.sh            jq-backed viewer for the JSONL ledger (#200). Subcommands: `recent`, `runs`, `run <RUN_ID>`, `coin <pattern>`, `totals`, `stop-conditions`. Flags: `--since`, `--until`, `--json`
+│   ├─ test_parse_terapeak_pass.py      Unit tests for `_parse-terapeak-pass.py` (synthetic fixture; `python3 scripts/test_parse_terapeak_pass.py` exits 0 on pass) (#200)
 │   ├─ terapeak-startup-preflight.sh    Startup preflight gate (runtime/env/tooling/cookie health) for operator flow (#168)
 │   ├─ run-surface-freshness-loop.sh   Orchestrator: meta sync (#259; merge commit reads #253) -> freshness report -> page-1 batch -> deep-paginate
 │   ├─ load-secrets.sh                 Pull 8 dev secrets from Azure Key Vault `coinpricefinder-kv` into `.env` (mode 600); modes dryrun/--print/--write (#137)

@@ -43,6 +43,30 @@ while true; do echo "keepalive $(date)"; sleep 300; done
 # Run as background process
 ```
 
+**Why this specific shape works (and why a `curl` loop alone does not):**
+Per the [GitHub Codespaces idle-timeout docs](https://docs.github.com/en/codespaces/setting-your-user-preferences/setting-your-timeout-period-for-github-codespaces#inactivity-defined),
+activity is reset by "typing or using the mouse" **and by** "terminal
+activity, either input or output." The `echo` above writes to a real PTY
+attached to the codespace shell, which counts as terminal output.
+
+A `nohup curl ... > keepalive.log 2>&1 &` loop -- the obvious-looking
+alternative -- does **not** reset the timer: the process has no controlling
+terminal (stdout is redirected to a file), so no TTY activity is generated.
+Empirically verified 2026-06-29: a codespace died at ~02:50Z despite three
+successful `curl` keepalive pings against its own forwarded port.
+
+For unattended long runs (e.g. operator-codespace.sh overnight) prefer
+any of:
+- `tail -F cache/operator-cs.log` in a VS Code terminal -- streams operator
+  activity through a real PTY for as long as the operator is running.
+- The `while true; do echo ...; sleep 300; done` loop above, started in a
+  VS Code terminal (not via `nohup` + `>` redirect).
+- `screen` or `tmux` sessions -- the multiplexer keeps a PTY allocated even
+  when no client is attached.
+
+The 240-minute hard cap on idle-timeout still applies; nothing below that
+threshold matters as long as PTY output is flowing.
+
 ### 6. Launch Page 1 Export
 ```bash
 cd /workspaces/coin-price-agent && DISPLAY=:1 python3 scripts/terapeak-export.py --run --resume 2>&1 | tee cache/terapeak_export.log
