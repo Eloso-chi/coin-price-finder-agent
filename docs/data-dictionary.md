@@ -86,40 +86,50 @@ Example:
 
 Append-only JSONL ledger written by `scripts/_parse-terapeak-pass.py` after each pass of `scripts/terapeak-operator-codespace.sh` (#200). Gitignored; survives codespace restart but not codespace deletion. Used by `scripts/show-terapeak-runs.sh` for run history queries.
 
-**`passes.jsonl`** -- one JSON object per pass:
+**`passes.jsonl`** -- one JSON object per pass (fields as emitted by `_parse-terapeak-pass.py main()`):
 
 | Field | Type | Privacy | Notes |
 |-------|------|---------|-------|
+| `ts` | ISO 8601 | Public | Record-write timestamp (same as `end_ts`) |
 | `run_id` | string | Public | `YYYYMMDDTHHMMSSZ-<pid>` from operator launch |
-| `machine` | string | Public | `W` (codespace) for entries written by `terapeak-operator-codespace.sh` |
+| `operator` | string | Public | Name of the invoking operator (e.g. `terapeak-operator-codespace`) |
+| `machine` | string | Public | `W` (codespace) or `H` (Surface/WSL) -- the calling machine letter |
 | `pass` | number | Public | 1-indexed pass number within the run |
 | `batch_size` | number | Public | Randomized batch for this pass (15-30 default) |
+| `include_thin` | boolean | Public | Whether thin-data datasets were included this pass |
+| `start_ts` | ISO 8601 | Public | Pass start timestamp (UTC) |
+| `end_ts` | ISO 8601 | Public | Pass end timestamp (UTC) |
+| `duration_sec` | number or null | Public | Wall-clock seconds; null if timestamps unparseable |
 | `attempted` | number | Public | Coins attempted in this pass |
-| `succeeded` | number | Public | Coins that returned a non-empty result |
+| `succeeded` | number | Public | Coins that returned `ok` (non-empty result) |
 | `empty` | number | Public | Coins that returned zero comps |
 | `failed` | number | Public | Coins that errored out (network, parse, captcha, etc.) |
-| `dormant` | number | Public | Coins skipped because the freshness classifier flagged them dormant |
+| `unknown` | number | Public | Coins whose status the parser could not determine |
+| `dormant` | number | Public | Coins flagged dormant by the freshness classifier |
 | `new_rows` | number | Public | Sum of new comp rows added across all coins this pass |
 | `dup_rows` | number | Public | Sum of duplicate rows skipped across all coins this pass |
-| `duration_sec` | number | Public | Wall-clock seconds from pass start to pass end |
-| `started_at` | ISO 8601 | Public | Pass start timestamp (UTC) |
-| `ended_at` | ISO 8601 | Public | Pass end timestamp (UTC) |
-| `exit_code` | number | Public | Exit code of the underlying `terapeak-export.py` invocation |
-| `stop_reason` | string or null | Public | Why the run ended after this pass (`cap-reached`, `pass-failure`, `cookie-degrade`, or null if the run continued) |
+| `succeeded_reported` | number or null | Public | "succeeded" total scraped from the pass log's own summary line (cross-check) |
+| `failed_reported` | number or null | Public | "failed" total scraped from the pass log's own summary line (cross-check) |
+| `pass_log` | string | Public | Path to the per-pass log this record was parsed from |
 
 **`coins.jsonl`** -- one JSON object per coin attempt within a pass:
 
 | Field | Type | Privacy | Notes |
 |-------|------|---------|-------|
+| `ts` | ISO 8601 | Public | Record-write timestamp (matches parent pass `end_ts`) |
 | `run_id` | string | Public | Matches the parent pass record |
+| `machine` | string | Public | Matches the parent pass record |
 | `pass` | number | Public | Pass number this attempt belongs to |
 | `idx` | number | Public | 1-indexed position within the pass batch |
+| `total` | number | Public | Total coins in the pass (for "idx of total" display) |
 | `coin` | string | Public | Search term (Terapeak query) attempted |
-| `status` | string | Public | `ok` / `empty` / `failed` / `dormant` |
+| `status` | string | Public | `ok` / `empty` / `failed` / `unknown` |
 | `new` | number | Public | New rows added from this coin |
 | `dups` | number | Public | Duplicate rows skipped |
+| `dormant` | boolean | Public | True if the coin was classified dormant before the attempt |
+| `error` | string or null | Public | Error excerpt if the attempt failed; null otherwise |
 
-**Use:** Operator forensics and longitudinal yield tracking. Parse failures in `_parse-terapeak-pass.py` log to stderr but never fail the operator loop. Schemas are append-only and best-effort; new fields may be added in later operator versions.
+**Use:** Operator forensics and longitudinal yield tracking. Parse failures in `_parse-terapeak-pass.py` log to stderr but never fail the operator loop. Schemas are append-only and best-effort; new fields may be added in later operator versions. Source of truth: `scripts/_parse-terapeak-pass.py` `main()` -- consult before relying on any field semantics.
 
 ---
 
