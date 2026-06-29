@@ -80,6 +80,74 @@ cd /workspaces/coin-price-agent && DISPLAY=:1 python3 scripts/sales-aggregator.p
 4. Commit any uncommitted data: `git add data/terapeak/ && git diff --cached --stat`
 5. Resume with `--resume <old-log>` (step 8)
 
+## Long-running operator (codespace / W machine)
+
+`scripts/terapeak-operator-codespace.sh` is the W-machine sibling of
+`scripts/terapeak-operator.sh` (which targets the H-machine WSL Surface path
+and requires `~/.env.surface`). The codespace flavor:
+
+- Trusts repo `.env` and process env -- no `~/.env.surface` dependency
+- Uses system `python3` (no project venv discovery)
+- Runs preflight checks: runtime, server health, cookie health
+  (`scripts/cookie-health-check.py`)
+- Loops with randomized per-pass batch size (15-30 default) and jittered
+  pause (600s +/- 90s default) for anti-detection
+- Default `--max-passes 0` = unlimited; loops until pass failure or cookie
+  health degrade. Set `--max-passes N` to install a cap
+- Quota is logged informationally only; never enforced (there is no
+  published Terapeak quota -- the in-app counter is a politeness signal)
+- Single-instance lock via `flock` on `cache/terapeak-operator-codespace.lock`
+
+```bash
+# Run until something stops it (recommended default)
+nohup bash scripts/terapeak-operator-codespace.sh > cache/operator-cs.log 2>&1 &
+
+# Capped run, custom batch range
+bash scripts/terapeak-operator-codespace.sh --max-passes 4 --batch-min 20 --batch-max 35
+
+# Dry-run -- validate preflights without executing passes
+bash scripts/terapeak-operator-codespace.sh --dry-run
+```
+
+Per-run artifacts:
+- `cache/terapeak-operator-codespace_<RUN_ID>.log` -- master log
+- `cache/terapeak-operator-codespace-passes/<RUN_ID>/pass-NNNN.log` -- per-pass logs
+- `cache/terapeak-operator-codespace.state.json` -- latest state (overwritten each run)
+
+## Structured run history
+
+The operator appends one record per pass to a JSONL ledger so prior runs
+can be reviewed later:
+
+| File | Schema |
+|---|---|
+| `cache/terapeak-runs/passes.jsonl` | One JSON object per pass (run_id, machine, batch_size, attempted, succeeded, empty, failed, new_rows, dup_rows, duration_sec, ...) |
+| `cache/terapeak-runs/coins.jsonl` | One JSON object per coin attempt (run_id, pass, idx, coin, status, new, dups, dormant) |
+
+`scripts/_parse-terapeak-pass.py` does the parsing. It is best-effort and
+never fails the operator -- parse errors are logged but the loop continues.
+
+View the ledger with `scripts/show-terapeak-runs.sh`:
+
+```bash
+bash scripts/show-terapeak-runs.sh recent          # last 20 passes across all runs
+bash scripts/show-terapeak-runs.sh runs            # aggregated rows per run
+bash scripts/show-terapeak-runs.sh run <RUN_ID>    # pass-by-pass breakdown
+bash scripts/show-terapeak-runs.sh coin morgan     # per-coin history (regex)
+bash scripts/show-terapeak-runs.sh totals          # lifetime totals
+bash scripts/show-terapeak-runs.sh --since 2026-06-29 runs   # date filter
+```
+
+Both ledger files are append-only; no rotation, no truncation. They survive
+across runs and codespace stop/resume within the same workspace. The ledger
+lives under `cache/` (gitignored), so a fresh clone or recreated codespace
+starts from empty. For long-term cross-machine history, periodically sync
+`cache/terapeak-runs/*.jsonl` to blob storage or commit a snapshot via a
+separate data-checkpoint PR.
+
+Smoke-test the parser before changes: `python3 scripts/test_parse_terapeak_pass.py`
+(asserts pass/coin record fields against a synthetic fixture; exit 0 = pass).
+
 ## Two Scripts
 
 | Script | Purpose | Pages | When to use |
