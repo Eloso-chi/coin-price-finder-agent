@@ -1674,7 +1674,7 @@ if (comp.totalUsd > expected.meltPerOz * expected.weight * 5 && !detectWeightFro
 
 ---
 
-### 263. Raw / Ungraded Gold Auction Data -- Investigate CoinArchives Pro Before Building Scrapers [P2 -- DATA COVERAGE]
+### 263. Raw / Ungraded Gold Auction Data -- Prioritize APR Gold Prefetch + Spot-Premium Fallback [P2 -- DATA COVERAGE]
 
 **Problem (discovered 2026-06-29 freshness triage):** Gold corpus is the weakest segment of the valuation pipeline. Bias-corrected freshness measurement (viable datasets only, marketDepth >= 10 comps):
 
@@ -1686,46 +1686,95 @@ if (comp.totalUsd > expected.meltPerOz * expected.weight * 5 && !detectWeightFro
 
 Among 1,481 total gold datasets, 802 (54%) are `LowSignalMarketData` (<10 comps ever). Median viable gold dataset has 20 comps and hasn't seen a sale in 61 days (p75: 82 days). This is not a scraper failure -- secondary fractional gold (Pandas, Lunars, Libertads, fractional Maple Leafs / Eagles) trades primarily through bullion dealers (APMEX, JM Bullion, Provident) and traditional auction houses, not eBay.
 
-**Why PCGS APR (already integrated via `src/services/auctionPriceService.js`) does not solve this:**
+**Composition of existing gold CSVs (15-file sample, 788 rows):** 79% raw / 21% graded titles, with 51% additional blank-title rows that Terapeak hides. Popular US bullion (Gold Eagle, Gold Buffalo) reaches ~40-50% graded share; foreign / fractional gold (Krugerrand, fractional Panda, Libertad) is essentially all raw with sample sizes of 1-10 rows per series.
+
+**Why PCGS APR (already integrated via `src/services/auctionPriceService.js`) helps indirectly:**
 - `GetAPRByGrade` requires `PCGSNo + GradeNo` (integer); no slot for raw lots
 - PCGS APR catalogs auction realizations of PCGS-graded specimens only
-- Cannot ever cover raw / ungraded bullion by design
+- It serves *graded* gold queries directly when populated
+- It can **anchor** raw FMV via grade-premium back-out: `raw_fmv ≈ slabbed_ms69_fmv / (1 + grade_premium)` -- this is the underused leverage
+- It does NOT cover the bullion-grade common-date trade flow (Eagles, Maples) because those rarely go to major auction houses
 
-**Candidate alternative sources (covers raw):**
+**APR cache reality check (measured 2026-06-29):**
+
+| Metric | Count |
+|---|---|
+| PCGS#s in catalog (`pcgsNumbers.js`) | 1,229 |
+| PCGS#s with any APR cache file | 343 (28%) |
+| Cache files with >=1 record | 249 |
+| Total auction records cached | 13,072 |
+| **Gold-bullion PCGS#s in catalog** | **168** |
+| **Gold-bullion PCGS#s with APR cache** | **0 (0%)** |
+
+Root cause: the nightly prefetch in [src/services/prefetchScheduler.js](src/services/prefetchScheduler.js#L121-L131) iterates `extractAllPcgsNumbers()` in file-order of `pcgsNumbers.js` (Lincoln Cents -> Morgan -> Peace -> ... -> Gold Eagle -> Krugerrand last). At ~990 calls/night and ~7,374 catalog combos, the queue has been chewing US silver for ~30 days since #214 went in and has never reached gold. So "leverage existing PCGS APR for gold" cannot happen without a prefetch-priority change.
+
+**Re-evaluation of CoinArchives Pro (after reading their TOS):**
+
+Earlier draft of this entry suggested trialing CoinArchives Pro as the cheapest path. That recommendation was wrong and is withdrawn. CoinArchives Pro [Terms of Service](https://pro.coinarchives.com/terms.php) §2 (verbatim):
+
+> "Information accessed from the Service may not be stored or harvested using automated means. CoinArchives, LLC monitors access and has put into place safeguards to prevent automated harvesting of data."
+
+And §3:
+
+> "Access to the Service may not be sublicensed or otherwise re-sold."
+
+This rules out using CoinArchives Pro as a data pipeline of any kind:
+- Automated extraction is prohibited regardless of whether the final stored output is raw records or only derived coefficients -- "harvesting using automated means" describes the activity, not the persistence outcome
+- API responses derived from their data would constitute sublicense / resale (§3)
+- They have technical safeguards explicitly designed to detect bot patterns; account termination is non-refundable (§5)
+- Subscription is annual-only at US$600/yr (no monthly, no one-time perpetual)
+
+**Legitimate use of CoinArchives Pro (if purchased):** human researcher, one seat, one device, manual sessions only. Output is a *handful of derived numbers* (premium bands for `dealerPremiums.js`) committed to our code; raw records stay on their server. This is a developer research-tools line item (comparable to a Bloomberg seat), not infrastructure. Realistic throughput: 5-15 series tuned per focused hour, 10-20 hours total for top-200 bullion series.
+
+**Candidate alternative sources (covers raw -- if/when needed):**
 
 | Source | Raw coverage | Access | Notes |
 |---|---|---|---|
-| **CoinArchives Pro** | Excellent (world coins focus) | Paid API (subscription) | Single aggregator covering many houses; lowest-effort path |
-| Heritage HA.com | Excellent (US + world) | No public coin API; scrape | ~1-2 weeks/source to build production scraper; Cloudflare anti-bot |
-| NumisBids | Excellent (world bullion focus, ~50 European houses) | No public API; scrape | Best world-bullion coverage; gentler anti-bot than Heritage |
+| Heritage HA.com | Excellent (US + world) | No public coin API; scrape public archive | ~2-3 weeks to build production scraper; Cloudflare anti-bot |
+| NumisBids | Excellent (world bullion focus, ~50 European houses) | No public API; scrape public search | Best world-bullion coverage; gentler anti-bot than Heritage |
 | Stack's Bowers | Yes (US-heavy mix) | No public API; scrape | Lower priority once HA + NumisBids in place |
-| GreatCollections | Mostly slabbed; small raw % | No public API; scrape | Lower priority for raw |
+| Direct API partnership (Heritage / Stack's) | Yes | Business agreement, dealer accounts | Months to negotiate; out of scope for now |
 
-**Recommendation -- evaluate before building:**
+**Recommendation -- ordered by leverage / effort:**
 
-1. **Trial CoinArchives Pro first.** One subscription replaces 2-3 custom scrapers. Validate whether the data actually moves raw-bullion valuation accuracy for our 479 viable gold datasets + 802 low-signal gold datasets. If it does, the subscription cost is trivial vs. multi-week scraper builds.
+1. **Add bullion-priority tier to `prefetchScheduler.buildQueue()`.** Push the 168 gold PCGS#s ahead of remaining US silver in the nightly run. ~10-line code change; gold APR populated within 1-2 nights of merging. Then measure whether APR can serve our graded gold queries and anchor raw-pricing via grade-premium back-out.
 
-2. **Before any new source work, exhaust existing PCGS APR coverage for graded bullion.** BACKLOG #214 enabled world-bullion in the prefetch queue (late May 2026). The graded slice of Krugerrands, Maple Leafs, Pandas, Britannias may already have signal in APR cache that we have not measured. Check `cache/auction_history/` and `cache/apr_manifest.json` coverage for these series first.
+2. **Wire spot+dealer-premium fallback** ([src/services/rawBullionFallback.js](src/services/rawBullionFallback.js) -- NEW). For raw bullion queries with `compCount < THIN_MARKET_THRESHOLD`, fall back to `weight x spot x premium_mid` using `metalsSpotPrice.js` + `dealerPremiums.js`. Tag response as `confidence=LOW, source=spot-premium`. Closes the gap for 638 low-signal gold datasets without new external dependencies.
 
-3. **Tighten `DRY_REFRESH_TIER1/2` cadence for confirmed-thin gold.** Only 8 datasets are currently in dry-refresh backoff (out of 638 low-signal gold). The backoff is underused -- the freshness classifier is sending the operator to retry datasets where eBay genuinely has no data. Net effect: wasted quota.
+3. **Tighten `DRY_REFRESH_TIER1/2` cadence for confirmed-thin gold.** Only 8 datasets are currently in dry-refresh backoff (out of 638 low-signal gold). Backoff is underused -- the freshness classifier still sends the operator to retry datasets where eBay genuinely has no data. Wasted quota.
 
-4. **If trial fails, build NumisBids scraper first** (better world-bullion coverage; lower anti-bot risk than Heritage), Heritage second, Stack's Bowers third.
+4. **(Optional) Purchase one CoinArchives Pro seat for the developer maintaining the pricing model.** Use for manual calibration of `dealerPremiums.js` premium bands. Not a pipeline integration. $600/yr line item. Defer until #1, #2, #3 are shipped and we have data showing premium-band tuning is the next bottleneck.
+
+5. **(If #1-#4 still leave measurable gaps in our raw-bullion FMV accuracy)** scope a NumisBids public-archive scraper as a new backlog item. Heritage second. Stack's third.
 
 **What we should NOT do:**
-- Expand PCGS APR for raw -- physically impossible
-- Build all three scrapers in parallel without evidence the data improves valuations
-- Add new sources before confirming the existing PCGS APR coverage for graded bullion is fully utilized
+- Expand PCGS APR for raw -- physically impossible (slab-only endpoint)
+- Subscribe to CoinArchives Pro as a data feed -- forbidden by their TOS §2 / §3
+- Automate any access to CoinArchives Pro (for "tuning" or any other purpose) -- still §2; activity itself is prohibited regardless of downstream use
+- Build all three auction-house scrapers in parallel without evidence the data improves valuations beyond what spot+premium + APR-gold-prefetch already deliver
 
 **Decision gates (in order):**
-- [ ] Measure current PCGS APR coverage for gold bullion series (recommendation #2)
-- [ ] Adjust dry-refresh backoff cadence (recommendation #3, code-only change)
-- [ ] Request CoinArchives Pro trial; evaluate against 50-sample gold dataset (recommendation #1)
-- [ ] If trial proves out: subscribe + integrate via new `src/services/coinArchivesService.js`
-- [ ] If trial fails: scope NumisBids scraper as new backlog item
+- [ ] #1 Bullion-priority tier in prefetch (code change, ~half day with tests)
+- [ ] Wait 1-2 nights post-merge; re-measure gold APR coverage; report
+- [ ] #2 Spot+premium fallback service + valuationService wiring (~2 days)
+- [ ] #3 DRY_REFRESH cadence tuning (~half day)
+- [ ] Re-run pricing-health on a 100-coin gold sample; compare to pre-changes baseline
+- [ ] #4 Decide whether $600/yr CoinArchives Pro seat is worth it for premium-band calibration
+- [ ] #5 If gaps remain: open a new backlog item for NumisBids scraper
 
-**Files (if/when work begins):** `src/services/coinArchivesService.js` (new), `src/services/valuationService.js` (consume new source in pool resolution), `data/terapeak-meta.json` schema extension for non-eBay record provenance.
+**Files (if/when work begins):**
+- `src/services/prefetchScheduler.js` MOD (bullion priority tier)
+- `src/services/rawBullionFallback.js` NEW (spot+premium fallback service)
+- `src/services/valuationService.js` MOD (consume fallback in pool resolution)
+- `src/schemas/priceResponse.schema.js` MOD (new `source: 'spot-premium'` enum value, new confidence band)
+- `__tests__/rawBullionFallback.test.js` NEW
+- `__tests__/prefetchSchedulerBullionPriority.test.js` NEW
+- `docs/data-dictionary.md` MOD (document fallback source)
+- `docs/ARCHITECTURE.md` MOD (valuation flow diagram)
 
-**Related:** #214 (world-bullion PCGS prefetch -- prerequisite measurement), BACKLOG "Pricing Accuracy" section.
+**Related:**
+- #214 (world-bullion PCGS prefetch -- this was the precondition, but priority ordering means gold still hasn't been touched)
+- BACKLOG "Pricing Accuracy" section
 
 ---
 
