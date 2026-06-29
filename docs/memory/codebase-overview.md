@@ -148,6 +148,11 @@ EBAY_APP_ID, EBAY_CLIENT_SECRET, PCGS_API_KEY, GOLDAPI_KEY, METALS_API_KEY, NUMI
 | `@security-review` | Sub-agent | OWASP-focused security sub-reviewer |
 | `@performance-review` | Sub-agent | Performance bottleneck sub-reviewer |
 
+## Terapeak Operators
+- **H-machine (WSL Surface)**: `scripts/terapeak-operator.sh` -- preflight(login) -> optional login -> preflight(loop) -> freshness pass. Run via `@terapeak-operator` agent.
+- **W-machine (Codespace)**: `scripts/terapeak-operator-codespace.sh` (#200) -- system `python3`, no `~/.env.surface`, default `--max-passes 0` (unlimited loop), single-instance `flock`. Per-pass records appended to `cache/terapeak-runs/{passes,coins}.jsonl` by `scripts/_parse-terapeak-pass.py`; view with `scripts/show-terapeak-runs.sh recent|runs|totals|stop-conditions`.
+- Both operators share randomized batch (15-30) + jittered pause (600s +/- 90s) for anti-detection. Full operator/runbook details in `docs/memory/terapeak-runbook.md`.
+
 ## Background Timers (server.js startup)
 - **Metals polling**: every 30 min (METALS_POLL_MS), records daily history snapshots
 - **Greysheet refresh**: weekly check on startup + 24h re-check interval (GS_REFRESH_DAYS)

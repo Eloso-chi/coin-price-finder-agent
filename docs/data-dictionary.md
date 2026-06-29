@@ -82,6 +82,47 @@ Example:
 
 ---
 
+### cache/terapeak-runs/passes.jsonl, cache/terapeak-runs/coins.jsonl
+
+Append-only JSONL ledger written by `scripts/_parse-terapeak-pass.py` after each pass of `scripts/terapeak-operator-codespace.sh` (#200). Gitignored; survives codespace restart but not codespace deletion. Used by `scripts/show-terapeak-runs.sh` for run history queries.
+
+**`passes.jsonl`** -- one JSON object per pass:
+
+| Field | Type | Privacy | Notes |
+|-------|------|---------|-------|
+| `run_id` | string | Public | `YYYYMMDDTHHMMSSZ-<pid>` from operator launch |
+| `machine` | string | Public | `W` (codespace) for entries written by `terapeak-operator-codespace.sh` |
+| `pass` | number | Public | 1-indexed pass number within the run |
+| `batch_size` | number | Public | Randomized batch for this pass (15-30 default) |
+| `attempted` | number | Public | Coins attempted in this pass |
+| `succeeded` | number | Public | Coins that returned a non-empty result |
+| `empty` | number | Public | Coins that returned zero comps |
+| `failed` | number | Public | Coins that errored out (network, parse, captcha, etc.) |
+| `dormant` | number | Public | Coins skipped because the freshness classifier flagged them dormant |
+| `new_rows` | number | Public | Sum of new comp rows added across all coins this pass |
+| `dup_rows` | number | Public | Sum of duplicate rows skipped across all coins this pass |
+| `duration_sec` | number | Public | Wall-clock seconds from pass start to pass end |
+| `started_at` | ISO 8601 | Public | Pass start timestamp (UTC) |
+| `ended_at` | ISO 8601 | Public | Pass end timestamp (UTC) |
+| `exit_code` | number | Public | Exit code of the underlying `terapeak-export.py` invocation |
+| `stop_reason` | string or null | Public | Why the run ended after this pass (`cap-reached`, `pass-failure`, `cookie-degrade`, or null if the run continued) |
+
+**`coins.jsonl`** -- one JSON object per coin attempt within a pass:
+
+| Field | Type | Privacy | Notes |
+|-------|------|---------|-------|
+| `run_id` | string | Public | Matches the parent pass record |
+| `pass` | number | Public | Pass number this attempt belongs to |
+| `idx` | number | Public | 1-indexed position within the pass batch |
+| `coin` | string | Public | Search term (Terapeak query) attempted |
+| `status` | string | Public | `ok` / `empty` / `failed` / `dormant` |
+| `new` | number | Public | New rows added from this coin |
+| `dups` | number | Public | Duplicate rows skipped |
+
+**Use:** Operator forensics and longitudinal yield tracking. Parse failures in `_parse-terapeak-pass.py` log to stderr but never fail the operator loop. Schemas are append-only and best-effort; new fields may be added in later operator versions.
+
+---
+
 ### data/terapeak-meta.json
 
 Keyed by Terapeak search term (lowercase, e.g., "morgan dollar"). Tracks refresh history and freshness metrics:
