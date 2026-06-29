@@ -1674,6 +1674,61 @@ if (comp.totalUsd > expected.meltPerOz * expected.weight * 5 && !detectWeightFro
 
 ---
 
+### 263. Raw / Ungraded Gold Auction Data -- Investigate CoinArchives Pro Before Building Scrapers [P2 -- DATA COVERAGE]
+
+**Problem (discovered 2026-06-29 freshness triage):** Gold corpus is the weakest segment of the valuation pipeline. Bias-corrected freshness measurement (viable datasets only, marketDepth >= 10 comps):
+
+| Metal | Viable datasets | Fresh % | Stale % |
+|---|---|---|---|
+| Other | 988 | 60% | 40% |
+| Silver | 1,291 | 44% | 56% |
+| **Gold** | **479** | **8%** | 92% |
+
+Among 1,481 total gold datasets, 802 (54%) are `LowSignalMarketData` (<10 comps ever). Median viable gold dataset has 20 comps and hasn't seen a sale in 61 days (p75: 82 days). This is not a scraper failure -- secondary fractional gold (Pandas, Lunars, Libertads, fractional Maple Leafs / Eagles) trades primarily through bullion dealers (APMEX, JM Bullion, Provident) and traditional auction houses, not eBay.
+
+**Why PCGS APR (already integrated via `src/services/auctionPriceService.js`) does not solve this:**
+- `GetAPRByGrade` requires `PCGSNo + GradeNo` (integer); no slot for raw lots
+- PCGS APR catalogs auction realizations of PCGS-graded specimens only
+- Cannot ever cover raw / ungraded bullion by design
+
+**Candidate alternative sources (covers raw):**
+
+| Source | Raw coverage | Access | Notes |
+|---|---|---|---|
+| **CoinArchives Pro** | Excellent (world coins focus) | Paid API (subscription) | Single aggregator covering many houses; lowest-effort path |
+| Heritage HA.com | Excellent (US + world) | No public coin API; scrape | ~1-2 weeks/source to build production scraper; Cloudflare anti-bot |
+| NumisBids | Excellent (world bullion focus, ~50 European houses) | No public API; scrape | Best world-bullion coverage; gentler anti-bot than Heritage |
+| Stack's Bowers | Yes (US-heavy mix) | No public API; scrape | Lower priority once HA + NumisBids in place |
+| GreatCollections | Mostly slabbed; small raw % | No public API; scrape | Lower priority for raw |
+
+**Recommendation -- evaluate before building:**
+
+1. **Trial CoinArchives Pro first.** One subscription replaces 2-3 custom scrapers. Validate whether the data actually moves raw-bullion valuation accuracy for our 479 viable gold datasets + 802 low-signal gold datasets. If it does, the subscription cost is trivial vs. multi-week scraper builds.
+
+2. **Before any new source work, exhaust existing PCGS APR coverage for graded bullion.** BACKLOG #214 enabled world-bullion in the prefetch queue (late May 2026). The graded slice of Krugerrands, Maple Leafs, Pandas, Britannias may already have signal in APR cache that we have not measured. Check `cache/auction_history/` and `cache/apr_manifest.json` coverage for these series first.
+
+3. **Tighten `DRY_REFRESH_TIER1/2` cadence for confirmed-thin gold.** Only 8 datasets are currently in dry-refresh backoff (out of 638 low-signal gold). The backoff is underused -- the freshness classifier is sending the operator to retry datasets where eBay genuinely has no data. Net effect: wasted quota.
+
+4. **If trial fails, build NumisBids scraper first** (better world-bullion coverage; lower anti-bot risk than Heritage), Heritage second, Stack's Bowers third.
+
+**What we should NOT do:**
+- Expand PCGS APR for raw -- physically impossible
+- Build all three scrapers in parallel without evidence the data improves valuations
+- Add new sources before confirming the existing PCGS APR coverage for graded bullion is fully utilized
+
+**Decision gates (in order):**
+- [ ] Measure current PCGS APR coverage for gold bullion series (recommendation #2)
+- [ ] Adjust dry-refresh backoff cadence (recommendation #3, code-only change)
+- [ ] Request CoinArchives Pro trial; evaluate against 50-sample gold dataset (recommendation #1)
+- [ ] If trial proves out: subscribe + integrate via new `src/services/coinArchivesService.js`
+- [ ] If trial fails: scope NumisBids scraper as new backlog item
+
+**Files (if/when work begins):** `src/services/coinArchivesService.js` (new), `src/services/valuationService.js` (consume new source in pool resolution), `data/terapeak-meta.json` schema extension for non-eBay record provenance.
+
+**Related:** #214 (world-bullion PCGS prefetch -- prerequisite measurement), BACKLOG "Pricing Accuracy" section.
+
+---
+
 ## Scraper Performance -- Additional Open Items
 
 ### ~~198. Smart SPA Render Wait Instead of 3s Hard Pause [DONE]~~
