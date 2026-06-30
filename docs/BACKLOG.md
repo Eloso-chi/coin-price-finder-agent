@@ -1826,9 +1826,27 @@ Ops can override to any value (e.g., `BROWSER_RECYCLE_EVERY=40 python scripts/te
 
 ---
 
-### 228. Page 1 Refresh Run -- Libertads, ASEs, Perth Lunars [P1]
+### ~~228. Page 1 Refresh Run -- Libertads, ASEs, Perth Lunars [P1 -- SUPERSEDED 2026-06-30]~~
 
 > Originally memory #183 -- renumbered to avoid collision with backlog #183 (Designation-Aware Comp Scoring -- DONE).
+
+> **2026-06-30 CLOSURE -- SUPERSEDED by infrastructure.** The original framing (one-time manual catchup) has been overtaken by three landed pieces of infrastructure: (1) PR #229's `freshnessClassifier` -- single source of truth for skip-thin / skip-dormant / dry-refresh-backoff; (2) the continuous surface-freshness loop (`scripts/run-surface-freshness-loop.sh`) which rotates through stale year-specific keys daily; (3) the `low_volume_candidate` classifier in `data/terapeak-meta.json` which correctly parks rare bullion entries after 2-4 dry runs.
+>
+> **Reassessment of remaining work (2026-06-30, against current `data/terapeak-meta.json`):**
+>
+> | Series | <30d | 30-60d | 60-90d | 90-180d | >=180d | No data |
+> |---|---:|---:|---:|---:|---:|---:|
+> | ASE (74) | 61 | 7 | 0 | 6 | 0 | 0 |
+> | Libertad (453) | 54 | 113 | 146 | 134 | 3 | 3 |
+> | Lunar (423) | 51 | 55 | 98 | 129 | 12 | 78 |
+>
+> - ASE 6 "stale" entries are misshapen keys (`1997 1997oz american eagle silver` typo, multi-oz proofs with 1-2 comps) -- data-model issues, not refresh issues.
+> - All Libertad/Lunar entries with `newestSaleDate: null` carry `noDataAt` + `noDataCount: 2-4` and `is_low_volume_candidate: true` -- they have been attempted and correctly parked. Sample: `1998 1oz gold libertad mexican` (4/4 dry runs), `1oz 2022 gold lunar perth tiger` (2/2 dry runs).
+> - Entries in the 90-180d band are being naturally serviced by the continuous loop.
+>
+> Running `python3 scripts/sales-aggregator.py --filter "Perth Lunar"` today would thrash ~200 keys already classified low-volume and return zero new comps. No actionable work remains.
+>
+> Cross-reference: #229 (the "blocks #228" entry above -- actually obsoletes it). Future refresh gaps will be surfaced by `/api/admin/stale-datasets` and serviced by the loop; no separate backlog item needed.
 
 **Problem:** Three highest-volume bullion series age quickly. New sold listings appear daily and aren't in current page-1 data.
 
@@ -2870,7 +2888,9 @@ Gated on data: run pricing-health across a Reverse-Proof slate (2023 RP Morgan, 
 
 ---
 
-### #270W. Restore proper raw-bullion FMV without pool merging [P1 -- DATA-QUALITY] -- OPEN 2026-06-23
+### #270W. Recover raw-bullion comp signal post-#186 [P2 -- DATA-QUALITY] -- OPEN 2026-06-23 (demoted P1->P2 2026-06-30)
+
+> **2026-06-30 priority change:** The P1 safety case (raw + graded pool pollution risk) was closed by PR #186 (Option #4 -- honest insufficient-comps return, merge SHA `faa852f`). The strict-isolation guarantees in the Hard Constraints below are now enforced by code and tests; thin raw pools return `fmvCore: null` instead of leaking graded comps. Remaining work (Options #1, #2, #3, #5) is comp-recovery -- recovering signal from sparse raw-bullion pools through adaptive lookback, better scraper seeding, two-pool surfacing, or per-pool gate tuning. That's data-quality improvement, not safety, so demoted P1 -> P2.
 
 **Context:** Replaces the reverted #252. The original symptom is real and still on the table: the 2026-06-04 Maple pricing-health run had 9/13 RED rows on 1oz Gold Maple Leaf datasets, with `prefilterStrikeSplit` as the top drop bucket (1-45 comps per dataset, worst case 2025 Maple Leaf at 164 gathered / 3 survived / 98.2% attrition). PR #154 attempted to fix this by merging the `graded` and `raw` pools for >=1oz bullion. That approach was reverted on 2026-06-23 because it violates the pool-isolation contract in `docs/memory/numismatic-terminology.md` -- raw, graded, and proof are three distinct pools as observed by `classifyGradeType()`, and modern bullion series still contain scarce dates / varieties / first-year issues where the cross-pool dispersion is wide enough to make a blended FMV wrong for both pools.
 
