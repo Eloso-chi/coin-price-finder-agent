@@ -230,6 +230,69 @@ See `coinTestConstants.js` selectCoins() for full list and loading logic.
 
 ---
 
+## PCGS Number Reference Tables (src/data/pcgsNumbers.js)
+
+Hard-coded lookup tables mapping `(series, year, mint)` to canonical **PCGS
+coin numbers** (a.k.a. PCGS#). These numbers are the input to PCGS's
+Photograde / Price Guide / Population API endpoints and to the local prefetch
+scheduler (`src/services/prefetchScheduler.js`).
+
+**Schema (every table):**
+
+```js
+const SERIES_NAME = {
+  <year>: { <mint>: <pcgsNumber>, ... },
+  // Optional suffixed keys for varieties: P_HR_WIRE, S_NO_MOTTO, S_OVERDATE, etc.
+  // Suffixed keys are picked up by extractAllPcgsNumbers() (Phase 3 prefetch)
+  // but bypass the canonical lookupPCGSNumber(series, year, mint) accessor.
+};
+```
+
+**Lookup contract:**
+
+| Function | Inputs | Output |
+|---|---|---|
+| `lookupPCGSNumber(series, year, mint)` | series name (free text), 4-digit year, mint mark ('', 'D', 'S', 'CC', 'O', 'W') | Numeric PCGS# or `null` |
+
+Series-name routing lives in `SERIES_MAP` (ordered regex list -- specific
+patterns first, generic denomination fallbacks last).
+
+**Coverage (PR-2a, 2026-06-30):** 170/210 KEY_DATES entries resolve (81%),
+up from 107/209 (51%) pre-PR. Remaining unresolved entries are mostly modern
+series (Chinese Panda, Jefferson Nickel, Kennedy/Roosevelt/Lincoln modern key
+dates), niche world bullion (Polar Bear, Philharmonic, Kookaburra), and
+2026 Semiquincentennial releases.
+
+**Classic US tables added in PR-2a:**
+
+| Table | Denom | Years | PCGS Source URL |
+|---|---|---|---|
+| `BARBER_DIME` | 10c | 1892-1916 | https://www.pcgs.com/pcgsnolookup/barber-dime/702 |
+| `BARBER_QUARTER` | 25c | 1892-1916 | https://www.pcgs.com/pcgsnolookup/barber-quarter/716 |
+| `BARBER_HALF` | 50c | 1892-1915 | https://www.pcgs.com/pcgsnolookup/barber-half-dollar/732 |
+| `STANDING_LIBERTY_QUARTER` | 25c | 1916-1930 | https://www.pcgs.com/pcgsnolookup/standing-liberty-quarter/111 |
+| `SEATED_LIBERTY_DOLLAR` | $1 | 1840-1873 | https://www.pcgs.com/pcgsnolookup/liberty-seated-dollar/29 |
+| `LIBERTY_HEAD_HALF_EAGLE` | $5 | 1839-1908 | https://www.pcgs.com/pcgsnolookup/liberty-head-half-eagle/61 |
+| `INDIAN_HEAD_HALF_EAGLE` | $5 | 1908-1929 | https://www.pcgs.com/pcgsnolookup/indian-head-half-eagle/771 |
+| `INDIAN_HEAD_EAGLE` | $10 | 1907-1933 | https://www.pcgs.com/pcgsnolookup/indian-head-eagle/65 |
+| `LIBERTY_DOUBLE_EAGLE` | $20 | 1849-1907 | https://www.pcgs.com/pcgsnolookup/liberty-head-double-eagle/66 |
+| `SAINT_GAUDENS_DOUBLE_EAGLE` | $20 | 1907-1933 | https://www.pcgs.com/pcgsnolookup/saint-gaudens-double-eagle/67 |
+
+**Suffixed variety keys** (extracted for Phase 3 prefetch only -- not surfaced
+by `lookupPCGSNumber`): `P_HR_WIRE`, `P_HR_FLAT`, `P_MOTTO`, `D_MOTTO`,
+`P_NO_MOTTO`, `D_NO_MOTTO`, `S_NO_MOTTO`, `S_PAQUET`, `S_OVERDATE`,
+`P_T2`, `D_T2`, `S_T2`, `P_FS401`, `P_WIRE_RIM`, `P_WIRE_RIM_EDGE_STARS`,
+`P_PROOF` (used for the 1849 Liberty DE pattern-only specimen, PCGS#71908).
+
+**Ordering rules in `SERIES_MAP`** (critical for correctness):
+1. Saint-Gaudens before Liberty Double Eagle (both share 1907 dates).
+2. Indian Half Eagle before Indian Eagle ("indian half eagle" must not hit the $10 table).
+3. Standing Liberty Quarter before generic `\bquarter\b` (-> Washington) fallback.
+4. Seated Liberty Dollar before generic `\bdollar\b` fallback.
+5. Barber Dime/Quarter/Half before generic `\bdime\b`/`\bquarter\b`/`\bhalf\s*dollar\b` fallbacks.
+
+---
+
 ## Azure Key Vault Secrets (if configured)
 
 | Secret Name | Env Var | Type | Used By |

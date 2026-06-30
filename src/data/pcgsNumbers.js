@@ -289,6 +289,441 @@ const EISENHOWER = {
 };
 
 // ══════════════════════════════════════════════════════════════
+// CLASSIC US — Barber Dime (1892-1916)
+// Source: PCGS PCGS-Number Lookup, category 702
+//   https://www.pcgs.com/pcgsnolookup/barber-dime-1892-1916/702
+// Designation: MS (business strikes). PR entries omitted.
+// 1894-S (4805): 24 minted, ~9 known; legendary key date.
+// ══════════════════════════════════════════════════════════════
+const BARBER_DIME = {
+  1892: { P: 4796, O: 4797, S: 4798 },
+  1893: { P: 4800, O: 4801, S: 4802 },
+  1894: { P: 4803, O: 4804, S: 4805 },
+  1895: { P: 4806, O: 4807, S: 4808 },
+  1896: { P: 4809, O: 4810, S: 4811 },
+  1897: { P: 4812, O: 4813, S: 4814 },
+  1898: { P: 4815, O: 4816, S: 4817 },
+  1899: { P: 4818, O: 4819, S: 4820 },
+  1900: { P: 4821, O: 4822, S: 4823 },
+  1901: { P: 4824, O: 4825, S: 4826 },
+  1902: { P: 4827, O: 4828, S: 4829 },
+  1903: { P: 4830, O: 4831, S: 4832 },
+  1904: { P: 4833, S: 4834 },
+  1905: { P: 4835, O: 4836, S: 4837 },                // 1905-O Micro O variety = 94836 (Phase 3)
+  1906: { P: 4838, D: 4839, O: 4840, S: 4841 },
+  1907: { P: 4842, D: 4843, O: 4844, S: 4845 },
+  1908: { P: 4846, D: 4847, O: 4848, S: 4849 },
+  1909: { P: 4850, D: 4851, O: 4852, S: 4853 },
+  1910: { P: 4854, D: 4855, S: 4856 },
+  1911: { P: 4857, D: 4858, S: 4859 },
+  1912: { P: 4860, D: 4861, S: 4862 },
+  1913: { P: 4863, S: 4864 },
+  1914: { P: 4865, D: 4866, S: 4867 },
+  1915: { P: 4868, S: 4869 },
+  1916: { P: 4870, S: 4871 },                          // 1916 Barber (Mercury also began this year)
+};
+
+// ══════════════════════════════════════════════════════════════
+// CLASSIC US — Barber Quarter (1892-1916)
+// Source: PCGS PCGS-Number Lookup, category 716
+//   https://www.pcgs.com/pcgsnolookup/barber-quarter-1892-1916/716
+// Designation: MS. Type-I / Type-II 1892 reverse varieties live in PCGS
+// CoinFacts; default uses the canonical MS number per year/mint.
+// ══════════════════════════════════════════════════════════════
+const BARBER_QUARTER = {
+  1892: { P: 5601, O: 5602, S: 5603 },
+  1893: { P: 5604, O: 5605, S: 5606 },
+  1894: { P: 5607, O: 5608, S: 5609 },
+  1895: { P: 5610, O: 5611, S: 5612 },
+  1896: { P: 5613, O: 5614, S: 5615 },
+  1897: { P: 5616, O: 5617, S: 5618 },
+  1898: { P: 5619, O: 5620, S: 5621 },
+  1899: { P: 5622, O: 5623, S: 5624 },
+  1900: { P: 5625, O: 5626, S: 5627 },
+  1901: { P: 5628, O: 5629, S: 5630 },
+  1902: { P: 5631, O: 5632, S: 5633 },
+  1903: { P: 5634, O: 5635, S: 5636 },
+  1904: { P: 5637, O: 5638 },
+  1905: { P: 5639, O: 5640, S: 5641 },
+  1906: { P: 5642, D: 5643, O: 5644 },
+  1907: { P: 5645, D: 5646, O: 5647, S: 5648 },
+  1908: { P: 5649, D: 5650, O: 5651, S: 5652 },
+  1909: { P: 5653, D: 5654, O: 5655, S: 5656 },
+  1910: { P: 5657, D: 5658 },
+  1911: { P: 5659, D: 5660, S: 5661 },
+  1912: { P: 5662, S: 5663 },
+  1913: { P: 5664, D: 5665, S: 5666 },
+  1914: { P: 5667, D: 5668, S: 5669 },
+  1915: { P: 5670, D: 5671, S: 5672 },
+  1916: { P: 5673, D: 5674 },                          // 1916 Barber (Standing Liberty also began 1916)
+};
+
+// ══════════════════════════════════════════════════════════════
+// CLASSIC US — Barber Half Dollar (1892-1915)
+// Source: PCGS PCGS-Number Lookup, category 732
+//   https://www.pcgs.com/pcgsnolookup/barber-half-dollar-1892-1915/732
+// Designation: MS. 1892-O Micro O variety = 6463 (Phase 3 pickup).
+// ══════════════════════════════════════════════════════════════
+const BARBER_HALF = {
+  1892: { P: 6461, O: 6462, S: 6464 },
+  1893: { P: 6465, O: 6466, S: 6467 },
+  1894: { P: 6468, O: 6469, S: 6470 },
+  1895: { P: 6471, O: 6472, S: 6473 },
+  1896: { P: 6474, O: 6475, S: 6476 },
+  1897: { P: 6477, O: 6478, S: 6479 },
+  1898: { P: 6480, O: 6481, S: 6482 },
+  1899: { P: 6483, O: 6484, S: 6485 },
+  1900: { P: 6486, O: 6487, S: 6488 },
+  1901: { P: 6489, O: 6490, S: 6491 },
+  1902: { P: 6492, O: 6493, S: 6494 },
+  1903: { P: 6495, O: 6496, S: 6497 },
+  1904: { P: 6498, O: 6499, S: 6500 },
+  1905: { P: 6501, O: 6502, S: 6503 },
+  1906: { P: 6504, D: 6505, O: 6506, S: 6507 },
+  1907: { P: 6508, D: 6509, O: 6510, S: 6511 },
+  1908: { P: 6512, D: 6513, O: 6514, S: 6515 },
+  1909: { P: 6516, O: 6517, S: 6518 },
+  1910: { P: 6519, S: 6520 },
+  1911: { P: 6521, D: 6522, S: 6523 },
+  1912: { P: 6524, D: 6525, S: 6526 },
+  1913: { P: 6527, D: 6528, S: 6529 },
+  1914: { P: 6530, S: 6531 },
+  1915: { P: 6532, D: 6533, S: 6534 },
+};
+
+// ══════════════════════════════════════════════════════════════
+// CLASSIC US — Standing Liberty Quarter (1916-1930)
+// Source: PCGS PCGS-Number Lookup, category 111
+//   https://www.pcgs.com/pcgsnolookup/standing-liberty-quarter-1916-1930/111
+// Variety conventions:
+//   1917 -- Type 1 (5706/5708/5710) default per (year,mint). Type 2
+//     numbers stored under *_T2 suffixes so extractAllPcgsNumbers()
+//     picks them up for Phase 3 prefetch.
+//   1918-S -- 5724 default (regular). 1918/7-S overdate = 5726 stored
+//     under S_OVERDATE.
+//   1930 FS-401 "Incomplete Shield" = 929363 stored under P_FS401.
+// 1916 -- only 52,000 minted, major key.
+// ══════════════════════════════════════════════════════════════
+const STANDING_LIBERTY_QUARTER = {
+  1916: { P: 5704 },
+  1917: { P: 5706, D: 5708, S: 5710, P_T2: 5714, D_T2: 5716, S_T2: 5718 },
+  1918: { P: 5720, D: 5722, S: 5724, S_OVERDATE: 5726 },
+  1919: { P: 5728, D: 5730, S: 5732 },
+  1920: { P: 5734, D: 5736, S: 5738 },
+  1921: { P: 5740 },
+  1923: { P: 5742, S: 5744 },
+  1924: { P: 5746, D: 5748, S: 5750 },
+  1925: { P: 5752 },
+  1926: { P: 5754, D: 5756, S: 5758 },
+  1927: { P: 5760, D: 5762, S: 5764 },
+  1928: { P: 5766, D: 5768, S: 5770 },
+  1929: { P: 5772, D: 5774, S: 5776 },
+  1930: { P: 5778, S: 5780, P_FS401: 929363 },
+};
+
+// ══════════════════════════════════════════════════════════════
+// CLASSIC US — Seated Liberty Dollar (1840-1873)
+// Source: PCGS PCGS-Number Lookup, category 29
+//   https://www.pcgs.com/pcgsnolookup/liberty-seated-dollar-1836-1873/29
+// Notes:
+//   Series struck 1840-1873 (1836-1839 are Gobrecht patterns/proofs).
+//   1858 was proof-only (no business strikes), so no MS entry.
+//   1866 default = 6959 (Motto). No-Motto 1866 (8300 equivalent) doesn't
+//     exist for dollars -- the 1866 dollar only has Motto type for MS.
+//   Key dates: 1870-S, 1871-CC, 1873-CC.
+// ══════════════════════════════════════════════════════════════
+const SEATED_LIBERTY_DOLLAR = {
+  1840: { P: 6926 },
+  1841: { P: 6927 },
+  1842: { P: 6928 },
+  1843: { P: 6929 },
+  1844: { P: 6930 },
+  1845: { P: 6931 },
+  1846: { P: 6932, O: 6933 },
+  1847: { P: 6934 },
+  1848: { P: 6935 },
+  1849: { P: 6936 },
+  1850: { P: 6937, O: 6938 },
+  1851: { P: 6939 },
+  1852: { P: 6940 },
+  1853: { P: 6941 },
+  1854: { P: 6942 },
+  1855: { P: 6943 },
+  1856: { P: 6944 },
+  1857: { P: 6945 },
+  1859: { P: 6946, O: 6947, S: 6948 },
+  1860: { P: 6949, O: 6950 },
+  1861: { P: 6951 },
+  1862: { P: 6952 },
+  1863: { P: 6953 },
+  1864: { P: 6954 },
+  1865: { P: 6955 },
+  1866: { P: 6959 },                                   // 1866 Motto (default; no MS No-Motto for dollars)
+  1867: { P: 6960 },
+  1868: { P: 6961 },
+  1869: { P: 6962 },
+  1870: { P: 6963, CC: 6964, S: 6965 },                // 1870-S: ~12 known, legendary
+  1871: { P: 6966, CC: 6967 },                          // 1871-CC: only 1,376 minted
+  1872: { P: 6968, CC: 6969, S: 6970 },
+  1873: { P: 6971, CC: 6972 },                          // 1873-CC: 2,300 minted; last CC seated dollar
+};
+
+// ══════════════════════════════════════════════════════════════
+// CLASSIC US GOLD — Liberty Head Half Eagle ($5, 1839-1908)
+// Source: PCGS PCGS-Number Lookup, category 61
+//   https://www.pcgs.com/pcgsnolookup/liberty-head-5-1839-1908/61
+// Variety conventions:
+//   1866-S has both No-Motto (8300) and With-Motto (8312) varieties.
+//     Default 1866-S = 8312 (Motto, more common). No-Motto stored as
+//     S_NO_MOTTO so it lands in Phase 3 via extractAllPcgsNumbers.
+//   1842 Large/Small Letters, 1843-O Large/Small Letters, etc. --
+//     default uses the canonical first listing per year/mint.
+// Key dates: 1875 (200 business strikes), 1875-CC.
+// ══════════════════════════════════════════════════════════════
+const LIBERTY_HEAD_HALF_EAGLE = {
+  1839: { P: 8191, C: 8192, D: 8193 },
+  1840: { P: 8194, C: 8196, D: 8198, O: 8200 },
+  1841: { P: 8202, C: 8203, D: 8204 },
+  1842: { P: 8206, C: 8209, D: 8210, O: 8212 },
+  1843: { P: 8213, C: 8214, D: 8215, O: 8216 },
+  1844: { P: 8219, C: 8220, D: 8221, O: 8222 },
+  1845: { P: 8223, D: 8224, O: 8225 },
+  1846: { P: 8226, C: 8227, D: 8228, O: 8230 },
+  1847: { P: 8231, C: 8233, D: 8234, O: 8235 },
+  1848: { P: 8236, C: 8237, D: 8238 },
+  1849: { P: 8240, C: 8241, D: 8242 },
+  1850: { P: 8243, C: 8244, D: 8245 },
+  1851: { P: 8246, C: 8247, D: 8248, O: 8249 },
+  1852: { P: 8250, C: 8251, D: 8252 },
+  1853: { P: 8253, C: 8254, D: 8255 },
+  1854: { P: 8256, C: 8257, D: 8258, O: 8259, S: 8260 },
+  1855: { P: 8261, C: 8262, D: 8263, O: 8264, S: 8265 },
+  1856: { P: 8266, C: 8267, D: 8268, O: 8269, S: 8270 },
+  1857: { P: 8271, C: 8272, D: 8273, O: 8274, S: 8275 },
+  1858: { P: 8276, C: 8277, D: 8278, S: 8279 },
+  1859: { P: 8280, C: 8281, D: 8282, S: 8283 },
+  1860: { P: 8284, C: 8285, D: 8286, S: 8287 },
+  1861: { P: 8288, C: 8289, D: 8290, S: 8291 },
+  1862: { P: 8292, S: 8293 },
+  1863: { P: 8294, S: 8295 },
+  1864: { P: 8296, S: 8297 },
+  1865: { P: 8298, S: 8299 },
+  1866: { P: 8311, S: 8312, S_NO_MOTTO: 8300 },        // 1866 Motto (P/S); No-Motto S = 8300
+  1867: { P: 8313, S: 8314 },
+  1868: { P: 8315, S: 8316 },
+  1869: { P: 8317, S: 8318 },
+  1870: { P: 8319, CC: 8320, S: 8321 },
+  1871: { P: 8322, CC: 8323, S: 8324 },
+  1872: { P: 8325, CC: 8326, S: 8327 },
+  1873: { P: 8328, CC: 8331, S: 8332 },
+  1874: { P: 8333, CC: 8334, S: 8335 },
+  1875: { P: 8336, CC: 8337, S: 8338 },                // 1875-P: only 200 business strikes
+  1876: { P: 8339, CC: 8340, S: 8341 },
+  1877: { P: 8342, CC: 8343, S: 8344 },
+  1878: { P: 8345, CC: 8346, S: 8347 },
+  1879: { P: 8348, CC: 8349, S: 8350 },
+  1880: { P: 8351, CC: 8352, S: 8353 },
+  1881: { P: 8354, CC: 8356, S: 8357 },
+  1882: { P: 8358, CC: 8359, S: 8360 },
+  1883: { P: 8361, CC: 8362, S: 8363 },
+  1884: { P: 8364, CC: 8365, S: 8366 },
+  1885: { P: 8367, S: 8368 },
+  1886: { P: 8369, S: 8370 },
+  1887: { S: 8371 },                                    // 1887 proof-only at Philadelphia
+  1888: { P: 8372, S: 8373 },
+  1889: { P: 8374 },
+  1890: { P: 8375, CC: 8376 },
+  1891: { P: 8377, CC: 8378 },
+  1892: { P: 8379, CC: 8380, O: 8381, S: 8382 },
+  1893: { P: 8383, CC: 8384, O: 8385, S: 8386 },
+  1894: { P: 8387, O: 8388, S: 8389 },
+  1895: { P: 8390, S: 8391 },
+  1896: { P: 8392, S: 8393 },
+  1897: { P: 8394, S: 8395 },
+  1898: { P: 8396, S: 8397 },
+  1899: { P: 8398, S: 8399 },
+  1900: { P: 8400, S: 8401 },
+  1901: { P: 8402, S: 8404 },
+  1902: { P: 8405, S: 8406 },
+  1903: { P: 8407, S: 8408 },
+  1904: { P: 8409, S: 8410 },
+  1905: { P: 8411, S: 8412 },
+  1906: { P: 8413, D: 8414, S: 8415 },
+  1907: { P: 8416, D: 8417 },
+  1908: { P: 8418 },                                    // 1908 Liberty (Indian $5 also began 1908)
+};
+
+// ══════════════════════════════════════════════════════════════
+// CLASSIC US GOLD — Indian Head Half Eagle ($5, 1908-1929)
+// Source: PCGS PCGS-Number Lookup, category 771
+//   https://www.pcgs.com/pcgsnolookup/indian-5-1908-1929/771
+// Designation: MS. No motto split (Motto was used throughout series).
+// Key dates: 1909-O (only O-mint Indian $5; 34,200 minted; semi-key).
+// 1929 = last year of series.
+// ══════════════════════════════════════════════════════════════
+const INDIAN_HEAD_HALF_EAGLE = {
+  1908: { P: 8510, D: 8511, S: 8512 },
+  1909: { P: 8513, D: 8514, O: 8515, S: 8516 },        // 1909-O: only O-mint Indian $5
+  1910: { P: 8517, D: 8518, S: 8519 },
+  1911: { P: 8520, D: 8521, S: 8522 },
+  1912: { P: 8523, S: 8524 },                          // 1912-S Weak S = 88524 (Phase 3)
+  1913: { P: 8525, S: 8526 },
+  1914: { P: 8527, D: 8528, S: 8529 },
+  1915: { P: 8530, S: 8531 },
+  1916: { S: 8532 },
+  1929: { P: 8533 },                                    // Last year; 662K minted but most melted
+};
+
+// ══════════════════════════════════════════════════════════════
+// CLASSIC US GOLD — Indian Head Eagle ($10, 1907-1933)
+// Source: PCGS PCGS-Number Lookup, category 65
+//   https://www.pcgs.com/pcgsnolookup/indian-10-1907-1933/65
+// Variety conventions:
+//   1907 -- 8852 (regular) is the default. Wire Rim varieties:
+//     8850 (Wire Rim) and 98850 (Wire Rim Irregular Edge Stars)
+//     stored under P_WIRE_RIM and P_WIRE_RIM_EDGE_STARS.
+//   1908 -- 8859 (Motto) default for P; 8860 (Motto) for D.
+//     No-Motto stored under *_NO_MOTTO suffixes for Phase 3.
+// Key dates: 1907 (Wire Rim variety semi-key), 1911-D, 1933.
+// 1933 = key date (only ~30 known, melted under FDR gold recall).
+// ══════════════════════════════════════════════════════════════
+const INDIAN_HEAD_EAGLE = {
+  1907: { P: 8852, P_WIRE_RIM: 8850, P_WIRE_RIM_EDGE_STARS: 98850 },
+  1908: { P: 8859, D: 8860, S: 8861, P_NO_MOTTO: 8853, D_NO_MOTTO: 8854 },
+  1909: { P: 8862, D: 8863, S: 8864 },
+  1910: { P: 8865, D: 8866, S: 8867 },
+  1911: { P: 8868, D: 8869, S: 8870 },                 // 1911-D: 30K minted, semi-key
+  1912: { P: 8871, S: 8872 },
+  1913: { P: 8873, S: 8874 },
+  1914: { P: 8875, D: 8876, S: 8877 },
+  1915: { P: 8878, S: 8879 },
+  1916: { S: 8880 },
+  1920: { S: 8881 },
+  1926: { P: 8882 },
+  1930: { S: 8883 },
+  1932: { P: 8884 },
+  1933: { P: 8885 },                                    // ~30 known; FDR gold recall melted most
+};
+
+// ══════════════════════════════════════════════════════════════
+// CLASSIC US GOLD — Liberty Head Double Eagle ($20, 1849-1907)
+// Source: PCGS PCGS-Number Lookup, category 66
+//   https://www.pcgs.com/pcgsnolookup/liberty-head-20-1849-1907/66
+// Variety conventions:
+//   1849 -- proof-only (PCGS 71908; mintage 1, Smithsonian piece).
+//     Stored under P_PROOF so the value is extractable but a regular
+//     lookup of ('liberty double eagle', 1849, 'P') returns null.
+//   1866 motto split: P/S have both varieties. Default = Motto
+//     (8949 P, 8950 S). No-Motto stored under *_NO_MOTTO.
+//   1873 Open 3 = 8967 default. Closed 3 = 8969 (S, Open: 8979).
+//   1907 = 9052 Liberty type; Saint-Gaudens 1907 lives in its own table.
+// Key dates: 1849, 1854-O, 1856-O, 1861-S Paquet, 1870-CC.
+// ══════════════════════════════════════════════════════════════
+const LIBERTY_DOUBLE_EAGLE = {
+  1849: { P_PROOF: 71908 },                             // ONLY proof exists; mintage 1
+  1850: { P: 8902, O: 8903 },
+  1851: { P: 8904, O: 8905 },
+  1852: { P: 8906, O: 8907 },
+  1853: { P: 8908, O: 8910 },
+  1854: { P: 8911, O: 8912, S: 8913 },                 // 1854-O: 3,250 minted; major rarity
+  1855: { P: 8914, O: 8915, S: 8916 },
+  1856: { P: 8917, O: 8918, S: 8919 },                 // 1856-O: 2,250 minted; major rarity
+  1857: { P: 8920, O: 8921, S: 8922 },
+  1858: { P: 8923, O: 8924, S: 8925 },
+  1859: { P: 8926, O: 8927, S: 8928 },
+  1860: { P: 8929, O: 8930, S: 8931 },
+  1861: { P: 8932, O: 8934, S: 8935, S_PAQUET: 8936 }, // 1861-S Paquet reverse variety
+  1862: { P: 8937, S: 8938 },
+  1863: { P: 8939, S: 8940 },
+  1864: { P: 8941, S: 8942 },
+  1865: { P: 8943, S: 8944 },
+  1866: { P: 8949, S: 8950, S_NO_MOTTO: 8945 },        // Motto default; No-Motto S only
+  1867: { P: 8951, S: 8952 },
+  1868: { P: 8953, S: 8954 },
+  1869: { P: 8955, S: 8956 },
+  1870: { P: 8957, CC: 8958, S: 8959 },                // 1870-CC: 3,789 minted; iconic key
+  1871: { P: 8960, CC: 8961, S: 8962 },
+  1872: { P: 8963, CC: 8964, S: 8965 },
+  1873: { P: 8967, CC: 8968, S: 8969 },                // 1873 Open 3 default
+  1874: { P: 8970, CC: 8971, S: 8972 },
+  1875: { P: 8973, CC: 8974, S: 8975 },
+  1876: { P: 8976, CC: 8977, S: 8978 },
+  1877: { P: 8982, CC: 8983, S: 8984 },
+  1878: { P: 8985, CC: 8986, S: 8987 },
+  1879: { P: 8988, CC: 8989, O: 8990, S: 8991 },
+  1880: { P: 8992, S: 8993 },
+  1881: { P: 8994, S: 8995 },
+  1882: { P: 8996, CC: 8997, S: 8998 },
+  1883: { CC: 8999, S: 9000 },                          // 1883 proof-only at Philadelphia
+  1884: { CC: 9001, S: 9002 },                          // 1884 proof-only at Philadelphia
+  1885: { P: 9003, CC: 9004, S: 9005 },
+  1886: { P: 9006 },
+  1887: { S: 9007 },                                    // 1887 proof-only at Philadelphia
+  1888: { P: 9008, S: 9009 },
+  1889: { P: 9010, CC: 9011, S: 9012 },
+  1890: { P: 9013, CC: 9014, S: 9015 },
+  1891: { P: 9016, CC: 9017, S: 9018 },
+  1892: { P: 9019, CC: 9020, S: 9021 },
+  1893: { P: 9022, CC: 9023, S: 9024 },
+  1894: { P: 9025, S: 9026 },
+  1895: { P: 9027, S: 9028 },
+  1896: { P: 9029, S: 9030 },
+  1897: { P: 9031, S: 9032 },
+  1898: { P: 9033, S: 9034 },
+  1899: { P: 9035, S: 9036 },
+  1900: { P: 9037, S: 9038 },
+  1901: { P: 9039, S: 9040 },
+  1902: { P: 9041, S: 9042 },
+  1903: { P: 9043, S: 9044 },
+  1904: { P: 9045, S: 9046 },
+  1905: { P: 9047, S: 9048 },
+  1906: { P: 9049, D: 9050, S: 9051 },
+  1907: { P: 9052, D: 9053, S: 9054 },                  // 1907 Liberty (last year of design)
+};
+
+// ══════════════════════════════════════════════════════════════
+// CLASSIC US GOLD — Saint-Gaudens Double Eagle ($20, 1907-1933)
+// Source: PCGS PCGS-Number Lookup, category 67
+//   https://www.pcgs.com/pcgsnolookup/st-gaudens-20-1907-1933/67
+// Variety conventions:
+//   1907 -- 9141 (regular Roman numerals, low relief) is the default
+//     for `P`. High Relief varieties:
+//       9135 = HR Wire Edge (11,250 minted, key)
+//       9136 = HR Flat Edge (~50 known, ultra-rare)
+//     stored under P_HR_WIRE and P_HR_FLAT.
+//   1908 -- No Motto (9142 P / 9143 D) is the default. With-Motto
+//     stored under *_MOTTO suffixes (9147 P, 9148 D).
+// Key dates: 1907 HR, 1908 No/With Motto, 1927-D, 1933.
+// 1933 -- only one specimen legally owned (Stuart Weitzman coin).
+// ══════════════════════════════════════════════════════════════
+const SAINT_GAUDENS_DOUBLE_EAGLE = {
+  1907: { P: 9141, P_HR_WIRE: 9135, P_HR_FLAT: 9136 },
+  1908: { P: 9142, D: 9143, S: 9149, P_MOTTO: 9147, D_MOTTO: 9148 },
+  1909: { P: 9150, D: 9152, S: 9153 },                  // 1909/8 overdate = 9151 (Phase 3)
+  1910: { P: 9154, D: 9155, S: 9156 },
+  1911: { P: 9157, D: 9158, S: 9159 },
+  1912: { P: 9160 },
+  1913: { P: 9161, D: 9162, S: 9163 },
+  1914: { P: 9164, D: 9165, S: 9166 },
+  1915: { P: 9167, S: 9168 },
+  1916: { S: 9169 },
+  1920: { P: 9170, S: 9171 },
+  1921: { P: 9172 },
+  1922: { P: 9173, S: 9174 },
+  1923: { P: 9175, D: 9176 },
+  1924: { P: 9177, D: 9178, S: 9179 },
+  1925: { P: 9180, D: 9181, S: 9182 },
+  1926: { P: 9183, D: 9184, S: 9185 },
+  1927: { P: 9186, D: 9187, S: 9188 },                 // 1927-D: extremely rare
+  1928: { P: 9189 },
+  1929: { P: 9190 },
+  1930: { S: 9191 },
+  1931: { P: 9192, D: 9193 },
+  1932: { P: 9194 },
+  1933: { P: 9195 },                                    // Only one legally owned (Stuart Weitzman)
+};
+
+// ══════════════════════════════════════════════════════════════
 // BULLION — American Silver Eagles (1986–present)
 // PCGS Category 902 / 904
 // One standard 1 oz .999 silver coin per year.
@@ -797,6 +1232,24 @@ const SERIES_MAP = [
   { re: /\bwashington\b/i,                                 table: WASHINGTON_QUARTER },
   { re: /\broosevelt\b/i,                                  table: ROOSEVELT },
   { re: /\blincoln\b|\bcent\b|\bpenny\b|\bwheat\b/i,       tables: [LINCOLN_MEMORIAL_COPPER, LINCOLN_MEMORIAL_ZINC] },
+
+  // ── Classic US Gold (specific design names; order matters) ──
+  // Saint-Gaudens FIRST so it matches before any generic "liberty" pattern.
+  { re: /\b(?:saint|st\.?)\s*[-]?\s*gaudens\b/i,                                   table: SAINT_GAUDENS_DOUBLE_EAGLE },
+  { re: /\bliberty\s+(?:head\s+)?double\s+eagle\b|\bcoronet\s+(?:head\s+)?double\s+eagle\b|\bliberty\s+(?:head\s+)?\$?\s*20\b/i, table: LIBERTY_DOUBLE_EAGLE },
+  // Indian Half Eagle BEFORE Indian Eagle so "indian half eagle" doesn't accidentally hit the $10 table.
+  { re: /\bindian\s+(?:head\s+)?half\s+eagle\b/i,                                  table: INDIAN_HEAD_HALF_EAGLE },
+  { re: /\bindian\s+(?:head\s+)?eagle\b/i,                                         table: INDIAN_HEAD_EAGLE },
+  { re: /\bliberty\s+(?:head\s+)?half\s+eagle\b|\bcoronet\s+(?:head\s+)?half\s+eagle\b/i, table: LIBERTY_HEAD_HALF_EAGLE },
+
+  // ── Classic US Silver (specific design names) ──
+  // Standing Liberty BEFORE generic \bquarter\b fallback (which routes to Washington).
+  { re: /\bstanding[\s-]*liberty\b|\bSLQ\b/i,                                      table: STANDING_LIBERTY_QUARTER },
+  { re: /\bbarber\s+(?:head\s+)?dime\b/i,                                          table: BARBER_DIME },
+  { re: /\bbarber\s+(?:head\s+)?quarter\b/i,                                       table: BARBER_QUARTER },
+  { re: /\bbarber\s+(?:head\s+)?half\b/i,                                          table: BARBER_HALF },
+  // Seated Liberty Dollar BEFORE generic \bdollar\b fallback.
+  { re: /\b(?:liberty\s+)?seated\s+(?:liberty\s+)?dollar\b/i,                      table: SEATED_LIBERTY_DOLLAR },
 
   // ── Generic denomination fallbacks (last resort) ──────────
   // When the parser returns a bare denomination like "Half Dollar"

@@ -294,9 +294,14 @@ const KEY_DATES = [
   // ═══════════════════════════════════════════════════════════
   // GOLD — LIBERTY HALF EAGLES ($5)
   // ═══════════════════════════════════════════════════════════
-  { series: 'liberty half eagle', year: 1909, mint: 'O', tier: 'semi-key', note: 'Last year New Orleans $5; low mintage' },
   { series: 'liberty half eagle', year: 1875, mint: '',  tier: 'key',      note: 'Very low mintage (200 business strikes)' },
   { series: 'liberty half eagle', year: 1875, mint: 'CC', tier: 'semi-key', note: 'Low mintage (11,828)' },
+
+  // ═══════════════════════════════════════════════════════════
+  // GOLD — INDIAN HEAD HALF EAGLES ($5)
+  // ═══════════════════════════════════════════════════════════
+  { series: 'indian half eagle',      year: 1909, mint: 'O', tier: 'semi-key', note: 'Only O-mint Indian $5; 34,200 minted; classic semi-key' },
+  { series: 'indian head half eagle', year: 1909, mint: 'O', tier: 'semi-key', note: 'Only O-mint Indian $5; 34,200 minted; classic semi-key' },
 
   // ═══════════════════════════════════════════════════════════
   // AMERICAN GOLD EAGLES (modern bullion key issues)
