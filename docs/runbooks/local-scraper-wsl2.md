@@ -326,6 +326,32 @@ for k in ('refresh','initial-fetch','deep-paginate','evidence-probe'):
     print(f'{k:20s} {c.get(k, 0)}')"
 ```
 
+#### Status report contract
+
+When reporting scraper status in chat, use this exact template:
+
+```text
+Pass N | Batch: XX coins | ~YY min
+
+  Coin                                New   Dups  Result
+  ----------------------------------- ----  ----  -------
+  1884-O Morgan Silver Dollar MS64     48    87   OK
+  2015 Canada Goat Gold Lunar          --    --   NO DATA
+  ...
+
+  Batch total: XX new, XX dups, X no-export out of XX coins
+
+  Queue: X,XXX stale | XXX ok | XXX dormant | XX deep-paginate pending
+```
+
+Rules:
+- `Batch` must come from either `Exporting N coins...` or `randomized --page1-batch=N`.
+- `~YY min` is approximate. If pass is still running, print `in progress`.
+- Per-coin rows include only `OK` and `NO DATA` outcomes.
+- `Batch total` must aggregate only the current pass (or current partial pass if in progress).
+- `Queue` must report only stale(refresh), ok, dormant, and deep-paginate counts.
+- Do not include the full freshness report body unless explicitly requested.
+
 #### CRLF warning
 
 `scripts/cpf-go` and other shell scripts **must** stay LF-only. CRLF line

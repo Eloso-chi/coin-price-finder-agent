@@ -1,5 +1,18 @@
 #!/usr/bin/env bash
 # Operator progress monitoring - displays basic metrics after each pass.
+#
+# Status output contract:
+# - Keep the section headers and key lines stable for downstream status parsing.
+# - Required headers:
+#     Pass: N
+#     Queue status:
+#     Recent Coin Results (last pass):
+# - Required summary line:
+#     Batch total: ...
+#   If per-coin rows are unavailable, emit:
+#     Batch total: summary-only (succeeded: X, failed: Y) out of N coins
+# - This script's output is operational telemetry. Chat status formatting rules
+#   are documented in docs/runbooks/local-scraper-wsl2.md (Status report contract).
 
 set -euo pipefail
 
