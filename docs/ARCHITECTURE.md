@@ -1045,6 +1045,74 @@ The server starts several background tasks on boot:
 | Terapeak auto-import | Startup only | Imports CSVs from `data/terapeak/` (files < 7 days old) |
 | Test account seed | Startup only | Seeds `testcollector` account with sample coins if empty |
 
+### PCGS Prefetch Scheduler -- queue construction (PR-2b)
+
+`src/services/prefetchScheduler.js` builds the nightly queue from the data
+tables in `src/data/pcgsNumbers.js`. The queue is a flat list of
+`{pcgsNo, grade, priority, lastFetched}` records consumed by
+`executePrefetchRun()` until the daily PCGS quota (default 990 calls) is
+spent or the breaker trips.
+
+**Phase 1 -- Key dates (always at the front of the queue)**
+
+`getKeyDatePcgsNumbers()` walks `KEY_DATES` from `src/data/keyDates.js` and
+resolves each `(series, year, mint)` triple via `lookupPCGSNumber`. Each
+resolved number is expanded against `targetGradesFor(year)` (see below).
+Priority `1` = never-fetched key date, `2` = stale key date.
+
+**Phase 2 -- Regular coins, round-robin by category**
+
+`getCategorizedEntries()` walks `TABLES_BY_CATEGORY` (a new export from
+`src/data/pcgsNumbers.js`) and produces three buckets:
+
+| Category | Source tables | Approx pre-dedup combos |
+|---|---|---|
+| `us_classic` | 22 tables: Lincoln, Morgan, Peace, Washington, Roosevelt, Kennedy, Franklin, Jefferson, Mercury, Walking Liberty, Eisenhower, Barber (D/Q/H), SLQ, Seated Dollar, Liberty/Indian Half Eagles, Indian Eagle, Liberty/Saint-Gaudens Double Eagles | ~1,332 |
+| `us_bullion` | 8 tables: ASE, AGE 1oz/half/quarter/tenth, Gold Buffalo, Platinum Eagle, Palladium Eagle | ~287 |
+| `world_bullion` | 18 tables: Libertad x2, Kookaburra, Krugerrand, Kangaroo, Maple Leaf, Britannia, Panda, Lunar x4 (Perth + China), WTE x3, Koala x3 | ~462 |
+
+Each bucket is sorted by `(priority asc, lastFetched asc)` and then the three
+buckets are **interleaved 1:1:1** in `PHASE2_ROUND_ROBIN_ORDER =
+['us_classic', 'us_bullion', 'world_bullion']`. This fixes the previous
+starvation pattern where Phase 2 iterated source-file order, leaving world
+bullion (positions 30-47 in `pcgsNumbers.js`) effectively unreachable
+within a 14-23 day quota window. The spike on 2026-06-29 confirmed 0 of
+749 bullion PCGS#s cached after ~30 nightly runs (separate from the
+Phase 1 destructure bug fixed earlier the same day).
+
+Priority `3` = never-fetched regular, `4` = stale regular. Dedup is per
+`pcgsNo:grade` via a single `Set` shared across both phases.
+
+**`targetGradesFor(year)` -- era-aware grade pruning (PR-2b)**
+
+Querying PCGS APR for grades with zero population is wasted quota.
+`targetGradesFor` returns a pruned grade ladder based on the coin's mint
+year:
+
+| Year range | Grade ladder | Reason |
+|---|---|---|
+| `year < 1900` | `[60, 61, 62, 63, 64, 65]` (6) | Pre-1900 issues, especially classic gold, almost never grade above MS65 |
+| `1900 <= year < 1934` | `[60..67]` (8) | Classic-era issues rarely grade above MS67 |
+| `year >= 1934` or null | `[60..70]` (11) | Modern + bullion: keep full ladder; null falls back to full to avoid silent coverage loss |
+
+Each PCGS number's year is resolved from `pcgsYearMap` (first-seen wins for
+the ~80 collision cases between `AMERICAN_SILVER_EAGLE` and
+`AMERICAN_GOLD_EAGLE_*OZ` tables -- pre-existing data bug, follow-up
+required; functionally harmless because both colliding tables are modern
+bullion using the same 11-grade ladder anyway).
+
+**Queue size impact**
+
+| State | Total combos | Drain time at 990/day |
+|---|---|---|
+| Pre-PR-2a baseline | ~13,700 | ~14 days |
+| Post-PR-2a (no pruning, source-order) | ~22,099 | ~23 days |
+| **Post-PR-2b (era pruning + round-robin)** | **~14-18k** | **~14-18 days + world bullion reached daily** |
+
+The headline win is not raw queue size -- it's that world bullion is no
+longer behind the entire US block. Round-robin guarantees one world-bullion
+call for every two US calls every night.
+
 ---
 
 ## Statistics Module
