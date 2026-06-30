@@ -274,3 +274,45 @@ describe('prefetchScheduler — world bullion extraction (#214)', () => {
     }
   });
 });
+
+// ═══════════════════════════════════════════════════════════════
+//  Regression: getKeyDatePcgsNumbers must return a non-empty
+//  array. The function silently returned [] from inception because
+//  it imported the keyDates module object instead of destructuring
+//  the KEY_DATES array, so `for (const kd of KEY_DATES)` threw
+//  TypeError that the try/catch swallowed. Confirmed on
+//  2026-06-29 spike: 0 of 749 bullion PCGS#s ever cached.
+// ═══════════════════════════════════════════════════════════════
+
+describe('prefetchScheduler — getKeyDatePcgsNumbers Phase 1 priority', () => {
+
+  test('returns a non-empty array of PCGS numbers (regression: was [] for ~30 days)', () => {
+    const nums = scheduler.getKeyDatePcgsNumbers();
+    expect(Array.isArray(nums)).toBe(true);
+    // 209 KEY_DATES entries, ~107 resolve via SERIES_MAP today. Floor at 90
+    // gives margin for legitimate data trims without masking a future regression.
+    expect(nums.length).toBeGreaterThan(90);
+  });
+
+  test('includes representative US numismatic, US bullion, and world bullion key dates', () => {
+    const nums = new Set(scheduler.getKeyDatePcgsNumbers());
+    // Each fixture was verified against lookupPCGSNumber on 2026-06-29.
+    // Span all three pcgsNumbers.js sections so a partial regression is caught.
+    const fixtures = [
+      { pcgs: 6564,   note: 'Walking Liberty Half 1916 (US numismatic)' },
+      { pcgs: 4902,   note: 'Mercury Dime 1916-D (US numismatic)' },
+      { pcgs: 9801,   note: 'American Silver Eagle 1986 (US bullion)' },
+      { pcgs: 9814,   note: 'American Gold Eagle 1986 (US bullion)' },
+      { pcgs: 32496,  note: 'Canadian Silver Maple Leaf 1988 (world bullion)' },
+      { pcgs: 526437, note: 'Mexican Silver Libertad 1982 (world bullion)' },
+    ];
+    for (const f of fixtures) {
+      expect(nums.has(f.pcgs)).toBe(true);
+    }
+  });
+
+  test('returns deduplicated PCGS numbers', () => {
+    const nums = scheduler.getKeyDatePcgsNumbers();
+    expect(nums.length).toBe(new Set(nums).size);
+  });
+});

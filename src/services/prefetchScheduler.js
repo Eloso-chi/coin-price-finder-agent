@@ -132,10 +132,18 @@ function extractAllPcgsNumbers() {
 
 /**
  * Get PCGS numbers for key date coins (highest priority).
+ *
+ * BUGFIX 2026-06-29: previously did `const KEY_DATES = require('../data/keyDates')`
+ * which returned the module object `{ KEY_DATES, lookupKeyDate }` instead of the
+ * array. The `for (const kd of KEY_DATES)` then threw `TypeError: not iterable`,
+ * which the surrounding try/catch silently swallowed, returning [] forever.
+ * Net effect: Phase 1 (key-date priority) was disabled from the moment the
+ * prefetch scheduler shipped. Spike on 2026-06-29 confirmed 0 of 749 bullion
+ * PCGS#s cached after ~30 nightly runs.
  */
 function getKeyDatePcgsNumbers() {
   try {
-    const KEY_DATES = require('../data/keyDates');
+    const { KEY_DATES } = require('../data/keyDates');
     const { lookupPCGSNumber } = require('../data/pcgsNumbers');
     const numbers = [];
     for (const kd of KEY_DATES) {
@@ -480,5 +488,7 @@ module.exports = {
   triggerManual,
   executePrefetchRun,
   // Export for workflow status checks
-  todayPacific
+  todayPacific,
+  // Exposed for regression tests (keep Phase 1 key-date resolution covered)
+  getKeyDatePcgsNumbers
 };
