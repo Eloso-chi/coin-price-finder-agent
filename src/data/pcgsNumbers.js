@@ -620,6 +620,9 @@ const INDIAN_HEAD_EAGLE = {
 // Key dates: 1849, 1854-O, 1856-O, 1861-S Paquet, 1870-CC.
 // ══════════════════════════════════════════════════════════════
 const LIBERTY_DOUBLE_EAGLE = {
+  // 1849 is a Smithsonian-only unique pattern specimen (no business strikes).
+  // Stored under P_PROOF so extractAllPcgsNumbers() picks it up for Phase 3
+  // prefetch, but lookupPCGSNumber(series, 1849, 'P') returns null by design.
   1849: { P_PROOF: 71908 },                             // ONLY proof exists; mintage 1
   1850: { P: 8902, O: 8903 },
   1851: { P: 8904, O: 8905 },

@@ -291,6 +291,26 @@ by `lookupPCGSNumber`): `P_HR_WIRE`, `P_HR_FLAT`, `P_MOTTO`, `D_MOTTO`,
 4. Seated Liberty Dollar before generic `\bdollar\b` fallback.
 5. Barber Dime/Quarter/Half before generic `\bdime\b`/`\bquarter\b`/`\bhalf\s*dollar\b` fallbacks.
 
+**Known limitation: out-of-range fallthrough.** `lookupPCGSNumber` iterates
+`SERIES_MAP` and, when a regex matches but the matched table has no entry for
+the requested year, falls through to the next matching regex rather than
+returning `null`. Combined with the generic denomination fallbacks
+(`\bquarter\b`, `\bdime\b`, `\bhalf\s*dollar\b`, `\bdollar\b`), this
+means queries with an out-of-range year + specific series name silently
+return a different series' PCGS#. Examples:
+
+| Query | Returns | Should be |
+|---|---|---|
+| `standing liberty quarter 1932` | Washington 1932 PCGS# | null (no 1932 SLQ; series ended 1930) |
+| `barber half dollar 1916` | Walking Liberty 1916 PCGS# | null (Barber Half ended 1915) |
+| `barber dime 1917` | Mercury 1917 PCGS# | null (Barber Dime ended 1916) |
+
+Real-world impact is small because KEY_DATES entries always pair a series
+with a valid year for that series, and most callers route by canonical
+series -> table directly. Callers that accept free-text year + series input
+should validate the year against the series' production range before relying
+on the returned PCGS#. Tracked as a follow-up to tighten lookup semantics.
+
 ---
 
 ## Azure Key Vault Secrets (if configured)
