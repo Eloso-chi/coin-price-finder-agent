@@ -123,7 +123,22 @@ router.post('/', async (req, res) => {
     };
 
     // ── 2. Build eBay keywords ──
-    let resolvedWeight = coinData?.weight || bodyWeight || identification.parsed?.weight || null;
+    // #276W: Defensive local re-parse of weight before the BULLION_1OZ_DEFAULT
+    // fallback. priceRoute previously trusted `identification.parsed.weight`
+    // implicitly (which is `pcgs.parsed.weight` for verified PCGS lookups).
+    // If any code path returns a slim `parsed` object with `weight: null`
+    // for a fractional-/multi-oz query (e.g. "1/10 oz", "2 oz"), the 1-oz
+    // default below would mask the real weight and the downstream
+    // `spotPrice = meltPerOz * resolvedWeight` would be wrong by the
+    // coin's weight factor. Falling back to a direct parseDescription of
+    // the user's query keeps priceRoute self-sufficient regardless of
+    // what shape `pcgs.parsed` arrives in. See backlog #276W.
+    let resolvedWeight =
+      coinData?.weight
+      || bodyWeight
+      || identification.parsed?.weight
+      || pcgsService.parseDescription(String(query))?.weight
+      || null;
 
     // Default bullion coins to 1 oz when no weight is specified.
     // Users commonly search "Mexican Silver Libertad 2024" without saying "1oz";

@@ -3405,6 +3405,41 @@ Stage 5 -- update the path #1 emission site (L1670) to use the same helper, with
 
 ---
 
+### ~~#276W. `/api/price` vs `/api/pricing-batch` produce different FMV for 1/10 oz fractional Gold Eagle [P1 -- DATA-QUALITY] -- DONE 2026-06-30~~
+
+> **2026-06-30 closure -- root cause + fix:**
+>
+> **Root cause (NOT what the original entry hypothesized):** The bug is in `/api/price` (not `/api/pricing-batch`). The labels in the original test-failure printout were transposed -- `priceRoute` was returning the wrong number (`meltPerOz` with no weight multiplier), `pricingBatchRoute` was returning the correct number (`meltPerOz * weight`). At 1 oz the two agree (the elision is invisible), which is why the bug only surfaced on fractional / multi-oz queries.
+>
+> **Mechanism:** `priceRoute.js` L126 derived `resolvedWeight` from `identification.parsed?.weight`, which for verified PCGS lookups is `pcgs.parsed.weight`. When that field was null (as the test mock for `resolveFromDescription` returned), the `BULLION_1OZ_DEFAULT` fallback at L131-136 silently set `resolvedWeight = 1`, masking the real fractional weight. Downstream, `spotPrice = expected.meltPerOz * resolvedWeight` then computed `meltPerOz * 1` instead of `meltPerOz * 0.1`. `pricingBatchRoute` did not have this fragility because it called `pcgsService.parseDescription(query)` directly (L50) and never depended on `pcgs.parsed` shape.
+>
+> **Production vs test scope:** in production, `resolveFromDescription` always sets `tableResult.parsed = parsed` where `parsed = parseDescription(text)` (`src/services/pcgsService.js` L207), so `pcgs.parsed.weight` was always populated and the bug did NOT manifest at runtime. It was a latent fragility that would have surfaced if any code path (or a future PCGS refactor) ever returned a slim `parsed` object. The test mock had been triggering the latent path because its `parseDescription` mock and `resolveFromDescription` mock did not agree on `parsed.weight`.
+>
+> **Reproduction matrix (pre-fix):**
+>
+> | Query | Expected `spotPrice` | priceRoute | batchRoute | Ratio |
+> |---|---:|---:|---:|---:|
+> | Gold Eagle 1/10 oz | 3.05 | 30.5 ❌ | 3.05 | 10x |
+> | Silver Lunar 2 oz | 61 | 30.5 ❌ | 61 | 0.5x |
+> | Gold Eagle 1/4 oz | 7.625 | 30.5 ❌ | 7.625 | 4x |
+> | Silver Eagle 1 oz | 30.5 | 30.5 | 30.5 | 1.0x |
+>
+> **Fix (Option B from investigation -- harden priceRoute + fix test mock + pinned regression):**
+> 1. `src/routes/priceRoute.js` L126: added defensive local re-parse -- `resolvedWeight` now falls back to `pcgsService.parseDescription(String(query))?.weight` BEFORE the 1-oz default. Route is now self-sufficient regardless of `pcgs.parsed` shape.
+> 2. `__tests__/terapeakDataIntegrity.test.js`: refactored the `pcgsService` mock so `resolveFromDescription` derives `parsed` from the shared `mockParse` helper. Mock now mirrors production behavior.
+> 3. `__tests__/terapeakDataIntegrity.test.js`: added 5 new `PINNED #276W` cross-route consistency tests for 1/10, 1/4, 1/2, 2 oz fractional and multi-oz bullion (Gold Eagle, Silver Eagle, Perth Lunar). Runs every test pass -- regression cannot hide behind random sampling.
+>
+> **Acceptance criteria status:**
+> - [x] Root cause documented (this note)
+> - [x] Deterministic regression test for fractional/multi-oz bullion (5 pinned cases)
+> - [x] `/api/price` and `/api/pricing-batch` produce identical FMV for the pinned set (delta tolerance: 0)
+> - [x] No pool boundary touched -- `@numismatic-audit` Step 5b N/A (weight handling fix, not pool-membership fix)
+> - [ ] `/api/coin` and `/api/bulk-evaluate` cross-route check -- deferred (see Follow-ups below)
+>
+> **Follow-ups (deferred, not blocking):**
+> - Verify `/api/coin` and `/api/bulk-evaluate` for the same divergence; file separately if found. The fix in `priceRoute.js` is local to that route; if those other routes have their own weight-resolution code, they may need the same hardening.
+> - Consider Option C (extract `resolveCoinWeight(query, coinData, parsedHints)` shared helper) if a third route is added or if the same pattern is repeated elsewhere.
+
 ### #276W. `/api/price` vs `/api/pricing-batch` produce different FMV for 1/10 oz fractional Gold Eagle [P1 -- DATA-QUALITY] -- OPEN 2026-06-24
 
 **Discovered while:** running `npm test -- --coverage` on `main` (HEAD `375421a`, post-#272W merge) on 2026-06-24 as part of coverage analysis after PR #197. The cross-route consistency suite in `__tests__/terapeakDataIntegrity.test.js` randomly sampled 5 datasets and hit the `2024 American Gold Eagle 1/10 oz` query.
