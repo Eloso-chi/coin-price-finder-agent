@@ -203,9 +203,14 @@ preflight_env() {
   fi
   [[ -n "${ADMIN_API_KEY:-}" ]] || fail "ADMIN_API_KEY not set (after attempting to source .env)"
   export APP_URL="${APP_URL:-http://localhost:3000}"
-  export DISPLAY="${DISPLAY:-:1}"
+  # NOTE: use ${VAR-default} (single hyphen), NOT ${VAR:-default}.
+  # Single hyphen substitutes only when DISPLAY is UNSET. Explicit DISPLAY=""
+  # is preserved as empty, which lets terapeak-export.py's has_display() return
+  # False and run Chromium headless. This is the Codespaces path (no X server).
+  # The :1 default still applies on Surface/WSL where DISPLAY is unset.
+  export DISPLAY="${DISPLAY-:1}"
   export COOKIE_FILE="${COOKIE_FILE:-cache/ebay_cookies.json}"
-  log "env ok: APP_URL=$APP_URL DISPLAY=$DISPLAY COOKIE_FILE=$COOKIE_FILE"
+  log "env ok: APP_URL=$APP_URL DISPLAY=${DISPLAY:-<empty=headless>} COOKIE_FILE=$COOKIE_FILE"
 }
 
 preflight_server() {
