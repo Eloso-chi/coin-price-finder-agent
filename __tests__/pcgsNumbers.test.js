@@ -203,3 +203,95 @@ describe('lookupPCGSNumber -- determinism', () => {
     expect(b).toBe(c);
   });
 });
+
+// ───────────────────────────────────────────────────────────────
+// PR-2a: SERIES_MAP ordering invariants for classic-US tables
+// ───────────────────────────────────────────────────────────────
+// These tests pin the ordering of SERIES_MAP regex entries added in PR-2a.
+// If a future PR reorders entries, these assertions will fail loudly rather
+// than silently routing a query to the wrong table. Picked years/mints that
+// exist in ONLY ONE candidate table so any mis-routing produces a different
+// PCGS# (not just null).
+
+describe('lookupPCGSNumber -- PR-2a SERIES_MAP ordering invariants', () => {
+  test('Saint-Gaudens regex preempts Liberty DE for shared 1907 year', () => {
+    // 1907 exists in BOTH Saint-Gaudens (P=9141) and Liberty DE (P=9052).
+    // Saint-Gaudens regex MUST run first, so "saint gaudens" -> 9141.
+    expect(lookupPCGSNumber('saint gaudens', 1907, '')).toBe(9141);
+    expect(lookupPCGSNumber('st. gaudens',   1907, '')).toBe(9141);
+    expect(lookupPCGSNumber('saint-gaudens', 1907, '')).toBe(9141);
+    // Liberty DE explicit query must still route to Liberty DE table.
+    expect(lookupPCGSNumber('liberty double eagle', 1907, '')).toBe(9052);
+  });
+
+  test('Indian Half Eagle regex preempts Indian Eagle for "indian half eagle"', () => {
+    // 1908-D Indian Half Eagle ($5) = 8511; 1908-D Indian Eagle ($10) = 8860.
+    // "indian half eagle" MUST route to $5 table, not $10.
+    expect(lookupPCGSNumber('indian half eagle',      1908, 'D')).toBe(8511);
+    expect(lookupPCGSNumber('indian head half eagle', 1908, 'D')).toBe(8511);
+    // Plain "indian eagle" / "indian head eagle" must still route to $10.
+    expect(lookupPCGSNumber('indian eagle',           1908, 'D')).toBe(8860);
+    expect(lookupPCGSNumber('indian head eagle',      1908, 'D')).toBe(8860);
+  });
+
+  test('Standing Liberty Quarter preempts generic \\bquarter\\b -> Washington fallback', () => {
+    // 1916-P Standing Liberty = 5704 (key date). Washington 1916 does not exist.
+    expect(lookupPCGSNumber('standing liberty quarter', 1916, '')).toBe(5704);
+    expect(lookupPCGSNumber('standing-liberty',         1921, '')).toBe(5740);
+    expect(lookupPCGSNumber('SLQ',                      1923, 'S')).toBe(5744);
+    // Sanity: generic "quarter" still routes to Washington.
+    expect(lookupPCGSNumber('washington quarter',       1932, 'D')).toBe(5791);
+  });
+
+  test('Seated Liberty Dollar preempts generic \\bdollar\\b -> Eisenhower/Peace/Morgan fallback', () => {
+    // 1870-S Seated Liberty Dollar = 6965 (only 9 known). 1870 not in Morgan/Peace/Ike.
+    expect(lookupPCGSNumber('seated liberty dollar', 1870, 'S')).toBe(6965);
+    expect(lookupPCGSNumber('liberty seated dollar', 1871, 'CC')).toBe(6967);
+    expect(lookupPCGSNumber('seated dollar',         1873, 'CC')).toBe(6972);
+    // Sanity: Morgan / Peace still resolve via their explicit regex.
+    expect(typeof lookupPCGSNumber('morgan',      1921, 'D')).toBe('number');
+    expect(typeof lookupPCGSNumber('peace dollar', 1928, '')).toBe('number');
+  });
+
+  test('Barber Dime preempts generic \\bdime\\b -> Roosevelt/Mercury fallback', () => {
+    // 1894-S Barber Dime = 4805 (24 minted; legendary key). Not in Mercury (starts 1916) or Roosevelt (1946+).
+    expect(lookupPCGSNumber('barber dime', 1894, 'S')).toBe(4805);
+    expect(lookupPCGSNumber('barber dime', 1916, 'S')).toBe(4871);
+    // Sanity: Mercury / Roosevelt still route via their explicit regex.
+    expect(lookupPCGSNumber('mercury dime', 1916, 'D')).toBe(4902);
+  });
+
+  test('Barber Quarter preempts generic \\bquarter\\b -> Washington fallback', () => {
+    // 1901-S Barber Quarter = 5630 (key date). Washington didn't start until 1932.
+    expect(lookupPCGSNumber('barber quarter', 1901, 'S')).toBe(5630);
+  });
+
+  test('Barber Half preempts generic \\bhalf\\s*dollar\\b -> Kennedy/Franklin/WL fallback', () => {
+    // 1892-O Barber Half = 6462. Walking Liberty starts 1916, Franklin 1948, Kennedy 1964.
+    expect(lookupPCGSNumber('barber half dollar', 1892, 'O')).toBe(6462);
+    expect(lookupPCGSNumber('barber half',        1913, '')).toBe(6527);
+    // Sanity: Walking Liberty / Kennedy still route via their explicit regex.
+    expect(lookupPCGSNumber('walking liberty', 1916, '')).toBe(6564);
+    expect(lookupPCGSNumber('kennedy half',    1964, '')).toBe(6706);
+  });
+
+  test('Liberty Head Half Eagle distinct from Indian Half Eagle (1908 transition)', () => {
+    // 1907-P Liberty $5 = 8416; 1908-P Indian $5 = 8510 (first year of Indian design).
+    expect(lookupPCGSNumber('liberty half eagle', 1907, '')).toBe(8416);
+    expect(lookupPCGSNumber('indian half eagle',  1908, '')).toBe(8510);
+  });
+
+  test('1909-O resolves as Indian Half Eagle (was previously misfiled under Liberty)', () => {
+    // Bug fix verification: 1909-O is the only New Orleans Indian $5 (34,200 mintage).
+    // Liberty $5 series ended in 1908, so 1909-O cannot be a Liberty Half Eagle.
+    expect(lookupPCGSNumber('indian half eagle',      1909, 'O')).toBe(8515);
+    expect(lookupPCGSNumber('indian head half eagle', 1909, 'O')).toBe(8515);
+  });
+
+  test('Lincoln / Mercury regression checks (generic patterns not hijacked)', () => {
+    // After adding 10 new Classic-US regex entries above the existing patterns,
+    // verify the previously-tested generic patterns still resolve correctly.
+    expect(lookupPCGSNumber('lincoln',     1959, '')).toBe(2854);
+    expect(lookupPCGSNumber('mercury dime', 1916, 'D')).toBe(4902);
+  });
+});
