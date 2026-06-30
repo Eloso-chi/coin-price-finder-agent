@@ -50,71 +50,173 @@ function saveStatus(status) {
 // ── Priority queue builder ──────────────────────────────────
 
 /**
+ * Era-aware target grades for a coin year (PR-2b).
+ *
+ * Rationale: querying PCGS APR for grades that have zero population is wasted
+ * quota. Pre-1900 issues -- especially classic gold -- almost never grade above
+ * MS65; mid-range classic-era (1900-1933) issues rarely grade above MS67.
+ * Modern (1934+) and bullion: keep the full MS60-MS70 ladder.
+ *
+ * If `year` is null/undefined we fall back to the full ladder to avoid silently
+ * dropping coverage for any number we cannot date.
+ *
+ * Empirical estimate (from current pcgsNumbers.js inventory):
+ *   pre-1900: ~257 numbers x 6 grades  (was x11 = 1542 wasted/cycle)
+ *   1900-1933: ~204 numbers x 8 grades (was x11 =  612 wasted/cycle)
+ *   modern + bullion: unchanged
+ */
+function targetGradesFor(year) {
+  if (!Number.isFinite(year)) return TARGET_GRADES;
+  if (year < 1900) return [60, 61, 62, 63, 64, 65];
+  if (year < 1934) return [60, 61, 62, 63, 64, 65, 66, 67];
+  return TARGET_GRADES;
+}
+
+/**
+ * Walk TABLES_BY_CATEGORY and emit `{pcgsNo, year}` per coin, grouped by
+ * category. Also returns a `pcgsYearMap` so callers (e.g. key-date Phase 1)
+ * can look up a year by PCGS number without rescanning.
+ *
+ * Returns: { byCategory: Map<category, [{pcgsNo, year}]>, pcgsYearMap: Map<pcgsNo, year> }
+ */
+function getCategorizedEntries() {
+  const { TABLES_BY_CATEGORY } = require('../data/pcgsNumbers');
+  const byCategory = new Map();
+  const pcgsYearMap = new Map();
+  for (const [category, tables] of Object.entries(TABLES_BY_CATEGORY)) {
+    const entries = [];
+    for (const table of Object.values(tables)) {
+      for (const [yearKey, yearData] of Object.entries(table)) {
+        const year = parseInt(yearKey, 10);
+        if (!Number.isFinite(year) || !yearData || typeof yearData !== 'object') continue;
+        for (const pcgsNo of Object.values(yearData)) {
+          if (typeof pcgsNo !== 'number' || pcgsNo <= 100) continue;
+          entries.push({ pcgsNo, year });
+          if (!pcgsYearMap.has(pcgsNo)) pcgsYearMap.set(pcgsNo, year);
+        }
+      }
+    }
+    byCategory.set(category, entries);
+  }
+  return { byCategory, pcgsYearMap };
+}
+
+const PHASE2_ROUND_ROBIN_ORDER = ['us_classic', 'us_bullion', 'world_bullion'];
+
+function sortByPriorityThenAge(a, b) {
+  if (a.priority !== b.priority) return a.priority - b.priority;
+  if (!a.lastFetched && !b.lastFetched) return 0;
+  if (!a.lastFetched) return -1;
+  if (!b.lastFetched) return 1;
+  return new Date(a.lastFetched) - new Date(b.lastFetched);
+}
+
+/**
  * Build priority queue of pcgsNo:grade combos to fetch.
- * Priority: 1) Key dates never-fetched, 2) Key dates stale,
- * 3) Regular coins never-fetched, 4) Regular coins stale.
+ *
+ * Phase 1 (front of queue): Key dates, era-aware grades.
+ *   priority 1 = key date never-fetched
+ *   priority 2 = key date stale
+ *
+ * Phase 2 (round-robin): Regular coins, era-aware grades, interleaved
+ *   1:1:1 across us_classic / us_bullion / world_bullion so world bullion
+ *   is not starved behind the much larger US block (PR-2b fix for the
+ *   "0 of 749 bullion cached after 30 nightly runs" symptom recorded in
+ *   getKeyDatePcgsNumbers comment).
+ *
+ *   priority 3 = regular never-fetched
+ *   priority 4 = regular stale
+ *
+ *   Within each bucket entries are sorted by (priority asc, lastFetched asc).
+ *   Buckets are then interleaved in PHASE2_ROUND_ROBIN_ORDER.
  */
 function buildQueue() {
-  const queue = [];
-
-  // Get all PCGS numbers from our static data
-  const allPcgsNumbers = extractAllPcgsNumbers();
+  const { byCategory, pcgsYearMap } = getCategorizedEntries();
+  const totalNumbers = pcgsYearMap.size;
   const keyDateNumbers = getKeyDatePcgsNumbers();
+  const keyDateSet = new Set(keyDateNumbers);
+  const seen = new Set();
 
-  // #214: log extractor inventory so silent drops (e.g. regex mis-matches) are visible.
+  // #214 / PR-2b: log extractor inventory so silent drops are visible.
   console.log(
-    `[prefetch] Extractor inventory: ${allPcgsNumbers.length} total PCGS numbers, ` +
-    `${keyDateNumbers.length} key dates`
+    `[prefetch] Extractor inventory: ${totalNumbers} total PCGS numbers, ` +
+    `${keyDateNumbers.length} key dates ` +
+    `(us_classic=${byCategory.get('us_classic')?.length || 0}, ` +
+    `us_bullion=${byCategory.get('us_bullion')?.length || 0}, ` +
+    `world_bullion=${byCategory.get('world_bullion')?.length || 0} pre-dedup combos)`
   );
 
-  // Separate key dates from regular
-  const keyDateSet = new Set(keyDateNumbers);
-
-  // Phase 1: Key dates (never fetched)
+  // ── Phase 1: Key dates ──
+  const phase1 = [];
   for (const pcgsNo of keyDateNumbers) {
-    for (const grade of TARGET_GRADES) {
-      if (auctionPrice.needsRefresh(pcgsNo, grade)) {
-        const entry = auctionPrice.getManifest().entries?.[`${pcgsNo}:${grade}`];
-        queue.push({
+    const year = pcgsYearMap.get(pcgsNo);
+    for (const grade of targetGradesFor(year)) {
+      const key = `${pcgsNo}:${grade}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      if (!auctionPrice.needsRefresh(pcgsNo, grade)) continue;
+      const entry = auctionPrice.getManifest().entries?.[key];
+      phase1.push({
+        pcgsNo,
+        grade,
+        priority: entry ? 2 : 1,
+        lastFetched: entry?.lastFetched || null
+      });
+    }
+  }
+  phase1.sort(sortByPriorityThenAge);
+
+  // ── Phase 2: Regular coins, bucketed by category ──
+  const buckets = { us_classic: [], us_bullion: [], world_bullion: [] };
+  for (const [category, entries] of byCategory) {
+    if (!buckets[category]) continue;
+    for (const { pcgsNo, year } of entries) {
+      if (keyDateSet.has(pcgsNo)) continue;
+      for (const grade of targetGradesFor(year)) {
+        const key = `${pcgsNo}:${grade}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        if (!auctionPrice.needsRefresh(pcgsNo, grade)) continue;
+        const entry = auctionPrice.getManifest().entries?.[key];
+        buckets[category].push({
           pcgsNo,
           grade,
-          priority: entry ? 2 : 1, // 1 = never fetched key date, 2 = stale key date
+          priority: entry ? 4 : 3,
           lastFetched: entry?.lastFetched || null
         });
       }
     }
   }
+  for (const bucket of Object.values(buckets)) bucket.sort(sortByPriorityThenAge);
 
-  // Phase 2: Regular coins
-  for (const pcgsNo of allPcgsNumbers) {
-    if (keyDateSet.has(pcgsNo)) continue; // already handled
-    for (const grade of TARGET_GRADES) {
-      if (auctionPrice.needsRefresh(pcgsNo, grade)) {
-        const entry = auctionPrice.getManifest().entries?.[`${pcgsNo}:${grade}`];
-        queue.push({
-          pcgsNo,
-          grade,
-          priority: entry ? 4 : 3, // 3 = never fetched regular, 4 = stale regular
-          lastFetched: entry?.lastFetched || null
-        });
+  // Round-robin merge so world bullion always gets a slot every 3 calls.
+  // Use index pointers (not Array.shift) to keep the merge O(N) instead of
+  // O(N^2) re-indexing cost.
+  const phase2 = [];
+  const cursors = { us_classic: 0, us_bullion: 0, world_bullion: 0 };
+  let anyRemaining = true;
+  while (anyRemaining) {
+    anyRemaining = false;
+    for (const category of PHASE2_ROUND_ROBIN_ORDER) {
+      const bucket = buckets[category];
+      const idx = cursors[category];
+      if (idx < bucket.length) {
+        phase2.push(bucket[idx]);
+        cursors[category] = idx + 1;
+        anyRemaining = true;
       }
     }
   }
 
-  // Sort: priority asc, then oldest lastFetched first (null = never fetched = earliest)
-  queue.sort((a, b) => {
-    if (a.priority !== b.priority) return a.priority - b.priority;
-    if (!a.lastFetched && !b.lastFetched) return 0;
-    if (!a.lastFetched) return -1;
-    if (!b.lastFetched) return 1;
-    return new Date(a.lastFetched) - new Date(b.lastFetched);
-  });
-
-  return queue;
+  return [...phase1, ...phase2];
 }
 
 /**
  * Extract all unique PCGS numbers from the static tables.
+ * Retained for backward compatibility (used by world-bullion-extraction
+ * regression test in #214). The scheduler itself now uses
+ * `getCategorizedEntries()` so it can attach year + category to each number.
+ *
  * Range 3-7 digits covers US coins (4-6 digits) and world bullion (6-7 digits,
  * e.g. Kookaburra 114425, Maple Leaf 1004509). #214.
  */
@@ -490,5 +592,11 @@ module.exports = {
   // Export for workflow status checks
   todayPacific,
   // Exposed for regression tests (keep Phase 1 key-date resolution covered)
-  getKeyDatePcgsNumbers
+  getKeyDatePcgsNumbers,
+  // PR-2b: exposed so tests can assert grade-pruning + round-robin behaviour
+  // without spinning up the full executePrefetchRun loop.
+  targetGradesFor,
+  getCategorizedEntries,
+  buildQueue,
+  extractAllPcgsNumbers
 };

@@ -316,3 +316,146 @@ describe('prefetchScheduler — getKeyDatePcgsNumbers Phase 1 priority', () => {
     expect(nums.length).toBe(new Set(nums).size);
   });
 });
+
+// ═══════════════════════════════════════════════════════════════
+//  PR-2b — Era-aware target grades + round-robin category queue
+//  Addresses world-bullion starvation: pre-PR-2b, queue iterated
+//  Phase 2 in source-file order so world bullion (positions 30-47
+//  in pcgsNumbers.js) sat behind all US classic + US bullion at
+//  positions 1-29. After PR-2a (+760 US classic numbers) the wait
+//  grew from ~14 to ~23 days. PR-2b adds:
+//    1. targetGradesFor(year): prunes MS66-MS70 for pre-1900
+//       and MS68-MS70 for 1900-1933 (grades that almost never
+//       have PCGS pop for those eras -> wasted APR calls).
+//    2. Phase 2 round-robin across us_classic / us_bullion /
+//       world_bullion so every 3rd Phase-2 fetch is world bullion.
+// ═══════════════════════════════════════════════════════════════
+
+describe('prefetchScheduler — PR-2b targetGradesFor era-aware grade ladder', () => {
+
+  test('pre-1900 returns MS60-MS65 only (6 grades)', () => {
+    expect(scheduler.targetGradesFor(1854)).toEqual([60, 61, 62, 63, 64, 65]);
+    expect(scheduler.targetGradesFor(1899)).toEqual([60, 61, 62, 63, 64, 65]);
+  });
+
+  test('1900-1933 classic era returns MS60-MS67 (8 grades)', () => {
+    expect(scheduler.targetGradesFor(1900)).toEqual([60, 61, 62, 63, 64, 65, 66, 67]);
+    expect(scheduler.targetGradesFor(1916)).toEqual([60, 61, 62, 63, 64, 65, 66, 67]);
+    expect(scheduler.targetGradesFor(1933)).toEqual([60, 61, 62, 63, 64, 65, 66, 67]);
+  });
+
+  test('modern (1934+) and bullion return full MS60-MS70 (11 grades)', () => {
+    expect(scheduler.targetGradesFor(1934)).toHaveLength(11);
+    expect(scheduler.targetGradesFor(2024)).toHaveLength(11);
+    expect(scheduler.targetGradesFor(1986)).toEqual([60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70]);
+  });
+
+  test('null/undefined/NaN year falls back to full ladder (no silent coverage loss)', () => {
+    expect(scheduler.targetGradesFor(null)).toHaveLength(11);
+    expect(scheduler.targetGradesFor(undefined)).toHaveLength(11);
+    expect(scheduler.targetGradesFor(NaN)).toHaveLength(11);
+  });
+});
+
+describe('prefetchScheduler — PR-2b getCategorizedEntries', () => {
+
+  test('returns the three expected categories and a non-empty pcgsYearMap', () => {
+    const { byCategory, pcgsYearMap } = scheduler.getCategorizedEntries();
+    expect([...byCategory.keys()].sort()).toEqual(['us_bullion', 'us_classic', 'world_bullion']);
+    expect(byCategory.get('us_classic').length).toBeGreaterThan(800);   // 22 tables, expect >800 year+mint combos
+    expect(byCategory.get('us_bullion').length).toBeGreaterThan(150);    // 8 tables
+    expect(byCategory.get('world_bullion').length).toBeGreaterThan(300); // 18 tables
+    expect(pcgsYearMap.size).toBeGreaterThan(1500);
+  });
+
+  test('every PCGS number has an associated finite year (so targetGradesFor can prune)', () => {
+    const { byCategory, pcgsYearMap } = scheduler.getCategorizedEntries();
+    for (const entries of byCategory.values()) {
+      for (const { pcgsNo, year } of entries) {
+        expect(Number.isFinite(pcgsNo)).toBe(true);
+        expect(Number.isFinite(year)).toBe(true);
+        // Note: ~80 PCGS#s collide between AMERICAN_SILVER_EAGLE and
+        // AMERICAN_GOLD_EAGLE_*OZ (pre-existing data bug -- Gold Eagle tables
+        // appear to use Silver Eagle PCGS#s, e.g. 9814 used for both
+        // ASE 1999 and AGE_1OZ 1986). The map keeps first-seen year per PCGS#.
+        // Both years are post-1934 so era-aware grade pruning is unaffected.
+        expect(pcgsYearMap.has(pcgsNo)).toBe(true);
+        expect(Number.isFinite(pcgsYearMap.get(pcgsNo))).toBe(true);
+      }
+    }
+  });
+
+  test('walker categorisation matches representative fixtures from each category', () => {
+    const { pcgsYearMap } = scheduler.getCategorizedEntries();
+    // us_classic
+    expect(pcgsYearMap.get(8912)).toBe(1854);   // 1854-O Liberty Double Eagle
+    expect(pcgsYearMap.get(6564)).toBe(1916);   // 1916 Walking Liberty Half
+    // us_bullion
+    expect(pcgsYearMap.get(9801)).toBe(1986);   // 1986 American Silver Eagle
+    // world_bullion
+    expect(pcgsYearMap.get(1004509)).toBe(2026); // 2026 Maple Leaf
+  });
+});
+
+describe('prefetchScheduler — PR-2b buildQueue round-robin + grade pruning', () => {
+
+  test('Phase 1 (key dates) still at the front of the queue ahead of Phase 2', () => {
+    const keyDateSet = new Set(scheduler.getKeyDatePcgsNumbers());
+    const queue = scheduler.buildQueue();
+    // First Phase 1 entry must be a key date (priority 1 or 2).
+    expect(queue[0].priority).toBeLessThanOrEqual(2);
+    expect(keyDateSet.has(queue[0].pcgsNo)).toBe(true);
+    // All priority<=2 entries must precede all priority>=3 entries.
+    const firstP3 = queue.findIndex(e => e.priority >= 3);
+    const lastP2  = queue.length - 1 - [...queue].reverse().findIndex(e => e.priority <= 2);
+    expect(firstP3).toBeGreaterThan(lastP2);
+  });
+
+  test('Phase 2 interleaves world_bullion within first 30 entries (no more starvation)', () => {
+    const { byCategory } = scheduler.getCategorizedEntries();
+    const worldBullionPcgsNos = new Set(byCategory.get('world_bullion').map(e => e.pcgsNo));
+    const queue = scheduler.buildQueue();
+    // Find first Phase 2 entry (priority >= 3)
+    const phase2Start = queue.findIndex(e => e.priority >= 3);
+    expect(phase2Start).toBeGreaterThanOrEqual(0);
+    const first30 = queue.slice(phase2Start, phase2Start + 30);
+    const worldInFirst30 = first30.filter(e => worldBullionPcgsNos.has(e.pcgsNo)).length;
+    // Round-robin 1:1:1 across 3 categories -> roughly 10 world bullion in first 30.
+    // Lower bound 5 leaves slack for cases where one bucket runs out mid-window.
+    expect(worldInFirst30).toBeGreaterThanOrEqual(5);
+  });
+
+  test('grade pruning: pre-1900 Liberty Double Eagle 1854-O (pcgs 8912) only enqueued for MS60-MS65', () => {
+    const queue = scheduler.buildQueue();
+    const grades1854O = queue.filter(e => e.pcgsNo === 8912).map(e => e.grade).sort((a, b) => a - b);
+    expect(grades1854O).toEqual([60, 61, 62, 63, 64, 65]);
+  });
+
+  test('grade pruning: modern bullion ASE 1986 (pcgs 9801) still enqueued for full MS60-MS70', () => {
+    const queue = scheduler.buildQueue();
+    const gradesASE = queue.filter(e => e.pcgsNo === 9801).map(e => e.grade).sort((a, b) => a - b);
+    expect(gradesASE).toEqual([60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70]);
+  });
+
+  test('queue is shorter than pre-PR-2b baseline (no-prune control: 2009 numbers x 11 = 22099)', () => {
+    const queue = scheduler.buildQueue();
+    // With grade pruning we expect ~14-18k combos depending on key-date dedup.
+    // Generous upper bound 20000 still catches a regression to the old 22099.
+    expect(queue.length).toBeLessThan(20000);
+    expect(queue.length).toBeGreaterThan(10000); // sanity lower bound
+  });
+
+  test('dedup: colliding PCGS# (ASE 1999 vs AGE_1OZ 1986 both = 9814) enqueues each grade exactly once', () => {
+    // See /memories/repo/pcgs-numbers-collisions.md -- pre-existing data bug
+    // where Silver Eagle and Gold Eagle tables share 80 PCGS#s. The seen Set
+    // in buildQueue() must prevent double-fetching the same pcgsNo:grade combo.
+    // Regression guard: a future refactor that drops the seen-set would
+    // silently double the quota burn for these 80 numbers.
+    const queue = scheduler.buildQueue();
+    const grades9814 = queue.filter(e => e.pcgsNo === 9814).map(e => e.grade);
+    const unique9814 = new Set(grades9814);
+    expect(grades9814.length).toBe(unique9814.size);
+    // 9814 is a modern bullion year (1986/1999) -- full 11-grade ladder applies.
+    expect(grades9814.length).toBeLessThanOrEqual(11);
+  });
+});

@@ -397,8 +397,9 @@ const BARBER_HALF = {
 //   https://www.pcgs.com/pcgsnolookup/standing-liberty-quarter-1916-1930/111
 // Variety conventions:
 //   1917 -- Type 1 (5706/5708/5710) default per (year,mint). Type 2
-//     numbers stored under *_T2 suffixes so extractAllPcgsNumbers()
-//     picks them up for Phase 3 prefetch.
+//     numbers stored under *_T2 suffixes so the prefetch scheduler's
+//     Phase 2 (regular round-robin via getCategorizedEntries) picks
+//     them up.
 //   1918-S -- 5724 default (regular). 1918/7-S overdate = 5726 stored
 //     under S_OVERDATE.
 //   1930 FS-401 "Incomplete Shield" = 929363 stored under P_FS401.
@@ -475,7 +476,8 @@ const SEATED_LIBERTY_DOLLAR = {
 // Variety conventions:
 //   1866-S has both No-Motto (8300) and With-Motto (8312) varieties.
 //     Default 1866-S = 8312 (Motto, more common). No-Motto stored as
-//     S_NO_MOTTO so it lands in Phase 3 via extractAllPcgsNumbers.
+//     S_NO_MOTTO so the prefetch scheduler's Phase 2 round-robin
+//     (via getCategorizedEntries) still enqueues it.
 //   1842 Large/Small Letters, 1843-O Large/Small Letters, etc. --
 //     default uses the canonical first listing per year/mint.
 // Key dates: 1875 (200 business strikes), 1875-CC.
@@ -621,8 +623,9 @@ const INDIAN_HEAD_EAGLE = {
 // ══════════════════════════════════════════════════════════════
 const LIBERTY_DOUBLE_EAGLE = {
   // 1849 is a Smithsonian-only unique pattern specimen (no business strikes).
-  // Stored under P_PROOF so extractAllPcgsNumbers() picks it up for Phase 3
-  // prefetch, but lookupPCGSNumber(series, 1849, 'P') returns null by design.
+  // Stored under P_PROOF so the prefetch scheduler's Phase 2 round-robin
+  // (via getCategorizedEntries) picks it up, but lookupPCGSNumber(series,
+  // 1849, 'P') returns null by design.
   1849: { P_PROOF: 71908 },                             // ONLY proof exists; mintage 1
   1850: { P: 8902, O: 8903 },
   1851: { P: 8904, O: 8905 },
@@ -1294,4 +1297,46 @@ function lookupPCGSNumber(series, year, mint) {
   return null;
 }
 
-module.exports = { lookupPCGSNumber };
+// ══════════════════════════════════════════════════════════════
+// Category-grouped tables (consumed by prefetch scheduler PR-2b)
+//
+// Categorization drives round-robin scheduling so world-bullion
+// series are not starved behind the much larger US classic block.
+// Adding a new const table above MUST be reflected here -- otherwise
+// the scheduler will silently skip it. There is no automatic
+// detection; the grouping is intentional, not inferred from naming.
+// ══════════════════════════════════════════════════════════════
+const TABLES_BY_CATEGORY = {
+  us_classic: {
+    LINCOLN_MEMORIAL_COPPER, LINCOLN_MEMORIAL_ZINC,
+    MORGAN, PEACE,
+    WASHINGTON_QUARTER, ROOSEVELT, KENNEDY, FRANKLIN, JEFFERSON,
+    MERCURY, WALKING_LIBERTY, EISENHOWER,
+    BARBER_DIME, BARBER_QUARTER, BARBER_HALF,
+    STANDING_LIBERTY_QUARTER, SEATED_LIBERTY_DOLLAR,
+    LIBERTY_HEAD_HALF_EAGLE, INDIAN_HEAD_HALF_EAGLE,
+    INDIAN_HEAD_EAGLE,
+    LIBERTY_DOUBLE_EAGLE, SAINT_GAUDENS_DOUBLE_EAGLE
+  },
+  us_bullion: {
+    AMERICAN_SILVER_EAGLE,
+    AMERICAN_GOLD_EAGLE_1OZ,
+    AMERICAN_GOLD_EAGLE_HALF, AMERICAN_GOLD_EAGLE_QUARTER, AMERICAN_GOLD_EAGLE_TENTH,
+    AMERICAN_GOLD_BUFFALO,
+    AMERICAN_PLATINUM_EAGLE, AMERICAN_PALLADIUM_EAGLE
+  },
+  world_bullion: {
+    MEXICO_SILVER_LIBERTAD, MEXICO_SILVER_LIBERTAD_PROOF,
+    AUSTRALIA_KOOKABURRA_SILVER,
+    SOUTH_AFRICA_KRUGERRAND_GOLD,
+    AUSTRALIA_KANGAROO_SILVER,
+    CANADA_SILVER_MAPLE_LEAF,
+    GREAT_BRITAIN_BRITANNIA_SILVER,
+    CHINA_PANDA_SILVER, CHINA_LUNAR_SILVER,
+    AUSTRALIA_LUNAR_HALF_OZ, AUSTRALIA_LUNAR_SILVER, AUSTRALIA_LUNAR_TWO_OZ,
+    AUSTRALIA_WTE_SILVER, AUSTRALIA_WTE_TWO_OZ, AUSTRALIA_WTE_GOLD,
+    AUSTRALIA_KOALA_SILVER, AUSTRALIA_KOALA_HALF_OZ, AUSTRALIA_KOALA_PLATINUM
+  }
+};
+
+module.exports = { lookupPCGSNumber, TABLES_BY_CATEGORY };
