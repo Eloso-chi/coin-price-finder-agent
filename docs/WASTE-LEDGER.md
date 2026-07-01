@@ -260,6 +260,27 @@ Tracks wasted compute, agent time, and Azure cost caused by bugs, agent violatio
 
 ---
 
+### INC-014: BACKLOG Closure Duplicated Header + Weak Pinned-Test Guard (PR #219)
+
+| Field | Value |
+|-------|-------|
+| Date | 2026-06-30 |
+| Category | `agent-violation` / `recovery-ops` |
+| Root Cause | While closing #276W (P1 -- fractional-bullion FMV divergence) in PR #219, the agent (me) added a NEW strikethrough closure header (`### ~~#276W. ... -- DONE 2026-06-30~~`) ABOVE the existing OPEN header instead of editing the existing header in place. Result: two `### #276W.` sections in `docs/BACKLOG.md`, one marked DONE and one marked OPEN. Anyone grepping for `OPEN` would still find the entry. Anyone linking to the DONE anchor would collide with the OPEN one. Repo convention (#234 L2387, #235 L2409, #260W L2824, #272W L3002) is edit-in-place -- flip `-- OPEN <date>` to `-- DONE <date> (PR #N)` on the SAME header and append a closure block. Caught by `@code-reviewer.approval-gated` at Finding S3.2 during the M-tier deep review; would not have shipped. |
+| Secondary error | The 5 new PINNED #276W cross-route tests I added used `if (singleFmv != null && batchFmv != null) { expect(...).toBe(...); }` -- copied the guard pattern from the pre-existing random `test.each` at L543. For pinned bullion queries where the mock guarantees a value, the guard is wrong: a future both-null regression (mock breakage, dataset removal, spot-price mock returning null) would silently satisfy the assertion because `undefined === undefined` never runs. Same reviewer finding, Finding S3.1. Same fix cycle. |
+| Mistakes | 1) **Did not survey the closure convention in the same file** before writing the closure -- 4 prior examples on the same document (#234, #235, #260W, #272W) all edit in place. Reading 3 lines above/below any of them would have shown the correct pattern. 2) **Chose "preserve history via strikethrough new header" as a heuristic** without checking whether that heuristic was the established convention. It was not. 3) **Copied a guard pattern from existing test code without evaluating fitness** -- the `!= null` guard is correct for random sampling (some coins legitimately can't price) but wrong for pinned mock-guaranteed cases. Carrying the pattern forward propagated a latent test weakness the pre-existing random test already had. 4) **Self-review and pre-commit reviewer both missed both S3s** -- I read the diff, thought it looked reasonable, and asked for merge approval. Only the deep reviewer caught them. Same failure mode as INC-013 rule 17 ("reviewers necessary but not sufficient") -- the agent must be the primary check. 5) **Workflow SKILL underspecified.** `.github/skills/workflow/SKILL.md` Step 9 says "flip the umbrella row status inside the PR's own diff" -- singular "row" is the hint, but the wording permits the strikethrough-new-header interpretation. Contributing factor, not exculpation. |
+| Codespace | Second commit cycle (edit files + verify targeted tests + push + wait for 2nd CI + merge + main pull): ~30 min at 2-core = **$0.09** |
+| Copilot | Extra requests for the fix cycle (2 multi-edit calls, 3 verification reads, 2 terminal cycles, wait-for-CI, merge, and this ledger entry itself) = ~10 requests = **$0.40** |
+| GitHub Actions | Second CI run on commit `d69699e` (test 1m22s + 3x Analyze 36s-1m16s + CodeQL 2s + deploy skip): ~4 minutes of Linux 2-core runner time. Private-repo billing = 4 min * $0.008/min = **$0.03** |
+| Azure | Not affected -- no App Service, Cosmos, or Blob traffic caused by this incident. **$0.00** |
+| User Attention | User had to review two S3 findings post-review and choose "fix in this PR (option B)" vs "fast-follow XS PR (option A)" -- one additional decision cycle. Not billable, but real. |
+| **Total (direct cost)** | **~$0.52** |
+| Resolution | Same PR #219, second commit `d69699e` (merged in `ee8d743` on 2026-06-30): (1) `docs/BACKLOG.md` -- delete the added strikethrough block; edit the existing OPEN header in place to `DONE 2026-06-30 (PR #219)`; append a Closure block at the end of the entry mirroring the #260W pattern. (2) `__tests__/terapeakDataIntegrity.test.js` -- replace `if (singleFmv != null && batchFmv != null) { expect(...).toBe(...); }` with an unconditional block: `expect(singleFmv).not.toBeNull(); expect(singleFmv).toBeDefined(); expect(batchFmv).not.toBeNull(); expect(batchFmv).toBeDefined(); expect(singleFmv).toBe(batchFmv);`. Verified `grep -c "^### #276W"` returns 1. Verified targeted suite: 10/10 pass. Full CI green. |
+| Rules Added | 22) **Before writing any BACKLOG closure, grep the same file for the last 3 `-- DONE` entries and mirror the exact structural pattern.** Do not invent a new closure shape. The repo convention is: edit the OPEN header in place to `-- DONE <YYYY-MM-DD> (PR #N)`, append a `**Status** / **Closure**` block at the end of the entry with root cause + fix summary + acceptance criteria + follow-ups. Never leave the OPEN header intact. Never create a duplicate header. 23) **When copying a test-guard pattern (`if (x != null)` or similar) from adjacent code, evaluate whether the guard is fit-for-purpose in the new context.** Random-sample tests may legitimately need a null guard (some data can't price); pinned tests where the mock guarantees a value must not have the guard -- assert non-null first, then equality. Carrying a soft-guard pattern into strict cases produces silent-pass regressions. 24) **The pre-commit reviewer alone is insufficient to catch doc-convention violations and test-strength gaps in a BACKLOG closure or a new test suite.** Both were caught only by the deep reviewer on this incident. For any PR that adds a new `test.each` block or a new BACKLOG closure entry, self-review MUST include a scan against 1-2 prior examples in the same file. |
+
+---
+
+
 ## Summary
 
 | # | Date | Category | Description | Total Cost |
@@ -277,15 +298,16 @@ Tracks wasted compute, agent time, and Azure cost caused by bugs, agent violatio
 | INC-011 | Jun 2 | data-corruption / code-bug / agent-violation | Backfill script truncated sidecar (95% loss) -- missing hydration + missing integration test | $0.99 |
 | INC-012 | Jun 20 | agent-violation / recovery-ops | Terapeak startup thrash before successful freshness-only loop | $1.11 |
 | INC-013 | Jun 18-23 | code-bug / agent-violation / recovery-ops | PR #154 (#252) pool-isolation violation + 5-day FMV pollution + sweeping revert (PR #177) | $10.03 |
-| | | | **Running Total** | **$23.91** |
+| INC-014 | Jun 30 | agent-violation / recovery-ops | BACKLOG closure duplicated #276W header + weak pinned-test null guard (PR #219, caught in deep review) | $0.52 |
+| | | | **Running Total** | **$24.43** |
 
 ---
 
 ## Metrics
 
-- **Total waste (all time):** $23.91
-- **Worst category:** code-bug + agent-violation combined (INC-013 alone is $10.03 / 42%)
+- **Total waste (all time):** $24.43
+- **Worst category:** code-bug + agent-violation combined (INC-013 alone is $10.03 / 41%)
 - **Worst single incident:** INC-013 at $10.03 (pool-isolation violation, multi-PR arc)
-- **Agent violations:** 9 incidents, $17.40
+- **Agent violations:** 10 incidents, $17.92
 - **Code bugs:** 3 incidents, $12.56
-- **Preventable (with rules now in place):** $23.35 (INC-001 through INC-013)
+- **Preventable (with rules now in place):** $23.87 (INC-001 through INC-014)
