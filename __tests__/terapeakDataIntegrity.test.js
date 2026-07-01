@@ -25,8 +25,13 @@ const path = require('path');
 
 // ── External API mocks (return nothing -- force Terapeak-only pipeline) ──
 
-jest.mock('../src/services/pcgsService', () => ({
-  parseDescription: jest.fn((q) => {
+jest.mock('../src/services/pcgsService', () => {
+  // Shared parser so parseDescription() and resolveFromDescription().parsed
+  // return IDENTICAL shape -- matches production where
+  // resolveFromDescription returns `parsed = parseDescription(text)`
+  // (`src/services/pcgsService.js` L207). Mock divergence here previously
+  // caused the test to surface a fake cross-route weight bug (#276W).
+  const mockParse = (q) => {
     const yearMatch = q.match(/\b(1[6-9]\d{2}|20[0-2]\d)\b/);
     const year = yearMatch ? parseInt(yearMatch[1], 10) : null;
     const gradeMatch = q.match(/\b(MS|PR|PF|AU|XF|VF|SP)\s*[-]?\s*(\d{1,2})\b/i);
@@ -47,28 +52,25 @@ jest.mock('../src/services/pcgsService', () => ({
       .replace(/\s+/g, ' ')
       .trim() || 'Unknown';
     return { series, year, mint: null, grade, gradeNum, weight, finish: null, metal };
-  }),
-  resolveFromDescription: jest.fn(async (q) => {
-    const yearMatch = q.match(/\b(1[6-9]\d{2}|20[0-2]\d)\b/);
-    const year = yearMatch ? parseInt(yearMatch[1], 10) : null;
-    const series = q
-      .replace(/\b\d{4}\b/, '')
-      .replace(/\b(MS|PR|PF|AU|XF|VF|SP)\s*[-]?\s*\d{1,2}\b/gi, '')
-      .replace(/\d+(?:\/\d+)?\s*oz\b/gi, '')
-      .replace(/\s+/g, ' ')
-      .trim() || 'Unknown';
-    return {
-      verified: false, pcgsCoinNumber: null,
-      series, year, mint: null, grade: null, designation: null,
-      finish: null, variety: null, priceGuide: null, population: null,
-      auction: null, trueViewUrl: null, coinImages: [],
-      parsed: { series, year, mint: null, grade: null, gradeNum: null, metal: null, weight: null },
-      limitations: [],
-    };
-  }),
-  lookupByCert: jest.fn(async () => ({ verified: false })),
-  lookupByCoinNumberAndGrade: jest.fn(async () => ({ verified: false })),
-}));
+  };
+  return {
+    parseDescription: jest.fn(mockParse),
+    resolveFromDescription: jest.fn(async (q) => {
+      const parsed = mockParse(q);
+      return {
+        verified: false, pcgsCoinNumber: null,
+        series: parsed.series, year: parsed.year, mint: parsed.mint,
+        grade: parsed.grade, designation: null,
+        finish: parsed.finish, variety: null, priceGuide: null, population: null,
+        auction: null, trueViewUrl: null, coinImages: [],
+        parsed,
+        limitations: [],
+      };
+    }),
+    lookupByCert: jest.fn(async () => ({ verified: false })),
+    lookupByCoinNumberAndGrade: jest.fn(async () => ({ verified: false })),
+  };
+});
 
 jest.mock('../src/services/greysheetService', () => ({
   fetchPriceByPcgsNumber: jest.fn(async () => null),
@@ -552,4 +554,44 @@ describe('cross-route consistency with real data', () => {
       }
     }
   );
+
+  // #276W: Pinned (non-random) cross-route consistency for fractional and
+  // multi-oz bullion. Random sampling above intermittently surfaced a weight
+  // divergence; these cases run every test pass so the regression cannot hide
+  // even when the random sampler picks a different cohort. Each label
+  // documents the per-coin weight factor that previously produced an
+  // off-by-weight FMV (Gold Eagle 1/10 oz: 10x, Silver Lunar 2 oz: 2x, etc.).
+  test.each([
+    ['2024 American Gold Eagle 1/10 oz'],
+    ['2024 American Gold Eagle 1/4 oz'],
+    ['2024 American Gold Eagle 1/2 oz'],
+    ['2024 American Silver Eagle 1 oz'],
+    ['2024 Perth Lunar III Dragon Silver 2 oz'],
+  ])('PINNED #276W %s: /api/price and /api/pricing-batch produce consistent FMV', async (query) => {
+    const [singleRes, batchRes] = await Promise.all([
+      request(app).post('/api/price').send({ query }),
+      request(app).post('/api/pricing-batch').send({ items: [{ query }] }),
+    ]);
+
+    expect(singleRes.status).toBe(200);
+    expect(batchRes.status).toBe(200);
+
+    const singleFmv = singleRes.body?.valuation?.fmvCore;
+    const batchFmv = batchRes.body?.results?.[0]?.fmv;
+
+    // The mocked spot price (30.50) and terapeak comps guarantee both routes
+    // MUST produce an FMV for these pinned bullion queries. Assert non-null
+    // first so a future both-null regression (mock breakage, dataset removal,
+    // spot-price mock returning null) cannot silently satisfy the equality
+    // check with `undefined === undefined`.
+    expect(singleFmv).not.toBeNull();
+    expect(singleFmv).toBeDefined();
+    expect(batchFmv).not.toBeNull();
+    expect(batchFmv).toBeDefined();
+
+    // Routes must agree exactly. A non-trivial weight factor in the query
+    // (1/10, 1/4, 1/2, 2 oz) means any silent weight-elision regression will
+    // diverge here by that exact factor.
+    expect(singleFmv).toBe(batchFmv);
+  });
 });
