@@ -579,11 +579,19 @@ describe('cross-route consistency with real data', () => {
     const singleFmv = singleRes.body?.valuation?.fmvCore;
     const batchFmv = batchRes.body?.results?.[0]?.fmv;
 
-    // Routes must agree exactly when both produce a value. A non-trivial
-    // weight factor in the query (1/10, 1/4, 1/2, 2 oz) means any silent
-    // weight-elision regression will diverge here by that exact factor.
-    if (singleFmv != null && batchFmv != null) {
-      expect(singleFmv).toBe(batchFmv);
-    }
+    // The mocked spot price (30.50) and terapeak comps guarantee both routes
+    // MUST produce an FMV for these pinned bullion queries. Assert non-null
+    // first so a future both-null regression (mock breakage, dataset removal,
+    // spot-price mock returning null) cannot silently satisfy the equality
+    // check with `undefined === undefined`.
+    expect(singleFmv).not.toBeNull();
+    expect(singleFmv).toBeDefined();
+    expect(batchFmv).not.toBeNull();
+    expect(batchFmv).toBeDefined();
+
+    // Routes must agree exactly. A non-trivial weight factor in the query
+    // (1/10, 1/4, 1/2, 2 oz) means any silent weight-elision regression will
+    // diverge here by that exact factor.
+    expect(singleFmv).toBe(batchFmv);
   });
 });
