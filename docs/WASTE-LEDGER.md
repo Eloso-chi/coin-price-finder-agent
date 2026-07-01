@@ -280,8 +280,49 @@ Tracks wasted compute, agent time, and Azure cost caused by bugs, agent violatio
 
 ---
 
+### INC-015: Backlog Stale-P1 Claims Required 2-Round User Pushback (PR #218)
+
+| Field | Value |
+|-------|-------|
+| Date | 2026-06-30 |
+| Category | `agent-violation` / `recovery-ops` |
+| Root Cause | At session start the agent (me) inventoried "top P1s to work on" from `docs/BACKLOG.md` and proposed both `#270W` (raw comp-seeding safety) and `#228` (freshness-refresh coverage) as active P1 work. Neither was actually P1 by ground truth: `#270W`'s safety case had been closed by PR #186 (already merged); `#228`'s continuous surface-freshness loop + `freshnessClassifier` had been shipped in PR #229 (already merged) rendering the entry obsolete. I read the priority labels at face value instead of cross-checking against merged PRs. Same failure mode as INC-009 (backlog drift). |
+| Impact | User had to challenge twice before I ran the actual verification: (1) transcript L3258 "are you sure 270W isnt complete? and is 228 still valid?" -- forced first reassessment; (2) transcript L3287 "reassess 228, we have run some many coins and batchs since this was creatred, explain to me what the issue remaining is?" -- forced deeper reassessment where I finally ran the freshness query (transcript L3314) that produced the ASE/Libertad/Lunar freshness table showing #228 was effectively obsolete. Only THEN did the closure PR make sense. Net outcome was PR #218 (+22/-2 in `docs/BACKLOG.md`, `chore/backlog-hygiene-228-270w`) closing `#228` SUPERSEDED and demoting `#270W` P1->P2. The hygiene itself was necessary; the wasteful part is that it required 2 user pushbacks and a dedicated PR when it should have been continuous maintenance -- an OPTIONAL "closes #NNN" line in PR #186 and PR #229 would have prevented the drift entirely. |
+| Mistakes | 1) **Trusted backlog priority labels as ground truth** instead of cross-checking against `git log --grep="#228\|#270W"` before proposing the item. 2) **First reassessment was shallow** -- I re-argued the item's validity from the entry text rather than running the actual freshness query that would have exposed it as obsolete. Required a second user pushback to prompt the deeper check. 3) **Did not consult INC-009's rule** ("backlog drift requires multi-pass reconciliation") before proposing work from the backlog. The rule existed; I did not apply it. |
+| Codespace | ~45 min session-equivalent (initial framing + 2 investigation cycles + PR #218 workflow: branch, commit, push, PR body, CI wait, merge, main pull) @ 2-core $0.18/hr = **$0.14** |
+| Copilot | ~30 premium requests (initial P1 framing, first pushback response, deeper reassessment with freshness query, backlog audit for other stale items, PR authoring, pre-commit checks, CI wait, merge) = **$1.20** |
+| GitHub Actions | PR #218 CI run: test 1m20s + 3x Analyze ~40s-1m + CodeQL 2s ~= 4 min Linux 2-core * $0.008/min = **$0.03** |
+| Azure | Not affected -- doc-only PR, no service traffic. **$0.00** |
+| User Attention | Not billable but real: user spent 2 explicit pushback turns to force reassessment. Pure operator-attention waste caused by the agent failing to independently verify priority labels against merged PRs. |
+| **Total (direct cost)** | **~$1.27** |
+| Resolution | PR #218 `5ad0630` (merged 2026-06-30, commit `041cefd` on main): closed `#228` as SUPERSEDED with citation of PR #229's freshnessClassifier + continuous surface-freshness loop; demoted `#270W` P1 -> P2 with citation of PR #186 closing the safety case. Net doc-only change (+22/-2). |
+| Rules Added | 25) **Before proposing any P1 as active work, cross-check the most recent 5-10 merged PRs in the same area for "closes #NNN", "supersedes #NNN", or behavior that would obsolete the entry.** Backlog labels lag reality; PRs are ground truth. Run `git --no-pager log --grep="<entry-id>" --oneline main` and `git --no-pager log --oneline main -20 --diff-filter=M -- <relevant/path/**>` before committing to a scope. 26) **When user pushes back on a stale-P1 claim, do not re-argue from the entry text on the first pass.** Run the verifying query directly (freshness table / test output / metric) that would either confirm or deny the entry's premise. Save the second pushback. 27) **Where possible, close backlog items in the same PR that renders them obsolete** -- a single "closes #NNN" line in a merged PR is cheaper than a dedicated hygiene PR weeks later. |
+
+---
+
+### INC-016: #276W Original Entry Had Transposed Reproduction-Matrix Labels (attribution ambiguous)
+
+| Field | Value |
+|-------|-------|
+| Date | Prior-session origin (entry created before 2026-06-30); investigation cost absorbed by this session |
+| Category | `recovery-ops` (documentation-quality) |
+| Attribution | **Ambiguous.** The `#276W` backlog entry (authored in a prior session on 2026-06-24) put `priceRoute` in the "correct" column and `pricingBatchRoute` in the "wrong" column of its reproduction-matrix and test-failure printout. Ground truth (established in this session's investigation) is the opposite: `priceRoute` was the wrong number, `pricingBatchRoute` was correct. The labels were transposed at authoring time. Not attributable to any single current-session decision; this session absorbed the unwinding cost. |
+| Root Cause | The failing test output shows two numbers with no per-route attribution in the assertion (`expect(singleFmv).toBe(batchFmv)` -- Expected: 3.05, Received: 30.5). The author of the entry inferred which number came from which route based on the *variable names* `singleFmv`/`batchFmv` without running the test with per-route logging or reading each response body. Wrong inference -> wrong hypothesis -> wrong "Which route is wrong?" open question in the entry (transcript L3314 area of the backlog file at authoring time). |
+| Impact | This session's Option-B investigation had to unwind the transposition before scoping the fix: read both routes end-to-end, trace `pcgs.parsed.weight` shape production vs test, compare `resolvedWeight` chains between `priceRoute.js` L126 and `pricingBatchRoute.js` L50, run the pinned test with output. ~5-8 extra turns above what a correctly-labeled entry would have required. Downstream side effect: the closure block I first authored (INC-014 duplicate-header incident) inherited the corrected labeling but not the file convention -- so INC-014 and INC-016 are causally related through the same #276W closure work. |
+| Mistakes (attribution note) | This is a documentation-quality bug from a prior session, not a current-session agent violation. Recorded here because (a) this session absorbed the direct waste, and (b) the class of bug is systemically preventable if the authoring rule (26 below) is followed. No "mistake" is attributed to this session's agent beyond "did not immediately spot the transposition on first read" -- which is a minor cost of trusting the entry text. |
+| Codespace | ~15-20 min extra investigation (~$0.05 at 2-core) = **$0.05** |
+| Copilot | ~7 extra requests (route reads, pcgsService trace, mock analysis, per-route test-with-logging cycle) = **$0.28** |
+| GitHub Actions | Not affected -- investigation was pre-CI. **$0.00** |
+| Azure | Not affected. **$0.00** |
+| **Total (direct cost)** | **~$0.33** |
+| Resolution | This session's PR #219 fix + closure block; INC-014 postmortem covers the closure-mechanics errors separately. No amendment to the original #276W entry text is warranted -- the closure block in `docs/BACKLOG.md` documents the correct labeling. |
+| Rules Added | 28) **When authoring any backlog entry with a comparative table or reproduction matrix, verify column headers against the actual test output at least once by running the failing test and quoting the raw response bodies with per-source attribution.** Do not infer "which output belongs to which route" from variable names alone. If the assertion is `expect(a).toBe(b)`, add temporary per-side logging (`console.log('single:', a, 'batch:', b)`), capture the output, and paste it verbatim into the entry with source labels intact. Delete the logging before commit. |
+
+---
+
 
 ## Summary
+
 
 | # | Date | Category | Description | Total Cost |
 |---|------|----------|-------------|------------|
@@ -299,15 +340,18 @@ Tracks wasted compute, agent time, and Azure cost caused by bugs, agent violatio
 | INC-012 | Jun 20 | agent-violation / recovery-ops | Terapeak startup thrash before successful freshness-only loop | $1.11 |
 | INC-013 | Jun 18-23 | code-bug / agent-violation / recovery-ops | PR #154 (#252) pool-isolation violation + 5-day FMV pollution + sweeping revert (PR #177) | $10.03 |
 | INC-014 | Jun 30 | agent-violation / recovery-ops | BACKLOG closure duplicated #276W header + weak pinned-test null guard (PR #219, caught in deep review) | $0.52 |
-| | | | **Running Total** | **$24.43** |
+| INC-015 | Jun 30 | agent-violation / recovery-ops | Backlog stale-P1 claims (#228, #270W) required 2-round user pushback; hygiene PR #218 | $1.27 |
+| INC-016 | Jun 24 (origin) / Jun 30 (unwind) | recovery-ops (docs-quality; attribution ambiguous) | #276W entry reproduction-matrix labels transposed at authoring; investigation cost absorbed by PR #219 session | $0.33 |
+| | | | **Running Total** | **$26.03** |
 
 ---
 
 ## Metrics
 
-- **Total waste (all time):** $24.43
-- **Worst category:** code-bug + agent-violation combined (INC-013 alone is $10.03 / 41%)
+- **Total waste (all time):** $26.03
+- **Worst category:** code-bug + agent-violation combined (INC-013 alone is $10.03 / 39%)
 - **Worst single incident:** INC-013 at $10.03 (pool-isolation violation, multi-PR arc)
-- **Agent violations:** 10 incidents, $17.92
+- **Agent violations:** 11 incidents, $19.19
 - **Code bugs:** 3 incidents, $12.56
-- **Preventable (with rules now in place):** $23.87 (INC-001 through INC-014)
+- **Recovery-ops (attribution-ambiguous / prior-session-carryover):** 1 incident (INC-016), $0.33
+- **Preventable (with rules now in place):** $25.70 (INC-001 through INC-015; INC-016 preventable at the *authoring* session, not this one)
