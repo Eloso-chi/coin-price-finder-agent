@@ -68,14 +68,15 @@ Priority order:
 13. `docs/memory/azure-infrastructure.md` -- Key Vault, Cosmos DB, Blob Storage, Azure Files
 14. `docs/memory/audience-gating.md` -- public vs admin response gating (PR #85)
 15. `docs/memory/background-processes-status.md` -- background timers, prefetch scheduler
-16. `docs/memory/bulk-evaluate-feature.md` -- lot evaluator reference
-17. `docs/memory/codespaces-gh-auth.md` -- Codespace gh CLI token quirk
-18. `docs/memory/cosmos-gotchas.md` -- Cosmos DB pitfalls
-19. `docs/memory/key-normalization-fix.md` -- 2026-05-08 key normalization
-20. `docs/memory/agents-and-prompts.md` -- inventory of agents/prompts/skills
-21. `docs/memory/agent-loading-order.md` -- how Copilot loads user / repo / session memory + agents / prompts / skills; where new content belongs (added under #271W F18)
-22. `docs/memory/future-edits.md` -- **HISTORICAL ARCHIVE ONLY**, now a deprecation stub. Canonical backlog is `docs/BACKLOG.md`. Skim for the renumber map (memory#183->#228, #185->#226, #186->#227) and per-machine ID convention.
-23. `docs/memory/README.md` -- corpus index, audit notes, migration history
+16. `docs/memory/production-state-lookup.md` -- **CRITICAL OBSERVABILITY CONTRACT.** Which files/endpoints reflect production and which do not. Codespace `cache/` is `.gitignore`d and never production truth; use the admin endpoints or `gh run` logs instead. Added under #277W after a 2026-07-03 misdiagnosis (Copilot claimed "prefetch hasn't run in 3 nights" from a stale local file).
+17. `docs/memory/bulk-evaluate-feature.md` -- lot evaluator reference
+18. `docs/memory/codespaces-gh-auth.md` -- Codespace gh CLI token quirk
+19. `docs/memory/cosmos-gotchas.md` -- Cosmos DB pitfalls
+20. `docs/memory/key-normalization-fix.md` -- 2026-05-08 key normalization
+21. `docs/memory/agents-and-prompts.md` -- inventory of agents/prompts/skills
+22. `docs/memory/agent-loading-order.md` -- how Copilot loads user / repo / session memory + agents / prompts / skills; where new content belongs (added under #271W F18)
+23. `docs/memory/future-edits.md` -- **HISTORICAL ARCHIVE ONLY**, now a deprecation stub. Canonical backlog is `docs/BACKLOG.md`. Skim for the renumber map (memory#183->#228, #185->#226, #186->#227) and per-machine ID convention.
+24. `docs/memory/README.md` -- corpus index, audit notes, migration history
 
 If a file is missing in `docs/memory/`, check `/memories/repo/` (the legacy backup) and surface the gap in the Readiness Report under "Gaps Detected".
 Any file returned by the glob but not in the priority list above is **not**
