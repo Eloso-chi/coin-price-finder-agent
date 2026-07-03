@@ -138,6 +138,14 @@ function hasCSVOnDisk(key) {
   return csvWordSets.has(ws);
 }
 
+// ── Generic coin detection ─────────────────────────────────
+// Generic coins (e.g., "Morgan_Silver_Dollar_Generic") are low-signal for pricing
+// specific grades/dates. Move them to P3 monitor tier (weekly) instead of page-1 loop.
+function isGenericCoin(searchKey) {
+  // Matches coins ending with "_Generic" or "Generic" in their name
+  return /[_\s]generic$/i.test(searchKey);
+}
+
 // ── Classify and compute ────────────────────────────────────
 const datasets = [];
 const compositionSummary = {};
@@ -266,6 +274,12 @@ for (const [key, entry] of Object.entries(meta)) {
   if (isDormant) {
     actions.push('dormant');
     priority = null;
+  } else if (isGenericCoin(key)) {
+    // Generic coins: move to P3 monitor tier (weekly cadence only)
+    // They're too broad for specific pricing and create noise in page-1 loop.
+    // Keep them on weekly surveillance for market-tone benchmarking only.
+    actions.push('monitor-refresh');
+    priority = 'P3';
   } else if (evidenceLowVolSkip) {
     actions.push('evidence-low-vol');
     priority = null;
