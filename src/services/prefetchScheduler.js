@@ -77,12 +77,23 @@ function targetGradesFor(year) {
  * category. Also returns a `pcgsYearMap` so callers (e.g. key-date Phase 1)
  * can look up a year by PCGS number without rescanning.
  *
- * Returns: { byCategory: Map<category, [{pcgsNo, year}]>, pcgsYearMap: Map<pcgsNo, year> }
+ * Returns: {
+ *   byCategory:      Map<category, [{pcgsNo, year}]>,
+ *   pcgsYearMap:     Map<pcgsNo, year>,
+ *   pcgsCategoryMap: Map<pcgsNo, category>   // first-seen category wins on collisions
+ * }
+ *
+ * `pcgsCategoryMap` is used by `buildQueue` (Phase 1 tagging) and by
+ * `executePrefetchRun` (per-category attempt / newRecord counters). Kept on
+ * the same walk so it is O(N) rather than a second pass. First-seen wins on
+ * cross-category collisions (see pcgs-numbers-collisions.md: ASE/AGE share
+ * ~80 PCGS#s; both fall in us_bullion so no observable divergence today).
  */
 function getCategorizedEntries() {
   const { TABLES_BY_CATEGORY } = require('../data/pcgsNumbers');
   const byCategory = new Map();
   const pcgsYearMap = new Map();
+  const pcgsCategoryMap = new Map();
   for (const [category, tables] of Object.entries(TABLES_BY_CATEGORY)) {
     const entries = [];
     for (const table of Object.values(tables)) {
@@ -93,12 +104,13 @@ function getCategorizedEntries() {
           if (typeof pcgsNo !== 'number' || pcgsNo <= 100) continue;
           entries.push({ pcgsNo, year });
           if (!pcgsYearMap.has(pcgsNo)) pcgsYearMap.set(pcgsNo, year);
+          if (!pcgsCategoryMap.has(pcgsNo)) pcgsCategoryMap.set(pcgsNo, category);
         }
       }
     }
     byCategory.set(category, entries);
   }
-  return { byCategory, pcgsYearMap };
+  return { byCategory, pcgsYearMap, pcgsCategoryMap };
 }
 
 const PHASE2_ROUND_ROBIN_ORDER = ['us_classic', 'us_bullion', 'world_bullion'];
@@ -131,7 +143,7 @@ function sortByPriorityThenAge(a, b) {
  *   Buckets are then interleaved in PHASE2_ROUND_ROBIN_ORDER.
  */
 function buildQueue() {
-  const { byCategory, pcgsYearMap } = getCategorizedEntries();
+  const { byCategory, pcgsYearMap, pcgsCategoryMap } = getCategorizedEntries();
   const totalNumbers = pcgsYearMap.size;
   const keyDateNumbers = getKeyDatePcgsNumbers();
   const keyDateSet = new Set(keyDateNumbers);
@@ -147,9 +159,15 @@ function buildQueue() {
   );
 
   // ── Phase 1: Key dates ──
+  // #277W: tag each entry with its source category so downstream counters can
+  // attribute API calls (and new-record yield) per category. Key dates that
+  // are not present in any TABLES_BY_CATEGORY table get category='unknown';
+  // this should be zero today but is tolerated rather than dropped so a
+  // future extractor gap does not silently exclude them from the queue.
   const phase1 = [];
   for (const pcgsNo of keyDateNumbers) {
     const year = pcgsYearMap.get(pcgsNo);
+    const category = pcgsCategoryMap.get(pcgsNo) || 'unknown';
     for (const grade of targetGradesFor(year)) {
       const key = `${pcgsNo}:${grade}`;
       if (seen.has(key)) continue;
@@ -159,6 +177,7 @@ function buildQueue() {
       phase1.push({
         pcgsNo,
         grade,
+        category,
         priority: entry ? 2 : 1,
         lastFetched: entry?.lastFetched || null
       });
@@ -181,6 +200,7 @@ function buildQueue() {
         buckets[category].push({
           pcgsNo,
           grade,
+          category,
           priority: entry ? 4 : 3,
           lastFetched: entry?.lastFetched || null
         });
@@ -274,6 +294,16 @@ async function executePrefetchRun() {
   let callsMade = 0;
   let recordsStored = 0;
   let newRecords = 0;
+  // #277W: per-category attempt / newRecord counters. `attempted` increments
+  // on every fetch (success OR error) so the sum matches callsMade. `newRecords`
+  // only increments on success. `unknown` catches Phase 1 key dates that failed
+  // category resolution (should be zero today; kept for observability).
+  const perCategory = {
+    us_classic:    { attempted: 0, newRecords: 0 },
+    us_bullion:    { attempted: 0, newRecords: 0 },
+    world_bullion: { attempted: 0, newRecords: 0 },
+    unknown:       { attempted: 0, newRecords: 0 }
+  };
   const errors = [];
 
   console.log('[prefetch] Starting nightly APR prefetch run...');
@@ -282,11 +312,17 @@ async function executePrefetchRun() {
     const available = pcgsQuota.getAvailableForPrefetch(RESERVE_CALLS);
     if (available <= 0) {
       console.log('[prefetch] No quota available (breaker tripped or fully used)');
+      // #277W: DO NOT overwrite `status` / `reason` / `lastRun` / `callsMade`
+      // here. Those describe the LAST REAL RUN and are what the admin dashboard
+      // and GH Actions safety-net workflow report. A safety-net trigger that
+      // lands after the in-process scheduler has already burned quota should
+      // record the skip attempt in a separate namespace so the completed-run
+      // signal is preserved. See docs/memory/background-processes-status.md.
       saveStatus({
         ...loadStatus(),
         lastAttempt: new Date().toISOString(),
-        status: 'skipped',
-        reason: 'No quota available',
+        lastAttemptStatus: 'skipped',
+        lastAttemptReason: 'No quota available',
         nextScheduled: getNextRunTime().toISOString()
       });
       return;
@@ -304,6 +340,7 @@ async function executePrefetchRun() {
         status: 'completed',
         reason: 'All entries fresh',
         callsMade: 0,
+        perCategory,
         nextScheduled: getNextRunTime().toISOString(),
         consecutiveFailures: 0
       });
@@ -319,14 +356,19 @@ async function executePrefetchRun() {
         break;
       }
 
-      const { pcgsNo, grade } = queue[i];
+      const { pcgsNo, grade, category } = queue[i];
+      const bucket = perCategory[category] || perCategory.unknown;
       try {
         const result = await auctionPrice.fetchByGrade(pcgsNo, grade, { force: true });
         callsMade++;
+        bucket.attempted++;
         recordsStored += result.records.length;
-        newRecords += result.newRecords || 0;
+        const gained = result.newRecords || 0;
+        newRecords += gained;
+        bucket.newRecords += gained;
       } catch (err) {
         callsMade++;
+        bucket.attempted++;
         const errMsg = `${pcgsNo}:${grade} — ${err.message}`;
         errors.push(errMsg);
         // On 429, stop immediately (breaker already tripped by auctionPriceService)
@@ -356,6 +398,7 @@ async function executePrefetchRun() {
       callsMade,
       recordsStored,
       newRecords,
+      perCategory,
       errors: errors.slice(0, 20), // cap stored errors
       consecutiveFailures: status === 'completed' ? 0 : (prevStatus.consecutiveFailures || 0) + 1,
       nextScheduled: getNextRunTime().toISOString(),
@@ -373,6 +416,7 @@ async function executePrefetchRun() {
       status: 'failed',
       error: err.message,
       callsMade,
+      perCategory,
       consecutiveFailures: failures,
       nextScheduled: getNextRunTime().toISOString()
     });
@@ -513,6 +557,16 @@ function getSchedulerStatus() {
     lastDuration: status.duration || null,
     lastCallsMade: status.callsMade || 0,
     lastNewRecords: status.newRecords || 0,
+    // #277W: per-category attempt / newRecord counts from the last real run.
+    // null when no run has recorded categorised numbers yet (pre-#277W status
+    // files, or the module has just been loaded on a fresh cache).
+    lastPerCategory: status.perCategory || null,
+    // #277W: safety-net trigger that lands after quota is exhausted writes
+    // ONLY these three fields, leaving lastRun / lastStatus intact for the
+    // completed run they raced with. null on first boot.
+    lastAttempt: status.lastAttempt || null,
+    lastAttemptStatus: status.lastAttemptStatus || null,
+    lastAttemptReason: status.lastAttemptReason || null,
     lastErrors: status.errors || [],
     consecutiveFailures: status.consecutiveFailures || 0,
     queueRemaining: status.queueRemaining || 0,

@@ -89,7 +89,7 @@ Comprehensive reference of all HTTP endpoints exposed by the coin-price-finder-a
 | `GET` | `/api/admin/dashboard` | 🔒 | System overview: user count, dataset count, quota, uptime |
 | `GET` | `/api/admin/stale-datasets` | 🔒 | Datasets older than N days (filters dormant/thin via freshness classifier) |
 | `GET` | `/api/admin/data-health` | 🔒 | Total files, empty files, date ranges |
-| `GET` | `/api/admin/prefetch-status` | 🔒 | PCGS nightly prefetch scheduler status |
+| `GET` | `/api/admin/prefetch-status` | 🔒 | PCGS nightly prefetch scheduler status (incl. `perCategory` breakdown + `lastAttempt*` fields per #277W) |
 | `POST` | `/api/admin/prefetch-trigger` | 🔒 | Trigger manual PCGS prefetch run |
 | `GET` | `/api/admin/pcgs-quota` | 🔒 | Current PCGS API quota usage |
 | `GET` | `/api/admin/auction-history` | 🔒 | Retrieve cached auction history |

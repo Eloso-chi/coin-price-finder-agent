@@ -1915,6 +1915,25 @@ Ops can override to any value (e.g., `BROWSER_RECYCLE_EVERY=40 python scripts/te
 
 ---
 
+### #277W. Prefetch status observability -- per-category counters + skip-clobber fix [P2 -- OBSERVABILITY] -- OPEN 2026-07-03
+- **Problem**: `/api/admin/prefetch-status` (and the GH Actions nightly-prefetch workflow that reads it) has two operator-hostile behaviours documented against production runs 28428064772 / 28501997783 / 28572716369 / 28644954256 on 2026-06-30 through 2026-07-03:
+  1. **`lastStatus: 'skipped'` clobbers `lastStatus: 'completed'`.** The GH Actions safety-net fires ~1h after the in-process 23:00 PT scheduler. When Pacific-date rollover causes `triggerManual` to re-invoke `executePrefetchRun`, the second call hits the `available <= 0` branch and `saveStatus({...loadStatus(), status: 'skipped', ...})` overwrites the field the workflow reports as the day's result. `lastRun`, `callsMade`, and `newRecords` survive via the spread, so the on-disk numbers keep looking like a completed run's numbers -- but `lastStatus` reads as "nothing happened".
+  2. **No per-category attribution.** PR-2b (`af16756`, 2026-06-30) added the round-robin merge across `us_classic / us_bullion / world_bullion`, but the status file has no way to prove that `world_bullion` actually received its ~1-in-3 share on any given night. The claim "world coins are being gathered" cannot be verified without SSHing into App Service to read `apr_manifest.json` directly.
+- **Fix / Approach**:
+  1. In `executePrefetchRun`'s `available <= 0` branch, stop writing `status` / `reason`. Write `lastAttempt` / `lastAttemptStatus` / `lastAttemptReason` instead. Prior completed-run fields (`lastRun`, `status`, `callsMade`, `newRecords`, `perCategory`) preserve via the existing `...loadStatus()` spread.
+  2. Tag every `buildQueue` entry with its source category (Phase 1 key dates via a `pcgsCategoryMap` returned from `getCategorizedEntries`, Phase 2 directly from the bucket). Add a `perCategory` accumulator to `executePrefetchRun` that increments `attempted` on every fetch and `newRecords` on success. Persist `perCategory` in the completed / partial / all-fresh / failed saveStatus paths.
+  3. Expose `lastPerCategory` and `lastAttempt` / `lastAttemptStatus` / `lastAttemptReason` in `getSchedulerStatus` (backward-compatible: new fields default to `null` for pre-migration status files).
+- **Files**:
+  - `src/services/prefetchScheduler.js` MOD
+  - `__tests__/prefetchScheduler.test.js` MOD (skip-preserves-completion test rewritten; four new tests under `#277W per-category counters`)
+  - `docs/memory/background-processes-status.md` MOD (record the change so the "why is lastStatus skipped?" question does not surface again)
+- **Backwards compat**: All new fields are additive. Pre-#277W status files (no `perCategory`, no `lastAttempt*`) return `null` for those fields in `getSchedulerStatus`. The GH Actions workflow's `jq` reads still work (`lastCallsMade`, `lastNewRecords`, `lastStatus` all continue to be populated by real completed runs).
+- **Follow-ups (out of scope for #277W)**:
+  - In-process 23:00 PT scheduler appears dead in production (every `lastRun` timestamp matches the GH Actions safety-net window, not 06:00 UTC). Separate investigation.
+  - Widen `init()` missed-run catch-up to fire when `lastRun` is > 24h old at any hour, not only past-trigger-hour.
+
+---
+
 ### #264W. Per-machine backlog ID convention (W/H suffix) [P2 -- PROCESS] -- DONE 2026-06-04
 - **Problem**: This project is worked on from two machines that may both add backlog items without coordinating. Without per-machine namespacing, the first new entry on each machine claims the same next-integer ID, forcing post-hoc renumbering (e.g., this session: drafted #260-#262, collided with PR #118's #260, renumbered to #261-#263, then again to #260W-#262W).
 - **Fix**:

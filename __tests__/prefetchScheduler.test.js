@@ -84,12 +84,42 @@ beforeEach(() => {
 
 describe('prefetchScheduler — executePrefetchRun', () => {
 
-  test('skips when no quota available', async () => {
+  test('skips when no quota available and preserves prior completion (#277W)', async () => {
+    // Seed with a prior completed run — this is the state the GH Actions
+    // safety-net workflow races with when it fires ~1h after the in-process
+    // scheduler already burned quota. Pre-#277W the skip write clobbered
+    // `status` to 'skipped' and made lastStatus in /api/admin/prefetch-status
+    // read as "nothing happened" for the whole day.
+    mockStatusStore = {
+      lastRun: '2026-07-02T07:48:37.720Z',
+      status: 'completed',
+      duration: '1658.6s',
+      callsMade: 990,
+      newRecords: 607,
+      perCategory: {
+        us_classic: { attempted: 330, newRecords: 200 },
+        us_bullion: { attempted: 330, newRecords: 250 },
+        world_bullion: { attempted: 330, newRecords: 157 },
+        unknown: { attempted: 0, newRecords: 0 }
+      }
+    };
     pcgsQuota.getAvailableForPrefetch.mockReturnValue(0);
     await scheduler.executePrefetchRun();
+
     expect(auctionPrice.fetchByGrade).not.toHaveBeenCalled();
-    expect(mockStatusStore.status).toBe('skipped');
-    expect(mockStatusStore.reason).toContain('No quota');
+
+    // Attempt namespace records the skip.
+    expect(mockStatusStore.lastAttemptStatus).toBe('skipped');
+    expect(mockStatusStore.lastAttemptReason).toContain('No quota');
+    expect(typeof mockStatusStore.lastAttempt).toBe('string');
+    expect(new Date(mockStatusStore.lastAttempt).getTime()).toBeGreaterThan(0);
+
+    // Prior completion signal is PRESERVED (this is the whole point).
+    expect(mockStatusStore.status).toBe('completed');
+    expect(mockStatusStore.lastRun).toBe('2026-07-02T07:48:37.720Z');
+    expect(mockStatusStore.callsMade).toBe(990);
+    expect(mockStatusStore.newRecords).toBe(607);
+    expect(mockStatusStore.perCategory.world_bullion.newRecords).toBe(157);
   });
 
   test('processes items limited by available quota', async () => {
@@ -457,5 +487,120 @@ describe('prefetchScheduler — PR-2b buildQueue round-robin + grade pruning', (
     expect(grades9814.length).toBe(unique9814.size);
     // 9814 is a modern bullion year (1986/1999) -- full 11-grade ladder applies.
     expect(grades9814.length).toBeLessThanOrEqual(11);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  #277W — Per-category counters + skip observability
+//  Motivating incident: the GH Actions safety-net polls
+//  /api/admin/prefetch-status ~1h after the in-process scheduler
+//  runs and races the second executePrefetchRun into the
+//  "no quota available" branch. Pre-#277W that write clobbered
+//  `status` to 'skipped', so the completed-run signal for the
+//  night was invisible in the workflow report every morning
+//  (verified against GH runs 28428064772 / 28501997783 /
+//  28572716369 / 28644954256 on 2026-06-30 through 2026-07-03).
+// ═══════════════════════════════════════════════════════════════
+
+describe('prefetchScheduler — #277W per-category counters', () => {
+
+  test('buildQueue tags every entry with a us_classic / us_bullion / world_bullion category', () => {
+    const queue = scheduler.buildQueue();
+    const allowed = new Set(['us_classic', 'us_bullion', 'world_bullion', 'unknown']);
+    // Sample 200 entries evenly across the queue to keep the assertion fast.
+    const step = Math.max(1, Math.floor(queue.length / 200));
+    for (let i = 0; i < queue.length; i += step) {
+      expect(allowed.has(queue[i].category)).toBe(true);
+    }
+    // In practice 'unknown' should never appear today (every key date resolves
+    // to a table). Assert that so a future extractor regression is caught.
+    const unknownCount = queue.filter(e => e.category === 'unknown').length;
+    expect(unknownCount).toBe(0);
+  });
+
+  test('getCategorizedEntries returns a pcgsCategoryMap that matches TABLES_BY_CATEGORY', () => {
+    const { pcgsCategoryMap } = scheduler.getCategorizedEntries();
+    // Representative fixtures per category (mirrors the walker-categorisation
+    // test above; verifies pcgsCategoryMap resolves the same way).
+    expect(pcgsCategoryMap.get(6564)).toBe('us_classic');       // Walking Liberty 1916
+    expect(pcgsCategoryMap.get(8912)).toBe('us_classic');       // Liberty Double Eagle 1854-O
+    expect(pcgsCategoryMap.get(9801)).toBe('us_bullion');       // ASE 1986
+    expect(pcgsCategoryMap.get(1004509)).toBe('world_bullion'); // Maple Leaf 2026
+  });
+
+  test('executePrefetchRun accumulates perCategory attempted + newRecords', async () => {
+    // Force needsRefresh false for everything except a known fixture PCGS# in
+    // each category, so the queue is small and deterministic.
+    const seededCounts = { us_classic: 0, us_bullion: 0, world_bullion: 0 };
+    const fixtures = {
+      6564:    'us_classic',       // Walking Liberty 1916
+      9801:    'us_bullion',       // ASE 1986
+      1004509: 'world_bullion'     // Maple Leaf 2026
+    };
+    auctionPrice.needsRefresh.mockImplementation((pcgsNo) => Object.prototype.hasOwnProperty.call(fixtures, pcgsNo));
+    // Each successful fetch yields 2 new records to make the summation visible.
+    auctionPrice.fetchByGrade.mockImplementation(async (pcgsNo, _grade) => {
+      const cat = fixtures[pcgsNo];
+      if (cat) seededCounts[cat]++;
+      return { records: [{ price: 1 }, { price: 2 }], newRecords: 2 };
+    });
+    // Give the run enough quota to drain all three fixtures.
+    pcgsQuota.getAvailableForPrefetch.mockReturnValue(200);
+
+    await scheduler.executePrefetchRun();
+
+    expect(mockStatusStore.perCategory).toBeDefined();
+    for (const cat of ['us_classic', 'us_bullion', 'world_bullion']) {
+      // Each fixture is enqueued at multiple grades, so attempted equals the
+      // grade count for that fixture. The exact number depends on
+      // targetGradesFor(year); we only assert it is > 0 and matches newRecords/2.
+      expect(mockStatusStore.perCategory[cat].attempted).toBeGreaterThan(0);
+      expect(mockStatusStore.perCategory[cat].newRecords)
+        .toBe(mockStatusStore.perCategory[cat].attempted * 2);
+    }
+    // Sanity: total attempted across categories equals total callsMade.
+    const totalAttempted = ['us_classic', 'us_bullion', 'world_bullion', 'unknown']
+      .reduce((sum, c) => sum + mockStatusStore.perCategory[c].attempted, 0);
+    expect(totalAttempted).toBe(mockStatusStore.callsMade);
+  });
+
+  test('getSchedulerStatus exposes lastPerCategory + lastAttempt fields', () => {
+    mockStatusStore = {
+      lastRun: '2026-07-02T07:48:37.720Z',
+      status: 'completed',
+      perCategory: {
+        us_classic:    { attempted: 330, newRecords: 200 },
+        us_bullion:    { attempted: 330, newRecords: 250 },
+        world_bullion: { attempted: 330, newRecords: 157 },
+        unknown:       { attempted: 0,   newRecords: 0 }
+      },
+      lastAttempt: '2026-07-03T07:17:03.000Z',
+      lastAttemptStatus: 'skipped',
+      lastAttemptReason: 'No quota available'
+    };
+    const status = scheduler.getSchedulerStatus();
+    expect(status.lastPerCategory).toEqual(mockStatusStore.perCategory);
+    expect(status.lastAttempt).toBe('2026-07-03T07:17:03.000Z');
+    expect(status.lastAttemptStatus).toBe('skipped');
+    expect(status.lastAttemptReason).toContain('No quota');
+    // Completed status is what shows up as lastStatus, not the skip attempt.
+    expect(status.lastStatus).toBe('completed');
+  });
+
+  test('getSchedulerStatus tolerates pre-#277W status files (all new fields null)', () => {
+    mockStatusStore = {
+      lastRun: '2026-06-01T00:00:00.000Z',
+      status: 'completed',
+      callsMade: 990
+      // no perCategory, no lastAttempt* — pre-migration shape
+    };
+    const status = scheduler.getSchedulerStatus();
+    expect(status.lastPerCategory).toBeNull();
+    expect(status.lastAttempt).toBeNull();
+    expect(status.lastAttemptStatus).toBeNull();
+    expect(status.lastAttemptReason).toBeNull();
+    // Existing fields remain untouched.
+    expect(status.lastStatus).toBe('completed');
+    expect(status.lastCallsMade).toBe(990);
   });
 });

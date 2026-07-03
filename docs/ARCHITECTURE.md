@@ -1113,6 +1113,22 @@ The headline win is not raw queue size -- it's that world bullion is no
 longer behind the entire US block. Round-robin guarantees one world-bullion
 call for every two US calls every night.
 
+**Status observability (#277W, 2026-07-03)**
+
+Each `saveStatus` write from `executePrefetchRun` includes a `perCategory`
+object -- `{ us_classic, us_bullion, world_bullion, unknown }` each with
+`{ attempted, newRecords }` counters -- so `/api/admin/prefetch-status` can
+verify the round-robin actually delivered its 1:1:1 share on any given
+night. Queue entries are tagged with `category` at build time (Phase 1 via
+`pcgsCategoryMap` from `getCategorizedEntries`, Phase 2 from the bucket key)
+so the accumulator does not need a second table lookup per call.
+
+The safety-net "no quota available" skip write no longer overwrites
+`status` / `lastRun`. It records into a separate `lastAttempt` /
+`lastAttemptStatus` / `lastAttemptReason` namespace, so a completed
+in-process run at 23:00 PT keeps `lastStatus: 'completed'` even after the
+GH Actions safety-net races into the same day.
+
 ---
 
 ## Statistics Module
