@@ -21,7 +21,7 @@ the corpus into git so both machines see the same content.
 | Files migrated | 21 markdown files |
 | Banner added | Originals at `/memories/repo/` carry a `MIGRATED to docs/memory/...` notice and are retained as a non-authoritative backup. |
 
-## Inventory (23 files)
+## Inventory (24 files)
 
 | File | Purpose |
 |------|---------|
@@ -29,7 +29,7 @@ the corpus into git so both machines see the same content.
 | `agent-loading-order.md` | How Copilot loads memory scopes / agents / prompts / skills; where new content belongs (added under #271W F18) |
 | `audience-gating.md` | Public vs admin response gating (PR #85) |
 | `azure-infrastructure.md` | Key Vault, Cosmos DB, Blob Storage, App Service |
-| `background-processes-status.md` | Background timers, prefetch scheduler (2026-05-26) |
+| `background-processes-status.md` | Background timers, prefetch scheduler (2026-05-26, refreshed 2026-07-03 for #277W) |
 | `bulk-evaluate-feature.md` | Lot Evaluator engine reference |
 | `cache-invalidation-fix.md` | Cache TTL / eviction fix (2026-04-11) |
 | `codebase-overview.md` | Stack, services, routes, auth, env vars |
@@ -42,6 +42,7 @@ the corpus into git so both machines see the same content.
 | `key-normalization-fix.md` | 2026-05-08 key normalization |
 | `label-feature-context.md` | Label / variant feature design |
 | `numismatic-terminology.md` | Strike types, grade prefixes, pool classification, common traps |
+| `production-state-lookup.md` | **CRITICAL OBSERVABILITY CONTRACT.** Codespace `cache/` is `.gitignore`d and never production truth; use `/api/admin/*` endpoints or `gh run` logs. Added 2026-07-03 under #277W after a Copilot misdiagnosis ("prefetch hasn't run in 3 nights" from a stale local file). |
 | `synthetic-data-audit.md` | Synthetic data purge (2026-05-07) |
 | `terapeak-data-structure-analysis.md` | CSV format, column mapping (2026-04-12) |
 | `terapeak-export-automation.md` | Playwright aggregation architecture |

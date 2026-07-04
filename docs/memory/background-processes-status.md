@@ -1,12 +1,15 @@
-# Background Processes & Automation Status (2026-05-26)
+# Background Processes & Automation Status (2026-05-26, refreshed 2026-07-03 for #277W)
 
 ## Working Processes ✓
 
 ### 1. PCGS APR Prefetch Scheduler
-- **Status:** ✓ ACTIVE & RECENTLY FIXED (PR #50)
+- **Status:** ✓ ACTIVE & RECENTLY FIXED (PR #50 + #277W)
 - **Schedule:** Nightly 11 PM PT (in-process) + 6:05 AM UTC (GH Actions safety net)
 - **Last run:** 2026-05-26 07:58:14 UTC (28.7 min, 990 calls, 79 new records, 0 errors)
 - **Fixes (PR #50):** Fire-and-forget (202 response), idempotency guard, 30-min workflow polling, metrics reporting
+- **Fixes (#277W, 2026-07-03):**
+  - `lastStatus` no longer clobbered by safety-net "no quota" skip writes.  The skip attempt now records into `lastAttempt` / `lastAttemptStatus` / `lastAttemptReason` and leaves the completed-run `status` / `lastRun` / `callsMade` / `newRecords` fields intact.
+  - Status file gains `perCategory: { us_classic, us_bullion, world_bullion, unknown -> { attempted, newRecords } }` so `/api/admin/prefetch-status` can prove world coins received their round-robin share on any given night without a manifest read.
 - **Code:** src/services/prefetchScheduler.js, .github/workflows/nightly-prefetch.yml
 
 ### 2. Metals Spot Price Polling
