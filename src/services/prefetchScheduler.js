@@ -164,10 +164,16 @@ function buildQueue() {
   // are not present in any TABLES_BY_CATEGORY table get category='unknown';
   // this should be zero today but is tolerated rather than dropped so a
   // future extractor gap does not silently exclude them from the queue.
+  // A warn is emitted once per unknown PCGS# so App Service log grep can
+  // recover the diagnostic breadcrumb -- lastPerCategory.unknown alone is
+  // an aggregate count with no way to identify which numbers fell through.
   const phase1 = [];
   for (const pcgsNo of keyDateNumbers) {
     const year = pcgsYearMap.get(pcgsNo);
     const category = pcgsCategoryMap.get(pcgsNo) || 'unknown';
+    if (category === 'unknown') {
+      console.warn(`[prefetch] Key date has no category: ${pcgsNo} (extractor drift; investigate TABLES_BY_CATEGORY coverage)`);
+    }
     for (const grade of targetGradesFor(year)) {
       const key = `${pcgsNo}:${grade}`;
       if (seen.has(key)) continue;
