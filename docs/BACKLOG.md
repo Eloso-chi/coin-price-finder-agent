@@ -1996,6 +1996,93 @@ Ops can override to any value (e.g., `BROWSER_RECYCLE_EVERY=40 python scripts/te
 
 ---
 
+### #279W. Weighted round-robin for prefetch categories (down-weight zero-yield buckets) [P3 -- EFFICIENCY] -- PROPOSED 2026-07-05
+- **Problem**: The 2026-07-05 nightly production run (990 attempts, `lastStatus: 'partial'`, 58 new records) split cleanly under PR-2b's 1:1:1 round-robin -- `us_classic=339 / us_bullion=303 / world_bullion=348` -- but yielded newRecords {0, 58, 0}. **All 58 new records came from `us_bullion`.** Verified empirically: sampled world_bullion PCGS numbers (526437 Libertad, 32496 Silver Maple, plus 5 more iconic samples) show `lastFetched` stamps from 2026-06-30 with `records: 0`. PCGS APR has no auction data for these coins -- world bullion trades bullion-dealer OTC and rarely reaches PCGS-indexed numismatic auctions (documented context in #263). us_classic is heavily saturated and additionally absorbed ~375 timeouts (all 20 stored `lastErrors` are 4-digit us_classic PCGS numbers). Net effect: ~35% of the daily quota is being spent on a category (world_bullion) that has yielded zero net-new records so far.
+- **Constraints**:
+  - Do NOT stop fetching world_bullion. New coverage may appear over time (PCGS backfills auctions; new series are added); a permanent skip would silently miss it.
+  - Do NOT break the "world bullion isn't starved" invariant that #214 and PR-2b established. The starvation symptom was "0 of 749 bullion cached after 30 nightly runs".
+- **Proposed approach (Option 1 -- weighted array in `PHASE2_ROUND_ROBIN_ORDER`)**:
+  ```js
+  // Down-weight world_bullion from 1:1:1 to 1:1:0.2 by expanding the schedule array.
+  // Every 5-slot window emits us_classic, us_bullion, us_classic, us_bullion, world_bullion.
+  const PHASE2_ROUND_ROBIN_ORDER = [
+    'us_classic', 'us_bullion',
+    'us_classic', 'us_bullion',
+    'world_bullion'
+  ];
+  ```
+  Round-robin merge in `buildQueue` already iterates the array; no logic change beyond the array contents. Test coverage: extend the existing "Phase 2 interleaves world_bullion within first 30 entries" test to assert the new 1:5 (not 1:3) ratio.
+- **Kill-switch (mandatory)**: if `lastPerCategory.world_bullion.newRecords > 0` for 3 consecutive nightly runs, restore 1:1:1. Rationale: down-weighting is only correct while world_bullion yields nothing. Once PCGS starts returning data, we want the original share. Implementation: read the last 3 status entries (needs #280W to land first, or a small helper that keeps a rolling window in `prefetch_status.json`).
+- **Data required to decide (blocks Phase 1)**:
+  - Confirm the 0-record pattern holds after 30-day freshness expires on the 06-30 batch. If some world_bullion combos DO produce records on refetch (say August 2026), a permanent 1:5 weighting is wrong.
+  - Wait for at least 3 more nightly runs post-#277W deploy to establish the yield baseline is stable, not a one-night PCGS outage artifact.
+- **Files affected (planned)**:
+  - `src/services/prefetchScheduler.js` -- 3-line change to `PHASE2_ROUND_ROBIN_ORDER` (+ kill-switch logic)
+  - `__tests__/prefetchScheduler.test.js` -- update the 1:1:1 assertion, add a kill-switch test
+  - `docs/ARCHITECTURE.md` -- amend the round-robin sub-section under "PCGS Prefetch Scheduler queue construction"
+- **Open questions**:
+  1. Weighted ratio: 1:5 (this proposal) vs 1:3 (status quo) vs 0:0 (permanent skip -- rejected)? Data-driven answer after #280W provides history.
+  2. Kill-switch trigger: 3 nights vs N nights? 3 is a starting guess; may need tuning.
+  3. Should us_classic also be down-weighted given its saturation + timeout affinity? Probably not -- Phase 1 already handles the key dates and Phase 2 us_classic covers the non-key-date long tail where new auctions occasionally land.
+- **Alternatives considered**:
+  - **Permanent skip world_bullion** -- rejected. Silently loses future coverage. Violates the #214 lesson.
+  - **Move world_bullion to a weekly cadence** -- more complex. Weighted round-robin achieves the same effect within a single-file change.
+  - **Increase `FRESHNESS_DAYS` for world_bullion specifically** -- rejected. Same effect but adds a category-conditional in the freshness path, more surface area to test.
+- **Success criteria**:
+  - Daily quota (~990 calls) spent proportionally to yield: 4 slots to us_classic + us_bullion for every 1 slot to world_bullion.
+  - When PCGS starts producing world bullion data, kill-switch restores 1:1:1 automatically within 3 nights.
+  - Existing "world bullion not starved" guarantee (from PR-2b + #214) maintained: world_bullion still receives ~200 calls/night at 1:5, above the 100-combo floor.
+
+---
+
+### #280W. Persist per-category yield history across nights (rolling window in `prefetch_status.json`) [P3 -- OBSERVABILITY] -- PROPOSED 2026-07-05
+- **Problem**: #277W added `lastPerCategory` to `/api/admin/prefetch-status`, but it's overwritten each run. To decide whether to weight-adjust categories (see #279W), a data-driven kill-switch, or answer "how did yield trend after we changed X", we need the previous N runs' per-category numbers alongside the current one. Today the only historical trail is the GH Actions workflow logs -- fragile (workflow bug in #279W-follow-up would prevent the log from capturing the run it triggered), incomplete (workflow exits early on `todayCompleted: true` from a prior partial), and awkward to query.
+- **Proposed approach**: extend `prefetch_status.json` with a rolling `history` array. Each real-run `saveStatus` call pushes the current run's summary onto the front and truncates to the last N entries (proposal: N = 14, two weeks). Sub-object shape:
+  ```json
+  "history": [
+    {
+      "ranAt": "2026-07-05T09:17:34Z",
+      "status": "partial",
+      "durationSec": 7243.9,
+      "callsMade": 990,
+      "newRecords": 58,
+      "errorCount": 20,
+      "perCategory": {
+        "us_classic":    { "attempted": 339, "newRecords":  0 },
+        "us_bullion":    { "attempted": 303, "newRecords": 58 },
+        "world_bullion": { "attempted": 348, "newRecords":  0 },
+        "unknown":       { "attempted":   0, "newRecords":  0 }
+      }
+    },
+    { ... older ... }
+  ]
+  ```
+  Write path lives in `executePrefetchRun`'s three real-run `saveStatus` calls (all-fresh, normal completion, failed catch). The skip branch already preserves via spread and should NOT push to history (no real work happened). Read path: expose in `getSchedulerStatus` as `history`; the size cap keeps the endpoint response small.
+- **Non-goals**:
+  - Not a full audit log. Per-call error attribution stays out of the history entry (there's already `lastErrors` for that).
+  - Not a Cosmos-backed time series. File-only, rolling window. If deeper history is ever needed, dual-write to Cosmos as a follow-up.
+- **Backward compat**: history is a new nullable field. Pre-migration status files return `history: []`. GH Actions workflow's `jq` reads are unaffected.
+- **Files affected (planned)**:
+  - `src/services/prefetchScheduler.js` -- ~20 lines: helper `pushHistory(summary)` that clones + truncates + writes; called from the three real-run saveStatus paths; add `history` to `getSchedulerStatus` return
+  - `__tests__/prefetchScheduler.test.js` -- new tests: window truncation at N=14, skip-branch does NOT push, backward compat when history absent
+  - `docs/ARCHITECTURE.md` -- one-line note in the "Status observability (#277W...)" sub-section
+  - `docs/api-reference.md` -- description update for `/api/admin/prefetch-status`
+- **Open questions**:
+  1. Window size: 14 nights (~2 weeks) proposed. 7 nights (compact, 1 week) or 30 nights (full quota-cycle) also reasonable.
+  2. Whether to include the `lastErrors` array in each history entry. Recommend NO (bloats file, redundant with the current run's `lastErrors`).
+  3. Whether to store history in a separate file (`prefetch_history.jsonl`) instead of embedding in `prefetch_status.json`. Embedded is simpler for the admin endpoint; JSONL is more log-native. Embedded recommended for consistency with #277W's shape.
+  4. Trigger for #279W's kill-switch: read `history[0..2].perCategory.world_bullion.newRecords` and require any to be > 0. Confirm this is the read pattern (or a separate `avgYield` helper).
+- **Cross-refs**:
+  - Blocks #279W's kill-switch logic (must land first)
+  - Complements #277W by extending the observability the same PR introduced
+  - Not related to #278W (Terapeak operator) despite being in the same session's investigations
+- **Success criteria**:
+  - `/api/admin/prefetch-status` includes `history` with up to 14 recent runs, each carrying the same shape currently in `last*` fields.
+  - #279W's kill-switch can decide "restore 1:1:1" by inspecting `history` alone (no external state).
+  - File size of `prefetch_status.json` stays bounded (< 30 KB with 14 entries).
+
+---
+
 ### #264W. Per-machine backlog ID convention (W/H suffix) [P2 -- PROCESS] -- DONE 2026-06-04
 - **Problem**: This project is worked on from two machines that may both add backlog items without coordinating. Without per-machine namespacing, the first new entry on each machine claims the same next-integer ID, forcing post-hoc renumbering (e.g., this session: drafted #260-#262, collided with PR #118's #260, renumbered to #261-#263, then again to #260W-#262W).
 - **Fix**:
