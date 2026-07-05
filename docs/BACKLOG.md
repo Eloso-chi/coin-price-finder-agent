@@ -55,13 +55,19 @@ After S2a went in and the candidate list was re-measured (2026-05-31), only **1 
 
 ---
 
-### S5. Gold Year-Specific CSVs [HIGH -- partial]
+### ~~S5. Gold Year-Specific CSVs [WONTFIX 2026-07-05]~~
 
-**Problem:** Gold Libertad, Gold Panda, and Gold Eagle all lack year-specific datasets. Gold queries hit mixed-metal generic datasets causing 95-99% attrition.
+**Original problem:** Gold Libertad, Gold Panda, and Gold Eagle all lack year-specific datasets; gold queries hit mixed-metal generic datasets causing 95-99% attrition.
 
-**Status (May 2026):** Stubs created and partially populated. 89 empty stubs remain (84 Gold Eagle fractional, 4 Gold Libertad, 1 Gold Panda). Populated: 50 Gold Libertad, 59 Gold Panda, 43+ Gold Eagle 1oz, 79-80 each fractional. Re-verified May 31, 2026 -- some year-specific files exist (e.g., `2024_Mexican_Gold_Libertad_1oz.csv`) but full coverage incomplete.
+**Original status (May 2026):** 89 empty stubs remained (84 Gold Eagle fractional, 4 Gold Libertad, 1 Gold Panda). Populated: 50 Gold Libertad, 59 Gold Panda, 43+ Gold Eagle 1oz, 79-80 each fractional.
 
-**Next:** Run `python3 scripts/terapeak-export.py --run --filter "Gold Eagle"` (requires VNC + cookies).
+**Resolution (2026-07-05):** Closed as WONTFIX because the automated freshness pipeline already handles these stubs correctly with zero additional manual scraping effort:
+
+- **Freshness classifier**: [src/services/freshnessClassifier.js](../src/services/freshnessClassifier.js) `classify()` promotes any single-refresh with `lastRefreshNewComps === 0` straight to `marketDepth: 'confirmed-thin'` (per #248 escalation, PR #100 -- "dry-confirmed-thin escalation").
+- **Skip gate**: `shouldSkipRefresh()` returns `skip: true` for `confirmed-thin` datasets until `CONFIRMED_THIN_CADENCE_DAYS` elapses; `generate-freshness-report.js` then assigns `priority: null` (drops from the operator queue entirely).
+- **Underlying market reality (#263)**: 84 of the 89 remaining stubs are fractional AGE (1/10, 1/4, 1/2 oz); the rest are Gold Libertad + fractional Panda. Per #263's evidence: "foreign / fractional gold (Krugerrand, fractional Panda, Libertad) is essentially all raw with sample sizes of 1-10 rows per series" and fractional AGE tracks the same pattern. No manual re-scrape produces the volume that isn't on eBay.
+
+Net: the operator naturally probes each stub once, records the empty result, and the classifier suppresses further attempts. That is the correct behaviour. Explicit manual work here is either duplicative (operator does it anyway) or futile (the market flow is bullion-dealer OTC, not eBay).
 
 ---
 
@@ -1516,53 +1522,63 @@ Both `data/terapeak/1968-D_Kennedy_Half_Dollar_40_Silver.csv` and `data/terapeak
 
 ---
 
-### 83. Gold Page 2 Enrichment for Existing 50-Row CSVs [P2]
+### ~~83. Gold Page 2 Enrichment for Existing 50-Row CSVs [WONTFIX 2026-07-05]~~
 
-**Problem:** 8 gold coins qualify for page-2 deep pagination now: 1986 AGE 1oz, 2024 AGE 1/10oz, 2025 AGE 1oz/1/10oz, AGE Generic 1oz/1/10oz, Gold Libertad Generic 1oz/1/2oz.
+**Original problem:** 8 gold coins qualified for page-2 deep pagination: 1986 AGE 1oz, 2024 AGE 1/10oz, 2025 AGE 1oz/1/10oz, AGE Generic 1oz/1/10oz, Gold Libertad Generic 1oz/1/2oz.
 
-**Fix:** `python3 scripts/terapeak-page2.py --run --filter "Gold"`.
+**Resolution (2026-07-05):** Closed as WONTFIX for the same reason as S5. Of the 8 listed items:
 
----
+- 3 are 1oz AGE (US bullion, better signal) but still bound by the same eBay coverage ceiling documented in #263 ("~40-50% graded share" is already the ceiling; adding more page-2 rows does not create new sold volume that doesn't exist).
+- 3 are fractional AGE (1/10oz) -- per #263, tracks the same low-signal pattern as foreign fractional gold.
+- 2 are Gold Libertad Generic -- per #263, essentially all raw with 1-10 rows per series.
 
-### 84. Gold Page 2 for New CSVs from S5 [P3]
-
-**Problem:** Any year-specific gold CSV from S5 (Gold Libertad/Panda/Eagle) that crosses 50 rows needs page-2 follow-up.
-
-**Fix:** Run after S5 page-1 scrapes complete.
-
-**Depends on:** S5
+The automated freshness loop already deep-paginates datasets that legitimately warrant it (`compCount >= 50` gate in [scripts/generate-freshness-report.js](../scripts/generate-freshness-report.js), with #248's dry-refresh escalation preventing wasted probes). Explicitly running `terapeak-page2.py` on these 8 items is duplicative of what the operator already does when the datasets meet the criteria.
 
 ---
 
-### 226. Gold Libertad Year-Specific Re-Scrape -- Thin Comp Data [P2]
+### ~~84. Gold Page 2 for New CSVs from S5 [WONTFIX 2026-07-05]~~
+
+**Original problem:** Any year-specific gold CSV from S5 (Gold Libertad/Panda/Eagle) that crossed 50 rows would need a page-2 follow-up.
+
+**Resolution (2026-07-05):** Cascades from S5 (WONTFIX 2026-07-05). With S5 closed and the freshness loop's dry-refresh escalation (#248) + automatic deep-paginate promotion in `generate-freshness-report.js`, this item has no residual manual work. New gold year-specifics that legitimately cross 50 rows will be picked up by the operator without an explicit backlog task.
+
+---
+
+### ~~226. Gold Libertad Year-Specific Re-Scrape -- Thin Comp Data [WONTFIX 2026-07-05]~~
 
 > Originally memory #185 -- renumbered to avoid collision with backlog #185 (World Proof Greysheet Fallback).
 
-**Problem:** Gold Libertad year-specific datasets have <10 gold comps surviving after metal/weight filtering. 2019 hits 100% attrition; most others 93-96%. Pipeline-leak + browseOnly for worst cases.
+**Original problem:** Gold Libertad year-specific datasets had <10 gold comps surviving after metal/weight filtering; 2019 hit 100% attrition; most others 93-96%. Fix proposal: re-scrape with gold-specific search terms, target 20-50 gold-only comps per year, scope ~45 CSVs.
 
-**Evidence:** pricing-health Libertad run May 9, 2026. RED: 2024 (95.5%), 2023, 2022, 2019, 2016 (95.7%), 1992 (93.8%).
+**Original evidence:** pricing-health Libertad run May 9, 2026. RED: 2024 (95.5%), 2023, 2022, 2019, 2016 (95.7%), 1992 (93.8%).
 
-**Fix:** Re-scrape with gold-specific search terms (e.g., "2024 Gold Libertad 1 oz" instead of "2024 Libertad 1 oz"). Target 20-50 gold-only comps per year.
+**Resolution (2026-07-05):** Closed as WONTFIX. The 20-50 comps/year target is unreachable because the underlying trade flow is not on eBay:
 
-**Scope:** ~45 year-specific CSVs.
+- Per #263 (2026-06-29 measurement): "foreign / fractional gold (Krugerrand, fractional Panda, Libertad) is essentially all raw with sample sizes of 1-10 rows per series" -- 10 is the empirical ceiling, not 20-50.
+- Better search terms do not create supply that isn't there. The 93-96% attrition is a data-source symptom, not a filter/query problem.
+- The freshness classifier + operator already probe these stubs organically and escalate to `confirmed-thin` via #248 (PR #100), so no manual re-scrape effort adds value.
 
-**Related:** S5 (gold year-specific stubs), #178 (gold attrition -- DONE)
+Remaining raw-gold FMV coverage is addressed by the spot+premium fallback path in #263's Fix #2 (currently a separate open item), not by re-scraping eBay.
+
+**Related:** #263 (raw / ungraded gold coverage), S5 (WONTFIX 2026-07-05), #248 (PR #100 dry-confirmed-thin).
 
 ---
 
-### 227. Silver Libertad Proof Year-Specific Re-Scrape -- Thin Comp Data [P2]
+### ~~227. Silver Libertad Proof Year-Specific Re-Scrape -- Thin Comp Data [DONE 2026-05]~~
 
 > Originally memory #186 -- renumbered to avoid collision with backlog #186 (Bulk Evaluator FMV Divergence -- DONE).
 
-**Problem:** Silver Libertad Proof datasets mix BU and Proof comps; variant filter removes BU leaving 3-4 proof comps. Pipeline-leak + browseOnly for worst cases.
+**Original problem:** Silver Libertad Proof datasets mixed BU and Proof comps; variant filter removed BU leaving 3-4 proof comps.
 
-**Evidence:** pricing-health Libertad run May 9, 2026. RED: 2013 (90.3%), 2022, 2010, 2009, 2011 (91.7%). 13 more YELLOW.
+**Resolution (2026-07-05 audit):** Marked DONE. Three independent workstreams that together closed this item:
 
-**Fix:** Re-scrape with proof-specific terms (e.g., "2013 Silver Libertad 1 oz Proof"). Target 15-40 proof-only comps per year.
+- **Data refresh** -- commit `3fe319a` "data: Silver Libertad Proof refresh - 17/19 completed" landed the re-scrape for 17 of the ~19 in-scope year files with proof-specific search terms.
+- **Underlying pricing signal fix** -- PR **#254** ("fix(#254): Live eBay Tracker + Price History silent-drops the proof signal") addressed the classification path where proof comps were being dropped downstream of the scrape, which was the actual FMV divergence root cause the re-scrape was trying to work around.
+- **Recency tuning** -- commit `6c4fca7` "#283H: proof / RP bullion uses 90-day recency half-life (not 30-day)" widened the recency window so the smaller proof sample sizes carry more effective weight in FMV.
 
-**Scope:** ~25 proof year CSVs.
+Remaining year-specific proof CSVs that still show thin comps fall to the same freshness-classifier confirmed-thin path as any other genuinely low-volume market.
 
-**Related:** #109 (Greysheet proof support -- DONE), #24 (proof Libertad search term quality)
+**Related:** #24 (proof Libertad search term quality), #109 (Greysheet proof support -- DONE), #254, #283H.
 
 ---
 
@@ -1674,7 +1690,9 @@ if (comp.totalUsd > expected.meltPerOz * expected.weight * 5 && !detectWeightFro
 
 ---
 
-### 263. Raw / Ungraded Gold Auction Data -- Prioritize APR Gold Prefetch + Spot-Premium Fallback [P2 -- DATA COVERAGE]
+### 263. Raw / Ungraded Gold Auction Data -- Prioritize APR Gold Prefetch + Spot-Premium Fallback [P3 -- DATA COVERAGE / OBSERVATIONAL]
+
+> **Status update 2026-07-05:** Fix #1 ("Add bullion-priority tier to `prefetchScheduler.buildQueue()`") shipped in **PR-2b** (commit `af16756`, merged 2026-06-30) as the round-robin merge over `us_classic / us_bullion / world_bullion`. First empirical yield captured 2026-07-05 nightly run (via #277W's `lastPerCategory` telemetry, now live in prod): `us_bullion=303 attempted / 58 newRecords`; `world_bullion=348 attempted / 0 newRecords`. The 0-yield on world bullion is not a bug -- it confirms the data-source limitation described below (foreign / fractional gold does not reach PCGS-indexed auctions in volume). Item **demoted from P2 to P3** because the residual is observational: whether APR gold coverage grows over 30-90 days is now measurable via `/api/admin/prefetch-status` and (proposed) #280W history persistence. Fixes #2, #3, #4, #5 remain as-written below.
 
 **Problem (discovered 2026-06-29 freshness triage):** Gold corpus is the weakest segment of the valuation pipeline. Bias-corrected freshness measurement (viable datasets only, marketDepth >= 10 comps):
 
@@ -1915,22 +1933,19 @@ Ops can override to any value (e.g., `BROWSER_RECYCLE_EVERY=40 python scripts/te
 
 ---
 
-### #277W. Prefetch status observability -- per-category counters + skip-clobber fix [P2 -- OBSERVABILITY] -- OPEN 2026-07-03
-- **Problem**: `/api/admin/prefetch-status` (and the GH Actions nightly-prefetch workflow that reads it) has two operator-hostile behaviours documented against production runs 28428064772 / 28501997783 / 28572716369 / 28644954256 on 2026-06-30 through 2026-07-03:
+### ~~#277W. Prefetch status observability -- per-category counters + skip-clobber fix [DONE 2026-07-04 via PR #220]~~
+- **Resolution**: Shipped in PR #220 (merge commit `055f7a6`, 2026-07-04). All three deliverables landed:
+  - `lastPerCategory` populated in `/api/admin/prefetch-status` (verified live in prod 2026-07-05: `us_classic=339 / us_bullion=303 / world_bullion=348 / unknown=0`)
+  - Skip branch (`available <= 0`) now writes `lastAttempt` / `lastAttemptStatus` / `lastAttemptReason` and leaves `status` / `lastRun` intact
+  - Backward compat: pre-migration status files return `null` for the new fields (verified by regression test)
+  - Bonus follow-ups included in the same PR: unknown-category `console.warn` guard + double-skip refresh regression test (deep-review APPLY 1 + 2)
+- **Cross-refs**: post-merge investigation on 2026-07-05 confirmed correct behaviour and surfaced two follow-up items (#279W weighted round-robin, #280W yield history).
+- **Original problem** (preserved for reference): `/api/admin/prefetch-status` (and the GH Actions nightly-prefetch workflow that reads it) has two operator-hostile behaviours documented against production runs 28428064772 / 28501997783 / 28572716369 / 28644954256 on 2026-06-30 through 2026-07-03:
   1. **`lastStatus: 'skipped'` clobbers `lastStatus: 'completed'`.** The GH Actions safety-net fires ~1h after the in-process 23:00 PT scheduler. When Pacific-date rollover causes `triggerManual` to re-invoke `executePrefetchRun`, the second call hits the `available <= 0` branch and `saveStatus({...loadStatus(), status: 'skipped', ...})` overwrites the field the workflow reports as the day's result. `lastRun`, `callsMade`, and `newRecords` survive via the spread, so the on-disk numbers keep looking like a completed run's numbers -- but `lastStatus` reads as "nothing happened".
   2. **No per-category attribution.** PR-2b (`af16756`, 2026-06-30) added the round-robin merge across `us_classic / us_bullion / world_bullion`, but the status file has no way to prove that `world_bullion` actually received its ~1-in-3 share on any given night. The claim "world coins are being gathered" cannot be verified without SSHing into App Service to read `apr_manifest.json` directly.
-- **Fix / Approach**:
-  1. In `executePrefetchRun`'s `available <= 0` branch, stop writing `status` / `reason`. Write `lastAttempt` / `lastAttemptStatus` / `lastAttemptReason` instead. Prior completed-run fields (`lastRun`, `status`, `callsMade`, `newRecords`, `perCategory`) preserve via the existing `...loadStatus()` spread.
-  2. Tag every `buildQueue` entry with its source category (Phase 1 key dates via a `pcgsCategoryMap` returned from `getCategorizedEntries`, Phase 2 directly from the bucket). Add a `perCategory` accumulator to `executePrefetchRun` that increments `attempted` on every fetch and `newRecords` on success. Persist `perCategory` in the completed / partial / all-fresh / failed saveStatus paths.
-  3. Expose `lastPerCategory` and `lastAttempt` / `lastAttemptStatus` / `lastAttemptReason` in `getSchedulerStatus` (backward-compatible: new fields default to `null` for pre-migration status files).
-- **Files**:
-  - `src/services/prefetchScheduler.js` MOD
-  - `__tests__/prefetchScheduler.test.js` MOD (skip-preserves-completion test rewritten; four new tests under `#277W per-category counters`)
-  - `docs/memory/background-processes-status.md` MOD (record the change so the "why is lastStatus skipped?" question does not surface again)
-- **Backwards compat**: All new fields are additive. Pre-#277W status files (no `perCategory`, no `lastAttempt*`) return `null` for those fields in `getSchedulerStatus`. The GH Actions workflow's `jq` reads still work (`lastCallsMade`, `lastNewRecords`, `lastStatus` all continue to be populated by real completed runs).
-- **Follow-ups (out of scope for #277W)**:
-  - In-process 23:00 PT scheduler appears dead in production (every `lastRun` timestamp matches the GH Actions safety-net window, not 06:00 UTC). Separate investigation.
-  - Widen `init()` missed-run catch-up to fire when `lastRun` is > 24h old at any hour, not only past-trigger-hour.
+- **Follow-ups landed elsewhere** (out of scope for #277W but tracked):
+  - In-process 23:00 PT scheduler now confirmed alive as of 2026-07-05 (`lastRun: 2026-07-05T06:03:33Z` -- 23:03 PT trigger fired for the first observable time). "Appears dead in production" concern retracted.
+  - `init()` missed-run catch-up widening still deferred.
 
 ---
 
