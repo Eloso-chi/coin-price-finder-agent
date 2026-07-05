@@ -139,9 +139,11 @@ server.js                              Express entry point (port 3000)
 │   ├─ build-evidence-index.js         Historical evidence index builder
 │   ├─ generate-freshness-report.js    Freshness triage report (5-state decision tree: Fresh/Stale/LowSignal/Missing/Dormant + recently-confirmed-stale split)
 │   ├─ freshness-composition-analyzer.js  Cross-tabulates the freshness report by composition to surface structural coverage gaps (#270H)
-│   ├─ parallel-key-drift-scanner.js   Silent-drift detector for the #267H class -- flags datasets whose normalized key collides with an empty sibling (#272H)
+│   ├─ scan-parallel-key-drift.js      Silent-drift detector for the #267H class -- flags datasets whose normalized key collides with an empty sibling (#272H). `npm run scan:parallel-key-drift`
 │   ├─ fmv-drift-monitor.js            FMV drift monitor (#196) -- runs bullion catalog through /api/price, flags rows outside dealer-premium band
 │   ├─ investigate-libertad-batch.js   Libertad lot-evaluator diagnostic (#202) -- re-runs 13-coin batch, flags thin comps + duplicate FMV instability
+│   ├─ lot-estimator-health.js         Lot Evaluator health check -- runs the 13-coin diagnostic batch through the batch route + reports FMV stability. `npm run health:lot-estimator`
+│   ├─ sync-terapeak-meta.js           Remote-scraper meta sync helper (#253) -- called by `run-surface-freshness-loop.sh` before each pass; pulls current `data/terapeak-meta.json` from `/api/admin/terapeak-meta` and atomically replaces the local sidecar so the freshness classifier reads Azure-current state, not a git-frozen snapshot. `npm run sync:meta`
 │   └─ test-metrics/                   Jest metrics capture + summary reporter
 │
 ├─ .github/

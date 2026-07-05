@@ -476,7 +476,7 @@ describe('prefetchScheduler — PR-2b buildQueue round-robin + grade pruning', (
   });
 
   test('dedup: colliding PCGS# (ASE 1999 vs AGE_1OZ 1986 both = 9814) enqueues each grade exactly once', () => {
-    // See /memories/repo/pcgs-numbers-collisions.md -- pre-existing data bug
+    // See docs/memory/pcgs-numbers-collisions.md -- pre-existing data bug
     // where Silver Eagle and Gold Eagle tables share 80 PCGS#s. The seen Set
     // in buildQueue() must prevent double-fetching the same pcgsNo:grade combo.
     // Regression guard: a future refactor that drops the seen-set would

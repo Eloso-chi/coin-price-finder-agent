@@ -56,27 +56,34 @@ Priority order:
 1. `docs/memory/codebase-overview.md` -- stack, structure, services, auth, env vars, dependencies
 2. `docs/memory/decision-engine-spec.md` -- valuation engine FMV modes, confidence scoring, buy/sell spreads
 3. `docs/memory/numismatic-terminology.md` -- **CRITICAL DOMAIN CONTRACT.** Strike types, grade prefixes, pool classification rules (raw / graded / proof are THREE DISTINCT POOLS and must never be merged for FMV), common traps. Promoted to #3 under #271W F10 after INC-013 (pool-isolation violation, $10.03 cost) demonstrated this must be read before any pricing/comp work, not after the operational docs.
-4. `docs/memory/terapeak-runbook.md` -- aggregation operations, VNC setup, troubleshooting, long-running operator (W/codespace) via `scripts/terapeak-operator-codespace.sh`, structured run history ledger under `cache/terapeak-runs/` (#200), codespace keepalive TTY-reset mechanism (ADMIN_API_KEY value is REDACTED; load from `.env` or Key Vault)
-5. `docs/memory/terapeak-data-structure-analysis.md` -- CSV format, column mapping, data quality
-6. `docs/memory/terapeak-export-automation.md` -- Playwright aggregation architecture (ADMIN_API_KEY value REDACTED)
-7. `docs/memory/terapeak-export-process.md` -- correct export steps
-8. `docs/memory/ebay-search-filtering-analysis.md` -- keyword building, deny lists, scoring
-9. `docs/memory/cache-invalidation-fix.md` -- cache TTL and eviction details
-10. `docs/memory/finding-api-dead.md` -- eBay Finding API decommission context
-11. `docs/memory/label-feature-context.md` -- label/variant feature design
-12. `docs/memory/synthetic-data-audit.md` -- which data is real vs synthetic
-13. `docs/memory/azure-infrastructure.md` -- Key Vault, Cosmos DB, Blob Storage, Azure Files
-14. `docs/memory/audience-gating.md` -- public vs admin response gating (PR #85)
-15. `docs/memory/background-processes-status.md` -- background timers, prefetch scheduler
-16. `docs/memory/production-state-lookup.md` -- **CRITICAL OBSERVABILITY CONTRACT.** Which files/endpoints reflect production and which do not. Codespace `cache/` is `.gitignore`d and never production truth; use the admin endpoints or `gh run` logs instead. Added under #277W after a 2026-07-03 misdiagnosis (Copilot claimed "prefetch hasn't run in 3 nights" from a stale local file).
-17. `docs/memory/bulk-evaluate-feature.md` -- lot evaluator reference
-18. `docs/memory/codespaces-gh-auth.md` -- Codespace gh CLI token quirk
-19. `docs/memory/cosmos-gotchas.md` -- Cosmos DB pitfalls
-20. `docs/memory/key-normalization-fix.md` -- 2026-05-08 key normalization
-21. `docs/memory/agents-and-prompts.md` -- inventory of agents/prompts/skills
-22. `docs/memory/agent-loading-order.md` -- how Copilot loads user / repo / session memory + agents / prompts / skills; where new content belongs (added under #271W F18)
-23. `docs/memory/future-edits.md` -- **HISTORICAL ARCHIVE ONLY**, now a deprecation stub. Canonical backlog is `docs/BACKLOG.md`. Skim for the renumber map (memory#183->#228, #185->#226, #186->#227) and per-machine ID convention.
-24. `docs/memory/README.md` -- corpus index, audit notes, migration history
+4. `docs/memory/pool-isolation-rule.md` -- **MANDATORY READ-FIRST for `ebayService.js` pool gates.** Concrete detection guard + failure-mode narrative from INC-013 ($17-33 cost + 5 days polluted FMV in prod). Codifies the pool-isolation contract into an actionable pre-edit checklist so the domain rule from #3 is not merely aspirational.
+5. `docs/memory/terapeak-runbook.md` -- aggregation operations, VNC setup, troubleshooting, long-running operator (W/codespace) via `scripts/terapeak-operator-codespace.sh`, structured run history ledger under `cache/terapeak-runs/` (#200), codespace keepalive TTY-reset mechanism (ADMIN_API_KEY value is REDACTED; load from `.env` or Key Vault)
+6. `docs/memory/terapeak-data-structure-analysis.md` -- CSV format, column mapping, data quality
+7. `docs/memory/terapeak-export-automation.md` -- Playwright aggregation architecture (ADMIN_API_KEY value REDACTED)
+8. `docs/memory/terapeak-export-process.md` -- correct export steps
+9. `docs/memory/terapeak-startup-auto-cleanup.md` -- what happens on every `node server.js` boot (evict/purge/import chain in `server.js` L247-265). Explains why `git status` may show legitimate `M data/terapeak-meta.json` / `D data/terapeak/*.csv` drift after boot -- this is designed behavior, not a bug.
+10. `docs/memory/terapeak-cache-wipe-gotcha.md` -- `cache/terapeak_sold.json` wipe + CSV-only re-import produces temporarily degraded `compCount`; self-heals via `_mergeAggregationMeta` on next hydration + scraper-loop resync (#253).
+11. `docs/memory/ebay-search-filtering-analysis.md` -- keyword building, deny lists, scoring
+12. `docs/memory/cache-invalidation-fix.md` -- cache TTL and eviction details
+13. `docs/memory/finding-api-dead.md` -- eBay Finding API decommission context
+14. `docs/memory/label-feature-context.md` -- label/variant feature design
+15. `docs/memory/pcgs-numbers-collisions.md` -- 80-PCGS# collision data bug between Silver Eagle and Gold Eagle tables in `src/data/pcgsNumbers.js`. Referenced from `__tests__/prefetchScheduler.test.js` and `src/services/prefetchScheduler.js` -- keep in mind before proposing test refactors that touch the `seen` dedup Set.
+16. `docs/memory/synthetic-data-audit.md` -- which data is real vs synthetic
+17. `docs/memory/azure-infrastructure.md` -- Key Vault, Cosmos DB, Blob Storage, Azure Files
+18. `docs/memory/audience-gating.md` -- public vs admin response gating (PR #85)
+19. `docs/memory/background-processes-status.md` -- background timers, prefetch scheduler
+20. `docs/memory/production-state-lookup.md` -- **CRITICAL OBSERVABILITY CONTRACT.** Which files/endpoints reflect production and which do not. Codespace `cache/` is `.gitignore`d and never production truth; use the admin endpoints or `gh run` logs instead. Added under #277W after a 2026-07-03 misdiagnosis (Copilot claimed "prefetch hasn't run in 3 nights" from a stale local file).
+21. `docs/memory/codespace-connection-stability.md` -- two-problems taxonomy for "codespace froze" (server-side idle-stop vs client connection drop), keep-alive script usage (`scripts/codespace-keepalive.sh`), per-client mitigations (SSH keepalive, VS Code Desktop, VS Code Web), myths debunk.
+22. `docs/memory/bulk-evaluate-feature.md` -- lot evaluator reference
+23. `docs/memory/codespaces-gh-auth.md` -- Codespace gh CLI token quirk
+24. `docs/memory/cosmos-gotchas.md` -- Cosmos DB pitfalls
+25. `docs/memory/key-normalization-fix.md` -- 2026-05-08 key normalization
+26. `docs/memory/flaky-tests.md` -- known flaky tests with isolation results (`terapeakService.test.js` freshness check flake). Do not count these against a regression if they pass on re-run.
+27. `docs/memory/operator-status-format.md` -- **user-required status report schema.** When the user asks for status (operator/codespace/run), include current pass, coins run, new rows, dup rows, highlights at minimum. Locking a format keeps quick check-ins comparable across sessions.
+28. `docs/memory/agents-and-prompts.md` -- inventory of agents/prompts/skills
+29. `docs/memory/agent-loading-order.md` -- how Copilot loads user / repo / session memory + agents / prompts / skills; where new content belongs (added under #271W F18)
+30. `docs/memory/future-edits.md` -- **HISTORICAL ARCHIVE ONLY**, now a deprecation stub. Canonical backlog is `docs/BACKLOG.md`. Skim for the renumber map (memory#183->#228, #185->#226, #186->#227) and per-machine ID convention.
+31. `docs/memory/README.md` -- corpus index, audit notes, migration history
 
 If a file is missing in `docs/memory/`, check `/memories/repo/` (the legacy backup) and surface the gap in the Readiness Report under "Gaps Detected".
 Any file returned by the glob but not in the priority list above is **not**
