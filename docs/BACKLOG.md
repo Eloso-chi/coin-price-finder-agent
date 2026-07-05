@@ -1934,6 +1934,68 @@ Ops can override to any value (e.g., `BROWSER_RECYCLE_EVERY=40 python scripts/te
 
 ---
 
+### #278W. Move Terapeak Operator invocation from Copilot chat into the Admin tab [P2 -- OBSERVABILITY / UX] -- PROPOSED 2026-07-05
+- **Problem**: Starting a Terapeak operator run currently requires opening Copilot Chat, invoking the `@terapeak-operator` agent, and letting the chat session shell out to `scripts/terapeak-operator.sh` (H) or `scripts/terapeak-operator-codespace.sh` (W). This means:
+  - The user has to be in a Copilot chat window to start, stop, or check on scraping.
+  - Options must be typed as CLI flags via natural language, with no persistent UI memory of the last configuration.
+  - Chat sessions time out; the operator keeps running but observability is scattered across `cache/terapeak-startup-state.json`, the JSONL ledger, `ps`, and the operator log file.
+  - Two machines (H, W) with two launcher scripts and slightly different option surfaces amplify the ad-hoc feel documented in #265H.
+- **Hard constraint (do not try to relax)**: The scrape itself MUST run locally -- eBay/Terapeak treats Azure datacenter IPs as bots and cookies live on the local Playwright profile behind VNC. Any proposal that runs scraping on Azure App Service, GH Actions hosted runners, or Azure Functions is invalid. See [BACKLOG.md](docs/BACKLOG.md) note under item #263 ("Cloud-hosted scheduler... defeats the residential-IP fix").
+- **Recommended architecture (Option A -- local Node route on the same machine)**:
+  1. New `src/routes/operatorRoute.js` mounted at `/api/admin/operator/*`, guarded by `process.env.TERAPEAK_OPERATOR_ENABLED === 'true'`. Default undefined -> route not mounted; Azure production never sees it.
+  2. Endpoints (all behind existing `requireAdminOrKey` middleware):
+     - `GET  /api/admin/operator/status` -- current run state, last pass, cookie health verdict, machine letter
+     - `POST /api/admin/operator/start` -- body carries depth/selection/batch/loop options; refuses if `cache/terapeak-operator.lock.pid` present and PID alive
+     - `POST /api/admin/operator/stop` -- SIGTERM the PID in the lock file, wait 15s, SIGKILL if needed
+     - `GET  /api/admin/operator/passes?limit=20` -- tail `cache/terapeak-runs/passes.jsonl` (already the source for `scripts/show-terapeak-runs.sh`)
+     - `GET  /api/admin/operator/log?tail=100` -- last N lines of the current run log
+     - `POST /api/admin/operator/cookies/check` -- run `scripts/cookie-health-check.py` and return verdict (never runs `vnc-login.py` -- that needs human hands + CAPTCHA)
+  3. Route uses `child_process.spawn` with argv arrays (no `shell:true`, no string interpolation of user input) to launch the machine-appropriate launcher, reading `.machine-id` for H vs W.
+  4. New "Terapeak Operator" section inside `#panel-admin` in `public/index.html`. Section is hidden by default; probes `/api/admin/operator/status` on tab open. If 404 (prod URL, or local server with the flag off) surface a helpful placeholder: "This machine cannot run the operator. Open http://localhost:3000/#admin on the machine that has your VNC + cookies to control scraping." Not a hard hide.
+  5. UI form fields required for MVP:
+     - **Depth**: radio -- `Page 1 only` (default) vs `Deep pagination` (H only in phase 1; see open questions).
+     - **Coin selection**: radio -- `Backlog burndown` (default, no focus) vs `Focused set` (dropdown of built-in aliases: libertads, morgans, panda, kookaburra, etc.) vs `Custom regex` (free text, client-validated).
+     - **Batch size**: numeric min/max inputs (15/30 defaults).
+     - **Mode**: radio -- `Single pass` vs `Loop`. Loop reveals pause-seconds and jitter checkbox.
+     - **Include thin markets**: checkbox.
+     - Recent-passes table (last 20) + live log tail (poll every 3s while running).
+- **Files affected (planned)**:
+  - `src/routes/operatorRoute.js` (NEW, ~200 lines)
+  - `server.js` (mount the new route conditionally; ~5 lines)
+  - `public/index.html` (new Admin-tab section + JS wiring; ~250 lines)
+  - `docs/api-reference.md` (admin endpoints table; ~6 rows)
+  - `docs/memory/terapeak-runbook.md` ("Admin-tab operator" subsection; ~30 lines)
+  - `.github/agents/terapeak-operator.agent.md` (deprecation note pointing to the new UX; ~10 lines)
+  - `__tests__/operatorRoute.test.js` (NEW; happy-path + validation + lock-file + spawn stub; ~250 lines)
+  - No changes to Azure deployment path -- `TERAPEAK_OPERATOR_ENABLED` is a local-only env var.
+- **Alternatives considered (rejected)**:
+  - **Option B: reverse tunnel (cloudflared / ngrok)** so `coinpricefinder.azurewebsites.net/api/admin/operator/*` proxies to the local machine. Rejected: adds a third-party dependency, tunnel lifetime = operator lifetime, exposes local machine indirectly via the prod attack surface.
+  - **Option C: queue + local worker (Azure writes run request to Cosmos; local companion polls)**. Rejected as MVP: overkill for one user; adds queue infra and click-to-execution latency. Reserve as a future Phase 3 add-on if cross-machine dispatch ever matters.
+- **Phased delivery**:
+  - **Phase 1 (M-tier PR)**: route file, feature flag, status + start + stop + passes endpoints, minimal UI (Start form with depth + selection + batch + mode + Stop + recent passes table), placeholder on prod URL. H-only depth/focus in this phase.
+  - **Phase 2 (S-tier PR)**: live log tail, cookie health probe, coin-type dropdown wiring, custom regex input with server-side validation, W-machine parity (teach `terapeak-operator-codespace.sh` `--focus` / `--skip-deep`).
+  - **Phase 3 (optional, S-tier)**: SSE for streaming logs, jitter/pause controls exposed, and -- only if needed -- queue+worker hybrid (Option C bolted onto the same UI) for cross-machine dispatch.
+- **Open questions (required before Phase 1 kick-off)**:
+  1. **Confirm Option A** (local Node route) is the chosen architecture, or pick B (tunnel) / C (queue+worker) instead.
+  2. **Feature flag name**: `TERAPEAK_OPERATOR_ENABLED=true` proposed. Alternate names considered: `LOCAL_OPERATOR`, `OPERATOR_UI`. Default MUST be undefined (route unmounted).
+  3. **W-machine parity approach**: (a) Phase 1 hides Depth/Focus controls on W and adds them in Phase 2 by teaching the codespace operator new flags, or (b) Phase 1 teaches the codespace operator the missing flags up-front (`--focus`, `--coin-type`, `--skip-deep`) at the cost of ~1 extra day and slightly larger Phase 1 diff.
+  4. **Prod-URL fallback UX**: (a) hide the section entirely on 404, or (b) show the helpful placeholder "This machine cannot run the operator. Open http://localhost:3000/#admin on the machine that has your VNC + cookies." Placeholder recommended -- clearer for users who occasionally hit prod expecting operator access.
+  5. **Live log delivery**: polling every 3s (dead simple, fine for one user) vs SSE (fancier, adds Express middleware). Polling recommended for MVP.
+  6. **Stale-lock handling**: if `node server.js` restarts mid-run, `cache/terapeak-operator.lock.pid` may reference a dead PID. UI approach: on Status endpoint, if lock file exists but `kill -0 <pid>` fails, mark state as "stale-lock" and show a "Clear stale lock" button. Confirm this vs auto-cleanup on Status GET.
+  7. **Options I might have missed** the operator to support in the UI (date-range restriction? specific priority tier only? per-category preference?) -- capture here or defer to Phase 2.
+- **Not affected / out of scope**:
+  - Terapeak scrape logic itself (unchanged).
+  - PCGS prefetch scheduler (separate subsystem; see #277W).
+  - Cross-machine dispatch (queue+worker) unless Phase 3 is elected.
+  - Automated cookie refresh -- still requires human hands via `scripts/vnc-login.py`. UI will show the command to run, never execute it.
+- **Success criteria**:
+  - Start a scrape from Admin tab without touching Copilot chat or the terminal.
+  - Stop a running scrape from Admin tab.
+  - See current pass status, cookie health, and last 20 passes at a glance.
+  - `TERAPEAK_OPERATOR_ENABLED` unset -> no visible or reachable operator surface on Azure production.
+
+---
+
 ### #264W. Per-machine backlog ID convention (W/H suffix) [P2 -- PROCESS] -- DONE 2026-06-04
 - **Problem**: This project is worked on from two machines that may both add backlog items without coordinating. Without per-machine namespacing, the first new entry on each machine claims the same next-integer ID, forcing post-hoc renumbering (e.g., this session: drafted #260-#262, collided with PR #118's #260, renumbered to #261-#263, then again to #260W-#262W).
 - **Fix**:
