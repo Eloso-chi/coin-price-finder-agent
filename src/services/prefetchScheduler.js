@@ -86,8 +86,9 @@ function targetGradesFor(year) {
  * `pcgsCategoryMap` is used by `buildQueue` (Phase 1 tagging) and by
  * `executePrefetchRun` (per-category attempt / newRecord counters). Kept on
  * the same walk so it is O(N) rather than a second pass. First-seen wins on
- * cross-category collisions (see pcgs-numbers-collisions.md: ASE/AGE share
- * ~80 PCGS#s; both fall in us_bullion so no observable divergence today).
+ * cross-category collisions (see docs/memory/pcgs-numbers-collisions.md:
+ * ASE/AGE share ~80 PCGS#s; both fall in us_bullion so no observable
+ * divergence today).
  */
 function getCategorizedEntries() {
   const { TABLES_BY_CATEGORY } = require('../data/pcgsNumbers');
