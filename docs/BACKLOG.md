@@ -2098,6 +2098,64 @@ Ops can override to any value (e.g., `BROWSER_RECYCLE_EVERY=40 python scripts/te
 
 ---
 
+### #281W. Fix nightly-prefetch workflow poll bug -- wait for triggered run, not any prior `todayCompleted` [P2 -- OBSERVABILITY / CI] -- PROPOSED 2026-07-05
+- **Problem**: The GH Actions workflow `.github/workflows/nightly-prefetch.yml` polls `/api/admin/prefetch-status` after POSTing `/api/admin/prefetch-trigger` and exits on the first response where `todayCompleted: true`. But `_todayCompleted` is an **in-memory boolean set by the LAST run's `finally` block regardless of which run set it**. When the safety-net's own trigger happens after an earlier partial run has already set `_todayCompleted = true` (typical when the in-process 23:00 PT scheduler fires and finishes before the safety-net's 07:16 UTC POST), the workflow's very first poll returns true immediately and the workflow declares "✓ Prefetch completed successfully" -- **without ever observing the run it just triggered**.
+- **Live evidence (2026-07-05)**: workflow run **28733092962** at 07:16:50 UTC POSTed the trigger, `triggerManual` returned `{ started: true }`, and 11 seconds later the first poll returned `todayCompleted: true` (set by the earlier 06:03 UTC partial). Workflow logged success and exited. The actual safety-net-triggered run ran for another 2h 14m and completed at 09:17:34 UTC with 990 calls / 58 new records -- **completely invisible in the workflow log body**. My initial 2026-07-05 report on the night's results was wrong because I trusted the workflow log alone; only a direct curl against `/api/admin/prefetch-status` two hours later showed the real outcome. Same bug class as the pre-#277W status-file-shape confusion.
+- **Impact**: severe observability degradation. The workflow log is the ONLY consumer of the prefetch status without an admin key -- any downstream analysis (chat sessions, standup reports, automated alerts) that reads workflow logs sees the wrong number and misses partial-run patterns entirely. Directly caused a false "prefetch failed" report in this session.
+- **Root cause**: `todayCompleted: true` from the response body reflects the module-level `_todayCompleted` flag, which is set by ANY completed run's `finally` block that day. The workflow has no way to distinguish "the run I just triggered finished" from "some prior run finished before I triggered". No trigger correlation is exposed.
+- **Proposed fix (Option A -- workflow-side timestamp gate, no server change)**:
+  1. Capture `TRIGGER_TIME` in the workflow just before the POST (`TRIGGER_TIME=$(date -u +%s)`).
+  2. In the poll loop, extract `lastRun` from the status response and convert to epoch. Only treat the run as complete when `lastRun >= TRIGGER_TIME - 5` (5-second slack for clock skew).
+  3. Keep the existing 30-min max-poll timeout as the safety cap.
+  4. Also print a "poll N: lastRun=<T>, trigger=<T>, waiting" line every 30s so future forensics can see the wait state, not just success/timeout.
+- **Alternative (Option B -- server-side run correlation)**: `triggerManual` returns a `runId` (e.g., ISO timestamp of run start) alongside `started: true`. Poll includes `runId` in the query string; server returns run-specific status. More invasive; adds a code path. Not needed if Option A works.
+- **Recommended: Option A.** Workflow-only change, no server code, no test-of-the-server, single-file diff to `.github/workflows/nightly-prefetch.yml`.
+- **Files affected (planned)**:
+  - `.github/workflows/nightly-prefetch.yml` -- ~10 lines of bash added to the polling step
+- **Testing**: this workflow already ships without unit tests. Verification path is a manual `workflow_dispatch` trigger after the fix lands, plus reading the log body to confirm the poll now correctly waits.
+- **Success criteria**:
+  - Workflow log body captures the actual triggered run's completion (`lastRun >= trigger timestamp`) or times out honestly at 30 min.
+  - No future "workflow said success but the triggered run partial-ran with X errors" surprise.
+- **Cross-refs**:
+  - Same class of latent bug as the pre-#277W status-file shape (skip clobbering completed) -- both hide real state behind stale in-memory flags. That one shipped as #277W; this is its workflow-side counterpart.
+  - Not blocked by #280W; independent workflow-side fix.
+
+---
+
+### #282W. Alert on partial-with-elevated-errors -- consecutiveFailures gate misses partial runs [P2 -- ALERTING] -- PROPOSED 2026-07-05
+- **Problem**: `alertPrefetchFailure` fires only from `executePrefetchRun`'s fatal `catch` block at [src/services/prefetchScheduler.js#L378-L380](../src/services/prefetchScheduler.js#L378): `if (failures >= 2) { alertService.alertPrefetchFailure(failures, err.message); }`. But `consecutiveFailures` also increments on **partial** completions (the normal try-path exit where `status = 'partial'`, per the ternary at [prefetchScheduler.js#L400](../src/services/prefetchScheduler.js#L400)). The result: a run that returns 990 calls with 500 timeouts and `status: 'partial'` increments the counter to 2, 3, N without ever triggering an alert. The catch block only fires on truly fatal errors (uncaught exceptions in the try body), which is a much narrower failure mode than "run degraded to partial N nights running".
+- **Live evidence (2026-07-05)**: prod `/api/admin/prefetch-status` shows `consecutiveFailures: 3` after two consecutive partial runs (one with 21 calls / 3 timeouts, one with 990 calls / 20+ stored timeouts / ~375 uncharged timeouts). Zero alerts fired. Even had SendGrid been configured, no alert would have been sent because the catch path never executed.
+- **Compounding factor**: SendGrid alerting is documented as **NOT CONFIGURED** in production per [docs/memory/background-processes-status.md](../docs/memory/background-processes-status.md#L48-L64). So the alerting failure is currently double-latent: the code path is broken AND the delivery channel is unconfigured. Both must be fixed for alerts to actually reach an operator.
+- **Proposed fix (code side)**: move the alert gate out of the catch block and into a shared post-run helper called from all exit paths (normal completion, partial, failed):
+  ```js
+  // pseudo:
+  function maybeAlert(status, failures, primaryError) {
+    if (failures >= ALERT_THRESHOLD) {
+      alertService.alertPrefetchFailure(failures, primaryError || `${status} run streak`);
+    }
+  }
+  ```
+  Threshold stays at `>= 2` (matching current catch behaviour); primaryError becomes either the exception message (fatal) or a synthesized summary (`"partial: 500 timeouts of 990 calls"`).
+- **Additional trigger to consider (open question 1)**: alert on a SINGLE run with error-rate > 20% even if `consecutiveFailures` hasn't reached the threshold yet. Rationale: last night's second run had ~38% timeout rate -- one alert-worthy event, not two.
+- **Delivery channel (out of scope for this item, tracked separately)**: configuring SendGrid in Azure Key Vault + App Service settings is a separate follow-up documented in `docs/memory/background-processes-status.md` "To Enable Email Alerts (Priority 3)". Without that, alerts continue to write to `cache/alert_log.json` only.
+- **Files affected (planned)**:
+  - `src/services/prefetchScheduler.js` -- extract `maybeAlert` helper, wire into normal + partial + failed paths (~15 lines)
+  - `__tests__/prefetchScheduler.test.js` -- add tests for: (a) partial run at `consecutiveFailures >= 2` triggers alert, (b) normal completed run does not, (c) fatal catch still triggers as before
+  - `docs/memory/background-processes-status.md` -- update the alert-topics list to note "PCGS prefetch partial run (with elevated error rate)" as an alert trigger
+- **Open questions**:
+  1. Add error-rate threshold trigger alongside consecutiveFailures, or gate only on consecutiveFailures? (Recommend: both, since single-night severe partials also warrant attention.)
+  2. Rate-limit the alert. If the underlying PCGS API stays slow for a week, we'd alert every night. `alertService` already has 1-hour rate-limiting per topic (per [docs/memory/background-processes-status.md](../docs/memory/background-processes-status.md#L66)); confirm this covers the case adequately.
+  3. Whether to reset `consecutiveFailures` on the FIRST successful (non-partial) run after a streak. Currently only `status === 'completed'` resets to 0; `status === 'partial'` increments; this seems right but worth confirming vs "any non-fatal exit resets".
+- **Success criteria**:
+  - A partial-status run that lands with `consecutiveFailures >= 2` calls `alertService.alertPrefetchFailure` with a meaningful message.
+  - Existing catch-path alert behaviour is preserved (regression test).
+  - Alert rate-limit prevents floods on multi-night PCGS API degradation.
+- **Cross-refs**:
+  - Directly follow-up to #277W's observability work; the same telemetry now shows the alerting gap the observability revealed.
+  - #281W (workflow poll bug) is complementary: fixing #281W surfaces partial runs in the workflow log; fixing #282W ensures the operator is notified without needing to read logs. Both should ideally land before configuring SendGrid.
+
+---
+
 ### #264W. Per-machine backlog ID convention (W/H suffix) [P2 -- PROCESS] -- DONE 2026-06-04
 - **Problem**: This project is worked on from two machines that may both add backlog items without coordinating. Without per-machine namespacing, the first new entry on each machine claims the same next-integer ID, forcing post-hoc renumbering (e.g., this session: drafted #260-#262, collided with PR #118's #260, renumbered to #261-#263, then again to #260W-#262W).
 - **Fix**:
