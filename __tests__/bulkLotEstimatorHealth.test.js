@@ -7,6 +7,12 @@ const { ALL_COINS } = require('./helpers/coinTestConstants');
 const { generateRandomLots } = require('./helpers/randomLots');
 
 const mockFetchCalls = [];
+const BULLION_DEFAULT_SERIES = [
+  'libertad', 'silver eagle', 'gold eagle', 'maple leaf', 'britannia',
+  'philharmonic', 'krugerrand', 'kangaroo', 'kookaburra', 'panda',
+  'gold buffalo', 'platinum eagle', 'palladium eagle', 'lunar',
+  'polar bear', 'bar'
+];
 
 function mockStableHash(input) {
   let hash = 2166136261;
@@ -293,7 +299,9 @@ describe('bulk lot estimator parity and consistency', () => {
 
       // Ensure the fetch knobs used by bulk path match strict parity settings.
       for (const call of mockFetchCalls) {
-        expect(call.opts.timeWindowDays).toBe(180);
+        const lookbackHint = `${call.expected.series || ''} ${call.expected._rawQuery || ''} ${call.keywords || ''}`.toLowerCase();
+        const expectedLookback = BULLION_DEFAULT_SERIES.some(t => lookbackHint.includes(t)) ? 120 : 180;
+        expect(call.opts.timeWindowDays).toBe(expectedLookback);
         expect(call.opts.maxPages).toBe(3);
         expect(call.opts.usMinComps).toBe(call.expected.isRoll ? 3 : 8);
       }

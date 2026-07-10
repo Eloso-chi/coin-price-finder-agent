@@ -152,7 +152,8 @@ async function evaluateOneCoin(coin, opts = {}) {
     // Metal / bullion
     const { isMetalBased, metal: detectedMetal } = getCoinMetalProfile(query);
     const isBar = isMetalBased && /\bbar\b/i.test(query);
-    const isBullion = isBar || BULLION_SERIES.some(b => (series || query).toLowerCase().includes(b));
+    const bullionHint = `${series || ''} ${query}`.toLowerCase();
+    const isBullion = isBar || BULLION_SERIES.some(b => bullionHint.includes(b));
 
     // #162: World bullion BU fix — "BU" for bullion means raw mint-sealed,
     // not a PCGS-graded slab. Null out BU-expanded grade so valuation uses
@@ -218,8 +219,13 @@ async function evaluateOneCoin(coin, opts = {}) {
       keywords = `${yr}${mint ? '-' + mint : ''} ${series} (roll,tube)`.trim();
     }
 
+    const requestedLookback = Number(coin.options?.timeWindowDays);
+    const defaultLookbackDays = isBullion ? 120 : 180;
+
     const ebay = await ebayService.fetchSoldComps(keywords, {
-      timeWindowDays: 180,
+      timeWindowDays: Number.isFinite(requestedLookback) && requestedLookback > 0
+        ? requestedLookback
+        : defaultLookbackDays,
       maxPages: 3,
       usMinComps: isRoll ? 3 : 8,
     }, expected);

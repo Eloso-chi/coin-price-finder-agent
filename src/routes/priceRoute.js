@@ -85,8 +85,12 @@ router.post('/', async (req, res) => {
     // #56: Appeal multiplier — clamp to [1.0, 2.0], default 1.0.
     const appealMultiplier = Math.min(2.0, Math.max(1.0, Number(rawAppeal) || 1.0));
 
+    const peekParsed = pcgsService.parseDescription(String(query));
+    const bullionHintText = `${coinData?.name || ''} ${peekParsed?.series || ''} ${String(query)}`.toLowerCase();
+    const defaultLookbackDays = BULLION_1OZ_DEFAULT.some(b => bullionHintText.includes(b)) ? 120 : 180;
+
     const opts = {
-      timeWindowDays: options?.timeWindowDays || 180,
+      timeWindowDays: options?.timeWindowDays || defaultLookbackDays,
       requirePCGSOnly: !!options?.requirePCGSOnly,
       exactGradeOnly: !!options?.exactGradeOnly,
       usMinComps: options?.usMinComps || 8,
@@ -96,7 +100,6 @@ router.post('/', async (req, res) => {
     // Peek ahead for roll detection so we can adjust opts before eBay calls.
     // Roll sold listings are sparser than individual coins — lower the minimum
     // comp threshold to prevent unnecessary Browse API (active-listing) fallback.
-    const peekParsed = pcgsService.parseDescription(String(query));
     if (peekParsed?.isRoll || coinData?.isRoll) {
       opts.usMinComps = Math.min(opts.usMinComps, 3);
     }

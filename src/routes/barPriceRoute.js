@@ -67,7 +67,7 @@ router.post('/', async (req, res) => {
     }
 
     const opts = {
-      timeWindowDays: options?.timeWindowDays || 90,
+      timeWindowDays: options?.timeWindowDays || 120,
       requirePCGSOnly: false,
       exactGradeOnly: false,
       usMinComps: options?.usMinComps || 8,

@@ -216,9 +216,13 @@ async function _priceOne(item, opts = {}) {
       }
     }
 
-    // Fetch eBay comps -- parity with priceRoute (#155/#181): 180d, 3 pages, 8 min comps
+    // Fetch eBay comps -- bullion defaults to 120d; non-bullion keeps 180d.
+    const requestedLookback = Number(item.options?.timeWindowDays);
+    const defaultLookbackDays = isBullion ? 120 : 180;
     const ebayOpts = {
-      timeWindowDays: 180,
+      timeWindowDays: Number.isFinite(requestedLookback) && requestedLookback > 0
+        ? requestedLookback
+        : defaultLookbackDays,
       maxPages: 3,
       usMinComps: isRoll ? 3 : 8,
     };

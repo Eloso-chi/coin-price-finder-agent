@@ -1400,7 +1400,7 @@
       </button>
       <div id="adv-options" class="advanced-options" role="region">
         <label><span>PCGS Coin #</span><input id="pcgsNumber" type="text" placeholder="e.g. 7187" style="font-size:0.85rem"></label>
-        <label><span>Lookback Days</span><input id="optDays" type="number" value="90" min="7" max="180"></label>
+        <label><span>Lookback Days</span><input id="optDays" type="number" value="" min="7" max="180" placeholder="Auto"></label>
         <label><span>Min Comps</span><input id="optMin" type="number" value="8" min="1" max="50"></label>
         <label><span>Max Pages</span><input id="optPages" type="number" value="3" min="1" max="10"></label>
         <label class="checkbox-label"><input id="optPCGS" type="checkbox"> <span>PCGS-Only</span></label>
@@ -3343,7 +3343,7 @@ Silver Libertad 1 oz Proof"></textarea>
         condition:  this.els.condition.value || null,
         askingPrice: parseFloat(this.els.asking.value) || null,
         options: {
-          timeWindowDays: 90,
+          timeWindowDays: 120,
           usMinComps: 8,
           maxPages: 3
         }
@@ -3726,13 +3726,25 @@ Silver Libertad 1 oz Proof"></textarea>
     results.innerHTML = '';
     empty.style.display = 'none';
 
+    const rawLookbackDays = parseInt(document.getElementById('optDays').value, 10);
+    const bullionDefaults = [
+      'libertad', 'silver eagle', 'gold eagle', 'maple leaf', 'britannia',
+      'philharmonic', 'krugerrand', 'kangaroo', 'kookaburra', 'panda',
+      'gold buffalo', 'platinum eagle', 'palladium eagle', 'lunar',
+      'polar bear'
+    ];
+    const bullionHintText = `${formData.coinData?.name || ''} ${formData.query || ''}`.toLowerCase();
+    const autoLookbackDays = bullionDefaults.some(t => bullionHintText.includes(t)) ? 120 : 180;
+
     const body = {
       query:       formData.query,
       askingPrice: formData.askingPrice,
       weight:      formData.weight || null,
       coinData:    formData.coinData,
       options: {
-        timeWindowDays:  parseInt(document.getElementById('optDays').value)  || 90,
+        timeWindowDays:  Number.isFinite(rawLookbackDays) && rawLookbackDays > 0
+          ? rawLookbackDays
+          : autoLookbackDays,
         requirePCGSOnly: document.getElementById('optPCGS').checked,
         exactGradeOnly:  document.getElementById('optGrade').checked,
         usMinComps:      parseInt(document.getElementById('optMin').value)   || 8,
