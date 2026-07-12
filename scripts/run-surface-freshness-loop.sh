@@ -25,6 +25,8 @@ SKIP_PROBE=false
 INCLUDE_THIN=false
 FOCUS_REGEX=""
 COIN_TYPE=""
+RUN_BULLION_P01=false
+BULLION_P01_LIMIT=12
 
 usage() {
   cat <<'EOF'
@@ -40,6 +42,8 @@ Options:
   --include-thin       Include P3 thin-market entries in page-1 backlog mode.
   --focus REGEX        Focus queue execution to terms matching REGEX (e.g. "morgan|libertad").
   --coin-type NAME     Focus to a built-in coin family alias (e.g. libertads, morgans).
+  --bullion-p01        Run a dedicated P0.1 bullion fast-lane before regular page-1 refresh.
+  --bullion-p01-limit N  Max items in the P0.1 bullion pre-pass (default: 12).
   -h, --help           Show this help text.
 
 Required environment:
@@ -161,6 +165,14 @@ while [[ $# -gt 0 ]]; do
       ;;
     --coin-type)
       COIN_TYPE="$2"
+      shift 2
+      ;;
+    --bullion-p01)
+      RUN_BULLION_P01=true
+      shift
+      ;;
+    --bullion-p01-limit)
+      BULLION_P01_LIMIT="$2"
       shift 2
       ;;
     -h|--help)
@@ -292,11 +304,28 @@ fi
 
 generate_report
 
+if [[ "$RUN_BULLION_P01" == true ]]; then
+  step "Run P0.1 bullion fast-lane batch"
+  P01_ARGS=(
+    "$PYTHON_BIN" scripts/terapeak-export.py
+    --run
+    --backlog "$REPORT_FILE"
+    --priority-include "P0.1"
+    --limit "$BULLION_P01_LIMIT"
+  )
+  if [[ -n "$FILTER_REGEX" ]]; then
+    P01_ARGS+=(--filter "$FILTER_REGEX")
+  fi
+  "${P01_ARGS[@]}"
+  generate_report
+fi
+
 step "Run page-1 backlog batch"
 PAGE1_ARGS=(
   "$PYTHON_BIN" scripts/terapeak-export.py
   --run
   --backlog "$REPORT_FILE"
+  --priority-exclude "P0.1"
   --limit "$PAGE1_BATCH"
 )
 if [[ "$INCLUDE_THIN" == true ]]; then

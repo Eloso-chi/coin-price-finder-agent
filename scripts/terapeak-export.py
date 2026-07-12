@@ -1288,6 +1288,20 @@ def do_export_run(args):
         terms = [t for t in terms if pattern.search(t["term"])]
         print(f"Filtered to {len(terms)} terms matching '{args.filter}'")
 
+    # Optional backlog priority filters (comma-separated exact priority labels)
+    include_priorities = None
+    if getattr(args, "priority_include", None):
+        include_priorities = {
+            p.strip() for p in str(args.priority_include).split(",")
+            if p.strip()
+        }
+    exclude_priorities = set()
+    if getattr(args, "priority_exclude", None):
+        exclude_priorities = {
+            p.strip() for p in str(args.priority_exclude).split(",")
+            if p.strip()
+        }
+
     # Apply backlog: read freshness report and keep only datasets needing page1 refresh
     if args.backlog:
         import json as _json
@@ -1300,13 +1314,14 @@ def do_export_run(args):
         backlog_filter = re.compile(args.filter, re.IGNORECASE) if args.filter else None
         # Only include priority tiers P0-P2 by default (viable markets).
         # P3 (thin-market monitor) is excluded unless --include-thin is passed.
-        allowed_priorities = {"P0", "P1", "P2"}
+        allowed_priorities = {"P0.1", "P0", "P1", "P2"}
         if getattr(args, "include_thin", False):
             allowed_priorities.add("P3")
         backlog_keys = set()
         backlog_search_terms = {}
         dormant_count = 0
         thin_skipped = 0
+        priority_filtered = 0
         for item in report.get("datasets", []):
             item_search_term = item.get("searchTerm", item["key"])
             if backlog_filter and not (backlog_filter.search(item_search_term) or backlog_filter.search(item["key"])):
@@ -1315,6 +1330,12 @@ def do_export_run(args):
             priority = item.get("priority")
             if "dormant" in actions:
                 dormant_count += 1
+                continue
+            if include_priorities is not None and priority not in include_priorities:
+                priority_filtered += 1
+                continue
+            if priority in exclude_priorities:
+                priority_filtered += 1
                 continue
             # New taxonomy: filter by priority tier
             if priority and priority in allowed_priorities:
@@ -1330,6 +1351,8 @@ def do_export_run(args):
             print(f"Skipping {dormant_count} dormant datasets (no Terapeak results on prior attempts)")
         if thin_skipped:
             print(f"Skipping {thin_skipped} thin-market datasets (P3 monitor cadence, use --include-thin to include)")
+        if priority_filtered:
+            print(f"Skipping {priority_filtered} datasets by priority include/exclude filters")
         # Filter existing terms to backlog keys
         existing_keys = {t["term"] for t in terms}
         before = len(terms)
@@ -1743,6 +1766,8 @@ Examples:
     parser.add_argument("--batch", type=int, metavar="N", help="Run N coins then stop (use with cron/scheduler)")
     parser.add_argument("--backlog", type=str, metavar="FILE", help="Read freshness-report.json and use its refresh-page1 items as work queue")
     parser.add_argument("--include-thin", action="store_true", help="Include P3 thin-market datasets in backlog mode (default: P0-P2 only)")
+    parser.add_argument("--priority-include", type=str, metavar="LIST", help="Backlog-only: comma-separated priority allowlist (e.g. 'P0.1,P0')")
+    parser.add_argument("--priority-exclude", type=str, metavar="LIST", help="Backlog-only: comma-separated priority denylist (e.g. 'P0.1')")
 
     args = parser.parse_args()
 

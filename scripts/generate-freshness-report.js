@@ -146,6 +146,19 @@ function isGenericCoin(searchKey) {
   return /[_\s]generic$/i.test(searchKey);
 }
 
+// ── P0.1 Bullion fast-lane detection ───────────────────────
+// User-defined high-volume silver bullion family:
+// Libertads, Pandas, American Silver Eagles, Perth, RCM silver lines.
+// We keep this intentionally narrow to avoid pulling broad bullion tails.
+const P01_BULLION_RE = /(libertad|panda|american\s+silver\s+eagle|silver\s+eagle|perth|\brcm\b|royal\s+canadian\s+mint|maple\s+leaf)/i;
+
+function isP01BullionCandidate(key, composition, metal, marketDepth) {
+  if (marketDepth !== 'viable') return false;
+  if (metal !== 'silver') return false;
+  if (!/^bullion/.test(composition)) return false;
+  return P01_BULLION_RE.test(key);
+}
+
 // ── Classify and compute ────────────────────────────────────
 const datasets = [];
 const compositionSummary = {};
@@ -322,8 +335,13 @@ for (const [key, entry] of Object.entries(meta)) {
       actions.push('dry-refresh-backoff');
       priority = null;
     } else {
-      actions.push('refresh');
-      priority = 'P0';
+      if (isP01BullionCandidate(key, composition, metal, marketDepth)) {
+        actions.push('refresh-bullion');
+        priority = 'P0.1';
+      } else {
+        actions.push('refresh');
+        priority = 'P0';
+      }
     }
   } else if (freshness === 'stale' && marketDepth === 'viable') {
     if (lastRefreshDays !== null && lastRefreshDays < RECENTLY_REFRESHED_DAYS) {
@@ -336,8 +354,13 @@ for (const [key, entry] of Object.entries(meta)) {
       actions.push('dry-refresh-backoff');
       priority = null;
     } else {
-      actions.push('refresh');
-      priority = 'P1';
+      if (isP01BullionCandidate(key, composition, metal, marketDepth)) {
+        actions.push('refresh-bullion');
+        priority = 'P0.1';
+      } else {
+        actions.push('refresh');
+        priority = 'P1';
+      }
     }
   } else if (freshness === 'fresh' && marketDepth === 'viable') {
     actions.push('ok');
@@ -425,8 +448,8 @@ for (const [key, entry] of Object.entries(meta)) {
   }
 }
 
-// Sort: by priority tier first (P0 > P1 > P2 > P3 > null), then stalest first
-const priorityOrder = { P0: 0, P1: 1, P2: 2, P3: 3 };
+// Sort: by priority tier first (P0.1 > P0 > P1 > P2 > P3 > null), then stalest first
+const priorityOrder = { 'P0.1': 0, P0: 1, P1: 2, P2: 3, P3: 4 };
 datasets.sort((a, b) => {
   const pa = a.priority ? priorityOrder[a.priority] : 99;
   const pb = b.priority ? priorityOrder[b.priority] : 99;
@@ -451,6 +474,7 @@ const lowComps = datasets.filter(d => d.compCount > 0 && d.compCount < LOW_COMP_
 const recentlyConfirmedStale = datasets.filter(d => d.actions && d.actions.includes('recently-confirmed-stale')).length;
 const dryRefreshBackoff = datasets.filter(d => d.actions && d.actions.includes('dry-refresh-backoff')).length;
 const priorityCounts = {
+  'P0.1': datasets.filter(d => d.priority === 'P0.1').length,
   P0: datasets.filter(d => d.priority === 'P0').length,
   P1: datasets.filter(d => d.priority === 'P1').length,
   P2: datasets.filter(d => d.priority === 'P2').length,
@@ -502,12 +526,13 @@ console.log(`  Missing data:      ${missing}`);
 console.log(`  Low comps (<${LOW_COMP_THRESHOLD}):  ${lowComps}`);
 console.log('');
 console.log('  Priority queue (action tiers):');
+console.log(`    P0.1 bullion-fast: ${priorityCounts['P0.1']}`);
 console.log(`    P0 refresh-urgent:  ${priorityCounts.P0}`);
 console.log(`    P1 refresh:         ${priorityCounts.P1}`);
 console.log(`    P2 initial-fetch:   ${priorityCounts.P2}`);
 console.log(`    P3 monitor:         ${priorityCounts.P3}`);
 console.log(`    Skip (ok/dormant):  ${priorityCounts.skip}`);
-console.log(`    Actionable total:   ${priorityCounts.P0 + priorityCounts.P1 + priorityCounts.P2 + priorityCounts.P3}`);
+console.log(`    Actionable total:   ${priorityCounts['P0.1'] + priorityCounts.P0 + priorityCounts.P1 + priorityCounts.P2 + priorityCounts.P3}`);
 console.log(`    Recently-confirmed-stale (scraped <${RECENTLY_REFRESHED_DAYS}d, no new sales): ${recentlyConfirmedStale}`);
 console.log('');
 console.log('  Market depth:');
