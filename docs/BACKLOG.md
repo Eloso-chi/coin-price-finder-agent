@@ -2291,6 +2291,100 @@ Ops can override to any value (e.g., `BROWSER_RECYCLE_EVERY=40 python scripts/te
 
 ---
 
+### #285W. Terapeak operator P0.1 tier -- reserve per-batch slots for high-value silver bullion (originating on H, formalizing on W) [P2 -- OPERATIONS / DATA-QUALITY] -- PROPOSED 2026-07-14
+
+- **Problem**: The current freshness classifier ([scripts/generate-freshness-report.js#L248](../scripts/generate-freshness-report.js#L248)) sorts all P0/P1 datasets equally by priority within their tier and slices the top N for each operator batch. In practice this means the ~1,200 stale P0/P1 items are dominated by high-volume, low-signal series (Jefferson War Nickels, Roosevelt Dimes, generic Whitman-book Morgans, US Mint sets). Refresh cycles grind on those before ever reaching high-value bullion (Silver Eagles, Libertads, Maples, RCM specialty, Perth, and the world-bullion silver equivalents), which are the actual signal drivers for FMV/tracker accuracy on the site's most-searched queries. Empirical rationale: **"10 new Panda comps are worth more than 10 new nickel comps"**; the current queue treats them equally.
+
+- **Root cause** (design, not bug): the queue composition is `priority > age > volume`. Nothing tags a dataset as "high signal for downstream FMV" or "user-search-heavy". So a batch of 15-30 stale items pulled from 1,200+ candidates rarely surfaces the specific series that matter most for pricing accuracy.
+
+- **Fix** -- an **overlay tag** on the existing four-tier system (do NOT change the priority enum):
+  1. Add a curated series list at [`data/high-value-bullion.json`](../data/high-value-bullion.json) (git-tracked, editable). Series are silver-only (gold is low signal for our downstream valuation modes -- confirmed by user 2026-07-14). Match against the Terapeak `searchTerm` via regex.
+  2. In `generate-freshness-report.js`, add a `classifyHvb(searchTerm)` helper. Datasets that both (a) match the HVB list AND (b) are already tagged P0/P1/P2 by the existing freshness rules get an additional `hvb: true` field and a synthetic `priority: 'P0.1'` label (visible in reports, not a new enum value in the classifier itself).
+  3. The batch composer (`--batch-size N`) reserves the first `--hvb-min M` (default **15**) slots for the top-M stale HVB items, then fills the remaining `N - M` slots from the normal P0/P1 order. If fewer than M HVB items are stale, take all available and fill the rest from P0/P1 (do NOT re-scrape already-fresh HVB to top up -- that's an anti-detection risk).
+  4. Both operators (`scripts/terapeak-operator.sh` for H, `scripts/terapeak-operator-codespace.sh` for W) pass `--hvb-min ${HVB_MIN:-15}` to the freshness-report generator each pass.
+  5. **Deliberately do NOT change the staleness threshold** -- user confirmation: "the issue is that the volume is so high that we don't get to these since there are so many other coins to run". This is a queue-depth problem, not a staleness-sensitivity problem, so the existing thresholds in the classifier stay untouched.
+
+- **Series list (locked scope per user 2026-07-14 -- silver-only)**:
+
+  | Series | Mint | Weights covered | Match pattern (regex, case-insensitive) |
+  | --- | --- | --- | --- |
+  | American Silver Eagle | US Mint | 1 oz | `american\s+silver\s+eagle\|\bsilver\s+eagle\b(?!.*(gold\|platinum))` |
+  | Mexican Silver Libertad | Casa de Moneda | 1/20, 1/10, 1/4, 1/2, 1, 2, 5 oz | `libertad\b` + silver composition check |
+  | Canadian Silver Maple Leaf | RCM | 1 oz | `\bmaple\s+leaf\b` + silver check |
+  | RCM specialty (Polar Bear, Wildlife, Predator, Birds of Prey, Wolf, Grizzly, Cougar, Bison, Wapiti, Antelope, Woodland Caribou, etc.) | RCM | 1 oz | `\brcm\b\|royal\s+canadian` + silver check, catch-all excluding Maple Leaf (already covered above) |
+  | Perth Mint Kookaburra | Perth Mint | 1 oz, 10 oz, 1 kg | `\bkookaburra\b` |
+  | Perth Mint Silver Kangaroo | Perth Mint | 1 oz | `perth.*kangaroo\|kangaroo.*perth\|australia.*silver.*kangaroo` |
+  | Perth Mint Lunar (Series I, II, III) | Perth Mint | 1/20 - 1 kg | `perth.*lunar\|lunar.*perth\|australia.*silver.*lunar` |
+  | Perth Mint Koala | Perth Mint | 1 oz | `\bkoala\b` + silver check |
+  | Royal Mint Britannia | Royal Mint (UK) | 1 oz | `\bbritannia\b` + silver check |
+  | Austrian Philharmonic | Austrian Mint | 1 oz | `\bphilharmonic\b` + silver check |
+  | Chinese Panda | China Mint | 30 g / 1 oz | `\bpanda\b` + silver check |
+  | South African Krugerrand | SA Mint | 1 oz (silver launched 2018) | `\bkrugerrand\b` + silver check |
+
+  Notes on the list:
+  - **Silver only** -- explicit user decision. Gold variants (Gold Eagle, Gold Libertad, Gold Maple, Britannia Gold, Philharmonic Gold, Panda Gold, Krugerrand Gold) are excluded because gold is low-signal for the downstream valuation modes we care about. Reopen if that changes.
+  - **RCM catch-all** is broader than just Maple Leaf; captures the specialty series (Predator, Wildlife, Birds of Prey, etc.) which are what a serious Canadian silver collector actually pursues.
+  - **Krugerrand silver** launched in 2018; the pattern will match zero comps prior to that, which is correct (no data to prioritize).
+
+- **Batch composition (concrete, with default `--hvb-min 15`)**:
+
+  | Operator batch size | HVB slots | P0/P1 fill |
+  | --- | --- | --- |
+  | 15 | 15 (100% HVB) | 0 |
+  | 20 | 15 (75%) | 5 |
+  | 25 | 15 (60%) | 10 |
+  | 30 | 15 (50%) | 15 |
+
+  If fewer than 15 HVB items are stale: take all available and fill the balance from normal P0/P1. Never re-scrape a fresh HVB item just to hit the reservation number.
+
+- **Files to touch (proposed for the implementation PR, NOT this backlog PR)**:
+  - `data/high-value-bullion.json` (NEW, git-tracked) -- the series list from the table above, ~50-100 lines.
+  - `scripts/generate-freshness-report.js` -- add `classifyHvb()` helper, tag matching datasets with `hvb: true` + `priority: 'P0.1'`, add `--hvb-min N` flag, batch composer reserves N slots ahead of P0/P1 fill. ~40-60 lines.
+  - `scripts/analyze-freshness-composition.js` -- add HVB column so `bash scripts/analyze-freshness-composition.js` shows how many HVB items are stale per category. ~5 lines.
+  - `scripts/terapeak-operator-codespace.sh` -- pass `--hvb-min ${HVB_MIN:-15}` when regenerating the freshness report. ~3 lines.
+  - `scripts/terapeak-operator.sh` -- same. ~3 lines.
+  - `__tests__/generateFreshnessReport.hvb.test.js` (NEW) -- pin `classifyHvb()` against representative titles (positives: all 12 series above; negatives: nickels, dimes, gold eagle, Britannia gold, Whitman book). Batch composer test: given fixture with N HVB stale + M normal P0 stale, verify first 15 are HVB, remainder P0. ~100 lines.
+  - `docs/memory/terapeak-runbook.md` -- note the new `--hvb-min` knob, updated `Two Scripts` table, and the P0.1 semantics. ~15 lines.
+  - `.github/agents/onboard.agent.md` -- add the new data file + test file to the read list. ~2 lines.
+  - `docs/BACKLOG.md` -- flip this entry to DONE with the actual measured impact (pre/post % of batch that hit HVB).
+
+- **Deliberate non-goals** (out of scope for this backlog item):
+  - Cross-machine deduplication. If both W and H operators run at the same time they will independently pull the same HVB stale items. Wasteful but correct (per-comp dedup at import). If this becomes a real problem, revisit with a claim/lease mechanism.
+  - Configurable series list per-machine. One shared list; both operators read the same file.
+  - Dynamic tuning of `--hvb-min` (e.g. "always fill 50% of batch with HVB regardless of size"). Fixed default 15, env-var overridable, no complexity beyond that.
+  - Any change to freshness thresholds. Reservation is the whole fix.
+  - HVB expansion to gold. Explicit user decision -- silver only.
+
+- **Acceptance criteria (for the implementation PR)**:
+  1. `bash scripts/analyze-freshness-composition.js` shows a non-empty HVB column with the ~12 series categorized.
+  2. `node scripts/generate-freshness-report.js --batch-size 30 --hvb-min 15` produces `cache/freshness-batch-100.json` where the first 15 entries all have `hvb: true` (or all remaining HVB stale, whichever is smaller) and entries 16-30 are normal P0/P1.
+  3. New Jest suite `__tests__/generateFreshnessReport.hvb.test.js` passes; existing tests unchanged.
+  4. Full suite: 4192/4192 (i.e. same as pre-change; the pre-existing `freshnessReportEvidenceGates` flake is unrelated and pre-dates this work).
+  5. One operator pass with the new tier surfaces >=10 HVB items in the pass log (proves the reservation reached the scraper).
+
+- **Rollout plan**:
+  1. Merge PR opening this backlog entry (this PR, doc-only).
+  2. Open implementation PR against a feature branch (`feature/285W-p01-hvb-tier`). M-tier (touches operator behavior + scripts + adds tests): pre-commit-reviewer + code-reviewer.approval-gated + `npm test` gates.
+  3. Stop the current W-machine operator cleanly (`kill <pid>` after the in-flight pass finishes). Do not force-kill mid-pass.
+  4. Merge implementation PR.
+  5. Restart operator on W. First pass should show ~15 HVB items ahead of normal fill.
+  6. Flip this backlog entry to DONE with the observed pre/post batch composition (from `cache/terapeak-runs/passes.jsonl`).
+
+- **Risk**:
+  - **Anti-detection**: reserving the same slot count each pass could pattern-match if bad actors are watching. Mitigation: HVB items are still shuffled within their 15 slots (existing operator behavior), and the normal P0/P1 fill retains randomness across the remaining slots.
+  - **HVB starvation of tail**: after a few passes all HVB stale items get freshened; remaining passes have <15 HVB to draw from. Correct behavior -- fill from P0/P1. Not a bug.
+  - **New series added to a mint later** (e.g. RCM releases a new predator coin in 2027): the regex catch-alls should pick it up automatically because they match on mint + composition, not on a specific coin name. Verify by adding a test case for a hypothetical future series name that matches the RCM pattern.
+  - **Naming ambiguity**: "P0.1" is a synthetic label the user has been using informally; it's not a numeric priority the classifier compares against. Documented in the runbook update above to avoid a future maintainer treating it as a strict tier between P0 and P1.
+
+- **Cross-refs**:
+  - [`docs/memory/terapeak-runbook.md`](docs/memory/terapeak-runbook.md) -- current operator + freshness-report flow.
+  - [`scripts/generate-freshness-report.js`](../scripts/generate-freshness-report.js) L248 (priority enum), L613-L647 (batch composer) -- the specific insertion points.
+  - [`scripts/terapeak-operator-codespace.sh`](../scripts/terapeak-operator-codespace.sh) L302-L316 (pass-args builder) -- where the operator wires the CLI flag.
+  - [`__tests__/fixtures/golden_coins.json`](../__tests__/fixtures/golden_coins.json) -- source of representative HVB test titles (line 120 already notes "Additional high-value coins ensuring cross-series coverage: Peace, key dates, world bullion.").
+  - Originating conversation: H-machine session (undocumented; only mentioned by user 2026-07-14). W-machine formalization begins with this entry.
+
+---
+
 ### #264W. Per-machine backlog ID convention (W/H suffix) [P2 -- PROCESS] -- DONE 2026-06-04
 - **Problem**: This project is worked on from two machines that may both add backlog items without coordinating. Without per-machine namespacing, the first new entry on each machine claims the same next-integer ID, forcing post-hoc renumbering (e.g., this session: drafted #260-#262, collided with PR #118's #260, renumbered to #261-#263, then again to #260W-#262W).
 - **Fix**:
