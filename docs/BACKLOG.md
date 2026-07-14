@@ -2156,7 +2156,7 @@ Ops can override to any value (e.g., `BROWSER_RECYCLE_EVERY=40 python scripts/te
 
 ---
 
-### #283W. Libertad tracker + Terapeak pool leak -- "onza" weight synonym + specialty-edition variant [P2 -- PRICING-ACCURACY / POOL-ISOLATION] -- IN PROGRESS 2026-07-14
+### #283W. Libertad tracker + Terapeak pool leak -- "onza" weight synonym + specialty-edition variant [P2 -- PRICING-ACCURACY / POOL-ISOLATION] -- DONE 2026-07-14 (PR #230)
 - **Problem**: A user searched `2011 Mexican Silver Libertad Proof` and the Live eBay Tracker returned off-weight and specialty-edition comps (e.g. `2023 Mexico Libertad 1/4 Onza Proof Silver Coin...`, `2022 Mexico Elite Libertad Traders 1 oz .999 Proof Silver Coin with COA`). The FMV path reported "8 verified sold comps used" but the source Terapeak dataset (`1oz 2011 libertad mexican proof silver`, compCount 21) contains at least one comp that was not rerouted at import time (`2011 MO SILVER PROOF MEXICO 1/20 ONZA LIBERTAD NGC PF 69 UC`).
 - **Root causes** (two independent gaps, both surfaced by the same query):
   1. **"Onza" not recognised as an oz synonym** in `detectWeightFromTitle` at [src/utils/coinMetalProfile.js#L226](../src/utils/coinMetalProfile.js#L226). The OZ regex enumerates `ounces? / ozt / oz` but omits the Spanish `onza` / `onzas`, even though the codebase already knows about it (`BULLION_OK_RE` in `src/utils/filters.js` L84). Consequence: `"1/4 Onza"` and `"1/20 ONZA"` titles return `null`, which the eBay weight-mismatch filter at [src/services/ebayService.js#L1086-L1088](../src/services/ebayService.js#L1086-L1088) treats as "no weight stated -- benefit of doubt" (kept). The same detector is used by Terapeak import-time reclassification at [src/services/terapeakService.js#L778](../src/services/terapeakService.js#L778), so onza-only fractionals stayed in the wrong pool at import time.
@@ -2176,7 +2176,7 @@ Ops can override to any value (e.g., `BROWSER_RECYCLE_EVERY=40 python scripts/te
 - **Deferred (out of scope for this PR)**:
   - Terapeak reclassification pass over stored comps -- the onza regex now catches the missed pool routes at *import*, but the existing 21-comp `1oz 2011 libertad mexican proof silver` dataset still contains the ONZA-only fractional(s) and one 2012 comp. A follow-up should run `scripts/reclassify-comps.js` (or equivalent) so the fix propagates to already-stored comps, not just future imports.
   - Broader specialty-edition token expansion (Numismatic Libertad, mint anniversary runs, other national-mint specialty series). The Casa-specific tokens close the reported case; add more as new leaks are reported.
-  - The 8-comps verification remains partly indirect: prod's `1oz 2011 libertad mexican proof silver` dataset is confirmed at compCount 21 in `data/terapeak-meta.json`, but enumerating the exact 8 that survived to the FMV would require the admin endpoint (`cache/terapeak_sold.json` is empty in this codespace, per `docs/memory/production-state-lookup.md`). After merge, run `/api/admin/comp-audit?key=...&searchTerm=1oz 2011 libertad mexican proof silver` (or equivalent) to confirm the pool composition and re-verify the FMV once the reclassify pass ships.
+  - The 8-comps verification remains partly indirect: prod's `1oz 2011 libertad mexican proof silver` dataset is confirmed at compCount 21 in `data/terapeak-meta.json`. Enumerating the exact 8 comps that survived to the FMV requires reading the on-server disk file `/mnt/cache/terapeak_sold.json` (the git-tracked meta sidecar is aggregate-only). **Correction to the merged PR body**: there is no `/api/admin/comp-audit` endpoint -- the only comp-related admin route is `GET /api/admin/terapeak-meta` which returns the aggregate sidecar (`src/routes/adminRoute.js` L171). Post-reclassify verification is best done via (a) `GET /api/admin/terapeak-meta` diff, (b) `GET /api/price?query=2011%20Mexican%20Silver%20Libertad%20Proof` before/after, and (c) the kudu console file listing. Tracked in full under **#284W**.
 - **Cross-refs**:
   - #282H (weight sanity cap) established the pattern for defensive regex fixes in `detectWeightFromTitle`.
   - INC-013 (WASTE-LEDGER) pool-isolation contract -- specialty editions are effectively a fourth pool distinct from raw/graded/proof and should not blend into any of them.
@@ -2184,18 +2184,110 @@ Ops can override to any value (e.g., `BROWSER_RECYCLE_EVERY=40 python scripts/te
 ---
 
 ### #284W. Post-#283W: run `scripts/reclassify-comps.js` against prod to purge already-stored onza-mispooled comps [P2 -- PRICING-ACCURACY / OPERATIONS] -- PROPOSED 2026-07-14
-- **Problem**: PR #230 (#283W) fixes `detectWeightFromTitle` and `terapeakService.importComps` so future imports correctly reroute Spanish-onza fractional Libertad comps. But the existing Terapeak store already contains comps that were mis-pooled under the old detector. Concretely: `data/terapeak-meta.json` key `1oz 2011 libertad mexican proof silver` has `compCount: 21` including at least one 1/20 ONZA comp (`2011 MO SILVER PROOF MEXICO 1/20 ONZA LIBERTAD NGC PF 69 UC`) and one 2012 comp; other Libertad Proof year keys will have similar contamination. Until reclassified, FMV for those coin/year/pool combinations will reflect the polluted pool.
-- **Fix**: run `scripts/reclassify-comps.js` (or equivalent batch reclassifier) against the prod Cosmos-backed Terapeak store, then `sync-terapeak-meta.js` to refresh the git-tracked sidecar. Confirm via the admin comp-audit endpoint that `1oz 2011 libertad mexican proof silver` no longer contains ONZA-only fractional comps, and spot-check FMV for `2011 Mexican Silver Libertad Proof` before/after.
-- **Files touched** (post-merge; not part of PR #230): `data/terapeak-meta.json` (regenerated), no code changes expected.
-- **Blocking**: none. PR #230 (#283W) must land first so the reclassifier uses the fixed detector; then this task can run.
-- **Validation**:
-  1. Snapshot `data/terapeak-meta.json` for all `libertad.*silver.*proof` keys before running.
-  2. Run reclassifier in a dry-run mode if supported, otherwise full run.
-  3. Diff before/after counts; the delta comps should match the ONZA-only fractional set. Any unexpected reroutes are a signal that the token/regex needs tightening.
-  4. FMV spot-check via `/api/price?query=2011%20Mexican%20Silver%20Libertad%20Proof` (both admin and public views).
+
+- **Problem**: PR #230 (#283W) fixes `detectWeightFromTitle` and `terapeakService.importComps` so future imports correctly reroute Spanish-onza fractional Libertad comps. But the existing Terapeak store already contains comps that were mis-pooled under the old detector. Concretely: `data/terapeak-meta.json` key `1oz 2011 libertad mexican proof silver` has `compCount: 21` including at least one 1/20 ONZA comp (`2011 MO SILVER PROOF MEXICO 1/20 ONZA LIBERTAD NGC PF 69 UC`) and one 2012 comp; other Libertad Proof year keys will have similar contamination. Until reclassified, FMV for those coin/year/pool combinations reflects the polluted pool.
+
+- **Corpus scale** (from `data/terapeak-meta.json` on 2026-07-14):
+  - 4,530 total dataset keys
+  - 228,432 total comps
+  - 453 Libertad-related keys (primary reroute candidates)
+
+- **How the store is actually persisted** (essential to know before designing the fix):
+  - **Comps live only in `terapeak_sold.json`** on disk. On the App Service (`coinpricefinder-h3a3b5g0dmdydna4`), `CACHE_DIR = /mnt/cache` (Azure Files mount), so the authoritative file is `/mnt/cache/terapeak_sold.json`.
+  - **Cosmos DB `terapeak-sold` container has aggregate meta ONLY, not individual comps.** See `hydrateMetaFromCosmos()` in [`src/services/terapeakService.js`](src/services/terapeakService.js) L341-L387: the boot-time hydrate reads *aggregationMeta markers* from Cosmos and merges them into the in-memory `_store`; it explicitly does NOT pull comps.
+  - **`data/terapeak-meta.json` is git-tracked**, produced server-side by `saveMetaSidecar()`. Local devs pull it via `scripts/sync-terapeak-meta.js` (which is READ-only from prod -- confirmed by reading the script header).
+  - **Consequence**: to fix mis-pooled comps in prod, you must rewrite `/mnt/cache/terapeak_sold.json` **on the App Service itself**. Running `scripts/reclassify-comps.js` locally rewrites only the codespace cache, which is `.gitignore`d and irrelevant to prod (per [`docs/memory/production-state-lookup.md`](docs/memory/production-state-lookup.md)).
+
+- **Access-path options** (pick one):
+  1. **Kudu SCM console + App Service restart** (simplest, no code change). Run the existing `scripts/reclassify-comps.js --apply` on the App Service, then restart so `_store` re-hydrates from the corrected disk file.
+  2. **New admin endpoint** (`POST /api/admin/reclassify-comps`) that calls the reclassify logic in-process against the live `_store` and triggers `saveStore()`. Adds a proper feature under branch protection + tests, but is more work.
+  3. **Full local pipeline** (fetch prod store -> reclassify -> push back). Not viable today: `sync-terapeak-meta.js` only pulls *meta*, not comps; there is no built-in push-comps path. Would require ad-hoc scripting.
+
+  **Recommended: option 1.** No new surface area, uses the already-tested script, and the restart is a documented operational action.
+
+- **No `/api/admin/comp-audit` endpoint exists** (verified 2026-07-14 by grepping `src/routes/adminRoute.js` -- the only comp-related admin routes are `GET /terapeak-meta` and `GET /stale-datasets`). Any earlier mention of a comp-audit endpoint (including in the PR #230 body) is aspirational, not implemented.
+
+- **Runbook** (option 1, kudu + restart):
+
+  1. **Prerequisite check** -- confirm no active scraper run. Poll `GET /api/admin/prefetch-status` (via read-only workflow logs or curl with `ADMIN_API_KEY`); wait for `state !== 'running'`. Reason: if the server is actively importing comps, its debounced `saveStore()` will overwrite the reclassified disk file (see `saveStore` in `src/services/terapeakService.js` L52-L70, 500ms debounce). Terapeak scraper cadence is nightly; a mid-morning window is safest.
+
+  2. **Backup the current store on the App Service.** Open the Kudu SCM console (`https://coinpricefinder-h3a3b5g0dmdydna4.scm.azurewebsites.net/webssh/host`, requires the same Azure auth as the portal), then:
+     ```bash
+     cd /mnt/cache
+     TS=$(date -u +%Y%m%dT%H%M%SZ)
+     cp terapeak_sold.json terapeak_sold.json.bak-${TS}
+     ls -lh terapeak_sold.json.bak-${TS}
+     ```
+     Note the file size and timestamp; keep them for the post-mortem.
+
+  3. **Dry-run.** From the same shell:
+     ```bash
+     cd /home/site/wwwroot
+     node scripts/reclassify-comps.js
+     ```
+     (The script defaults to dry-run; `--apply` is required to write.) Capture the summary block ("Total comps reclassified: N", per-target-key added/duplicates/total table). Expected outputs to sanity-check:
+     - Total reclassified count should be small relative to 228k -- roughly O(hundreds), not O(thousands).
+     - Target keys should be dominated by `libertad.*silver.*(twentieth|tenth|quarter|half)` (the fractional onza destinations). If unrelated coin series appear as targets, the token/regex changes need tightening -- STOP and investigate.
+     - Row for `1oz 2011 libertad mexican proof silver` should exist and match the specific bug from #283W.
+
+  4. **Apply** (only if dry-run looks clean):
+     ```bash
+     node scripts/reclassify-comps.js --apply
+     ```
+     Note the write confirmation line ("Done. Store saved to /mnt/cache/terapeak_sold.json").
+
+  5. **Restart the App Service.** From an authenticated shell on any workstation:
+     ```bash
+     az webapp restart --name coinpricefinder-h3a3b5g0dmdydna4 --resource-group <RG>
+     ```
+     (RG is documented in `docs/memory/azure-infrastructure.md`.) Restart forces the in-memory `_store` to reload from the corrected disk file. Without this, the running process's `_store` still holds the old pooling and will overwrite the fix on the next `saveStore()`.
+
+  6. **Wait for meta refresh.** The server writes the aggregate sidecar (`data/terapeak-meta.json` on the App Service) via `saveMetaSidecar()` on the next store mutation. Force one by touching an admin endpoint (`GET /api/admin/terapeak-meta` returns the current sidecar; issue a light no-op mutation if needed). Give it ~30 seconds.
+
+  7. **Pull the corrected meta sidecar into git.** From a dev workstation:
+     ```bash
+     node scripts/sync-terapeak-meta.js
+     ```
+     (No flag = write to `data/terapeak-meta.json`; `--check` for a preview.) Requires `APP_URL` and `ADMIN_API_KEY` env vars.
+
+  8. **Open a follow-up PR** with only the updated `data/terapeak-meta.json` + a brief entry in this backlog item marking it DONE with the actual before/after count deltas for the 2011 Libertad case (and a spot-check of at least three other affected Libertad Proof year keys).
+
+  9. **Verify the original bug is fixed.** Re-run the query that triggered #283W:
+     ```bash
+     curl -s "https://coinpricefinder-h3a3b5g0dmdydna4.azurewebsites.net/api/price?query=2011%20Mexican%20Silver%20Libertad%20Proof" | jq '.valuation | {method, compCount, fmvCore, confidence}'
+     ```
+     Expected: `compCount` decreases (from 8 to something smaller, reflecting the ONZA-only fractional dropping out); `fmvCore` adjusts modestly. Also open the Live eBay Tracker with the same query and confirm the year-2023 1/4 Onza row and the year-2022 Elite Traders row no longer appear in the matrix.
+
+- **Files touched** (post-merge; not part of PR #230):
+  - Server-side: `/mnt/cache/terapeak_sold.json` (rewritten in place; not git-tracked).
+  - Git-tracked: `data/terapeak-meta.json` (pulled fresh via `sync-terapeak-meta.js`) + this backlog entry flipped to DONE.
+  - No source-code changes expected.
+
+- **Runtime estimate**:
+  - Pure script CPU: **10-30 seconds** (~228k comps * two regexes each on a modern App Service worker; JSON write of ~30MB store is another few seconds).
+  - Full operator flow (steps 1-9 above): **30-60 minutes** the first time, mostly waiting on scraper-quiet window + restart + meta refresh. Subsequent runs (if this pattern recurs for another synonym) can be faster.
+
+- **Risk**:
+  - **In-flight writes.** If a scraper import fires during the reclassify, `_store` gets rewritten out from under the script. Step 1 mitigates via the prefetch-status gate; the App Service restart in step 5 is the belt-and-suspenders.
+  - **False-positive reroutes.** Any dry-run row that targets a key unrelated to the fractional-onza case is a signal that the `detectWeightFromTitle` regex or `weightToKeyToken` mapping needs tightening. Do not `--apply` until the dry-run summary is understood row by row.
+  - **Backup retention.** Leave `terapeak_sold.json.bak-<ISO>` in `/mnt/cache/` for at least 7 days so a rollback is trivial (`cp bak.json terapeak_sold.json && az webapp restart ...`).
+
+- **Blocking**: none. PR #230 (#283W) has merged; the reclassifier uses the fixed detector via `require('../src/utils/coinMetalProfile')` at the top of the script.
+
+- **Validation checklist** (to be filled in on the follow-up PR):
+  1. `/mnt/cache/terapeak_sold.json` size delta before/after (bytes).
+  2. Dry-run summary: total reclassified count, top 10 target keys, any unexpected rows.
+  3. `1oz 2011 libertad mexican proof silver` `compCount` before vs. after (expected: 21 -> ~18-20; the 1/20 ONZA and 2012 comps should route out).
+  4. Curl output for `/api/price?query=2011%20Mexican%20Silver%20Libertad%20Proof` before vs. after (`compCount`, `fmvCore`, `method`, `confidence`).
+  5. Tracker matrix for `2011 Mexican Silver Libertad Proof` -- confirm no year-2023 1/4 Onza and no year-2022 Elite Traders row.
+  6. `az webapp restart` timestamp + `ps -ef | grep node` on kudu confirming the process PID changed.
+
 - **Cross-refs**:
   - Follow-up to #283W (PR #230). Explicitly deferred there, with the deferral risk documented in the PR body under "Risk & Rollback".
-  - `docs/memory/production-state-lookup.md` -- codespace `cache/` is not prod truth; this task MUST run against prod (`/api/admin/...` or `gh workflow run`), not against the codespace cache.
+  - [`docs/memory/production-state-lookup.md`](docs/memory/production-state-lookup.md) -- codespace `cache/` is not prod truth; this task MUST run against prod (kudu SSH on the App Service), not against the codespace cache.
+  - [`docs/memory/terapeak-runbook.md`](docs/memory/terapeak-runbook.md) -- general Terapeak operational context.
+  - [`docs/memory/azure-infrastructure.md`](docs/memory/azure-infrastructure.md) -- App Service name, resource group, Azure Files mount details.
+  - [`src/services/terapeakService.js`](src/services/terapeakService.js) L52-L70 (`saveStore` debounce) and L341-L387 (`hydrateMetaFromCosmos`) explain why an App Service restart is required.
 
 ---
 
