@@ -223,15 +223,20 @@ function detectWeightFromTitle(title) {
   if (/\b(?:1\s*)?kilo(?:gram)?\b/i.test(t)) return 32.1507;
 
   // Oz-based weights
-  const OZ = '(?:troy\\s+)?(?:ounces?(?:\\s+oz)?|ozt?|oz)\\b';
+  // #283W: include Spanish `onza` / `onzas` as an oz synonym so Casa de
+  // Moneda Libertad titles like "1/4 Onza" or "1 Onza" are detected
+  // correctly.  Without this, "1/4 Onza" comps fell through to the
+  // benefit-of-doubt branch of the eBay weight-mismatch filter and
+  // slipped into 1 oz Libertad Proof pools (both live and Terapeak).
+  const OZ = '(?:troy\\s+)?(?:ounces?(?:\\s+oz)?|ozt?|oz|onzas?)\\b';
   const fracRe = new RegExp('\\b(1\\/20|1\\/10|1\\/4|1\\/2)\\s*' + OZ, 'i');
   const fracMatch = t.match(fracRe);
   if (fracMatch) {
     const frac = { '1/20': 0.05, '1/10': 0.1, '1/4': 0.25, '1/2': 0.5 };
     return frac[fracMatch[1]] || null;
   }
-  if (/\bquarter\s*(?:troy\s+)?(?:ounce|ozt?|oz)\b/i.test(t))  return 0.25;
-  if (/\bhalf\s*(?:troy\s+)?(?:ounce|ozt?|oz)\b/i.test(t))     return 0.5;
+  if (/\bquarter\s*(?:troy\s+)?(?:ounce|ozt?|oz|onzas?)\b/i.test(t)) return 0.25;
+  if (/\bhalf\s*(?:troy\s+)?(?:ounce|ozt?|oz|onzas?)\b/i.test(t))    return 0.5;
   const m = t.match(new RegExp('\\b(\\d+(?:\\.\\d+)?)\\s*' + OZ, 'i'));
   if (m) {
     const w = parseFloat(m[1]);

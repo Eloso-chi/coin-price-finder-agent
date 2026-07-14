@@ -78,6 +78,35 @@ describe('importComps', () => {
     const ds = datasets.find(d => d.searchTerm === 'Test Count');
     expect(ds.importCount).toBe(2);
   });
+
+  // #283W: onza-fractional titles must reroute at import time.  This
+  // pins the second consumer of the shared `detectWeightFromTitle`
+  // detector (the first is ebayService.applyFilters weight-mismatch
+  // hard filter).  Regression protects against the original bug where
+  // "1/20 ONZA" titles landed in the wrong-weight pool because the
+  // regex didn't know Spanish "onza".
+  test('#283W: reroutes 1/20 ONZA comp out of a 1 oz dataset key', () => {
+    const comps = [
+      // Correctly-weighted 1 oz Libertad Proof (stays in the 1 oz key).
+      { title: '2011 Mo Proof Mexico Libertad 1 oz Silver 999 Onza', soldDate: '2026-04-01', totalUsd: 60, itemId: 'onza-keep-1oz' },
+      // 1/20 oz Libertad Proof that uses Spanish "ONZA" only (no plain
+      // "oz" token).  Before #283W this returned null from
+      // detectWeightFromTitle and stayed in the 1 oz dataset; after
+      // #283W it must reroute out.
+      { title: '2011 MO SILVER PROOF MEXICO 1/20 ONZA LIBERTAD NGC PF 69 UC', soldDate: '2026-04-02', totalUsd: 15, itemId: 'onza-reroute-twentieth' },
+      // 1/4 Onza -- same shape as the coin the user saw on the tracker.
+      { title: '2023 Mexico Libertad 1/4 Onza Proof Silver Coin', soldDate: '2026-04-03', totalUsd: 45, itemId: 'onza-reroute-quarter' },
+    ];
+    const result = importComps('1oz 2011 libertad mexican proof silver', comps);
+    // Two of three rerouted -> only one stays in the target key.
+    expect(result.reclassified).toBe(2);
+    expect(result.totalStored).toBe(1);
+    // The kept comp is the actual 1 oz Onza.
+    const lookup = lookupComps('1oz 2011 libertad mexican proof silver');
+    expect(lookup).not.toBeNull();
+    expect(lookup.comps.length).toBe(1);
+    expect(lookup.comps[0].title).toMatch(/1 oz Silver 999 Onza/);
+  });
 });
 
 /* ════════════════════════════════════════════════════════════

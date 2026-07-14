@@ -198,7 +198,14 @@ const VARIANT_FAMILY_TOKENS = {
   privy: ['privy'],
   highRelief: ['high relief', 'ultra high relief', 'uhr'],
   antiqued: ['antiqued', 'antique finish'],
-  burnished: ['burnished']
+  burnished: ['burnished'],
+  // #283W: mint-issued specialty editions that are distinct from the
+  // standard Proof strike but happen to share the "proof" title token.
+  // Rejected by applyFilters even when the query wants proof, because
+  // they command different premiums and pollute the standard-proof pool.
+  // Current tokens are Casa de Moneda Libertad-specific; add more here
+  // as new specialty-run families are identified.
+  specialtyEdition: ['elite libertad', 'libertad traders', 'traders convention']
 };
 
 const COLORIZED_MINT_ISSUED_TOKENS = ['perth mint', 'royal canadian mint', 'rcm', 'royal mint', 'with coa', 'coa', 'pcgs colorized', 'ngc colorized'];
@@ -1189,6 +1196,15 @@ function applyFilters(comps, options, expected) {
         if (titleFamiliesHF.size === 0) return true;
         const hasOnlyPrivyHF = titleFamiliesHF.size === 1 && titleFamiliesHF.has('privy');
         if (hasOnlyPrivyHF) return true;
+        // #283W: specialtyEdition (mint-issued commemorative runs like
+        // "Elite Libertad" or "Libertad Traders") is a distinct pool from
+        // the standard Proof. Reject even when the title also says "proof"
+        // and the user asked for proof -- these skew FMV against the
+        // regular Proof series.
+        if (titleFamiliesHF.has('specialtyEdition')) {
+          removed.variantMismatch++;
+          return false;
+        }
         const hasProofFamilyHF = titleFamiliesHF.has('proof') || titleFamiliesHF.has('reverseProof');
         if (wantsProofHF && hasProofFamilyHF) return true;
         removed.variantMismatch++;
@@ -1200,6 +1216,14 @@ function applyFilters(comps, options, expected) {
       kept = kept.filter(c => {
         const titleFamiliesHF = detectVariantFamilies(c.title);
         if (titleFamiliesHF.size === 0) return true; // plain BU -- keep
+        // #283W: specialtyEdition rejection is symmetric across branches --
+        // a colorized query wants standard colorized comps, not Casa's
+        // specialty runs (which command their own premium). Rejected even
+        // if the comp also carries the `colorized` family token.
+        if (titleFamiliesHF.has('specialtyEdition')) {
+          removed.variantWrongColor++;
+          return false;
+        }
         if (titleFamiliesHF.has('colorized')) return true;
         removed.variantWrongColor++;
         return false;
