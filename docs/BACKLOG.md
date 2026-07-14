@@ -2156,6 +2156,33 @@ Ops can override to any value (e.g., `BROWSER_RECYCLE_EVERY=40 python scripts/te
 
 ---
 
+### #283W. Libertad tracker + Terapeak pool leak -- "onza" weight synonym + specialty-edition variant [P2 -- PRICING-ACCURACY / POOL-ISOLATION] -- IN PROGRESS 2026-07-14
+- **Problem**: A user searched `2011 Mexican Silver Libertad Proof` and the Live eBay Tracker returned off-weight and specialty-edition comps (e.g. `2023 Mexico Libertad 1/4 Onza Proof Silver Coin...`, `2022 Mexico Elite Libertad Traders 1 oz .999 Proof Silver Coin with COA`). The FMV path reported "8 verified sold comps used" but the source Terapeak dataset (`1oz 2011 libertad mexican proof silver`, compCount 21) contains at least one comp that was not rerouted at import time (`2011 MO SILVER PROOF MEXICO 1/20 ONZA LIBERTAD NGC PF 69 UC`).
+- **Root causes** (two independent gaps, both surfaced by the same query):
+  1. **"Onza" not recognised as an oz synonym** in `detectWeightFromTitle` at [src/utils/coinMetalProfile.js#L226](../src/utils/coinMetalProfile.js#L226). The OZ regex enumerates `ounces? / ozt / oz` but omits the Spanish `onza` / `onzas`, even though the codebase already knows about it (`BULLION_OK_RE` in `src/utils/filters.js` L84). Consequence: `"1/4 Onza"` and `"1/20 ONZA"` titles return `null`, which the eBay weight-mismatch filter at [src/services/ebayService.js#L1086-L1088](../src/services/ebayService.js#L1086-L1088) treats as "no weight stated -- benefit of doubt" (kept). The same detector is used by Terapeak import-time reclassification at [src/services/terapeakService.js#L778](../src/services/terapeakService.js#L778), so onza-only fractionals stayed in the wrong pool at import time.
+  2. **Mint-issued specialty editions share the `proof` title token but skew premiums.** `VARIANT_FAMILY_TOKENS` in [src/services/ebayService.js#L193-L204](../src/services/ebayService.js#L193-L204) had no family for Casa de Moneda "Elite Libertad" / "Libertad Traders" / "Traders Convention" runs. The variant hard filter at [src/services/ebayService.js#L1183-L1197](../src/services/ebayService.js#L1183-L1197) explicitly keeps any comp whose family set contains `proof` when `wantsProof=true`, so specialty-Proof titles slipped through into the standard-Proof pool.
+- **Fix**:
+  - Extend the `OZ` token regex in `detectWeightFromTitle` to include `onzas?` (both the fraction regex and the numeric regex reuse this token).  Extend the `quarter` / `half` word-form fallbacks to accept `onzas?` too.
+  - Add a `specialtyEdition` family to `VARIANT_FAMILY_TOKENS` seeded with `['elite libertad', 'libertad traders', 'traders convention']` (Casa de Moneda-specific tokens; safe against false positives on generic titles).
+  - Insert a specialty-family rejection branch in `applyFilters` **before** the `wantsProof + proof-family` allow branch, so specialty is always rejected regardless of the proof-query allowance. Colorized-query branch already rejects specialty naturally (no family match against `colorized`).
+- **Files changed**:
+  - `src/utils/coinMetalProfile.js` (~4 lines, regex only)
+  - `src/services/ebayService.js` (~15 lines: one new family entry, one new filter branch)
+  - `__tests__/coinMetalProfileOnza.test.js` (NEW, 12 tests pinning fractional/integer/mixed onza forms)
+  - `__tests__/applyFilters.test.js` (adds Step 8b: 4 specialty-edition tests)
+- **Validation**:
+  - Standalone: `npx jest __tests__/coinMetalProfileOnza.test.js __tests__/applyFilters.test.js __tests__/coinMetalProfileWeightCap.test.js __tests__/coinMetalProfile.test.js` -> 147/147 pass.
+  - Full suite: 4185/4186 pass; the one failure (`freshnessReportEvidenceGates.test.js`) is pre-existing on `main` (verified by `git stash`), unrelated to this change.
+- **Deferred (out of scope for this PR)**:
+  - Terapeak reclassification pass over stored comps -- the onza regex now catches the missed pool routes at *import*, but the existing 21-comp `1oz 2011 libertad mexican proof silver` dataset still contains the ONZA-only fractional(s) and one 2012 comp. A follow-up should run `scripts/reclassify-comps.js` (or equivalent) so the fix propagates to already-stored comps, not just future imports.
+  - Broader specialty-edition token expansion (Numismatic Libertad, mint anniversary runs, other national-mint specialty series). The Casa-specific tokens close the reported case; add more as new leaks are reported.
+  - The 8-comps verification remains partly indirect: prod's `1oz 2011 libertad mexican proof silver` dataset is confirmed at compCount 21 in `data/terapeak-meta.json`, but enumerating the exact 8 that survived to the FMV would require the admin endpoint (`cache/terapeak_sold.json` is empty in this codespace, per `docs/memory/production-state-lookup.md`). After merge, run `/api/admin/comp-audit?key=...&searchTerm=1oz 2011 libertad mexican proof silver` (or equivalent) to confirm the pool composition and re-verify the FMV once the reclassify pass ships.
+- **Cross-refs**:
+  - #282H (weight sanity cap) established the pattern for defensive regex fixes in `detectWeightFromTitle`.
+  - INC-013 (WASTE-LEDGER) pool-isolation contract -- specialty editions are effectively a fourth pool distinct from raw/graded/proof and should not blend into any of them.
+
+---
+
 ### #264W. Per-machine backlog ID convention (W/H suffix) [P2 -- PROCESS] -- DONE 2026-06-04
 - **Problem**: This project is worked on from two machines that may both add backlog items without coordinating. Without per-machine namespacing, the first new entry on each machine claims the same next-integer ID, forcing post-hoc renumbering (e.g., this session: drafted #260-#262, collided with PR #118's #260, renumbered to #261-#263, then again to #260W-#262W).
 - **Fix**:

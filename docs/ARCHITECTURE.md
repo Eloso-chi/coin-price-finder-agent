@@ -660,7 +660,7 @@ When the user provides a free-text description (not a cert number), `resolveFrom
 - **Grade**: `MS`/`PR`/`PF`/`AU`/`XF`/`VF`/`F`/`VG`/`G`/`AG`/`FR`/`PO` + numeric grade
 - **Designation**: Red (RD), Red-Brown (RB), Brown (BN), Deep Cameo (DCAM), Cameo, Full Bands (FB), etc.
 - **Metal**: gold, silver, platinum, palladium, copper
-- **Weight**: `1 oz`, `1/2 oz`, `1/4 oz`, `1/10 oz`, `1/20 oz`, `1.5 oz`, `2 oz`, `5 oz`, `10 oz`
+- **Weight**: `1 oz`, `1/2 oz`, `1/4 oz`, `1/10 oz`, `1/20 oz`, `1.5 oz`, `2 oz`, `5 oz`, `10 oz`. Also accepts Spanish `onza` / `onzas` as an `oz` synonym for Casa de Moneda Libertad titles (#283W).
 - **Set type**: proof set, silver proof set, prestige proof set, mint set
 - **Exclusion operators**: tokens prefixed with `-` (e.g. `-proof`, `-gold`, `-W`) are stripped from parsed fields and passed through as negative keywords to eBay queries
 
@@ -671,6 +671,8 @@ When the user provides a free-text description (not a cert number), `resolveFrom
 **Historical meltFloor (#171, #172):** The meltFloor filter in `applyFilters()` uses `getSpotOnDate(metal, soldDate)` from `metalsHistoryService` to compute melt value based on each comp's actual sale date, rather than today's spot price. This prevents older comps from being incorrectly rejected when spot has risen significantly since they were sold. Falls back to today's spot if no historical price is available within a 7-day tolerance.
 
 **Type 1/2 variant filter (#180):** When `expected.label` contains "Type 1" or "Type 2", `applyFilters()` hard-removes comps whose titles reference the opposite type (e.g. "Type 2" titles when pricing a Type 1 coin). `pcgsService.parseDescription()` detects "Type 1" / "Type 2" in descriptions and sets `result.label`, which is passed through from the identification step to the expected object in `priceRoute.js` and `pricingBatchRoute.js`.
+
+**Specialty-edition family filter (#283W):** `VARIANT_FAMILY_TOKENS.specialtyEdition` (in `ebayService.js`) covers mint-issued commemorative runs that share the standard `proof` title token but command different premiums (e.g. Casa de Moneda `elite libertad`, `libertad traders`, `traders convention`). `applyFilters()` rejects these titles regardless of the caller's `wantsProof` intent, so they never blend into the standard-Proof pool. Add new tokens here as additional specialty runs are identified.
 
 ---
 

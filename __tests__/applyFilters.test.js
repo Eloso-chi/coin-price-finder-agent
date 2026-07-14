@@ -243,6 +243,72 @@ describe('applyFilters — variant mismatch', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════
+//  Step 8b: specialtyEdition family (#283W)
+// ═══════════════════════════════════════════════════════════════
+//
+// Casa de Moneda produces mint-issued specialty runs (Elite Libertad,
+// Libertad Traders / Traders Convention) that share the "Proof" title
+// token but command different premiums than the standard Proof series.
+// They must be rejected even when the query wants proof, otherwise
+// they contaminate the standard-Proof pool for FMV and the Live eBay
+// Tracker matrix.
+describe('applyFilters — specialtyEdition (#283W)', () => {
+  test('rejects "Elite Libertad ... Proof" when query wants standard proof', () => {
+    const comps = [
+      makeComp({ title: '2022 Mexico Elite Libertad Traders 1 oz .999 Proof Silver Coin with COA', matchScore: 70, gradeType: 'proof' }),
+      makeComp({ title: '2011 Mexico Libertad 1 oz Silver Proof', matchScore: 70, gradeType: 'proof' }),
+    ];
+    const { kept, removed } = applyFilters(comps, {}, {
+      _rawQuery: '2011 Mexican Silver Libertad Proof',
+      isProof: true,
+      finish: 'Proof',
+    });
+    expect(kept.length).toBe(1);
+    expect(kept[0].title).toMatch(/2011.*1 oz Silver Proof/);
+    expect(removed.variantMismatch).toBe(1);
+  });
+
+  test('rejects "Libertad Traders" convention edition even with proof-family token', () => {
+    const comps = [
+      makeComp({ title: '2020 Mexico Libertad Traders Convention 1 oz Proof Silver', matchScore: 70, gradeType: 'proof' }),
+      makeComp({ title: '2020 Mexico Libertad 1 oz Silver Proof', matchScore: 70, gradeType: 'proof' }),
+    ];
+    const { kept, removed } = applyFilters(comps, {}, {
+      _rawQuery: '2020 Mexico Silver Libertad Proof',
+      isProof: true,
+      finish: 'Proof',
+    });
+    expect(kept.length).toBe(1);
+    expect(kept[0].title).not.toMatch(/Traders/i);
+    expect(removed.variantMismatch).toBe(1);
+  });
+
+  test('plain BU query also rejects specialty editions', () => {
+    const comps = [
+      makeComp({ title: '2022 Mexico Elite Libertad Traders 1 oz Silver', matchScore: 70 }),
+      makeComp({ title: '2022 Mexico Libertad 1 oz Silver BU', matchScore: 70 }),
+    ];
+    const { kept, removed } = applyFilters(comps, {}, { _rawQuery: '2022 Mexican Silver Libertad BU' });
+    expect(kept.length).toBe(1);
+    expect(kept[0].title).not.toMatch(/Elite|Traders/i);
+    expect(removed.variantMismatch).toBe(1);
+  });
+
+  test('standard Proof comps without specialty tokens are still kept', () => {
+    const comps = [
+      makeComp({ title: '2011 Mo Proof Mexico Libertad 1 oz Silver 999 Onza', matchScore: 70, gradeType: 'proof' }),
+      makeComp({ title: '2011 Mo PCGS PR69 DCAM Proof Mexico 1 oz Silver Libertad Un Onza', matchScore: 70, gradeType: 'proof' }),
+    ];
+    const { kept } = applyFilters(comps, {}, {
+      _rawQuery: '2011 Mexican Silver Libertad Proof',
+      isProof: true,
+      finish: 'Proof',
+    });
+    expect(kept.length).toBe(2);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════
 //  Step 9: Mint mark mismatch
 // ═══════════════════════════════════════════════════════════════
 
