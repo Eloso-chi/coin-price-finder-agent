@@ -1216,6 +1216,14 @@ function applyFilters(comps, options, expected) {
       kept = kept.filter(c => {
         const titleFamiliesHF = detectVariantFamilies(c.title);
         if (titleFamiliesHF.size === 0) return true; // plain BU -- keep
+        // #283W: specialtyEdition rejection is symmetric across branches --
+        // a colorized query wants standard colorized comps, not Casa's
+        // specialty runs (which command their own premium). Rejected even
+        // if the comp also carries the `colorized` family token.
+        if (titleFamiliesHF.has('specialtyEdition')) {
+          removed.variantWrongColor++;
+          return false;
+        }
         if (titleFamiliesHF.has('colorized')) return true;
         removed.variantWrongColor++;
         return false;

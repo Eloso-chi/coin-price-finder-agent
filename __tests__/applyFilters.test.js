@@ -306,6 +306,59 @@ describe('applyFilters — specialtyEdition (#283W)', () => {
     });
     expect(kept.length).toBe(2);
   });
+
+  // #283W edge cases -- pin the intended dispatch priority so future
+  // refactors of the variant-hard-filter branch order can't silently
+  // reintroduce specialty leaks.
+
+  test('specialty + privy in same title: specialty rejection wins over the privy-only allow', () => {
+    // Comp carries BOTH `specialtyEdition` and `privy` families.  The
+    // `hasOnlyPrivyHF` allow branch requires size===1, so specialty
+    // rejection at the next line must fire.  Uses a plain-BU query
+    // to isolate the variant-hard-filter behaviour from the earlier
+    // `notProof` gate.
+    const comps = [
+      makeComp({ title: '2022 Mexico Elite Libertad Traders Privy Mark 1 oz Silver', matchScore: 70 }),
+      makeComp({ title: '2022 Silver Eagle Privy Mark 1 oz', matchScore: 70 }),
+    ];
+    const { kept, removed } = applyFilters(comps, {}, { _rawQuery: '2022 Mexican Silver Libertad' });
+    // Privy-only comp survives; specialty+privy is rejected.
+    expect(kept.length).toBe(1);
+    expect(kept[0].title).toMatch(/Silver Eagle Privy/);
+    expect(removed.variantMismatch).toBe(1);
+  });
+
+  test('case insensitivity: "ELITE LIBERTAD TRADERS" uppercase still rejected', () => {
+    // detectVariantFamilies lowercases the title internally, so token
+    // matching must be case-insensitive by construction.
+    const comps = [
+      makeComp({ title: '2022 MEXICO ELITE LIBERTAD TRADERS 1 OZ .999 PROOF SILVER COIN WITH COA', matchScore: 70, gradeType: 'proof' }),
+    ];
+    const { kept, removed } = applyFilters(comps, {}, {
+      _rawQuery: '2022 Mexican Silver Libertad Proof',
+      isProof: true,
+      finish: 'Proof',
+    });
+    expect(kept.length).toBe(0);
+    expect(removed.variantMismatch).toBe(1);
+  });
+
+  test('specialty + colorized on colorized query: specialty still rejected (symmetric branch behavior)', () => {
+    // #283W symmetric-branch guard: the colorized-query branch must
+    // also reject specialtyEdition, otherwise a "Elite Libertad Traders
+    // Colorized" comp would slip through the colorized filter and
+    // contaminate the colorized FMV pool.
+    const comps = [
+      makeComp({ title: '2022 Mexico Elite Libertad Traders Colorized 1 oz Silver', matchScore: 70 }),
+      makeComp({ title: '2022 Mexico Libertad Colorized 1 oz Silver Perth Mint with COA', matchScore: 70 }),
+      makeComp({ title: '2022 Mexico Libertad 1 oz Silver BU', matchScore: 70 }),
+    ];
+    const { kept, removed } = applyFilters(comps, {}, { _rawQuery: '2022 Mexican Silver Libertad Colorized' });
+    // Plain colorized + plain BU kept; specialty+colorized rejected.
+    expect(kept.length).toBe(2);
+    expect(kept.some(c => /Elite|Traders/i.test(c.title))).toBe(false);
+    expect(removed.variantWrongColor).toBe(1);
+  });
 });
 
 // ═══════════════════════════════════════════════════════════════

@@ -2183,6 +2183,22 @@ Ops can override to any value (e.g., `BROWSER_RECYCLE_EVERY=40 python scripts/te
 
 ---
 
+### #284W. Post-#283W: run `scripts/reclassify-comps.js` against prod to purge already-stored onza-mispooled comps [P2 -- PRICING-ACCURACY / OPERATIONS] -- PROPOSED 2026-07-14
+- **Problem**: PR #230 (#283W) fixes `detectWeightFromTitle` and `terapeakService.importComps` so future imports correctly reroute Spanish-onza fractional Libertad comps. But the existing Terapeak store already contains comps that were mis-pooled under the old detector. Concretely: `data/terapeak-meta.json` key `1oz 2011 libertad mexican proof silver` has `compCount: 21` including at least one 1/20 ONZA comp (`2011 MO SILVER PROOF MEXICO 1/20 ONZA LIBERTAD NGC PF 69 UC`) and one 2012 comp; other Libertad Proof year keys will have similar contamination. Until reclassified, FMV for those coin/year/pool combinations will reflect the polluted pool.
+- **Fix**: run `scripts/reclassify-comps.js` (or equivalent batch reclassifier) against the prod Cosmos-backed Terapeak store, then `sync-terapeak-meta.js` to refresh the git-tracked sidecar. Confirm via the admin comp-audit endpoint that `1oz 2011 libertad mexican proof silver` no longer contains ONZA-only fractional comps, and spot-check FMV for `2011 Mexican Silver Libertad Proof` before/after.
+- **Files touched** (post-merge; not part of PR #230): `data/terapeak-meta.json` (regenerated), no code changes expected.
+- **Blocking**: none. PR #230 (#283W) must land first so the reclassifier uses the fixed detector; then this task can run.
+- **Validation**:
+  1. Snapshot `data/terapeak-meta.json` for all `libertad.*silver.*proof` keys before running.
+  2. Run reclassifier in a dry-run mode if supported, otherwise full run.
+  3. Diff before/after counts; the delta comps should match the ONZA-only fractional set. Any unexpected reroutes are a signal that the token/regex needs tightening.
+  4. FMV spot-check via `/api/price?query=2011%20Mexican%20Silver%20Libertad%20Proof` (both admin and public views).
+- **Cross-refs**:
+  - Follow-up to #283W (PR #230). Explicitly deferred there, with the deferral risk documented in the PR body under "Risk & Rollback".
+  - `docs/memory/production-state-lookup.md` -- codespace `cache/` is not prod truth; this task MUST run against prod (`/api/admin/...` or `gh workflow run`), not against the codespace cache.
+
+---
+
 ### #264W. Per-machine backlog ID convention (W/H suffix) [P2 -- PROCESS] -- DONE 2026-06-04
 - **Problem**: This project is worked on from two machines that may both add backlog items without coordinating. Without per-machine namespacing, the first new entry on each machine claims the same next-integer ID, forcing post-hoc renumbering (e.g., this session: drafted #260-#262, collided with PR #118's #260, renumbered to #261-#263, then again to #260W-#262W).
 - **Fix**:

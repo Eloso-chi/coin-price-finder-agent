@@ -68,4 +68,19 @@ describe('detectWeightFromTitle -- #283W onza / onzas synonym', () => {
   test('"1000 Onzas" -> null (above the #282H sanity cap of 200)', () => {
     expect(detectWeightFromTitle('1000 Onzas Silver Libertad')).toBeNull();
   });
+
+  // Substring false-positive guard (#283W): the `onzas?` token is
+  // word-boundary anchored (`\b...\b`), so tokens that merely contain
+  // "onza" as an internal substring must not be picked up as an
+  // ounce reference.  If this test ever fails, the OZ regex has lost
+  // its `\b` anchor and needs to be tightened.
+  test('"Bonza" (brand/slang, "onza" is only a substring) -> falls back to numeric weight or null', () => {
+    // No standalone weight token -> null (no fractional prefix, no
+    // integer-oz match because "Bonza" is a word not a number).
+    expect(detectWeightFromTitle('Bonza coin collection lot')).toBeNull();
+  });
+
+  test('"Bonza 1 oz Silver" (substring "onza" AND a real "1 oz") -> 1 (the real oz wins, not the substring)', () => {
+    expect(detectWeightFromTitle('Bonza 1 oz Silver Round')).toBe(1);
+  });
 });
