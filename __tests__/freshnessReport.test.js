@@ -6,7 +6,7 @@ const path = require('path');
 const { execFileSync } = require('child_process');
 
 const META_PATH = process.env.META_PATH || path.join(__dirname, '..', 'data', 'terapeak-meta.json');
-const REPORT_PATH = path.join(__dirname, '..', 'cache', 'freshness-report.json');
+const REPORT_PATH = process.env.FRESHNESS_REPORT_PATH || path.join(__dirname, '..', 'cache', 'freshness-report.json');
 const SCRIPT = path.join(__dirname, '..', 'scripts', 'generate-freshness-report.js');
 
 // Save and restore the real meta file around tests
@@ -252,8 +252,8 @@ describe('generate-freshness-report.js', () => {
     };
     const report = runReport(meta);
     const ds = report.datasets[0];
-    expect(ds.actions).toContain('refresh');
-    expect(ds.priority).toBe('P1');
+    expect(ds.actions).toContain('refresh-bullion');
+    expect(ds.priority).toBe('P0.1');
   });
 
   test('no backoff when consecutiveDryRefreshes is 0', () => {

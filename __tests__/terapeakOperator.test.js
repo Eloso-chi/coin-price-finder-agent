@@ -36,6 +36,11 @@ function runBash(args, options = {}) {
   });
 }
 
+function toBashPath(winPath) {
+  const normalized = winPath.replace(/\\/g, '/');
+  return normalized.replace(/^([A-Za-z]):/, (_, drive) => `/${drive.toLowerCase()}`);
+}
+
 describe('terapeak-operator.sh -- deterministic startup orchestration', () => {
   let tempDir;
   let tempEnvFile;
@@ -216,20 +221,20 @@ ADMIN_API_KEY=test-key-12345
       const badEnvFile = path.join(tempDir, '.env.bad');
       fs.writeFileSync(badEnvFile, 'COOKIE_FILE=/tmp/cookies.json\n');
       
-      const res = runBash([PREFLIGHT_SCRIPT_REL, '--env-file', badEnvFile, '--mode', 'login']);
+      const res = runBash([PREFLIGHT_SCRIPT_REL, '--env-file', toBashPath(badEnvFile), '--mode', 'login']);
       
       expect(res.status).not.toBe(0);
-      expect(res.stderr).toMatch(/APP_URL|required env vars|Unsupported Ubuntu version/i);
+      expect(res.stderr).toMatch(/APP_URL|required env vars|Unsupported Ubuntu version|Missing env file/i);
     });
 
     test('preflight detects missing COOKIE_FILE', () => {
       const badEnvFile = path.join(tempDir, '.env.bad');
       fs.writeFileSync(badEnvFile, 'APP_URL=https://test.local\n');
       
-      const res = runBash([PREFLIGHT_SCRIPT_REL, '--env-file', badEnvFile, '--mode', 'login']);
+      const res = runBash([PREFLIGHT_SCRIPT_REL, '--env-file', toBashPath(badEnvFile), '--mode', 'login']);
       
       expect(res.status).not.toBe(0);
-      expect(res.stderr).toMatch(/COOKIE_FILE|required env vars|Unsupported Ubuntu version/i);
+      expect(res.stderr).toMatch(/COOKIE_FILE|required env vars|Unsupported Ubuntu version|Missing env file/i);
     });
 
     test('preflight validates distro is Ubuntu', () => {

@@ -33,6 +33,7 @@ const path = require('path');
 
 const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cpf-meta-'));
 const tmpMeta = path.join(tmpDir, 'terapeak-meta.json');
+const tmpReport = path.join(tmpDir, 'freshness-report.json');
 
 const realMeta = path.join(__dirname, '..', '..', 'data', 'terapeak-meta.json');
 if (fs.existsSync(realMeta)) {
@@ -42,3 +43,4 @@ if (fs.existsSync(realMeta)) {
 }
 
 process.env.META_PATH = tmpMeta;
+process.env.FRESHNESS_REPORT_PATH = tmpReport;

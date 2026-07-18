@@ -35,7 +35,7 @@ const { THRESHOLDS } = require('../src/services/freshnessClassifier');
 // META_PATH may be overridden via env so jest tests can point at a per-worker
 // tmpdir (#273H). Without the hook, parallel workers race on the real file.
 const META_PATH = process.env.META_PATH || path.join(__dirname, '..', 'data', 'terapeak-meta.json');
-const OUTPUT_PATH = path.join(__dirname, '..', 'cache', 'freshness-report.json');
+const OUTPUT_PATH = process.env.FRESHNESS_REPORT_PATH || path.join(__dirname, '..', 'cache', 'freshness-report.json');
 const VALIDITY_HOURS = 24;
 
 // ── Parse args ──────────────────────────────────────────────

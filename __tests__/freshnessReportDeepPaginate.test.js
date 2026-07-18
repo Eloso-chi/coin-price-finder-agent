@@ -10,7 +10,7 @@ const path = require('path');
 const { execFileSync } = require('child_process');
 
 const META_PATH = process.env.META_PATH || path.join(__dirname, '..', 'data', 'terapeak-meta.json');
-const REPORT_PATH = path.join(__dirname, '..', 'cache', 'freshness-report.json');
+const REPORT_PATH = process.env.FRESHNESS_REPORT_PATH || path.join(__dirname, '..', 'cache', 'freshness-report.json');
 const SCRIPT = path.join(__dirname, '..', 'scripts', 'generate-freshness-report.js');
 
 let originalMeta;

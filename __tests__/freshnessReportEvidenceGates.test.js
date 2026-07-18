@@ -16,7 +16,7 @@ const path = require('path');
 const { execFileSync } = require('child_process');
 
 const META_PATH = process.env.META_PATH || path.join(__dirname, '..', 'data', 'terapeak-meta.json');
-const REPORT_PATH = path.join(__dirname, '..', 'cache', 'freshness-report.json');
+const REPORT_PATH = process.env.FRESHNESS_REPORT_PATH || path.join(__dirname, '..', 'cache', 'freshness-report.json');
 const SCRIPT = path.join(__dirname, '..', 'scripts', 'generate-freshness-report.js');
 
 const { classify, _isMediumConfidenceLowVolEvidence } = require('../src/services/freshnessClassifier');
@@ -132,7 +132,7 @@ describe('#248 -- Medium-confidence low-vol gating (evidence-probe)', () => {
 
   test('viable bullion (not low-vol) unaffected by #248 -- still gets P0/P1 refresh', () => {
     const meta = {
-      'silver round 1oz generic': {
+      '2025 american silver eagle': {
         compCount: 500,
         newestSaleDate: daysAgo(45),
         refreshCount: 1,                // refreshCount>=1 so not blocked
@@ -142,9 +142,9 @@ describe('#248 -- Medium-confidence low-vol gating (evidence-probe)', () => {
     };
     const report = runReport(meta);
     const ds = report.datasets[0];
-    expect(ds.actions).toContain('refresh');
+    expect(ds.actions).toContain('refresh-bullion');
     expect(ds.actions).not.toContain('evidence-probe');
-    expect(['P0', 'P1']).toContain(ds.priority);
+    expect(['P0', 'P1', 'P0.1']).toContain(ds.priority);
   });
 });
 

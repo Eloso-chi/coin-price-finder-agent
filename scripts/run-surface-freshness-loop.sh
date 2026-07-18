@@ -26,7 +26,7 @@ INCLUDE_THIN=false
 FOCUS_REGEX=""
 COIN_TYPE=""
 RUN_BULLION_P01=false
-BULLION_P01_LIMIT=12
+BULLION_P01_LIMIT=25
 
 usage() {
   cat <<'EOF'
@@ -43,7 +43,7 @@ Options:
   --focus REGEX        Focus queue execution to terms matching REGEX (e.g. "morgan|libertad").
   --coin-type NAME     Focus to a built-in coin family alias (e.g. libertads, morgans).
   --bullion-p01        Run a dedicated P0.1 bullion fast-lane before regular page-1 refresh.
-  --bullion-p01-limit N  Max items in the P0.1 bullion pre-pass (default: 12).
+  --bullion-p01-limit N  Max items in the P0.1 bullion pre-pass (default: 25).
   -h, --help           Show this help text.
 
 Required environment:
