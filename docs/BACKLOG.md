@@ -995,6 +995,85 @@ Verified:
 
 ---
 
+### #284H. Anti-bot operations hardening: staged rollout for process, telemetry contract, and risk-state transitions [P2 -- OPERATIONS / BOT-RESILIENCE] -- OPEN 2026-07-27
+
+**Problem:** Current scraper safety controls are strong but fragmented across runbooks and scripts. We need one staged plan that hardens operator behavior first, then standardizes observability, then introduces controlled runtime state transitions without forcing all changes in one risky PR.
+
+**Outcome target:** Increase pass reliability and reduce block/challenge waste by making anti-bot handling explicit, measurable, and automation-assisted.
+
+**Stage 1. Docs-only process update package**
+
+Scope:
+1. Add a canonical "risk-state" operating model (Normal, Elevated, Challenged, Cooldown) to the runbooks.
+2. Add an escalation ladder policy that defines allowed responses and explicit stop conditions.
+3. Define legal/compliance guardrails for data collection workflow changes.
+4. Clarify upload-mode/operator defaults in one canonical table to remove drift across docs.
+
+Deliverables:
+1. Runbook sections documenting state definitions, triggers, required operator actions, and prohibited actions.
+2. PR-review checklist additions requiring risk-state + compliance review for scraper changes.
+3. WASTE-LEDGER addendum template for anti-bot incidents (what to log, minimum evidence fields).
+
+Acceptance:
+1. A first-time operator can run one full session using only docs, without ad-hoc chat guidance.
+2. All scraper runbooks reference the same state names and transition rules.
+3. No script behavior changes in Stage 1.
+
+**Stage 2. Docs + script logging contract (no behavior changes)**
+
+Scope:
+1. Define and implement one pass-level telemetry schema shared by Surface and Codespace flows.
+2. Emit risk-relevant signals to logs/JSONL without changing scraper decisions.
+3. Keep all existing scrape pacing, stop logic, and queue logic unchanged.
+
+Deliverables:
+1. Logging contract spec (required fields, optional fields, value formats, event timing).
+2. Script updates to output the contract for each pass (and key phase boundaries) with stable keys.
+3. One parser/report helper that validates schema completeness and highlights missing fields.
+
+Minimum required pass fields:
+1. `run_id`, `pass_id`, `started_at`, `ended_at`, `duration_sec`
+2. `batch_size_requested`, `batch_size_executed`
+3. `new_count`, `dup_count`, `no_data_count`, `no_export_count`
+4. `cookie_health_status`, `probe_status`, `challenge_signal_count`
+5. `state_before`, `state_after`, `transition_reason` (informational only in Stage 2)
+
+Acceptance:
+1. Existing scrape behavior and throughput envelope remain unchanged relative to baseline.
+2. Contract fields are emitted for >=95% of passes in a one-week pilot.
+3. Missing/invalid field reports are machine-readable and human-readable.
+
+**Stage 3. Docs + script behavior updates for risk-state transitions**
+
+Scope:
+1. Turn the Stage 1 state model into executable script behavior.
+2. Introduce deterministic transition logic driven by Stage 2 telemetry signals.
+3. Add bounded adaptive pacing and recovery actions per state.
+
+Transition baseline:
+1. Normal -> Elevated on repeated risk hints (challenge markers, timeout/error clusters, rising no-export streak).
+2. Elevated -> Challenged on explicit challenge/probe failures or threshold breach.
+3. Challenged -> Cooldown with mandatory stop + wait window + re-login gate.
+4. Cooldown -> Normal only after health checks pass and cooldown criteria are satisfied.
+
+Behavior updates:
+1. State-aware batch sizing and pause windows (bounded ranges, no unbounded backoff loops).
+2. Mandatory preflight/probe gates for restart after challenge.
+3. Explicit "stop now" semantics on hard challenge signals to prevent retry storms.
+4. State transition events persisted in the shared telemetry schema.
+
+Acceptance:
+1. Block/challenge-induced wasted runs decline versus pre-Stage-3 baseline.
+2. No regression in data integrity semantics (no changes to merge/dedup correctness).
+3. Operator can explain every stop/slowdown decision from logs alone.
+4. Rollback switch exists to disable stateful behavior and keep Stage 2 logging.
+
+**Dependencies / related items:** #279H, #280H, #281H, #268H, #250
+
+**Files (expected):** `docs/runbooks/local-scraper-wsl2.md`, `docs/runbooks/scraper-travel-mode.md`, `scripts/README.md`, `docs/WASTE-LEDGER.md`, `scripts/terapeak-operator.sh`, `scripts/run-surface-freshness-loop.sh`, `scripts/terapeak-export.py`, `scripts/sales-aggregator.py`, `scripts/operator-monitor.sh`.
+
+---
+
 ### #282H. Proof valuation: skip spot-premium math, Greysheet anchor for BU fallback, weight sanity cap [P2 -- CORRECTNESS / PRICING-ACCURACY] -- DONE 2026-06-20 (PR #167)
 
 **Origin:** 143-coin Libertad pricing-health run (cache/health-report-libertads-20260619-193020.json) returned 78 HEALTHY / 14 YELLOW / **51 RED**. The 51 REDs split into three root causes:
