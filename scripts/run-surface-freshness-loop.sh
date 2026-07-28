@@ -27,6 +27,10 @@ FOCUS_REGEX=""
 COIN_TYPE=""
 RUN_BULLION_P01=false
 BULLION_P01_LIMIT=25
+MIXED_PAGE1=false
+MIXED_P01_FIXED=15
+MIXED_EXTRA_MIN=15
+MIXED_EXTRA_MAX=20
 
 usage() {
   cat <<'EOF'
@@ -44,6 +48,10 @@ Options:
   --coin-type NAME     Focus to a built-in coin family alias (e.g. libertads, morgans).
   --bullion-p01        Run a dedicated P0.1 bullion fast-lane before regular page-1 refresh.
   --bullion-p01-limit N  Max items in the P0.1 bullion pre-pass (default: 25).
+  --mixed-page1        Single blended page-1 pass: fixed P0.1 slice + randomized non-P0.1 slice.
+  --mixed-p01-fixed N  Blended mode: fixed P0.1 picks per pass (default: 15).
+  --mixed-extra-min N  Blended mode: min non-P0.1 picks (default: 15).
+  --mixed-extra-max N  Blended mode: max non-P0.1 picks (default: 20).
   -h, --help           Show this help text.
 
 Required environment:
@@ -175,6 +183,22 @@ while [[ $# -gt 0 ]]; do
       BULLION_P01_LIMIT="$2"
       shift 2
       ;;
+    --mixed-page1)
+      MIXED_PAGE1=true
+      shift
+      ;;
+    --mixed-p01-fixed)
+      MIXED_P01_FIXED="$2"
+      shift 2
+      ;;
+    --mixed-extra-min)
+      MIXED_EXTRA_MIN="$2"
+      shift 2
+      ;;
+    --mixed-extra-max)
+      MIXED_EXTRA_MAX="$2"
+      shift 2
+      ;;
     -h|--help)
       usage
       exit 0
@@ -213,6 +237,21 @@ fi
 
 if [[ -n "$FOCUS_REGEX" && -n "$COIN_TYPE" ]]; then
   echo "Specify only one of --focus or --coin-type." >&2
+  exit 1
+fi
+
+if [[ "$MIXED_PAGE1" == true && "$RUN_BULLION_P01" == true ]]; then
+  echo "Specify either --mixed-page1 or --bullion-p01, not both." >&2
+  exit 1
+fi
+
+if ! [[ "$MIXED_P01_FIXED" =~ ^[0-9]+$ ]] || ! [[ "$MIXED_EXTRA_MIN" =~ ^[0-9]+$ ]] || ! [[ "$MIXED_EXTRA_MAX" =~ ^[0-9]+$ ]]; then
+  echo "mixed-page1 values must be non-negative integers" >&2
+  exit 1
+fi
+
+if (( MIXED_EXTRA_MIN > MIXED_EXTRA_MAX )); then
+  echo "require mixed-extra-min <= mixed-extra-max" >&2
   exit 1
 fi
 
@@ -321,13 +360,24 @@ if [[ "$RUN_BULLION_P01" == true ]]; then
 fi
 
 step "Run page-1 backlog batch"
-PAGE1_ARGS=(
-  "$PYTHON_BIN" scripts/terapeak-export.py
-  --run
-  --backlog "$REPORT_FILE"
-  --priority-exclude "P0.1"
-  --limit "$PAGE1_BATCH"
-)
+if [[ "$MIXED_PAGE1" == true ]]; then
+  PAGE1_ARGS=(
+    "$PYTHON_BIN" scripts/terapeak-export.py
+    --run
+    --backlog "$REPORT_FILE"
+    --mixed-p01-fixed "$MIXED_P01_FIXED"
+    --mixed-extra-min "$MIXED_EXTRA_MIN"
+    --mixed-extra-max "$MIXED_EXTRA_MAX"
+  )
+else
+  PAGE1_ARGS=(
+    "$PYTHON_BIN" scripts/terapeak-export.py
+    --run
+    --backlog "$REPORT_FILE"
+    --priority-exclude "P0.1"
+    --limit "$PAGE1_BATCH"
+  )
+fi
 if [[ "$INCLUDE_THIN" == true ]]; then
   PAGE1_ARGS+=(--include-thin)
 fi

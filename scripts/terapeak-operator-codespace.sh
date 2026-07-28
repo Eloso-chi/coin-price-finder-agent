@@ -18,14 +18,15 @@
 #   Default is to loop indefinitely; only --max-passes N installs a cap.
 #
 # Shared with H operator:
-#   - Randomized per-pass batch size (default 15..30) for anti-detection.
+#   - Randomized per-pass TOTAL queue size (default 30..35) for anti-detection.
+#     Within each pass: fixed 15 from P0.1 + remainder from non-P0.1.
 #   - Jittered sleep between passes (+/- 90s on a 600s base).
 #   - Single-instance lock via flock.
 #   - Per-pass log directory + state JSON.
 #
 # Usage:
 #   bash scripts/terapeak-operator-codespace.sh
-#   bash scripts/terapeak-operator-codespace.sh --max-passes 8 --batch-min 20 --batch-max 35
+#   bash scripts/terapeak-operator-codespace.sh --max-passes 8 --batch-min 30 --batch-max 35
 #   bash scripts/terapeak-operator-codespace.sh --pause-between 480 --no-jitter
 #   bash scripts/terapeak-operator-codespace.sh --include-thin
 #
@@ -46,13 +47,14 @@ cd "$PROJECT_DIR"
 
 # ---- defaults ---------------------------------------------------------------
 MAX_PASSES=0          # 0 = unlimited; loops until pass failure or cookie health degrade
-BATCH_MIN=15
-BATCH_MAX=30
+BATCH_MIN=30
+BATCH_MAX=35
 PAUSE_BETWEEN=600
 JITTER_SECONDS=90      # +/- this many seconds on the pause
 USE_JITTER=true
 INCLUDE_THIN=false
 DRY_RUN=false
+P01_FIXED=15
 EXTRA_ARGS=()
 
 # ---- runtime ----------------------------------------------------------------
@@ -68,8 +70,8 @@ Usage: bash scripts/terapeak-operator-codespace.sh [options]
 
 Options:
   --max-passes N        Optional cap on number of passes (default: 0 = unlimited)
-  --batch-min N         Minimum randomized page-1 batch size (default: 15)
-  --batch-max N         Maximum randomized page-1 batch size (default: 30)
+  --batch-min N         Minimum randomized TOTAL page-1 picks (default: 30)
+  --batch-max N         Maximum randomized TOTAL page-1 picks (default: 35)
   --pause-between SEC   Base pause between passes in seconds (default: 600)
   --no-jitter           Disable +/- jitter on pause (default: jitter enabled)
   --jitter-seconds N    Jitter window in seconds; pause is base +/- this (default: 90)
@@ -288,8 +290,11 @@ while (( MAX_PASSES == 0 || PASS_NUM < MAX_PASSES )); do
   PASS_START_TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
   log ""
-  log "--- pass ${PASS_NUM}$( ((MAX_PASSES>0)) && echo " / ${MAX_PASSES}" ) (batch=${BATCH_SIZE}) ---"
-  write_state "pass-${PASS_NUM}" "running" "pass ${PASS_NUM} batch=${BATCH_SIZE}"
+  PASS_EXTRA=$((BATCH_SIZE - P01_FIXED))
+  if (( PASS_EXTRA < 0 )); then PASS_EXTRA=0; fi
+
+  log "--- pass ${PASS_NUM}$( ((MAX_PASSES>0)) && echo " / ${MAX_PASSES}" ) (total=${BATCH_SIZE}; P0.1=${P01_FIXED}; extra=${PASS_EXTRA}) ---"
+  write_state "pass-${PASS_NUM}" "running" "pass ${PASS_NUM} total=${BATCH_SIZE} p01=${P01_FIXED} extra=${PASS_EXTRA}"
   log_quota
 
   # Pre-pass cookie re-check (cheap; catches mid-loop session decay)
@@ -307,7 +312,9 @@ while (( MAX_PASSES == 0 || PASS_NUM < MAX_PASSES )); do
   PASS_ARGS=(
     scripts/terapeak-export.py --run
     --backlog cache/freshness-report.json
-    --limit "$BATCH_SIZE"
+    --mixed-p01-fixed "$P01_FIXED"
+    --mixed-extra-min "$PASS_EXTRA"
+    --mixed-extra-max "$PASS_EXTRA"
   )
   if [[ "$INCLUDE_THIN" == "true" ]]; then
     PASS_ARGS+=(--include-thin)

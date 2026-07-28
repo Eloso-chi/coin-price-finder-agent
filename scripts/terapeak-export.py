@@ -1319,6 +1319,7 @@ def do_export_run(args):
             allowed_priorities.add("P3")
         backlog_keys = set()
         backlog_search_terms = {}
+        backlog_priorities = {}
         dormant_count = 0
         thin_skipped = 0
         priority_filtered = 0
@@ -1341,10 +1342,12 @@ def do_export_run(args):
             if priority and priority in allowed_priorities:
                 backlog_keys.add(item["key"])
                 backlog_search_terms[item["key"]] = item.get("searchTerm", item["key"])
+                backlog_priorities[item["key"]] = priority
             # Legacy fallback: old action names (no priority field)
             elif priority is None and any(a in actions for a in ("refresh-page1", "needs-data")):
                 backlog_keys.add(item["key"])
                 backlog_search_terms[item["key"]] = item.get("searchTerm", item["key"])
+                backlog_priorities[item["key"]] = None
             elif priority == "P3":
                 thin_skipped += 1
         if dormant_count:
@@ -1357,6 +1360,8 @@ def do_export_run(args):
         existing_keys = {t["term"] for t in terms}
         before = len(terms)
         terms = [t for t in terms if t["term"] in backlog_keys]
+        for t in terms:
+            t["_backlog_priority"] = backlog_priorities.get(t["term"])
         # Inject needs-data keys that have no CSV yet (new exports).
         # Try to find an existing CSV on disk via word-set matching so we
         # don't create duplicate files with a different naming convention.
@@ -1373,15 +1378,62 @@ def do_export_run(args):
                 search_term = existing_csv.replace(".csv", "").replace("_", " ")
                 if backlog_filter and not (backlog_filter.search(search_term) or backlog_filter.search(key)):
                     continue
-                terms.append({"term": search_term, "filename": existing_csv})
+                terms.append({
+                    "term": search_term,
+                    "filename": existing_csv,
+                    "_backlog_priority": backlog_priorities.get(key),
+                })
             else:
                 # Genuinely new -- use the searchTerm from report as eBay query
                 st = backlog_search_terms.get(key, key)
                 if backlog_filter and not (backlog_filter.search(st) or backlog_filter.search(key)):
                     continue
                 filename = re.sub(r'[^\w\s\-]', '', st).replace(' ', '_')[:80] + ".csv"
-                terms.append({"term": st, "filename": filename})
+                terms.append({
+                    "term": st,
+                    "filename": filename,
+                    "_backlog_priority": backlog_priorities.get(key),
+                })
         print(f"Backlog mode: {len(terms)} from report ({len(missing_keys)} new, {len(terms) - len(missing_keys)} existing), skipping {before - (len(terms) - len(missing_keys))} not in backlog")
+
+    mixed_selection_applied = False
+    if args.mixed_p01_fixed is not None or args.mixed_extra_min is not None or args.mixed_extra_max is not None:
+        if not args.backlog:
+            print("ERROR: mixed selection requires --backlog")
+            sys.exit(2)
+        p01_fixed = args.mixed_p01_fixed if args.mixed_p01_fixed is not None else 15
+        extra_min = args.mixed_extra_min if args.mixed_extra_min is not None else 15
+        extra_max = args.mixed_extra_max if args.mixed_extra_max is not None else 20
+        if p01_fixed < 0 or extra_min < 0 or extra_max < 0:
+            print("ERROR: mixed selection values must be non-negative")
+            sys.exit(2)
+        if extra_min > extra_max:
+            print("ERROR: --mixed-extra-min cannot exceed --mixed-extra-max")
+            sys.exit(2)
+
+        def _pick(pool, count):
+            if count <= 0 or not pool:
+                return []
+            take = min(len(pool), count)
+            if args.shuffle:
+                return random.sample(pool, take)
+            return pool[:take]
+
+        p01_pool = [t for t in terms if t.get("_backlog_priority") == "P0.1"]
+        other_pool = [t for t in terms if t.get("_backlog_priority") != "P0.1"]
+        extra_target = random.randint(extra_min, extra_max)
+        selected_p01 = _pick(p01_pool, p01_fixed)
+        selected_other = _pick(other_pool, extra_target)
+        terms = selected_p01 + selected_other
+        if args.shuffle and len(terms) > 1:
+            random.shuffle(terms)
+        mixed_selection_applied = True
+        print(
+            "Mixed backlog selection: "
+            f"P0.1 {len(selected_p01)}/{p01_fixed}, "
+            f"non-P0.1 {len(selected_other)}/{extra_target}, "
+            f"total {len(terms)}"
+        )
 
     # Apply resume
     progress = load_progress()
@@ -1466,7 +1518,7 @@ def do_export_run(args):
 
     # Shuffle to avoid predictable alphabetical access patterns
     # (default on; disable with --no-shuffle when order matters)
-    if args.shuffle:
+    if args.shuffle and not mixed_selection_applied:
         random.shuffle(terms)
         print(f"Shuffled order for human-like access pattern")
 
@@ -1768,6 +1820,9 @@ Examples:
     parser.add_argument("--include-thin", action="store_true", help="Include P3 thin-market datasets in backlog mode (default: P0-P2 only)")
     parser.add_argument("--priority-include", type=str, metavar="LIST", help="Backlog-only: comma-separated priority allowlist (e.g. 'P0.1,P0')")
     parser.add_argument("--priority-exclude", type=str, metavar="LIST", help="Backlog-only: comma-separated priority denylist (e.g. 'P0.1')")
+    parser.add_argument("--mixed-p01-fixed", type=int, metavar="N", help="Backlog-only mixed mode: fixed count drawn from P0.1 queue")
+    parser.add_argument("--mixed-extra-min", type=int, metavar="N", help="Backlog-only mixed mode: minimum random count drawn from non-P0.1 queue")
+    parser.add_argument("--mixed-extra-max", type=int, metavar="N", help="Backlog-only mixed mode: maximum random count drawn from non-P0.1 queue")
 
     args = parser.parse_args()
 

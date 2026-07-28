@@ -18,12 +18,13 @@ DO_LOGIN=true
 LOOP=false
 PAUSE_SECONDS=600
 PAGE1_BATCH=15
-BATCH_MIN=15
-BATCH_MAX=30
+BATCH_MIN=30
+BATCH_MAX=35
 USER_PASSED_PAGE1_BATCH=0
 INCLUDE_THIN=false
 FOCUS_REGEX=""
 COIN_TYPE=""
+P01_FIXED=15
 EXTRA_ARGS=()
 
 STATE_FILE="cache/terapeak-startup-state.json"
@@ -55,8 +56,8 @@ Options:
   --loop                Keep running passes until one fails
   --pause-between SEC   Sleep between loop passes (default: 600)
   --page1-batch N       Page-1 batch size (default: 15)
-  --batch-min N         Min randomized page-1 batch size per pass (default: 15)
-  --batch-max N         Max randomized page-1 batch size per pass (default: 30)
+  --batch-min N         Min randomized TOTAL page-1 picks per pass (default: 30)
+  --batch-max N         Max randomized TOTAL page-1 picks per pass (default: 35)
   --include-thin        Include thin-market queue entries
   --focus REGEX         Focus terms matching REGEX
   --coin-type NAME      Built-in alias focus (libertads, morgans, etc.)
@@ -65,7 +66,7 @@ Options:
 Examples:
   bash scripts/terapeak-operator.sh
   bash scripts/terapeak-operator.sh --no-login --loop --pause-between 600 --page1-batch 25
-  bash scripts/terapeak-operator.sh --loop --batch-min 15 --batch-max 30
+  bash scripts/terapeak-operator.sh --loop --batch-min 30 --batch-max 35
   bash scripts/terapeak-operator.sh --loop --skip-deep
 EOF
 }
@@ -307,10 +308,15 @@ while true; do
   pass_page1_batch="$PAGE1_BATCH"
   if [[ "$USER_PASSED_PAGE1_BATCH" != "1" ]]; then
     pass_page1_batch="$(pick_batch_size "$BATCH_MIN" "$BATCH_MAX")"
-    echo "[operator] Pass ${PASS} randomized --page1-batch=${pass_page1_batch} (range ${BATCH_MIN}..${BATCH_MAX})"
+    echo "[operator] Pass ${PASS} randomized total page-1 picks=${pass_page1_batch} (range ${BATCH_MIN}..${BATCH_MAX})"
   else
-    echo "[operator] Pass ${PASS} fixed --page1-batch=${pass_page1_batch} (user-specified)"
+    echo "[operator] Pass ${PASS} fixed total page-1 picks=${pass_page1_batch} (user-specified)"
   fi
+  pass_extra=$((pass_page1_batch - P01_FIXED))
+  if (( pass_extra < 0 )); then
+    pass_extra=0
+  fi
+  echo "[operator] Pass ${PASS} blended queue: P0.1 fixed=${P01_FIXED}, non-P0.1 extra=${pass_extra} (total target=${pass_page1_batch})"
 
   CURRENT_STAGE="loop-pass"
   write_state "loop-pass" "running" "Starting pass ${PASS}"
@@ -324,7 +330,10 @@ while true; do
     --env-file "$ENV_FILE"
     --skip-deep
     --skip-probe
-    --page1-batch "$pass_page1_batch"
+    --mixed-page1
+    --mixed-p01-fixed "$P01_FIXED"
+    --mixed-extra-min "$pass_extra"
+    --mixed-extra-max "$pass_extra"
   )
   if [[ "$INCLUDE_THIN" == true ]]; then
     LOOP_ARGS+=(--include-thin)
