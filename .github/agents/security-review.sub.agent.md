@@ -4,14 +4,7 @@ description: >
   Security-focused sub-reviewer. Applies OWASP Top 10 thinking, checks for
   injection, auth bypass, crypto weaknesses, secrets exposure, and supply chain
   risks. Read-only -- never edits code.
-tools:
-  - read_file
-  - grep_search
-  - file_search
-  - semantic_search
-  - list_dir
-  - run_in_terminal
-  - get_terminal_output
+tools: [read, search, execute]
 ---
 
 # Security Reviewer (Sub-Agent)

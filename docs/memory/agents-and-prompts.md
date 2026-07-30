@@ -16,7 +16,7 @@ The `.github` directory is hidden -- use explicit paths.
 
 | Agent File | Name | Mode | Purpose |
 |---|---|---|---|
-| `code-reviewer.approval-gated.agent.md` | Code Reviewer | Read-only | Deep multi-agent review (delegates to Security + Performance sub-agents). Produces structured report. Waits for `APPLY <N>` before any edits. |
+| `code-reviewer.approval-gated.agent.md` | Code Reviewer | Read-only | Primary correctness, testing, maintainability, domain, and operability review. Runs beside specialist reviewers under `/review-deep`. |
 | `pre-commit-reviewer.agent.md` | Pre-commit Reviewer | Read-only | Fast staged-changes review: secrets scan, test pass, data model sync. BLOCK/WARN severity. |
 | `implementer.approval-only.agent.md` | Implementer | Write | Applies ONLY explicitly approved findings from Code Review Report. Minimal diffs. |
 | `onboard.agent.md` | Onboard | Read-only | Bootstraps full project context (reads `docs/memory/`, docs, key source files). |
@@ -28,15 +28,15 @@ The `.github` directory is hidden -- use explicit paths.
 | `test-coverage.agent.md` | Test Coverage Engineer | Write | Identifies behavioral gaps, writes new tests using existing helpers. |
 | `test-monitor.agent.md` | Test Monitor | Write | Test health monitoring, flaky diagnosis, slow test optimization. |
 | `ux-reviewer.agent.md` | UX Reviewer | Read-only | WCAG 2.2 AA, responsive design, dark theme, Nielsen heuristics. |
-| `security-review.sub.agent.md` | Security Reviewer | Read-only (sub) | OWASP Top 10, injection, auth bypass, secrets exposure. Called by Code Reviewer. |
-| `performance-review.sub.agent.md` | Performance Reviewer | Read-only (sub) | Bottlenecks, memory, caching, algorithmic efficiency. Called by Code Reviewer. |
+| `security-review.sub.agent.md` | Security Reviewer | Read-only (sub) | OWASP Top 10, injection, auth bypass, secrets exposure. Launched by `/review-deep`. |
+| `performance-review.sub.agent.md` | Performance Reviewer | Read-only (sub) | Bottlenecks, memory, caching, algorithmic efficiency. Launched by `/review-deep`. |
 
 ## Prompts (slash commands)
 
 | File | Invocation | Purpose |
 |---|---|---|
 | `pre-commit.prompt.md` | `/pre-commit` | Trigger pre-commit reviewer |
-| `review-deep.prompt.md` | `/review-deep` | Trigger deep code reviewer |
+| `review-deep.prompt.md` | `/review-deep` | Launch primary, security, and performance reviewers in parallel, then synthesize the approval-gated report |
 | `apply-approved.prompt.md` | `/apply-approved` | Trigger implementer for approved findings |
 | `onboard.prompt.md` | `/onboard` | Trigger onboarding agent |
 | `pricing-health.prompt.md` | `/pricing-health` | Trigger pricing health check |
@@ -68,8 +68,7 @@ Summary (the SKILL is authoritative; this is a pointer):
 4. Commit (no `--no-verify` reflex) and push (`unset GITHUB_TOKEN GH_TOKEN`
    first in Codespace)
 5. Open PR using `.github/pull_request_template.md`
-6. For M / L tier: run **Code Reviewer** (`@code-reviewer.approval-gated`
-   or `/review-deep`) and present findings
+6. For M / L tier: run `/review-deep` and present its synthesized findings
 7. After user approval, merge with `gh pr merge <N> --admin --merge
    --delete-branch`
 
@@ -100,12 +99,16 @@ register it in:
 
 ## Invocation Note
 
-These agents are workspace-scoped (`.github/agents/`). They are NOT listed in
-the `<agents>` system prompt section -- only `Explore` (a built-in subagent) is.
+These agents are workspace-scoped (`.github/agents/`) and registered by their
+frontmatter `name:` values. Tool restrictions must use capability aliases such
+as `read`, `search`, `edit`, `execute`, `todo`, and `agent`; concrete runtime
+tool IDs can silently resolve to no tools in custom-agent frontmatter.
+
 To invoke them:
 
 - **From VS Code chat**: use `@agent-name` (the `name:` field from frontmatter)
-- **From a subagent call**: pass the agent's full prompt body to `Explore` as a
-  delegated task, since `runSubagent` only recognizes `Explore` by default
+- **From a top-level agent/prompt**: invoke the registered frontmatter name
+- **Nested delegation**: do not depend on an agent launched as a subagent to
+   launch more subagents; keep orchestration in the top-level prompt
 - **Via slash command**: see the Prompts table above
 

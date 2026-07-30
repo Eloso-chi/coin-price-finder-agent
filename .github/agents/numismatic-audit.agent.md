@@ -1,12 +1,7 @@
 ---
 name: numismatic-audit
 description: Audit classification and filter functions against numismatic terminology definitions.
-tools:
-  - read_file
-  - grep_search
-  - semantic_search
-  - file_search
-  - run_in_terminal
+tools: [read, search, execute]
 applyTo: "**"
 ---
 

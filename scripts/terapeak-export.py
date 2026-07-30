@@ -929,6 +929,34 @@ def reset_sort_state():
     _sort_confirmed = False
 
 
+def challenge_indicators(page, response=None):
+    """Return challenge evidence visible without relying on a redirect."""
+    indicators = []
+    url = page.url.lower()
+    status = response.status if response is not None else None
+    if status in (403, 429):
+        indicators.append(f"HTTP {status}")
+    if any(marker in url for marker in ("/splashui/", "/captcha", "distil", "block")):
+        indicators.append(f"challenge URL: {page.url}")
+    try:
+        body = page.content()[:12000].lower()
+    except Exception:
+        body = ""
+    if any(marker in body for marker in (
+        "unusual activity", "are you a human", "security measure",
+        "hcaptcha", "captcha",
+    )):
+        indicators.append("challenge DOM")
+    return indicators
+
+
+def record_hard_challenge(progress, term):
+    """Persist the failed term and require the caller to terminate the run."""
+    progress.setdefault("failed", []).append(term)
+    save_progress(progress)
+    return True
+
+
 def do_search_and_export(page, search_term, download_dir):
     """
     Perform a Terapeak search and trigger CSV export.
@@ -936,8 +964,14 @@ def do_search_and_export(page, search_term, download_dir):
     """
     global _sort_confirmed
     # Navigate to Research page
-    page.goto(EBAY_RESEARCH_URL, wait_until="domcontentloaded")
+    response = page.goto(EBAY_RESEARCH_URL, wait_until="domcontentloaded")
     rand_delay(DELAY_PAGE_LOAD)
+
+    indicators = challenge_indicators(page, response)
+    if indicators:
+        print(f"    BOT BLOCKED: {', '.join(indicators)}")
+        page.screenshot(path=str(download_dir / f"_debug_challenge_{search_term[:30]}.png"))
+        return "BOT_BLOCKED"
 
     # Simulate human arrival: idle look-around + small scroll
     human_idle(page)
@@ -951,7 +985,7 @@ def do_search_and_export(page, search_term, download_dir):
         print(f"    WARNING: Redirected to {actual_url}")
         page.screenshot(path=str(download_dir / f"_debug_redirect_{search_term[:30]}.png"))
         # Bot detection wall -- return sentinel so caller can abort
-        if "distil" in actual_url or "splashui" in actual_url or "block" in actual_url:
+        if challenge_indicators(page, response):
             return "BOT_BLOCKED"
 
     # Find and fill the Terapeak search box (NOT the main eBay search bar)
@@ -1019,6 +1053,12 @@ def do_search_and_export(page, search_term, download_dir):
 
     # Extra wait for Terapeak SPA to render results (#198: selector-bounded)
     wait_for_results_render(page)
+
+    indicators = challenge_indicators(page)
+    if indicators:
+        print(f"    BOT BLOCKED: {', '.join(indicators)}")
+        page.screenshot(path=str(download_dir / f"_debug_challenge_{search_term[:30]}.png"))
+        return "BOT_BLOCKED"
 
     # ── S0: Active Listings Guard (tab check) ──────────────────
     # When Terapeak has no sold results, eBay may auto-switch to
@@ -1624,7 +1664,7 @@ def do_export_run(args):
     failed = 0
     uploaded = 0
     consecutive_crashes = 0
-    consecutive_blocks = 0
+    bot_blocked = False
     next_coffee = random.randint(*COFFEE_BREAK_EVERY)
 
     for i, entry in enumerate(terms):
@@ -1650,28 +1690,11 @@ def do_export_run(args):
 
             # Bot detection abort
             if csv_path == "BOT_BLOCKED":
-                consecutive_blocks += 1
-                print(f"BOT BLOCKED ({consecutive_blocks}/3)")
-                if consecutive_blocks >= 3:
-                    print("\n  BOT DETECTION: 3 consecutive blocks. Stopping.")
-                    print("  Wait a few hours before retrying.")
-                    save_progress(progress)
-                    break
-                # Long cooldown before trying the next one
-                cooldown = random.uniform(120, 300)
-                print(f"  ... cooling down for {cooldown:.0f}s ...")
-                time.sleep(cooldown)
-                # Recycle browser to get fresh fingerprint
-                try:
-                    page = launch_browser()
-                    reset_sort_state()
-                except Exception:
-                    pass
+                print("BOT BLOCKED")
+                print("\n  BOT DETECTION: hard challenge signal. Stopping now for mandatory Cooldown.")
                 failed += 1
-                progress.setdefault("failed", []).append(term)
-                continue
-
-            consecutive_blocks = 0
+                bot_blocked = record_hard_challenge(progress, term)
+                break
 
             if csv_path and csv_path.exists():
                 # Verify CSV has content
@@ -1775,6 +1798,7 @@ def do_export_run(args):
     print(f"  Remaining:  {len(terms) - success - failed}")
     if failed > 0:
         print(f"\n  Run with --resume to retry failed coins next time.")
+    return not bot_blocked
 
 
 # ── CLI ─────────────────────────────────────────────────────
@@ -1842,7 +1866,7 @@ Examples:
     elif args.cookie_file:
         ok = do_cookie_file(args.cookie_file)
     elif args.run or args.dry_run:
-        do_export_run(args)
+        ok = do_export_run(args)
     elif args.check:
         check_cookies()
     else:

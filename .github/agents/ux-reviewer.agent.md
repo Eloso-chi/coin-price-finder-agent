@@ -8,15 +8,7 @@ description: >
   valuation app. Read-only -- never edits code. Supports focused
   (changed-files) and comprehensive (full-site) review modes. Produces
   a UX Decision Log for PR descriptions.
-tools:
-  - read_file
-  - grep_search
-  - file_search
-  - semantic_search
-  - list_dir
-  - run_in_terminal
-  - get_terminal_output
-  - get_errors
+tools: [read, search, execute]
 ---
 
 # UX Reviewer

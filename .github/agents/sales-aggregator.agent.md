@@ -7,14 +7,7 @@ description: >
   Use when: checking which coins need fresh sales data, running Terapeak
   enrichment batches, reviewing dataset freshness, planning aggregation
   sessions, pulling page 2+ data for high-volume coins.
-tools:
-  - read_file
-  - grep_search
-  - file_search
-  - run_in_terminal
-  - get_terminal_output
-  - manage_todo_list
-  - list_dir
+tools: [read, search, execute, todo]
 ---
 
 # Sales Aggregator Agent

@@ -9,16 +9,7 @@ description: >
   suspiciously large. Use when: validating pricing accuracy, checking comp
   utilization, auditing filter attrition, verifying cross-route consistency,
   running pricing smoke tests.
-tools:
-  - read_file
-  - grep_search
-  - file_search
-  - semantic_search
-  - run_in_terminal
-  - get_terminal_output
-  - manage_todo_list
-  - list_dir
-  - runSubagent
+tools: [read, search, execute, todo]
 ---
 
 # Pricing Health Agent

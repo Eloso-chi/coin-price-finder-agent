@@ -80,10 +80,11 @@ Priority order:
 25. `docs/memory/key-normalization-fix.md` -- 2026-05-08 key normalization
 26. `docs/memory/flaky-tests.md` -- known flaky tests with isolation results (`terapeakService.test.js` freshness check flake). Do not count these against a regression if they pass on re-run.
 27. `docs/memory/operator-status-format.md` -- **user-required status report schema.** When the user asks for status (operator/codespace/run), include current pass, coins run, new rows, dup rows, highlights at minimum. Locking a format keeps quick check-ins comparable across sessions.
-28. `docs/memory/agents-and-prompts.md` -- inventory of agents/prompts/skills
-29. `docs/memory/agent-loading-order.md` -- how Copilot loads user / repo / session memory + agents / prompts / skills; where new content belongs (added under #271W F18)
-30. `docs/memory/future-edits.md` -- **HISTORICAL ARCHIVE ONLY**, now a deprecation stub. Canonical backlog is `docs/BACKLOG.md`. Skim for the renumber map (memory#183->#228, #185->#226, #186->#227) and per-machine ID convention.
-31. `docs/memory/README.md` -- corpus index, audit notes, migration history
+28. `docs/memory/anti-bot-operations.md` -- **NON-BYPASSABLE TERAPEAK SAFETY CONTRACT.** Hard-challenge stop, risk-state transitions, cooldown recovery gates, telemetry requirements, and rollback boundaries (#284H).
+29. `docs/memory/agents-and-prompts.md` -- inventory of agents/prompts/skills
+30. `docs/memory/agent-loading-order.md` -- how Copilot loads user / repo / session memory + agents / prompts / skills; where new content belongs (added under #271W F18)
+31. `docs/memory/future-edits.md` -- **HISTORICAL ARCHIVE ONLY**, now a deprecation stub. Canonical backlog is `docs/BACKLOG.md`. Skim for the renumber map (memory#183->#228, #185->#226, #186->#227) and per-machine ID convention.
+32. `docs/memory/README.md` -- corpus index, audit notes, migration history
 
 If a file is missing in `docs/memory/`, check `/memories/repo/` (the legacy backup) and surface the gap in the Readiness Report under "Gaps Detected".
 Any file returned by the glob but not in the priority list above is **not**

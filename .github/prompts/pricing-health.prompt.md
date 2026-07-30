@@ -1,5 +1,4 @@
 ---
-mode: agent
 agent: pricing-health
 description: >
   Run end-to-end pricing health check. Picks diverse coins from the golden set

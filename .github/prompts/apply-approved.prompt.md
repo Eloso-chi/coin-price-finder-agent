@@ -1,20 +1,7 @@
 ---
-mode: agent
+agent: agent
 description: Apply approved code review findings. Requires a prior review with numbered APPLY candidates.
-tools:
-  - read_file
-  - grep_search
-  - file_search
-  - semantic_search
-  - replace_string_in_file
-  - multi_replace_string_in_file
-  - create_file
-  - run_in_terminal
-  - get_terminal_output
-  - get_errors
-  - manage_todo_list
-  - list_dir
-  - runSubagent
+tools: [read, search, edit, execute, todo]
 ---
 
 Apply approved fixes from a Code Review Report using the **Implementer (Approval-Only)** agent.

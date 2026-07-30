@@ -36,6 +36,13 @@ LATEST_RUN_FILE="cache/terapeak-operator-latest-run.txt"
 LATEST_PASS_DIR_FILE="cache/terapeak-operator-latest-pass-dir.txt"
 PASS_LOG_ROOT_DIR="cache/terapeak-operator-passes"
 PASS_LOG_DIR=""
+RISK_STATE_FILE="cache/terapeak-risk-state-H.json"
+RISK_STATE_ENABLED="${TERAPEAK_RISK_STATE_ENABLED:-1}"
+ELEVATED_BATCH_MIN="${TERAPEAK_ELEVATED_BATCH_MIN:-15}"
+ELEVATED_BATCH_MAX="${TERAPEAK_ELEVATED_BATCH_MAX:-20}"
+ELEVATED_PAUSE_SECONDS="${TERAPEAK_ELEVATED_PAUSE_SECONDS:-900}"
+COOLDOWN_SECONDS="${TERAPEAK_COOLDOWN_SECONDS:-7200}"
+export TERAPEAK_RISK_STATE_ENABLED="$RISK_STATE_ENABLED"
 
 RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)-$$"
 STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -263,6 +270,23 @@ echo "$$" > "$LOCK_PID_FILE"
 
 trap cleanup EXIT
 
+CURRENT_RISK_STATE="$($PYTHON_BIN scripts/_terapeak_risk.py current --state-file "$RISK_STATE_FILE")"
+if [[ "$CURRENT_RISK_STATE" == "Cooldown" ]]; then
+  CURRENT_STAGE="cooldown-gate"
+  if cooldown_remaining="$($PYTHON_BIN scripts/_terapeak_risk.py cooldown-ready \
+    --state-file "$RISK_STATE_FILE" \
+    --minimum-seconds "$COOLDOWN_SECONDS")"; then
+    :
+  else
+    echo "[operator:risk] Cooldown is active for another ${cooldown_remaining}s; stopping before browser launch." >&2
+    exit 1
+  fi
+  if [[ "$DO_LOGIN" != true ]]; then
+    echo "[operator:risk] Cooldown elapsed, but restart requires interactive login (remove --no-login)." >&2
+    exit 1
+  fi
+fi
+
 if ! [[ "$PAUSE_SECONDS" =~ ^[0-9]+$ ]]; then
   echo "pause-between must be a positive integer" >&2
   exit 1
@@ -296,19 +320,52 @@ if [[ "$DO_LOGIN" == true ]]; then
   # shellcheck disable=SC1090
   set -a; source "$ENV_FILE"; set +a
   "$PYTHON_BIN" scripts/terapeak-export.py --login
+  if [[ "$CURRENT_RISK_STATE" == "Cooldown" ]]; then
+    if ! "$PYTHON_BIN" scripts/cookie-health-check.py --probe; then
+      write_state "cooldown-gate" "failed" "Post-login Cooldown health probe failed" 1
+      exit 1
+    fi
+    CURRENT_RISK_STATE="$($PYTHON_BIN scripts/_terapeak_risk.py reset --state-file "$RISK_STATE_FILE" --run-id "$RUN_ID" --reason "cooldown_elapsed_relogin_and_probe_passed")"
+  fi
   write_state "login" "ok" "Interactive login completed"
 fi
 
 CURRENT_STAGE="preflight-loop"
 write_state "preflight-loop" "running" "Validating cookie health for loop"
-bash scripts/terapeak-startup-preflight.sh --env-file "$ENV_FILE" --mode loop
+PREFLIGHT_LOOP_RC=0
+bash scripts/terapeak-startup-preflight.sh --env-file "$ENV_FILE" --mode loop || PREFLIGHT_LOOP_RC=$?
+if (( PREFLIGHT_LOOP_RC == 2 )); then
+  "$PYTHON_BIN" scripts/_terapeak_risk.py challenge \
+    --state-file "$RISK_STATE_FILE" \
+    --run-id "$RUN_ID" \
+    --reason cookie_health_challenged
+  write_state "preflight-loop" "failed" "Cookie health CHALLENGED; Cooldown persisted" 2
+  exit 2
+elif (( PREFLIGHT_LOOP_RC != 0 )); then
+  exit "$PREFLIGHT_LOOP_RC"
+fi
 write_state "preflight-loop" "ok" "Loop preflight passed"
 
 while true; do
+  state_before="$CURRENT_RISK_STATE"
+  pass_batch_min="$BATCH_MIN"
+  pass_batch_max="$BATCH_MAX"
+  if [[ "$RISK_STATE_ENABLED" != "0" && "$state_before" == "Elevated" ]]; then
+    pass_batch_min="$ELEVATED_BATCH_MIN"
+    pass_batch_max="$ELEVATED_BATCH_MAX"
+    echo "[operator:risk] Elevated pacing: batch=${pass_batch_min}..${pass_batch_max}, pause=${ELEVATED_PAUSE_SECONDS}s"
+  fi
   pass_page1_batch="$PAGE1_BATCH"
   if [[ "$USER_PASSED_PAGE1_BATCH" != "1" ]]; then
-    pass_page1_batch="$(pick_batch_size "$BATCH_MIN" "$BATCH_MAX")"
-    echo "[operator] Pass ${PASS} randomized total page-1 picks=${pass_page1_batch} (range ${BATCH_MIN}..${BATCH_MAX})"
+    pass_page1_batch="$(pick_batch_size "$pass_batch_min" "$pass_batch_max")"
+    echo "[operator] Pass ${PASS} randomized total page-1 picks=${pass_page1_batch} (range ${pass_batch_min}..${pass_batch_max})"
+  elif [[ "$RISK_STATE_ENABLED" != "0" && "$state_before" == "Elevated" ]]; then
+    if (( pass_page1_batch < ELEVATED_BATCH_MIN )); then
+      pass_page1_batch="$ELEVATED_BATCH_MIN"
+    elif (( pass_page1_batch > ELEVATED_BATCH_MAX )); then
+      pass_page1_batch="$ELEVATED_BATCH_MAX"
+    fi
+    echo "[operator] Pass ${PASS} fixed page-1 picks clamped to Elevated range: ${pass_page1_batch}"
   else
     echo "[operator] Pass ${PASS} fixed total page-1 picks=${pass_page1_batch} (user-specified)"
   fi
@@ -324,6 +381,7 @@ while true; do
   PASS_LOG_FILE="${PASS_LOG_DIR}/pass-$(printf '%04d' "$PASS").log"
   : > "$PASS_LOG_FILE"
   echo "[operator] pass log: $PASS_LOG_FILE"
+  PASS_START_TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
   LOOP_ARGS=(
     bash scripts/run-surface-freshness-loop.sh
@@ -348,7 +406,46 @@ while true; do
     LOOP_ARGS+=("${EXTRA_ARGS[@]}")
   fi
 
-  if ! "${LOOP_ARGS[@]}" 2>&1 | tee -a "$PASS_LOG_FILE"; then
+  PASS_EXIT_RC=0
+  "${LOOP_ARGS[@]}" 2>&1 | tee -a "$PASS_LOG_FILE" || PASS_EXIT_RC=$?
+  PASS_END_TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  TRANSITION_FILE="${PASS_LOG_FILE}.risk.tsv"
+  SUMMARY_FILE="${PASS_LOG_FILE}.summary.json"
+
+  if ! "$PYTHON_BIN" scripts/_parse-terapeak-pass.py \
+    --pass-log "$PASS_LOG_FILE" \
+    --run-id "$RUN_ID" \
+    --pass-num "$PASS" \
+    --batch-size "$pass_page1_batch" \
+    --start-ts "$PASS_START_TS" \
+    --end-ts "$PASS_END_TS" \
+    --machine H \
+    --operator terapeak-operator \
+    --pass-exit-code "$PASS_EXIT_RC" \
+    --cookie-health-status HEALTHY \
+    --probe-status SKIPPED \
+    --state-file "$RISK_STATE_FILE" \
+    --stateful "$RISK_STATE_ENABLED" \
+    --transition-output "$TRANSITION_FILE" \
+    --summary-output "$SUMMARY_FILE"; then
+    write_state "loop-pass" "failed" "Pass telemetry write failed" 1
+    echo "[operator] Pass telemetry write failed; stopping to preserve the observability contract." >&2
+    exit 1
+  fi
+  IFS=$'\t' read -r state_before state_after transition_reason challenge_signal_count soft_risk_signal_count < "$TRANSITION_FILE"
+  rm -f "$TRANSITION_FILE"
+  CURRENT_RISK_STATE="$state_after"
+  if [[ "$transition_reason" == "none" ]]; then
+    transition_reason=""
+  fi
+
+  if (( challenge_signal_count > 0 )); then
+    write_state "loop-pass" "failed" "Hard challenge detected; risk state is Cooldown" 1
+    echo "[operator:risk] Hard challenge detected; stopping now in Cooldown. Do not retry until the probe and re-login gate passes." >&2
+    exit 1
+  fi
+
+  if (( PASS_EXIT_RC != 0 )); then
     write_state "loop-pass" "failed" "Pass ${PASS} failed"
     echo "[operator] Pass ${PASS} failed; exiting." >&2
     exit 1
@@ -357,14 +454,19 @@ while true; do
   write_state "loop-pass" "ok" "Pass ${PASS} completed"
 
   # Print progress metrics after each pass and persist them into pass log.
-  bash scripts/operator-monitor.sh "$PROJECT_DIR" "$PASS" "$PASS_LOG_FILE" | tee -a "$PASS_LOG_FILE"
+  bash scripts/operator-monitor.sh "$PROJECT_DIR" "$PASS" "$PASS_LOG_FILE" "$SUMMARY_FILE" | tee -a "$PASS_LOG_FILE"
+  rm -f "$SUMMARY_FILE"
 
   if [[ "$LOOP" != true ]]; then
     break
   fi
 
-  echo "[operator] sleeping ${PAUSE_SECONDS}s before next pass"
-  sleep "$PAUSE_SECONDS"
+  pass_pause_seconds="$PAUSE_SECONDS"
+  if [[ "$RISK_STATE_ENABLED" != "0" && "$CURRENT_RISK_STATE" == "Elevated" ]]; then
+    pass_pause_seconds="$ELEVATED_PAUSE_SECONDS"
+  fi
+  echo "[operator] sleeping ${pass_pause_seconds}s before next pass"
+  sleep "$pass_pause_seconds"
   PASS=$((PASS + 1))
 done
 

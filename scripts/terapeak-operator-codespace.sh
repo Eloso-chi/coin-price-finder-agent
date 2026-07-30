@@ -63,6 +63,13 @@ RUN_DIR="cache/terapeak-operator-codespace-passes/${RUN_ID}"
 MASTER_LOG="cache/terapeak-operator-codespace_${RUN_ID}.log"
 STATE_FILE="cache/terapeak-operator-codespace.state.json"
 LOCK_FILE="cache/terapeak-operator-codespace.lock"
+RISK_STATE_FILE="cache/terapeak-risk-state-W.json"
+RISK_STATE_ENABLED="${TERAPEAK_RISK_STATE_ENABLED:-1}"
+ELEVATED_BATCH_MIN="${TERAPEAK_ELEVATED_BATCH_MIN:-15}"
+ELEVATED_BATCH_MAX="${TERAPEAK_ELEVATED_BATCH_MAX:-20}"
+ELEVATED_PAUSE_SECONDS="${TERAPEAK_ELEVATED_PAUSE_SECONDS:-900}"
+COOLDOWN_SECONDS="${TERAPEAK_COOLDOWN_SECONDS:-7200}"
+export TERAPEAK_RISK_STATE_ENABLED="$RISK_STATE_ENABLED"
 
 usage() {
   cat <<'EOF'
@@ -141,15 +148,17 @@ JSON
 
 # ---- jitter helpers ---------------------------------------------------------
 pick_batch_size() {
-  if (( BATCH_MIN == BATCH_MAX )); then
-    printf '%d' "$BATCH_MIN"
+  local batch_min="${1:-$BATCH_MIN}"
+  local batch_max="${2:-$BATCH_MAX}"
+  if (( batch_min == batch_max )); then
+    printf '%d' "$batch_min"
     return
   fi
   if command -v shuf >/dev/null 2>&1; then
-    shuf -i "${BATCH_MIN}-${BATCH_MAX}" -n 1
+    shuf -i "${batch_min}-${batch_max}" -n 1
   else
-    local span=$((BATCH_MAX - BATCH_MIN + 1))
-    printf '%d' $((BATCH_MIN + RANDOM % span))
+    local span=$((batch_max - batch_min + 1))
+    printf '%d' $((batch_min + RANDOM % span))
   fi
 }
 
@@ -230,7 +239,13 @@ preflight_cookies() {
   case "$rc" in
     0) log "cookies ok: HEALTHY"; return 0 ;;
     1) fail "cookies EXPIRED -- run scripts/vnc-login.py to refresh" ;;
-    2) fail "cookies CHALLENGED (Akamai/captcha) -- run scripts/vnc-login.py and solve" ;;
+    2)
+      python3 scripts/_terapeak_risk.py challenge \
+        --state-file "$RISK_STATE_FILE" \
+        --run-id "$RUN_ID" \
+        --reason cookie_health_challenged >> "$MASTER_LOG"
+      fail "cookies CHALLENGED (Akamai/captcha); Cooldown persisted -- wait before re-login"
+      ;;
     3) fail "cookies MISSING at $COOKIE_FILE -- run scripts/vnc-login.py" ;;
     4) log "cookie probe INDETERMINATE (exit 4) -- continuing with caution"; return 0 ;;
     *) fail "cookie-health-check.py unexpected exit $rc" ;;
@@ -274,6 +289,32 @@ write_state "starting" "running" "Operator initialized"
 preflight_runtime
 preflight_env
 preflight_server
+
+CURRENT_RISK_STATE="$(python3 scripts/_terapeak_risk.py current --state-file "$RISK_STATE_FILE")"
+if [[ "$CURRENT_RISK_STATE" == "Cooldown" ]]; then
+  cooldown_gate_rc=0
+  cooldown_remaining="$(python3 scripts/_terapeak_risk.py cooldown-ready \
+    --state-file "$RISK_STATE_FILE" \
+    --minimum-seconds "$COOLDOWN_SECONDS")" || cooldown_gate_rc=$?
+  if (( cooldown_gate_rc != 0 )); then
+    fail "Cooldown active for another ${cooldown_remaining}s; stopping before browser launch"
+  fi
+  if ! python3 scripts/_terapeak_risk.py cookie-refreshed \
+    --state-file "$RISK_STATE_FILE" \
+    --cookie-file "$COOKIE_FILE" >/dev/null; then
+    fail "Cooldown elapsed but cookies were not refreshed after the challenge; run scripts/vnc-login.py"
+  fi
+  probe_rc=0
+  python3 scripts/cookie-health-check.py --probe >> "$MASTER_LOG" 2>&1 || probe_rc=$?
+  if (( probe_rc != 0 )); then
+    fail "post-login Cooldown probe failed (exit=$probe_rc)"
+  fi
+  CURRENT_RISK_STATE="$(python3 scripts/_terapeak_risk.py reset \
+    --state-file "$RISK_STATE_FILE" \
+    --run-id "$RUN_ID" \
+    --reason "cooldown_elapsed_relogin_and_probe_passed")"
+  log "risk state reset to Normal after Cooldown restart gates passed"
+fi
 preflight_cookies
 
 if [[ "$DRY_RUN" == "true" ]]; then
@@ -286,7 +327,15 @@ fi
 while (( MAX_PASSES == 0 || PASS_NUM < MAX_PASSES )); do
   PASS_NUM=$((PASS_NUM + 1))
   PASS_LOG="${RUN_DIR}/pass-$(printf '%04d' "$PASS_NUM").log"
-  BATCH_SIZE="$(pick_batch_size)"
+  STATE_BEFORE="$CURRENT_RISK_STATE"
+  PASS_BATCH_MIN="$BATCH_MIN"
+  PASS_BATCH_MAX="$BATCH_MAX"
+  if [[ "$RISK_STATE_ENABLED" != "0" && "$STATE_BEFORE" == "Elevated" ]]; then
+    PASS_BATCH_MIN="$ELEVATED_BATCH_MIN"
+    PASS_BATCH_MAX="$ELEVATED_BATCH_MAX"
+    log "risk state Elevated: batch=${PASS_BATCH_MIN}..${PASS_BATCH_MAX} pause=${ELEVATED_PAUSE_SECONDS}s"
+  fi
+  BATCH_SIZE="$(pick_batch_size "$PASS_BATCH_MIN" "$PASS_BATCH_MAX")"
   PASS_START_TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
   log ""
@@ -329,6 +378,7 @@ while (( MAX_PASSES == 0 || PASS_NUM < MAX_PASSES )); do
   PASS_EXIT_RC=0
   DISPLAY="$DISPLAY" python3 "${PASS_ARGS[@]}" > "$PASS_LOG" 2>&1 || PASS_EXIT_RC=$?
   PASS_END_TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  TRANSITION_FILE="${PASS_LOG}.risk.tsv"
 
   # Always emit structured records, even on failure -- helps post-mortem
   python3 scripts/_parse-terapeak-pass.py \
@@ -340,7 +390,24 @@ while (( MAX_PASSES == 0 || PASS_NUM < MAX_PASSES )); do
     --end-ts   "$PASS_END_TS" \
     --machine "${MACHINE_ID:-W}" \
     --include-thin "$INCLUDE_THIN" \
-    >> "$MASTER_LOG" 2>&1 || log "WARN: pass parser failed (non-fatal)"
+    --pass-exit-code "$PASS_EXIT_RC" \
+    --cookie-health-status HEALTHY \
+    --probe-status SKIPPED \
+    --state-file "$RISK_STATE_FILE" \
+    --stateful "$RISK_STATE_ENABLED" \
+    --transition-output "$TRANSITION_FILE" \
+    >> "$MASTER_LOG" 2>&1 || fail "pass telemetry write failed; stopping to preserve the observability contract"
+  IFS=$'\t' read -r STATE_BEFORE STATE_AFTER TRANSITION_REASON CHALLENGE_SIGNAL_COUNT SOFT_RISK_SIGNAL_COUNT < "$TRANSITION_FILE"
+  rm -f "$TRANSITION_FILE"
+  CURRENT_RISK_STATE="$STATE_AFTER"
+  if [[ "$TRANSITION_REASON" == "none" ]]; then
+    TRANSITION_REASON=""
+  fi
+
+  if (( CHALLENGE_SIGNAL_COUNT > 0 )); then
+    write_state "pass-${PASS_NUM}" "fail" "hard challenge detected; risk state is Cooldown"
+    fail "hard challenge detected; stopping now in Cooldown"
+  fi
 
   if (( PASS_EXIT_RC != 0 )); then
     log "pass ${PASS_NUM} FAILED (exit=$PASS_EXIT_RC); tail of $PASS_LOG:"
@@ -352,9 +419,10 @@ while (( MAX_PASSES == 0 || PASS_NUM < MAX_PASSES )); do
   # Per-pass summary (read structured record we just wrote, falls back to log scrape)
   STATS="$(python3 -c "
 import json, sys
+from collections import deque
 try:
     with open('cache/terapeak-runs/passes.jsonl') as f:
-        last = list(f)[-1]
+        last = deque(f, maxlen=1)[0]
     r = json.loads(last)
     print(r['succeeded'], r['failed'], r['empty'], r['new_rows'], r['dup_rows'])
 except Exception:
@@ -370,7 +438,11 @@ except Exception:
   write_state "pass-${PASS_NUM}" "ok" "succeeded=${OK_NUM} empty=${EMPTY_NUM} failed=${FAIL_NUM} new_rows=${NEW_ROWS} dup_rows=${DUP_ROWS}"
 
   if (( MAX_PASSES == 0 || PASS_NUM < MAX_PASSES )); then
-    PAUSE="$(pick_pause)"
+    if [[ "$RISK_STATE_ENABLED" != "0" && "$CURRENT_RISK_STATE" == "Elevated" ]]; then
+      PAUSE="$ELEVATED_PAUSE_SECONDS"
+    else
+      PAUSE="$(pick_pause)"
+    fi
     log "sleeping ${PAUSE}s before next pass (base=${PAUSE_BETWEEN} jitter=${USE_JITTER})"
     sleep "$PAUSE"
   fi

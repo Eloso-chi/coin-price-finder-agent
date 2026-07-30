@@ -1,5 +1,4 @@
 ---
-mode: agent
 description: "Analyze test coverage gaps and write new tests for missing behavioral coverage"
 agent: test-coverage
 ---

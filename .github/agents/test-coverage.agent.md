@@ -4,20 +4,7 @@ description: >
   Analyzes the existing test suite, identifies coverage gaps against a behavioral
   specification, and writes minimal new tests that plug into the existing framework.
   Does NOT duplicate existing tests, helpers, or mocking patterns.
-tools:
-  - read_file
-  - grep_search
-  - file_search
-  - semantic_search
-  - replace_string_in_file
-  - multi_replace_string_in_file
-  - create_file
-  - run_in_terminal
-  - get_terminal_output
-  - get_errors
-  - manage_todo_list
-  - list_dir
-  - runSubagent
+tools: [read, search, edit, execute, todo]
 ---
 
 # Test Coverage Engineer Agent
