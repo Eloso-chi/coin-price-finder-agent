@@ -1,15 +1,7 @@
 ---
-mode: agent
+agent: agent
 description: Quick pre-commit safety check on staged changes. Scans for secrets, runs tests, checks data model sync.
-tools:
-  - read_file
-  - grep_search
-  - file_search
-  - semantic_search
-  - list_dir
-  - run_in_terminal
-  - get_terminal_output
-  - get_errors
+tools: [read, search, execute]
 ---
 
 Run a pre-commit safety check using the **Pre-commit Reviewer** agent.

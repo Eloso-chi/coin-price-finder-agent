@@ -150,10 +150,12 @@ if [[ "$MODE" == "loop" ]]; then
   probe_out="$(mktemp)"
   trap "rm -f '$probe_out'" RETURN
   
-  if ! "$PYTHON_BIN" scripts/cookie-health-check.py >"$probe_out" 2>&1; then
-    rc=$?
+  rc=0
+  "$PYTHON_BIN" scripts/cookie-health-check.py >"$probe_out" 2>&1 || rc=$?
+  if (( rc != 0 )); then
     cat "$probe_out" >&2 || true
-    fail "Cookie health is not ready for loop start (exit $rc)"
+    echo "[preflight:FAIL] Cookie health is not ready for loop start (exit $rc)" >&2
+    exit "$rc"
   fi
   ok "Cookie health is READY for loop mode"
 fi

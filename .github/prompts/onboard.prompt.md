@@ -1,16 +1,7 @@
 ---
-mode: agent
+agent: agent
 description: Bootstrap full project understanding by reading all documentation, repo memory, and key source files. Run at the start of a new conversation.
-tools:
-  - read_file
-  - grep_search
-  - file_search
-  - semantic_search
-  - list_dir
-  - run_in_terminal
-  - get_terminal_output
-  - manage_todo_list
-  - memory
+tools: [read, search, execute, todo, memory]
 ---
 
 Run a full codebase onboarding using the **Onboard** agent.

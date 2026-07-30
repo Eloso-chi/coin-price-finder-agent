@@ -6,12 +6,7 @@ description: >
   initial scraping. Use when: checking data freshness, planning what
   to aggregate next, reviewing staleness before a batch run, getting
   a quick status of the Terapeak data pipeline.
-tools:
-  - read_file
-  - run_in_terminal
-  - get_terminal_output
-  - manage_todo_list
-  - list_dir
+tools: [read, execute, todo]
 ---
 
 # Freshness Triage Agent

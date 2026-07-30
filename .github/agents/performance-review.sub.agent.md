@@ -4,14 +4,7 @@ description: >
   Performance-focused sub-reviewer. Identifies bottlenecks, memory issues,
   caching problems, algorithmic inefficiency, and I/O patterns.
   Read-only -- never edits code.
-tools:
-  - read_file
-  - grep_search
-  - file_search
-  - semantic_search
-  - list_dir
-  - run_in_terminal
-  - get_terminal_output
+tools: [read, search, execute]
 ---
 
 # Performance Reviewer (Sub-Agent)

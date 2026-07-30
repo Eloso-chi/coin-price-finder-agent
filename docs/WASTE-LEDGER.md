@@ -32,6 +32,27 @@ Tracks wasted compute, agent time, and Azure cost caused by bugs, agent violatio
 
 ## Incidents
 
+### Anti-bot incident template
+
+Use this minimum evidence set for any challenged or blocked scraper session.
+Never include cookie values, account identifiers, URLs containing credentials,
+or other secrets.
+
+| Field | Value |
+|-------|-------|
+| Date / run ID | YYYY-MM-DD / telemetry `run_id` |
+| Category | `bot-detection` |
+| Machine / operator | H or W / operator script name |
+| State transition | `state_before` -> `state_after`; `transition_reason` |
+| Challenge evidence | Signal types and `challenge_signal_count`; no credentials |
+| Pass outcome | Requested/executed batch, new, dups, no-data, no-export, exit code |
+| Cookie / probe status | Verdict names only |
+| Impact / cost | Wasted run time, compute, and operator time |
+| Resolution | Cooldown duration, re-login, probe result |
+| Follow-up | Rule, threshold, parser, or runbook change; or none |
+
+---
+
 ### INC-001: CSV Overwrite -- Deep-Paginated Data Destroyed
 
 | Field | Value |

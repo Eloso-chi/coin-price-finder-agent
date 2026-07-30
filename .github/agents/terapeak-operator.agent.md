@@ -4,12 +4,7 @@ description: >
   Runs the canonical local Terapeak startup flow with strict preflight,
   interactive login, and freshness-only loop mode. Use when: starting a
   reliable Terapeak run from chat without ad-hoc command construction.
-tools:
-  - read_file
-  - run_in_terminal
-  - get_terminal_output
-  - send_to_terminal
-  - file_search
+tools: [read, search, execute]
 ---
 
 # Terapeak Operator Agent

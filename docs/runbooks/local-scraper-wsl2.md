@@ -245,7 +245,7 @@ and optional looping. Recommended for almost all daily use.
 # Re-use existing cookies (no browser), single pass:
 scripts/cpf-go --no-login
 
-# Continuous backlog drain until 3-strike bot detection ends the loop:
+# Continuous backlog drain until completion or the first hard challenge:
 scripts/cpf-go --no-login --loop --skip-deep \
   --page1-batch 25 --pause-between=600
 
@@ -283,17 +283,22 @@ Any other flags are forwarded to `./surface` (and then
 Operator log outputs:
 - Run log: `cache/terapeak-operator-<RUN_ID>.log`
 - Per-pass logs (persistent across restarts): `cache/terapeak-operator-passes/<RUN_ID>/pass-XXXX.log`
+- Shared pass telemetry: `cache/terapeak-runs/passes.jsonl`
+- Validate telemetry: `python3 scripts/validate-pass-telemetry.py cache/terapeak-runs/passes.jsonl`
 
 #### Operational guardrails
 
-- **Loop exit condition:** `--loop` stops the instant `./surface` exits non-zero.
-  `terapeak-export.py` does this after **3 consecutive bot-detection blocks**
-  (with 2-5 min randomized cooldowns and browser-recycling between attempts).
-  Stop, wait several hours, re-login, retry.
+- **Risk-state contract:** [anti-bot-operations.md](../memory/anti-bot-operations.md)
+  defines the canonical Normal, Elevated, Challenged, and Cooldown states.
+- **Loop exit condition:** the first explicit hard challenge stops the exporter
+  and operator with a nonzero exit and persists Cooldown. It does not retry the
+  challenged page.
 - **Akamai cooldown:** once eBay serves a `/splashui/captchaP` challenge, the
-  IP + fingerprint is flagged for **roughly 1-6 hours** (sometimes longer).
-  Re-running immediately just keeps tripping it. Wait, then re-login with
-  `scripts/cpf-go` (no `--no-login`).
+  operator enforces at least a two-hour wait by default. Restart requires an
+  interactive login and a successful live probe. Longer waits may be needed.
+- **Rollback:** `TERAPEAK_RISK_STATE_ENABLED=0` disables stateful decisions but
+  retains signal telemetry and the immediate hard-challenge stop. Use only for
+  diagnosis, never to bypass Cooldown.
 - **Two scrapers at once = instant CAPTCHA.** If a loop is running, kill it
   before starting a focused pass:
   ```bash
@@ -459,8 +464,8 @@ Recovery, in order:
   paths.
 - Run the cookie-health-check before every batch. The probe (`--probe`)
   costs one Terapeak quota unit; the offline check is free.
-- Keep batch sizes small (15-25 search terms). Long uninterrupted sessions are
-  a stronger bot signal than short pauses.
+- Use the canonical operator defaults: randomized 30-35 term Normal passes and
+  bounded 15-20 term Elevated passes. Do not increase them after a challenge.
 - If you're going to be off the laptop for >7 days, plan to re-login on
   return. Persistent identity tier survives, but Akamai short-tier tokens
   expire and the bot-management state may not transfer cleanly.

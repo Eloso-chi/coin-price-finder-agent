@@ -27,3 +27,30 @@ Ad-hoc status reports where the agent invents its own layout make comparisons
 across sessions hard and force the user to re-parse each time. Locking a
 minimum schema keeps quick check-ins scannable and stops the agent from
 padding with irrelevant detail.
+
+## Pass telemetry contract (#284H)
+
+Both canonical operators append one record per attempted pass to
+`cache/terapeak-runs/passes.jsonl`, including failed and challenged passes.
+Required fields are:
+
+| Group | Fields |
+|---|---|
+| Identity/time | `run_id`, `pass_id`, `started_at`, `ended_at`, `duration_sec` |
+| Batch | `batch_size_requested`, `batch_size_executed` |
+| Outcomes | `new_count`, `dup_count`, `no_data_count`, `no_export_count` |
+| Health | `cookie_health_status`, `probe_status`, `challenge_signal_count` |
+| Risk transition | `state_before`, `state_after`, `transition_reason` |
+
+State values are `Normal`, `Elevated`, `Challenged`, and `Cooldown`. A null
+`transition_reason` means no transition. Legacy fields such as `pass`,
+`new_rows`, and `dup_rows` remain present for existing reports.
+
+Validate one or more JSONL files in human-readable or JSON form:
+
+```bash
+python3 scripts/validate-pass-telemetry.py cache/terapeak-runs/passes.jsonl
+python3 scripts/validate-pass-telemetry.py --json cache/terapeak-runs/passes.jsonl
+```
+
+<!-- End #284H pass telemetry contract. -->

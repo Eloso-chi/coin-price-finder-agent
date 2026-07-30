@@ -19,6 +19,7 @@ set -euo pipefail
 PROJECT_DIR="${1:-.}"
 PASS_NUM="${2:-?}"
 SOURCE_LOG="${3:-}"
+SUMMARY_JSON="${4:-}"
 
 freshness_report="$PROJECT_DIR/cache/freshness-report.json"
 
@@ -56,6 +57,38 @@ PY
 }
 
 print_recent_coin_results() {
+  if [[ -n "$SUMMARY_JSON" && -f "$SUMMARY_JSON" ]]; then
+  python3 - "$SUMMARY_JSON" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding='utf-8') as summary_file:
+  summary = json.load(summary_file)
+
+record = summary['pass']
+coins = summary.get('coins', [])
+ok_coins = [coin for coin in coins if coin.get('status') == 'ok']
+print('Recent Coin Results (last pass):')
+for coin in ok_coins:
+  print(f"  {coin['coin']:<50} new:{coin.get('new', 0):<4} dups:{coin.get('dups', 0):<4}")
+
+batch_size = record.get('batch_size_requested', 0)
+no_export = record.get('no_export_count', 0)
+if not ok_coins and no_export == 0:
+  succeeded = record.get('succeeded_reported') or 0
+  failed = record.get('failed_reported') or 0
+  suffix = f" out of {batch_size} coins" if batch_size else ""
+  print(f"\nBatch total: summary-only (succeeded: {succeeded}, failed: {failed}){suffix}")
+else:
+  suffix = f" out of {batch_size} coins" if batch_size else ""
+  print(
+    f"\nBatch total: {record.get('new_rows', 0)} new, "
+    f"{record.get('dup_rows', 0)} dups, {no_export} no-export{suffix}"
+  )
+PY
+  return
+  fi
+
   local latest_log=""
   if [[ -n "$SOURCE_LOG" && -f "$SOURCE_LOG" ]]; then
     latest_log="$SOURCE_LOG"

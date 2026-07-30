@@ -4,15 +4,7 @@ description: >
   Lightweight review of staged changes before commit. Checks for leaked secrets,
   regressions, missing test updates, and data model sync issues.
   Read-only -- never edits code.
-tools:
-  - read_file
-  - grep_search
-  - file_search
-  - semantic_search
-  - list_dir
-  - run_in_terminal
-  - get_terminal_output
-  - get_errors
+tools: [read, search, execute]
 ---
 
 # Pre-commit Reviewer

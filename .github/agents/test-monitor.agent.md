@@ -4,20 +4,7 @@ description: >
   Monitors test health, tracks performance over time, diagnoses flaky and slow
   tests, identifies coverage gaps, and proposes targeted improvements --
   without weakening existing assertions.
-tools:
-  - read_file
-  - grep_search
-  - file_search
-  - semantic_search
-  - replace_string_in_file
-  - multi_replace_string_in_file
-  - create_file
-  - run_in_terminal
-  - get_terminal_output
-  - get_errors
-  - manage_todo_list
-  - list_dir
-  - runSubagent
+tools: [read, search, edit, execute, todo]
 ---
 
 # Test Monitor Agent

@@ -995,7 +995,9 @@ Verified:
 
 ---
 
-### #284H. Anti-bot operations hardening: staged rollout for process, telemetry contract, and risk-state transitions [P2 -- OPERATIONS / BOT-RESILIENCE] -- OPEN 2026-07-27
+### #284H. Anti-bot operations hardening: staged rollout for process, telemetry contract, and risk-state transitions [P2 -- OPERATIONS / BOT-RESILIENCE] -- IMPLEMENTED / PILOT PENDING 2026-07-29
+
+**Status update (2026-07-29):** Stages 1-3 are implemented for both canonical operators. Shared telemetry and validation, deterministic risk transitions, bounded Elevated pacing, immediate hard-challenge stop, persisted Cooldown, wait/re-login/probe restart gates, rollback mode, compliance guidance, PR review gates, and incident evidence fields are in place. The item remains open only for the acceptance observation period: >=95% telemetry completeness across one week and measured challenge-waste reduction without data-integrity regressions.
 
 **Problem:** Current scraper safety controls are strong but fragmented across runbooks and scripts. We need one staged plan that hardens operator behavior first, then standardizes observability, then introduces controlled runtime state transitions without forcing all changes in one risky PR.
 
@@ -2676,7 +2678,9 @@ Current repo state: 63 total PRs, **0 open**. Item was stale-imported; root caus
 
 ---
 
-### #265W. Rotate `ADMIN_API_KEY` + remove hardcoded fallback from `scripts/bar-pricing-health.js` [P1 -- SECURITY] -- OPEN 2026-06-17
+### #265W. Rotate `ADMIN_API_KEY` + remove hardcoded fallback from `scripts/bar-pricing-health.js` [P1 -- SECURITY] -- PARTIAL / ROTATION OPEN 2026-07-29
+
+**Status update (2026-07-29):** The hardcoded literal fallback is no longer present in the live `scripts/bar-pricing-health.js`; the script reads `process.env.ADMIN_API_KEY` and fails when no usable key is supplied. The credential remains recoverable from git history, and the current key was also exposed in local terminal output during an H-machine diagnostic on 2026-07-28. Key Vault rotation, App Service restart, both-machine secret refresh, and old-key rejection verification remain OPEN and urgent. Do not place either old or new values in chat, commands, docs, or commits.
 
 **Problem:** The production admin API key value is exposed in git history via
 a hardcoded fallback in `scripts/bar-pricing-health.js` line 14
@@ -2690,7 +2694,7 @@ The key has been in Azure Key Vault (`coinpricefinder-kv`, secret
 the production lookup path was always safe -- but the script's fallback turned
 local-tooling convenience into a permanent leak.
 
-**Today's state (2026-06-17, after `docs/memory-corpus-migration` PR):**
+**Historical state (2026-06-17, after `docs/memory-corpus-migration` PR):**
 - Live tree: value sanitized from `docs/memory/terapeak-runbook.md` and
   `docs/memory/terapeak-export-automation.md` (replaced with references to
   `.env` / `scripts/load-secrets.sh`).
@@ -2883,7 +2887,9 @@ node -e "console.log(require('./src/services/pcgsService').parseDescription('BU 
 
 ---
 
-### 236. Pool Fallback Leaks Proof Comps Into Graded FMV [P2]
+### ~~236. Pool Fallback Leaks Proof Comps Into Graded FMV [P2 -- DONE 2026-06-24 via #272W / PR #197]~~
+
+**Disposition:** Complete and superseded by the stricter #272W pool-isolation fix (`5c8519c7`). `valuationService` now always selects the strict graded pool for graded intent and excludes raw, proof, and reverse-proof comps rather than falling back to `usCompsAll`. Regression coverage in `computeValuation.test.js` includes thin and empty graded pools plus explicit proof/reverse-proof non-leakage. The original proposal below is preserved for history.
 
 **Source:** numismatic-audit run 2026-06-01 (commit `d85e9bf`).
 
@@ -3125,7 +3131,9 @@ and obscures regressions in unrelated PRs.
 
 ---
 
-### #253. Malformed Dataset Keys Produce Nonsensical FMVs [P2 -- DATA-QUALITY]
+### #253. Malformed Dataset Keys Produce Nonsensical FMVs [P2 -- DATA-QUALITY] -- PARTIAL 2026-07-29
+
+**Status update (2026-07-29):** Track A is DONE via #270W Option #4 (`4c0fc607`, merged as PR #186): a raw-intent request with no usable comps returns `fmvCore: null`, `lowData: true`, and `dataSource.label: 'metal-only'` instead of a melt-derived FMV. Track B remains OPEN: no `scripts/prune-impossible-weights.js` or canonical per-series weight whitelist exists. Current `data/terapeak-meta.json` still contains eight `1000oz` keys, so intake cleanup and the one-time prune are still required.
 
 **Problem:** Three dataset keys in the Maple pricing-health run are malformed -- they describe weights that don't exist as real products, and one is parser-noise where a fractional weight got tokenized incorrectly. Each produces a 100% attrition RED row, but the more concerning issue is that two of the three return a non-null `fmvCore` extrapolated from spot metal price, which would mislead any caller that ignores `usComps`.
 
@@ -3263,14 +3271,20 @@ Gated on data: run pricing-health across a Reverse-Proof slate (2023 RP Morgan, 
 
 ## Reverse Proof Pool Follow-ups (PR #114)
 
-### #255. Split Enhanced Reverse Proof into its own pool [P3 -- DATA-QUALITY] -- BACKLOG
+### #255. Split Enhanced Reverse Proof into its own pool [P3 -- DATA-QUALITY] -- DEFERRED 2026-06-19 (VERIFIED 2026-07-29)
+
+**Disposition:** The technical claim remains true: Reverse Proof and Enhanced Reverse Proof intentionally share the `reverse-proof` comp pool. Current data has no same-coin/year RP-versus-ERP conflict, so there is no observed pricing failure to fix. Reopen only when pricing-health or production data shows both finishes competing in one coin/year pool (for example, an Apollo 11 issue). This restores the verified disposition from commit `23e6dc67`, which was lost from the heading during later backlog edits.
+
 - **Context**: PR #114 (`feat/reverse-proof-pool-separation`) introduced a `'reverse-proof'` grade pool. Both "Reverse Proof" and "Enhanced Reverse Proof" titles classify as `'reverse-proof'` and share the pool. Pool selection uses `expected.finish` to route the query, so the user's selected finish does flow in correctly, but within-pool scoring is the only thing distinguishing RP from ERP comps.
 - **Why low priority**: No current coin year issues both a Reverse Proof and an Enhanced Reverse Proof of the same coin (ERP exists only for 2019-S ASE, and that year has no plain RP). The risk is purely hypothetical until the US Mint or another issuer produces both in the same year.
 - **Proposed fix**: Add an `'enhanced-reverse-proof'` grade type. `classifyGradeType()` checks for "enhanced reverse proof" before "reverse proof". Pool selection routes `expected.finish === 'Enhanced Reverse Proof'` to the new pool.
 - **Files**: `src/services/ebayService.js` (classifier + pool selection), `src/routes/coinHistoryRoute.js` (mirror), tests.
 - **Related**: PR #114, #189 (numismatic terminology).
 
-### #256. Auto-extend lookback or year-fan-out for thin Reverse Proof pools [P3 -- DATA-QUALITY] -- BACKLOG
+### ~~#256. Auto-extend lookback or year-fan-out for thin Reverse Proof pools [P3 -- DATA-QUALITY] -- DONE 2026-06-19 (SUPERSEDED)~~
+
+**Disposition:** Superseded by generic lookback extension (`dd0ef1e`) and #260W reverse-proof pool handling. Reverse-proof queries already use the shared 180/365-day widening path, existing numismatic year tolerance, and explicit low-data warnings. The speculative RP-specific fan-out has no current failure case. This restores the verified disposition from commit `23e6dc67`, which was lost from the heading during later backlog edits.
+
 - **Symptom**: Year-specific RP pools can be very thin in the default 180d window (e.g., 2013-W RP returns 3 comps after the PR #114 split). Existing `lowData` flag surfaces this but FMV becomes noisy.
 - **Proposed fix**: When `targetPool === 'reverse-proof'` and the surviving pool has <5 comps, extend lookback to 365d before falling back to Browse-only. Also consider widening the year window by +/-1 for RP coins where the same finish is unchanged across multiple years.
 - **Files**: `src/services/ebayService.js` (auto-extend logic), `src/services/valuationService.js` (Browse-only threshold for RP pool).
@@ -3343,9 +3357,11 @@ Gated on data: run pricing-health across a Reverse-Proof slate (2023 RP Morgan, 
 
 ---
 
-### #270W. Recover raw-bullion comp signal post-#186 [P2 -- DATA-QUALITY] -- OPEN 2026-06-23 (demoted P1->P2 2026-06-30)
+### #270W. Recover raw-bullion comp signal post-#186 [P2 -- DATA-QUALITY] -- PARTIAL 2026-07-29 (OPTIONS #1 AND #4 DONE)
 
 > **2026-06-30 priority change:** The P1 safety case (raw + graded pool pollution risk) was closed by PR #186 (Option #4 -- honest insufficient-comps return, merge SHA `faa852f`). The strict-isolation guarantees in the Hard Constraints below are now enforced by code and tests; thin raw pools return `fmvCore: null` instead of leaking graded comps. Remaining work (Options #1, #2, #3, #5) is comp-recovery -- recovering signal from sparse raw-bullion pools through adaptive lookback, better scraper seeding, two-pool surfacing, or per-pool gate tuning. That's data-quality improvement, not safety, so demoted P1 -> P2.
+
+> **2026-07-29 status correction:** Option #1 also shipped in PR #188 (`cb38e45`, merge `eb464d90`) with a pool-preserving 180/365/730-day Terapeak ladder and per-tier diagnostics. Remaining work is Options #2, #3, and #5 only. The supplemented/API path telemetry mismatch discovered after Option #1 is tracked separately in #275W.
 
 **Context:** Replaces the reverted #252. The original symptom is real and still on the table: the 2026-06-04 Maple pricing-health run had 9/13 RED rows on 1oz Gold Maple Leaf datasets, with `prefilterStrikeSplit` as the top drop bucket (1-45 comps per dataset, worst case 2025 Maple Leaf at 164 gathered / 3 survived / 98.2% attrition). PR #154 attempted to fix this by merging the `graded` and `raw` pools for >=1oz bullion. That approach was reverted on 2026-06-23 because it violates the pool-isolation contract in `docs/memory/numismatic-terminology.md` -- raw, graded, and proof are three distinct pools as observed by `classifyGradeType()`, and modern bullion series still contain scarce dates / varieties / first-year issues where the cross-pool dispersion is wide enough to make a blended FMV wrong for both pools.
 
@@ -3378,9 +3394,10 @@ Gated on data: run pricing-health across a Reverse-Proof slate (2023 RP Morgan, 
 
 | Option | PR | Merge SHA | Date | Notes |
 |---|---|---|---|---|
+| #1 -- Adaptive lookback for sparse raw bullion | #188 | `eb464d90` | 2026-06-24 | Pool-preserving 180/365/730-day Terapeak ladder with `candidatesPerTier` diagnostics. Supplemented-path parity remains #275W. |
 | #4 -- Honest insufficient-comps return | #186 | `faa852f` | 2026-06-23 | M-tier. Default raw-intent branch now uses strict raw pool (`usComps = usRaw`, no fallback to `usCompsAll`). When raw pool is empty -> `fmvCore: null`, `lowData: true`, `dataSource.label: 'metal-only'`. Null-FMV early return made schema-compliant (emits `dataSource` + `gradePool` telemetry). 7 new pool-isolation tests in `computeValuation.test.js`; 1 existing test (`'no-signal contract: RP comps...'`) updated from defending old violating behavior to defending strict isolation. `valuationInvariants` fixtures threaded with `userGrade`/`opts` intent flags. `@numismatic-audit` Step 5b: PASS. Deep review: GREEN, 0 findings. Discovered the analogous violation in the wantsGraded branch (L120) -- see #272W. |
 
-Options #1, #2, #3, #5 remain OPEN.
+Options #2, #3, and #5 remain OPEN.
 
 **Acceptance criteria (any candidate fix):**
 - 2026-06-04 Maple + Eagle pricing-health re-run: <= 1 RED row on Gold 1oz datasets (down from 9).

@@ -37,6 +37,14 @@ import sys
 import time
 from datetime import datetime, timezone
 
+from _terapeak_risk import (
+    classify_log_lines,
+    evaluate_transition,
+    load_state,
+    parse_bool,
+    write_state,
+)
+
 OUT_DIR = os.environ.get(
     "TERAPEAK_RUNS_DIR",
     os.path.join("cache", "terapeak-runs"),
@@ -63,6 +71,10 @@ def parse_pass_log(path):
     coins = []
     current = None  # the in-progress coin record being built across lines
     succeeded = failed = None
+    no_data_count = 0
+    no_export_count = 0
+    challenge_signal_count = 0
+    soft_risk_signal_count = 0
 
     def finalize_current():
         nonlocal current
@@ -77,6 +89,13 @@ def parse_pass_log(path):
         with open(path, "r", encoding="utf-8", errors="replace") as f:
             for raw in f:
                 line = raw.rstrip("\n")
+                if WARN_EMPTY_RE.search(line):
+                    no_data_count += 1
+                if NO_EXPORT_RE.search(line):
+                    no_export_count += 1
+                line_signals = classify_log_lines((line,))
+                challenge_signal_count += line_signals["challenge_signal_count"]
+                soft_risk_signal_count += line_signals["soft_risk_signal_count"]
                 m = COIN_LINE_RE.match(line)
                 if m:
                     # New coin starts; close out previous
@@ -138,11 +157,23 @@ def parse_pass_log(path):
 
             finalize_current()
     except FileNotFoundError:
-        return [], {"succeeded": 0, "failed": 0, "error": "pass_log_missing"}
+        return [], {
+            "succeeded_reported": 0,
+            "failed_reported": 0,
+            "no_data_count": 0,
+            "no_export_count": 0,
+            "challenge_signal_count": 0,
+            "soft_risk_signal_count": 0,
+            "error": "pass_log_missing",
+        }
 
     totals = {
         "succeeded_reported": succeeded,
         "failed_reported": failed,
+        "no_data_count": no_data_count,
+        "no_export_count": no_export_count,
+        "challenge_signal_count": challenge_signal_count,
+        "soft_risk_signal_count": soft_risk_signal_count,
     }
     return coins, totals
 
@@ -194,6 +225,18 @@ def main(argv=None):
     p.add_argument("--machine", default=os.environ.get("MACHINE_ID", "W"))
     p.add_argument("--include-thin", default="false")
     p.add_argument("--operator", default="terapeak-operator-codespace")
+    p.add_argument("--pass-exit-code", default=0, type=int)
+    p.add_argument("--cookie-health-status", default="UNKNOWN")
+    p.add_argument("--probe-status", default="SKIPPED")
+    p.add_argument("--state-before", default="Normal")
+    p.add_argument("--state-after", default="Normal")
+    p.add_argument("--transition-reason", default="")
+    p.add_argument("--challenge-signal-count", type=int)
+    p.add_argument("--soft-risk-signal-count", type=int)
+    p.add_argument("--state-file")
+    p.add_argument("--stateful", default="true")
+    p.add_argument("--transition-output")
+    p.add_argument("--summary-output")
     args = p.parse_args(argv)
 
     coins, totals = parse_pass_log(args.pass_log)
@@ -208,6 +251,34 @@ def main(argv=None):
         duration_sec = None
 
     include_thin = args.include_thin.lower() in ("1", "true", "yes")
+    challenge_signal_count = (
+        args.challenge_signal_count
+        if args.challenge_signal_count is not None
+        else totals["challenge_signal_count"]
+    )
+    soft_risk_signal_count = (
+        args.soft_risk_signal_count
+        if args.soft_risk_signal_count is not None
+        else totals["soft_risk_signal_count"]
+    )
+    state_before = args.state_before
+    state_after = args.state_after
+    transition_reason = args.transition_reason or None
+    if args.state_file:
+        state_before = load_state(args.state_file).get("state", "Cooldown")
+        stateful = parse_bool(args.stateful)
+        state_after, transition_reason = evaluate_transition(
+            state_before,
+            {
+                "challenge_signal_count": challenge_signal_count,
+                "soft_risk_signal_count": soft_risk_signal_count,
+            },
+            stateful=stateful,
+        )
+        if state_after == "Cooldown" or (
+            stateful and (state_after != state_before or transition_reason)
+        ):
+            write_state(args.state_file, state_after, transition_reason, args.run_id)
 
     # ---- write pass record ----
     pass_rec = {
@@ -217,6 +288,23 @@ def main(argv=None):
         "machine": args.machine,
         "pass": args.pass_num,
         "batch_size": args.batch_size,
+        "pass_id": args.pass_num,
+        "started_at": args.start_ts,
+        "ended_at": args.end_ts,
+        "batch_size_requested": args.batch_size,
+        "batch_size_executed": agg["attempted"],
+        "new_count": agg["new_rows"],
+        "dup_count": agg["dup_rows"],
+        "no_data_count": totals["no_data_count"],
+        "no_export_count": totals["no_export_count"],
+        "cookie_health_status": args.cookie_health_status,
+        "probe_status": args.probe_status,
+        "challenge_signal_count": challenge_signal_count,
+        "soft_risk_signal_count": soft_risk_signal_count,
+        "state_before": state_before,
+        "state_after": state_after,
+        "transition_reason": transition_reason,
+        "pass_exit_code": args.pass_exit_code,
         "include_thin": include_thin,
         "start_ts": args.start_ts,
         "end_ts": args.end_ts,
@@ -253,6 +341,22 @@ def main(argv=None):
         }
         append_jsonl(COINS_PATH, coin_rec)
 
+    if args.transition_output:
+        os.makedirs(os.path.dirname(args.transition_output) or ".", exist_ok=True)
+        with open(args.transition_output, "w", encoding="utf-8") as transition_file:
+            transition_file.write("\t".join((
+                state_before,
+                state_after,
+                transition_reason or "none",
+                str(challenge_signal_count),
+                str(soft_risk_signal_count),
+            )) + "\n")
+
+    if args.summary_output:
+        os.makedirs(os.path.dirname(args.summary_output) or ".", exist_ok=True)
+        with open(args.summary_output, "w", encoding="utf-8") as summary_file:
+            json.dump({"pass": pass_rec, "coins": coins}, summary_file)
+
     # Print one-line summary for the operator log
     print(
         f"[parse] pass={args.pass_num} attempted={agg['attempted']} "
@@ -268,4 +372,4 @@ if __name__ == "__main__":
         sys.exit(main())
     except Exception as e:
         sys.stderr.write(f"[parse:WARN] {type(e).__name__}: {e}\n")
-        sys.exit(0)  # never fail the operator
+        sys.exit(1)

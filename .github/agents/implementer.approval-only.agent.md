@@ -3,20 +3,7 @@ name: Implementer (Approval-Only)
 description: >
   Applies ONLY explicitly approved code review findings. Makes minimal diffs.
   Proposes verification commands. Never fixes unapproved findings.
-tools:
-  - read_file
-  - grep_search
-  - file_search
-  - semantic_search
-  - replace_string_in_file
-  - multi_replace_string_in_file
-  - create_file
-  - run_in_terminal
-  - get_terminal_output
-  - get_errors
-  - manage_todo_list
-  - list_dir
-  - runSubagent
+tools: [read, search, edit, execute, todo]
 ---
 
 # Implementer (Approval-Only)

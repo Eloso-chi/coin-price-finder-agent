@@ -90,22 +90,20 @@ python3 scripts/cookie-health-check.py --probe
 If the probe returns CHALLENGED, **stop**. Don't burn quota and don't poison
 the host browser's session. Wait or use a different host browser.
 
-### 5. Run small batches (freshness triage integrated)
+### 5. Run the canonical Codespace operator
 
 ```bash
-# Keep travel mode conservative: smaller page-1 batch, skip deep by default.
-bash scripts/run-surface-freshness-loop.sh \
-  --stale 15 \
-  --page1-batch 10 \
-  --skip-deep
-
-# Optional focus to one coin family while traveling:
-bash scripts/run-surface-freshness-loop.sh --page1-batch 10 --skip-deep --coin-type libertads
-bash scripts/run-surface-freshness-loop.sh --page1-batch 10 --skip-deep --focus "morgan|peace"
+# One conservative pass. Increase --max-passes only after a healthy pilot.
+bash scripts/terapeak-operator-codespace.sh \
+  --max-passes 1 \
+  --batch-min 10 \
+  --batch-max 10
 ```
 
-Smaller batches than the Surface workflow (10 vs 20) because the data-center
-IP shortens the Akamai trust window.
+The operator follows the canonical Normal, Elevated, Challenged, and Cooldown
+model in [anti-bot-operations.md](../memory/anti-bot-operations.md). The first
+hard challenge stops immediately. Cooldown restart requires the wait to elapse,
+a cookie file refreshed after the incident, and a successful live probe.
 
 If you need to run exporter directly (without triage orchestration), use:
 
@@ -138,6 +136,8 @@ confirmed immediately (any non-api mode).
   `git status --ignored | grep -i cookie`.
 - **Never share cookies between machines.** Surface jar stays on Surface,
   travel jar stays on the Codespace it was uploaded to.
+- **Never bypass Cooldown.** Do not replace state files, rotate IPs/accounts,
+  or automate CAPTCHA solving to evade a challenge.
 
 ## When you get back to the Surface
 

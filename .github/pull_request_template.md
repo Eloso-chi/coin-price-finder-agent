@@ -89,3 +89,13 @@
   - [ ] `@numismatic-audit` Step 5b -- required if PR touches pool-isolation surfaces (ebayService classifyGradeType / applyFilters, valuationService pool selection)
   - [ ] Tests pass (`npm test`)
   - [ ] No `--no-verify` (or active hooks verified absent)
+
+### Scraper Risk And Compliance
+
+<!-- Required when scraper identity, cookies, challenge detection, pacing, retry logic, or operator behavior changes. -->
+
+- [ ] N/A -- this PR does not affect scraper operations
+- [ ] Risk-state transitions and rollback behavior reviewed against `docs/memory/anti-bot-operations.md`
+- [ ] Change does not automate challenge bypass, rotate identities/IPs, or weaken Cooldown stop gates
+- [ ] Local and travel runbooks remain consistent
+- [ ] First production run will capture #284H telemetry and use the anti-bot WASTE-LEDGER template if challenged

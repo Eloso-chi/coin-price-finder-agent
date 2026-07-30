@@ -47,7 +47,7 @@
 
 | Agent / Prompt | Purpose |
 |----------------|---------|
-| `@code-reviewer` | Full approval-gated code review (conductor) |
+| `@code-reviewer` | Primary correctness and maintainability reviewer |
 | `@security-review` | OWASP-focused security sub-reviewer |
 | `@performance-review` | Performance bottleneck sub-reviewer |
 | `@implementer` | Applies only user-approved review items |
@@ -58,7 +58,7 @@
 | `@onboard` | Project onboarding assistant |
 | `@pricing-health` | End-to-end pricing flow validator -- picks coins, traces through all routes, flags comp attrition anomalies |
 | `@terapeak-operator` | Deterministic local Terapeak startup operator (preflight -> login -> freshness-only loop) |
-| `/review-deep` | Invoke full code review |
+| `/review-deep` | Orchestrate primary, security, and performance reviews |
 | `/apply-approved` | Implement approved findings |
 | `/pre-commit` | Quick pre-commit check |
 | `/test-coverage` | Analyze and fill test gaps |
