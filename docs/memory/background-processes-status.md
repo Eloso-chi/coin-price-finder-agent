@@ -1,15 +1,20 @@
-# Background Processes & Automation Status (2026-05-26, refreshed 2026-07-03 for #277W)
+# Background Processes & Automation Status (refreshed 2026-07-31 for #285H)
 
 ## Working Processes ✓
 
 ### 1. PCGS APR Prefetch Scheduler
-- **Status:** ✓ ACTIVE & RECENTLY FIXED (PR #50 + #277W)
+- **Status:** ACTIVE; #285H recovery implementation complete, production observation pending
 - **Schedule:** Nightly 11 PM PT (in-process) + 6:05 AM UTC (GH Actions safety net)
 - **Last run:** 2026-05-26 07:58:14 UTC (28.7 min, 990 calls, 79 new records, 0 errors)
 - **Fixes (PR #50):** Fire-and-forget (202 response), idempotency guard, 30-min workflow polling, metrics reporting
 - **Fixes (#277W, 2026-07-03):**
   - `lastStatus` no longer clobbered by safety-net "no quota" skip writes.  The skip attempt now records into `lastAttempt` / `lastAttemptStatus` / `lastAttemptReason` and leaves the completed-run `status` / `lastRun` / `callsMade` / `newRecords` fields intact.
   - Status file gains `perCategory: { us_classic, us_bullion, world_bullion, unknown -> { attempted, newRecords } }` so `/api/admin/prefetch-status` can prove world coins received their round-robin share on any given night without a manifest read.
+- **Recovery (#285H, 2026-07-31):**
+  - Persists upstream HTTP 429 cooldown separately from the local daily quota counter, including sanitized reset metadata and reason.
+  - Scheduled and manual triggers make no PCGS calls during cooldown. After expiry, one bounded probe must succeed before the normal queue continues.
+  - Unexpired cooldown survives process restart and Pacific day rollover. Missing or malformed reset headers use `PCGS_429_COOLDOWN_MS` (default one hour).
+  - Production validation remains open for three consecutive nightly runs without the prior one-call-then-429 pattern.
 - **Code:** src/services/prefetchScheduler.js, .github/workflows/nightly-prefetch.yml
 
 ### 2. Metals Spot Price Polling
@@ -88,6 +93,7 @@ All background processes have status endpoints:
 | Prefetch throttle | PREFETCH_THROTTLE_MS | 1000 | ✓ Yes |
 | Prefetch reserve | PREFETCH_RESERVE | 10 | ✓ Yes |
 | Prefetch enabled | PCGS_PREFETCH_ENABLED | true | ✓ Yes |
+| PCGS 429 fallback cooldown | PCGS_429_COOLDOWN_MS | 3600000 (1h) | ✓ Yes |
 | SendGrid key | SENDGRID_API_KEY | (none) | ✓ Needs setup |
 | Alert email | ALERT_EMAIL_TO | (none) | ✓ Needs setup |
 

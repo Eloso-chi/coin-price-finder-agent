@@ -77,8 +77,11 @@ function needsRefresh(pcgsNo, grade) {
 
 // ── HTTP helper ─────────────────────────────────────────────
 async function aprGet(urlPath) {
-  if (pcgsQuota.isBreakerTripped()) {
-    throw new Error('PCGS quota breaker tripped — no API calls until midnight PT reset');
+  const requestAllowed = typeof pcgsQuota.acquireRequestPermit === 'function'
+    ? pcgsQuota.acquireRequestPermit()
+    : !pcgsQuota.isBreakerTripped();
+  if (!requestAllowed) {
+    throw new Error('PCGS breaker tripped by upstream cooldown - no API calls until recovery is eligible');
   }
 
   const url = `${PCGS_BASE}${urlPath}`;
@@ -103,7 +106,12 @@ async function aprGet(urlPath) {
   } catch (err) {
     const status = err.response?.status;
     if (status === 429) {
-      pcgsQuota.tripBreaker();
+      const headers = err.response?.headers || {};
+      pcgsQuota.tripBreaker({
+        retryAfter: headers['retry-after'],
+        resetAt: headers['x-ratelimit-reset'],
+        reason: 'PCGS APR rate limit exceeded (429)'
+      });
       throw new Error('PCGS API rate limit exceeded (429) — breaker tripped');
     }
     // Still sync headers on error responses if available
@@ -114,6 +122,7 @@ async function aprGet(urlPath) {
         pcgsQuota.syncFromHeaders(remaining, isNaN(limit) ? undefined : limit);
       }
     }
+    pcgsQuota.releaseRecoveryProbe?.('failed');
     throw err;
   }
 }

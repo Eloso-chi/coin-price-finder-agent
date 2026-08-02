@@ -89,12 +89,23 @@ Comprehensive reference of all HTTP endpoints exposed by the coin-price-finder-a
 | `GET` | `/api/admin/dashboard` | 🔒 | System overview: user count, dataset count, quota, uptime |
 | `GET` | `/api/admin/stale-datasets` | 🔒 | Datasets older than N days (filters dormant/thin via freshness classifier) |
 | `GET` | `/api/admin/data-health` | 🔒 | Total files, empty files, date ranges |
-| `GET` | `/api/admin/prefetch-status` | 🔒 | PCGS nightly prefetch scheduler status (incl. `perCategory` breakdown + `lastAttempt*` fields per #277W) |
-| `POST` | `/api/admin/prefetch-trigger` | 🔒 | Trigger manual PCGS prefetch run |
-| `GET` | `/api/admin/pcgs-quota` | 🔒 | Current PCGS API quota usage |
+| `GET` | `/api/admin/prefetch-status` | 🔒 | PCGS nightly prefetch status, including `perCategory`, `lastAttempt*`, and separate local-quota/upstream-availability fields |
+| `POST` | `/api/admin/prefetch-trigger` | 🔒 | Trigger manual PCGS prefetch run; rejected while an upstream cooldown is active |
+| `GET` | `/api/admin/pcgs-quota` | 🔒 | PCGS local quota and upstream cooldown status |
 | `GET` | `/api/admin/auction-history` | 🔒 | Retrieve cached auction history |
 | `POST` | `/api/admin/auction-fetch` | 🔒 | Force live auction refresh |
 | `POST` | `/api/clear-cache` | 🔒 | Flush all service caches |
+
+PCGS status distinguishes the local daily counter from upstream availability. The
+prefetch response includes `quota.localQuotaRemaining`,
+`quota.upstreamAvailability`, `quota.nextEligibleProbeAt`,
+`quota.rateLimitedAt`, and `quota.rateLimitReason`, plus the top-level
+`upstreamAvailability`, with `lastProbeAt` and `lastProbeOutcome` under
+`quota`. Upstream availability is `available`, `cooldown`, `probe-required`,
+or `probe-in-flight`. After cooldown expiry, the scheduler permits one recovery
+probe before continuing the queue. When a 429 response has no usable reset
+metadata, `PCGS_429_COOLDOWN_MS` controls the fallback cooldown (default: one
+hour).
 
 ## Error Codes
 

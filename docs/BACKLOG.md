@@ -2237,6 +2237,52 @@ Ops can override to any value (e.g., `BROWSER_RECYCLE_EVERY=40 python scripts/te
 
 ---
 
+### #285H. PCGS APR nightly prefetch stalls on first-request HTTP 429 despite available local quota [P1 -- DATA-AVAILABILITY / OPERATIONS] -- IMPLEMENTED / PRODUCTION VALIDATION PENDING 2026-07-31
+
+**Status update (2026-07-31):** The implementation now persists sanitized upstream cooldown state independently of local quota, gates scheduled and manual starts before reset, permits one bounded recovery probe, preserves unexpired cooldown across restart and Pacific day rollover, and exposes the distinction in admin status. Missing or malformed reset headers use a configurable one-hour fallback. Focused recovery and header-propagation tests pass. This item remains open only for the acceptance observation period of three consecutive productive or valid-empty nightly runs without the one-call-then-429 pattern.
+
+- **Problem**: The nightly PCGS APR prefetch is firing, but recent production runs stop almost immediately on an upstream HTTP 429. The scheduler's local quota state can still report substantial capacity while PCGS rejects the first request, so the local `remaining` counter is not a reliable signal that work may proceed. The breaker correctly prevents a retry storm within the run, but the next night's run repeats the same one-request failure instead of recovering or waiting for an authoritative upstream cooldown.
+
+- **Production evidence** (GitHub Actions status payloads, observed 2026-07-31):
+  - 2026-07-24: `lastCallsMade=101`, `lastNewRecords=0`, `lastStatus='partial'`.
+  - 2026-07-26, 2026-07-28, and 2026-07-30: each run attempted 1 call, added 0 records, and ended `partial`.
+  - Latest recorded error: `PCGS API rate limit exceeded (429) -- breaker tripped` after 0.6 seconds.
+  - `consecutiveFailures=16` and `queueRemaining=13942` while the same status payload reported local quota `used=6`, `remaining=994`, `limit=1000`.
+  - The July 31 workflow trigger observed the July 30 result because of the separate stale-completion polling defect tracked in #281W.
+
+- **Goal**: Make upstream rate-limit state authoritative enough that the scheduler stops wasting one request per night, reports why collection is unavailable, and automatically resumes useful work after the upstream limit clears.
+
+- **Proposed approach**:
+  1. Capture sanitized 429 metadata from the PCGS response (`Retry-After` and rate-limit/reset headers when present) without logging credentials or full response bodies.
+  2. Persist an upstream cooldown record separately from the local daily-call counter: `rateLimitedAt`, `retryAfter`/`resetAt`, reason, and last probe outcome.
+  3. Gate scheduled and manual prefetch starts on that cooldown. Do not consume a probe every night before the known reset time.
+  4. After cooldown expiry, allow one bounded health probe. Clear the breaker only after a successful PCGS response; on another 429, persist the new cooldown and stop immediately.
+  5. Reconcile day-boundary and process-restart behavior so an in-memory breaker reset cannot contradict persisted upstream rate-limit state.
+  6. Make same-night triggers idempotent while a run, cooldown, or completed attempt already exists. Coordinate with #281W rather than duplicating its workflow run-correlation change.
+  7. Expose local quota and upstream availability as distinct fields in `/api/admin/prefetch-status`; do not present `remaining=994` as runnable capacity while upstream cooldown is active.
+
+- **Acceptance criteria**:
+  - A mocked first-request 429 stores the upstream cooldown, trips the breaker, ends the run `partial`, and makes no additional PCGS calls.
+  - Repeated scheduler invocations before `resetAt` make zero PCGS calls and preserve the prior completed-run metrics.
+  - The first invocation after cooldown performs one probe; success clears the upstream block and continues the queue, while another 429 re-arms cooldown without a retry loop.
+  - Process restart and UTC/Pacific day rollover do not clear an unexpired upstream cooldown.
+  - Status output clearly distinguishes `localQuotaRemaining` from `upstreamAvailability`, including the next eligible probe time and sanitized reason.
+  - A production observation window completes at least 3 consecutive nightly runs without the current one-call-then-429 pattern; any remaining zero-yield runs are attributable to valid empty APR results rather than transport/rate-limit failure.
+  - Tests cover 429 with and without `Retry-After`, malformed headers, persisted recovery after restart, duplicate trigger suppression, and successful post-cooldown recovery.
+
+- **Files (implemented)**:
+  - `src/services/pcgsQuotaService.js` -- persisted upstream cooldown and recovery state.
+  - `src/services/auctionPriceService.js` -- capture sanitized 429 metadata and pass it to quota state.
+  - `src/services/prefetchScheduler.js` -- cooldown/start gates, bounded probe, and status fields.
+  - `__tests__/pcgsQuotaService.test.js`, `__tests__/pcgsBreakerInteraction.test.js`, `__tests__/prefetchScheduler.test.js` -- regression and recovery coverage.
+  - `docs/api-reference.md` -- document the status distinction.
+
+- **Dependencies / cross-references**:
+  - Independent of #281W (workflow polls the wrong completion) and #282W (partial-run alerts); those improve visibility but do not repair the 429 loop.
+  - Complete this before #280W/#279W yield-history and weighted-queue tuning. Category optimization is not meaningful while the scheduler cannot progress past its first request.
+
+---
+
 ### #283W. Libertad tracker + Terapeak pool leak -- "onza" weight synonym + specialty-edition variant [P2 -- PRICING-ACCURACY / POOL-ISOLATION] -- DONE 2026-07-14 (PR #230)
 - **Problem**: A user searched `2011 Mexican Silver Libertad Proof` and the Live eBay Tracker returned off-weight and specialty-edition comps (e.g. `2023 Mexico Libertad 1/4 Onza Proof Silver Coin...`, `2022 Mexico Elite Libertad Traders 1 oz .999 Proof Silver Coin with COA`). The FMV path reported "8 verified sold comps used" but the source Terapeak dataset (`1oz 2011 libertad mexican proof silver`, compCount 21) contains at least one comp that was not rerouted at import time (`2011 MO SILVER PROOF MEXICO 1/20 ONZA LIBERTAD NGC PF 69 UC`).
 - **Root causes** (two independent gaps, both surfaced by the same query):

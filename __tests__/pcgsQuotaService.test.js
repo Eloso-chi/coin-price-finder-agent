@@ -1,6 +1,6 @@
 'use strict';
 
-const fs = require('fs');
+let fs = require('fs');
 const path = require('path');
 
 // Mock fs to avoid touching real quota files
@@ -13,9 +13,14 @@ describe('pcgsQuotaService', () => {
 
   beforeEach(() => {
     jest.resetModules();
+    fs = require('fs');
     // Default: no existing state file
     fs.existsSync.mockReturnValue(false);
-    fs.readFileSync.mockImplementation(() => { throw new Error('ENOENT'); });
+    fs.readFileSync.mockImplementation(() => {
+      const error = new Error('ENOENT');
+      error.code = 'ENOENT';
+      throw error;
+    });
     fs.writeFileSync.mockImplementation(() => {});
     fs.mkdirSync.mockImplementation(() => {});
     quota = require('../src/services/pcgsQuotaService');
@@ -29,6 +34,7 @@ describe('pcgsQuotaService', () => {
       expect(status.limit).toBe(1000);
       expect(status.breakerTripped).toBe(false);
       expect(status.pct).toBe(0);
+      expect(status.upstreamAvailability).toBe('available');
     });
   });
 
@@ -82,12 +88,114 @@ describe('pcgsQuotaService', () => {
       expect(quota.isBreakerTripped()).toBe(false);
     });
 
-    it('tripBreaker() trips the breaker and zeros remaining', () => {
-      quota.tripBreaker();
+    it('tripBreaker() preserves local quota and records upstream cooldown', () => {
+      quota.tripBreaker({ retryAfter: '3600' });
       expect(quota.isBreakerTripped()).toBe(true);
       const status = quota.getStatus();
-      expect(status.remaining).toBe(0);
+      expect(status.remaining).toBe(1000);
       expect(status.breakerTrippedAt).toBeTruthy();
+      expect(status.upstreamAvailability).toBe('cooldown');
+      expect(Date.parse(status.nextEligibleProbeAt)).toBeGreaterThan(Date.now());
+    });
+
+    it('uses a valid upstream reset timestamp when supplied', () => {
+      const resetAt = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
+      quota.tripBreaker({ resetAt, retryAfter: 'not-valid' });
+      expect(quota.getStatus().nextEligibleProbeAt).toBe(resetAt);
+    });
+
+    it('falls back to a bounded cooldown for malformed headers', () => {
+      quota.tripBreaker({ resetAt: 'bad', retryAfter: 'also-bad' });
+      const delay = Date.parse(quota.getStatus().nextEligibleProbeAt) - Date.now();
+      expect(delay).toBeGreaterThan(59 * 60 * 1000);
+      expect(delay).toBeLessThanOrEqual(60 * 60 * 1000);
+    });
+
+    it('falls back safely for out-of-range numeric reset headers', () => {
+      expect(() => quota.tripBreaker({
+        resetAt: Number.MAX_VALUE,
+        retryAfter: Number.MAX_VALUE
+      })).not.toThrow();
+      const delay = Date.parse(quota.getStatus().nextEligibleProbeAt) - Date.now();
+      expect(delay).toBeGreaterThan(59 * 60 * 1000);
+      expect(delay).toBeLessThanOrEqual(60 * 60 * 1000);
+    });
+
+    it('requires one recovery probe after cooldown expires', () => {
+      quota.tripBreaker({ retryAfter: '0' });
+      expect(quota.isBreakerTripped()).toBe(false);
+      expect(quota.isRecoveryProbeRequired()).toBe(true);
+      expect(quota.getAvailableForPrefetch(10)).toBe(1);
+
+      quota.recordCall('prefetch', 'recovery probe');
+      expect(quota.isRecoveryProbeRequired()).toBe(false);
+      expect(quota.getStatus().upstreamAvailability).toBe('available');
+      expect(quota.getAvailableForPrefetch(10)).toBe(989);
+    });
+
+    it('atomically reserves one recovery probe', () => {
+      quota.tripBreaker({ retryAfter: '0' });
+
+      expect(quota.acquireRequestPermit()).toBe(true);
+      expect(quota.acquireRequestPermit()).toBe(false);
+      expect(quota.getStatus().upstreamAvailability).toBe('probe-in-flight');
+
+      expect(quota.releaseRecoveryProbe('failed')).toBe(true);
+      expect(quota.getStatus()).toEqual(expect.objectContaining({
+        upstreamAvailability: 'probe-required',
+        lastProbeOutcome: 'failed'
+      }));
+    });
+
+    it('does not clear a recovery probe when error headers are synchronized', () => {
+      quota.tripBreaker({ retryAfter: '0' });
+      expect(quota.acquireRequestPermit()).toBe(true);
+
+      quota.syncFromHeaders(42, 100);
+
+      expect(quota.getStatus().upstreamAvailability).toBe('probe-in-flight');
+    });
+
+    it('reloads an unexpired cooldown from persisted state after restart', () => {
+      let persisted;
+      fs.writeFileSync.mockImplementation((_file, content) => { persisted = content; });
+      fs.renameSync.mockImplementation(() => {});
+      quota.tripBreaker({ retryAfter: '900' });
+
+      jest.resetModules();
+      fs.readFileSync.mockImplementation(() => persisted);
+      quota = require('../src/services/pcgsQuotaService');
+
+      expect(quota.getStatus().upstreamAvailability).toBe('cooldown');
+      expect(quota.getAvailableForPrefetch(10)).toBe(0);
+    });
+
+    it('fails closed when persisted state is corrupt', () => {
+      jest.resetModules();
+      fs.readFileSync.mockImplementation(() => '{broken-json');
+      quota = require('../src/services/pcgsQuotaService');
+
+      expect(quota.getStatus()).toEqual(expect.objectContaining({
+        upstreamAvailability: 'cooldown',
+        rateLimitReason: 'PCGS quota state could not be read'
+      }));
+    });
+
+    it('preserves an unexpired cooldown across a Pacific day rollover', () => {
+      jest.useFakeTimers({ now: new Date('2026-08-01T06:55:00.000Z') });
+      try {
+        quota.tripBreaker({ retryAfter: '900' });
+        jest.setSystemTime(new Date('2026-08-01T07:05:00.000Z'));
+
+        expect(quota.getStatus()).toEqual(expect.objectContaining({
+          date: '2026-08-01',
+          upstreamAvailability: 'cooldown',
+          nextEligibleProbeAt: '2026-08-01T07:10:00.000Z'
+        }));
+        expect(quota.getAvailableForPrefetch(10)).toBe(0);
+      } finally {
+        jest.useRealTimers();
+      }
     });
   });
 
@@ -110,6 +218,10 @@ describe('pcgsQuotaService', () => {
   describe('DAILY_LIMIT constant', () => {
     it('exports 1000 as the daily limit', () => {
       expect(quota.DAILY_LIMIT).toBe(1000);
+    });
+
+    it('uses a one-hour default cooldown', () => {
+      expect(quota.DEFAULT_COOLDOWN_MS).toBe(60 * 60 * 1000);
     });
   });
 });

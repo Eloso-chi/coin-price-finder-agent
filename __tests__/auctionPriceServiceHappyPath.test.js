@@ -44,6 +44,7 @@ jest.mock('../src/services/pcgsQuotaService', () => ({
   recordCall: jest.fn(() => ({ remaining: 999, used: 1 })),
   syncFromHeaders: jest.fn(),
   tripBreaker: jest.fn(),
+  releaseRecoveryProbe: jest.fn(),
   isBreakerTripped: jest.fn(() => false),
 }));
 
@@ -329,6 +330,26 @@ describe('fetchByGrade -- cache + force', () => {
     expect(pcgsQuota.tripBreaker).toHaveBeenCalled();
   });
 
+  it('forwards sanitized upstream cooldown headers from a 429 response', async () => {
+    const { svc, axios, pcgsQuota } = setupFresh();
+    axios.get.mockRejectedValue({
+      response: {
+        status: 429,
+        headers: {
+          'retry-after': '120',
+          'x-ratelimit-reset': '1785550000'
+        }
+      }
+    });
+
+    await expect(svc.fetchByGrade(7296, 65)).rejects.toThrow(/rate limit/i);
+    expect(pcgsQuota.tripBreaker).toHaveBeenCalledWith({
+      retryAfter: '120',
+      resetAt: '1785550000',
+      reason: 'PCGS APR rate limit exceeded (429)'
+    });
+  });
+
   it('throws when breaker is already tripped before making any HTTP call', async () => {
     const { svc, axios } = setupFresh({ breakerTripped: true });
     await expect(svc.fetchByGrade(7296, 65)).rejects.toThrow(/breaker tripped/);
@@ -347,6 +368,7 @@ describe('fetchByGrade -- cache + force', () => {
     await expect(svc.fetchByGrade(7296, 65)).rejects.toBeDefined();
     expect(pcgsQuota.syncFromHeaders).toHaveBeenCalledWith(42, 100);
     expect(pcgsQuota.tripBreaker).not.toHaveBeenCalled();
+    expect(pcgsQuota.releaseRecoveryProbe).toHaveBeenCalledWith('failed');
   });
 });
 

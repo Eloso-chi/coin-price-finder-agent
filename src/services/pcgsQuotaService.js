@@ -12,12 +12,41 @@ const path = require('path');
 const CACHE_DIR = require('../utils/cachePath').CACHE_DIR;
 const QUOTA_PATH = path.join(CACHE_DIR, 'pcgs_quota.json');
 const DAILY_LIMIT = 1000;
+const MIN_COOLDOWN_MS = 60 * 1000;
+const MAX_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
+const PROBE_LEASE_MS = 5 * 60 * 1000;
+const configuredCooldownMs = Number(process.env.PCGS_429_COOLDOWN_MS);
+const DEFAULT_COOLDOWN_MS = Number.isInteger(configuredCooldownMs)
+  && configuredCooldownMs >= MIN_COOLDOWN_MS
+  && configuredCooldownMs <= MAX_COOLDOWN_MS
+  ? configuredCooldownMs
+  : 60 * 60 * 1000;
 
 // ── Helpers ─────────────────────────────────────────────────
 
 /** Get today's date string in Pacific Time (PCGS reset timezone). */
 function todayPacific() {
   return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
+}
+
+function normalizeResetAt(value, now = Date.now()) {
+  if (value == null || value === '') return null;
+  const numeric = Number(value);
+  const parsed = Number.isFinite(numeric)
+    ? (numeric > 1e12 ? numeric : numeric * 1000)
+    : Date.parse(String(value));
+  return Number.isFinite(parsed) && parsed > now && parsed <= now + MAX_COOLDOWN_MS
+    ? new Date(parsed).toISOString()
+    : null;
+}
+
+function parseRetryAfter(value, now = Date.now()) {
+  if (value == null || value === '') return null;
+  const seconds = Number(value);
+  if (Number.isFinite(seconds) && seconds >= 0 && seconds * 1000 <= MAX_COOLDOWN_MS) {
+    return new Date(now + seconds * 1000).toISOString();
+  }
+  return normalizeResetAt(value, now);
 }
 
 // ── Persistent state ────────────────────────────────────────
@@ -33,13 +62,29 @@ function loadState() {
     } else {
       _state = newDayState(raw);
     }
-  } catch {
-    _state = newDayState(null);
+  } catch (err) {
+    _state = newDayState(_state);
+    if (!_state.upstreamCooldown && err?.code !== 'ENOENT') {
+      const now = Date.now();
+      _state.breakerTripped = true;
+      _state.breakerTrippedAt = new Date(now).toISOString();
+      _state.upstreamCooldown = {
+        rateLimitedAt: _state.breakerTrippedAt,
+        resetAt: new Date(now + DEFAULT_COOLDOWN_MS).toISOString(),
+        reason: 'PCGS quota state could not be read',
+        retryAfter: null,
+        lastProbeAt: null,
+        lastProbeOutcome: 'blocked'
+      };
+    }
   }
   return _state;
 }
 
 function newDayState(previous) {
+  const previousCooldown = previous?.upstreamCooldown;
+  const keepCooldown = previousCooldown?.resetAt
+    && Date.parse(previousCooldown.resetAt) > Date.now();
   return {
     date: todayPacific(),
     used: 0,
@@ -48,6 +93,8 @@ function newDayState(previous) {
     headerSynced: false,
     breakerTripped: false,
     breakerTrippedAt: null,
+    upstreamCooldown: keepCooldown ? previousCooldown : null,
+    lastRecoveryProbe: previous?.lastRecoveryProbe || null,
     log: [],
     previousDay: previous ? {
       date: previous.date,
@@ -58,10 +105,13 @@ function newDayState(previous) {
 }
 
 function saveState() {
+  const temporaryPath = `${QUOTA_PATH}.tmp`;
   try {
-    fs.writeFileSync(QUOTA_PATH, JSON.stringify(_state, null, 2));
+    fs.writeFileSync(temporaryPath, JSON.stringify(_state, null, 2));
+    fs.renameSync(temporaryPath, QUOTA_PATH);
   } catch (err) {
     console.error('[pcgs-quota] Failed to save state:', err.message);
+    try { fs.unlinkSync(temporaryPath); } catch { /* best effort */ }
   }
 }
 
@@ -89,6 +139,13 @@ function syncFromHeaders(remaining, limit) {
  */
 function recordCall(source = 'coinfacts', note = '') {
   const state = loadState();
+  if (state.upstreamCooldown?.lastProbeOutcome === 'in-flight') {
+    state.lastRecoveryProbe = {
+      at: state.upstreamCooldown.lastProbeAt,
+      outcome: 'succeeded'
+    };
+  }
+  clearUpstreamCooldown(state);
   state.used += 1;
   state.remaining = Math.max(0, state.limit - state.used);
 
@@ -109,16 +166,70 @@ function recordCall(source = 'coinfacts', note = '') {
 }
 
 /**
- * Trip the circuit breaker (429 received or remaining <= 0).
- * All PCGS API calls should check isBreaker() before calling.
+ * Trip the circuit breaker after an upstream 429. Local quota is preserved:
+ * upstream availability and the client-side daily counter are distinct.
  */
-function tripBreaker() {
+function tripBreaker(options = {}) {
   const state = loadState();
+  const now = Date.now();
+  const resetAt = normalizeResetAt(options.resetAt, now)
+    || parseRetryAfter(options.retryAfter, now)
+    || new Date(now + DEFAULT_COOLDOWN_MS).toISOString();
   state.breakerTripped = true;
-  state.breakerTrippedAt = new Date().toISOString();
-  state.remaining = 0;
+  state.breakerTrippedAt = new Date(now).toISOString();
+  state.upstreamCooldown = {
+    rateLimitedAt: state.breakerTrippedAt,
+    resetAt,
+    reason: options.reason || 'PCGS API rate limit exceeded (429)',
+    retryAfter: options.retryAfter == null ? null : String(options.retryAfter),
+    lastProbeAt: null,
+    lastProbeOutcome: 'blocked'
+  };
   saveState();
-  console.warn('[pcgs-quota] Circuit breaker TRIPPED — no PCGS API calls until midnight PT reset');
+  console.warn(`[pcgs-quota] Circuit breaker TRIPPED — upstream cooldown until ${resetAt}`);
+}
+
+function clearUpstreamCooldown(state = loadState()) {
+  if (!state.upstreamCooldown && !state.breakerTripped) return false;
+  state.upstreamCooldown = null;
+  state.breakerTripped = false;
+  state.breakerTrippedAt = null;
+  return true;
+}
+
+function getUpstreamAvailability(state = loadState(), now = Date.now()) {
+  const cooldown = state.upstreamCooldown;
+  if (!cooldown) return 'available';
+  if (Date.parse(cooldown.resetAt) > now) return 'cooldown';
+  if (cooldown.lastProbeOutcome === 'in-flight'
+      && Date.parse(cooldown.lastProbeAt) + PROBE_LEASE_MS > now) {
+    return 'probe-in-flight';
+  }
+  return 'probe-required';
+}
+
+function acquireRequestPermit() {
+  const state = loadState();
+  const availability = getUpstreamAvailability(state);
+  if (availability === 'cooldown' || availability === 'probe-in-flight') return false;
+  if (availability === 'probe-required') {
+    state.upstreamCooldown.lastProbeAt = new Date().toISOString();
+    state.upstreamCooldown.lastProbeOutcome = 'in-flight';
+    saveState();
+  }
+  return true;
+}
+
+function releaseRecoveryProbe(outcome = 'failed') {
+  const state = loadState();
+  if (state.upstreamCooldown?.lastProbeOutcome !== 'in-flight') return false;
+  state.upstreamCooldown.lastProbeOutcome = outcome;
+  state.lastRecoveryProbe = {
+    at: state.upstreamCooldown.lastProbeAt,
+    outcome
+  };
+  saveState();
+  return true;
 }
 
 /**
@@ -126,8 +237,13 @@ function tripBreaker() {
  * Auto-resets if the day has rolled over in Pacific Time.
  */
 function isBreakerTripped() {
-  const state = loadState(); // loadState auto-resets on new day
-  return state.breakerTripped;
+  const state = loadState();
+  const availability = getUpstreamAvailability(state);
+  return availability === 'cooldown' || availability === 'probe-in-flight';
+}
+
+function isRecoveryProbeRequired() {
+  return getUpstreamAvailability() === 'probe-required';
 }
 
 /**
@@ -135,6 +251,7 @@ function isBreakerTripped() {
  */
 function getStatus() {
   const state = loadState();
+  const upstreamAvailability = getUpstreamAvailability(state);
   return {
     date: state.date,
     used: state.used,
@@ -142,8 +259,14 @@ function getStatus() {
     limit: state.limit,
     pct: Math.round((state.used / state.limit) * 100),
     headerSynced: state.headerSynced,
-    breakerTripped: state.breakerTripped,
+    breakerTripped: upstreamAvailability === 'cooldown',
     breakerTrippedAt: state.breakerTrippedAt,
+    upstreamAvailability,
+    rateLimitedAt: state.upstreamCooldown?.rateLimitedAt || null,
+    nextEligibleProbeAt: state.upstreamCooldown?.resetAt || null,
+    rateLimitReason: state.upstreamCooldown?.reason || null,
+    lastProbeAt: state.upstreamCooldown?.lastProbeAt || state.lastRecoveryProbe?.at || null,
+    lastProbeOutcome: state.upstreamCooldown?.lastProbeOutcome || state.lastRecoveryProbe?.outcome || null,
     previousDay: state.previousDay
   };
 }
@@ -154,7 +277,9 @@ function getStatus() {
  */
 function getAvailableForPrefetch(reserve = 10) {
   const state = loadState();
-  if (state.breakerTripped) return 0;
+  const upstreamAvailability = getUpstreamAvailability(state);
+  if (upstreamAvailability === 'cooldown' || upstreamAvailability === 'probe-in-flight') return 0;
+  if (upstreamAvailability === 'probe-required') return 1;
   return Math.max(0, state.remaining - reserve);
 }
 
@@ -162,8 +287,12 @@ module.exports = {
   syncFromHeaders,
   recordCall,
   tripBreaker,
+  acquireRequestPermit,
+  releaseRecoveryProbe,
   isBreakerTripped,
+  isRecoveryProbeRequired,
   getStatus,
   getAvailableForPrefetch,
-  DAILY_LIMIT
+  DAILY_LIMIT,
+  DEFAULT_COOLDOWN_MS
 };
