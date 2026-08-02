@@ -316,9 +316,13 @@ async function executePrefetchRun() {
   console.log('[prefetch] Starting nightly APR prefetch run...');
 
   try {
-    const available = pcgsQuota.getAvailableForPrefetch(RESERVE_CALLS);
+    let available = pcgsQuota.getAvailableForPrefetch(RESERVE_CALLS);
     if (available <= 0) {
-      console.log('[prefetch] No quota available (breaker tripped or fully used)');
+      const quotaStatus = pcgsQuota.getStatus();
+      const skipReason = quotaStatus.upstreamAvailability === 'cooldown'
+        ? `PCGS upstream cooldown until ${quotaStatus.nextEligibleProbeAt}`
+        : 'No quota available';
+      console.log(`[prefetch] ${skipReason}`);
       // #277W: DO NOT overwrite `status` / `reason` / `lastRun` / `callsMade`
       // here. Those describe the LAST REAL RUN and are what the admin dashboard
       // and GH Actions safety-net workflow report. A safety-net trigger that
@@ -329,7 +333,7 @@ async function executePrefetchRun() {
         ...loadStatus(),
         lastAttempt: new Date().toISOString(),
         lastAttemptStatus: 'skipped',
-        lastAttemptReason: 'No quota available',
+        lastAttemptReason: skipReason,
         nextScheduled: getNextRunTime().toISOString()
       });
       return;
@@ -354,7 +358,8 @@ async function executePrefetchRun() {
       return;
     }
 
-    const limit = Math.min(available, queue.length);
+    let limit = Math.min(available, queue.length);
+    let recoveryProbePending = pcgsQuota.isRecoveryProbeRequired?.() || false;
 
     for (let i = 0; i < limit; i++) {
       // Check breaker before each call
@@ -373,6 +378,12 @@ async function executePrefetchRun() {
         const gained = result.newRecords || 0;
         newRecords += gained;
         bucket.newRecords += gained;
+        if (recoveryProbePending) {
+          recoveryProbePending = false;
+          available = pcgsQuota.getAvailableForPrefetch(RESERVE_CALLS);
+          limit = Math.min(available, queue.length);
+          console.log(`[prefetch] Recovery probe succeeded; continuing with ${limit} available calls`);
+        }
       } catch (err) {
         callsMade++;
         bucket.attempted++;
@@ -381,6 +392,10 @@ async function executePrefetchRun() {
         // On 429, stop immediately (breaker already tripped by auctionPriceService)
         if (err.message.includes('429') || err.message.includes('breaker')) {
           console.warn(`[prefetch] Rate limited at call ${callsMade}, stopping`);
+          break;
+        }
+        if (recoveryProbePending) {
+          console.warn(`[prefetch] Recovery probe failed at call ${callsMade}, stopping`);
           break;
         }
         // On other errors, continue but log
@@ -581,8 +596,16 @@ function getSchedulerStatus() {
       used: quota.used,
       remaining: quota.remaining,
       limit: quota.limit,
-      breakerTripped: quota.breakerTripped
-    }
+      breakerTripped: quota.breakerTripped,
+      localQuotaRemaining: quota.remaining,
+      upstreamAvailability: quota.upstreamAvailability || 'available',
+      nextEligibleProbeAt: quota.nextEligibleProbeAt || null,
+      rateLimitedAt: quota.rateLimitedAt || null,
+      rateLimitReason: quota.rateLimitReason || null,
+      lastProbeAt: quota.lastProbeAt || null,
+      lastProbeOutcome: quota.lastProbeOutcome || null
+    },
+    upstreamAvailability: quota.upstreamAvailability || 'available'
   };
 }
 
@@ -593,10 +616,21 @@ function getSchedulerStatus() {
  */
 function triggerManual() {
   const today = todayPacific();
+  const quota = pcgsQuota.getStatus();
+  const status = loadStatus();
+
+  if (quota.upstreamAvailability === 'cooldown') {
+    return {
+      started: false,
+      reason: `PCGS upstream cooldown until ${quota.nextEligibleProbeAt}`,
+      nextEligibleProbeAt: quota.nextEligibleProbeAt
+    };
+  }
   
   // Already ran today
-  if (_todayCompleted && _todayDate === today) {
-    const status = loadStatus();
+  const persistedRunCompletedToday = status.lastRun && toPacificDate(status.lastRun) === today;
+  if (quota.upstreamAvailability !== 'probe-required'
+      && ((_todayCompleted && _todayDate === today) || persistedRunCompletedToday)) {
     return { 
       started: false, 
       reason: 'Already completed today',

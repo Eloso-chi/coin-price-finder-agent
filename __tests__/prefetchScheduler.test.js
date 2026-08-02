@@ -18,7 +18,8 @@ const fs = require('fs');
 jest.mock('../src/services/pcgsQuotaService', () => ({
   getAvailableForPrefetch: jest.fn(() => 50),
   isBreakerTripped: jest.fn(() => false),
-  getStatus: jest.fn(() => ({ used: 10, remaining: 90, limit: 100, breakerTripped: false })),
+  isRecoveryProbeRequired: jest.fn(() => false),
+  getStatus: jest.fn(() => ({ used: 10, remaining: 90, limit: 100, breakerTripped: false, upstreamAvailability: 'available' })),
 }));
 
 jest.mock('../src/services/auctionPriceService', () => ({
@@ -70,7 +71,8 @@ beforeEach(() => {
   // Reset all mock call counts but preserve implementations
   pcgsQuota.getAvailableForPrefetch.mockClear().mockReturnValue(50);
   pcgsQuota.isBreakerTripped.mockClear().mockReturnValue(false);
-  pcgsQuota.getStatus.mockClear().mockReturnValue({ used: 10, remaining: 90, limit: 100, breakerTripped: false });
+  pcgsQuota.isRecoveryProbeRequired.mockClear().mockReturnValue(false);
+  pcgsQuota.getStatus.mockClear().mockReturnValue({ used: 10, remaining: 90, limit: 100, breakerTripped: false, upstreamAvailability: 'available' });
   auctionPrice.needsRefresh.mockClear().mockReturnValue(true);
   auctionPrice.getManifest.mockClear().mockReturnValue({ entries: {} });
   auctionPrice.fetchByGrade.mockClear().mockImplementation(async () => ({ records: [{ price: 100 }], newRecords: 1 }));
@@ -169,6 +171,19 @@ describe('prefetchScheduler — executePrefetchRun', () => {
     expect(auctionPrice.fetchByGrade.mock.calls.length).toBe(2);
   });
 
+  test('continues the queue after one successful recovery probe', async () => {
+    pcgsQuota.isRecoveryProbeRequired.mockReturnValue(true);
+    pcgsQuota.getAvailableForPrefetch
+      .mockReturnValueOnce(1)
+      .mockReturnValue(4);
+
+    await scheduler.executePrefetchRun();
+
+    expect(auctionPrice.fetchByGrade).toHaveBeenCalledTimes(4);
+    expect(mockStatusStore.status).toBe('completed');
+    expect(mockStatusStore.callsMade).toBe(4);
+  });
+
   test('alerts on consecutive failures >= 2 (fatal error)', async () => {
     mockStatusStore = { consecutiveFailures: 1 };
     // Throw from getAvailableForPrefetch to trigger the outer catch
@@ -234,15 +249,27 @@ describe('prefetchScheduler — getSchedulerStatus', () => {
         remaining: expect.any(Number),
         limit: expect.any(Number),
         breakerTripped: expect.any(Boolean),
+        localQuotaRemaining: expect.any(Number),
+        upstreamAvailability: expect.any(String),
       }),
+      upstreamAvailability: expect.any(String),
     });
   });
 
   test('reflects quota breaker state', () => {
-    pcgsQuota.getStatus.mockReturnValue({ used: 95, remaining: 5, limit: 100, breakerTripped: true });
+    pcgsQuota.getStatus.mockReturnValue({
+      used: 95,
+      remaining: 5,
+      limit: 100,
+      breakerTripped: true,
+      upstreamAvailability: 'cooldown',
+      nextEligibleProbeAt: '2026-08-01T07:00:00.000Z'
+    });
     const status = scheduler.getSchedulerStatus();
     expect(status.quota.breakerTripped).toBe(true);
     expect(status.quota.remaining).toBe(5);
+    expect(status.upstreamAvailability).toBe('cooldown');
+    expect(status.quota.nextEligibleProbeAt).toBe('2026-08-01T07:00:00.000Z');
   });
 });
 
@@ -251,6 +278,65 @@ describe('prefetchScheduler — getSchedulerStatus', () => {
 // ═══════════════════════════════════════════════════════════════
 
 describe('prefetchScheduler — triggerManual', () => {
+
+  test('rejects a manual trigger during upstream cooldown', () => {
+    pcgsQuota.getStatus.mockReturnValue({
+      used: 6,
+      remaining: 994,
+      limit: 1000,
+      breakerTripped: true,
+      upstreamAvailability: 'cooldown',
+      nextEligibleProbeAt: '2026-08-01T07:00:00.000Z'
+    });
+
+    const result = scheduler.triggerManual();
+
+    expect(result).toEqual(expect.objectContaining({
+      started: false,
+      reason: expect.stringContaining('cooldown'),
+      nextEligibleProbeAt: '2026-08-01T07:00:00.000Z'
+    }));
+  });
+
+  test('rejects a duplicate using persisted same-day run status', () => {
+    mockStatusStore = {
+      lastRun: new Date().toISOString(),
+      status: 'completed',
+      callsMade: 20,
+      newRecords: 3
+    };
+
+    const result = scheduler.triggerManual();
+
+    expect(result).toEqual(expect.objectContaining({
+      started: false,
+      reason: 'Already completed today',
+      callsMade: 20,
+      newRecords: 3
+    }));
+  });
+
+  test('allows one same-day recovery run after cooldown expiry', () => {
+    mockStatusStore = {
+      lastRun: new Date().toISOString(),
+      status: 'partial',
+      callsMade: 1,
+      newRecords: 0
+    };
+    pcgsQuota.getStatus.mockReturnValue({
+      used: 6,
+      remaining: 994,
+      limit: 1000,
+      breakerTripped: false,
+      upstreamAvailability: 'probe-required'
+    });
+    pcgsQuota.isRecoveryProbeRequired.mockReturnValue(true);
+    pcgsQuota.getAvailableForPrefetch.mockReturnValue(1);
+
+    const result = scheduler.triggerManual();
+
+    expect(result).toEqual(expect.objectContaining({ started: true }));
+  });
 
   test('returns the triggerManual response contract', () => {
     pcgsQuota.getAvailableForPrefetch.mockReturnValue(2);

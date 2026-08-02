@@ -20,8 +20,12 @@ const cache = new TTLCache({ defaultTTL: 86_400_000, filePath: path.join(CACHE_D
 
 // ── HTTP helper with retry ──────────────────────────────────
 async function pcgsGet(urlPath, retries = 2) {
-  if (pcgsQuota.isBreakerTripped()) {
-    throw Object.assign(new Error('PCGS quota breaker tripped'), { breakerTripped: true });
+  const recoveryProbe = pcgsQuota.isRecoveryProbeRequired?.() || false;
+  const requestAllowed = typeof pcgsQuota.acquireRequestPermit === 'function'
+    ? pcgsQuota.acquireRequestPermit()
+    : !pcgsQuota.isBreakerTripped();
+  if (!requestAllowed) {
+    throw new Error('PCGS breaker tripped by upstream cooldown - no API calls until recovery is eligible');
   }
 
   const url = `${PCGS_BASE}${urlPath}`;
@@ -57,15 +61,22 @@ async function pcgsGet(urlPath, retries = 2) {
       }
 
       if (status === 429) {
-        pcgsQuota.tripBreaker();
+        const headers = err.response?.headers || {};
+        pcgsQuota.tripBreaker({
+          retryAfter: headers['retry-after'],
+          resetAt: headers['x-ratelimit-reset'],
+          reason: 'PCGS CoinFacts rate limit exceeded (429)'
+        });
         throw err;
       }
       if (status >= 500 && status < 600) {
-        if (attempt < retries) {
+        pcgsQuota.releaseRecoveryProbe?.('failed');
+        if (!recoveryProbe && attempt < retries) {
           await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
           continue;
         }
       }
+      pcgsQuota.releaseRecoveryProbe?.('failed');
       throw err;
     }
   }

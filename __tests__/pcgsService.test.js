@@ -9,7 +9,10 @@ jest.mock('../src/services/pcgsQuotaService', () => ({
   syncFromHeaders: jest.fn(),
   recordCall: jest.fn().mockReturnValue({ remaining: 999, used: 1 }),
   tripBreaker: jest.fn(),
+  acquireRequestPermit: jest.fn().mockReturnValue(true),
+  releaseRecoveryProbe: jest.fn(),
   isBreakerTripped: jest.fn().mockReturnValue(false),
+  isRecoveryProbeRequired: jest.fn().mockReturnValue(false),
   getStatus: jest.fn().mockReturnValue({ used: 0, remaining: 1000, limit: 1000 }),
   getAvailableForPrefetch: jest.fn().mockReturnValue(900),
   DAILY_LIMIT: 1000
@@ -21,6 +24,7 @@ jest.mock('../src/services/pcgsQuotaService', () => ({
 process.env.PCGS_API_KEY = 'test-key-123';
 
 const pcgsService = require('../src/services/pcgsService');
+const pcgsQuota = require('../src/services/pcgsQuotaService');
 
 // Sample PCGS API responses
 const MOCK_COIN_RESPONSE = {
@@ -87,13 +91,24 @@ describe('lookupByCert', () => {
 
   test('trips breaker on 429 (no retry)', async () => {
     const err429 = new Error('Too Many Requests');
-    err429.response = { status: 429 };
+    err429.response = {
+      status: 429,
+      headers: {
+        'retry-after': '120',
+        'x-ratelimit-reset': '1785550000'
+      }
+    };
     axios.get.mockRejectedValueOnce(err429);
 
     const result = await pcgsService.lookupByCert('11111111');
     expect(result.verified).toBe(false);
     expect(result.limitations[0]).toMatch(/PCGS cert lookup failed/);
     expect(axios.get).toHaveBeenCalledTimes(1); // no retry on 429
+    expect(pcgsQuota.tripBreaker).toHaveBeenCalledWith({
+      retryAfter: '120',
+      resetAt: '1785550000',
+      reason: 'PCGS CoinFacts rate limit exceeded (429)'
+    });
   });
 
   test('retries on 5xx errors', async () => {
@@ -110,6 +125,24 @@ describe('lookupByCert', () => {
     expect(result.verified).toBe(true);
     expect(axios.get).toHaveBeenCalledTimes(2);
     jest.useRealTimers();
+  });
+
+  test('does not retry a failed recovery probe or clear it from error headers', async () => {
+    pcgsQuota.isRecoveryProbeRequired.mockReturnValueOnce(true);
+    const err500 = new Error('Internal Server Error');
+    err500.response = {
+      status: 500,
+      headers: { 'x-ratelimit-remaining': '42', 'x-ratelimit-limit': '100' }
+    };
+    axios.get.mockRejectedValueOnce(err500);
+
+    const result = await pcgsService.lookupByCert('11111111');
+
+    expect(result.verified).toBe(false);
+    expect(axios.get).toHaveBeenCalledTimes(1);
+    expect(pcgsQuota.syncFromHeaders).toHaveBeenCalledWith(42, 100);
+    expect(pcgsQuota.releaseRecoveryProbe).toHaveBeenCalledWith('failed');
+    expect(pcgsQuota.recordCall).not.toHaveBeenCalled();
   });
 
   test('passes correct URL and auth headers', async () => {
