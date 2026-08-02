@@ -15,7 +15,7 @@ on:
 jobs:
   trigger-prefetch:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 35
     steps:
       - name: Wake up App Service (health check)
         run: |
@@ -39,6 +39,8 @@ jobs:
         env:
           ADMIN_API_KEY: ${{ secrets.ADMIN_API_KEY }}
         run: |
+          TRIGGER_TIME=$(date -u +%s)
+          echo "TRIGGER_TIME=$TRIGGER_TIME" >> "$GITHUB_ENV"
           RESPONSE=$(curl -s -w "\n%{http_code}" \
             -X POST \
             -H "x-api-key: ${ADMIN_API_KEY}" \
@@ -54,15 +56,27 @@ jobs:
           fi
           # Store the trigger response for later steps
           echo "$BODY" > /tmp/trigger_response.json
+          STARTED=$(echo "$BODY" | python3 -c "import sys, json; print(json.load(sys.stdin).get('started', False))" 2>/dev/null || echo "False")
+          echo "PREFETCH_STARTED=$STARTED" >> "$GITHUB_ENV"
 
       - name: Poll prefetch status until completion
         env:
           ADMIN_API_KEY: ${{ secrets.ADMIN_API_KEY }}
         run: |
+          if [ "$PREFETCH_STARTED" != "True" ]; then
+            REASON=$(python3 -c "import json; print(json.load(open('/tmp/trigger_response.json')).get('reason', 'Trigger did not start a run'))" 2>/dev/null || echo "Trigger did not start a run")
+            echo "Prefetch not started: $REASON"
+            echo "$REASON" > /tmp/prefetch_not_started_reason.txt
+            exit 0
+          fi
+
           echo "Waiting for prefetch to complete..."
           MAX_POLLS=180  # 30 minutes with 10s intervals
           POLL_INTERVAL=10
           COMPLETED=false
+          LAST_RUN=""
+          LAST_RUN_EPOCH=0
+          MIN_COMPLETION_TIME=$((TRIGGER_TIME - 5))
           
           for i in $(seq 1 $MAX_POLLS); do
             sleep $POLL_INTERVAL
@@ -70,11 +84,12 @@ jobs:
               -H "x-api-key: ${ADMIN_API_KEY}" \
               "https://coinpricefinder-h3a3b5g0dmdydna4.azurewebsites.net/api/admin/prefetch-status")
             
-            # Extract todayCompleted field
-            COMPLETED=$(echo "$RESPONSE" | python3 -c "import sys, json; data=json.load(sys.stdin); print(data.get('todayCompleted', False))" 2>/dev/null)
+            # A prior run can leave todayCompleted=true. Correlate completion
+            # to the run triggered by this workflow using its lastRun timestamp.
+            read -r COMPLETED LAST_RUN LAST_RUN_EPOCH < <(echo "$RESPONSE" | python3 -c 'import datetime,json,sys; data=json.load(sys.stdin); last_run=data.get("lastRun") or ""; epoch=int(datetime.datetime.fromisoformat(last_run.replace("Z", "+00:00")).timestamp()) if last_run else 0; print(data.get("todayCompleted", False), last_run or "none", epoch)' 2>/dev/null || echo "False none 0")
             
-            if [ "$COMPLETED" = "True" ]; then
-              echo "✓ Prefetch completed successfully"
+            if [ "$COMPLETED" = "True" ] && [ "$LAST_RUN_EPOCH" -ge "$MIN_COMPLETION_TIME" ]; then
+              echo "Prefetch completed successfully"
               echo "Status:"
               echo "$RESPONSE" | python3 -m json.tool 2>/dev/null
               echo "$RESPONSE" > /tmp/prefetch_final_status.json
@@ -83,7 +98,7 @@ jobs:
             
             # Show progress every 30 seconds
             if [ $((i % 3)) -eq 0 ]; then
-              echo "Poll $i/$MAX_POLLS: Still running..."
+              echo "Poll $i/$MAX_POLLS: lastRun=$LAST_RUN (epoch $LAST_RUN_EPOCH), trigger=$TRIGGER_TIME; waiting..."
             fi
           done
           
@@ -109,6 +124,9 @@ jobs:
               echo "| Quota remaining | $(jq -r '.quota.remaining // "unknown"' /tmp/prefetch_final_status.json) |"
               echo "| Queue remaining | $(jq -r '.queueRemaining // 0' /tmp/prefetch_final_status.json) |"
             } >> $GITHUB_STEP_SUMMARY
+          elif [ -f /tmp/prefetch_not_started_reason.txt ]; then
+            echo "## Nightly APR Prefetch Not Started" >> $GITHUB_STEP_SUMMARY
+            echo "$(cat /tmp/prefetch_not_started_reason.txt)" >> $GITHUB_STEP_SUMMARY
           else
             echo "## ⚠ Prefetch Status Unknown" >> $GITHUB_STEP_SUMMARY
             echo "Could not confirm prefetch completion. Check /api/admin/prefetch-status manually." >> $GITHUB_STEP_SUMMARY
