@@ -2241,7 +2241,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-05-31",
     "oldestSaleDate": "2025-11-08",
-    "compCount": 23,
+    "compCount": 24,
     "noDataAt": "2026-07-18T21:21:09.243Z",
     "noDataCount": 2,
     "identifiers": {
@@ -2353,7 +2353,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-04-24",
     "oldestSaleDate": "2025-12-14",
-    "compCount": 15,
+    "compCount": 17,
     "identifiers": {
       "is_low_volume_candidate": true,
       "is_bullion": true,
@@ -2487,7 +2487,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-05-03",
     "oldestSaleDate": "2025-10-12",
-    "compCount": 22,
+    "compCount": 24,
     "identifiers": {
       "is_low_volume_candidate": true,
       "is_bullion": true,
@@ -2509,7 +2509,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-03-19",
     "oldestSaleDate": "2025-10-12",
-    "compCount": 65,
+    "compCount": 66,
     "identifiers": {
       "is_low_volume_candidate": true,
       "is_bullion": true,
@@ -2623,7 +2623,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-04-26",
     "oldestSaleDate": "2026-02-11",
-    "compCount": 12,
+    "compCount": 13,
     "identifiers": {
       "is_low_volume_candidate": true,
       "is_bullion": true,
@@ -2689,7 +2689,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-07-26",
     "oldestSaleDate": "2025-10-15",
-    "compCount": 15,
+    "compCount": 16,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -2801,7 +2801,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-04-29",
     "oldestSaleDate": "2025-11-08",
-    "compCount": 16,
+    "compCount": 17,
     "noDataAt": "2026-07-18T21:16:36.104Z",
     "noDataCount": 2,
     "identifiers": {
@@ -2959,7 +2959,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-04-26",
     "oldestSaleDate": "2025-11-09",
-    "compCount": 14,
+    "compCount": 18,
     "identifiers": {
       "is_low_volume_candidate": true,
       "is_bullion": true,
@@ -3819,7 +3819,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-04-23",
     "oldestSaleDate": "2025-10-19",
-    "compCount": 59,
+    "compCount": 60,
     "noDataAt": "2026-07-29T01:02:41.221Z",
     "noDataCount": 1,
     "identifiers": {
@@ -3887,7 +3887,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-05-07",
     "oldestSaleDate": "2025-10-26",
-    "compCount": 36,
+    "compCount": 37,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -3909,7 +3909,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-04-05",
     "oldestSaleDate": "2025-11-26",
-    "compCount": 19,
+    "compCount": 21,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -3975,7 +3975,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-05-29",
     "oldestSaleDate": "2025-11-18",
-    "compCount": 23,
+    "compCount": 27,
     "noDataAt": "2026-07-18T19:58:33.429Z",
     "noDataCount": 1,
     "identifiers": {
@@ -4267,7 +4267,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-04-19",
     "oldestSaleDate": "2026-01-12",
-    "compCount": 4,
+    "compCount": 5,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -4489,7 +4489,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-04-26",
     "oldestSaleDate": "2025-10-14",
-    "compCount": 2,
+    "compCount": 3,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -4649,7 +4649,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-04-05",
     "oldestSaleDate": "2025-10-20",
-    "compCount": 4,
+    "compCount": 6,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -5083,7 +5083,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-04-29",
     "oldestSaleDate": "2025-11-25",
-    "compCount": 9
+    "compCount": 10
   },
   "2000 dragon half lunar oz silver": {
     "deepAt": null,
@@ -5401,7 +5401,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-05-01",
     "oldestSaleDate": "2025-10-14",
-    "compCount": 52
+    "compCount": 54
   },
   "2024 25oz austria gold philharmonic": {
     "deepAt": null,
@@ -5561,7 +5561,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-05-20",
     "oldestSaleDate": "2025-10-18",
-    "compCount": 21,
+    "compCount": 22,
     "noDataAt": "2026-07-29T02:55:26.482Z",
     "noDataCount": 2
   },
@@ -5573,7 +5573,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-05-10",
     "oldestSaleDate": "2025-11-23",
-    "compCount": 51,
+    "compCount": 52,
     "noDataAt": "2026-07-18T21:14:27.092Z",
     "noDataCount": 2
   },
@@ -5635,7 +5635,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-04-04",
     "oldestSaleDate": "2025-11-02",
-    "compCount": 28
+    "compCount": 31
   },
   "1989 chinese gold oz panda quarter": {
     "deepAt": null,
@@ -5699,7 +5699,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-03-30",
     "oldestSaleDate": "2025-10-16",
-    "compCount": 8
+    "compCount": 10
   },
   "2025 libertad mexican oz proof silver tenth": {
     "deepAt": null,
@@ -5709,7 +5709,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-04-07",
     "oldestSaleDate": "2026-02-11",
-    "compCount": 11,
+    "compCount": 12,
     "noDataAt": "2026-07-29T02:30:42.924Z",
     "noDataCount": 2
   },
@@ -5731,7 +5731,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-04-23",
     "oldestSaleDate": "2025-11-27",
-    "compCount": 10
+    "compCount": 11
   },
   "1986 chinese gold oz panda twentieth": {
     "deepAt": null,
@@ -37561,7 +37561,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-05-16",
     "oldestSaleDate": "2026-01-13",
-    "compCount": 8
+    "compCount": 10
   },
   "1981 1oz gold libertad mexican": {
     "deepAt": null,
@@ -37571,7 +37571,7 @@
     "refreshCount": 12,
     "newestSaleDate": "2026-06-01",
     "oldestSaleDate": "2025-10-28",
-    "compCount": 23,
+    "compCount": 21,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -40905,7 +40905,7 @@
     "refreshCount": 12,
     "newestSaleDate": "2026-06-15",
     "oldestSaleDate": "2025-10-13",
-    "compCount": 167,
+    "compCount": 165,
     "consecutiveDryRefreshes": 2,
     "lastRefreshNewComps": 0,
     "identifiers": {
@@ -40939,7 +40939,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-05-27",
     "oldestSaleDate": "2026-02-13",
-    "compCount": 4
+    "compCount": 5
   },
   "1992 1oz libertad mexican proof silver": {
     "deepAt": null,
@@ -40949,7 +40949,7 @@
     "refreshCount": 10,
     "newestSaleDate": "2026-05-29",
     "oldestSaleDate": "2025-12-07",
-    "compCount": 15,
+    "compCount": 10,
     "noDataAt": "2026-07-29T01:46:35.007Z",
     "noDataCount": 2,
     "consecutiveDryRefreshes": 3,
@@ -41359,7 +41359,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-04-27",
     "oldestSaleDate": "2026-02-19",
-    "compCount": 2
+    "compCount": 3
   },
   "1993 libertad mexican oz quarter silver": {
     "deepAt": null,
@@ -41389,7 +41389,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-04-27",
     "oldestSaleDate": "2026-02-19",
-    "compCount": 7
+    "compCount": 10
   },
   "1993 1oz libertad mexican silver": {
     "deepAt": "2026-07-18T17:40:56.232Z",
@@ -41399,7 +41399,7 @@
     "refreshCount": 13,
     "newestSaleDate": "2026-07-11",
     "oldestSaleDate": "2025-10-10",
-    "compCount": 252,
+    "compCount": 248,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -41853,7 +41853,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-05-03",
     "oldestSaleDate": "2026-02-14",
-    "compCount": 4
+    "compCount": 5
   },
   "1994 libertad mexican oz silver tenth": {
     "deepAt": null,
@@ -41893,7 +41893,7 @@
     "refreshCount": 11,
     "newestSaleDate": "2026-07-09",
     "oldestSaleDate": "2025-10-14",
-    "compCount": 220,
+    "compCount": 218,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -41925,7 +41925,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-05-27",
     "oldestSaleDate": "2026-02-22",
-    "compCount": 2
+    "compCount": 3
   },
   "1994 half libertad mexican oz proof silver": {
     "deepAt": null,
@@ -41945,7 +41945,7 @@
     "refreshCount": 9,
     "newestSaleDate": "2026-05-27",
     "oldestSaleDate": "2025-12-09",
-    "compCount": 4,
+    "compCount": 2,
     "consecutiveDryRefreshes": 4,
     "lastRefreshNewComps": 0,
     "identifiers": {
@@ -42323,7 +42323,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-04-30",
     "oldestSaleDate": "2025-12-20",
-    "compCount": 5
+    "compCount": 6
   },
   "1995 libertad mexican oz silver twentieth": {
     "deepAt": null,
@@ -42333,7 +42333,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-04-30",
     "oldestSaleDate": "2026-01-30",
-    "compCount": 2
+    "compCount": 3
   },
   "1995 libertad mexican oz silver tenth": {
     "deepAt": null,
@@ -42373,7 +42373,7 @@
     "refreshCount": 11,
     "newestSaleDate": "2026-07-10",
     "oldestSaleDate": "2025-10-13",
-    "compCount": 231,
+    "compCount": 229,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -42777,7 +42777,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-04-26",
     "oldestSaleDate": "2026-02-13",
-    "compCount": 3
+    "compCount": 5
   },
   "1996 half libertad mexican oz silver": {
     "deepAt": null,
@@ -42797,7 +42797,7 @@
     "refreshCount": 9,
     "newestSaleDate": "2026-07-17",
     "oldestSaleDate": "2025-10-15",
-    "compCount": 194,
+    "compCount": 192,
     "consecutiveDryRefreshes": 1,
     "lastRefreshNewComps": 112,
     "identifiers": {
@@ -43221,7 +43221,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-04-16",
     "oldestSaleDate": "2026-01-12",
-    "compCount": 5
+    "compCount": 6
   },
   "1997 libertad mexican oz silver tenth": {
     "deepAt": null,
@@ -43251,7 +43251,7 @@
     "refreshCount": 16,
     "newestSaleDate": "2026-06-25",
     "oldestSaleDate": "2025-10-12",
-    "compCount": 127,
+    "compCount": 124,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -44629,7 +44629,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-04-08",
     "oldestSaleDate": "2025-11-16",
-    "compCount": 9
+    "compCount": 13
   },
   "2000 half libertad mexican oz silver": {
     "deepAt": "2026-07-18T17:43:12.170Z",
@@ -44681,7 +44681,7 @@
     "refreshCount": 16,
     "newestSaleDate": "2026-07-15",
     "oldestSaleDate": "2025-10-13",
-    "compCount": 255,
+    "compCount": 251,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -45573,7 +45573,7 @@
     "refreshCount": 1,
     "newestSaleDate": "2026-06-30",
     "oldestSaleDate": "2026-01-16",
-    "compCount": 12
+    "compCount": 14
   },
   "2002 libertad mexican oz silver twentieth": {
     "deepAt": null,
@@ -45593,7 +45593,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-03-16",
     "oldestSaleDate": "2026-02-09",
-    "compCount": 3
+    "compCount": 4
   },
   "2002 libertad mexican oz silver tenth": {
     "deepAt": null,
@@ -45613,7 +45613,7 @@
     "refreshCount": 8,
     "newestSaleDate": "2026-07-11",
     "oldestSaleDate": "2025-10-17",
-    "compCount": 153,
+    "compCount": 150,
     "consecutiveDryRefreshes": 1,
     "lastRefreshNewComps": 77,
     "identifiers": {
@@ -46059,7 +46059,7 @@
     "refreshCount": 12,
     "newestSaleDate": "2026-07-12",
     "oldestSaleDate": "2025-10-12",
-    "compCount": 131,
+    "compCount": 130,
     "consecutiveDryRefreshes": 2,
     "lastRefreshNewComps": 1,
     "identifiers": {
@@ -47333,7 +47333,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-04-19",
     "oldestSaleDate": "2025-10-13",
-    "compCount": 12,
+    "compCount": 14,
     "noDataAt": "2026-07-29T00:34:19.959Z",
     "noDataCount": 1
   },
@@ -47365,7 +47365,7 @@
     "refreshCount": 18,
     "newestSaleDate": "2026-05-13",
     "oldestSaleDate": "2025-10-13",
-    "compCount": 101,
+    "compCount": 99,
     "consecutiveDryRefreshes": 1,
     "lastRefreshNewComps": 0,
     "identifiers": {
@@ -47409,7 +47409,7 @@
     "refreshCount": 9,
     "newestSaleDate": "2026-04-25",
     "oldestSaleDate": "2025-12-19",
-    "compCount": 6,
+    "compCount": 5,
     "consecutiveDryRefreshes": 2,
     "lastRefreshNewComps": 2,
     "identifiers": {
@@ -48823,7 +48823,7 @@
     "refreshCount": 19,
     "newestSaleDate": "2026-05-26",
     "oldestSaleDate": "2025-10-19",
-    "compCount": 179,
+    "compCount": 178,
     "consecutiveDryRefreshes": 2,
     "lastRefreshNewComps": 0,
     "identifiers": {
@@ -49867,7 +49867,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-03-14",
     "oldestSaleDate": "2026-02-28",
-    "compCount": 3
+    "compCount": 4
   },
   "1oz 2011 libertad mexican silver": {
     "deepAt": "2026-07-18T17:40:57.209Z",
@@ -49877,7 +49877,7 @@
     "refreshCount": 18,
     "newestSaleDate": "2026-05-31",
     "oldestSaleDate": "2025-10-15",
-    "compCount": 232,
+    "compCount": 228,
     "consecutiveDryRefreshes": 1,
     "lastRefreshNewComps": 0,
     "identifiers": {
@@ -49901,7 +49901,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-04-19",
     "oldestSaleDate": "2026-04-09",
-    "compCount": 2
+    "compCount": 3
   },
   "2011 2oz libertad mexican proof silver": {
     "deepAt": null,
@@ -49933,7 +49933,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-03-14",
     "oldestSaleDate": "2026-02-28",
-    "compCount": 3
+    "compCount": 4
   },
   "1oz 2011 libertad mexican proof silver": {
     "deepAt": null,
@@ -49943,7 +49943,7 @@
     "refreshCount": 8,
     "newestSaleDate": "2026-04-23",
     "oldestSaleDate": "2025-10-30",
-    "compCount": 21,
+    "compCount": 19,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -50455,7 +50455,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-04-16",
     "oldestSaleDate": "2025-11-08",
-    "compCount": 4
+    "compCount": 6
   },
   "2012 5oz libertad mexican silver": {
     "deepAt": null,
@@ -50475,7 +50475,7 @@
     "refreshCount": 11,
     "newestSaleDate": "2026-07-18",
     "oldestSaleDate": "2025-10-16",
-    "compCount": 199,
+    "compCount": 197,
     "consecutiveDryRefreshes": 2,
     "lastRefreshNewComps": 2,
     "identifiers": {
@@ -50959,7 +50959,7 @@
     "refreshCount": 8,
     "newestSaleDate": "2026-06-10",
     "oldestSaleDate": "2025-10-10",
-    "compCount": 231,
+    "compCount": 226,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -50991,7 +50991,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-04-22",
     "oldestSaleDate": "2026-02-01",
-    "compCount": 4
+    "compCount": 6
   },
   "2013 libertad mexican oz proof silver tenth": {
     "deepAt": null,
@@ -51001,7 +51001,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-05-29",
     "oldestSaleDate": "2025-11-21",
-    "compCount": 6
+    "compCount": 9
   },
   "1oz 2013 libertad mexican proof silver": {
     "deepAt": "2026-06-03T16:27:00.599Z",
@@ -51011,7 +51011,7 @@
     "refreshCount": 11,
     "newestSaleDate": "2026-05-24",
     "oldestSaleDate": "2025-10-28",
-    "compCount": 74,
+    "compCount": 65,
     "noDataAt": "2026-07-18T23:12:16.137Z",
     "noDataCount": 2,
     "consecutiveDryRefreshes": 1,
@@ -51491,7 +51491,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-03-31",
     "oldestSaleDate": "2026-01-31",
-    "compCount": 4
+    "compCount": 5
   },
   "2014 half libertad mexican oz silver": {
     "deepAt": null,
@@ -51501,7 +51501,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-04-03",
     "oldestSaleDate": "2026-01-17",
-    "compCount": 13
+    "compCount": 19
   },
   "2014 libertad mexican oz silver tenth": {
     "deepAt": null,
@@ -51531,7 +51531,7 @@
     "refreshCount": 8,
     "newestSaleDate": "2026-06-11",
     "oldestSaleDate": "2025-10-12",
-    "compCount": 205,
+    "compCount": 198,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -51573,7 +51573,7 @@
     "refreshCount": 9,
     "newestSaleDate": "2026-05-12",
     "oldestSaleDate": "2025-11-02",
-    "compCount": 28,
+    "compCount": 26,
     "noDataAt": "2026-07-18T22:54:47.264Z",
     "noDataCount": 1,
     "identifiers": {
@@ -52137,7 +52137,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-03-29",
     "oldestSaleDate": "2026-02-10",
-    "compCount": 3
+    "compCount": 4
   },
   "1oz 2015 libertad mexican proof silver": {
     "deepAt": null,
@@ -52147,7 +52147,7 @@
     "refreshCount": 9,
     "newestSaleDate": "2026-06-15",
     "oldestSaleDate": "2025-10-29",
-    "compCount": 33,
+    "compCount": 31,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -52565,7 +52565,7 @@
     "refreshCount": 1,
     "newestSaleDate": "2026-05-10",
     "oldestSaleDate": "2025-10-25",
-    "compCount": 24,
+    "compCount": 25,
     "noDataAt": "2026-07-29T03:11:42.157Z",
     "noDataCount": 2,
     "consecutiveDryRefreshes": 1,
@@ -52591,7 +52591,7 @@
     "refreshCount": 2,
     "newestSaleDate": "2026-05-19",
     "oldestSaleDate": "2025-12-26",
-    "compCount": 20,
+    "compCount": 23,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -52623,7 +52623,7 @@
     "refreshCount": 13,
     "newestSaleDate": "2026-07-10",
     "oldestSaleDate": "2025-10-12",
-    "compCount": 295,
+    "compCount": 289,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -52645,7 +52645,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-05-19",
     "oldestSaleDate": "2026-02-21",
-    "compCount": 8
+    "compCount": 10
   },
   "2016 libertad mexican oz proof quarter silver": {
     "deepAt": null,
@@ -52655,7 +52655,7 @@
     "refreshCount": 1,
     "newestSaleDate": "2026-05-10",
     "oldestSaleDate": "2026-01-13",
-    "compCount": 26,
+    "compCount": 28,
     "noDataAt": "2026-07-29T03:10:44.234Z",
     "noDataCount": 2,
     "consecutiveDryRefreshes": 1,
@@ -52669,7 +52669,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-05-16",
     "oldestSaleDate": "2025-11-07",
-    "compCount": 43,
+    "compCount": 45,
     "noDataAt": "2026-07-18T23:25:04.255Z",
     "noDataCount": 1
   },
@@ -52681,7 +52681,7 @@
     "refreshCount": 9,
     "newestSaleDate": "2026-05-24",
     "oldestSaleDate": "2025-11-07",
-    "compCount": 88,
+    "compCount": 81,
     "identifiers": {
       "is_low_volume_candidate": true,
       "is_bullion": true,
@@ -53037,7 +53037,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-05-10",
     "oldestSaleDate": "2026-01-16",
-    "compCount": 3
+    "compCount": 4
   },
   "1oz 2017 gold libertad mexican": {
     "deepAt": null,
@@ -53047,7 +53047,7 @@
     "refreshCount": 9,
     "newestSaleDate": "2026-05-15",
     "oldestSaleDate": "2025-11-09",
-    "compCount": 20,
+    "compCount": 19,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -53069,7 +53069,7 @@
     "refreshCount": 1,
     "newestSaleDate": "2026-05-13",
     "oldestSaleDate": "2025-10-19",
-    "compCount": 18,
+    "compCount": 21,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -53111,7 +53111,7 @@
     "refreshCount": 15,
     "newestSaleDate": "2026-07-22",
     "oldestSaleDate": "2025-10-16",
-    "compCount": 171,
+    "compCount": 167,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -53133,7 +53133,7 @@
     "refreshCount": 1,
     "newestSaleDate": "2026-05-31",
     "oldestSaleDate": "2025-11-08",
-    "compCount": 40
+    "compCount": 43
   },
   "2017 libertad mexican oz proof quarter silver": {
     "deepAt": null,
@@ -53153,7 +53153,7 @@
     "refreshCount": 14,
     "newestSaleDate": "2026-07-07",
     "oldestSaleDate": "2025-10-31",
-    "compCount": 31,
+    "compCount": 26,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -53689,7 +53689,7 @@
     "refreshCount": 15,
     "newestSaleDate": "2026-07-26",
     "oldestSaleDate": "2025-10-14",
-    "compCount": 193,
+    "compCount": 191,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -53711,7 +53711,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-05-01",
     "oldestSaleDate": "2025-11-09",
-    "compCount": 5
+    "compCount": 6
   },
   "1oz 2018 libertad mexican proof silver": {
     "deepAt": "2026-06-29T12:04:38.104Z",
@@ -53721,7 +53721,7 @@
     "refreshCount": 17,
     "newestSaleDate": "2026-05-12",
     "oldestSaleDate": "2025-11-05",
-    "compCount": 36,
+    "compCount": 35,
     "consecutiveDryRefreshes": 2,
     "lastRefreshNewComps": 0,
     "identifiers": {
@@ -54071,7 +54071,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-05-30",
     "oldestSaleDate": "2026-02-13",
-    "compCount": 8
+    "compCount": 9
   },
   "1oz 2019 gold libertad mexican": {
     "deepAt": "2026-05-31T23:53:32.053Z",
@@ -54081,7 +54081,7 @@
     "refreshCount": 9,
     "newestSaleDate": "2026-04-17",
     "oldestSaleDate": "2025-11-01",
-    "compCount": 10,
+    "compCount": 9,
     "consecutiveDryRefreshes": 3,
     "lastRefreshNewComps": 5,
     "identifiers": {
@@ -54105,7 +54105,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-03-12",
     "oldestSaleDate": "2026-01-14",
-    "compCount": 7
+    "compCount": 11
   },
   "1oz 2019 libertad mexican silver": {
     "deepAt": "2026-06-27T01:55:15.577Z",
@@ -54115,7 +54115,7 @@
     "refreshCount": 14,
     "newestSaleDate": "2026-07-21",
     "oldestSaleDate": "2025-10-10",
-    "compCount": 214,
+    "compCount": 210,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -54157,7 +54157,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-03-12",
     "oldestSaleDate": "2026-03-10",
-    "compCount": 2
+    "compCount": 3
   },
   "2019 libertad mexican oz proof silver tenth": {
     "deepAt": null,
@@ -54177,7 +54177,7 @@
     "refreshCount": 10,
     "newestSaleDate": "2026-04-26",
     "oldestSaleDate": "2025-10-28",
-    "compCount": 44,
+    "compCount": 43,
     "consecutiveDryRefreshes": 2,
     "lastRefreshNewComps": 0,
     "identifiers": {
@@ -55353,7 +55353,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-03-30",
     "oldestSaleDate": "2025-12-09",
-    "compCount": 10,
+    "compCount": 11,
     "noDataAt": "2026-07-29T02:56:24.943Z",
     "noDataCount": 2
   },
@@ -55375,7 +55375,7 @@
     "refreshCount": 13,
     "newestSaleDate": "2026-06-18",
     "oldestSaleDate": "2025-10-14",
-    "compCount": 256,
+    "compCount": 253,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -55407,7 +55407,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-03-30",
     "oldestSaleDate": "2026-02-16",
-    "compCount": 3
+    "compCount": 4
   },
   "2021 half libertad mexican oz proof silver": {
     "deepAt": null,
@@ -55417,7 +55417,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-03-17",
     "oldestSaleDate": "2026-02-19",
-    "compCount": 3
+    "compCount": 4
   },
   "1oz 2021 libertad mexican proof silver": {
     "deepAt": "2026-06-24T15:41:49.965Z",
@@ -55427,7 +55427,7 @@
     "refreshCount": 16,
     "newestSaleDate": "2026-05-25",
     "oldestSaleDate": "2025-11-11",
-    "compCount": 55,
+    "compCount": 53,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -55971,7 +55971,7 @@
     "refreshCount": 12,
     "newestSaleDate": "2026-07-11",
     "oldestSaleDate": "2025-10-14",
-    "compCount": 205,
+    "compCount": 204,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -56013,7 +56013,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-05-10",
     "oldestSaleDate": "2026-01-28",
-    "compCount": 4
+    "compCount": 6
   },
   "2022 3oz libertad mexican proof silver": {
     "deepAt": null,
@@ -56033,7 +56033,7 @@
     "refreshCount": 19,
     "newestSaleDate": "2026-05-23",
     "oldestSaleDate": "2025-11-02",
-    "compCount": 58,
+    "compCount": 55,
     "consecutiveDryRefreshes": 2,
     "lastRefreshNewComps": 0,
     "identifiers": {
@@ -56549,7 +56549,7 @@
     "refreshCount": 9,
     "newestSaleDate": "2026-05-11",
     "oldestSaleDate": "2025-11-02",
-    "compCount": 126,
+    "compCount": 122,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -57051,7 +57051,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-04-25",
     "oldestSaleDate": "2026-01-04",
-    "compCount": 10
+    "compCount": 12
   },
   "2024 gold libertad mexican oz quarter": {
     "deepAt": null,
@@ -57073,7 +57073,7 @@
     "refreshCount": 11,
     "newestSaleDate": "2026-07-01",
     "oldestSaleDate": "2025-11-06",
-    "compCount": 179,
+    "compCount": 177,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -57183,7 +57183,7 @@
     "refreshCount": 12,
     "newestSaleDate": "2026-07-11",
     "oldestSaleDate": "2025-11-02",
-    "compCount": 189,
+    "compCount": 185,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -57683,7 +57683,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-04-08",
     "oldestSaleDate": "2026-01-11",
-    "compCount": 5
+    "compCount": 6
   },
   "1oz 2025 libertad mexican silver": {
     "deepAt": "2026-06-29T12:04:38.398Z",
@@ -57693,7 +57693,7 @@
     "refreshCount": 12,
     "newestSaleDate": "2026-07-21",
     "oldestSaleDate": "2025-10-14",
-    "compCount": 128,
+    "compCount": 125,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -57725,7 +57725,7 @@
     "refreshCount": 12,
     "newestSaleDate": "2026-07-05",
     "oldestSaleDate": "2025-11-05",
-    "compCount": 135,
+    "compCount": 133,
     "identifiers": {
       "is_low_volume_candidate": false,
       "is_bullion": true,
@@ -72053,7 +72053,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-02-12",
     "oldestSaleDate": "2025-12-07",
-    "compCount": 15,
+    "compCount": 18,
     "noDataAt": "2026-07-18T23:28:34.981Z",
     "noDataCount": 2
   },
@@ -72155,7 +72155,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-05-27",
     "oldestSaleDate": "2026-05-27",
-    "compCount": 1
+    "compCount": 2
   },
   "1994 libertad mexican oz proof quarter silver": {
     "deepAt": null,
@@ -72165,7 +72165,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-05-22",
     "oldestSaleDate": "2026-05-22",
-    "compCount": 1
+    "compCount": 2
   },
   "2006 half libertad mexican oz proof silver": {
     "deepAt": null,
@@ -72175,7 +72175,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-02-23",
     "oldestSaleDate": "2026-02-23",
-    "compCount": 1
+    "compCount": 2
   },
   "2007 2oz libertad mexican silver": {
     "deepAt": null,
@@ -72205,7 +72205,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-04-12",
     "oldestSaleDate": "2026-03-23",
-    "compCount": 2
+    "compCount": 4
   },
   "2013 libertad mexican oz silver tenth": {
     "deepAt": null,
@@ -72215,7 +72215,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-03-12",
     "oldestSaleDate": "2026-03-12",
-    "compCount": 1
+    "compCount": 2
   },
   "2014 half libertad mexican oz proof silver": {
     "deepAt": null,
@@ -72225,7 +72225,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-04-03",
     "oldestSaleDate": "2026-03-30",
-    "compCount": 2
+    "compCount": 4
   },
   "2017 70oz libertad mexican silver": {
     "deepAt": null,
@@ -72255,7 +72255,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-05-23",
     "oldestSaleDate": "2026-05-23",
-    "compCount": 1
+    "compCount": 2
   },
   "2025 libertad mexican oz silver twentieth": {
     "deepAt": null,
@@ -72265,7 +72265,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-04-06",
     "oldestSaleDate": "2026-04-06",
-    "compCount": 1
+    "compCount": 2
   },
   "2025 libertad mexican oz proof silver twentieth": {
     "deepAt": null,
@@ -72275,7 +72275,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-04-06",
     "oldestSaleDate": "2026-04-06",
-    "compCount": 1
+    "compCount": 2
   },
   "2015 half libertad mexican oz proof silver": {
     "deepAt": null,
@@ -72285,7 +72285,7 @@
     "refreshCount": 0,
     "newestSaleDate": "2026-02-28",
     "oldestSaleDate": "2026-02-28",
-    "compCount": 1
+    "compCount": 2
   },
   "2008 5oz libertad mexican silver": {
     "deepAt": null,

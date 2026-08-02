@@ -2312,7 +2312,16 @@ Ops can override to any value (e.g., `BROWSER_RECYCLE_EVERY=40 python scripts/te
 
 ---
 
-### #284W. Post-#283W: run `scripts/reclassify-comps.js` against prod to purge already-stored onza-mispooled comps [P2 -- PRICING-ACCURACY / OPERATIONS] -- PROPOSED 2026-07-14
+### #284W. Post-#283W: run `scripts/reclassify-comps.js` against prod to purge already-stored onza-mispooled comps [P2 -- PRICING-ACCURACY / OPERATIONS] -- DONE 2026-08-02
+
+- **Production result (2026-08-02)**:
+  - Stopped the App Service before the final snapshot so the in-memory store could not overwrite the migration.
+  - Verified rollback backup: `/mnt/cache/terapeak_sold.json.bak-20260802T174341Z`, 133,445,423 bytes, SHA-256 `E797C2A526FB6B02987EB4204680D7B6C5F546755CB8B8D32FC3C5AFF96F6915`. Retain through at least 2026-08-09.
+  - The initial broad dry run found 140 moves, including unrelated Pandas, generic rounds, and invalid 70 oz destinations, so apply was stopped. The script was narrowed to fractional Libertad reroutes and source-to-target reporting; the final dry run and apply both reported 125 moves.
+  - Corrected store: 133,464,687 bytes, SHA-256 `33CFD09A966DD6A1CBF90C8F429780317B4B3D7FF3E64EF474EE51F9D42797E7`. The uploaded file was downloaded and hash-verified before restart.
+  - Libertad Proof one-ounce pool spot checks: 2011 `21 -> 19`, 2013 `37 -> 28`, 2016 `38 -> 31`, 2023 `126 -> 122`. The 2011 `1/20 ONZA` and `1/2 Onza` listings now reside in their fractional datasets.
+  - Restart verification: App Service state `Running`; `GET /api/health` returned HTTP 200 with fresh process uptime.
+  - Rollback remains: stop the App Service, copy the timestamped backup over `/mnt/cache/terapeak_sold.json`, restart, and verify `/api/health`.
 
 - **Problem**: PR #230 (#283W) fixes `detectWeightFromTitle` and `terapeakService.importComps` so future imports correctly reroute Spanish-onza fractional Libertad comps. But the existing Terapeak store already contains comps that were mis-pooled under the old detector. Concretely: `data/terapeak-meta.json` key `1oz 2011 libertad mexican proof silver` has `compCount: 21` including at least one 1/20 ONZA comp (`2011 MO SILVER PROOF MEXICO 1/20 ONZA LIBERTAD NGC PF 69 UC`) and one 2012 comp; other Libertad Proof year keys will have similar contamination. Until reclassified, FMV for those coin/year/pool combinations reflects the polluted pool.
 

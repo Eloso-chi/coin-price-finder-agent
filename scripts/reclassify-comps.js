@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 // scripts/reclassify-comps.js -- One-time batch reclassification of mismatched comps
 //
-// Scans all datasets in the terapeak store, detects comps whose weight
-// (detected from listing title) doesn't match the dataset's expected weight,
-// and moves them to the correct dataset key.
+// Scans Libertad datasets in the terapeak store, detects comps whose
+// fractional weight (from the listing title) doesn't match the dataset's
+// expected weight, and moves them to the correct dataset key.
 //
 // Usage:
 //   node scripts/reclassify-comps.js              # dry-run (default)
@@ -42,13 +42,14 @@ const keys = Object.keys(store);
 console.log(`Scanning ${keys.length} datasets...\n`);
 
 let totalReclassified = 0;
-let totalSkipped = 0;
-const summary = [];   // { from, to, count }
 const reroutes = {};  // targetKey -> comp[]
+const routeCounts = new Map();
+const FRACTIONAL_TOKENS = new Set(['twentieth oz', 'tenth oz', 'quarter oz', 'half oz']);
 
 for (const key of keys) {
   const dataset = store[key];
   if (!dataset?.comps?.length) continue;
+  if (!/\blibertad\b/i.test(key)) continue;
 
   const expectedWeight = detectWeightFromQuery(key);
   if (expectedWeight == null) continue;   // can't determine expected weight
@@ -72,11 +73,13 @@ for (const key of keys) {
 
     if (actualWeight != null && Math.abs(actualWeight - expectedWeight) >= 0.01) {
       const targetToken = weightToKeyToken(actualWeight);
-      if (targetToken && targetToken !== currentToken) {
+      if (FRACTIONAL_TOKENS.has(targetToken) && targetToken !== currentToken) {
         const targetKey = key.replace(currentToken, targetToken);
         if (targetKey !== key) {
           if (!reroutes[targetKey]) reroutes[targetKey] = [];
           reroutes[targetKey].push(comp);
+          const route = `${key} -> ${targetKey}`;
+          routeCounts.set(route, (routeCounts.get(route) || 0) + 1);
           movedFromThisKey++;
           totalReclassified++;
           continue;
@@ -94,15 +97,11 @@ for (const key of keys) {
         dataset.aggregationMeta.compCount = keep.length;
       }
     }
-    const targets = {};
-    for (const [tk, comps] of Object.entries(reroutes)) {
-      const count = comps.filter(() => true).length; // placeholder -- targets calc'd below
-      if (count > 0) targets[tk] = count;
-    }
   }
 }
 
 // Apply reroutes to target datasets
+const summary = [];
 for (const [targetKey, comps] of Object.entries(reroutes)) {
   const existing = store[targetKey]?.comps || [];
   const existingIds = new Set(existing.map(c => c.itemId).filter(Boolean));
@@ -114,9 +113,9 @@ for (const [targetKey, comps] of Object.entries(reroutes)) {
       duped++;
       continue;
     }
+    if (comp.itemId) existingIds.add(comp.itemId);
     if (!dryRun) {
       existing.push(comp);
-      if (comp.itemId) existingIds.add(comp.itemId);
     }
     added++;
   }
@@ -138,14 +137,6 @@ for (const [targetKey, comps] of Object.entries(reroutes)) {
       }
     }
   }
-
-  // Find source keys for summary
-  const sourceKeys = Object.keys(store).filter(k => {
-    const ew = detectWeightFromQuery(k);
-    if (ew == null) return false;
-    const ct = weightToKeyToken(ew);
-    return ct && k.replace(ct, weightToKeyToken(detectWeightFromQuery(targetKey))) === targetKey;
-  });
 
   summary.push({
     target: targetKey,
@@ -173,6 +164,14 @@ if (summary.length > 0) {
   }
 } else {
   console.log('No mismatched comps found.');
+}
+
+if (routeCounts.size > 0) {
+  console.log('\nSource -> Target Routes');
+  console.log('-'.repeat(80));
+  for (const [route, count] of routeCounts) {
+    console.log(`${String(count).padStart(5)}  ${route}`);
+  }
 }
 
 // Save if applying
