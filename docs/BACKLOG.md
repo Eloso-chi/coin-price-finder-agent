@@ -2429,6 +2429,87 @@ Ops can override to any value (e.g., `BROWSER_RECYCLE_EVERY=40 python scripts/te
 
 ---
 
+### #285W. Bar-series variant filter -- coin route silently mixes all bar designs into one FMV [P2 -- PRICING-ACCURACY] -- OPEN 2026-08-05
+
+**Origin:** User-reported 2026-08-05. Two reproductions on prod-parity server:
+
+- `POST /api/price {"query": "PAMP Suisse 1 gram gold bar Zodiac - Gemini"}` returned FMV null (confidence 87) with 136 survivors mixing Fortuna, Rosa, Lunar Legends, Good Luck Dragon, Diwali Festival, Multigram+25, Cherry Coke, Veriscan, Lady Fortuna Prosperity. Price range $168-$247.
+- `POST /api/price {"query": "PAMP Suisse 1 oz silver bar Lady of Liberty"}` returned FMV null (confidence 86) with 218 survivors mixing Lady of Liberty (2 comps), 250th Anniversary USA, Year of the Dragon, Lunar Legends Horse, Lunar Legends Snake, Lady Fortuna. Range $34.99-$227.50.
+
+Both queries produced `null` FMV alongside a high-confidence stamp, which is nonsensical on its own and indicates a downstream gate silently dropping the number.
+
+**Root cause (three layers):**
+
+1. **Wrong-route dispatch.** `/api/price` is the coin route. It never dispatches bar-shape queries to the bar-aware code path. Bar detection at the coin-route level is `pcgs._isBar` only ([src/services/valuationService.js](src/services/valuationService.js) L515), which rarely fires for retail bullion bars.
+2. **Bar-series variant filter is never applied by the coin pipeline.** [src/data/barSeries.js](src/data/barSeries.js) exports `getSeriesForBrand`, `detectBarSeries`, and `detectSeriesFromTitle` covering **7 brands / 44 series** (PAMP 22, Geiger 10, Perth Mint 5, Scottsdale 3, Valcambi 1, Heraeus 1, Credit Suisse 2). Only [src/routes/barPriceRoute.js](src/routes/barPriceRoute.js) consumes them. `buildKeywords` / `applyFilters` / `scoreMatch` in [src/services/ebayService.js](src/services/ebayService.js) have no bar-series awareness -- so a query with brand+series intent gets no per-series filter and no scoring bonus.
+3. **The catalog already knows the taxonomy.** `GET /api/bar-price/options` returns PAMP with all 12 individual Zodiac series (`Zodiac - Gemini` with alias `twins`) plus Fortuna, Rosa, Lady of Liberty, Multigram, Coca-Cola. Intended design already treats them as distinct FMV pools -- the coin route just isn't consulting it.
+
+**Why it matters (pool-isolation analogue for bars):**
+
+- Metal content is identical across designs at the same weight -- a 1g PAMP gold bar is $67 in melt regardless of design.
+- Retail premium differs substantially by design. Sample from 2026-08-05 comps: common (Fortuna, Rosa, Multigram) $168-$196; novelty (Cherry Coke, Diwali) $232-$237; higher-verification (Veriscan, Multigram+25) $237-$247. Limited annual releases (Zodiac Gemini, Lunar Legends) typically sit in the mid-$200s.
+- Silent merge produces the structural wrong-answer pattern from WASTE-LEDGER **INC-013** (raw/graded/proof merged) applied to bars: FMV reflects the average premium of an amalgamated pool that is never the market the user's specific bar trades in.
+- Same failure mode across **all metals and all cataloged brands** -- both reproductions above are PAMP; a Geiger Fireworks vs Original query would fail the same way.
+
+**Proposed fix -- Phase 1 (this ticket, ~150 LOC + tests):**
+
+- **Intent extraction:** extend `parseDescription` / `buildKeywords` in [src/services/pcgsService.js](src/services/pcgsService.js) + [src/services/ebayService.js](src/services/ebayService.js) to recognize bar brand + series tokens via `detectBarSeries` / `detectSeriesFromTitle` and stamp `expected.barBrand` + `expected.barSeries` on the pipeline context. Canonicalize in [src/utils/coinIntent.js](src/utils/coinIntent.js) alongside other intent fields.
+- **Hard filter in `applyFilters`:** add new `removed.barSeriesMismatch` bucket. When `expected.barSeries` is set and the brand is in the catalog, drop comps whose `detectSeriesFromTitle(brand, title)` returns a different series. Do NOT fall through to blend other series when survivors drop below a threshold -- return `null` FMV with an explicit `dataSource: 'insufficient-series-comps'` label instead, mirroring the [#282H proof-skip contract](docs/BACKLOG.md).
+- **Score bump in `scoreMatch`:** +10 for exact series match. Neutral (no penalty) when brand is cataloged but no series detected in the comp title, and neutral when brand is not cataloged (see caveat below).
+- **Uncataloged-brand graceful skip:** if `getSeriesForBrand(brand)` returns `[]` (Sunshine Minting, Engelhard, Johnson Matthey, Republic Metals, Northwest Territorial Mint, generic .999 bars), the filter is a no-op for that query. Documented as a known gap; catalog growth is a separate small follow-up ticket.
+
+**Test coverage -- `__tests__/barSeriesVariantFilter.test.js` (new), minimum matrix:**
+
+1. **PAMP + Zodiac Gemini (1g gold)** -- rejects Fortuna, Rosa, other 11 zodiacs, Cherry Coke. Reason: `barSeriesMismatch`.
+2. **PAMP + Lady of Liberty (1oz silver)** -- rejects Year of Dragon, Lunar Legends, 250th Anniversary USA, Fortuna.
+3. **Geiger + Fireworks (1oz silver)** -- rejects Original, Square, Tree of Life.
+4. **Cross-metal composition:** PAMP + Rosa (1g gold) keeps only gold Rosa titles; silver Rosa titles get dropped by existing `metalMismatch`, not `barSeriesMismatch` -- proves gate composition.
+5. **`scoreMatch` bonus:** exact series match adds +10; cataloged-brand-no-series-detected is neutral; unknown brand is neutral.
+6. **Sparse-pool null contract:** `PAMP + Zodiac Sagittarius` (thin market) with <3 filtered survivors returns FMV `null` + `dataSource: 'insufficient-series-comps'`. Blending is NOT permitted.
+7. **Uncataloged-brand skip:** query for `Sunshine Minting` bar has `barSeriesMismatch = 0` for all comps; filter is a no-op.
+8. **Response surface:** `/api/price` bar responses expose `expected.barBrand` + `expected.barSeries` + `removed.barSeriesMismatch` so `scripts/pricing-health-full.js` and the [`.github/skills/pricing-health` classifier](scripts/lib/pricingHealthClassifiers.js) can catch regressions.
+9. **`variantMismatch` bucket unchanged:** existing coin queries (Type 1/Type 2, colorized, etc.) continue to hit `variantMismatch`, not the new `barSeriesMismatch`. Prevents cross-bucket accounting bugs.
+10. **Valuation-service contract test:** mirror the [`__tests__/valuationServiceProofLadder.test.js`](__tests__/valuationServiceProofLadder.test.js) pattern for a bar-series analogue -- proves the isolation-first contract is uniform across coins-and-bars.
+
+**Acceptance:**
+
+- Re-running both user reproductions returns either a sensible FMV in the correct band for the specified series, or an explicit `null` with `dataSource: 'insufficient-series-comps'` and no misleading confidence stamp.
+- No cross-series blending in any bar query where brand+series are both provided.
+- `npm test` full suite green including the 10 new cases above.
+- pricing-health classifier picks up `barSeriesMismatch > 50% of prefilter drops` as a new signal class (or explicitly skips it -- decision documented in the PR body).
+
+**Non-goals for this ticket (tracked separately if picked up):**
+
+- **Route auto-dispatch** (Phase 2): `/api/price` detects bar-shape queries and forwards to `/api/bar-price` internally. Cleaner UX; not required for the FMV correctness fix. File as new item after Phase 1 lands.
+- **Dataset hygiene** (Phase 3): one-shot audit for `data/terapeak/` bar CSVs with >20% design-token spread; split by series into distinct keys. Improves comp density per series; Phase 1 filters already handle mixed-key ingest correctly at read time.
+- **Catalog growth**: add Sunshine Minting, Engelhard, Johnson Matthey, Republic Metals, Northwest Territorial Mint to [src/data/barSeries.js](src/data/barSeries.js). Small independent PR.
+
+**What NOT to do:**
+
+- Do NOT silently merge across series to inflate the survivor count -- the exact wrong-answer pattern from INC-013.
+- Do NOT hard-code a "PAMP Zodiac premium multiplier" -- pricing must stay data-driven.
+- Do NOT widen the outlier / melt-sanity gates to force a number out of the null branch -- masks the real signal.
+
+**Files:**
+
+- MOD [src/services/ebayService.js](src/services/ebayService.js) (`buildKeywords`, `applyFilters`, `scoreMatch`)
+- MOD [src/services/pcgsService.js](src/services/pcgsService.js) (`parseDescription` bar-brand recognition)
+- MOD [src/services/valuationService.js](src/services/valuationService.js) (thread `expected.barSeries`; sparse-pool null path)
+- MOD [src/utils/coinIntent.js](src/utils/coinIntent.js) (canonicalize `barBrand`/`barSeries`)
+- MOD [src/schemas/priceResponse.schema.js](src/schemas/priceResponse.schema.js) (new `barSeriesMismatch` bucket in `removed`)
+- NEW `__tests__/barSeriesVariantFilter.test.js`
+- MOD [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) (filter list)
+- MOD [docs/memory/numismatic-terminology.md](docs/memory/numismatic-terminology.md) (pool-isolation contract addendum for bars)
+
+**Related:**
+
+- **INC-013** (WASTE-LEDGER) -- pool-isolation contract that this fix extends to bars.
+- **#282H** -- proof-skip null-FMV contract used as the pattern for insufficient-series-comps.
+- **#277H** -- specialty-variant (colorized, gilded, etc.) disambiguation. Different intent axis for coins, same design principle.
+- **#262W** -- pricing-health-full classifier; a follow-up may add a bar-series-mismatch signal class.
+
+---
+
 ### #264W. Per-machine backlog ID convention (W/H suffix) [P2 -- PROCESS] -- DONE 2026-06-04
 - **Problem**: This project is worked on from two machines that may both add backlog items without coordinating. Without per-machine namespacing, the first new entry on each machine claims the same next-integer ID, forcing post-hoc renumbering (e.g., this session: drafted #260-#262, collided with PR #118's #260, renumbered to #261-#263, then again to #260W-#262W).
 - **Fix**:
