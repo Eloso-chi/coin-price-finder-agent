@@ -2510,6 +2510,60 @@ Both queries produced `null` FMV alongside a high-confidence stamp, which is non
 
 ---
 
+### #302W. vnc-login/probe: expose second Akamai challenge on `/sh/research` to the user via noVNC [P2 -- OPERATIONS / DX] -- OPEN 2026-08-06
+
+**Problem observed 2026-08-06 (this session):** After solving the signin CAPTCHA in noVNC (`scripts/vnc-login.py`) and saving 44 cookies, the operator's Cooldown-recovery gate ran `scripts/cookie-health-check.py --probe`, which navigated to `https://www.ebay.com/sh/research` in **headless** Chromium (line 165: `headless=True`). Akamai served a second challenge on that URL, the probe exited **2 (CHALLENGED)**, and the operator hard-stopped in `stopped/fail` with message `post-login Cooldown probe failed (exit=2)`. **The user was never notified of the second challenge and had no way to solve it via noVNC**, even though a visible Chromium browser was up on `DISPLAY=:1` at that exact moment.
+
+Manual workaround this session: ran a one-shot headed Chromium with the saved cookies, navigated to `/sh/research`, and observed an explicit bot-warning page. Shut down cleanly per anti-bot contract; no bypass attempted.
+
+**Root cause -- flow gap, not a bug:**
+
+- `scripts/vnc-login.py` verifies signin only. It exits as soon as the `sin=in` cookie appears; it does NOT navigate onward to the Research page, so any second challenge that fires on first `/sh/research` visit is never rendered to the user.
+- `scripts/cookie-health-check.py --probe` is designed to be a cheap, headless, side-effect-free precondition check. Correct in that role, but wrong as the sole gate when the caller has a display available.
+- Operator's Cooldown-recovery script (`scripts/terapeak-operator-codespace.sh` lines 234-260) treats probe exit 2 as unrecoverable and stops the run. That's the correct anti-bot behavior IF the user had a chance to solve; today they don't.
+
+**Impact:** Every attempt to restart the operator after any hard-challenge Cooldown fails silently at the probe stage even when the user is present at noVNC and *would* solve the second challenge in seconds. Wastes cookie-refresh cycles (each triggers Akamai attention) and pushes users toward workarounds that could later evolve into contract violations.
+
+**Approach -- pick one; recommendation is 1:**
+
+1. **Extend `vnc-login.py` to also visit `/sh/research`.** After the signin `sin=in` detection, navigate to the Research URL, poll for up to N minutes for `/splashui/` or `/captcha` to clear, save cookies again, exit. If the URL never clears, exit 2 (CHALLENGED) with a clear message to the user. Cleanest fit -- matches the visible-signin pattern users already know.
+2. **Make `cookie-health-check.py --probe` headed when `DISPLAY` is set and `--allow-interactive` is passed.** Add a 10-minute manual-solve window in headed mode; keep headless as the default for CI/cron use. More surgical but adds a new flag surface.
+3. **New `scripts/verify-research-access.py` helper.** Same shape as the one-shot inline script used to unblock this session (headed Chromium, navigate to `/sh/research`, poll for clear, save cookies). Add it as an official step between `vnc-login.py` and operator start. Runbook lists it explicitly.
+
+Option 1 is cleanest because it collapses login + first-visit-verification into a single flow the user already trusts. Option 3 leaves login untouched (lower risk to that script) but adds a new required step that users have to remember. Option 2 blurs the responsibilities of `cookie-health-check.py`.
+
+**Acceptance:**
+
+- After running `scripts/vnc-login.py` (with the chosen option applied), a subsequent run of `scripts/cookie-health-check.py --probe` returns 0 (HEALTHY) whenever the user did solve any challenges that fired, and returns non-zero only when eBay actually refuses regardless of user action.
+- The operator's Cooldown-recovery gate no longer fails with `post-login Cooldown probe failed (exit=2)` in the case where the user was present and could have solved.
+- If Akamai serves a hard bot-warning page (not a solvable CAPTCHA), the flow still detects it and stops cleanly with a distinct exit code / reason. **Anti-bot contract stays intact.**
+- Runbook ([docs/memory/terapeak-runbook.md](docs/memory/terapeak-runbook.md)) documents the new flow. Anti-bot doc ([docs/memory/anti-bot-operations.md](docs/memory/anti-bot-operations.md)) still governs hard-stops.
+
+**Files (Option 1, expected):**
+
+- MOD `scripts/vnc-login.py` (post-signin navigate + poll + save)
+- MOD [docs/memory/terapeak-runbook.md](docs/memory/terapeak-runbook.md) (step 4 update)
+- MOD [docs/memory/anti-bot-operations.md](docs/memory/anti-bot-operations.md) (clarify: solvable challenges via noVNC are legitimate; hard bot-warning pages still stop)
+- NEW `scripts/test_vnc_login_flow.py` or shell smoke script (dry-run mode assertions)
+
+**Effort/Risk:** Small (Option 1) / Low. Changes are additive; existing exit codes unchanged.
+
+**Non-goals:**
+
+- Do NOT automate CAPTCHA solving (would violate INC-013-equivalent anti-bot contract).
+- Do NOT rotate cookies, IP, or fingerprint to evade -- if the /sh/research page shows an unsolvable bot-warning, we STOP.
+
+**Related:**
+
+- [docs/memory/anti-bot-operations.md](docs/memory/anti-bot-operations.md) -- governing contract (compliance guardrails stay unchanged).
+- [docs/memory/terapeak-runbook.md](docs/memory/terapeak-runbook.md) -- step 4 (eBay login via VNC) is where this fits.
+- #284H -- anti-bot operations hardening; #302W is a specific UX gap discovered during Cooldown recovery.
+- This session's shutdown: 2026-08-06T01:20:00Z (approx), risk state stays `Cooldown` from 2026-08-05T13:04:21Z, no bypass attempted.
+
+**Source:** direct user observation this session -- "you didnt tell me or give me a chance to solve for captcha again?" 2026-08-06.
+
+---
+
 <!-- BEGIN fmv-repository-review batch 2026-08-06 -->
 <!-- 16 items filed together from the fmv-repository-review pass. -->
 
