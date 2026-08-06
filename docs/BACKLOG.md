@@ -2510,6 +2510,377 @@ Both queries produced `null` FMV alongside a high-confidence stamp, which is non
 
 ---
 
+<!-- BEGIN fmv-repository-review batch 2026-08-06 -->
+<!-- 16 items filed together from the fmv-repository-review pass. -->
+
+### #286W. Unblock CI npm-audit gate -- red baseline is masking real regressions [P1 -- CI / SECURITY] -- OPEN 2026-08-06
+
+**Problem:** `.github/workflows/main_coinpricefinder-h3a3b5g0dmdydna4.yml`'s `test` job runs `npm audit --audit-level=high --omit=dev` and has been failing for 6+ days on three high CVEs (`ip-address <=10.3.0`, two `fast-uri` host-confusion CVEs) plus moderate `qs` and `uuid`. Every recent PR (#242, #243, #244, #246, #247, #248 in this session) has been admin-merged. A real Jest regression could ship because "CI is always red anyway."
+
+**Approach (pick one, spelled out for reviewer choice):**
+
+1. **1a. Fix in place**: bump `ip-address >= 10.3.1` (once available; check upstream), `fast-uri` to patched version, `qs >= 6.15.2`, `uuid >= 11.1.1`. The uuid bump forces exceljs major-bump. Requires golden-set FMV regression on the Excel-import path.
+2. **1b. Exceptions file**: add `audit-ci.jsonc` (or equivalent) with allowlisted CVE IDs and per-CVE justifications. Gate becomes green immediately; real new alerts still fire.
+3. **Hybrid**: apply 1a where fixes exist, 1b where they don't.
+
+**Files:** `package.json`, `package-lock.json`, possibly new `audit-ci.jsonc`, CI workflow (if switching to `audit-ci`).
+
+**Effort/Risk:** Small--Medium / Medium (exceljs major bump is the wildcard).
+
+**Validation:** Full `npm test` green on the bumped-deps branch; run the golden-set 14-coin FMV regression; PR CI turns green without `--admin`.
+
+**Related:** current admin-merge pattern is documented in this session's conversation; `.github/dependabot.yml` already tracks weekly bumps but Dependabot PRs #123 / #125 / #134 all hit this same gate. Source: **fmv-repository-review 2026-08-06** REC-1.
+
+---
+
+### #287W. Algorithm/config versioning + valuation reproducibility fields [P2 -- AUDITABILITY / PRICING-ACCURACY] -- OPEN 2026-08-06
+
+**Problem:** `/api/price` responses ship a `reproducibility` field at runtime but neither the schema ([src/schemas/priceResponse.schema.js](src/schemas/priceResponse.schema.js)) nor the response body declare an `algorithmVersion` (semver of the valuation logic) or `configVersion` (hash of blend-weight constants + [src/data/dealerPremiums.js](src/data/dealerPremiums.js) + [src/data/greysheetTypeMap.js](src/data/greysheetTypeMap.js)). We cannot answer "which model priced this coin on this date." Schema also has `additionalProperties: true` (per #244 telemetry work), which permits silent contract drift.
+
+**Approach:**
+
+- Add `algorithmVersion` (semver string) at [src/services/valuationService.js](src/services/valuationService.js) module scope. Bump per SEMVER when the FMV formula changes.
+- Add `configVersion` hash (sha256 of concatenated versioned config sources) computed at server startup and cached.
+- Stamp both on every `valuation` response object alongside `computedAt` ISO timestamp.
+- Update [src/schemas/priceResponse.schema.js](src/schemas/priceResponse.schema.js) to declare the three fields as required in `valuation`.
+- Phase 2 (separate PR): flip `additionalProperties: false` after audit shows no other undocumented fields.
+
+**Files:** [src/services/valuationService.js](src/services/valuationService.js), [src/schemas/priceResponse.schema.js](src/schemas/priceResponse.schema.js), NEW `src/utils/versionHash.js`, NEW `__tests__/valuationVersionStamp.test.js`.
+
+**Effort/Risk:** Medium / Low.
+
+**Validation:** Regression test that identical input + code produces identical version stamps; snapshot on version increment; schema validation still passes.
+
+**Related:** #288W (audit log depends on this), #244 (schema `additionalProperties` history). Source: **fmv-repository-review 2026-08-06** REC-2.
+
+---
+
+### #288W. Valuation audit log -- write every /api/price call to Cosmos [P2 -- AUDITABILITY] -- OPEN 2026-08-06
+
+**Problem:** [src/services/auditService.js](src/services/auditService.js) writes admin actions to Cosmos `admin-audit` (signin, admin-granted, etc.) but no valuation calls are recorded. We cannot answer "who priced what coin at what FMV when," which is a real gap for a pricing service that dealers may rely on.
+
+**Approach:**
+
+- Add `writeValuationAudit({query, fmv, method, confidence, algorithmVersion, configVersion, computedAt, actorId?, ip})` to [src/services/auditService.js](src/services/auditService.js) writing to a new Cosmos container `valuation-audit` (partition key `/computedAt-date` for time-based sharding).
+- Call it async (fire-and-forget) from `priceRoute` / `pricingBatchRoute` / `bulkEvaluateRoute` after the response is composed. NEVER block the response on the write.
+- Fallback: local JSONL under `cache/valuation-audit-YYYY-MM-DD.jsonl` if Cosmos unavailable (same pattern as existing `alertService`).
+- Guard: no-op when `NODE_ENV === 'test'` (per INC-002).
+
+**PII:** log `query` verbatim; do NOT log requester's IP unless admin session; DO NOT log JWT or credentials.
+
+**Files:** [src/services/auditService.js](src/services/auditService.js), [src/routes/priceRoute.js](src/routes/priceRoute.js), [src/routes/pricingBatchRoute.js](src/routes/pricingBatchRoute.js), [src/routes/bulkEvaluateRoute.js](src/routes/bulkEvaluateRoute.js), NEW `__tests__/valuationAudit.test.js`.
+
+**Effort/Risk:** Small / Low.
+
+**Depends on:** #287W (must have version stamps first).
+
+**Validation:** Assert Cosmos write called with correct shape (mocked); assert JSONL fallback under simulated Cosmos outage; assert no-op under `NODE_ENV=test`; assert no admin-only fields leak to the audit payload for anon users.
+
+**Related:** existing `admin-audit` container schema. Source: **fmv-repository-review 2026-08-06** REC-3.
+
+---
+
+### #289W. Deep /api/health with downstream dependency status [P3 -- OBSERVABILITY] -- OPEN 2026-08-06
+
+**Problem:** [server.js](server.js) `/api/health` returns only `{status: 'ok', uptime}`. Load balancers get what they need, but operators cannot diagnose "which downstream is broken" without SSH + logs.
+
+**Approach:**
+
+- Keep `/api/health` trivial (load-balancer safe).
+- Add `/api/health?deep=1` (or `/api/health/deep`) that returns:
+  - Cosmos reachability (ping `admin-audit` container `.read()` -- fast, no-op).
+  - Key Vault reachability if `AZURE_CLIENT_ID` set.
+  - Metals provider round-robin health (last-success-per-provider timestamps).
+  - PCGS quota state.
+  - Terapeak store dataset count.
+- Response schema: per-dependency `{status, latencyMs, lastSuccess}`.
+- Return HTTP 200 with `overall: 'degraded'` if any non-critical dep down; 503 if a critical one down.
+
+**Files:** [server.js](server.js) or NEW `src/routes/healthRoute.js`, NEW `__tests__/healthDeep.test.js`.
+
+**Effort/Risk:** Small / Low.
+
+**Validation:** Mock each downstream failure mode; assert response shape; ensure no admin data leaks (deep health should be admin-gated OR return only booleans, not counts).
+
+**Related:** #285H (PCGS 429 state visibility). Source: **fmv-repository-review 2026-08-06** REC-5.
+
+---
+
+### #290W. Correlation-ID (X-Request-ID) middleware [P3 -- OBSERVABILITY] -- OPEN 2026-08-06
+
+**Problem:** No request correlation across services. When an operator sees a bad valuation and asks "why," we cannot correlate the response to server logs without wall-clock guessing.
+
+**Approach:**
+
+- New `src/middleware/requestId.js`: read `X-Request-ID` from header if present; else generate `uuid.v4()`.
+- Attach to `req.id` and response header.
+- Include in all response `error` bodies.
+- Thread through the top-level crash handlers in [server.js](server.js) (`unhandledRejection`, `uncaughtException`).
+- Include in the `valuation-audit` write from #288W.
+
+**Files:** NEW `src/middleware/requestId.js`, [server.js](server.js), NEW `__tests__/requestId.test.js`.
+
+**Effort/Risk:** Small / Low.
+
+**Validation:** Assert response header echoes provided ID; assert generated ID is v4; assert `req.id` reaches error handlers.
+
+**Related:** #300W (structured logging depends on correlation ID for real value). Source: **fmv-repository-review 2026-08-06** REC-6.
+
+---
+
+### #291W. Add AGENTS.md at repo root [P3 -- COPILOT / ONBOARDING] -- OPEN 2026-08-06
+
+**Problem:** [docs/memory/agents-and-prompts.md](docs/memory/agents-and-prompts.md) is the canonical agent inventory but lives inside `docs/memory/`. External tooling and new contributors that expect the standard `AGENTS.md` at repo root won't find our 14 agents / 6 prompts / 7 skills.
+
+**Approach:**
+
+- Add root-level `AGENTS.md` that is a short pointer + inline table listing agent name / one-line purpose / path.
+- Reference `docs/memory/agents-and-prompts.md` and [.github/skills/](.github/skills/) for full details.
+- Zero new domain content -- pure discoverability.
+
+**Files:** NEW `AGENTS.md` at repo root, update [docs/memory/agents-and-prompts.md](docs/memory/agents-and-prompts.md) index to cross-reference `AGENTS.md`.
+
+**Effort/Risk:** Small / Zero.
+
+**Validation:** Human review; no tests.
+
+**Related:** [docs/memory/agent-loading-order.md](docs/memory/agent-loading-order.md). Source: **fmv-repository-review 2026-08-06** REC-7.
+
+---
+
+### #292W. Seed docs/adrs/ with 5 ADRs for load-bearing decisions [P2 -- ARCHITECTURE DOCS] -- OPEN 2026-08-06
+
+**Problem:** No ADRs. Five high-stakes decisions with high blast radius live in memory docs + WASTE-LEDGER, which functions as an implicit ADR log but doesn't follow the Context/Decision/Consequences shape. External readers cannot answer "why does this system make this design choice."
+
+**Approach:**
+
+- New `docs/adrs/` directory with the ADR template ([Nygard style](https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions.html)).
+- Seed with five ADRs:
+  1. **ADR-001**: Pool isolation for FMV computation (raw / graded / proof / RP as four distinct pools).
+  2. **ADR-002**: Terapeak-first comp cascade (Terapeak > Finding > Browse).
+  3. **ADR-003**: Bullion-spot-premium vs certified/raw-blend routing.
+  4. **ADR-004**: Public/admin audience gating (`_source: "terapeak"` redaction).
+  5. **ADR-005**: Anti-bot risk-state machine (Normal/Elevated/Challenged/Cooldown).
+- Each ADR: 1 page, links to related memory docs and WASTE-LEDGER incidents.
+- Add index in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+**Files:** NEW `docs/adrs/ADR-001` through `ADR-005`, MOD [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+**Effort/Risk:** Medium / Zero.
+
+**Validation:** Human review; consistency check against source memory docs.
+
+**Related:** [docs/memory/numismatic-terminology.md](docs/memory/numismatic-terminology.md), [docs/memory/anti-bot-operations.md](docs/memory/anti-bot-operations.md), [docs/WASTE-LEDGER.md](docs/WASTE-LEDGER.md) INC-013. Source: **fmv-repository-review 2026-08-06** REC-8.
+
+---
+
+### #293W. Automate post-run Terapeak progress commit [P2 -- OPERATIONS] -- OPEN 2026-08-06
+
+**Problem:** After a Terapeak operator run (e.g. run 20260805T063214Z-43164 this session), the modified CSVs and freshness sidecar sit as working-tree drift until someone remembers to commit them. Cooldown-terminated runs are the most-forgotten case. Two PRs (#246 and #248) had to be filed manually this session to catch up.
+
+**Approach:**
+
+- NEW `scripts/commit-terapeak-progress.sh` that:
+  - Reads `cache/terapeak-operator-codespace.state.json` for `RUN_ID` and stats.
+  - `git status` to detect changed CSVs + `data/terapeak-meta.json`.
+  - Excludes `cache/greysheet_history.json` and skip-worktree'd deletions.
+  - Guards: no changes -> exit 0; not on `main` -> refuse; unusual untracked files -> refuse.
+  - Creates branch `data/terapeak-refresh-<RUN_ID>`, commits with canonical message including run totals (from `cache/terapeak-runs/passes.jsonl`).
+  - Pushes, opens PR via `unset GITHUB_TOKEN GH_TOKEN && gh pr create`.
+  - Prints the PR URL. Merge is still manual.
+- Update [docs/memory/terapeak-runbook.md](docs/memory/terapeak-runbook.md) "Post-run" section.
+- Phase 2 (separate item): evaluate calling the helper from the operator's EXIT trap after clean stops.
+
+**Files:** NEW `scripts/commit-terapeak-progress.sh`, MOD [docs/memory/terapeak-runbook.md](docs/memory/terapeak-runbook.md), NEW `__tests__/commit-terapeak-progress.test.sh` (bats) or Python smoke test.
+
+**Effort/Risk:** Small / Low (helper is a workflow wrapper).
+
+**Validation:** Manual runs with `--dry-run` on a codespace with a recent run; assert no unexpected files staged; assert PR message contains run stats.
+
+**Related:** PR #246 (CSV commit) + PR #248 (meta commit) established the canonical shape this script codifies. Source: **fmv-repository-review 2026-08-06** REC-9.
+
+---
+
+### #294W. Test suite runtime budget -- shard CI or triage slow suites [P3 -- CI / DX] -- OPEN 2026-08-06
+
+**Problem:** Full test suite runs ~102s locally (measured this session). [docs/testing/test-monitor.md](docs/testing/test-monitor.md) budget target is 60s. 70% over budget. Slows PR feedback and CI throughput.
+
+**Approach:**
+
+- Phase 1: mine `.test-metrics/test-runs.jsonl` for the top 20 slowest suites and top 20 slowest tests. Deliver an analysis report (no code changes).
+- Phase 2 (data-driven): fix the top offenders (usually a slow beforeAll or unnecessary async fanout).
+- Phase 3 (if still over budget): introduce `jest --shard` in CI (2-3 shards) and update the workflow to fan out.
+
+**Files:** NEW `scripts/analyze-slow-tests.js`, likely surgical MOD in offender test files, potentially MOD CI workflow.
+
+**Effort/Risk:** Small (analysis) + Medium (parallelism) / Low.
+
+**Validation:** Local suite <=60s; CI wall clock reduction >=25%.
+
+**Related:** [docs/testing/test-monitor.md](docs/testing/test-monitor.md) budget. Source: **fmv-repository-review 2026-08-06** REC-10.
+
+---
+
+### #295W. Property-based tests for FMV math [P3 -- TEST-DEPTH] -- OPEN 2026-08-06
+
+**Problem:** Fuzzy numerical functions (`computeWeightedMedian`, `computeConfidence`, `applyFilters` attrition math, weight-based melt-sanity ceiling) are tested with fixed fixtures. Edge cases (empty pools, single-item pools, extreme premium clamps, degenerate weights) rely on human insight to enumerate. Property-based generation would surface classes we don't think to write.
+
+**Approach:**
+
+- Add `fast-check` dev dependency.
+- Write property tests for at minimum:
+  - `computeWeightedMedian` is monotonic in each comp price.
+  - `computeWeightedMedian` result lies between min and max of input prices.
+  - `computeConfidence` output is bounded 0-100.
+  - `applyFilters` never returns MORE comps than it received.
+  - `detectWeightFromTitle` returns null OR a value in (0, MAX_PLAUSIBLE_WEIGHT_OZ].
+- Enforce shrinking is disabled or bounded to keep runtime under 5s per property.
+
+**Files:** NEW `__tests__/valuationServiceProperty.test.js`, NEW `__tests__/coinMetalProfileProperty.test.js`, [package.json](package.json) devDependency add.
+
+**Effort/Risk:** Medium / Low.
+
+**Validation:** Full suite + new property tests green; no runtime regression.
+
+**Related:** existing test files that would be complemented (not replaced). Source: **fmv-repository-review 2026-08-06** REC-11.
+
+---
+
+### #296W. Contract tests for external comp sources [P3 -- TEST-DEPTH / RESILIENCE] -- OPEN 2026-08-06
+
+**Problem:** eBay Marketplace Insights, PCGS APR, Greysheet CDN, and Numista responses are all mocked via `axios-mock-adapter`. If any upstream changes response shape, our unit tests happily pass and we discover the drift in production. Terapeak CSV format is documented but not contract-tested against a real export.
+
+**Approach:**
+
+- Record a small set of real-shape responses (one per source, PII-redacted, committed to `__tests__/fixtures/upstream-shapes/`).
+- Add contract tests that assert each service parses the real-shape fixtures without error.
+- Refresh cadence: manually every 3-6 months or on user report of upstream change.
+- Do NOT introduce `pact` broker or full contract-testing infra -- overkill for a repo this size.
+
+**Files:** NEW `__tests__/fixtures/upstream-shapes/{ebay,pcgs-apr,greysheet,numista,terapeak-csv}.json`, NEW `__tests__/upstreamContractShapes.test.js`.
+
+**Effort/Risk:** Small (initial) / Low. Manual refresh is a small ongoing cost.
+
+**Validation:** Fixtures are redacted (no seller usernames, no cert numbers). Contract tests fail if service parser regresses.
+
+**Related:** existing `terapeakDataIntegrity.test.js`. Source: **fmv-repository-review 2026-08-06** REC-12.
+
+---
+
+### #297W. Performance benchmarks for bulk evaluator (500-coin path) [P3 -- PERFORMANCE / PRICING-ACCURACY] -- OPEN 2026-08-06
+
+**Problem:** [src/services/bulkEvaluateService.js](src/services/bulkEvaluateService.js) supports 1-500 coins per lot, 10-coin per-job concurrency, 3 concurrent jobs. No benchmark exists for the 500-coin path. Under load or with unusual comp shapes we may already be slow; we won't know until we ship a regression.
+
+**Approach:**
+
+- NEW `scripts/benchmark-bulk-evaluate.js` -- runs a canonical 100 / 250 / 500-coin lot through the API against a local server. Emits p50/p95/p99 per-coin and end-to-end.
+- Record baseline in `docs/performance/baselines/bulk-evaluate.json`.
+- Optional CI: PR-triggered benchmark against baseline; alert if p95 regresses >20%.
+
+**Files:** NEW `scripts/benchmark-bulk-evaluate.js`, NEW `docs/performance/baselines/bulk-evaluate.json`, optional CI workflow addition.
+
+**Effort/Risk:** Small (script) + Small (CI wiring) / Low.
+
+**Validation:** Baseline captured; regressions surfaced on subsequent runs.
+
+**Related:** [docs/memory/bulk-evaluate-feature.md](docs/memory/bulk-evaluate-feature.md). Source: **fmv-repository-review 2026-08-06** REC-13.
+
+---
+
+### #298W. SPA refactor -- extract 3,400 LOC inline JS/CSS from public/index.html [P3 -- FRONTEND / SECURITY] -- OPEN 2026-08-06
+
+**Problem:** [public/index.html](public/index.html) contains ~3,400 lines of inline JavaScript and inline CSS. This forces Helmet CSP to permit `unsafe-inline` for `script-src` and `style-src`, weakening XSS defense. It also makes client-side unit testing very difficult -- the frontend test surface is limited compared to what could be tested if code lived in separate modules.
+
+**Approach:**
+
+- Phase 1: extract inline JS into `public/js/*.js` modules (~5-10 files by feature area: coin lookup, portfolio, admin panel, market matrix, imports).
+- Phase 2: extract inline CSS into `public/css/*.css`.
+- Phase 3: drop `unsafe-inline` from CSP; add nonces for the small residual inline blocks.
+- Migrate any client-side state to the existing `public/js/storage.js` pattern.
+- Add tests for the extracted modules under [__tests__/frontend/](__tests__/frontend/).
+
+**Files:** NEW `public/js/*.js` modules, NEW `public/css/*.css` files, MOD [public/index.html](public/index.html) (shrinks dramatically), MOD [server.js](server.js) CSP config, NEW `__tests__/frontend/*.test.js` per module.
+
+**Effort/Risk:** Large / Medium (SPA behavioral regression risk without adequate manual QA).
+
+**Validation:** Manual smoke: lookup, portfolio CRUD, admin dashboard, imports. Automated: existing frontend tests + new per-module tests.
+
+**Related:** [server.js](server.js) CSP config note about future refactor target. Source: **fmv-repository-review 2026-08-06** REC-15.
+
+---
+
+### #299W. Frozen valuation snapshot feature [P3 -- AUDITABILITY / FEATURE] -- OPEN 2026-08-06
+
+**Problem:** Once #287W ships version stamps, we can distinguish "this FMV was computed by algorithm 2.4.0 on 2026-08-05" from a new call today. But there is no mechanism to REPLAY an old valuation with the exact algorithm version and config that priced it. Historical portfolio reports will drift as the model evolves.
+
+**Approach:**
+
+- Admin-only endpoint `POST /api/admin/valuation/freeze` accepting `{coinId, computedAt}` -- stores the full response envelope in Cosmos `valuation-frozen`.
+- Optional operator UI in the admin panel to freeze a lot at a moment in time.
+- `GET /api/admin/valuation/frozen/{id}` returns the frozen envelope verbatim.
+- Reports read frozen envelopes for historical rows and live valuations for current rows.
+- Do NOT try to replay algorithm 2.3.0 with 2.4.0 code -- freezing the OUTPUT is the reliable path.
+
+**Files:** NEW `src/routes/frozenValuationRoute.js`, MOD [src/services/coinStorageService.js](src/services/coinStorageService.js) (optional linkage), MOD [docs/api-reference.md](docs/api-reference.md), NEW `__tests__/frozenValuation.test.js`.
+
+**Effort/Risk:** Medium / Low.
+
+**Depends on:** #287W (need version stamps to be worth freezing).
+
+**Validation:** Frozen envelope round-trips exactly; version stamps preserved; no accidental live-recompute on frozen fetch.
+
+**Related:** #287W, #288W. Source: **fmv-repository-review 2026-08-06** REC-16.
+
+---
+
+### #300W. Structured logging (pino) with correlation IDs [P3 -- OBSERVABILITY] -- OPEN 2026-08-06
+
+**Problem:** All logging is unstructured `console.log|warn|error`. Distributed debugging (Codespace, App Service, workflow logs) is manual grep. #120 is a very old backlog note about this.
+
+**Approach:**
+
+- Add `pino` dev dependency.
+- New `src/utils/logger.js` -- pino instance with structured JSON output. Level from `LOG_LEVEL` env var (default `info`).
+- Incremental replacement of `console.*` service by service. Start with [src/services/prefetchScheduler.js](src/services/prefetchScheduler.js), [src/services/terapeakService.js](src/services/terapeakService.js), [src/services/ebayService.js](src/services/ebayService.js) -- the noisiest ones.
+- Wire the correlation ID from #290W into every log call in request-scoped code.
+- Configure Azure App Service to parse JSON stdout.
+
+**Files:** NEW `src/utils/logger.js`, MOD across [src/services/](src/services/) incrementally (multiple small PRs), MOD [server.js](server.js) startup log line, [package.json](package.json).
+
+**Effort/Risk:** Medium (long tail) / Low.
+
+**Depends on:** #290W (correlation ID middleware is the payoff for structured logs).
+
+**Validation:** Sample calls emit valid JSON per line; ndjson parseable by `jq` end-to-end; no log-body PII.
+
+**Related:** legacy backlog #120 (supersedes it). Source: **fmv-repository-review 2026-08-06** REC-17.
+
+---
+
+### #301W. Dockerfile + local docker-compose for developer parity [P3 -- DX] -- OPEN 2026-08-06
+
+**Problem:** No Docker artifacts. Prod deploys via Azure App Service. Developers on non-Codespaces machines rebuild `.env` + `npm ci` + `node server.js` manually. This makes reproducing a prod-shaped bug locally harder than it needs to be. Not urgent -- Codespaces + the Surface path both work today.
+
+**Approach:**
+
+- NEW `Dockerfile` -- Node 22 alpine, `npm ci --omit=dev`, copy source, run `node server.js`. Non-root user.
+- NEW `docker-compose.yml` -- app + optional Cosmos emulator + Azurite (Blob emulator).
+- NEW `.dockerignore` mirroring `.gitignore`.
+- Update [README.md](README.md) Setup section with "Docker (optional)" subsection.
+- Do NOT change the App Service deploy pipeline (it uses `azure/webapps-deploy@v3` on source).
+
+**Files:** NEW `Dockerfile`, NEW `docker-compose.yml`, NEW `.dockerignore`, MOD [README.md](README.md).
+
+**Effort/Risk:** Small / Low.
+
+**Validation:** `docker build .` succeeds; `docker compose up` starts app; `curl localhost:3000/api/health` returns 200.
+
+**Related:** [docs/memory/azure-infrastructure.md](docs/memory/azure-infrastructure.md) production topology stays unchanged. Source: **fmv-repository-review 2026-08-06** REC-18.
+
+---
+
+<!-- END fmv-repository-review batch 2026-08-06 -->
+
 ### #264W. Per-machine backlog ID convention (W/H suffix) [P2 -- PROCESS] -- DONE 2026-06-04
 - **Problem**: This project is worked on from two machines that may both add backlog items without coordinating. Without per-machine namespacing, the first new entry on each machine claims the same next-integer ID, forcing post-hoc renumbering (e.g., this session: drafted #260-#262, collided with PR #118's #260, renumbered to #261-#263, then again to #260W-#262W).
 - **Fix**:
