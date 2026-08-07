@@ -62,6 +62,14 @@ function _daysBetween(now, iso) {
   return Math.floor((now.getTime() - t) / 86_400_000);
 }
 
+function latestRefreshAt(meta = {}) {
+  const candidates = [meta.page1At, meta.lastRefreshAt]
+    .map(value => ({ value, time: value ? new Date(value).getTime() : NaN }))
+    .filter(candidate => Number.isFinite(candidate.time));
+  if (candidates.length === 0) return null;
+  return candidates.reduce((latest, candidate) => candidate.time > latest.time ? candidate : latest).value;
+}
+
 /**
  * Returns true when meta.identifiers indicates a high-confidence
  * low-volume candidate from the historical evidence index.
@@ -131,7 +139,7 @@ function classify(meta, now = new Date(), opts = {}) {
   const noDataCount = meta.noDataCount || 0;
 
   const staleDays = _daysBetween(now, newestSaleDate);
-  const lastRefreshDays = _daysBetween(now, meta.lastRefreshAt || meta.page1At);
+  const lastRefreshDays = _daysBetween(now, latestRefreshAt(meta));
   const noDataAgeDays = _daysBetween(now, meta.noDataAt);
 
   // Axis 1: Freshness
@@ -229,9 +237,6 @@ function shouldSkipRefresh(meta, now = new Date(), opts = {}) {
 
   // viable from here on
   if (freshness === 'stale' || freshness === 'very-stale') {
-    if (lastRefreshDays !== null && lastRefreshDays < RECENTLY_REFRESHED_DAYS) {
-      return { skip: true, reason: 'recently-confirmed-stale', state };
-    }
     if (
       consecutiveDryRefreshes >= DRY_REFRESH_TIER2 &&
       lastRefreshDays !== null &&
@@ -245,6 +250,9 @@ function shouldSkipRefresh(meta, now = new Date(), opts = {}) {
       lastRefreshDays < DRY_REFRESH_TIER1_DAYS
     ) {
       return { skip: true, reason: 'dry-refresh-backoff', state };
+    }
+    if (lastRefreshDays !== null && lastRefreshDays < RECENTLY_REFRESHED_DAYS) {
+      return { skip: true, reason: 'recently-confirmed-stale', state };
     }
     return { skip: false, reason: null, state };
   }
@@ -261,6 +269,7 @@ function shouldSkipRefresh(meta, now = new Date(), opts = {}) {
 module.exports = {
   THRESHOLDS,
   classify,
+  latestRefreshAt,
   shouldSkipRefresh,
   _isHighConfidenceLowVolEvidence,
   _isMediumConfidenceLowVolEvidence,

@@ -107,6 +107,34 @@ describe('importComps', () => {
     expect(lookup.comps.length).toBe(1);
     expect(lookup.comps[0].title).toMatch(/1 oz Silver 999 Onza/);
   });
+
+  test('rerouted new and duplicate comps preserve target dormancy', () => {
+    const sourceTerm = '1oz 2011 libertad mexican proof silver';
+    const targetTerm = 'twentieth 2011 libertad mexican proof silver';
+    const targetComp = {
+      title: '2011 Mexico Libertad 1/20 Onza Silver Proof',
+      soldDate: '2026-04-02',
+      totalUsd: 15,
+      itemId: 'dormant-reroute-twentieth',
+    };
+
+    importComps(targetTerm, [], {
+      aggregationMeta: { lastRefreshAt: '2026-06-01T00:00:00.000Z' },
+    });
+    importComps(targetTerm, [], {
+      aggregationMeta: { lastRefreshAt: '2026-06-15T00:00:00.000Z' },
+    });
+
+    importComps(sourceTerm, [targetComp], {}, { source: 'direct-page1' });
+    let target = listDatasets().find(d => d.key === normalizeSearchKey(targetTerm));
+    expect(target.aggregationMeta.noDataCount).toBe(2);
+    expect(target.aggregationMeta.noDataAt).toBe('2026-06-15T00:00:00.000Z');
+
+    importComps(sourceTerm, [targetComp], {}, { source: 'direct-page1' });
+    target = listDatasets().find(d => d.key === normalizeSearchKey(targetTerm));
+    expect(target.aggregationMeta.noDataCount).toBe(2);
+    expect(target.aggregationMeta.noDataAt).toBe('2026-06-15T00:00:00.000Z');
+  });
 });
 
 /* ════════════════════════════════════════════════════════════

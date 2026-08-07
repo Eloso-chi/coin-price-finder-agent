@@ -70,6 +70,21 @@ describe('getStaleDatasets exclusions (#229)', () => {
     expect(summary.skippedByReason['recently-confirmed-stale']).toBe(1);
   });
 
+  test('uses newer page1At when lastRefreshAt is older', () => {
+    setDatasets([
+      makeDataset('shadowed-refresh', {
+        newestSaleDate: dateAgo(40),
+        lastRefreshAt: daysAgo(67),
+        page1At: daysAgo(2),
+        refreshCount: 2,
+      }, 50),
+    ]);
+
+    const { stale, summary } = adminService.getStaleDatasets({ days: 30, limit: 50 });
+    expect(stale.find(s => s.searchTerm === 'shadowed-refresh')).toBeUndefined();
+    expect(summary.skippedByReason['recently-confirmed-stale']).toBe(1);
+  });
+
   test('excludes dormant datasets', () => {
     setDatasets([
       makeDataset('dormant', {

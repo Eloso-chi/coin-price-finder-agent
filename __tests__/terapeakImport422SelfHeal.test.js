@@ -15,8 +15,8 @@ const _importCalls = [];
 
 jest.mock('../src/services/terapeakService', () => ({
   parseCSV: jest.fn(),
-  importComps: jest.fn((term, comps, opts) => {
-    _importCalls.push({ term, compCount: comps.length, opts });
+  importComps: jest.fn((term, comps, opts, context) => {
+    _importCalls.push({ term, compCount: comps.length, opts, context });
     return { stored: comps.length, duplicates: 0 };
   }),
   listDatasets: jest.fn(() => []),
@@ -235,6 +235,56 @@ describe('POST /api/terapeak/import -- 422 does not write meta', () => {
     expect(body.status).toBe('ok');
     expect(_updateCalls).toHaveLength(0);
     expect(_importCalls).toHaveLength(1);
+    expect(_importCalls[0].context).toEqual({ source: 'manual' });
+  });
+
+  test('timestamped successful upload is marked as a direct page-1 result', async () => {
+    terapeakService.parseCSV.mockReturnValue({
+      comps: [{ title: 'Coin', totalUsd: 50, soldDate: '2026-08-07' }],
+      skipped: 0,
+      columns: ['Title', 'Sold Price', 'Sold Date'],
+      unmappedColumns: [],
+      totalRows: 1,
+    });
+
+    const { status } = await postMultipart(
+      '/api/terapeak/import',
+      {
+        searchTerm: '2025 Perth Lunar Snake 1oz Silver',
+        page1At: '2026-08-07T12:00:00.000Z',
+      },
+      { filename: 'lunar.csv', content: 'Title,Sold Price\nCoin,50' },
+      TEST_ADMIN_KEY,
+    );
+
+    expect(status).toBe(200);
+    expect(_importCalls).toHaveLength(1);
+    expect(_importCalls[0].context).toEqual({ source: 'direct-page1' });
+  });
+
+  test('deep upload with a refresh timestamp remains non-authoritative', async () => {
+    terapeakService.parseCSV.mockReturnValue({
+      comps: [{ title: 'Coin', totalUsd: 50, soldDate: '2026-08-07' }],
+      skipped: 0,
+      columns: ['Title', 'Sold Price', 'Sold Date'],
+      unmappedColumns: [],
+      totalRows: 1,
+    });
+
+    const { status } = await postMultipart(
+      '/api/terapeak/import',
+      {
+        searchTerm: '2025 Perth Lunar Snake 1oz Silver',
+        lastRefreshAt: '2026-08-07T12:00:00.000Z',
+        deepAt: '2026-08-07T12:00:00.000Z',
+        maxPageReached: '3',
+      },
+      { filename: 'lunar-deep.csv', content: 'Title,Sold Price\nCoin,50' },
+      TEST_ADMIN_KEY,
+    );
+
+    expect(status).toBe(200);
+    expect(_importCalls[0].context).toEqual({ source: 'manual' });
   });
 
   test('422 still returns the original detail payload (no regression)', async () => {

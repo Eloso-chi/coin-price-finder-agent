@@ -759,16 +759,18 @@ function parseCSV(csvData, searchTerm) {
  * @param {object} [meta]      - optional metadata
  * @returns {object} import summary
  */
-function importComps(searchTerm, comps, meta = {}, _reclassifying = false) {
+function importComps(searchTerm, comps, meta = {}, context = {}) {
   const store = loadStore();
   const normalizedKey = normalizeSearchKey(searchTerm);
+  const importSource = context.source || 'unspecified';
+  const isReclassifying = importSource === 'reroute';
 
   // ── Import-time reclassification ──────────────────────────
   // Detect the expected weight from the dataset key. For each comp, detect
   // actual weight from its title. If they differ, reroute the comp to the
   // correct dataset instead of discarding it.
   let reclassified = 0;
-  if (!_reclassifying) {
+  if (!isReclassifying) {
     const expectedWeight = detectWeightFromQuery(normalizedKey);
     const expectedMetal  = _detectMetalFromText(normalizedKey);
     if (expectedWeight != null) {
@@ -801,7 +803,7 @@ function importComps(searchTerm, comps, meta = {}, _reclassifying = false) {
       }
       // Recursively import rerouted comps into their correct datasets
       for (const [targetKey, reroutedComps] of Object.entries(reroute)) {
-        importComps(targetKey, reroutedComps, {}, true);
+        importComps(targetKey, reroutedComps, {}, { source: 'reroute' });
         reclassified += reroutedComps.length;
       }
       comps = keep;
@@ -868,13 +870,14 @@ function importComps(searchTerm, comps, meta = {}, _reclassifying = false) {
   }
 
   // Dormancy tracking (BACKLOG #245 Fix B):
-  //  - Successful import with comps resets dormant tracking (self-healing)
+  //  - Direct page-1 results with usable comps reset dormant tracking
   //  - Page-1 refresh that returns 0 comps increments noDataCount + stamps noDataAt
   //    so the freshness classifier's dormancy guard (noDataCount>=2) can fire
   //    instead of forever re-queueing empty datasets.
   //  - Cap at 5 -- enough to trigger dormancy with margin, avoids unbounded growth.
   const isPage1Refresh = !!(incomingMeta.page1At || incomingMeta.lastRefreshAt);
-  if (comps.length > 0 && prevMeta.noDataCount) {
+  const isDirectPage1Result = importSource === 'direct-page1' && isPage1Refresh;
+  if (isDirectPage1Result && comps.length > 0 && prevMeta.noDataCount) {
     mergedAggregationMeta.noDataAt = null;
     mergedAggregationMeta.noDataCount = 0;
   } else if (isPage1Refresh && comps.length === 0 && existing.length === 0) {
@@ -1702,7 +1705,7 @@ function autoImportFolder(folderPath, opts = {}) {
       // Track file size so the freshness check can detect significant growth
       importMeta.lastImportFileSize = csvStat2.size;
 
-      const result = importComps(searchTerm, comps, importMeta);
+      const result = importComps(searchTerm, comps, importMeta, { source: 'startup' });
       if (result.newComps > 0) {
         console.log(`[terapeak] Auto-imported ${file}: ${result.newComps} new comps for "${searchTerm}" (${result.totalStored} total)`);
         imported++;
@@ -1793,7 +1796,7 @@ async function autoImportFromBlob(opts = {}) {
           blobImportMeta.aggregationMeta = { deepAt: new Date().toISOString() };
         }
 
-        const result = importComps(searchTerm, comps, blobImportMeta);
+        const result = importComps(searchTerm, comps, blobImportMeta, { source: 'blob' });
         if (result.newComps > 0) {
           console.log(`[terapeak] Blob-imported ${fileName}: ${result.newComps} new comps for "${searchTerm}" (${result.totalStored} total)`);
           imported++;

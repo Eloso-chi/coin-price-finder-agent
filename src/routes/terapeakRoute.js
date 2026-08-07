@@ -7,6 +7,7 @@ const router = express.Router();
 
 const terapeakService = require('../services/terapeakService');
 const quotaService = require('../services/terapeakQuotaService');
+const { latestRefreshAt } = require('../services/freshnessClassifier');
 const requireAdmin = require('../middleware/requireAdminOrKey');
 
 // ── Multer: accept CSV uploads up to 10 MB ──────────────────
@@ -78,10 +79,14 @@ router.post('/import', requireAdmin, upload.single('file'), (req, res) => {
     if (req.body?.maxPageReached) aggregationMeta.maxPageReached = parseInt(req.body.maxPageReached) || null;
     if (req.body?.lastRefreshAt) aggregationMeta.lastRefreshAt = req.body.lastRefreshAt;
 
+    const isDirectPage1 = !!(aggregationMeta.page1At || aggregationMeta.lastRefreshAt) &&
+      !aggregationMeta.deepAt && (aggregationMeta.maxPageReached || 1) <= 1;
     const result = terapeakService.importComps(searchTerm, comps, {
       fileName: req.file.originalname,
       fileSize: req.file.size,
       ...(Object.keys(aggregationMeta).length > 0 ? { aggregationMeta } : {})
+    }, {
+      source: isDirectPage1 ? 'direct-page1' : 'manual',
     });
 
     res.json({
@@ -351,7 +356,7 @@ router.get('/aggregation-status', requireAdmin, (req, res) => {
       // fall back to process timestamps for datasets not yet backfilled.
       const newestSale = d.aggregationMeta?.newestSaleDate;
       if (newestSale) return newestSale < cutoffDate;
-      const lastRefresh = d.aggregationMeta?.lastRefreshAt || d.aggregationMeta?.page1At || d.lastImport;
+      const lastRefresh = latestRefreshAt(d.aggregationMeta) || d.lastImport;
       return !lastRefresh || lastRefresh < cutoffDate;
     });
   }

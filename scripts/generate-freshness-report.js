@@ -30,7 +30,7 @@ const fs = require('fs');
 const path = require('path');
 const { classifyComposition, classifyGradeCategory, getCoinMetalProfile } = require('../src/utils/coinMetalProfile');
 const { normalizeSearchKey } = require('../src/services/terapeakService');
-const { THRESHOLDS } = require('../src/services/freshnessClassifier');
+const { latestRefreshAt, THRESHOLDS } = require('../src/services/freshnessClassifier');
 
 // META_PATH may be overridden via env so jest tests can point at a per-worker
 // tmpdir (#273H). Without the hook, parallel workers race on the real file.
@@ -189,7 +189,7 @@ for (const [key, entry] of Object.entries(meta)) {
   // Axis 2: Market Depth (structural -- does this market have enough volume?)
   const csvExists = hasCSVOnDisk(key);
   const refreshCount = entry.refreshCount || 0;
-  const lastRefreshAt = entry.lastRefreshAt || entry.page1At || null;
+  const lastRefreshAt = latestRefreshAt(entry);
   const lastRefreshDays = lastRefreshAt ? Math.floor((today - new Date(lastRefreshAt)) / 86400000) : null;
 
   // Axis 1: Freshness
@@ -324,15 +324,15 @@ for (const [key, entry] of Object.entries(meta)) {
     actions.push('dormant');
     priority = null;
   } else if (freshness === 'very-stale' && marketDepth === 'viable') {
-    if (lastRefreshDays !== null && lastRefreshDays < RECENTLY_REFRESHED_DAYS) {
-      // Recently scraped but market has no new sales -- don't re-queue
-      actions.push('recently-confirmed-stale');
-      priority = null;
-    } else if (consecutiveDryRefreshes >= DRY_REFRESH_TIER2 && lastRefreshDays !== null && lastRefreshDays < DRY_REFRESH_TIER2_DAYS) {
+    if (consecutiveDryRefreshes >= DRY_REFRESH_TIER2 && lastRefreshDays !== null && lastRefreshDays < DRY_REFRESH_TIER2_DAYS) {
       actions.push('dry-refresh-backoff');
       priority = null;
     } else if (consecutiveDryRefreshes >= DRY_REFRESH_TIER1 && lastRefreshDays !== null && lastRefreshDays < DRY_REFRESH_TIER1_DAYS) {
       actions.push('dry-refresh-backoff');
+      priority = null;
+    } else if (lastRefreshDays !== null && lastRefreshDays < RECENTLY_REFRESHED_DAYS) {
+      // Recently scraped but market has no new sales -- don't re-queue
+      actions.push('recently-confirmed-stale');
       priority = null;
     } else {
       if (isP01BullionCandidate(key, composition, metal, marketDepth)) {
@@ -344,14 +344,14 @@ for (const [key, entry] of Object.entries(meta)) {
       }
     }
   } else if (freshness === 'stale' && marketDepth === 'viable') {
-    if (lastRefreshDays !== null && lastRefreshDays < RECENTLY_REFRESHED_DAYS) {
-      actions.push('recently-confirmed-stale');
-      priority = null;
-    } else if (consecutiveDryRefreshes >= DRY_REFRESH_TIER2 && lastRefreshDays !== null && lastRefreshDays < DRY_REFRESH_TIER2_DAYS) {
+    if (consecutiveDryRefreshes >= DRY_REFRESH_TIER2 && lastRefreshDays !== null && lastRefreshDays < DRY_REFRESH_TIER2_DAYS) {
       actions.push('dry-refresh-backoff');
       priority = null;
     } else if (consecutiveDryRefreshes >= DRY_REFRESH_TIER1 && lastRefreshDays !== null && lastRefreshDays < DRY_REFRESH_TIER1_DAYS) {
       actions.push('dry-refresh-backoff');
+      priority = null;
+    } else if (lastRefreshDays !== null && lastRefreshDays < RECENTLY_REFRESHED_DAYS) {
+      actions.push('recently-confirmed-stale');
       priority = null;
     } else {
       if (isP01BullionCandidate(key, composition, metal, marketDepth)) {
