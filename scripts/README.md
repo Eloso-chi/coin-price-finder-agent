@@ -25,7 +25,7 @@ Operational scripts for data collection, migration, and maintenance. Most script
 | `terapeak-operator.sh` | Canonical H launcher with #284H risk states, Cooldown restart gates, randomized Normal batches, Elevated pacing, and shared pass telemetry | `bash scripts/terapeak-operator.sh` |
 | `terapeak-operator-codespace.sh` | Canonical W launcher using the same #284H state and telemetry contract | `bash scripts/terapeak-operator-codespace.sh --max-passes 1` |
 | `validate-pass-telemetry.py` | Validate required #284H fields in pass JSONL; add `--json` for machine-readable output | `python3 scripts/validate-pass-telemetry.py cache/terapeak-runs/passes.jsonl` |
-| `repair-terapeak-dormancy.js` | Derive proven dormancy resets from a run ledger; dry-run by default and require Cosmos for durable apply | `node scripts/repair-terapeak-dormancy.js [--apply] [--run-id=ID]` |
+| `repair-terapeak-dormancy.js` | Derive proven dormancy resets from pinned run evidence; dry-run by default and require ETag-guarded Cosmos writes plus a sidecar lock for durable apply | `node scripts/repair-terapeak-dormancy.js [--run-id=ID]`; apply with `--apply --confirm-cosmos=<COSMOS_DB> --confirm-cosmos-account=<COSMOS_ENDPOINT hostname>` |
 | `terapeak-startup-preflight.sh` | Startup gate for runtime/env/tooling/cookie health checks (login or loop mode) | `bash scripts/terapeak-startup-preflight.sh --mode login` |
 | `run-surface-freshness-loop.sh` | Surface/WSL wrapper: report -> page 1 backlog -> report -> deep backlog -> report | `bash scripts/run-surface-freshness-loop.sh --env-file ~/.env.surface` |
 | `vnc-login.py` | Opens browser, waits for eBay login, saves cookies | `python3 scripts/vnc-login.py` |

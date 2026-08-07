@@ -7,7 +7,7 @@ const router = express.Router();
 
 const terapeakService = require('../services/terapeakService');
 const quotaService = require('../services/terapeakQuotaService');
-const { latestRefreshAt } = require('../services/freshnessClassifier');
+const { isPlausibleRefreshTimestamp, latestRefreshAt } = require('../services/freshnessClassifier');
 const requireAdmin = require('../middleware/requireAdminOrKey');
 
 // ── Multer: accept CSV uploads up to 10 MB ──────────────────
@@ -78,6 +78,12 @@ router.post('/import', requireAdmin, upload.single('file'), (req, res) => {
     if (req.body?.deepAt) aggregationMeta.deepAt = req.body.deepAt;
     if (req.body?.maxPageReached) aggregationMeta.maxPageReached = parseInt(req.body.maxPageReached) || null;
     if (req.body?.lastRefreshAt) aggregationMeta.lastRefreshAt = req.body.lastRefreshAt;
+
+    for (const field of ['page1At', 'lastRefreshAt', 'deepAt']) {
+      if (aggregationMeta[field] && !isPlausibleRefreshTimestamp(aggregationMeta[field])) {
+        return res.status(400).json({ error: `${field} must be a valid timestamp no more than 5 minutes in the future` });
+      }
+    }
 
     const isDirectPage1 = !!(aggregationMeta.page1At || aggregationMeta.lastRefreshAt) &&
       !aggregationMeta.deepAt && (aggregationMeta.maxPageReached || 1) <= 1;

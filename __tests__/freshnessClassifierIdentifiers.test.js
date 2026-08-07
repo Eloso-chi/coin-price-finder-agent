@@ -20,6 +20,16 @@ describe('freshnessClassifier -- refresh timestamp precedence', () => {
     expect(latestRefreshAt(meta)).toBe(meta.page1At);
     expect(classify(meta, NOW).lastRefreshDays).toBe(2);
   });
+
+  test('ignores malformed and implausibly future refresh timestamps', () => {
+    const meta = {
+      page1At: '2099-01-01T00:00:00.000Z',
+      lastRefreshAt: 'not-a-date',
+    };
+
+    expect(latestRefreshAt(meta, NOW)).toBeNull();
+    expect(classify(meta, NOW).lastRefreshDays).toBeNull();
+  });
 });
 
 describe('freshnessClassifier -- evidence-low-vol gate (Fix A of #245)', () => {

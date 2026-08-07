@@ -262,6 +262,27 @@ describe('POST /api/terapeak/import -- 422 does not write meta', () => {
     expect(_importCalls[0].context).toEqual({ source: 'direct-page1' });
   });
 
+  test('rejects an implausibly future page-1 timestamp', async () => {
+    terapeakService.parseCSV.mockReturnValue({
+      comps: [{ title: 'Coin', totalUsd: 50, soldDate: '2026-08-07' }],
+      skipped: 0,
+      columns: ['Title', 'Sold Price', 'Sold Date'],
+      unmappedColumns: [],
+      totalRows: 1,
+    });
+
+    const { status, body } = await postMultipart(
+      '/api/terapeak/import',
+      { searchTerm: 'Future Coin', page1At: '2099-01-01T00:00:00.000Z' },
+      { filename: 'future.csv', content: 'Title,Sold Price\nCoin,50' },
+      TEST_ADMIN_KEY,
+    );
+
+    expect(status).toBe(400);
+    expect(body.error).toMatch(/page1At.*valid timestamp/i);
+    expect(_importCalls).toHaveLength(0);
+  });
+
   test('deep upload with a refresh timestamp remains non-authoritative', async () => {
     terapeakService.parseCSV.mockReturnValue({
       comps: [{ title: 'Coin', totalUsd: 50, soldDate: '2026-08-07' }],

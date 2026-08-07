@@ -70,6 +70,34 @@ function saveStore() {
 // ── Meta sidecar (git-tracked) ──────────────────────────────────
 let _metaSavePending = null;
 
+function _mergeMetaSidecarSnapshot(generated, disk) {
+  const merged = { ...disk };
+  for (const [key, generatedMeta] of Object.entries(generated)) {
+    const diskMeta = disk[key];
+    if (!diskMeta) {
+      merged[key] = generatedMeta;
+      continue;
+    }
+
+    const combined = _mergeAggregationMeta(diskMeta, generatedMeta);
+    const generatedRefreshAt = [generatedMeta.page1At, generatedMeta.lastRefreshAt]
+      .filter(Boolean)
+      .sort()
+      .at(-1);
+    if (generatedRefreshAt && diskMeta.noDataAt && generatedRefreshAt > diskMeta.noDataAt) {
+      combined.noDataAt = generatedMeta.noDataAt || null;
+      combined.noDataCount = generatedMeta.noDataCount || 0;
+    }
+    merged[key] = {
+      ...combined,
+      ...(diskMeta.identifiers || generatedMeta.identifiers
+        ? { identifiers: generatedMeta.identifiers || diskMeta.identifiers }
+        : {}),
+    };
+  }
+  return merged;
+}
+
 /**
  * Write a lightweight JSON sidecar with just aggregationMeta per search term.
  * Git-tracked in data/terapeak-meta.json so markers survive codespace rebuilds
@@ -141,11 +169,33 @@ function saveMetaSidecar() {
         }
       }
     }
-    fs.writeFile(_resolveMetaSidecarPath(), JSON.stringify(meta, null, 2) + '\n', (err) => {
-      if (err && process.env.NODE_ENV !== 'test') {
+    const metaPath = _resolveMetaSidecarPath();
+    const lockPath = `${metaPath}.lock`;
+    let lockHandle;
+    try {
+      lockHandle = fs.openSync(lockPath, 'wx');
+      let diskMeta = {};
+      try {
+        diskMeta = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
+      } catch (err) {
+        if (err.code !== 'ENOENT') throw err;
+      }
+      const mergedMeta = _mergeMetaSidecarSnapshot(meta, diskMeta);
+      const tempPath = `${metaPath}.${process.pid}.tmp`;
+      fs.writeFileSync(tempPath, JSON.stringify(mergedMeta, null, 2) + '\n');
+      fs.renameSync(tempPath, metaPath);
+    } catch (err) {
+      if (err.code === 'EEXIST') {
+        saveMetaSidecar();
+      } else if (process.env.NODE_ENV !== 'test') {
         console.error('[terapeak] Failed to save meta sidecar:', err.message);
       }
-    });
+    } finally {
+      if (lockHandle !== undefined) {
+        fs.closeSync(lockHandle);
+        fs.rmSync(lockPath, { force: true });
+      }
+    }
   }, 1000);
 }
 
@@ -1850,6 +1900,7 @@ module.exports = {
   // Exposed for testing
   mapColumn,
   _mergeAggregationMeta,
+  _mergeMetaSidecarSnapshot,
   _mergeStoreEntries,
   _rekeyStoreInPlace,
   rowToComp,

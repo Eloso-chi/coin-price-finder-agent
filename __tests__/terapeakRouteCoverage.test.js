@@ -352,9 +352,10 @@ describe('GET /aggregation-status', () => {
   });
 
   test('needs=refresh uses newer page1At over older lastRefreshAt', async () => {
+    const recentPage1At = new Date(Date.now() - 86_400_000).toISOString();
     mockListDatasets.mockReturnValue([
       { key: 'shadowed', searchTerm: 'shadowed', compCount: 50,
-        aggregationMeta: { lastRefreshAt: '2024-01-01', page1At: '2099-01-01' } },
+        aggregationMeta: { lastRefreshAt: '2024-01-01', page1At: recentPage1At } },
     ]);
 
     const { body } = await request('GET',
