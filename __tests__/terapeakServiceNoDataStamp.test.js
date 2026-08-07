@@ -11,7 +11,7 @@ describe('terapeakService.importComps -- dormancy stamping (Fix B of #245)', () 
   const baseKey = terapeakService.normalizeSearchKey(baseTerm);
 
   afterEach(() => {
-    try { terapeakService.deleteDataset(baseKey); } catch (_) {}
+    try { terapeakService.deleteDataset(baseKey); } catch (_) { /* best-effort cleanup */ }
   });
 
   function getMeta() {
@@ -54,7 +54,7 @@ describe('terapeakService.importComps -- dormancy stamping (Fix B of #245)', () 
     expect(am.noDataCount).toBe(5);
   });
 
-  test('successful import with comps resets noDataCount to 0 (self-healing)', () => {
+  test('direct successful page-1 import with comps resets noDataCount to 0', () => {
     terapeakService.importComps(baseTerm, [], {
       aggregationMeta: { page1At: '2026-06-01T00:00:00.000Z', lastRefreshAt: '2026-06-01T00:00:00.000Z' },
     });
@@ -66,11 +66,28 @@ describe('terapeakService.importComps -- dormancy stamping (Fix B of #245)', () 
 
     terapeakService.importComps(baseTerm, [
       { price: 100, soldDate: '2026-07-01', title: 'recovered comp', _source: 'terapeak' },
-    ], { aggregationMeta: { lastRefreshAt: '2026-07-01T00:00:00.000Z' } });
+    ], { aggregationMeta: { lastRefreshAt: '2026-07-01T00:00:00.000Z' } }, { source: 'direct-page1' });
 
     am = getMeta();
     expect(am.noDataCount).toBe(0);
     expect(am.noDataAt).toBeNull();
+  });
+
+  test('non-direct import with comps preserves dormancy', () => {
+    terapeakService.importComps(baseTerm, [], {
+      aggregationMeta: { lastRefreshAt: '2026-06-01T00:00:00.000Z' },
+    });
+    terapeakService.importComps(baseTerm, [], {
+      aggregationMeta: { lastRefreshAt: '2026-06-15T00:00:00.000Z' },
+    });
+
+    terapeakService.importComps(baseTerm, [
+      { price: 100, soldDate: '2026-07-01', title: 'hydrated comp', _source: 'terapeak' },
+    ], {}, { source: 'blob' });
+
+    const am = getMeta();
+    expect(am.noDataCount).toBe(2);
+    expect(am.noDataAt).toBe('2026-06-15T00:00:00.000Z');
   });
 
   test('deep-pagination import (no page1At/lastRefreshAt) does not stamp noDataCount', () => {

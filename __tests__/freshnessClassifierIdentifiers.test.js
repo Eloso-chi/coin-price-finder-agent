@@ -4,11 +4,33 @@
 // cadence (EVIDENCE_LOW_VOL_CADENCE_DAYS = 90) regardless of freshness.
 'use strict';
 
-const { classify, shouldSkipRefresh, THRESHOLDS, _isHighConfidenceLowVolEvidence } =
+const { classify, latestRefreshAt, shouldSkipRefresh, THRESHOLDS, _isHighConfidenceLowVolEvidence } =
   require('../src/services/freshnessClassifier');
 
 const NOW = new Date('2026-07-01T00:00:00.000Z');
 const daysAgoIso = (n) => new Date(NOW.getTime() - n * 86_400_000).toISOString();
+
+describe('freshnessClassifier -- refresh timestamp precedence', () => {
+  test('newer page1At wins over older lastRefreshAt', () => {
+    const meta = {
+      page1At: daysAgoIso(2),
+      lastRefreshAt: daysAgoIso(67),
+    };
+
+    expect(latestRefreshAt(meta)).toBe(meta.page1At);
+    expect(classify(meta, NOW).lastRefreshDays).toBe(2);
+  });
+
+  test('ignores malformed and implausibly future refresh timestamps', () => {
+    const meta = {
+      page1At: '2099-01-01T00:00:00.000Z',
+      lastRefreshAt: 'not-a-date',
+    };
+
+    expect(latestRefreshAt(meta, NOW)).toBeNull();
+    expect(classify(meta, NOW).lastRefreshDays).toBeNull();
+  });
+});
 
 describe('freshnessClassifier -- evidence-low-vol gate (Fix A of #245)', () => {
   const HIGH_CONF_LOW_VOL = {

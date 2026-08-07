@@ -36,6 +36,7 @@ const DORMANT_WINDOW_DAYS = 60;
 //  that evidence and only re-probe on quarterly cadence. Prevents the queue
 //  from drowning in known-empty bullion series like Krugerrand/Britannia.
 const EVIDENCE_LOW_VOL_CADENCE_DAYS = 90;
+const MAX_FUTURE_REFRESH_SKEW_MS = 5 * 60 * 1000;
 
 const THRESHOLDS = Object.freeze({
   STALE_THRESHOLD_DAYS,
@@ -60,6 +61,20 @@ function _daysBetween(now, iso) {
   const t = new Date(iso).getTime();
   if (!Number.isFinite(t)) return null;
   return Math.floor((now.getTime() - t) / 86_400_000);
+}
+
+function isPlausibleRefreshTimestamp(value, now = new Date()) {
+  if (!value) return false;
+  const time = new Date(value).getTime();
+  return Number.isFinite(time) && time <= now.getTime() + MAX_FUTURE_REFRESH_SKEW_MS;
+}
+
+function latestRefreshAt(meta = {}, now = new Date()) {
+  const candidates = [meta.page1At, meta.lastRefreshAt]
+    .map(value => ({ value, time: value ? new Date(value).getTime() : NaN }))
+    .filter(candidate => isPlausibleRefreshTimestamp(candidate.value, now));
+  if (candidates.length === 0) return null;
+  return candidates.reduce((latest, candidate) => candidate.time > latest.time ? candidate : latest).value;
 }
 
 /**
@@ -131,7 +146,7 @@ function classify(meta, now = new Date(), opts = {}) {
   const noDataCount = meta.noDataCount || 0;
 
   const staleDays = _daysBetween(now, newestSaleDate);
-  const lastRefreshDays = _daysBetween(now, meta.lastRefreshAt || meta.page1At);
+  const lastRefreshDays = _daysBetween(now, latestRefreshAt(meta, now));
   const noDataAgeDays = _daysBetween(now, meta.noDataAt);
 
   // Axis 1: Freshness
@@ -229,9 +244,6 @@ function shouldSkipRefresh(meta, now = new Date(), opts = {}) {
 
   // viable from here on
   if (freshness === 'stale' || freshness === 'very-stale') {
-    if (lastRefreshDays !== null && lastRefreshDays < RECENTLY_REFRESHED_DAYS) {
-      return { skip: true, reason: 'recently-confirmed-stale', state };
-    }
     if (
       consecutiveDryRefreshes >= DRY_REFRESH_TIER2 &&
       lastRefreshDays !== null &&
@@ -245,6 +257,9 @@ function shouldSkipRefresh(meta, now = new Date(), opts = {}) {
       lastRefreshDays < DRY_REFRESH_TIER1_DAYS
     ) {
       return { skip: true, reason: 'dry-refresh-backoff', state };
+    }
+    if (lastRefreshDays !== null && lastRefreshDays < RECENTLY_REFRESHED_DAYS) {
+      return { skip: true, reason: 'recently-confirmed-stale', state };
     }
     return { skip: false, reason: null, state };
   }
@@ -261,6 +276,8 @@ function shouldSkipRefresh(meta, now = new Date(), opts = {}) {
 module.exports = {
   THRESHOLDS,
   classify,
+  isPlausibleRefreshTimestamp,
+  latestRefreshAt,
   shouldSkipRefresh,
   _isHighConfidenceLowVolEvidence,
   _isMediumConfidenceLowVolEvidence,

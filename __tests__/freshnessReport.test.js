@@ -222,6 +222,26 @@ describe('generate-freshness-report.js', () => {
     expect(ds.priority).toBeNull();
   });
 
+  test('newer page1At puts 2025 Lunar Snake into dry-refresh backoff', () => {
+    const meta = {
+      '2025 perth lunar snake 1oz silver': {
+        compCount: 117,
+        newestSaleDate: daysAgo(40),
+        lastRefreshAt: daysAgo(67),
+        page1At: daysAgo(1),
+        refreshCount: 11,
+        consecutiveDryRefreshes: 7,
+        lastRefreshNewComps: 0,
+      },
+    };
+
+    const report = runReport(meta);
+    const ds = report.datasets[0];
+    expect(ds.actions).toContain('dry-refresh-backoff');
+    expect(ds.actions).not.toContain('refresh-bullion');
+    expect(ds.priority).toBeNull();
+  });
+
   test('dry-refresh tier 2 (>=4 dry) extends cadence to 60d', () => {
     const meta = {
       '2019 american gold eagle': {

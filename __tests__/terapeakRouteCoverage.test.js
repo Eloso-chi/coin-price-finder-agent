@@ -351,6 +351,18 @@ describe('GET /aggregation-status', () => {
     expect(keys).not.toContain('k2');
   });
 
+  test('needs=refresh uses newer page1At over older lastRefreshAt', async () => {
+    const recentPage1At = new Date(Date.now() - 86_400_000).toISOString();
+    mockListDatasets.mockReturnValue([
+      { key: 'shadowed', searchTerm: 'shadowed', compCount: 50,
+        aggregationMeta: { lastRefreshAt: '2024-01-01', page1At: recentPage1At } },
+    ]);
+
+    const { body } = await request('GET',
+      '/api/terapeak/aggregation-status?needs=refresh&maxAge=14', null, TEST_ADMIN_KEY);
+    expect(body.datasets).toEqual([]);
+  });
+
   test('minComps filter excludes small datasets', async () => {
     const { body } = await request('GET', '/api/terapeak/aggregation-status?minComps=50',
       null, TEST_ADMIN_KEY);
