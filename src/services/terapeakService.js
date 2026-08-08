@@ -69,6 +69,7 @@ function saveStore() {
 
 // ── Meta sidecar (git-tracked) ──────────────────────────────────
 let _metaSavePending = null;
+const _metaCosmosWrites = new Map();
 
 function _mergeMetaSidecarSnapshot(generated, disk) {
   const merged = { ...disk };
@@ -225,7 +226,7 @@ function _mergeAggregationMeta(existing, incoming) {
   const earliest = (x, y) => (!x ? (y || null) : !y ? x : (x < y ? x : y));
   const maxNum = (x, y) => Math.max(Number(x) || 0, Number(y) || 0);
   const maxNumOrNull = (x, y) => maxNum(x, y) || null;
-  return {
+  const merged = {
     page1At:                  latest(A.page1At, B.page1At),
     deepAt:                   latest(A.deepAt, B.deepAt),
     lastRefreshAt:            latest(A.lastRefreshAt, B.lastRefreshAt),
@@ -239,6 +240,16 @@ function _mergeAggregationMeta(existing, incoming) {
     consecutiveDryRefreshes:  maxNum(A.consecutiveDryRefreshes, B.consecutiveDryRefreshes),
     lastRefreshNewComps:      (A.lastRefreshNewComps != null ? A.lastRefreshNewComps : (B.lastRefreshNewComps != null ? B.lastRefreshNewComps : null)),
   };
+  const latestRefresh = meta => latest(meta.page1At, meta.lastRefreshAt);
+  const clearsDormancy = (candidate, dormant) => {
+    const refreshAt = latestRefresh(candidate);
+    return (candidate.noDataCount || 0) === 0 && refreshAt && dormant.noDataAt && refreshAt > dormant.noDataAt;
+  };
+  if (clearsDormancy(A, B) || clearsDormancy(B, A)) {
+    merged.noDataAt = null;
+    merged.noDataCount = 0;
+  }
+  return merged;
 }
 
 /**
@@ -407,7 +418,7 @@ async function hydrateMetaFromCosmos() {
 
     for (const doc of resources) {
       const meta = doc.aggregationMeta;
-      if (!meta || (!meta.deepAt && !meta.page1At && !meta.lastRefreshAt)) continue;
+      if (!meta || (!meta.deepAt && !meta.page1At && !meta.lastRefreshAt && !meta.noDataAt && !meta.noDataCount)) continue;
 
       // Normalize the key the same way importComps does
       const key = normalizeSearchKey(doc.searchTerm || doc.id || '');
@@ -1343,7 +1354,48 @@ function updateDatasetMeta(searchTerm, metaUpdates) {
   _store = store;
   saveStore();
   saveMetaSidecar();
-  return { key: normalizedKey, aggregationMeta: am };
+  let persistence = Promise.resolve();
+  if (cosmos.isEnabled()) {
+    const previous = _metaCosmosWrites.get(normalizedKey) || Promise.resolve();
+    persistence = previous.catch(() => {}).then(async () => {
+      const id = normalizedKey.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 200);
+      const container = cosmos.container('terapeak-sold');
+      const item = container.item(id, normalizedKey);
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          const { resource } = await item.read();
+          if (!resource) throw Object.assign(new Error('Cosmos document missing'), { code: 404 });
+          const operations = resource.aggregationMeta
+            ? Object.entries(metaUpdates).map(([field, value]) => ({ op: 'set', path: `/aggregationMeta/${field}`, value }))
+            : [{ op: 'set', path: '/aggregationMeta', value: am }];
+          await item.patch(operations, {
+            accessCondition: { type: 'IfMatch', condition: resource._etag },
+          });
+          return;
+        } catch (err) {
+          if (err.code === 412 && attempt === 0) continue;
+          if (err.code !== 404) throw err;
+          await container.items.create({
+            id,
+            searchTerm: normalizedKey,
+            comps: [],
+            lastImport: null,
+            importCount: 0,
+            aggregationMeta: am,
+          });
+          return;
+        }
+      }
+    });
+    persistence.catch(err => {
+      if (process.env.NODE_ENV !== 'test') console.error('[terapeak] Cosmos metadata write-through failed:', err.message);
+    });
+    const queuedPersistence = persistence.catch(() => {}).finally(() => {
+      if (_metaCosmosWrites.get(normalizedKey) === queuedPersistence) _metaCosmosWrites.delete(normalizedKey);
+    });
+    _metaCosmosWrites.set(normalizedKey, queuedPersistence);
+  }
+  return { key: normalizedKey, aggregationMeta: am, persistence };
 }
 
 /**
