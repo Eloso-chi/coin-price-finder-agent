@@ -416,7 +416,7 @@ router.get('/scrape-status', requireAdmin, (req, res) => {
  * mark the dataset as dormant after repeated empty attempts.
  * Body: { searchTerm: string }
  */
-router.post('/report-no-data', requireAdmin, express.json(), (req, res) => {
+router.post('/report-no-data', requireAdmin, express.json(), async (req, res) => {
   const searchTerm = req.body?.searchTerm;
   if (!searchTerm || typeof searchTerm !== 'string') {
     return res.status(400).json({ error: 'searchTerm is required' });
@@ -453,6 +453,7 @@ router.post('/report-no-data', requireAdmin, express.json(), (req, res) => {
       noDataAt: new Date().toISOString(),
       noDataCount: Math.min(NO_DATA_CAP, prevCount + 1),
     });
+    await result.persistence;
 
     res.json({
       status: 'ok',

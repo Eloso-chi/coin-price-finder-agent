@@ -69,6 +69,7 @@ function saveStore() {
 
 // ── Meta sidecar (git-tracked) ──────────────────────────────────
 let _metaSavePending = null;
+const _metaCosmosWrites = new Map();
 
 function _mergeMetaSidecarSnapshot(generated, disk) {
   const merged = { ...disk };
@@ -1353,22 +1354,48 @@ function updateDatasetMeta(searchTerm, metaUpdates) {
   _store = store;
   saveStore();
   saveMetaSidecar();
+  let persistence = Promise.resolve();
   if (cosmos.isEnabled()) {
-    const entry = store[normalizedKey];
-    const doc = {
-      id: normalizedKey.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 200),
-      searchTerm: normalizedKey,
-      comps: entry.comps || [],
-      lastImport: entry.lastImport || null,
-      importCount: entry.importCount || 0,
-      aggregationMeta: am,
-      ...(entry.identifiers ? { identifiers: entry.identifiers } : {}),
-    };
-    cosmos.container('terapeak-sold').items.upsert(doc).catch(err => {
+    const previous = _metaCosmosWrites.get(normalizedKey) || Promise.resolve();
+    persistence = previous.catch(() => {}).then(async () => {
+      const id = normalizedKey.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 200);
+      const container = cosmos.container('terapeak-sold');
+      const item = container.item(id, normalizedKey);
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          const { resource } = await item.read();
+          if (!resource) throw Object.assign(new Error('Cosmos document missing'), { code: 404 });
+          const operations = resource.aggregationMeta
+            ? Object.entries(metaUpdates).map(([field, value]) => ({ op: 'set', path: `/aggregationMeta/${field}`, value }))
+            : [{ op: 'set', path: '/aggregationMeta', value: am }];
+          await item.patch(operations, {
+            accessCondition: { type: 'IfMatch', condition: resource._etag },
+          });
+          return;
+        } catch (err) {
+          if (err.code === 412 && attempt === 0) continue;
+          if (err.code !== 404) throw err;
+          await container.items.create({
+            id,
+            searchTerm: normalizedKey,
+            comps: [],
+            lastImport: null,
+            importCount: 0,
+            aggregationMeta: am,
+          });
+          return;
+        }
+      }
+    });
+    persistence.catch(err => {
       if (process.env.NODE_ENV !== 'test') console.error('[terapeak] Cosmos metadata write-through failed:', err.message);
     });
+    const queuedPersistence = persistence.catch(() => {}).finally(() => {
+      if (_metaCosmosWrites.get(normalizedKey) === queuedPersistence) _metaCosmosWrites.delete(normalizedKey);
+    });
+    _metaCosmosWrites.set(normalizedKey, queuedPersistence);
   }
-  return { key: normalizedKey, aggregationMeta: am };
+  return { key: normalizedKey, aggregationMeta: am, persistence };
 }
 
 /**

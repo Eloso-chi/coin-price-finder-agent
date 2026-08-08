@@ -21,14 +21,26 @@ describe('audit-terapeak-dormancy', () => {
     ]);
   });
 
-  test('does not flag when current metadata proves a later refresh', () => {
+  test('does not treat a later refresh timestamp as proof of success', () => {
     const rows = [
       event('Target Coin', '2026-08-02T00:00:00Z', 'empty'),
       event('Target Coin', '2026-08-03T00:00:00Z', 'empty'),
     ];
     const meta = { 'coin target': { page1At: '2026-08-04T00:00:00Z' } };
 
-    expect(auditDormancy(rows, meta).missingDormancy).toEqual([]);
+    expect(auditDormancy(rows, meta).missingDormancy).toHaveLength(1);
+  });
+
+  test('orders canonical aliases in the same pass by ledger index', () => {
+    const rows = [
+      { ...event('Target Coin', '2026-08-02T00:00:00Z', 'ok'), pass: 1, idx: 1 },
+      { ...event('Coin Target', '2026-08-02T00:00:00Z', 'empty'), pass: 1, idx: 2 },
+      { ...event('Target Coin', '2026-08-03T00:00:00Z', 'empty'), pass: 2, idx: 1 },
+    ];
+
+    expect(auditDormancy(rows, {}).missingDormancy).toEqual([
+      expect.objectContaining({ key: 'coin target', emptyAfterSuccess: 2 }),
+    ]);
   });
 
   test('flags dormant metadata followed by a successful direct attempt', () => {

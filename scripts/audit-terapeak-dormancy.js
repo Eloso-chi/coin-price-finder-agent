@@ -9,11 +9,6 @@ const ROOT = path.join(__dirname, '..');
 const DEFAULT_LEDGER_PATH = path.join(ROOT, 'cache', 'terapeak-runs', 'coins.jsonl');
 const DEFAULT_META_PATH = path.join(ROOT, 'data', 'terapeak-meta.json');
 
-function latestTime(...values) {
-  const times = values.map(Date.parse).filter(Number.isFinite);
-  return times.length ? Math.max(...times) : -Infinity;
-}
-
 function auditDormancy(rows, meta) {
   const byKey = new Map();
   for (const row of rows) {
@@ -27,17 +22,18 @@ function auditDormancy(rows, meta) {
   const missingDormancy = [];
   const staleDormancy = [];
   for (const [key, events] of byKey) {
-    events.sort((first, second) => first.time - second.time);
+    events.sort((first, second) => first.time - second.time ||
+      String(first.run_id).localeCompare(String(second.run_id)) ||
+      (Number(first.pass) || 0) - (Number(second.pass) || 0) ||
+      (Number(first.idx) || 0) - (Number(second.idx) || 0));
     const successes = events.filter(event => event.status === 'ok');
-    const latestSuccessAt = successes.at(-1)?.time ?? -Infinity;
-    const emptyAfterSuccess = events.filter(event => event.status === 'empty' && event.time > latestSuccessAt);
+    const latestSuccessIndex = events.findLastIndex(event => event.status === 'ok');
+    const emptyAfterSuccess = events.slice(latestSuccessIndex + 1).filter(event => event.status === 'empty');
     const latestEmpty = emptyAfterSuccess.at(-1);
     const current = meta[key] || {};
-    const currentRefreshAt = latestTime(current.page1At, current.lastRefreshAt);
     const runCount = new Set(events.map(event => event.run_id)).size;
 
-    if (emptyAfterSuccess.length >= 2 && latestEmpty && currentRefreshAt <= latestEmpty.time &&
-        (current.noDataCount || 0) < 2) {
+    if (emptyAfterSuccess.length >= 2 && latestEmpty && (current.noDataCount || 0) < 2) {
       missingDormancy.push({
         key,
         attempts: events.length,
