@@ -35,7 +35,7 @@
   "homepage": "https://github.com/Eloso-chi/coin-price-finder-agent#readme",
   "dependencies": {
     "@azure/communication-email": "^1.1.0",
-    "@azure/cosmos": "^4.9.3",
+    "@azure/cosmos": "^4.10.0",
     "@azure/identity": "^4.13.1",
     "@azure/storage-blob": "^12.33.0",
     "ajv": "^8.20.0",
