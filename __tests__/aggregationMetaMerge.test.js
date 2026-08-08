@@ -102,6 +102,15 @@ describe('_mergeAggregationMeta (#246 PR B)', () => {
     expect(out2.compCount).toBe(42);
   });
 
+  test.each([
+    ['existing successful refresh', { page1At: '2026-08-07T00:00:00Z', noDataCount: 0 }, { noDataAt: '2026-05-01T00:00:00Z', noDataCount: 5 }],
+    ['incoming successful refresh', { noDataAt: '2026-05-01T00:00:00Z', noDataCount: 5 }, { page1At: '2026-08-07T00:00:00Z', noDataCount: 0 }],
+  ])('%s clears older dormancy', (_label, existing, incoming) => {
+    const out = _mergeAggregationMeta(existing, incoming);
+    expect(out.noDataCount).toBe(0);
+    expect(out.noDataAt).toBeNull();
+  });
+
   // ── lastRefreshNewComps: per-refresh value, not cumulative ────────
   test('lastRefreshNewComps prefers existing (already-tracked) value', () => {
     const out = _mergeAggregationMeta({ lastRefreshNewComps: 12 }, { lastRefreshNewComps: 3 });

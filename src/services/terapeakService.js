@@ -225,7 +225,7 @@ function _mergeAggregationMeta(existing, incoming) {
   const earliest = (x, y) => (!x ? (y || null) : !y ? x : (x < y ? x : y));
   const maxNum = (x, y) => Math.max(Number(x) || 0, Number(y) || 0);
   const maxNumOrNull = (x, y) => maxNum(x, y) || null;
-  return {
+  const merged = {
     page1At:                  latest(A.page1At, B.page1At),
     deepAt:                   latest(A.deepAt, B.deepAt),
     lastRefreshAt:            latest(A.lastRefreshAt, B.lastRefreshAt),
@@ -239,6 +239,16 @@ function _mergeAggregationMeta(existing, incoming) {
     consecutiveDryRefreshes:  maxNum(A.consecutiveDryRefreshes, B.consecutiveDryRefreshes),
     lastRefreshNewComps:      (A.lastRefreshNewComps != null ? A.lastRefreshNewComps : (B.lastRefreshNewComps != null ? B.lastRefreshNewComps : null)),
   };
+  const latestRefresh = meta => latest(meta.page1At, meta.lastRefreshAt);
+  const clearsDormancy = (candidate, dormant) => {
+    const refreshAt = latestRefresh(candidate);
+    return (candidate.noDataCount || 0) === 0 && refreshAt && dormant.noDataAt && refreshAt > dormant.noDataAt;
+  };
+  if (clearsDormancy(A, B) || clearsDormancy(B, A)) {
+    merged.noDataAt = null;
+    merged.noDataCount = 0;
+  }
+  return merged;
 }
 
 /**
@@ -407,7 +417,7 @@ async function hydrateMetaFromCosmos() {
 
     for (const doc of resources) {
       const meta = doc.aggregationMeta;
-      if (!meta || (!meta.deepAt && !meta.page1At && !meta.lastRefreshAt)) continue;
+      if (!meta || (!meta.deepAt && !meta.page1At && !meta.lastRefreshAt && !meta.noDataAt && !meta.noDataCount)) continue;
 
       // Normalize the key the same way importComps does
       const key = normalizeSearchKey(doc.searchTerm || doc.id || '');
@@ -1343,6 +1353,21 @@ function updateDatasetMeta(searchTerm, metaUpdates) {
   _store = store;
   saveStore();
   saveMetaSidecar();
+  if (cosmos.isEnabled()) {
+    const entry = store[normalizedKey];
+    const doc = {
+      id: normalizedKey.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 200),
+      searchTerm: normalizedKey,
+      comps: entry.comps || [],
+      lastImport: entry.lastImport || null,
+      importCount: entry.importCount || 0,
+      aggregationMeta: am,
+      ...(entry.identifiers ? { identifiers: entry.identifiers } : {}),
+    };
+    cosmos.container('terapeak-sold').items.upsert(doc).catch(err => {
+      if (process.env.NODE_ENV !== 'test') console.error('[terapeak] Cosmos metadata write-through failed:', err.message);
+    });
+  }
   return { key: normalizedKey, aggregationMeta: am };
 }
 

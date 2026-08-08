@@ -17,6 +17,7 @@
     "health:lot-estimator": "node scripts/lot-estimator-health.js",
     "sync:meta": "node scripts/sync-terapeak-meta.js",
     "freshness": "node scripts/sync-terapeak-meta.js && node scripts/generate-freshness-report.js",
+    "audit:dormancy": "node scripts/audit-terapeak-dormancy.js",
     "scan:parallel-key-drift": "node scripts/scan-parallel-key-drift.js"
   },
   "repository": {
