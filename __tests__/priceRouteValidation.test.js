@@ -53,7 +53,7 @@ jest.mock('../src/services/valuationService', () => ({
     valuation: {
       fmvCore: 1, rangeLow: 0.5, rangeHigh: 1.5, confidence: 50, compCount: 0,
       explanation: [], dataSource: { soldCount: 0, totalComps: 0 },
-      gradePool: {}, method: 'raw-blend', saleContext: 'eBay Retail',
+      gradePool: { usedPool: 'raw' }, method: 'raw-blend', saleContext: 'eBay Retail',
     },
     decisions: { buy: {}, sell: {} },
   })),

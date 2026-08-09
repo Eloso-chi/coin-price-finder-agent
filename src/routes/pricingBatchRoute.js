@@ -135,6 +135,8 @@ async function _priceOne(item, opts = {}) {
       setType: parsed.setType || null,
       metal: metalKey,
       label: validLabel,
+      barBrand: intent.barBrand,
+      barSeries: intent.barSeries,
       _exclusions: parsed._exclusions || null,
       _rawQuery: String(query),
     };
@@ -266,6 +268,7 @@ async function _priceOne(item, opts = {}) {
     const result = computeValuation(pcgs, ebay, null, gradeNum, {
       isBullion,
       isProof,
+      barSeries: expected.barSeries,
       isSet,
       isRoll,
       // #260W: forward canonical finish so valuationService can split
@@ -296,7 +299,8 @@ async function _priceOne(item, opts = {}) {
       rangeLow: val.rangeLow || null,
       rangeHigh: val.rangeHigh || null,
       avgEbay: ebay?.us?.stats?.median || ebay?.us?.stats?.mean || null,
-      confidence: val.confidence || null,
+      confidence: val.confidence ?? null,
+      dataSource: val.dataSource ?? null,
       spotStale: spotStale || undefined,
       spotAsOf: spotAsOf || undefined,
       rollQty: rollQty || undefined,

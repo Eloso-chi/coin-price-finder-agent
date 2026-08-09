@@ -9,6 +9,8 @@
 // single source of truth.
 'use strict';
 
+const { canonicalizeBarIntent } = require('../data/barSeries');
+
 // Shared Reverse Proof / Enhanced Reverse Proof detection (#260W review m3).
 // Three sites previously each had their own regex with subtly different
 // strictness (valuationService and ebayService used the loose `/reverse[\s-]*proof/i`
@@ -21,6 +23,14 @@ const REVERSE_PROOF_RE = /\b(enhanced[\s-]+)?reverse[\s-]+proof\b/i;
 
 function isReverseProofFinish(s) {
   return REVERSE_PROOF_RE.test(String(s || ''));
+}
+
+function ownString(object, property) {
+  return object
+    && Object.prototype.hasOwnProperty.call(object, property)
+    && typeof object[property] === 'string'
+    ? object[property]
+    : null;
 }
 
 // PCGS-canonical finish spelling.  Downstream classifiers compare against
@@ -82,6 +92,10 @@ function extractCoinIntent({ coinData, options, parsed, pcgs, isSet } = {}) {
   // ── Designation (DCAM/CAM/PL/DMPL/FS/FB/FBL/etc.) ──
   const designation = pcgs.designation || coinData.designation || parsed.designation || null;
 
+  const rawBarBrand = ownString(coinData, 'barBrand') || ownString(parsed, 'barBrand');
+  const rawBarSeries = ownString(coinData, 'barSeries') || ownString(parsed, 'barSeries');
+  const { barBrand, barSeries } = canonicalizeBarIntent(rawBarBrand, rawBarSeries);
+
   // ── isProof ──
   // True if ANY signal indicates a proof strike.  Reverse Proof /
   // Enhanced Reverse Proof / Matte Proof all carry the word "proof".
@@ -105,7 +119,7 @@ function extractCoinIntent({ coinData, options, parsed, pcgs, isSet } = {}) {
     parsedGradeIsProof
   );
 
-  return { grade, finish, isProof, designation };
+  return { grade, finish, isProof, designation, barBrand, barSeries };
 }
 
 module.exports = { extractCoinIntent, FINISH_CANONICAL, isReverseProofFinish };

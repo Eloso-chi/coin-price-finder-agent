@@ -4,6 +4,7 @@
 const axios = require('axios');
 const { TTLCache } = require('../utils/cache');
 const { lookupPCGSNumber } = require('../data/pcgsNumbers');
+const { detectBarBrand, detectSeriesFromQuery } = require('../data/barSeries');
 const pcgsQuota = require('./pcgsQuotaService');
 
 const path = require('path');
@@ -577,6 +578,13 @@ function parseDescription(text) {
       result.series = seriesName.replace(/\b\w/g, c => c.toUpperCase());
       break;
     }
+  }
+
+  const barBrand = /\bbars?\b/i.test(t) ? detectBarBrand(t) : null;
+  if (barBrand) {
+    result.barBrand = barBrand;
+    const barSeries = detectSeriesFromQuery(barBrand, t);
+    if (barSeries) result.barSeries = barSeries.series;
   }
 
   return result;

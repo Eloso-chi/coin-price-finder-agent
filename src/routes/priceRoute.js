@@ -298,6 +298,8 @@ router.post('/', async (req, res) => {
       setType: resolvedSetType || null,
       perthSeriesLabel: perthSeriesLabel,
       label: validLabel,
+      barBrand: intent.barBrand,
+      barSeries: intent.barSeries,
       _gradeSource: identification.parsed?._gradeSource || null,
       _exclusions: identification.parsed?._exclusions || null,
       _rawQuery: String(query),
@@ -438,6 +440,7 @@ router.post('/', async (req, res) => {
     const { valuation, decisions } = computeValuation(pcgs, ebay, askingPrice || null, userGrade, {
       isBullion,
       isProof: expected.isProof,
+      barSeries: expected.barSeries,
       // #260W: forward canonical finish so valuationService can split
       // reverse-proof comps from the regular proof pool. extractCoinIntent
       // already normalized this to "Reverse Proof" / "Enhanced Reverse Proof".

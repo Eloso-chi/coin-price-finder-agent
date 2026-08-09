@@ -674,6 +674,8 @@ When the user provides a free-text description (not a cert number), `resolveFrom
 
 **Specialty-edition family filter (#283W):** `VARIANT_FAMILY_TOKENS.specialtyEdition` (in `ebayService.js`) covers mint-issued commemorative runs that share the standard `proof` title token but command different premiums (e.g. Casa de Moneda `elite libertad`, `libertad traders`, `traders convention`). `applyFilters()` rejects these titles regardless of the caller's `wantsProof` intent, so they never blend into the standard-Proof pool. Add new tokens here as additional specialty runs are identified.
 
+**Bar-series filter (#285W):** Coin-route queries that name a cataloged bar brand and product series carry `barBrand` and `barSeries` intent into `scoreMatch()` and `applyFilters()`. Exact series matches receive +10; positively identified competing series are counted under `barSeriesMismatch` and rejected. Titles with no identifiable series remain neutral. If fewer than three correctly isolated comps remain, valuation returns `fmvCore: null` with `dataSource.label = 'insufficient-series-comps'` rather than blending other bar designs.
+
 ---
 
 ## Terapeak Sales Aggregation Architecture

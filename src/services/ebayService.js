@@ -36,6 +36,9 @@ const terapeakService = require('./terapeakService');
 const { getSpotOnDate, METAL_SYMBOLS } = require('./metalsHistoryService');
 const { detectWeightFromTitle } = require('../utils/coinMetalProfile');
 const { isReverseProofFinish } = require('../utils/coinIntent');
+const { detectBarBrands, detectSeriesFromTitle } = require('../data/barSeries');
+
+const BAR_SERIES_CLASSIFICATION = Symbol('barSeriesClassification');
 
 // ── Config ──────────────────────────────────────────────────
 const EBAY_APP_ID        = process.env.EBAY_APP_ID || '';
@@ -505,7 +508,6 @@ function normalizeItem(item) {
   const shippingRaw = item.shippingInfo?.[0]?.shippingServiceCost?.[0]?.__value__;
   const shipping = shippingRaw ? parseFloat(shippingRaw) : 0;
   const title = item.title?.[0] || '';
-
   return {
     itemId: item.itemId?.[0] || null,
     title,
@@ -531,6 +533,23 @@ function normalizeItem(item) {
 function classifyFindingItem(comp) {
   comp.gradeType = classifyGradeType(comp);
   return comp;
+}
+
+function classifyBarSeriesComp(comp, expectedBrand) {
+  const prior = comp[BAR_SERIES_CLASSIFICATION];
+  if (prior?.expectedBrand === expectedBrand) return prior;
+
+  const brands = detectBarBrands(comp.title);
+  const manufacturerMismatch = brands.some(brand => brand !== expectedBrand);
+  const matchedSeries = manufacturerMismatch ? null : detectSeriesFromTitle(expectedBrand, comp.title);
+  const classification = {
+    expectedBrand,
+    brands,
+    series: matchedSeries?.series || null,
+    manufacturerMismatch,
+  };
+  comp[BAR_SERIES_CLASSIFICATION] = classification;
+  return classification;
 }
 
 // ── Match scoring ───────────────────────────────────────────
@@ -625,6 +644,14 @@ function scoreMatch(comp, expected) {
     const hits = seriesTokens.filter(t => t.length > 2 && tLow.includes(t)).length;
     if (hits >= Math.ceil(seriesTokens.length * 0.6)) { score += 10; notes.push('series-match'); }
     else if (hits === 0 && seriesTokens.length > 0) { score -= 25; notes.push('series-mismatch'); }
+  }
+
+  if (expected.barBrand && expected.barSeries) {
+    const classification = classifyBarSeriesComp(comp, expected.barBrand);
+    if (!classification.manufacturerMismatch && classification.series === expected.barSeries) {
+      score += 10;
+      notes.push('bar-series-match');
+    }
   }
 
   // Series conflict (e.g. Jefferson vs Buffalo — both nickels, but completely different coins)
@@ -1021,6 +1048,21 @@ function applyFilters(comps, options, expected) {
         return true;
       });
     }
+  }
+
+  if (expected.barBrand && expected.barSeries) {
+    removed.barBrandMismatch = 0;
+    removed.barSeriesMismatch = 0;
+    kept = kept.filter(c => {
+      const classification = classifyBarSeriesComp(c, expected.barBrand);
+      if (classification.manufacturerMismatch) {
+        removed.barBrandMismatch++;
+        return false;
+      }
+      if (!classification.series || classification.series === expected.barSeries) return true;
+      removed.barSeriesMismatch++;
+      return false;
+    });
   }
 
   // Exclusion-term filter: when the query contains eBay-style exclusion
@@ -1479,7 +1521,8 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
              lookback: { requested: requestedDays, used: requestedDays, extended: false } };
   }
 
-  const cacheKey = `ebay:${keywords}:${expected.metal || ''}:${expected._rawQuery || ''}:${JSON.stringify(opts)}`;
+  const barIdentity = JSON.stringify([expected.barBrand || null, expected.barSeries || null]);
+  const cacheKey = `ebay:${keywords}:${expected.metal || ''}:${expected._rawQuery || ''}:${barIdentity}:${JSON.stringify(opts)}`;
   if (cache.has(cacheKey)) return cache.get(cacheKey);
 
   let usResult, globalResult;

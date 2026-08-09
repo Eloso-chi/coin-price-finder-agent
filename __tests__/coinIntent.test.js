@@ -180,6 +180,36 @@ describe('extractCoinIntent', () => {
     });
   });
 
+  describe('bar intent', () => {
+    test('canonicalizes structured brand and alias values', () => {
+      expect(extractCoinIntent({
+        coinData: { barBrand: 'pamp suisse', barSeries: 'twins' },
+      })).toEqual(expect.objectContaining({
+        barBrand: 'PAMP',
+        barSeries: 'Zodiac - Gemini',
+      }));
+    });
+
+    test.each([
+      [{ barBrand: {}, barSeries: 'Fortuna' }],
+      [{ barBrand: ['PAMP'], barSeries: ['Fortuna'] }],
+      [{ barBrand: 'constructor', barSeries: 'prototype' }],
+    ])('neutralizes non-string and prototype-key structured input %#', (coinData) => {
+      expect(extractCoinIntent({ coinData })).toEqual(expect.objectContaining({
+        barBrand: null,
+        barSeries: null,
+      }));
+    });
+
+    test('ignores inherited structured bar properties', () => {
+      const coinData = Object.create({ barBrand: 'PAMP', barSeries: 'Fortuna' });
+      expect(extractCoinIntent({ coinData })).toEqual(expect.objectContaining({
+        barBrand: null,
+        barSeries: null,
+      }));
+    });
+  });
+
   describe('precedence interactions (the silent-drop regression matrix)', () => {
     test('headline regression: Morgan MS-65 via structured form alone', () => {
       // Reproduces the bug demonstrated in the route probe -- before #254

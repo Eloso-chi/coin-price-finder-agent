@@ -13,7 +13,6 @@
 const BAR_SERIES = {
   // ── Geiger Edelmetalle ────────────────────────────────────
   geiger: [
-    { series: 'Edelmetalle',       re: /\bedelmetalle\b/i,                 keywords: 'edelmetalle',          aliases: ['edelmetalle'] },
     { series: 'Square',            re: /\bsquare\b/i,                      keywords: 'square',               aliases: ['square bar'] },
     { series: 'Original',          re: /\boriginal\b/i,                    keywords: 'original',             aliases: ['original bar'] },
     { series: 'Schloss Guldengossa', re: /\bschloss\b|\bguldengossa\b/i,   keywords: 'schloss guldengossa',  aliases: ['schloss', 'guldengossa', 'castle'] },
@@ -24,13 +23,13 @@ const BAR_SERIES = {
     { series: 'Christmas',         re: /\bchristmas\b|\bxmas\b/i,         keywords: 'christmas',            aliases: ['merry christmas', 'xmas', 'holiday'] },
     { series: 'USA Edition',       re: /\busa\s*edition\b|\bold\s*glory\b/i, keywords: 'usa edition',       aliases: ['old glory', 'usa'] },
     { series: 'Shamrock',          re: /\bshamrock\b/i,                    keywords: 'shamrock',             aliases: ['irish', 'clover'] },
+    { series: 'Edelmetalle',       re: /\bedelmetalle\b/i,                 keywords: 'edelmetalle',          aliases: ['edelmetalle'] },
   ],
 
   // ── PAMP Suisse ───────────────────────────────────────────
   pamp: [
     { series: 'Fortuna',           re: /\bfortuna\b/i,                     keywords: 'fortuna',              aliases: ['lady fortuna'] },
     { series: 'Rosa',              re: /\brosa\b/i,                        keywords: 'rosa',                 aliases: ['rose'] },
-    { series: 'Lunar',             re: /\blunar\b/i,                       keywords: 'lunar',                aliases: ['zodiac'] },
     { series: 'Lady of Liberty',   re: /\blady\s+of\s+liberty\b|\bliberty\b/i, keywords: 'lady of liberty',  aliases: ['liberty'] },
     { series: 'Veriscan',          re: /\bveriscan\b/i,                    keywords: 'veriscan',             aliases: [] },
     { series: 'Love',              re: /\blove\b/i,                        keywords: 'love',                 aliases: ['heart'] },
@@ -50,6 +49,7 @@ const BAR_SERIES = {
     { series: 'Zodiac - Capricorn', re: /\bcapricorn\b/i,                  keywords: 'capricorn',            aliases: ['goat'] },
     { series: 'Zodiac - Aquarius', re: /\baquarius\b/i,                    keywords: 'aquarius',             aliases: ['water bearer'] },
     { series: 'Zodiac - Pisces',   re: /\bpisces\b/i,                      keywords: 'pisces',               aliases: ['fish'] },
+    { series: 'Lunar',             re: /\blunar\b/i,                       keywords: 'lunar',                aliases: ['zodiac'] },
   ],
 
   // ── Perth Mint ────────────────────────────────────────────
@@ -85,15 +85,43 @@ const BAR_SERIES = {
   ],
 };
 
+const BAR_BRANDS = [
+  { brand: 'PAMP', re: /\bpamp(?:\s+suisse)?\b/i },
+  { brand: 'Geiger', re: /\bgeiger(?:\s+edelmetalle)?\b/i },
+  { brand: 'Perth Mint', re: /\bperth\s+mint\b/i },
+  { brand: 'Scottsdale', re: /\bscottsdale\b/i },
+  { brand: 'Valcambi', re: /\bvalcambi\b/i },
+  { brand: 'Heraeus', re: /\bheraeus\b/i },
+  { brand: 'Credit Suisse', re: /\bcredit\s+suisse\b/i },
+];
+
+function detectBarBrand(text) {
+  return detectBarBrands(text)[0] || null;
+}
+
+function detectBarBrands(text) {
+  if (typeof text !== 'string' || !text) return [];
+  return BAR_BRANDS.filter(({ re }) => re.test(text)).map(({ brand }) => brand);
+}
+
+function canonicalizeBarBrand(brand) {
+  if (typeof brand !== 'string') return null;
+  const normalized = brand.trim().replace(/\s+/g, ' ').toLowerCase();
+  if (!normalized) return null;
+  if (normalized === 'pamp suisse') return 'PAMP';
+  return BAR_BRANDS.find(entry => entry.brand.toLowerCase() === normalized)?.brand || null;
+}
+
 /**
  * Look up series entries for a given brand.
  * @param {string} brand — e.g. "Geiger", "PAMP", "Perth Mint"
  * @returns {Array} series entries or empty array
  */
 function getSeriesForBrand(brand) {
-  if (!brand) return [];
-  const key = brand.toLowerCase().replace(/\s+suisse$/i, '');
-  return BAR_SERIES[key] || [];
+  const canonicalBrand = canonicalizeBarBrand(brand);
+  if (!canonicalBrand) return [];
+  const key = canonicalBrand.toLowerCase();
+  return Object.prototype.hasOwnProperty.call(BAR_SERIES, key) ? BAR_SERIES[key] : [];
 }
 
 /**
@@ -103,7 +131,7 @@ function getSeriesForBrand(brand) {
  * @param {string} seriesHint — user input like "fortuna", "edelmetalle", "square"
  */
 function detectBarSeries(brand, seriesHint) {
-  if (!brand || !seriesHint) return null;
+  if (typeof seriesHint !== 'string' || !seriesHint) return null;
   const entries = getSeriesForBrand(brand);
   if (!entries.length) return null;
 
@@ -125,7 +153,7 @@ function detectBarSeries(brand, seriesHint) {
  * @param {string} title — eBay listing title
  */
 function detectSeriesFromTitle(brand, title) {
-  if (!brand || !title) return null;
+  if (typeof title !== 'string' || !title) return null;
   const entries = getSeriesForBrand(brand);
   for (const entry of entries) {
     if (entry.re.test(title)) return entry;
@@ -133,9 +161,37 @@ function detectSeriesFromTitle(brand, title) {
   return null;
 }
 
+function detectSeriesFromQuery(brand, query) {
+  if (typeof query !== 'string' || !query) return null;
+  const entries = getSeriesForBrand(brand);
+  for (const entry of entries) {
+    if (entry.re.test(query)) return entry;
+    for (const alias of entry.aliases) {
+      const escaped = alias.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+');
+      if (new RegExp(`\\b${escaped}\\b`, 'i').test(query)) return entry;
+    }
+  }
+  return null;
+}
+
+function canonicalizeBarIntent(brand, series) {
+  const barBrand = canonicalizeBarBrand(brand);
+  if (!barBrand) return { barBrand: null, barSeries: null };
+  const matchedSeries = detectBarSeries(barBrand, series);
+  return {
+    barBrand,
+    barSeries: matchedSeries?.series || null,
+  };
+}
+
 module.exports = {
   BAR_SERIES,
   getSeriesForBrand,
+  detectBarBrand,
+  detectBarBrands,
+  canonicalizeBarBrand,
   detectBarSeries,
   detectSeriesFromTitle,
+  detectSeriesFromQuery,
+  canonicalizeBarIntent,
 };

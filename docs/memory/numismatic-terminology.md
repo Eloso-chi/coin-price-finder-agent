@@ -131,6 +131,10 @@ These are TPG (PCGS/NGC) designations added AFTER the grade. They do not change 
 - **Thin Date / Fat Date** -- die variety. Filter but don't split pools.
 - **Small Date / Large Date** -- die variety. Filter but don't split pools.
 
+## Bar Design Series
+
+Cataloged bar product lines from the same manufacturer can carry materially different collector premiums even when metal and weight are identical. When a query names both a cataloged brand and series, comps positively identified as another series must be rejected. A title with no identifiable series remains eligible, but a sparse isolated pool must return an explicit null FMV rather than substitute other designs.
+
 ## Code Mapping
 
 | Function | File | Decision It Makes |

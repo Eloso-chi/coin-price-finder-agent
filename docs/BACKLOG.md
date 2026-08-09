@@ -2429,7 +2429,9 @@ Ops can override to any value (e.g., `BROWSER_RECYCLE_EVERY=40 python scripts/te
 
 ---
 
-### #285W. Bar-series variant filter -- coin route silently mixes all bar designs into one FMV [P2 -- PRICING-ACCURACY] -- OPEN 2026-08-05
+### #285W. Bar-series variant filter -- coin route silently mixes all bar designs into one FMV [P2 -- PRICING-ACCURACY] -- IMPLEMENTED / PR PENDING 2026-08-08
+
+**Status update (2026-08-08):** Implemented cataloged bar brand/series intent across the single and batch coin routes. Positively identified competing series are rejected as `barSeriesMismatch`, exact matches receive a scoring bonus, unknown-series titles remain eligible, and pools with fewer than three survivors return `fmvCore: null` with `dataSource.label = 'insufficient-series-comps'`. The response schema now requires explicit grade-pool attribution. Focused tests, the mandatory numismatic audit, and the full suite (146 suites / 4,310 tests) pass. Merge remains pending.
 
 **Origin:** User-reported 2026-08-05. Two reproductions on prod-parity server:
 

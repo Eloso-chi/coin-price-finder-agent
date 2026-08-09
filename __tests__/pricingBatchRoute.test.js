@@ -57,6 +57,8 @@ jest.mock('../src/utils/filters', () => ({
 const http = require('http');
 const express = require('express');
 const pricingBatchRoute = require('../src/routes/pricingBatchRoute');
+const { computeValuation } = require('../src/services/valuationService');
+const { fetchSoldComps } = require('../src/services/ebayService');
 
 let app, server, baseUrl;
 
@@ -140,6 +142,44 @@ describe('POST /api/pricing-batch', () => {
     expect(body.results[0].fmv).toBe(52.00);
   });
 
+  test('preserves sparse-series source details and zero confidence', async () => {
+    computeValuation.mockReturnValueOnce({
+      valuation: {
+        fmvCore: null,
+        rangeLow: null,
+        rangeHigh: null,
+        confidence: 0,
+        dataSource: {
+          label: 'insufficient-series-comps',
+          soldCount: 2,
+          activeCount: 0,
+          totalComps: 2,
+          soldRatio: 1,
+          browseOnly: false,
+        },
+      },
+      decisions: { buy: {}, sell: {} },
+    });
+
+    const { status, body } = await post('/api/pricing-batch', {
+      items: [{ query: 'PAMP Suisse twins 1 gram gold bar' }],
+    });
+
+    expect(status).toBe(200);
+    expect(body.results[0]).toEqual(expect.objectContaining({
+      fmv: null,
+      confidence: 0,
+      dataSource: {
+        label: 'insufficient-series-comps',
+        soldCount: 2,
+        activeCount: 0,
+        totalComps: 2,
+        soldRatio: 1,
+        browseOnly: false,
+      },
+    }));
+  });
+
   test('returns pricing for multiple items', async () => {
     const items = [
       { query: '1921 Morgan Dollar MS-65' },
@@ -166,6 +206,21 @@ describe('POST /api/pricing-batch', () => {
     expect(status).toBe(200);
     expect(body.ok).toBe(true);
     expect(body.results[0].fmv).toBe(52.00);
+  });
+
+  test.each([
+    [{ barBrand: {}, barSeries: 'Fortuna' }],
+    [{ barBrand: ['PAMP'], barSeries: ['Fortuna'] }],
+    [{ barBrand: 'constructor', barSeries: 'prototype' }],
+  ])('neutralizes unsafe structured bar intent through the route %#', async (coinData) => {
+    const { status } = await post('/api/pricing-batch', {
+      items: [{ query: 'generic 1 gram gold bar', coinData }],
+    });
+    const expected = fetchSoldComps.mock.calls.at(-1)[2];
+
+    expect(status).toBe(200);
+    expect(expected.barBrand).toBeNull();
+    expect(expected.barSeries).toBeNull();
   });
 
   test('handles item with missing query gracefully', async () => {

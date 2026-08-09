@@ -44,7 +44,7 @@ const priceResponseSchema = {
     },
     valuation: {
       type: 'object',
-      required: ['fmvCore', 'rangeLow', 'rangeHigh', 'confidence', 'explanation', 'dataSource'],
+      required: ['fmvCore', 'rangeLow', 'rangeHigh', 'confidence', 'explanation', 'dataSource', 'gradePool'],
       properties: {
         fmvCore: numericOrNull,
         rangeLow: numericOrNull,
@@ -52,6 +52,15 @@ const priceResponseSchema = {
         confidence: numericOrNull,
         explanation: {}, // shape varies (array or string)
         dataSource: {},  // shape varies
+        gradePool: {
+          type: 'object',
+          required: ['usedPool'],
+          properties: {
+            usedPool: {
+              enum: ['raw', 'raw (fallback)', 'graded', 'proof', 'reverse-proof'],
+            },
+          },
+        },
       },
     },
     decisions: {
