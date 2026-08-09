@@ -2285,6 +2285,23 @@ Ops can override to any value (e.g., `BROWSER_RECYCLE_EVERY=40 python scripts/te
 
 ---
 
+### #286H. Evaluate cert-specific PCGS APR enrichment without contaminating grade-wide history [P3 -- RESEARCH / DATA-COVERAGE] -- PROPOSED / DECISION DEFERRED 2026-08-04
+
+- **Finding**: PCGS cert lookup can return metadata and auction appearances already associated with one slab, but official documentation does not support claims that lookup triggers new venue discovery, event tracking, or ingestion. It is not a replacement for `PCGSNo + Grade` prefetch.
+- **Current coverage**: Explicit cert queries already use `GetCoinFactsByCertNo` and feed returned auction statistics into valuation. `GetAPRByCertNo` exists but has no caller; nightly prefetch remains grade-wide.
+- **Evidence**: 241,700 tracked Terapeak rows contained 15 explicit PCGS-cert mentions representing 13 unique candidates: 12 US classics, 1 US bullion, and 0 world bullion. Public cert pages showed mixed yield, including invalid seller-supplied certs and many valid certs with no sales history.
+- **Risk**: Current `fetchByCertNo` merges specimen-specific records into grade-wide storage and marks the grade fresh for 30 days. Automating it could suppress a broader APR fetch with incomplete specimen history.
+- **Decision required before planning**:
+  1. Keep cert lookup user-triggered only.
+  2. Pilot validated cert extraction and separate cert-scoped storage.
+  3. Pursue direct/licensed venue coverage instead.
+  4. Decline further work.
+- **Non-goals**: No automated generic 7-9 digit extraction; no scheduler changes; no claim that cert lookup discovers unindexed sales.
+- **Potential files**: `src/services/auctionPriceService.js`, `src/services/pcgsService.js`, `src/services/terapeakService.js`, scheduler/valuation tests.
+- **Status**: Preserve for later decision only. Implementation requires separate approval.
+
+---
+
 ### #283W. Libertad tracker + Terapeak pool leak -- "onza" weight synonym + specialty-edition variant [P2 -- PRICING-ACCURACY / POOL-ISOLATION] -- DONE 2026-07-14 (PR #230)
 - **Problem**: A user searched `2011 Mexican Silver Libertad Proof` and the Live eBay Tracker returned off-weight and specialty-edition comps (e.g. `2023 Mexico Libertad 1/4 Onza Proof Silver Coin...`, `2022 Mexico Elite Libertad Traders 1 oz .999 Proof Silver Coin with COA`). The FMV path reported "8 verified sold comps used" but the source Terapeak dataset (`1oz 2011 libertad mexican proof silver`, compCount 21) contains at least one comp that was not rerouted at import time (`2011 MO SILVER PROOF MEXICO 1/20 ONZA LIBERTAD NGC PF 69 UC`).
 - **Root causes** (two independent gaps, both surfaced by the same query):
