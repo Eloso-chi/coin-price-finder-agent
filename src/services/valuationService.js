@@ -420,7 +420,7 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
           totalComps: 0,
           soldRatio: 0,
           browseOnly: false,
-          label: 'metal-only',
+          label: opts.barSeries ? 'insufficient-series-comps' : 'metal-only',
         },
         // #270W Option #4: emit gradePool telemetry even on the null-FMV
         // path so observability consumers (pricing-health, batch reports)
@@ -468,6 +468,49 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
   const terapeakCount = terapeakComps.length;
   const totalComps = usComps.length;
   const soldRatio = totalComps > 0 ? soldCount / totalComps : 0;
+
+  if (opts.barSeries && totalComps < 3) {
+    explanation.push(
+      `NO DATA: only ${totalComps} ${opts.barSeries} comp${totalComps === 1 ? '' : 's'} remained after series isolation; other bar designs were not substituted.`
+    );
+    return {
+      valuation: {
+        fmvCore: null,
+        rangeLow: null,
+        rangeHigh: null,
+        confidence: 0,
+        lowData: true,
+        compCount: totalComps,
+        explanation,
+        dataSource: {
+          soldCount,
+          activeCount,
+          totalComps,
+          soldRatio: +soldRatio.toFixed(2),
+          browseOnly: soldCount === 0 && activeCount > 0,
+          label: 'insufficient-series-comps',
+        },
+        gradePool: {
+          wantsGraded,
+          wantsProof,
+          wantsReverseProof,
+          proofIntent: wantsReverseProof ? 'reverse-proof' : wantsProof ? 'proof' : null,
+          usedPool: wantsReverseProof ? 'reverse-proof'
+            : wantsProof ? 'proof'
+            : wantsGraded ? 'graded'
+            : 'raw',
+          gradedCount: usGraded.length,
+          rawCount: usRaw.length,
+          proofCount: usProof.length,
+          reverseProofCount: usRevProof.length,
+          poolCount: totalComps,
+          totalCount: usCompsAll.length,
+          poolFallback: false,
+        },
+      },
+      decisions: _emptyDecisions(askingPrice),
+    };
+  }
   // If all or most comps are active listings, flag it
   const browseOnly = soldCount === 0 && activeCount > 0;
   const mostlyBrowse = soldRatio < 0.3 && activeCount > 0;

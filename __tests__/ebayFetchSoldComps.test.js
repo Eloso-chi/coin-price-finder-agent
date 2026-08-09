@@ -890,6 +890,36 @@ describe('fetchSoldComps — caching', () => {
     // calling terapeakService at all.
     expect(terapeakService.lookupComps).toHaveBeenCalledTimes(1);
   });
+
+  test('separates identical queries by canonical bar brand and series', async () => {
+    terapeakService.lookupComps.mockReturnValue({
+      searchTerm: 'PAMP 1 gram gold bar',
+      lastImport: '2024-01-01',
+      comps: [
+        { title: 'PAMP Suisse Zodiac Gemini 1 gram gold bar 1', totalUsd: 100, _source: 'terapeak' },
+        { title: 'PAMP Suisse Zodiac Gemini 1 gram gold bar 2', totalUsd: 101, _source: 'terapeak' },
+        { title: 'PAMP Suisse Zodiac Gemini 1 gram gold bar 3', totalUsd: 102, _source: 'terapeak' },
+        { title: 'PAMP Suisse Lady Fortuna 1 gram gold bar 1', totalUsd: 110, _source: 'terapeak' },
+        { title: 'PAMP Suisse Lady Fortuna 1 gram gold bar 2', totalUsd: 111, _source: 'terapeak' },
+        { title: 'PAMP Suisse Lady Fortuna 1 gram gold bar 3', totalUsd: 112, _source: 'terapeak' },
+      ],
+    });
+
+    const gemini = await ebayService.fetchSoldComps('PAMP 1 gram gold bar', {}, {
+      barBrand: 'PAMP',
+      barSeries: 'Zodiac - Gemini',
+    });
+    const fortuna = await ebayService.fetchSoldComps('PAMP 1 gram gold bar', {}, {
+      barBrand: 'PAMP',
+      barSeries: 'Fortuna',
+    });
+
+    expect(gemini.us.comps).toHaveLength(3);
+    expect(gemini.us.comps.every(comp => /Gemini/.test(comp.title))).toBe(true);
+    expect(fortuna.us.comps).toHaveLength(3);
+    expect(fortuna.us.comps.every(comp => /Fortuna/.test(comp.title))).toBe(true);
+    expect(terapeakService.lookupComps).toHaveBeenCalledTimes(2);
+  });
 });
 
 // ═════════════════════════════════════════════════════════════
