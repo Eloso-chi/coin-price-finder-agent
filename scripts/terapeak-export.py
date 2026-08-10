@@ -1309,6 +1309,12 @@ def do_search_and_export(page, search_term, download_dir):
     return csv_path
 
 
+def mixed_selection_targets(p01_fixed, extra_target, p01_available):
+    selected_p01_target = min(p01_fixed, p01_available)
+    total_target = p01_fixed + extra_target
+    return selected_p01_target, total_target - selected_p01_target, total_target
+
+
 def do_export_run(args):
     """Main export loop -- iterate search terms, export CSVs, upload to app."""
     if not args.dry_run and not COOKIE_FILE.exists():
@@ -1462,8 +1468,11 @@ def do_export_run(args):
         p01_pool = [t for t in terms if t.get("_backlog_priority") == "P0.1"]
         other_pool = [t for t in terms if t.get("_backlog_priority") != "P0.1"]
         extra_target = random.randint(extra_min, extra_max)
-        selected_p01 = _pick(p01_pool, p01_fixed)
-        selected_other = _pick(other_pool, extra_target)
+        p01_target, other_target, total_target = mixed_selection_targets(
+            p01_fixed, extra_target, len(p01_pool)
+        )
+        selected_p01 = _pick(p01_pool, p01_target)
+        selected_other = _pick(other_pool, other_target)
         terms = selected_p01 + selected_other
         if args.shuffle and len(terms) > 1:
             random.shuffle(terms)
@@ -1471,8 +1480,8 @@ def do_export_run(args):
         print(
             "Mixed backlog selection: "
             f"P0.1 {len(selected_p01)}/{p01_fixed}, "
-            f"non-P0.1 {len(selected_other)}/{extra_target}, "
-            f"total {len(terms)}"
+            f"non-P0.1 {len(selected_other)}/{other_target}, "
+            f"total {len(terms)}/{total_target}"
         )
 
     # Apply resume
