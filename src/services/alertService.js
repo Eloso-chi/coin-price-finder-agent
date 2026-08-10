@@ -147,11 +147,12 @@ function alertPrefetchFailure(consecutiveFailures, error) {
   );
 }
 
-function alertServerCrash(type, error) {
+function alertServerCrash(type, error, requestId = null) {
+  const requestContext = requestId ? `\n\nRequest ID: ${requestId}` : '';
   return sendAlert(
     'server-crash',
     `Server crash: ${type}`,
-    `The server is crashing due to an ${type}.\n\nError: ${error}\n\nThe process will exit shortly.`
+    `The server is crashing due to an ${type}.\n\nError: ${error}${requestContext}\n\nThe process will exit shortly.`
   );
 }
 

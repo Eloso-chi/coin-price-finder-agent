@@ -5,17 +5,20 @@ require('dotenv').config();
 
 // ── Process crash handlers (#202/#194) ───────────────────────
 const alertService = require('./src/services/alertService');
+const { requestId, getRequestId } = require('./src/middleware/requestId');
 
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('[FATAL] Unhandled rejection:', reason);
-  alertService.alertServerCrash('unhandledRejection', String(reason));
+process.on('unhandledRejection', reason => {
+  const activeRequestId = getRequestId();
+  console.error('[FATAL] Unhandled rejection:', reason, 'requestId:', activeRequestId || 'unavailable');
+  alertService.alertServerCrash('unhandledRejection', String(reason), activeRequestId);
   // Brief delay to allow log flush + alert send, then hard exit
   setTimeout(() => process.exit(1), 500);
 });
 
 process.on('uncaughtException', (err) => {
-  console.error('[FATAL] Uncaught exception:', err);
-  alertService.alertServerCrash('uncaughtException', err.message || String(err));
+  const activeRequestId = getRequestId();
+  console.error('[FATAL] Uncaught exception:', err, 'requestId:', activeRequestId || 'unavailable');
+  alertService.alertServerCrash('uncaughtException', err.message || String(err), activeRequestId);
   setTimeout(() => process.exit(1), 500);
 });
 
@@ -41,6 +44,7 @@ app.set('trust proxy', 1);
 const requireAdmin = require('./src/middleware/requireAdminOrKey');
 
 // ── Middleware ───────────────────────────────────────────────
+app.use(requestId);
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
