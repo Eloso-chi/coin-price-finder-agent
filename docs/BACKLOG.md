@@ -2586,7 +2586,9 @@ Option 1 is cleanest because it collapses login + first-visit-verification into 
 <!-- BEGIN fmv-repository-review batch 2026-08-06 -->
 <!-- 16 items filed together from the fmv-repository-review pass. -->
 
-### #286W. Unblock CI npm-audit gate -- red baseline is masking real regressions [P1 -- CI / SECURITY] -- OPEN 2026-08-06
+### #286W. Unblock CI npm-audit gate -- red baseline is masking real regressions [P1 -- CI / SECURITY] -- IMPLEMENTED / PR PENDING 2026-08-10
+
+**Implementation:** Added npm overrides for patched `qs` and `uuid` releases, clearing all production dependency advisories without downgrading ExcelJS. Replaced the stale `xlsx` exception script with a direct `npm audit --audit-level=moderate --omit=dev` gate, so CI now rejects new moderate, high, or critical production advisories. Clean-install audit reports zero vulnerabilities; the focused Excel import suite and full Jest suite pass with `uuid` 11. Mark DONE after PR CI passes without an admin override.
 
 **Problem:** `.github/workflows/main_coinpricefinder-h3a3b5g0dmdydna4.yml`'s `test` job runs `npm audit --audit-level=high --omit=dev` and has been failing for 6+ days on three high CVEs (`ip-address <=10.3.0`, two `fast-uri` host-confusion CVEs) plus moderate `qs` and `uuid`. Every recent PR (#242, #243, #244, #246, #247, #248 in this session) has been admin-merged. A real Jest regression could ship because "CI is always red anyway."
 
