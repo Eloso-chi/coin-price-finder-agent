@@ -995,9 +995,19 @@ Verified:
 
 ---
 
-### #284H. Anti-bot operations hardening: staged rollout for process, telemetry contract, and risk-state transitions [P2 -- OPERATIONS / BOT-RESILIENCE] -- IMPLEMENTED / PILOT PENDING 2026-07-29
+### #284H. Anti-bot operations hardening: staged rollout for process, telemetry contract, and risk-state transitions [P2 -- OPERATIONS / BOT-RESILIENCE] -- DONE 2026-08-10
 
-**Status update (2026-07-29):** Stages 1-3 are implemented for both canonical operators. Shared telemetry and validation, deterministic risk transitions, bounded Elevated pacing, immediate hard-challenge stop, persisted Cooldown, wait/re-login/probe restart gates, rollback mode, compliance guidance, PR review gates, and incident evidence fields are in place. The item remains open only for the acceptance observation period: >=95% telemetry completeness across one week and measured challenge-waste reduction without data-integrity regressions.
+**Closure (2026-08-10):** Stages 1-3 are implemented for both canonical operators, and the one-week H-machine pilot produced sufficient acceptance evidence to close the item. Because no comparable pre-Stage-3 structured ledger exists, the user accepted avoided post-detection work as the challenge-waste proxy instead of requiring a retrospective decline calculation.
+
+- Observation window: `2026-08-03T01:50:26Z` through `2026-08-10T01:53:33Z`.
+- Runs: `20260803T014918Z-31818`, `20260807T014217Z-2334`, and `20260809T193443Z-6334`.
+- Coverage: 51 passes with 100% completeness across the canonical 17-field telemetry contract (867/867 required values present; threshold: >=95%).
+- Work completed: 971 attempted coins, 691 successful exports, 15,324 new rows, and 61,869 duplicates identified.
+- State behavior: Normal -> Elevated, Elevated -> Normal, and hard-challenge -> Cooldown transitions were all observed and attributable from structured telemetry.
+- Challenge handling: three hard-challenge events each caused an immediate exit with no retry loop. The stop decisions abandoned 30 still-requested selections across the three terminal passes, providing the accepted measurable avoided-work proxy.
+- Data integrity: the post-pilot CSV/meta checkpoint passed the full suite (147 suites, 4,311 tests), and the P0.1 backfill exercised during the pilot was separately reviewed and merged in PR #260.
+
+The visible second-challenge recovery gap discovered during Cooldown is tracked separately in #302W. It does not invalidate the #284H state machine: challenge detection, immediate stop, persisted Cooldown, and restart gating behaved as designed.
 
 **Problem:** Current scraper safety controls are strong but fragmented across runbooks and scripts. We need one staged plan that hardens operator behavior first, then standardizes observability, then introduces controlled runtime state transitions without forcing all changes in one risky PR.
 
@@ -2586,7 +2596,9 @@ Option 1 is cleanest because it collapses login + first-visit-verification into 
 <!-- BEGIN fmv-repository-review batch 2026-08-06 -->
 <!-- 16 items filed together from the fmv-repository-review pass. -->
 
-### #286W. Unblock CI npm-audit gate -- red baseline is masking real regressions [P1 -- CI / SECURITY] -- OPEN 2026-08-06
+### #286W. Unblock CI npm-audit gate -- red baseline is masking real regressions [P1 -- CI / SECURITY] -- DONE 2026-08-10
+
+**Implementation:** Added npm overrides for patched `qs` and `uuid` releases, clearing all production dependency advisories without downgrading ExcelJS. Replaced the stale `xlsx` exception script with a direct `npm audit --audit-level=moderate --omit=dev` gate, so CI now rejects new moderate, high, or critical production advisories. Clean-install audit reports zero vulnerabilities; the focused Excel import suite and full Jest suite pass with `uuid` 11. PR #259 merged at `73ecd053cbc92d4709d6f7ba8d85e8af7666ab5b` after all required CI checks passed; the admin merge overrode self-review protection, not a failed check.
 
 **Problem:** `.github/workflows/main_coinpricefinder-h3a3b5g0dmdydna4.yml`'s `test` job runs `npm audit --audit-level=high --omit=dev` and has been failing for 6+ days on three high CVEs (`ip-address <=10.3.0`, two `fast-uri` host-confusion CVEs) plus moderate `qs` and `uuid`. Every recent PR (#242, #243, #244, #246, #247, #248 in this session) has been admin-merged. A real Jest regression could ship because "CI is always red anyway."
 
