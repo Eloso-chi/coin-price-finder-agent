@@ -122,6 +122,36 @@ describe('alertService', () => {
       expect(result).toHaveProperty('sent', false);
     });
 
+    test('alertServerCrash includes a supplied request ID in the alert body', async () => {
+      mockBeginSend.mockResolvedValue({ pollUntilDone: mockPollUntilDone });
+      mockPollUntilDone.mockResolvedValue({ status: 'Succeeded' });
+      const alertService = loadFreshAlertService({
+        COMMUNICATION_CONNECTION_STRING: 'endpoint=https://example.communication.azure.com/;accesskey=test',
+        ALERT_EMAIL_TO: 'to@example.com',
+        ALERT_FROM_EMAIL: 'alerts@example.azurecomm.net',
+      });
+
+      await alertService.alertServerCrash('uncaughtException', 'ReferenceError', 'request-123');
+
+      const message = mockBeginSend.mock.calls[0][0];
+      expect(message.content.plainText).toContain('Request ID: request-123');
+    });
+
+    test('alertServerCrash omits request context when no request ID is available', async () => {
+      mockBeginSend.mockResolvedValue({ pollUntilDone: mockPollUntilDone });
+      mockPollUntilDone.mockResolvedValue({ status: 'Succeeded' });
+      const alertService = loadFreshAlertService({
+        COMMUNICATION_CONNECTION_STRING: 'endpoint=https://example.communication.azure.com/;accesskey=test',
+        ALERT_EMAIL_TO: 'to@example.com',
+        ALERT_FROM_EMAIL: 'alerts@example.azurecomm.net',
+      });
+
+      await alertService.alertServerCrash('uncaughtException', 'ReferenceError');
+
+      const message = mockBeginSend.mock.calls[0][0];
+      expect(message.content.plainText).not.toContain('Request ID:');
+    });
+
     test('alertPcgsBreakerTripped returns a result', async () => {
       const alertService = loadFreshAlertService();
       const result = await alertService.alertPcgsBreakerTripped(14);
