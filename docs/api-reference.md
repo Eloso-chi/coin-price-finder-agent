@@ -15,6 +15,8 @@ Comprehensive reference of all HTTP endpoints exposed by the coin-price-finder-a
 | `GET` | `/api/coin-variant` | None | Design-series metadata (e.g., ASE variants, Proof vs BU) |
 | `GET` | `/api/coin-history` | None | Sold-price time-series with optional spot-price overlay |
 
+Every valuation includes `algorithmVersion` (semantic version), `configVersion` (`sha256:` fingerprint), and `computedAt` (UTC ISO timestamp). Successful and null-FMV outcomes are audited asynchronously. Anonymous audits omit actor and IP; authenticated admin audits may include both. Audit persistence never delays the pricing response.
+
 ## Bulk Lot Evaluator
 
 | Method | Endpoint | Auth | Description |

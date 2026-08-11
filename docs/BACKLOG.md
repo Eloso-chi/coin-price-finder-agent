@@ -2618,7 +2618,9 @@ Option 1 is cleanest because it collapses login + first-visit-verification into 
 
 ---
 
-### #287W. Algorithm/config versioning + valuation reproducibility fields [P2 -- AUDITABILITY / PRICING-ACCURACY] -- OPEN 2026-08-06
+### #287W. Algorithm/config versioning + valuation reproducibility fields [P2 -- AUDITABILITY / PRICING-ACCURACY] -- DONE 2026-08-11
+
+**Completion (2026-08-11):** Added semantic `algorithmVersion`, cached SHA-256 `configVersion`, and UTC `computedAt` to every valuation outcome, including null-FMV paths. The response schema requires all three fields and focused tests cover stable hashes plus successful/no-data valuations. Implemented as the prerequisite for #288W.
 
 **Problem:** `/api/price` responses ship a `reproducibility` field at runtime but neither the schema ([src/schemas/priceResponse.schema.js](src/schemas/priceResponse.schema.js)) nor the response body declare an `algorithmVersion` (semver of the valuation logic) or `configVersion` (hash of blend-weight constants + [src/data/dealerPremiums.js](src/data/dealerPremiums.js) + [src/data/greysheetTypeMap.js](src/data/greysheetTypeMap.js)). We cannot answer "which model priced this coin on this date." Schema also has `additionalProperties: true` (per #244 telemetry work), which permits silent contract drift.
 
@@ -2640,7 +2642,9 @@ Option 1 is cleanest because it collapses login + first-visit-verification into 
 
 ---
 
-### #288W. Valuation audit log -- write every /api/price call to Cosmos [P2 -- AUDITABILITY] -- OPEN 2026-08-06
+### #288W. Valuation audit log -- write every /api/price call to Cosmos [P2 -- AUDITABILITY] -- DONE 2026-08-11
+
+**Completion (2026-08-11):** Added fire-and-forget audit emission for single, batch, and bulk pricing. Versioned records write to lazily provisioned Cosmos `valuation-audit` (`/computedAtDate`) with daily local JSONL fallback. Anonymous records omit actor/IP, admin records may include them, request IDs are retained, and persistence is disabled under `NODE_ENV=test`. Focused tests cover Cosmos, fallback, privacy, and all route paths.
 
 **Problem:** [src/services/auditService.js](src/services/auditService.js) writes admin actions to Cosmos `admin-audit` (signin, admin-granted, etc.) but no valuation calls are recorded. We cannot answer "who priced what coin at what FMV when," which is a real gap for a pricing service that dealers may rely on.
 
@@ -3282,7 +3286,9 @@ Current repo state: 63 total PRs, **0 open**. Item was stale-imported; root caus
 
 ---
 
-### #265W. Rotate `ADMIN_API_KEY` + remove hardcoded fallback from `scripts/bar-pricing-health.js` [P1 -- SECURITY] -- PARTIAL / ROTATION OPEN 2026-07-29
+### #265W. Rotate `ADMIN_API_KEY` + remove hardcoded fallback from `scripts/bar-pricing-health.js` [P1 -- SECURITY] -- DEFERRED 2026-08-11
+
+**Deferral (2026-08-11):** External Key Vault rotation, App Service restart, both-machine secret refresh, and old-key rejection verification are deferred by user decision. The live code remains sanitized and fail-fast; no credential values were accessed or changed. Resume before treating the exposed historical credential as remediated.
 
 **Status update (2026-07-29):** The hardcoded literal fallback is no longer present in the live `scripts/bar-pricing-health.js`; the script reads `process.env.ADMIN_API_KEY` and fails when no usable key is supplied. The credential remains recoverable from git history, and the current key was also exposed in local terminal output during an H-machine diagnostic on 2026-07-28. Key Vault rotation, App Service restart, both-machine secret refresh, and old-key rejection verification remain OPEN and urgent. Do not place either old or new values in chat, commands, docs, or commits.
 

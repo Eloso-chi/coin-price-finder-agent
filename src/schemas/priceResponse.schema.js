@@ -44,8 +44,11 @@ const priceResponseSchema = {
     },
     valuation: {
       type: 'object',
-      required: ['fmvCore', 'rangeLow', 'rangeHigh', 'confidence', 'explanation', 'dataSource', 'gradePool'],
+      required: ['algorithmVersion', 'configVersion', 'computedAt', 'fmvCore', 'rangeLow', 'rangeHigh', 'confidence', 'explanation', 'dataSource', 'gradePool'],
       properties: {
+        algorithmVersion: { type: 'string', pattern: '^\\d+\\.\\d+\\.\\d+$' },
+        configVersion: { type: 'string', pattern: '^sha256:[a-f0-9]{64}$' },
+        computedAt: { type: 'string', pattern: '^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$' },
         fmvCore: numericOrNull,
         rangeLow: numericOrNull,
         rangeHigh: numericOrNull,

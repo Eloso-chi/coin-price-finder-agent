@@ -25,6 +25,18 @@
 
 const stats = require('../utils/stats');
 const { isReverseProofFinish } = require('../utils/coinIntent');
+const { getConfigVersion } = require('../utils/versionHash');
+
+const ALGORITHM_VERSION = '1.0.0';
+const CONFIG_VERSION = getConfigVersion();
+
+function valuationVersionStamp() {
+  return {
+    algorithmVersion: ALGORITHM_VERSION,
+    configVersion: CONFIG_VERSION,
+    computedAt: new Date().toISOString(),
+  };
+}
 
 /**
  * Compute FMV and dealer decisions from PCGS data + eBay comps + Greysheet.
@@ -404,6 +416,7 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
     }
     return {
       valuation: {
+        ...valuationVersionStamp(),
         fmvCore: null,
         rangeLow: null,
         rangeHigh: null,
@@ -475,6 +488,7 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
     );
     return {
       valuation: {
+        ...valuationVersionStamp(),
         fmvCore: null,
         rangeLow: null,
         rangeHigh: null,
@@ -661,6 +675,7 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
 
   return {
     valuation: {
+      ...valuationVersionStamp(),
       fmvCore: fmv,
       rangeLow,
       rangeHigh,
@@ -959,6 +974,7 @@ function _emptyDecisions(askingPrice) {
 
 module.exports = {
   computeValuation,
+  ALGORITHM_VERSION,
   // #283H -- exported for unit tests pinning the proof / RP half-life
   // dispatch.  Not used by production callers.
   computeWeightedMedian,

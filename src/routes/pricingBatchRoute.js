@@ -11,6 +11,7 @@ const ebayService  = require('../services/ebayService');
 const greysheetService = require('../services/greysheetService');
 const auctionPriceService = require('../services/auctionPriceService');
 const { computeValuation } = require('../services/valuationService');
+const { writeValuationAudit } = require('../services/auditService');
 const { getMetalsSpotPrice } = require('../services/metalsSpotPrice');
 const { getCoinMetalProfile } = require('../utils/coinMetalProfile');
 const { lookupKeyDate } = require('../data/keyDates');
@@ -30,9 +31,27 @@ router.post('/', async (req, res) => {
     if (items.length > MAX_ITEMS) {
       return res.status(400).json({ error: `Maximum ${MAX_ITEMS} items per batch` });
     }
+    if (items.some(item => String(item?.query || '').length > 300)) {
+      return res.status(400).json({ error: 'Each query must be 300 characters or fewer' });
+    }
 
     const audience = req.isAdmin ? 'admin' : 'public';
     const results = await Promise.all(items.map(item => _priceOne(item, { audience })));
+    for (const result of results) {
+      if (result.error) continue;
+      void writeValuationAudit({
+        query: result.query,
+        fmv: result.fmv,
+        method: result.method,
+        confidence: result.confidence,
+        algorithmVersion: result.algorithmVersion,
+        configVersion: result.configVersion,
+        computedAt: result.computedAt,
+        requestId: req.id,
+        actorId: req.isAdmin ? req.adminActor?.userId : undefined,
+        ip: req.isAdmin ? req.ip : undefined,
+      });
+    }
     return res.json(redactCompsForPublic({ ok: true, results }, req.isAdmin));
   } catch (err) {
     console.error('pricing-batch error:', err.message);
@@ -300,6 +319,10 @@ async function _priceOne(item, opts = {}) {
       rangeHigh: val.rangeHigh || null,
       avgEbay: ebay?.us?.stats?.median || ebay?.us?.stats?.mean || null,
       confidence: val.confidence ?? null,
+      method: val.method || val.dataSource?.label || null,
+      algorithmVersion: val.algorithmVersion,
+      configVersion: val.configVersion,
+      computedAt: val.computedAt,
       dataSource: val.dataSource ?? null,
       spotStale: spotStale || undefined,
       spotAsOf: spotAsOf || undefined,

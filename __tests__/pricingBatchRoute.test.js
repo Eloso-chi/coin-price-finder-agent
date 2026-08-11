@@ -34,9 +34,17 @@ jest.mock('../src/services/ebayService', () => ({
 
 jest.mock('../src/services/valuationService', () => ({
   computeValuation: jest.fn(() => ({
-    valuation: { fmvCore: 52.00, rangeLow: 45.00, rangeHigh: 58.00, confidence: 72 },
+    valuation: {
+      fmvCore: 52.00, rangeLow: 45.00, rangeHigh: 58.00, confidence: 72,
+      algorithmVersion: '1.0.0', configVersion: `sha256:${'b'.repeat(64)}`,
+      computedAt: '2026-08-11T12:34:56.000Z', dataSource: { label: 'sold-data' },
+    },
     decisions: { buy: {}, sell: {} },
   })),
+}));
+
+jest.mock('../src/services/auditService', () => ({
+  writeValuationAudit: jest.fn(async () => {}),
 }));
 
 jest.mock('../src/data/keyDates', () => ({
@@ -59,6 +67,7 @@ const express = require('express');
 const pricingBatchRoute = require('../src/routes/pricingBatchRoute');
 const { computeValuation } = require('../src/services/valuationService');
 const { fetchSoldComps } = require('../src/services/ebayService');
+const { writeValuationAudit } = require('../src/services/auditService');
 
 let app, server, baseUrl;
 
@@ -127,7 +136,18 @@ describe('POST /api/pricing-batch', () => {
     expect(body.error).toMatch(/Maximum 25/);
   });
 
+  test('rejects item queries longer than 300 characters', async () => {
+    writeValuationAudit.mockClear();
+    const { status, body } = await post('/api/pricing-batch', {
+      items: [{ query: 'x'.repeat(301) }],
+    });
+    expect(status).toBe(400);
+    expect(body.error).toContain('300');
+    expect(writeValuationAudit).not.toHaveBeenCalled();
+  });
+
   test('returns pricing for a single item', async () => {
+    writeValuationAudit.mockClear();
     const { status, body } = await post('/api/pricing-batch', {
       items: [{ query: '1921 Morgan Dollar MS-65' }],
     });
@@ -140,6 +160,14 @@ describe('POST /api/pricing-batch', () => {
     expect(body.results[0]).toHaveProperty('avgEbay');
     expect(body.results[0]).toHaveProperty('confidence');
     expect(body.results[0].fmv).toBe(52.00);
+    expect(writeValuationAudit).toHaveBeenCalledTimes(1);
+    expect(writeValuationAudit).toHaveBeenCalledWith(expect.objectContaining({
+      query: '1921 Morgan Dollar MS-65',
+      fmv: 52,
+      method: 'sold-data',
+      algorithmVersion: '1.0.0',
+      computedAt: '2026-08-11T12:34:56.000Z',
+    }));
   });
 
   test('preserves sparse-series source details and zero confidence', async () => {
