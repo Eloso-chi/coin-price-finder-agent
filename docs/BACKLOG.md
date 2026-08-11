@@ -2790,15 +2790,17 @@ Option 1 is cleanest because it collapses login + first-visit-verification into 
 
 ---
 
-### #294W. Test suite runtime budget -- shard CI or triage slow suites [P3 -- CI / DX] -- OPEN 2026-08-06
+### #294W. Test suite runtime budget -- shard CI or triage slow suites [P3 -- CI / DX] -- IN PROGRESS 2026-08-11
 
-**Problem:** Full test suite runs ~102s locally (measured this session). [docs/testing/test-monitor.md](docs/testing/test-monitor.md) budget target is 60s. 70% over budget. Slows PR feedback and CI throughput.
+**Problem:** A seeded in-band baseline ran 489.9s (513.3s wall clock) against the 60s budget. One integrity suite consumed 341.5s (70% of Jest runtime). See [testing/test-runtime-294w-baseline.md](testing/test-runtime-294w-baseline.md).
 
 **Approach:**
 
 - Phase 1: mine `.test-metrics/test-runs.jsonl` for the top 20 slowest suites and top 20 slowest tests. Deliver an analysis report (no code changes).
 - Phase 2 (data-driven): fix the top offenders (usually a slow beforeAll or unnecessary async fanout).
 - Phase 3 (if still over budget): introduce `jest --shard` in CI (2-3 shards) and update the workflow to fan out.
+
+**Progress (2026-08-11):** Phase 1 complete. Added a reproducible full-JSON top-20 analyzer and expanded retained metrics to 20 suites/tests. Phase 2 started: caching immutable CSV parses and the global source-price index reduced `terapeakDataIntegrity.test.js` from 341.5s to 55.0s (84%) with all 111 tests passing. Fake timers and production timer cleanup reduced the Excel suite from 16.5s wall time with an open handle to a clean 3.6s Jest run. The canonical suite passes in 96.3s (99.6s wall), still above budget; a four-worker experiment took 89.3s and was rejected.
 
 **Files:** NEW `scripts/analyze-slow-tests.js`, likely surgical MOD in offender test files, potentially MOD CI workflow.
 

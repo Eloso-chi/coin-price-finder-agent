@@ -132,7 +132,7 @@ function gitInfo() {
         }))
         .filter(f => f.durationMs > 0)
         .sort((a, b) => b.durationMs - a.durationMs)
-        .slice(0, 5);
+        .slice(0, 20);
       record.slowestFiles = fileTimes;
     }
 
@@ -153,7 +153,7 @@ function gitInfo() {
       }
       record.slowestTests = allTests
         .sort((a, b) => b.durationMs - a.durationMs)
-        .slice(0, 10);
+        .slice(0, 20);
     }
 
     // Flake hint: did any test retry and then pass? (Jest retryTimes)
