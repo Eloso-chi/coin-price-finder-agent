@@ -86,6 +86,7 @@ Comprehensive reference of all HTTP endpoints exposed by the coin-price-finder-a
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
 | `GET` | `/api/health` | None | Health check + uptime |
+| `GET` | `/api/health?deep=1` | 🔒 | Downstream status for Cosmos, Key Vault, metals, PCGS, and Terapeak |
 | `GET` | `/api/admin/dashboard` | 🔒 | System overview: user count, dataset count, quota, uptime |
 | `GET` | `/api/admin/stale-datasets` | 🔒 | Datasets older than N days (filters dormant/thin via freshness classifier) |
 | `GET` | `/api/admin/data-health` | 🔒 | Total files, empty files, date ranges |
@@ -106,6 +107,23 @@ or `probe-in-flight`. After cooldown expiry, the scheduler permits one recovery
 probe before continuing the queue. When a 429 response has no usable reset
 metadata, `PCGS_429_COOLDOWN_MS` controls the fallback cooldown (default: one
 hour).
+
+### Health Checks
+
+`GET /api/health` is the public load-balancer check. It performs no downstream
+probes and returns `{"status":"ok","uptime":<seconds>}`.
+
+`GET /api/health?deep=1` requires an admin JWT or `x-api-key`. It reports
+`status`, `overall`, `uptime`, and a `dependencies` object containing Cosmos,
+Key Vault, metals, PCGS, and Terapeak state. Each dependency includes
+`status`, `latencyMs`, and `lastSuccess`; source-specific safe fields may also
+be present. Key Vault is `not_probed` because App Service resolves its secret
+references outside this process. Results are cached for 10 seconds and the
+endpoint is separately rate-limited.
+
+Optional dependency failures return HTTP `200` with `overall: "degraded"`.
+Configured Cosmos failure returns HTTP `503` with `overall: "down"`. Responses
+never include credentials, endpoints, configuration values, or raw errors.
 
 ## Error Codes
 
