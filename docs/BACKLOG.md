@@ -2741,7 +2741,9 @@ Option 1 is cleanest because it collapses login + first-visit-verification into 
 
 ---
 
-### #292W. Seed docs/adrs/ with 5 ADRs for load-bearing decisions [P2 -- ARCHITECTURE DOCS] -- OPEN 2026-08-06
+### #292W. Seed docs/adrs/ with 5 ADRs for load-bearing decisions [P2 -- ARCHITECTURE DOCS] -- DONE 2026-08-11
+
+**Completion (2026-08-11):** Added a Nygard-style ADR template/index and five Accepted records covering FMV pool isolation, the Terapeak-first comp cascade, valuation-mode routing, public/admin audience gating, and the Terapeak anti-bot risk-state machine. Each record links to its governing memory docs, implementation surface, and relevant WASTE-LEDGER incident. Added the ADR index to `docs/ARCHITECTURE.md`.
 
 **Problem:** No ADRs. Five high-stakes decisions with high blast radius live in memory docs + WASTE-LEDGER, which functions as an implicit ADR log but doesn't follow the Context/Decision/Consequences shape. External readers cannot answer "why does this system make this design choice."
 
