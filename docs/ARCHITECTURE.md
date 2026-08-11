@@ -6,6 +6,20 @@ For a quick endpoint reference, see [docs/api-reference.md](api-reference.md). F
 
 ---
 
+## Architecture Decisions
+
+Load-bearing design choices are recorded in [docs/adrs/](adrs/README.md):
+
+| ADR | Decision |
+|---|---|
+| [ADR-001](adrs/ADR-001-fmv-pool-isolation.md) | Isolate FMV comp pools |
+| [ADR-002](adrs/ADR-002-terapeak-first-comp-cascade.md) | Use a Terapeak-first comp cascade |
+| [ADR-003](adrs/ADR-003-valuation-mode-routing.md) | Route bullion and numismatic valuation modes separately |
+| [ADR-004](adrs/ADR-004-public-admin-audience-gating.md) | Gate response detail by public/admin audience |
+| [ADR-005](adrs/ADR-005-terapeak-anti-bot-state-machine.md) | Use a fail-closed anti-bot risk-state machine |
+
+---
+
 ## Module Map
 
 ```
@@ -614,23 +628,22 @@ The cascade maximizes data quality while handling API limitations. Terapeak loca
 │  If enough comps → skip all live API tiers                │
 ├───────────────────────────────────────────────────────────┤
 │  Tier 1: Marketplace Insights API                         │
-│  Good quality -- actual sold prices + dates               │
-│  Requires: eBay Partner oauth token                       │
-│  If circuit-tripped or fails → fall through               │
+│  Sold prices + dates; unavailable without approved access │
+│  Current project does not have this API access             │
 ├───────────────────────────────────────────────────────────┤
 │  Tier 2: Finding API (findCompletedItems)                 │
 │  DECOMMISSIONED by eBay (Feb 4, 2025)                    │
-│  Code remains but always falls through                    │
+│  Legacy code is feature-gated and disabled by default     │
 ├───────────────────────────────────────────────────────────┤
 │  Tier 3: Browse API (search)                              │
 │  Last resort -- ACTIVE listings (not sold)                │
 │  Only triggers when zero sold comps exist                 │
-│  Requires: OAuth client credentials flow                  │
+│  Uses bounded retries and throttling; no circuit breaker   │
 │  Confidence penalty applied in valuation                  │
 └───────────────────────────────────────────────────────────┘
 ```
 
-**Circuit breaker:** When an API returns an error, it is marked as tripped for 5 minutes. Subsequent calls skip the tripped API and try the next tier.
+**Circuit breaker:** Implemented sold-data API paths can be marked as tripped for 5 minutes so subsequent calls skip them. Browse uses bounded retries but is not circuit-protected.
 
 **Throttling:** A global 1,100 ms minimum gap between any eBay API call prevents rate-limit issues.
 
