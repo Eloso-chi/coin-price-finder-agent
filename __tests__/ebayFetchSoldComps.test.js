@@ -126,6 +126,42 @@ describe('fetchSoldComps — Terapeak tier', () => {
     expect(axios.post).not.toHaveBeenCalled();
   });
 
+  test.each([
+    ['Colorized', /colorized/i],
+    ['Antiqued', /antiqued/i],
+    ['Gilded', /gilded/i],
+    ['Burnished', /burnished/i],
+    ['High Relief', /high relief/i],
+  ])('%s intent keeps only raw comps from that variant family', async (finish, familyPattern) => {
+    const wrongFamily = finish === 'Colorized' ? 'Antiqued' : 'Colorized';
+    terapeakService.lookupComps.mockReturnValue({
+      searchTerm: `2018 Mexico Libertad ${finish}`,
+      lastImport: '2026-08-10',
+      comps: [
+        { title: `2018 Mexico Libertad ${finish} Banco de Mexico`, totalUsd: 320, soldDate: '2026-08-01', conditionId: '4000', _source: 'terapeak' },
+        { title: `2018 Mexico Libertad ${finish} with COA`, totalUsd: 350, soldDate: '2026-08-02', conditionId: '4000', _source: 'terapeak' },
+        { title: `2018 Mexico Libertad ${finish}`, totalUsd: 380, soldDate: '2026-08-03', conditionId: '4000', _source: 'terapeak' },
+        { title: '2018 Mexico Libertad BU', totalUsd: 105, soldDate: '2026-08-04', conditionId: '4000', _source: 'terapeak' },
+        { title: `2018 Mexico Libertad ${finish} PCGS MS70`, totalUsd: 450, soldDate: '2026-08-05', conditionId: '2000', _source: 'terapeak' },
+        { title: '2018 Mexico Libertad Proof', totalUsd: 210, soldDate: '2026-08-06', conditionId: '4000', _source: 'terapeak' },
+        { title: `2018 Mexico Libertad ${wrongFamily}`, totalUsd: 160, soldDate: '2026-08-07', conditionId: '4000', _source: 'terapeak' },
+      ],
+    });
+
+    const result = await ebayService.fetchSoldComps(`2018 Mexico Libertad ${finish}`, {}, {
+      year: 2018,
+      series: 'Mexico Libertad',
+      finish,
+      _rawQuery: `2018 Mexico Libertad ${finish}`,
+    });
+
+    expect(result.apiUsed).toBe('terapeak');
+    expect(result.us.comps).toHaveLength(3);
+    expect(result.us.comps.every(comp => familyPattern.test(comp.title))).toBe(true);
+    expect(result.us.comps.every(comp => ebayService.classifyGradeType(comp) === 'raw')).toBe(true);
+    expect(result.us.comps.some(comp => /\bproof\b|PCGS|\bBU\b/i.test(comp.title))).toBe(false);
+  });
+
   test('falls through to Finding API when terapeak has too few comps', async () => {
     terapeakService.lookupComps.mockReturnValue({
       searchTerm: '1964 Kennedy Half',

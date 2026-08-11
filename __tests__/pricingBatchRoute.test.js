@@ -146,6 +146,18 @@ describe('POST /api/pricing-batch', () => {
     expect(writeValuationAudit).not.toHaveBeenCalled();
   });
 
+  test.each([
+    ['oversized', 'x'.repeat(101)],
+    ['non-string', ['Antiqued']],
+  ])('rejects %s structured finishes', async (_case, finish) => {
+    const { status, body } = await post('/api/pricing-batch', {
+      items: [{ query: '2018 Libertad', coinData: { finish } }],
+    });
+    expect(status).toBe(400);
+    expect(body.error).toMatch(/coinData\.finish/);
+    expect(fetchSoldComps).not.toHaveBeenCalled();
+  });
+
   test('returns pricing for a single item', async () => {
     writeValuationAudit.mockClear();
     const { status, body } = await post('/api/pricing-batch', {
@@ -168,6 +180,21 @@ describe('POST /api/pricing-batch', () => {
       algorithmVersion: '1.0.0',
       computedAt: '2026-08-11T12:34:56.000Z',
     }));
+  });
+
+  test('forwards label-only specialty intent to valuation', async () => {
+    computeValuation.mockClear();
+    const { status } = await post('/api/pricing-batch', {
+      items: [{
+        query: '2018 Libertad MS70',
+        coinData: { label: 'Colorized', grade: 'MS70' },
+      }],
+    });
+    expect(status).toBe(200);
+    expect(computeValuation).toHaveBeenCalled();
+    expect(computeValuation.mock.calls[0][4]).toEqual(
+      expect.objectContaining({ finish: 'Colorized' })
+    );
   });
 
   test('preserves sparse-series source details and zero confidence', async () => {

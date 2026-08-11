@@ -23,7 +23,7 @@ const { hasSeriesConflict, detectDenomination } = require('../utils/filters');
 const { getCoinMetalProfile } = require('../utils/coinMetalProfile');
 const terapeakService = require('../services/terapeakService');
 const { redactCompsForPublic } = require('../utils/redactForPublic');
-const { extractCoinIntent } = require('../utils/coinIntent');
+const { extractCoinIntent, isValidFinishInput, MAX_FINISH_LENGTH } = require('../utils/coinIntent');
 const stats = require('../utils/stats');
 
 // ── #41: Adjacent-year context ──
@@ -80,6 +80,9 @@ router.post('/', async (req, res) => {
     }
     if (String(query).length > 300) {
       return res.status(400).json({ error: 'query must be 300 characters or fewer' });
+    }
+    if (!isValidFinishInput(coinData?.finish)) {
+      return res.status(400).json({ error: `coinData.finish must be a string of ${MAX_FINISH_LENGTH} characters or fewer` });
     }
 
     // #55: Validate sale context
@@ -448,7 +451,7 @@ router.post('/', async (req, res) => {
       // #260W: forward canonical finish so valuationService can split
       // reverse-proof comps from the regular proof pool. extractCoinIntent
       // already normalized this to "Reverse Proof" / "Enhanced Reverse Proof".
-      finish: expected.finish,
+      finish: expected.finish || expected.label,
       greysheet,
       saleContext,
       appealMultiplier: resolvedAppeal,

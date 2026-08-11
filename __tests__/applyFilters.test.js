@@ -215,7 +215,7 @@ describe('applyFilters — variant mismatch', () => {
     expect(removed.variantMismatch).toBe(1);
   });
 
-  test('colorized query keeps colorized and plain BU, removes other specialty families', () => {
+  test('colorized query keeps only colorized comps', () => {
     const comps = [
       makeComp({ title: '2024 Silver Eagle Colorized Perth Mint with COA', matchScore: 70 }),
       makeComp({ title: '2024 Silver Eagle BU', matchScore: 70 }),
@@ -223,10 +223,40 @@ describe('applyFilters — variant mismatch', () => {
       makeComp({ title: '2024 Silver Eagle Reverse Proof', matchScore: 70 }),
     ];
     const { kept, removed } = applyFilters(comps, {}, { _rawQuery: '2024 Silver Eagle Colorized' });
-    expect(kept.length).toBe(2);
+    expect(kept.length).toBe(1);
     expect(kept.some(c => /Colorized/i.test(c.title))).toBe(true);
-    expect(kept.some(c => /\bBU\b/i.test(c.title))).toBe(true);
-    expect(removed.variantWrongColor).toBe(2);
+    expect(removed.variantWrongColor).toBe(3);
+  });
+
+  test('specialty query rejects graded comps even when a grade is requested', () => {
+    const comps = [
+      makeComp({ title: '2018 Libertad Antiqued', matchScore: 70 }),
+      makeComp({ title: '2018 Libertad Antiqued PCGS MS70', matchScore: 70, conditionId: '2000' }),
+    ];
+    const expected = { _rawQuery: '2018 Libertad Antiqued MS70', grade: 'MS70' };
+    const { kept } = applyFilters(comps.map(comp => scoreMatch(comp, expected)), {}, expected);
+    expect(kept.map(comp => comp.title)).toEqual(['2018 Libertad Antiqued']);
+  });
+
+  test('specialty query keeps raw comps despite a conflicting proof flag', () => {
+    const comps = [
+      makeComp({ title: '2018 Libertad Antiqued', matchScore: 70 }),
+      makeComp({ title: '2018 Libertad Proof', matchScore: 70, gradeType: 'proof' }),
+    ];
+    const expected = { _rawQuery: '2018 Libertad Antiqued', finish: 'Antiqued', isProof: true };
+    const { kept } = applyFilters(comps.map(comp => scoreMatch(comp, expected)), {}, expected);
+    expect(kept.map(comp => comp.title)).toEqual(['2018 Libertad Antiqued']);
+  });
+
+  test('ambiguous multi-family intent rejects every specialty family', () => {
+    const comps = [
+      makeComp({ title: '2018 Libertad Colorized', matchScore: 70 }),
+      makeComp({ title: '2018 Libertad Gilded', matchScore: 70 }),
+      makeComp({ title: '2018 Libertad BU', matchScore: 70 }),
+    ];
+    const expected = { _rawQuery: '2018 Libertad Colorized Gilded' };
+    const { kept } = applyFilters(comps.map(comp => scoreMatch(comp, expected)), {}, expected);
+    expect(kept).toEqual([]);
   });
 
   test('label-only family intent applies family-aware filtering', () => {
@@ -237,8 +267,34 @@ describe('applyFilters — variant mismatch', () => {
       makeComp({ title: '2024 Silver Eagle BU', matchScore: 70 }),
     ];
     const { kept, removed } = applyFilters(comps, {}, { label: 'Colorized' });
-    expect(kept.length).toBe(2);
+    expect(kept.length).toBe(1);
+    expect(removed.variantWrongColor).toBe(3);
+  });
+
+  test.each([
+    ['Antiqued', 'Antiqued Finish'],
+    ['Gilded', 'Gilded'],
+    ['Burnished', 'Burnished'],
+    ['High Relief', 'High Relief'],
+  ])('%s query keeps only its requested family', (queryFamily, titleFamily) => {
+    const comps = [
+      makeComp({ title: `2018 Libertad ${titleFamily}`, matchScore: 70 }),
+      makeComp({ title: '2018 Libertad BU', matchScore: 70 }),
+      makeComp({ title: '2018 Libertad Colorized', matchScore: 70 }),
+    ];
+    const { kept, removed } = applyFilters(comps, {}, { _rawQuery: `2018 Libertad ${queryFamily}` });
+    expect(kept.map(comp => comp.title)).toEqual([`2018 Libertad ${titleFamily}`]);
     expect(removed.variantWrongColor).toBe(2);
+  });
+
+  test('rejects a compound title carrying requested and wrong specialty families', () => {
+    const comps = [
+      makeComp({ title: '2018 Libertad Colorized Perth Mint', matchScore: 70 }),
+      makeComp({ title: '2018 Libertad Colorized Gilded', matchScore: 70 }),
+    ];
+    const { kept, removed } = applyFilters(comps, {}, { _rawQuery: '2018 Libertad Colorized' });
+    expect(kept.map(comp => comp.title)).toEqual(['2018 Libertad Colorized Perth Mint']);
+    expect(removed.variantWrongColor).toBe(1);
   });
 });
 
@@ -354,10 +410,10 @@ describe('applyFilters — specialtyEdition (#283W)', () => {
       makeComp({ title: '2022 Mexico Libertad 1 oz Silver BU', matchScore: 70 }),
     ];
     const { kept, removed } = applyFilters(comps, {}, { _rawQuery: '2022 Mexican Silver Libertad Colorized' });
-    // Plain colorized + plain BU kept; specialty+colorized rejected.
-    expect(kept.length).toBe(2);
+    // Plain colorized kept; plain BU and specialty+colorized rejected.
+    expect(kept.length).toBe(1);
     expect(kept.some(c => /Elite|Traders/i.test(c.title))).toBe(false);
-    expect(removed.variantWrongColor).toBe(1);
+    expect(removed.variantWrongColor).toBe(2);
   });
 });
 
@@ -616,6 +672,37 @@ describe('scoreMatch — colorized mint-signal scoring', () => {
     expect(aftermarketComp.matchNotes).toContain('colorized-aftermarket');
   });
 
+  test('colorized aftermarket marker overrides a mint token', () => {
+    const comp = makeComp({
+      title: '2024 Silver Eagle Colorized Perth Mint custom art coin',
+      matchScore: 80,
+    });
+    scoreMatch(comp, { _rawQuery: '2024 Silver Eagle Colorized' });
+    expect(comp.matchNotes).toContain('colorized-aftermarket');
+    expect(comp.matchNotes).not.toContain('colorized-mint-issued');
+  });
+
+  test.each(['altered', 'overlay'])('colorized %s marker overrides a mint token', (marker) => {
+    const comp = makeComp({ title: `2024 Silver Eagle Colorized RCM ${marker}` });
+    scoreMatch(comp, { _rawQuery: '2024 Silver Eagle Colorized' });
+    expect(comp.matchNotes).toContain('colorized-aftermarket');
+    expect(comp.matchNotes).not.toContain('colorized-mint-issued');
+  });
+
+  test('mint abbreviations require token boundaries', () => {
+    const titles = [
+      '2018 Libertad Antiqued Complete Set',
+      '2018 Libertad Antiqued Supercritical Finish',
+      '2018 Libertad Antiqued Coarse Surface',
+      '2018 Libertad Antiqued with Coarse Surface',
+    ];
+    for (const title of titles) {
+      const comp = makeComp({ title });
+      scoreMatch(comp, { _rawQuery: '2018 Libertad Antiqued' });
+      expect(comp.matchNotes).not.toContain('antiqued-mint-issued');
+    }
+  });
+
   test('privy comps are informational only (not filtered)', () => {
     const privyComp = makeComp({
       title: '2024 Silver Eagle Privy Mark MS-70',
@@ -653,6 +740,43 @@ describe('scoreMatch — colorized mint-signal scoring', () => {
     // Both should score similarly (no colorized-mint-issued bonus applied)
     expect(mintComp.matchNotes).not.toContain('colorized-mint-issued');
     expect(plainComp.matchNotes).not.toContain('colorized-mint-issued');
+  });
+});
+
+describe('scoreMatch — specialty-family scoring', () => {
+  test.each([
+    ['Antiqued', 'antiqued'],
+    ['Gilded', 'gilded'],
+    ['Burnished', 'burnished'],
+    ['High Relief', 'highRelief'],
+  ])('%s mint-issued comp outranks aftermarket and plain BU', (queryFamily, noteFamily) => {
+    const expected = { _rawQuery: `2018 Libertad ${queryFamily}` };
+    const mintIssued = makeComp({ title: `2018 Libertad ${queryFamily} Banco de Mexico with COA` });
+    const aftermarket = makeComp({ title: `2018 Libertad ${queryFamily} custom art coin` });
+    const plain = makeComp({ title: '2018 Libertad BU' });
+
+    scoreMatch(mintIssued, expected);
+    scoreMatch(aftermarket, expected);
+    scoreMatch(plain, expected);
+
+    expect(mintIssued.matchNotes).toContain(`${noteFamily}-mint-issued`);
+    expect(aftermarket.matchNotes).toContain(`${noteFamily}-aftermarket`);
+    expect(plain.matchNotes).toContain(`variant-wrong-${noteFamily}-family`);
+    expect(mintIssued.matchScore).toBeGreaterThan(aftermarket.matchScore);
+    expect(aftermarket.matchScore).toBeGreaterThan(plain.matchScore);
+  });
+
+  test('aftermarket marker overrides a mint token', () => {
+    const comp = makeComp({ title: '2018 Libertad Antiqued Banco de Mexico custom art coin' });
+    scoreMatch(comp, { _rawQuery: '2018 Libertad Antiqued' });
+    expect(comp.matchNotes).toContain('antiqued-aftermarket');
+    expect(comp.matchNotes).not.toContain('antiqued-mint-issued');
+  });
+
+  test('bare COA is a mint-issued signal for generalized specialty families', () => {
+    const comp = makeComp({ title: '2018 Libertad Antiqued COA' });
+    scoreMatch(comp, { _rawQuery: '2018 Libertad Antiqued' });
+    expect(comp.matchNotes).toContain('antiqued-mint-issued');
   });
 });
 
