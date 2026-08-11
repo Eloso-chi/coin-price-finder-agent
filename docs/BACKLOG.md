@@ -2665,7 +2665,7 @@ Option 1 is cleanest because it collapses login + first-visit-verification into 
 
 ---
 
-### #289W. Deep /api/health with downstream dependency status [P3 -- OBSERVABILITY] -- IMPLEMENTED / PR PENDING 2026-08-10
+### #289W. Deep /api/health with downstream dependency status [P3 -- OBSERVABILITY] -- DONE 2026-08-11 (PR #265, merge `7e48312a`)
 
 **Status update (2026-08-10):** The public shallow endpoint retains `{status, uptime}`. Rate-limited, admin-authorized `GET /api/health?deep=1` adds abortable Cosmos reachability, fresh per-provider metals observations, PCGS quota/upstream state, and already-loaded Terapeak dataset health. App Service resolves Key Vault references outside the process, so Key Vault is explicitly `not_probed` rather than reporting false reachability. Concurrent checks are deduplicated and results cached for 10 seconds. Optional failures return HTTP 200 with `overall: degraded`; configured Cosmos failure returns HTTP 503. Responses omit configuration values, credentials, and raw error details.
 
