@@ -6,10 +6,13 @@ require('dotenv').config();
 // ── Process crash handlers (#202/#194) ───────────────────────
 const alertService = require('./src/services/alertService');
 const { requestId, getRequestId } = require('./src/middleware/requestId');
+const requestLogger = require('./src/middleware/requestLogger');
+const logger = require('./src/utils/logger');
 
 process.on('unhandledRejection', reason => {
   const activeRequestId = getRequestId();
-  console.error('[FATAL] Unhandled rejection:', reason, 'requestId:', activeRequestId || 'unavailable');
+  const err = reason instanceof Error ? reason : new Error(String(reason));
+  logger.fatal({ err, requestId: activeRequestId || undefined, event: 'unhandled_rejection' }, 'Unhandled rejection');
   alertService.alertServerCrash('unhandledRejection', String(reason), activeRequestId);
   // Brief delay to allow log flush + alert send, then hard exit
   setTimeout(() => process.exit(1), 500);
@@ -17,7 +20,7 @@ process.on('unhandledRejection', reason => {
 
 process.on('uncaughtException', (err) => {
   const activeRequestId = getRequestId();
-  console.error('[FATAL] Uncaught exception:', err, 'requestId:', activeRequestId || 'unavailable');
+  logger.fatal({ err, requestId: activeRequestId || undefined, event: 'uncaught_exception' }, 'Uncaught exception');
   alertService.alertServerCrash('uncaughtException', err.message || String(err), activeRequestId);
   setTimeout(() => process.exit(1), 500);
 });
@@ -45,6 +48,7 @@ const requireAdmin = require('./src/middleware/requireAdminOrKey');
 
 // ── Middleware ───────────────────────────────────────────────
 app.use(requestId);
+app.use(requestLogger);
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
@@ -161,14 +165,17 @@ app.get('/api/health', (_req, res) => {
 
 // ── Start ───────────────────────────────────────────────────
 app.listen(PORT, '0.0.0.0', async () => {
-  console.log(`CoinPriceDiscoveryAgent listening on http://localhost:${PORT}`);
-  console.log(`  eBay configured: ${!!(process.env.EBAY_APP_ID && process.env.EBAY_CLIENT_SECRET)}`);
-  console.log(`  PCGS configured: ${!!process.env.PCGS_API_KEY}`);
-  console.log(`  Metals configured: ${!!(process.env.GOLDAPI_KEY || process.env.METALS_API_KEY)}`);
-  console.log(`  Cache dir: ${require('./src/utils/cachePath').CACHE_DIR}`);
-  if (process.env.CACHE_DIR) {
-    console.log(`  Cache dir (custom): ${process.env.CACHE_DIR}`);
-  }
+  logger.info({
+    event: 'server_started',
+    port: Number(PORT),
+    integrations: {
+      ebay: !!(process.env.EBAY_APP_ID && process.env.EBAY_CLIENT_SECRET),
+      pcgs: !!process.env.PCGS_API_KEY,
+      metals: !!(process.env.GOLDAPI_KEY || process.env.METALS_API_KEY),
+    },
+    cacheDir: require('./src/utils/cachePath').CACHE_DIR,
+    customCacheDir: !!process.env.CACHE_DIR,
+  }, 'CoinPriceDiscoveryAgent listening');
 
   // ── Auto-seed testcollector account (server-side) ──────────
   const authService = require('./src/services/authService');

@@ -2920,7 +2920,9 @@ Option 1 is cleanest because it collapses login + first-visit-verification into 
 
 ---
 
-### #300W. Structured logging (pino) with correlation IDs [P3 -- OBSERVABILITY] -- OPEN 2026-08-06
+### #300W. Structured logging (pino) with correlation IDs [P3 -- OBSERVABILITY] -- PHASE 1 IMPLEMENTED / PR PENDING 2026-08-10
+
+**Status update (2026-08-10):** Phase 1 adds Pino as a production dependency, a JSON logger with `LOG_LEVEL` support and common-secret redaction, automatic #290W request-ID injection, and API completion logs without query strings or client IPs. Server start/crash events and `prefetchScheduler` now emit structured fields. Remaining phases migrate `terapeakService`, `ebayService`, and the long tail of services incrementally; Azure JSON parsing configuration remains an operational follow-up.
 
 **Problem:** All logging is unstructured `console.log|warn|error`. Distributed debugging (Codespace, App Service, workflow logs) is manual grep. #120 is a very old backlog note about this.
 
