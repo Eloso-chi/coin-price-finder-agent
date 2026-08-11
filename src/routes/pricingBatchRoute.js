@@ -18,7 +18,7 @@ const { lookupKeyDate } = require('../data/keyDates');
 const { zodiacForYear, perthLunarSeries, getRollQuantity, BULLION_1OZ_DEFAULT, ALLOWED_LABELS } = require('../data/constants');
 const { detectDenomination } = require('../utils/filters');
 const { redactCompsForPublic } = require('../utils/redactForPublic');
-const { extractCoinIntent } = require('../utils/coinIntent');
+const { extractCoinIntent, isValidFinishInput, MAX_FINISH_LENGTH } = require('../utils/coinIntent');
 
 const MAX_ITEMS = 25;
 
@@ -33,6 +33,9 @@ router.post('/', async (req, res) => {
     }
     if (items.some(item => String(item?.query || '').length > 300)) {
       return res.status(400).json({ error: 'Each query must be 300 characters or fewer' });
+    }
+    if (items.some(item => !isValidFinishInput(item?.coinData?.finish))) {
+      return res.status(400).json({ error: `Each coinData.finish must be a string of ${MAX_FINISH_LENGTH} characters or fewer` });
     }
 
     const audience = req.isAdmin ? 'admin' : 'public';
@@ -292,7 +295,7 @@ async function _priceOne(item, opts = {}) {
       isRoll,
       // #260W: forward canonical finish so valuationService can split
       // reverse-proof comps from the regular proof pool.
-      finish: intent.finish,
+      finish: intent.finish || validLabel,
       greysheet,
       appealMultiplier: coaAppealMultiplier > 1.0 ? coaAppealMultiplier : undefined,
       spotPrice: (isBullion && meltPerOz && weight)

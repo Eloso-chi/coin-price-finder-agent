@@ -31,7 +31,7 @@ server.js                              Express entry point (port 3000)
 │
 ├─ src/services/
 │   ├─ pcgsService.js                  PCGS CoinFacts API (cert, coin#, description)
-│   ├─ ebayService.js                  eBay sold comps (3-tier API cascade + grade-type pool split)
+│   ├─ ebayService.js                  eBay sold comps (3-tier cascade + strike and specialty-finish pool isolation)
 │   ├─ valuationService.js             FMV blend + buy/sell decision engine; routes Reverse Proof / Enhanced Reverse Proof queries to a separate `reverse-proof` comp pool (#260W) via `isReverseProofFinish()` from `coinIntent`
 │   ├─ greysheetService.js             Greysheet CDN Public API V2 (wholesale pricing)
 │   ├─ alertService.js                 Crash/ops alert notifications (SendGrid)
@@ -686,6 +686,8 @@ When the user provides a free-text description (not a cert number), `resolveFrom
 **Type 1/2 variant filter (#180):** When `expected.label` contains "Type 1" or "Type 2", `applyFilters()` hard-removes comps whose titles reference the opposite type (e.g. "Type 2" titles when pricing a Type 1 coin). `pcgsService.parseDescription()` detects "Type 1" / "Type 2" in descriptions and sets `result.label`, which is passed through from the identification step to the expected object in `priceRoute.js` and `pricingBatchRoute.js`.
 
 **Specialty-edition family filter (#283W):** `VARIANT_FAMILY_TOKENS.specialtyEdition` (in `ebayService.js`) covers mint-issued commemorative runs that share the standard `proof` title token but command different premiums (e.g. Casa de Moneda `elite libertad`, `libertad traders`, `traders convention`). `applyFilters()` rejects these titles regardless of the caller's `wantsProof` intent, so they never blend into the standard-Proof pool. Add new tokens here as additional specialty runs are identified.
+
+**Specialty-finish pools (#273W):** `requestedVariantFamily()` recognizes explicit colorized, antiqued, gilded, burnished, and high-relief intent from query, label, or canonical finish. `scoreMatch()` promotes same-family mint-issued comps and penalizes aftermarket or wrong-family results before top-K selection. `applyFilters()` then retains only raw comps from the requested family; plain BU, graded, proof, reverse-proof, and other specialty families cannot enter that FMV.
 
 **Bar-series filter (#285W):** Coin-route queries that name a cataloged bar brand and product series carry `barBrand` and `barSeries` intent into `scoreMatch()` and `applyFilters()`. Exact series matches receive +10; positively identified competing series are counted under `barSeriesMismatch` and rejected. Titles with no identifiable series remain neutral. If fewer than three correctly isolated comps remain, valuation returns `fmvCore: null` with `dataSource.label = 'insufficient-series-comps'` rather than blending other bar designs.
 

@@ -4168,7 +4168,9 @@ When the graded pool is empty AND the engine cannot otherwise produce a graded F
 
 ---
 
-### #273W. First-class intent + strict pool isolation for `colorized`, `antiqued`, `gilded`, `burnished`, `high-relief` variant families [P2 -- DATA-QUALITY] -- OPEN 2026-06-24
+### #273W. First-class intent + strict pool isolation for `colorized`, `antiqued`, `gilded`, `burnished`, `high-relief` variant families [P2 -- DATA-QUALITY] -- DONE 2026-08-11
+
+**Completion (2026-08-11):** Added canonical positive intent for all five specialty families, strict same-family hard filtering, and generalized mint-issued/aftermarket scoring before top-K selection. Colorized intent no longer admits plain BU. Finish parsing/canonicalization now covers colorized, gilded, antiqued, burnished, and high relief. Terapeak orchestration tests prove requested raw-family comps survive while plain BU, graded, proof, and wrong-family comps are excluded; valuation coverage verifies the isolated antiqued pool produces the expected premium FMV. The mandatory pool-isolation contract is documented in `docs/memory/numismatic-terminology.md`.
 
 **Discovered while:** post-#270W Option #1 (PR #188, branch `feat/270W-option-1-tiered-lookback`) pricing-health investigation. After running 75 health queries (25 Panda / 25 Libertad / 25 Morgan) and validating the "pool routing dominates dropout" thesis, drill-down on `variantMismatch` rejections for the two highest-variant-share libertads (2023 Mexican Silver Libertad, 2018 Mexico 1 oz Silver Libertad) found:
 - 2023 Libertad: 25/25 rejections were aftermarket painted/gilded/antiqued novelties -- ALL CORRECT.

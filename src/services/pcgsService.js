@@ -334,6 +334,7 @@ function parseDescription(text) {
     { re: /\bburnished\b/i,                     finish: 'Burnished' },
     { re: /\bsatin\s+finish\b/i,               finish: 'Satin Finish' },
     { re: /\bantiqued\b/i,                      finish: 'Antiqued' },
+    { re: /\bgilded\b/i,                        finish: 'Gilded' },
     { re: /\bhigh\s+relief\b/i,                finish: 'High Relief' },
     { re: /\bcolorized\b/i,                     finish: 'Colorized' },
     { re: /\bcoloured\b/i,                      finish: 'Colorized' },
