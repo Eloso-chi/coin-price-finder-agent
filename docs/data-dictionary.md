@@ -185,12 +185,36 @@ Schema mirrors user coins in `cache/user_coins.json`.
 
 ---
 
+### Container: `valuation-audit`
+
+Append-only valuation events emitted by `/api/price`, `/api/pricing-batch`, and `/api/bulk-evaluate`. Provisioned lazily with partition key `/computedAtDate`.
+
+| Field | Type | Notes |
+|---|---|---|
+| `id` | UUID | Unique event identifier |
+| `query` | string | Pricing query as received |
+| `fmv` | number or null | Computed fair-market value |
+| `method` | string or null | Valuation/data-source method |
+| `confidence` | number or null | Confidence score |
+| `algorithmVersion` | semver string | Valuation logic version |
+| `configVersion` | string | `sha256:` fingerprint of versioned valuation/config sources |
+| `computedAt` | ISO timestamp | Valuation computation time |
+| `computedAtDate` | `YYYY-MM-DD` | Cosmos partition value |
+| `requestId` | string or null | Correlation ID |
+| `actorId`, `ip` | string, optional | Included only for authenticated admin context |
+
+When Cosmos is unavailable, the same records append to `cache/valuation-audit-YYYY-MM-DD.jsonl`. Audit failures never block pricing responses. `NODE_ENV=test` disables persistence.
+
+**Privacy and retention:** Treat `query`, `requestId`, `actorId`, and `ip` as Private operational data because free-form queries may contain user-supplied text. Access is limited to operators with Cosmos RBAC or host filesystem access. Queries are capped at 300 characters. The container is provisioned with a 90-day Cosmos TTL, and the serialized fallback writer prunes JSONL files older than 90 days before each day's first write.
+
+---
+
 ## Data Privacy Classifications
 
 | Classification | Examples | Handling |
 |---|---|---|
 | **Public** | Series names, grades, years, mint marks, spot prices, FMV | Safe to log, cache, expose in API responses |
-| **Private** | Cost basis, user notes, payment details, JWT tokens | Never log to unsecured systems; don't expose in API unless authenticated |
+| **Private** | Cost basis, user notes, payment details, valuation audit queries, request/actor IDs, admin IPs, JWT tokens | Never log to unsecured systems; restrict audit access to operators; don't expose in API unless authenticated |
 | **Sensitive** | Passwords (hashes only), API keys, secrets in .env | Never commit; rotate on leak; use Azure Key Vault for team access |
 
 ---

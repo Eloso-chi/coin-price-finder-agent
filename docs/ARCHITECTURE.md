@@ -47,7 +47,7 @@ server.js                              Express entry point (port 3000)
 │   ├─ terapeakService.js              Terapeak CSV import, fuzzy lookup, eviction, auto-import, aggregationMeta tracking (Cosmos write-through + hydration + git-tracked sidecar)
 │   ├─ terapeakQuotaService.js         Daily Terapeak query quota tracker
 │   ├─ adminService.js                 Admin dashboard aggregation (stats, stale detection [filters via freshnessClassifier], data health)
-│   ├─ auditService.js                 Audit log writer (action + actor + resource triples)
+│   ├─ auditService.js                 Admin + valuation audit writer (Cosmos with valuation JSONL fallback)
 │   ├─ freshnessClassifier.js          Shared refresh-skip logic (thresholds + shouldSkipRefresh) used by adminService and generate-freshness-report.js -- #229
 │   ├─ greysheetHistoryService.js      Daily Greysheet price history snapshots
 │   ├─ authService.js                  Server-side auth (bcrypt + JWT, dual-mode Cosmos + local JSON)
@@ -71,6 +71,7 @@ server.js                              Express entry point (port 3000)
 │   ├─ coinMetalProfile.js             Metal detection + weight detection (detectWeightFromTitle, weightToKeyToken) for bullion
 │   ├─ coinIntent.js                   Route-layer extractor: canonicalizes {grade, finish, isProof, designation} across coinData / options / pcgs / parsed (#254)
 │   ├─ responseValidator.js            /api/price response schema & sanity validation
+│   ├─ versionHash.js                  Cached valuation configuration SHA-256 fingerprint
 │   ├─ excelMapper.js                  Excel-to-backup converter (header aliases, series normalization)
 │   ├─ cachePath.js                    Centralized CACHE_DIR from env var
 │   ├─ cosmosClient.js                 Azure Cosmos DB client singleton (env-var gated)
@@ -1335,6 +1336,7 @@ appear at the bottom of both coin and bar results.
 |----------|--------|---------|
 | `cache/users.json` + Cosmos `users` | authService | `{ [username]: { userId, hash, createdAt } }` |
 | `cache/user_coins.json` + Cosmos `user-coins` | coinStorageService | `{ [userId]: coin[] }` |
+| `cache/valuation-audit-YYYY-MM-DD.jsonl` + Cosmos `valuation-audit` | auditService | Versioned valuation events through a bounded, shutdown-drained queue; Cosmos and JSONL retention is 90 days |
 | In-memory `_session` | CoinAuth (client) | `{ username, userId, token }` -- lost on reload |
 
 ---
