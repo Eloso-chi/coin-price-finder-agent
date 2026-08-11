@@ -8,6 +8,7 @@ const alertService = require('./src/services/alertService');
 const { requestId, getRequestId } = require('./src/middleware/requestId');
 const requestLogger = require('./src/middleware/requestLogger');
 const logger = require('./src/utils/logger');
+const healthRoute = require('./src/routes/healthRoute');
 
 process.on('unhandledRejection', reason => {
   const activeRequestId = getRequestId();
@@ -155,13 +156,8 @@ app.post('/api/clear-cache', requireAdmin, (_req, res) => {
   res.json({ status: 'ok', message: 'All caches cleared', terapeakEvicted: evicted });
 });
 
-// Health check (minimal info — no config details)
-app.get('/api/health', (_req, res) => {
-  res.json({
-    status: 'ok',
-    uptime: process.uptime()
-  });
-});
+// Shallow health is public; `?deep=1` is admin-gated by the route.
+app.use('/api/health', healthRoute);
 
 // ── Start ───────────────────────────────────────────────────
 app.listen(PORT, '0.0.0.0', async () => {

@@ -1414,6 +1414,19 @@ function listDatasets() {
   }));
 }
 
+function getHealthStatus() {
+  if (!_store) {
+    return { status: 'degraded', lastSuccess: null, datasetCount: null };
+  }
+  const datasets = Object.values(_store);
+  const imports = datasets.map(item => item.lastImport).filter(Boolean).sort();
+  return {
+    status: datasets.length > 0 ? 'ok' : 'degraded',
+    lastSuccess: imports.at(-1) || null,
+    datasetCount: datasets.length,
+  };
+}
+
 /**
  * Delete a terapeak dataset by key.
  */
@@ -1933,6 +1946,7 @@ module.exports = {
   importComps,
   lookupComps,
   listDatasets,
+  getHealthStatus,
   deleteDataset,
   clearAll,
   evictStaleComps,
