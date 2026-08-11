@@ -23,6 +23,7 @@ server.js                              Express entry point (port 3000)
 │   ├─ coinVariantRoute.js             GET /api/coin-variant -- design series resolver
 │   ├─ excelImportRoute.js             POST /api/import/excel -- Excel spreadsheet import
 │   ├─ imageProxyRoute.js              GET /api/image-proxy -- proxied coin images
+│   ├─ healthRoute.js                  GET /api/health -- shallow + admin-gated deep dependency health
 │   ├─ terapeakRoute.js                /api/terapeak/* -- Terapeak data, quota, aggregation-status
 │   ├─ adminRoute.js                   /api/admin/* -- dashboard, stale datasets, data health
 │   ├─ authRoute.js                    /api/auth/* -- signup, login, me, change-password
@@ -511,7 +512,18 @@ Clears both eBay and PCGS in-memory and persisted caches. Returns `{ cleared: tr
 
 ### `GET /api/health`
 
-Returns `{ status: "ok", ... }` with configuration status flags.
+The public shallow path returns `{ status: "ok", uptime }` without touching
+downstream services. `GET /api/health?deep=1` is admin-gated and adds bounded
+dependency observations for Cosmos, metals providers, PCGS quota/upstream
+availability, and the already-loaded Terapeak store. Key Vault is reported as
+`not_probed` because App Service resolves Key Vault references before process
+startup.
+
+Deep Cosmos reads are abort-bounded at two seconds. Concurrent deep checks
+share one in-flight probe and reuse results for 10 seconds; a dedicated limiter
+caps probe pressure. Optional failures produce HTTP 200 with
+`overall: "degraded"`, while configured Cosmos failure produces HTTP 503.
+No raw errors, credentials, endpoints, or configuration values are returned.
 
 ---
 
