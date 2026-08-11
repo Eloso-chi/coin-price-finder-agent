@@ -22,6 +22,8 @@ cd /workspaces/coin-price-agent/src && node server.js
 # MUST run as background (isBackground: true) -- it never exits
 ```
 
+Server startup calls `autoImportFolder()` without a file allowlist, so all eligible Terapeak exports are considered. The optional `includeFiles` service argument is reserved for targeted tests and tools; it does not narrow normal startup imports.
+
 ### 3. Reset Terapeak Quota
 ```bash
 curl -s -X POST http://localhost:3000/api/terapeak/quota/reset \

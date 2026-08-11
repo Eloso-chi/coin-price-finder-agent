@@ -67,4 +67,8 @@ Command: `COIN_TEST_SEED=294w-baseline-20260811 npx jest --runInBand --silent --
 
 The Excel timeout test also waited the full production 10 seconds, and successful workbook loads left that timeout handle pending. Fake timers plus production timeout cleanup reduced the isolated Excel suite from 16.5s wall time with an open-handle warning to 3.6s Jest time with a clean exit.
 
-The post-change canonical run passed 155 suites and 4,342 tests in 96.3s (99.6s wall time). A separate JSON profile completed in 82.8s. Limiting Jest from seven workers to four took 89.3s and was rejected. The remaining critical path is the integrity suite's one-time forced import of the full Terapeak corpus. CI sharding remains Phase 3 only if targeted fixes do not meet the 60s full-suite budget.
+The first post-change canonical run passed 155 suites and 4,342 tests in 96.3s (99.6s wall time). A separate JSON profile completed in 82.8s. Limiting Jest from seven workers to four took 89.3s and was rejected.
+
+A CPU profile showed that the remaining integrity-suite cost came from reading and parsing all 3,593 Terapeak CSVs even though the seeded suite exercised only its sampled and pinned datasets. Adding an `includeFiles` option to `autoImportFolder` let the suite import exactly that real-data cohort. The integrity suite fell from 55.0s to 15.1s while all 111 tests continued to pass.
+
+The final hardened canonical run passed 155 suites and 4,346 tests in 47.9s (50.7s wall time), meeting the 60-second budget. The targeted cohort also asserts that a majority of sampled real datasets resolve to non-empty comps, preventing reduced setup work from hiding behind soft skips. CI sharding was not introduced because targeted fixes achieved the acceptance criterion with less complexity.

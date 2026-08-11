@@ -2790,7 +2790,7 @@ Option 1 is cleanest because it collapses login + first-visit-verification into 
 
 ---
 
-### #294W. Test suite runtime budget -- shard CI or triage slow suites [P3 -- CI / DX] -- IN PROGRESS 2026-08-11
+### #294W. Test suite runtime budget -- shard CI or triage slow suites [P3 -- CI / DX] -- DONE 2026-08-11
 
 **Problem:** A seeded in-band baseline ran 489.9s (513.3s wall clock) against the 60s budget. One integrity suite consumed 341.5s (70% of Jest runtime). See [testing/test-runtime-294w-baseline.md](testing/test-runtime-294w-baseline.md).
 
@@ -2802,7 +2802,9 @@ Option 1 is cleanest because it collapses login + first-visit-verification into 
 
 **Progress (2026-08-11):** Phase 1 complete. Added a reproducible full-JSON top-20 analyzer and expanded retained metrics to 20 suites/tests. Phase 2 started: caching immutable CSV parses and the global source-price index reduced `terapeakDataIntegrity.test.js` from 341.5s to 55.0s (84%) with all 111 tests passing. Fake timers and production timer cleanup reduced the Excel suite from 16.5s wall time with an open handle to a clean 3.6s Jest run. The canonical suite passes in 96.3s (99.6s wall), still above budget; a four-worker experiment took 89.3s and was rejected.
 
-**Files:** NEW `scripts/analyze-slow-tests.js`, likely surgical MOD in offender test files, potentially MOD CI workflow.
+**Completion (2026-08-11):** A V8 CPU profile showed the remaining critical path was reading and parsing all 3,593 Terapeak CSVs for a seeded suite that exercises only a sampled and pinned cohort. `autoImportFolder({ includeFiles })` now supports targeted real-data imports; the integrity suite fell from 55.0s to 15.1s while retaining a majority-resolution guard. The final hardened canonical run passed 155 suites / 4,346 tests in 47.9s (50.7s wall), meeting the 60s budget. Phase 3 sharding was not needed.
+
+**Files:** [scripts/test-metrics/analyze-slow-tests.cjs](scripts/test-metrics/analyze-slow-tests.cjs), [__tests__/terapeakDataIntegrity.test.js](__tests__/terapeakDataIntegrity.test.js), [src/services/terapeakService.js](src/services/terapeakService.js), [src/utils/excelMapper.js](src/utils/excelMapper.js).
 
 **Effort/Risk:** Small (analysis) + Medium (parallelism) / Low.
 
