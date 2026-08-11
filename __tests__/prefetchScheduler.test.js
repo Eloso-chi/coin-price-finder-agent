@@ -33,6 +33,18 @@ jest.mock('../src/services/alertService', () => ({
   alertPrefetchFailure: jest.fn(),
 }));
 
+jest.mock('../src/utils/logger', () => {
+  const logger = {
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+    fatal: jest.fn(),
+    child: jest.fn(),
+  };
+  logger.child.mockReturnValue(logger);
+  return logger;
+});
+
 jest.mock('../src/utils/cachePath', () => ({
   CACHE_DIR: '/tmp/test-cache-prefetch',
 }));
@@ -63,6 +75,7 @@ jest.spyOn(fs, 'writeFileSync').mockImplementation((p, data) => {
 const pcgsQuota = require('../src/services/pcgsQuotaService');
 const auctionPrice = require('../src/services/auctionPriceService');
 const alertService = require('../src/services/alertService');
+const logger = require('../src/utils/logger');
 const scheduler = require('../src/services/prefetchScheduler');
 
 beforeEach(() => {
@@ -78,6 +91,9 @@ beforeEach(() => {
   auctionPrice.fetchByGrade.mockClear().mockImplementation(async () => ({ records: [{ price: 100 }], newRecords: 1 }));
   auctionPrice.updateRunStatus.mockClear();
   alertService.alertPrefetchFailure.mockClear();
+  logger.info.mockClear();
+  logger.warn.mockClear();
+  logger.error.mockClear();
 });
 
 // ═══════════════════════════════════════════════════════════════
@@ -726,28 +742,18 @@ describe('prefetchScheduler — #277W per-category counters', () => {
       .toBeGreaterThan(new Date(seedAttempt).getTime());
   });
 
-  test('buildQueue warns once per unknown-category Phase 1 key date (extractor drift breadcrumb)', () => {
+  test('warns once per unknown-category Phase 1 key date (extractor drift breadcrumb)', () => {
     // Guard for the operability findings from the PR #220 self-review:
     // if a future data change drops a key-date PCGS# from TABLES_BY_CATEGORY,
     // the aggregate lastPerCategory.unknown counter alone gives no path to
     // find which numbers fell through. A console.warn with the pcgsNo makes
     // App Service log grep the recovery mechanism.
-    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
-    try {
-      // Force a Phase 1 key date to resolve to a nonexistent category by
-      // shadowing pcgsCategoryMap.get -- but since getCategorizedEntries
-      // returns a fresh Map on each call, we intercept via a needsRefresh
-      // override that doesn't matter here; instead, verify the guard is
-      // *reachable* today (unknown=0 is the assertion, warn count = 0).
-      scheduler.buildQueue();
-      const unknownWarns = warnSpy.mock.calls
-        .filter(args => String(args[0] || '').includes('Key date has no category'));
-      // Today every key date resolves; this test asserts NO warns fire.
-      // Future regression: if TABLES_BY_CATEGORY loses a key-date-owning
-      // table, this count will jump and pinpoint the culprit in the message.
-      expect(unknownWarns.length).toBe(0);
-    } finally {
-      warnSpy.mockRestore();
-    }
+    scheduler.logMissingKeyDateCategories([12345, 12345, 67890], new Map([[67890, 'us_classic']]));
+
+    expect(logger.warn).toHaveBeenCalledTimes(1);
+    expect(logger.warn).toHaveBeenCalledWith(
+      { event: 'key_date_category_missing', pcgsNo: 12345 },
+      'Key date has no category'
+    );
   });
 });

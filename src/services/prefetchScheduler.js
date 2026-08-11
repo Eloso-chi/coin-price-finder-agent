@@ -13,6 +13,7 @@ const pcgsQuota = require('./pcgsQuotaService');
 const auctionPrice = require('./auctionPriceService');
 const alertService = require('./alertService');
 const { CACHE_DIR } = require('../utils/cachePath');
+const logger = require('../utils/logger').child({ component: 'prefetch' });
 
 // ── Configuration ───────────────────────────────────────────
 const PREFETCH_ENABLED = (process.env.PCGS_PREFETCH_ENABLED || 'true') !== 'false';
@@ -43,7 +44,7 @@ function saveStatus(status) {
   try {
     fs.writeFileSync(STATUS_PATH, JSON.stringify(status, null, 2));
   } catch (err) {
-    console.error('[prefetch] Failed to save status:', err.message);
+    logger.error({ err, event: 'status_save_failed' }, 'Failed to save prefetch status');
   }
 }
 
@@ -124,6 +125,14 @@ function sortByPriorityThenAge(a, b) {
   return new Date(a.lastFetched) - new Date(b.lastFetched);
 }
 
+function logMissingKeyDateCategories(keyDateNumbers, pcgsCategoryMap) {
+  for (const pcgsNo of new Set(keyDateNumbers)) {
+    if (!pcgsCategoryMap.has(pcgsNo)) {
+      logger.warn({ event: 'key_date_category_missing', pcgsNo }, 'Key date has no category');
+    }
+  }
+}
+
 /**
  * Build priority queue of pcgsNo:grade combos to fetch.
  *
@@ -151,13 +160,16 @@ function buildQueue() {
   const seen = new Set();
 
   // #214 / PR-2b: log extractor inventory so silent drops are visible.
-  console.log(
-    `[prefetch] Extractor inventory: ${totalNumbers} total PCGS numbers, ` +
-    `${keyDateNumbers.length} key dates ` +
-    `(us_classic=${byCategory.get('us_classic')?.length || 0}, ` +
-    `us_bullion=${byCategory.get('us_bullion')?.length || 0}, ` +
-    `world_bullion=${byCategory.get('world_bullion')?.length || 0} pre-dedup combos)`
-  );
+  logger.info({
+    event: 'extractor_inventory',
+    totalNumbers,
+    keyDateCount: keyDateNumbers.length,
+    categoryCounts: {
+      usClassic: byCategory.get('us_classic')?.length || 0,
+      usBullion: byCategory.get('us_bullion')?.length || 0,
+      worldBullion: byCategory.get('world_bullion')?.length || 0,
+    },
+  }, 'Built prefetch extractor inventory');
 
   // ── Phase 1: Key dates ──
   // #277W: tag each entry with its source category so downstream counters can
@@ -168,13 +180,11 @@ function buildQueue() {
   // A warn is emitted once per unknown PCGS# so App Service log grep can
   // recover the diagnostic breadcrumb -- lastPerCategory.unknown alone is
   // an aggregate count with no way to identify which numbers fell through.
+  logMissingKeyDateCategories(keyDateNumbers, pcgsCategoryMap);
   const phase1 = [];
   for (const pcgsNo of keyDateNumbers) {
     const year = pcgsYearMap.get(pcgsNo);
     const category = pcgsCategoryMap.get(pcgsNo) || 'unknown';
-    if (category === 'unknown') {
-      console.warn(`[prefetch] Key date has no category: ${pcgsNo} (extractor drift; investigate TABLES_BY_CATEGORY coverage)`);
-    }
     for (const grade of targetGradesFor(year)) {
       const key = `${pcgsNo}:${grade}`;
       if (seen.has(key)) continue;
@@ -293,7 +303,7 @@ function getKeyDatePcgsNumbers() {
  */
 async function executePrefetchRun() {
   if (_running) {
-    console.log('[prefetch] Already running, skipping');
+    logger.info({ event: 'run_skipped', reason: 'already_running' }, 'Prefetch run skipped');
     return;
   }
   _running = true;
@@ -313,7 +323,7 @@ async function executePrefetchRun() {
   };
   const errors = [];
 
-  console.log('[prefetch] Starting nightly APR prefetch run...');
+  logger.info({ event: 'run_started' }, 'Starting nightly APR prefetch run');
 
   try {
     let available = pcgsQuota.getAvailableForPrefetch(RESERVE_CALLS);
@@ -322,7 +332,7 @@ async function executePrefetchRun() {
       const skipReason = quotaStatus.upstreamAvailability === 'cooldown'
         ? `PCGS upstream cooldown until ${quotaStatus.nextEligibleProbeAt}`
         : 'No quota available';
-      console.log(`[prefetch] ${skipReason}`);
+      logger.info({ event: 'run_skipped', reason: skipReason }, 'Prefetch run skipped');
       // #277W: DO NOT overwrite `status` / `reason` / `lastRun` / `callsMade`
       // here. Those describe the LAST REAL RUN and are what the admin dashboard
       // and GH Actions safety-net workflow report. A safety-net trigger that
@@ -339,12 +349,12 @@ async function executePrefetchRun() {
       return;
     }
 
-    console.log(`[prefetch] Quota available: ${available} calls (reserve: ${RESERVE_CALLS})`);
+    logger.info({ event: 'quota_available', available, reserveCalls: RESERVE_CALLS }, 'Prefetch quota available');
     const queue = buildQueue();
-    console.log(`[prefetch] Queue size: ${queue.length} combos to fetch`);
+    logger.info({ event: 'queue_built', queueSize: queue.length }, 'Prefetch queue built');
 
     if (queue.length === 0) {
-      console.log('[prefetch] All entries are fresh — nothing to do');
+      logger.info({ event: 'run_skipped', reason: 'all_entries_fresh' }, 'Prefetch run skipped');
       saveStatus({
         ...loadStatus(),
         lastRun: new Date().toISOString(),
@@ -364,7 +374,7 @@ async function executePrefetchRun() {
     for (let i = 0; i < limit; i++) {
       // Check breaker before each call
       if (pcgsQuota.isBreakerTripped()) {
-        console.warn('[prefetch] Breaker tripped mid-run, stopping');
+        logger.warn({ event: 'breaker_tripped', callsMade }, 'Prefetch breaker tripped mid-run');
         break;
       }
 
@@ -382,7 +392,7 @@ async function executePrefetchRun() {
           recoveryProbePending = false;
           available = pcgsQuota.getAvailableForPrefetch(RESERVE_CALLS);
           limit = Math.min(available, queue.length);
-          console.log(`[prefetch] Recovery probe succeeded; continuing with ${limit} available calls`);
+          logger.info({ event: 'recovery_probe_succeeded', limit }, 'Prefetch recovery probe succeeded');
         }
       } catch (err) {
         callsMade++;
@@ -391,15 +401,15 @@ async function executePrefetchRun() {
         errors.push(errMsg);
         // On 429, stop immediately (breaker already tripped by auctionPriceService)
         if (err.message.includes('429') || err.message.includes('breaker')) {
-          console.warn(`[prefetch] Rate limited at call ${callsMade}, stopping`);
+          logger.warn({ event: 'rate_limited', callsMade, pcgsNo, grade }, 'Prefetch rate limited');
           break;
         }
         if (recoveryProbePending) {
-          console.warn(`[prefetch] Recovery probe failed at call ${callsMade}, stopping`);
+          logger.warn({ err, event: 'recovery_probe_failed', callsMade, pcgsNo, grade }, 'Prefetch recovery probe failed');
           break;
         }
         // On other errors, continue but log
-        console.warn(`[prefetch] Error on ${pcgsNo}:${grade}: ${err.message}`);
+        logger.warn({ err, event: 'fetch_failed', pcgsNo, grade }, 'Prefetch item failed');
       }
 
       // Throttle between calls
@@ -410,7 +420,14 @@ async function executePrefetchRun() {
 
     const duration = ((Date.now() - startTime) / 1000).toFixed(1);
     const status = errors.length > 0 ? 'partial' : 'completed';
-    console.log(`[prefetch] ${status}: ${callsMade} calls, ${newRecords} new records, ${errors.length} errors in ${duration}s`);
+    logger.info({
+      event: 'run_completed',
+      status,
+      callsMade,
+      newRecords,
+      errorCount: errors.length,
+      durationMs: Number(duration) * 1000,
+    }, 'Prefetch run completed');
 
     const prevStatus = loadStatus();
     saveStatus({
@@ -430,7 +447,7 @@ async function executePrefetchRun() {
     auctionPrice.updateRunStatus(status, { callsMade, recordsStored, newRecords });
 
   } catch (err) {
-    console.error('[prefetch] Fatal error:', err.message);
+    logger.error({ err, event: 'run_failed', callsMade }, 'Prefetch run failed');
     const prevStatus = loadStatus();
     const failures = (prevStatus.consecutiveFailures || 0) + 1;
     saveStatus({
@@ -502,7 +519,7 @@ function scheduleNext() {
 
   if (delay <= 0) {
     // Should run now (e.g., server just started and we're past the hour)
-    console.log('[prefetch] Past scheduled time, checking if already ran today...');
+    logger.info({ event: 'schedule_due' }, 'Prefetch schedule is due');
     if (_todayDate !== todayPacific() || !_todayCompleted) {
       executePrefetchRun().then(scheduleNext).catch(_handleScheduleError);
     } else {
@@ -515,7 +532,7 @@ function scheduleNext() {
     return;
   }
 
-  console.log(`[prefetch] Next run scheduled: ${nextRun.toISOString()} (in ${(delay / 3600000).toFixed(1)}h)`);
+  logger.info({ event: 'run_scheduled', nextRun: nextRun.toISOString(), delayMs: delay }, 'Next prefetch run scheduled');
   _timer = setTimeout(() => {
     _todayCompleted = false;
     executePrefetchRun().then(scheduleNext).catch(_handleScheduleError);
@@ -524,7 +541,7 @@ function scheduleNext() {
 
 // #194: Catch handler for schedule chain — prevents scheduler from dying silently
 function _handleScheduleError(err) {
-  console.error('[prefetch] Schedule chain error:', err.message);
+  logger.error({ err, event: 'schedule_failed' }, 'Prefetch schedule chain failed');
   alertService.alertPrefetchFailure(1, `Schedule chain broken: ${err.message}`);
   // Re-schedule despite error so the scheduler doesn't die permanently
   setTimeout(scheduleNext, 60 * 60 * 1000); // retry in 1 hour
@@ -535,12 +552,12 @@ function _handleScheduleError(err) {
  */
 function init() {
   if (!PREFETCH_ENABLED) {
-    console.log('[prefetch] Disabled (PCGS_PREFETCH_ENABLED=false)');
+    logger.info({ event: 'scheduler_disabled', reason: 'configuration' }, 'Prefetch scheduler disabled');
     return;
   }
 
   if (!process.env.PCGS_API_KEY) {
-    console.log('[prefetch] Disabled (no PCGS_API_KEY configured)');
+    logger.info({ event: 'scheduler_disabled', reason: 'pcgs_api_key_missing' }, 'Prefetch scheduler disabled');
     return;
   }
 
@@ -552,7 +569,7 @@ function init() {
 
   if (currentHour >= PREFETCH_HOUR_PT && lastRunDate !== today) {
     // We're past the trigger time and haven't run today -- run now (delayed 30s for startup)
-    console.log(`[prefetch] Missed today's run (hour=${currentHour} >= ${PREFETCH_HOUR_PT}), executing in 30s...`);
+    logger.info({ event: 'missed_run_detected', currentHour, scheduledHour: PREFETCH_HOUR_PT, delayMs: 30000 }, 'Missed prefetch run detected');
     setTimeout(() => {
       executePrefetchRun().then(scheduleNext).catch(_handleScheduleError);
     }, 30000);
@@ -664,14 +681,14 @@ function triggerManual() {
  */
 function _handleRunComplete() {
   const status = loadStatus();
-  console.log(`[prefetch] Run completed: ${status.callsMade} calls, ${status.newRecords} new records`);
+  logger.info({ event: 'background_run_completed', callsMade: status.callsMade, newRecords: status.newRecords }, 'Background prefetch run completed');
 }
 
 /**
  * Handle error in background prefetch.
  */
 function _handleRunError(err) {
-  console.error('[prefetch] Background run failed:', err.message);
+  logger.error({ err, event: 'background_run_failed' }, 'Background prefetch run failed');
   const status = loadStatus();
   const failures = (status.consecutiveFailures || 0) + 1;
   if (failures >= 2) {
@@ -692,6 +709,7 @@ module.exports = {
   // without spinning up the full executePrefetchRun loop.
   targetGradesFor,
   getCategorizedEntries,
+  logMissingKeyDateCategories,
   buildQueue,
   extractAllPcgsNumbers
 };
