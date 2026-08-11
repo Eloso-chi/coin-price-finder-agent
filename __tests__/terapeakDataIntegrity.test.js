@@ -222,14 +222,36 @@ const FMV_TOLERANCE = 3.0;      // FMV must be within 3x of raw median (generous
 const MIN_SURVIVAL_RATE = 0.05; // At least 5% of raw comps should survive filtering
 const MIN_RAW_COMPS = 5;        // Skip datasets with fewer than 5 raw CSV rows (too thin)
 
+const allDatasets = discoverDatasets();
+const allRawPrices = allDatasets.flatMap(d => parseRawCSVPrices(d.file));
+const globalRawTotal = allRawPrices.length;
+const globalRawPriceCents = new Set(allRawPrices.map(price => Math.round(price * 100)));
+const withEnoughData = allDatasets.filter(d => parseRawCSVPrices(d.file).length >= MIN_RAW_COMPS);
+const selected = pickRandomDatasets(withEnoughData, SAMPLE_SIZE);
+const withCrossRouteData = allDatasets.filter(d => parseRawCSVPrices(d.file).length >= 10);
+const crossRouteSample = pickRandomDatasets(withCrossRouteData, 5);
+const PINNED_DATA_FILES = [
+  '2024_American_Gold_Eagle_Tenth_oz.csv',
+  'American_Gold_Eagle_Quarter_oz_Generic.csv',
+  'American_Gold_Eagle_Half_oz_Generic.csv',
+  '2024_American_Silver_Eagle.csv',
+  'Perth_Lunar_III_2024_Dragon_Silver_2oz.csv',
+];
+const importFiles = [...new Set([
+  withEnoughData[0]?.file,
+  ...selected.map(dataset => dataset.file),
+  ...crossRouteSample.map(dataset => dataset.file),
+  ...PINNED_DATA_FILES,
+].filter(Boolean))];
+
 // ═══════════════════════════════════════════════════════════════
 //  Setup: import real terapeak data
 // ═══════════════════════════════════════════════════════════════
 
 beforeAll(() => {
-  // Force fresh import of all CSVs
+  // Force fresh import of the seeded datasets exercised by this suite.
   terapeakService._resetStoreCache();
-  terapeakService.autoImportFolder('data/terapeak', { force: true });
+  terapeakService.autoImportFolder('data/terapeak', { force: true, includeFiles: importFiles });
   console.log(`[integrity] Seed: ${SEED}`);
 });
 
@@ -253,18 +275,6 @@ afterAll(() => {
 // ═══════════════════════════════════════════════════════════════
 
 describe('Terapeak data integrity — raw CSV vs FMV pipeline', () => {
-
-  const allDatasets = discoverDatasets();
-  const allRawPrices = allDatasets.flatMap(d => parseRawCSVPrices(d.file));
-  const globalRawTotal = allRawPrices.length;
-  const globalRawPriceCents = new Set(allRawPrices.map(price => Math.round(price * 100)));
-  const withEnoughData = allDatasets.filter(d => {
-    const prices = parseRawCSVPrices(d.file);
-    return prices.length >= MIN_RAW_COMPS;
-  });
-
-  const selected = pickRandomDatasets(withEnoughData, SAMPLE_SIZE);
-
   if (selected.length === 0) {
     test('skip — no datasets with sufficient data', () => {
       console.warn('[integrity] No datasets with >= 5 comps found in data/terapeak/');
@@ -290,6 +300,15 @@ describe('Terapeak data integrity — raw CSV vs FMV pipeline', () => {
     const result = terapeakService.lookupComps(canary.searchTerm);
     expect(result).not.toBeNull();
     expect(Array.isArray(result.comps)).toBe(true);
+  });
+
+  test('seeded cohort resolves a meaningful majority of real datasets', () => {
+    const resolvedCount = selected.filter(dataset => {
+      const result = terapeakService.lookupComps(dataset.searchTerm);
+      return result && result.comps.length > 0;
+    }).length;
+
+    expect(resolvedCount).toBeGreaterThanOrEqual(Math.floor(selected.length / 2) + 1);
   });
 
   describe.each(selected.map(d => [d.searchTerm, d.file]))(
@@ -515,11 +534,6 @@ describe('cross-route consistency with real data', () => {
   app.use(express.json());
   app.use('/api/price', priceRoute);
   app.use('/api/pricing-batch', pricingBatchRoute);
-
-  const allDatasets = discoverDatasets();
-  const withData = allDatasets.filter(d => parseRawCSVPrices(d.file).length >= 10);
-  // Pick 5 random coins for cross-route checks
-  const crossRouteSample = pickRandomDatasets(withData, 5);
 
   if (crossRouteSample.length === 0) {
     test('skip — no datasets available for cross-route test', () => {});

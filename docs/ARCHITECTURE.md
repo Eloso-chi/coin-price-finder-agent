@@ -780,6 +780,8 @@ Extends CSVs from 50 rows (page 1 limit) to up to 250 rows by collecting pages 2
 3. **CSV row-count inference** -- `importComps()` infers `deepAt` from comp count (>50 = was deep-paginated). Catches legacy datasets that predate explicit tracking.
 4. **Remote-scraper HTTP pull (#259)** -- machines running `scripts/run-surface-freshness-loop.sh` (WSL/Surface, Codespaces) call `sync_meta_from_app()` before every freshness pass, which `curl`s `GET /api/admin/terapeak-meta` and atomically replaces their local `data/terapeak-meta.json`. Without this step the local sidecar is git-frozen and the classifier re-targets already-scraped coins forever, making the scraper loop appear to make zero progress. Failures degrade to `[warn]` and the loop continues with whatever is on disk.
 
+**Targeted folder imports:** `autoImportFolder(folder, { includeFiles })` can restrict an import to exact child filenames already discovered in `folder`. Normal server startup omits this option and imports the full eligible folder. Seeded real-data tests use it to load only their exercised cohort without changing parsing, reclassification, or lookup behavior.
+
 **Per-dataset metadata fields:**
 
 | Field | Type | Description |

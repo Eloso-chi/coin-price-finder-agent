@@ -1734,15 +1734,21 @@ function _detectUSMintMark(text) {
  * Pass `{ force: true }` to bypass the staleness check.
  *
  * @param {string} folderPath - absolute or relative path to folder with CSVs
- * @param {object} [opts]     - { force: boolean, maxAgeMs: number }
+ * @param {object} [opts]     - { force: boolean, maxAgeMs: number, includeFiles: string[] }
  * @returns {{ imported: number, skipped: number, errors: string[], freshSkipped: number }}
  */
 function autoImportFolder(folderPath, opts = {}) {
-  const { force = false, maxAgeMs = 7 * 24 * 60 * 60 * 1000 } = opts;  // 7-day freshness window
+  const { force = false, maxAgeMs = 7 * 24 * 60 * 60 * 1000, includeFiles = null } = opts;  // 7-day freshness window
+  if (includeFiles !== null && !Array.isArray(includeFiles)) {
+    throw new TypeError('includeFiles must be an array of file names');
+  }
   const absPath = path.isAbsolute(folderPath) ? folderPath : path.join(__dirname, '..', '..', folderPath);
   if (!fs.existsSync(absPath)) return { imported: 0, skipped: 0, errors: [], freshSkipped: 0 };
 
-  const files = fs.readdirSync(absPath).filter(f => /\.(csv|tsv|txt)$/i.test(f));
+  const included = includeFiles ? new Set(includeFiles) : null;
+  const files = fs.readdirSync(absPath).filter(f =>
+    /\.(csv|tsv|txt)$/i.test(f) && (!included || included.has(f))
+  );
   let imported = 0, skipped = 0, freshSkipped = 0;
   const errors = [];
 
