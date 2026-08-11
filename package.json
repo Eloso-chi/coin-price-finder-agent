@@ -13,6 +13,7 @@
     "lint": "eslint .",
     "test:metrics": "node scripts/test-metrics/run-with-metrics.cjs",
     "test:summary": "node scripts/test-metrics/summarize.cjs",
+    "test:analyze": "node scripts/test-metrics/analyze-slow-tests.cjs",
     "test:mutation": "stryker run",
     "health:lot-estimator": "node scripts/lot-estimator-health.js",
     "sync:meta": "node scripts/sync-terapeak-meta.js",

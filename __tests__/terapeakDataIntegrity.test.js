@@ -134,6 +134,7 @@ const rng = seededRng(SEED);
 
 // ── Discover available datasets from disk ──
 const DATA_DIR = path.join(__dirname, '..', 'data', 'terapeak');
+const rawPricesByFile = new Map();
 
 function discoverDatasets() {
   if (!fs.existsSync(DATA_DIR)) return [];
@@ -156,6 +157,8 @@ function pickRandomDatasets(datasets, n) {
 }
 
 function parseRawCSVPrices(csvFile) {
+  if (rawPricesByFile.has(csvFile)) return rawPricesByFile.get(csvFile);
+
   const content = fs.readFileSync(path.join(DATA_DIR, csvFile), 'utf8');
   const lines = content.split('\n').filter(l => l.trim());
   if (lines.length < 2) return [];
@@ -182,6 +185,7 @@ function parseRawCSVPrices(csvFile) {
     }
     prices.push(price + shipping);
   }
+  rawPricesByFile.set(csvFile, prices);
   return prices;
 }
 
@@ -251,6 +255,9 @@ afterAll(() => {
 describe('Terapeak data integrity — raw CSV vs FMV pipeline', () => {
 
   const allDatasets = discoverDatasets();
+  const allRawPrices = allDatasets.flatMap(d => parseRawCSVPrices(d.file));
+  const globalRawTotal = allRawPrices.length;
+  const globalRawPriceCents = new Set(allRawPrices.map(price => Math.round(price * 100)));
   const withEnoughData = allDatasets.filter(d => {
     const prices = parseRawCSVPrices(d.file);
     return prices.length >= MIN_RAW_COMPS;
@@ -331,9 +338,6 @@ describe('Terapeak data integrity — raw CSV vs FMV pipeline', () => {
         // the cross-route inflow per series, which is not deterministic
         // enough for a unit-test invariant. See deep-review finding #6.
         const storedCount = lookupResult.comps.length;
-        const globalRawTotal = allDatasets.reduce(
-          (sum, d) => sum + parseRawCSVPrices(d.file).length, 0
-        );
         expect(storedCount).toBeLessThanOrEqual(Math.ceil(globalRawTotal * 0.5));
       });
 
@@ -469,9 +473,6 @@ describe('Terapeak data integrity — raw CSV vs FMV pipeline', () => {
         // longer cover the merged dataset.  This is a looser but still
         // meaningful invariant -- it catches prices fabricated outside
         // any source file.
-        const allRawPrices = allDatasets.flatMap(d => parseRawCSVPrices(d.file));
-        const rawSet = new Set(allRawPrices.map(p => Math.round(p * 100)));
-
         let traceable = 0;
         for (const comp of lookupResult.comps) {
           if (comp.totalUsd == null) continue;
@@ -479,9 +480,9 @@ describe('Terapeak data integrity — raw CSV vs FMV pipeline', () => {
           // Account for shipping being added: comp.totalUsd = price + shipping
           const cents = Math.round(comp.totalUsd * 100);
           // Allow +/- $1 tolerance for rounding
-          const found = rawSet.has(cents) ||
-            rawSet.has(cents - 100) || rawSet.has(cents + 100) ||
-            rawSet.has(cents - 50) || rawSet.has(cents + 50);
+          const found = globalRawPriceCents.has(cents) ||
+            globalRawPriceCents.has(cents - 100) || globalRawPriceCents.has(cents + 100) ||
+            globalRawPriceCents.has(cents - 50) || globalRawPriceCents.has(cents + 50);
           if (found) traceable++;
         }
 

@@ -221,10 +221,15 @@ const PARSE_TIMEOUT_MS = 10_000; // 10s safety net for pathological files
 
 async function mapExcelToBackup(buffer) {
   const workbook = new ExcelJS.Workbook();
-  const timeout = new Promise((_, reject) =>
-    setTimeout(() => reject(new Error('Excel parse timeout exceeded')), PARSE_TIMEOUT_MS)
-  );
-  await Promise.race([workbook.xlsx.load(buffer), timeout]);
+  let timeoutId;
+  const timeout = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error('Excel parse timeout exceeded')), PARSE_TIMEOUT_MS);
+  });
+  try {
+    await Promise.race([workbook.xlsx.load(buffer), timeout]);
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   // Require "Collectors" sheet (case-insensitive)
   let sheet = null;
