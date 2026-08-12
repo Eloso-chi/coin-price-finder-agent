@@ -3,6 +3,8 @@
 > This file is the canonical inventory of agents, prompts, and skills shipped
 > in `.github/`. It is read by the **Onboard** agent during Phase 1 so the agent
 > knows what tools are available.
+> The root [`AGENTS.md`](../../AGENTS.md) provides a concise discoverability
+> index for contributors and tools that expect that convention.
 >
 > Updated 2026-06-17 as part of the memory-corpus migration
 > (`docs/memory-corpus-migration` branch). A non-authoritative copy lives at

@@ -2456,9 +2456,9 @@ Ops can override to any value (e.g., `BROWSER_RECYCLE_EVERY=40 python scripts/te
 
 ---
 
-### #285W. Bar-series variant filter -- coin route silently mixes all bar designs into one FMV [P2 -- PRICING-ACCURACY] -- IMPLEMENTED / PR PENDING 2026-08-08
+### #285W. Bar-series variant filter -- coin route silently mixes all bar designs into one FMV [P2 -- PRICING-ACCURACY] -- DONE 2026-08-08 (PR #253, merge `adbf746f`)
 
-**Status update (2026-08-08):** Implemented cataloged bar brand/series intent across the single and batch coin routes. Positively identified competing series are rejected as `barSeriesMismatch`, exact matches receive a scoring bonus, unknown-series titles remain eligible, and pools with fewer than three survivors return `fmvCore: null` with `dataSource.label = 'insufficient-series-comps'`. The response schema now requires explicit grade-pool attribution. Focused tests, the mandatory numismatic audit, and the full suite (146 suites / 4,310 tests) pass. Merge remains pending.
+**Status update (2026-08-08):** Implemented cataloged bar brand/series intent across the single and batch coin routes. Positively identified competing series are rejected as `barSeriesMismatch`, exact matches receive a scoring bonus, unknown-series titles remain eligible, and pools with fewer than three survivors return `fmvCore: null` with `dataSource.label = 'insufficient-series-comps'`. The response schema now requires explicit grade-pool attribution. Focused tests, the mandatory numismatic audit, and the full suite (146 suites / 4,310 tests) passed before PR #253 merged as `adbf746f`.
 
 **Origin:** User-reported 2026-08-05. Two reproductions on prod-parity server:
 
@@ -2721,7 +2721,9 @@ Option 1 is cleanest because it collapses login + first-visit-verification into 
 
 ---
 
-### #291W. Add AGENTS.md at repo root [P3 -- COPILOT / ONBOARDING] -- OPEN 2026-08-06
+### #291W. Add AGENTS.md at repo root [P3 -- COPILOT / ONBOARDING] -- DONE 2026-08-12
+
+**Completion (2026-08-12):** Added a root discoverability index covering all 14 workspace agents with one-line purposes and direct definition links. The file points to the canonical inventory for prompts, skills, invocation guidance, and workflow rules; the canonical inventory now links back to the root index.
 
 **Problem:** [docs/memory/agents-and-prompts.md](docs/memory/agents-and-prompts.md) is the canonical agent inventory but lives inside `docs/memory/`. External tooling and new contributors that expect the standard `AGENTS.md` at repo root won't find our 14 agents / 6 prompts / 7 skills.
 
