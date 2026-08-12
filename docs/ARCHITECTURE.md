@@ -48,7 +48,7 @@ server.js                              Express entry point (port 3000)
 │   ├─ ebayService.js                  eBay sold comps (3-tier cascade + strike and specialty-finish pool isolation)
 │   ├─ valuationService.js             FMV blend + buy/sell decision engine; routes Reverse Proof / Enhanced Reverse Proof queries to a separate `reverse-proof` comp pool (#260W) via `isReverseProofFinish()` from `coinIntent`
 │   ├─ greysheetService.js             Greysheet CDN Public API V2 (wholesale pricing)
-│   ├─ alertService.js                 Crash/ops alert notifications (SendGrid)
+│   ├─ alertService.js                 Crash/ops alert notifications (Azure Communication Services Email)
 │   ├─ auctionPriceService.js          PCGS auction history fetch + local history cache
 │   ├─ bulkEvaluateService.js           Bulk lot evaluator engine (per-coin FMV + lot summary)
 │   ├─ metalsSpotPrice.js              Multi-provider spot price (round-robin)
@@ -1059,9 +1059,9 @@ This ensures unslabbed proof coins (e.g. Proof Libertads in OGP) don't inflate r
 | `PREFETCH_RESERVE` | No | `10` | Quota calls reserved from prefetching |
 | `APR_DATE_WINDOW_YEARS` | No | `3` | Auction history lookback window in years |
 | `APR_FRESHNESS_DAYS` | No | `30` | Auction history recrawl freshness threshold in days |
-| `SENDGRID_API_KEY` | No | -- | SendGrid key for crash/ops alerts |
+| `COMMUNICATION_CONNECTION_STRING` | No | -- | Azure Communication Services Email connection string for crash/ops alerts |
 | `ALERT_EMAIL_TO` | No | -- | Destination email for alerts |
-| `ALERT_FROM_EMAIL` | No | `alerts@coinpricefinder.app` | Sender email for alerts |
+| `ALERT_FROM_EMAIL` | No | -- | Verified ACS Email sender address |
 | `STRICT_TOKEN_CACHE_TTL_MS` | No | `5000` | TTL (ms) for `verifyTokenStrict` username cache. `0` disables. Invalidated on every `_saveUser` / `deleteUser`. (#218) |
 | `BROWSER_RECYCLE_EVERY` | No | `80` / `120` | Playwright browser-recycle interval override. Defaults: `terapeak-export.py` 80, `sales-aggregator.py` 120. (#199) |
 

@@ -174,6 +174,35 @@ describe('prefetchScheduler — executePrefetchRun', () => {
     expect(mockStatusStore.errors.length).toBeGreaterThan(0);
   });
 
+  test('alerts when a partial run raises the failure streak to 2', async () => {
+    mockStatusStore = { consecutiveFailures: 1 };
+    pcgsQuota.getAvailableForPrefetch.mockReturnValue(3);
+    auctionPrice.fetchByGrade
+      .mockResolvedValueOnce({ records: [{ price: 50 }], newRecords: 1 })
+      .mockRejectedValueOnce(new Error('upstream timeout'))
+      .mockResolvedValueOnce({ records: [{ price: 50 }], newRecords: 1 });
+
+    await scheduler.executePrefetchRun();
+
+    expect(mockStatusStore.status).toBe('partial');
+    expect(mockStatusStore.consecutiveFailures).toBe(2);
+    expect(alertService.alertPrefetchFailure).toHaveBeenCalledWith(
+      2,
+      expect.stringMatching(/Partial run: 1 errors in 3 calls.*upstream timeout/)
+    );
+  });
+
+  test('does not alert on the first partial run', async () => {
+    pcgsQuota.getAvailableForPrefetch.mockReturnValue(2);
+    auctionPrice.fetchByGrade.mockRejectedValueOnce(new Error('upstream timeout'));
+
+    await scheduler.executePrefetchRun();
+
+    expect(mockStatusStore.status).toBe('partial');
+    expect(mockStatusStore.consecutiveFailures).toBe(1);
+    expect(alertService.alertPrefetchFailure).not.toHaveBeenCalled();
+  });
+
   test('stops immediately on 429 error', async () => {
     pcgsQuota.getAvailableForPrefetch.mockReturnValue(20);
     let callIdx = 0;
@@ -218,6 +247,7 @@ describe('prefetchScheduler — executePrefetchRun', () => {
     await scheduler.executePrefetchRun();
     expect(mockStatusStore.consecutiveFailures).toBe(0);
     expect(mockStatusStore.status).toBe('completed');
+    expect(alertService.alertPrefetchFailure).not.toHaveBeenCalled();
   });
 
   test('completes with "fresh" when queue is empty', async () => {
