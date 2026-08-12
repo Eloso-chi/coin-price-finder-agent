@@ -100,6 +100,11 @@ Append-only JSONL ledger written by `scripts/_parse-terapeak-pass.py` after each
 | `start_ts` | ISO 8601 | Public | Pass start timestamp (UTC) |
 | `end_ts` | ISO 8601 | Public | Pass end timestamp (UTC) |
 | `duration_sec` | number or null | Public | Wall-clock seconds; null if timestamps unparseable |
+| `pacing_profile_requested` | string | Public | Operator-selected profile: `baseline` or `normal-tuned` |
+| `pacing_profile_effective` | string | Public | Profile actually applied; forced to `baseline` outside Normal risk state |
+| `pacing_pilot_id` | string or null | Public | Safe identifier used to isolate one #280H A/B pilot from routine baseline history |
+| `pacing_batch_min`, `pacing_batch_max`, `pacing_p01_fixed` | number or null | Public | Operator batch policy used to reject incomparable pilot arms |
+| `pacing_upload_mode` | string or null | Public | Upload mode used to reject incomparable pilot arms |
 | `attempted` | number | Public | Coins attempted in this pass |
 | `succeeded` | number | Public | Coins that returned `ok` (non-empty result) |
 | `empty` | number | Public | Coins that returned zero comps |

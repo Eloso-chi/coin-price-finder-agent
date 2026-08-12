@@ -174,6 +174,44 @@ separate data-checkpoint PR.
 Smoke-test the parser before changes: `python3 scripts/test_parse_terapeak_pass.py`
 (asserts pass/coin record fields against a synthetic fixture; exit 0 = pass).
 
+### Pacing A/B pilot (#280H)
+
+Baseline remains the production default. Run only one profile at a time and
+never bypass the #284H hard-challenge stop or Cooldown gates.
+
+```bash
+# A arm
+TERAPEAK_PACING_PILOT_ID=pilot-20260812 TERAPEAK_PACING_PROFILE=baseline \
+  bash scripts/terapeak-operator-codespace.sh --max-passes 1
+
+# B arm: applies only while the pass starts in Normal risk state
+TERAPEAK_PACING_PILOT_ID=pilot-20260812 TERAPEAK_PACING_PROFILE=normal-tuned \
+  bash scripts/terapeak-operator-codespace.sh --max-passes 1
+```
+
+Use the exact 12-pass crossover order
+`A, B, B, A, B, A, A, B, B, A, B, A`, which yields six Normal passes per
+arm. Use a fresh pilot ID and the same ID for all 12 runs. Keep machine,
+network, browser version, batch range,
+`--include-thin`, upload mode, and queue priorities unchanged. The tuned arm
+scales centralized exporter idle and action delays to 80%. Elevated and
+Cooldown passes force effective `baseline`; scrolling, coffee breaks, and
+browser recycling remain unchanged.
+
+Pass telemetry records both `pacing_profile_requested` and
+`pacing_profile_effective`. Analyze attempt-weighted speed and safety metrics:
+
+```bash
+python3 scripts/analyze-pacing-pilot.py --pilot-id pilot-20260812 cache/terapeak-runs/passes.jsonl
+python3 scripts/analyze-pacing-pilot.py --pilot-id pilot-20260812 --json cache/terapeak-runs/passes.jsonl
+```
+
+Do not adopt the tuned profile unless it improves seconds per attempt by at
+least 10% with no worse challenge, failure, success, or Normal-to-Elevated
+rates. The analyzer rejects mixed machine/operator/include-thin cohorts,
+incomplete telemetry, outcome-count mismatches, or the wrong crossover order.
+Any hard challenge stops the pilot immediately and produces a reject decision.
+
 ## Post-run progress PR
 
 After an operator run, preview the exact data files and telemetry totals that

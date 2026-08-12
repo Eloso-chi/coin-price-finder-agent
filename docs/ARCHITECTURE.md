@@ -1048,6 +1048,8 @@ This ensures unslabbed proof coins (e.g. Proof Libertads in OGP) don't inflate r
 | `TERAPEAK_BLOB_CONTAINER` | No | -- | Azure Blob Storage container name |
 | `TERAPEAK_DATA_DIR` | No | `data/terapeak` | Local directory for Terapeak CSV files |
 | `COOKIE_FILE` | No | `cache/ebay_cookies.json` | Per-machine cookie jar for `terapeak-export.py` and `cookie-health-check.py`. Set to a path outside the worktree on each host (e.g. `~/cpf/state/cookies-surface.json`) to keep Akamai trust intact when running from multiple machines. (#250) |
+| `TERAPEAK_PACING_PROFILE` | No | `baseline` | #280H operator A/B profile (`baseline` or `normal-tuned`); tuned delays are effective only in Normal risk state |
+| `TERAPEAK_PACING_PILOT_ID` | No | -- | Safe #280H pilot identifier; required for `normal-tuned` and used to scope analysis |
 | `METALS_POLL_MS` | No | `1800000` | Metals spot-price polling interval (ms) |
 | `EBAY_DEFAULT_LOOKBACK_DAYS` | No | `180` | Default sold-comp lookback window. Tier ladder extends through 365 -> 730 -> `all` when the Terapeak-only pool is thin (#270W Option #1, PR #188). Supplemented path still caps at 365 (tracked: #275W). |
 | `BLOB_REIMPORT_MS` | No | `1800000` | Periodic blob re-import interval (ms; 30 min default) |
