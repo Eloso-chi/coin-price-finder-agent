@@ -947,7 +947,9 @@ Verified:
 
 ---
 
-### #280H. Static "human behavior" delays are conservative and always-on -- add adaptive pacing by risk signal [P2 -- BOT-EVASION / PERFORMANCE] -- OPEN 2026-06-19
+### #280H. Static "human behavior" delays are conservative and always-on -- add adaptive pacing by risk signal [P2 -- BOT-EVASION / PERFORMANCE] -- PARTIAL 2026-08-12
+
+**Audit update (2026-08-12):** #284H completed the risk-state and operator-orchestration portion of this item for both canonical operators: Normal/Elevated/Cooldown transitions, risk-driven batch sizing, longer Elevated between-pass pauses, persisted transition reasons, a rollback switch, and a one-week safety pilot. Focused risk-state/operator tests pass (46/46). The residual performance scope remains open: `terapeak-export.py` and `sales-aggregator.py` still use fixed human-idle, scroll, per-coin delay, coffee-break, and browser-recycle policies without risk-state input. The #284H pilot does not establish the proposed throughput gain; across its three runs, Normal passes averaged about 66 seconds per attempted coin and Elevated passes about 67 seconds. Defer lower-level pacing changes until a controlled A/B pilot is approved; do not treat the safety-state rollout as evidence that stable-session scraping became 15-30% faster.
 
 **Problem:** The scraper always applies heavy idle/scroll/pause behavior even when session health is stable. This reduces throughput substantially and may be overpaying for stealth on low-risk stretches.
 
