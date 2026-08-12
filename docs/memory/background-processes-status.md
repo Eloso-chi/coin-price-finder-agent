@@ -22,7 +22,7 @@
 - **Interval:** 30 min (configurable: METALS_POLL_MS)
 - **Providers:** Round-robin goldapi.io / metals-api.com
 - **Persistence:** cache/metals_spot.json
-- **Failure alert:** After 2+ consecutive failures (if SendGrid configured)
+- **Failure alert:** After 2+ consecutive failures (if ACS Email configured)
 - **Code:** server.js, src/services/metalsSpotPrice.js
 
 ### 3. Greysheet Price History Refresh
@@ -30,7 +30,7 @@
 - **Interval:** 3 days default (configurable: GS_REFRESH_INTERVAL_DAYS)
 - **Behavior:** Checks on startup (T+10s), re-checks hourly, runs if interval elapsed
 - **Data retention:** Auto-evicts entries older than 400 days
-- **Failure alert:** On error (if SendGrid configured)
+- **Failure alert:** On error (if ACS Email configured)
 - **Code:** server.js, src/services/greysheetHistoryService.js
 
 ### 4. Terapeak Blob Re-Import
@@ -39,7 +39,7 @@
 - **Purpose:** Polls Azure Blob Storage for new CSV uploads from scrapers
 - **Auto-import:** CSVs < 7 days old
 - **Cache clear:** Clears eBay cache on new import
-- **Failure alert:** After 3+ consecutive failures (if SendGrid configured)
+- **Failure alert:** After 3+ consecutive failures (if ACS Email configured)
 - **Code:** server.js, src/services/terapeakService.js
 
 ### 5. Bulk Evaluate Job Cleanup
@@ -54,21 +54,21 @@
 
 ### Email Alert System
 - **Status:** ⚠️ **NOT CONFIGURED** in production
-- **Type:** On-demand SendGrid v3 API notifications
+- **Type:** On-demand Azure Communication Services Email notifications
 - **Should alert on:**
   - Metals refresh failure (2+ consecutive)
   - Greysheet refresh failure
   - Blob re-import failure (3+ consecutive)
-  - PCGS prefetch failure (2+ consecutive)
+  - PCGS prefetch failure or partial run (2+ consecutive)
   - PCGS breaker tripped during daytime
   - Server crash (unhandledRejection, uncaughtException)
 
 **Missing Config:**
-- ❌ SENDGRID_API_KEY: NOT in Azure Key Vault
+- ❌ COMMUNICATION_CONNECTION_STRING: NOT in Azure Key Vault / App Service
 - ❌ ALERT_EMAIL_TO: NOT in Azure App Service
-- ✓ ALERT_FROM_EMAIL: Defaults OK (alerts@coinpricefinder.app)
+- ❌ ALERT_FROM_EMAIL: NOT in Azure App Service
 
-**Current fallback:** Failures log to cache/alert_log.json (rate-limited 1/hour per topic)
+**Current fallback:** Failures log to cache/alert_log.json. Both fallback logs and configured email are burst-limited to one alert per hour per topic; a degradation that persists across nights can still produce one alert each night.
 
 ---
 
@@ -94,16 +94,17 @@ All background processes have status endpoints:
 | Prefetch reserve | PREFETCH_RESERVE | 10 | ✓ Yes |
 | Prefetch enabled | PCGS_PREFETCH_ENABLED | true | ✓ Yes |
 | PCGS 429 fallback cooldown | PCGS_429_COOLDOWN_MS | 3600000 (1h) | ✓ Yes |
-| SendGrid key | SENDGRID_API_KEY | (none) | ✓ Needs setup |
+| ACS Email connection | COMMUNICATION_CONNECTION_STRING | (none) | ✓ Needs setup |
 | Alert email | ALERT_EMAIL_TO | (none) | ✓ Needs setup |
+| Alert sender | ALERT_FROM_EMAIL | (none) | ✓ Needs setup |
 
 ---
 
 ## To Enable Email Alerts (Priority 3)
 
-1. Get SendGrid API key (or create account at sendgrid.com)
-2. `az keyvault secret set --vault-name coinpricefinder-kv --name SENDGRID-API-KEY --value "KEY"`
-3. `az webapp config appsettings set --name coinpricefinder-h3a3b5g0dmdydna4 --resource-group CoinPriceFinder_group-82d5 --settings ALERT_EMAIL_TO="admin@..." SENDGRID_API_KEY="@Microsoft.KeyVault(...)"`
+1. Provision or select an Azure Communication Services Email resource and verified sender domain.
+2. Store its connection string in Key Vault without printing it to logs or chat.
+3. Configure App Service Key Vault references for `COMMUNICATION_CONNECTION_STRING`, `ALERT_EMAIL_TO`, and `ALERT_FROM_EMAIL`.
 4. Restart app: `az webapp restart --name coinpricefinder-h3a3b5g0dmdydna4 --resource-group CoinPriceFinder_group-82d5`
 
 ---

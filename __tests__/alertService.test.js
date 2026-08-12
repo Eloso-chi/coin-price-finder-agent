@@ -83,10 +83,31 @@ describe('alertService', () => {
       expect(alertService._isRateLimited('new-topic')).toBe(false);
     });
 
-    test('isRateLimited returns true after sendAlert for same topic', async () => {
+    test('rate-limits fallback logging for an unconfigured topic', async () => {
       const alertService = loadFreshAlertService();
-      await alertService.sendAlert('rate-test', 'Subject', 'Body');
-      expect(alertService._isRateLimited('rate-test')).toBe(false);
+      const first = await alertService.sendAlert('rate-test', 'Subject', 'Body');
+      const second = await alertService.sendAlert('rate-test', 'Subject', 'Body');
+
+      expect(first).toEqual({ sent: false, reason: 'not-configured' });
+      expect(second).toEqual({ sent: false, reason: 'rate-limited' });
+      expect(alertService._isRateLimited('rate-test')).toBe(true);
+    });
+
+    test('limits repeated prefetch alerts to one configured send per hour', async () => {
+      mockBeginSend.mockResolvedValue({ pollUntilDone: mockPollUntilDone });
+      mockPollUntilDone.mockResolvedValue({ status: 'Succeeded' });
+      const alertService = loadFreshAlertService({
+        COMMUNICATION_CONNECTION_STRING: 'endpoint=https://example.communication.azure.com/;accesskey=test',
+        ALERT_EMAIL_TO: 'to@example.com',
+        ALERT_FROM_EMAIL: 'alerts@example.azurecomm.net',
+      });
+
+      const first = await alertService.alertPrefetchFailure(2, 'partial run');
+      const second = await alertService.alertPrefetchFailure(3, 'partial run');
+
+      expect(first).toEqual({ sent: true });
+      expect(second).toEqual({ sent: false, reason: 'rate-limited' });
+      expect(mockBeginSend).toHaveBeenCalledTimes(1);
     });
   });
 

@@ -21,6 +21,7 @@ const PREFETCH_HOUR_PT = parseInt(process.env.PREFETCH_HOUR_PT, 10) || 23; // 11
 const THROTTLE_MS = parseInt(process.env.PREFETCH_THROTTLE_MS, 10) || 1000; // 1 sec between calls
 const RESERVE_CALLS = parseInt(process.env.PREFETCH_RESERVE, 10) || 10;
 const STATUS_PATH = path.join(CACHE_DIR, 'prefetch_status.json');
+const ALERT_FAILURE_THRESHOLD = 2;
 
 // Grades worth fetching APR data for (collectible grades)
 const TARGET_GRADES = [60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70];
@@ -46,6 +47,11 @@ function saveStatus(status) {
   } catch (err) {
     logger.error({ err, event: 'status_save_failed' }, 'Failed to save prefetch status');
   }
+}
+
+function maybeAlertPrefetchFailure(status, consecutiveFailures, detail) {
+  if (status === 'completed' || consecutiveFailures < ALERT_FAILURE_THRESHOLD) return;
+  alertService.alertPrefetchFailure(consecutiveFailures, detail);
 }
 
 // ── Priority queue builder ──────────────────────────────────
@@ -430,6 +436,9 @@ async function executePrefetchRun() {
     }, 'Prefetch run completed');
 
     const prevStatus = loadStatus();
+    const consecutiveFailures = status === 'completed'
+      ? 0
+      : (prevStatus.consecutiveFailures || 0) + 1;
     saveStatus({
       lastRun: new Date().toISOString(),
       status,
@@ -439,12 +448,17 @@ async function executePrefetchRun() {
       newRecords,
       perCategory,
       errors: errors.slice(0, 20), // cap stored errors
-      consecutiveFailures: status === 'completed' ? 0 : (prevStatus.consecutiveFailures || 0) + 1,
+      consecutiveFailures,
       nextScheduled: getNextRunTime().toISOString(),
       queueRemaining: Math.max(0, queue.length - callsMade)
     });
 
     auctionPrice.updateRunStatus(status, { callsMade, recordsStored, newRecords });
+    maybeAlertPrefetchFailure(
+      status,
+      consecutiveFailures,
+      `Partial run: ${errors.length} errors in ${callsMade} calls. First error: ${errors[0] || 'unknown'}`
+    );
 
   } catch (err) {
     logger.error({ err, event: 'run_failed', callsMade }, 'Prefetch run failed');
@@ -459,9 +473,7 @@ async function executePrefetchRun() {
       consecutiveFailures: failures,
       nextScheduled: getNextRunTime().toISOString()
     });
-    if (failures >= 2) {
-      alertService.alertPrefetchFailure(failures, err.message);
-    }
+    maybeAlertPrefetchFailure('failed', failures, err.message);
   } finally {
     _running = false;
     _todayCompleted = true;
