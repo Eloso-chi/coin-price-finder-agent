@@ -174,6 +174,28 @@ separate data-checkpoint PR.
 Smoke-test the parser before changes: `python3 scripts/test_parse_terapeak_pass.py`
 (asserts pass/coin record fields against a synthetic fixture; exit 0 = pass).
 
+## Post-run progress PR
+
+After an operator run, preview the exact data files and telemetry totals that
+would be committed, then create the data PR:
+
+```bash
+bash scripts/commit-terapeak-progress.sh --dry-run
+bash scripts/commit-terapeak-progress.sh
+```
+
+The helper requires Bash, Git, Python, an authenticated `gh` CLI, and an
+`origin` whose `main` exactly matches local `main`. It refuses pre-staged
+changes and untracked files outside its conservative Terapeak filename
+allowlist. It accepts only regular `data/terapeak/*.csv` files and
+`data/terapeak-meta.json`, creates a
+`data/terapeak-refresh-<RUN_ID>` branch, pushes it, and opens a PR. The run ID
+comes from codespace state when present, otherwise H-machine state; use
+`--run-id ID` or `--state-file PATH` to select it explicitly. PR merge remains
+manual. If PR creation fails after a successful push, rerun `gh pr create`
+against the existing branch. For a clean retry, return to `main` and remove
+both the generated remote and local branches first.
+
 ## Two Scripts
 
 | Script | Purpose | Pages | When to use |

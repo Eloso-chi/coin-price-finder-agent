@@ -2769,7 +2769,9 @@ Option 1 is cleanest because it collapses login + first-visit-verification into 
 
 ---
 
-### #293W. Automate post-run Terapeak progress commit [P2 -- OPERATIONS] -- OPEN 2026-08-06
+### #293W. Automate post-run Terapeak progress commit [P2 -- OPERATIONS] -- DONE 2026-08-11
+
+**Completion (2026-08-11):** Added a fail-closed post-run helper that resolves either operator state schema, aggregates the selected run's pass telemetry, previews changes without mutation, and permits only Terapeak CSV/meta files. Apply mode requires `main` and a clean staging area, creates a run-specific branch, commits and pushes it, and opens a manual-merge PR with totals. Added temporary-repository Jest coverage for dry-run, no-change, branch/staging/untracked-file guards, and the complete apply workflow, plus runbook and script-catalog documentation.
 
 **Problem:** After a Terapeak operator run (e.g. run 20260805T063214Z-43164 this session), the modified CSVs and freshness sidecar sit as working-tree drift until someone remembers to commit them. Cooldown-terminated runs are the most-forgotten case. Two PRs (#246 and #248) had to be filed manually this session to catch up.
 
