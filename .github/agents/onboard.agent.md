@@ -107,7 +107,7 @@ Read these project docs:
 9. `.github/skills/code-review/SKILL.md` -- shared review framework (severity, finding schema)
 10. `.github/skills/numismatics/SKILL.md` -- domain knowledge: classification decision tree, finish detection, audit checklist, MANDATORY Pool-Isolation Contract
 11. `.github/skills/testing/TESTING-PLAN.md` -- testing strategy and expectations
-12. `.github/skills/workflow/SKILL.md` -- canonical PR workflow (hard rule, tiered execution, 8-step lifecycle, WASTE-LEDGER carve-out) -- added under #271W F6
+12. `.github/skills/workflow/SKILL.md` -- canonical PR workflow (hard rule, tiered execution, 10-step lifecycle, WASTE-LEDGER carve-out) -- added under #271W F6
 13. `.github/skills/process-discipline/SKILL.md` -- hot-file -> INC mapping + WASTE-LEDGER author guide -- added under #271W F9
 14. `.github/skills/valuation/SKILL.md` -- FMV / confidence / buy-sell decision engine routing reference (pool routing, FMV modes, confidence scoring, buy/sell tiers) -- added under #271W F7
 15. `.github/skills/comp-data/SKILL.md` -- eBay 3-tier cascade + Terapeak ingestion / lookup (cascade, scoring, attrition, lookupComps guard chain, CSV format) -- added under #271W F8
@@ -126,6 +126,7 @@ Read these project docs:
 28. `docs/runbooks/secret-bootstrap.md` -- Azure Key Vault bootstrap and safe local secret loading
 29. `.github/pull_request_template.md` -- required backlog, testing, review, and documentation fields
 30. `docs/adrs/ADR-001-fmv-pool-isolation.md` through `ADR-005-terapeak-anti-bot-state-machine.md` -- accepted load-bearing decisions
+31. `PR-168-ALIGNMENT-REPORT.md` -- historical operator alignment evidence; verify its banner points readers to current canonical runbooks/workflow
 
 ### Phase 3: Key Source Files (scan exports/structure only)
 
@@ -281,6 +282,9 @@ List the rules below verbatim in the report so the user sees you internalized th
 3. **Server is background-only.** `node server.js` MUST always be started with `isBackground: true`. It never exits; foreground launches block the terminal. Kill port 3000 first: `kill $(lsof -t -i:3000) 2>/dev/null`. Source: `docs/WASTE-LEDGER.md` INC-003; operating-rules.md server-management section.
 4. **No direct commits to main.** Branch-protected. Every change goes through a feature branch + PR + pre-commit review + (for M-tier) deep review. The only carve-out is `docs/WASTE-LEDGER.md` postmortem entries that reference already-merged or already-closed PRs (added 2026-06-23 in operating-rules.md). Reverts and doc-only PRs are NOT exempt. Source: `docs/WASTE-LEDGER.md` INC-008, INC-013 rule #18.
 5. **"More survivors" is not a success metric.** Any pre-filter that counts rejections (e.g., `prefilterStrikeSplit`) is a correctness signal -- a high value means the pool is sparse, not that the gate is broken. Fix sparse-pool symptoms via lookback / better seeding / honest null, never by widening the gate. Source: `docs/memory/numismatic-terminology.md`; `docs/WASTE-LEDGER.md` INC-013 rule #16.
+6. **Documentation acceptance is a merge gate.** Contract-affecting architecture/API/data/operations/environment/customization/user-workflow changes must update every mapped doc and receive an Onboard PASS tied to the current commit. Source: `CONTRIBUTING.md`; `.github/skills/workflow/SKILL.md`; `docs/WASTE-LEDGER.md` INC-017.
+7. **Required CI must succeed before merge.** Queued, in-progress, failed, or cancelled checks block merge. `--admin` requires explicit user approval and a documented reason; it never bypasses unfinished checks by default. Source: `.github/skills/workflow/SKILL.md`; `docs/WASTE-LEDGER.md` INC-017.
+8. **Incident evidence is public-safe.** Tracked WASTE-LEDGER entries use redacted references and measured/estimated caveats; full session/case/billing identifiers belong in ignored `.local/github-support/` packets. Source: `.github/skills/process-discipline/SKILL.md`; `docs/WASTE-LEDGER.md` INC-017.
 
 ### Gaps Detected
 - [Any new files found in Phase 0 not covered by the procedure]

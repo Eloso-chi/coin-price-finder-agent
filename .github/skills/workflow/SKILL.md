@@ -111,7 +111,11 @@ acknowledged in PR body). Checks include:
 - Data Model Sync (WARN -- including pool-isolation rows for ebay/valuation services, see #271W F5)
 - Lint / get_errors (WARN)
 - UX / IA review trigger (WARN if UI changed)
-- Documentation Coverage (WARN per the table in `CONTRIBUTING.md`)
+- Documentation Coverage (BLOCK when mapped docs are missing)
+- Onboard acceptance requirement identified (REQUIRED POST-COMMIT for material
+  architecture/API/data/operations/env/customization/user-facing workflow
+  changes; pre-commit cannot bind acceptance to a commit that does not exist)
+- WASTE-LEDGER support evidence (BLOCK when a new incident is incomplete)
 - Commit message quality (WARN)
 
 ### 4. Commit
@@ -129,7 +133,16 @@ ls .git/hooks/ | grep -v sample
 If hooks are sample-only, `--no-verify` is a no-op but still signals a bad
 habit (INC-013 rule #20).
 
-### 5. Push
+### 5. Post-commit Onboard acceptance
+
+For material architecture, API, persistence/data, operations, environment,
+agent/prompt/skill, or user-facing workflow changes, run top-level `@onboard`
+against the commit created in Step 4. Record the exact SHA and require no
+actionable active documentation gaps. Typo/formatting-only and non-behavioral
+metadata changes may use a reviewer-approved documented no-impact exemption.
+Any later relevant amendment invalidates acceptance and requires a new run.
+
+### 6. Push
 
 In a Codespace, unset the restricted token first (the codespace `GITHUB_TOKEN`
 cannot push to branch-protected branches):
@@ -142,7 +155,7 @@ git push -u origin <branch>
 This is documented in `/memories/gh-cli-codespaces.md` (machine-local user
 memory) and `docs/memory/codespaces-gh-auth.md` (repo memory).
 
-### 6. Open PR
+### 7. Open PR
 
 Use the PR template (`.github/pull_request_template.md`). Required
 sections:
@@ -154,10 +167,15 @@ sections:
 - **Testing** -- evidence that `npm test` ran and result
 - **Documentation** -- which doc surfaces were updated, or no-doc
   justification
+- **Onboard acceptance** -- required for contract-affecting architecture,
+  API, persistence, operations, environment, customization, or user-facing
+  workflow changes. A documented no-impact exemption is allowed for typos,
+  formatting, and non-behavioral metadata only. Acceptance is invalidated by
+  later commits that touch relevant code/docs.
 - **Review Gates** -- which tier, which gates were run
 - **Risk & Rollback** -- one-line risk assessment + how to revert
 
-### 7. Review + approval
+### 8. Review + approval
 
 - **XS / S tier:** present pre-commit report + diff stat inline, request
   merge approval.
@@ -169,12 +187,20 @@ The deep reviewer MUST execute Step 3b (Load Domain Context) before
 delegating sub-reviews (per #271W F4). Skipping Step 3b is the recurrence
 vector for INC-013.
 
-### 8. Merge
+### 9. Merge
 
 ```bash
 unset GITHUB_TOKEN GH_TOKEN
-gh pr merge <N> --admin --merge --delete-branch
+gh pr checks <N> --watch
+gh pr merge <N> --merge --delete-branch
 ```
+
+All required checks must complete successfully. Do not merge otherwise. Queued,
+in-progress, failed, or cancelled required checks block normal merge. `--admin` is
+not the default: use it only after all required checks succeed, branch
+protection still blocks the merge, and the user explicitly approves the
+override. Record the reason in the PR. Incomplete, failed, or cancelled checks
+cannot be bypassed.
 
 Default merge strategy is `--merge` (commit-preserving) unless the user
 specifies otherwise. After merge:
@@ -185,7 +211,7 @@ git pull --ff-only
 git remote prune origin   # clean up tracking refs for deleted remote branches
 ```
 
-### 9. Post-merge bookkeeping (BACKLOG status flip)
+### 10. Post-merge bookkeeping (BACKLOG status flip)
 
 GitHub auto-closes the PR on merge, but `docs/BACKLOG.md` rows do NOT
 flip automatically. Closing the row is part of the workflow, not an
@@ -250,6 +276,11 @@ Before requesting merge:
 - [ ] PR body cites backlog item or justifies no-update
 - [ ] Documentation surfaces updated per `CONTRIBUTING.md` Documentation
       Expectations OR no-doc justification stated
+- [ ] Contract-affecting changes have a clean Onboard acceptance tied to the
+  current commit, or a reviewer-approved no-impact exemption
+- [ ] Required CI checks completed successfully before merge
+- [ ] Any new WASTE-LEDGER entry satisfies the public-safe support schema and
+  has a private ignored support packet when full identifiers are needed
 - [ ] For pool-isolation surfaces (ebayService classifyGradeType /
       applyFilters, valuationService pool selection): `@numismatic-audit`
       Step 5b run and PASS, cited in PR body
