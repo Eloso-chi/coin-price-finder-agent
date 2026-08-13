@@ -126,6 +126,7 @@ Read these project docs:
 28. `docs/runbooks/secret-bootstrap.md` -- Azure Key Vault bootstrap and safe local secret loading
 29. `.github/pull_request_template.md` -- required backlog, testing, review, and documentation fields
 30. `docs/adrs/ADR-001-fmv-pool-isolation.md` through `ADR-005-terapeak-anti-bot-state-machine.md` -- accepted load-bearing decisions
+31. `PR-168-ALIGNMENT-REPORT.md` -- historical operator alignment evidence; verify its banner points readers to current canonical runbooks/workflow
 
 ### Phase 3: Key Source Files (scan exports/structure only)
 
