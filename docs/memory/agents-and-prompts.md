@@ -70,7 +70,8 @@ Summary (the SKILL is authoritative; this is a pointer):
 4. Commit (no `--no-verify` reflex)
 5. For material architecture/API/data/operations/environment/customization/user-facing
    workflow changes, run Onboard acceptance against that exact commit; use a
-   reviewer-approved documented no-impact exemption only for nonbehavioral work
+   reviewer-approved documented no-impact exemption only for typo/formatting-only
+   or non-behavioral metadata work
 6. Push (`unset GITHUB_TOKEN GH_TOKEN`
    first in Codespace)
 7. Open PR using `.github/pull_request_template.md`

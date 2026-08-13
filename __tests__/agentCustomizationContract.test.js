@@ -79,6 +79,7 @@ describe('agent customization contract', () => {
     const prTemplate = fs.readFileSync(path.join(ROOT, '.github', 'pull_request_template.md'), 'utf8');
     const inventory = fs.readFileSync(path.join(ROOT, 'docs', 'memory', 'agents-and-prompts.md'), 'utf8');
     const onboard = fs.readFileSync(path.join(ROOT, '.github', 'agents', 'onboard.agent.md'), 'utf8');
+    const ledger = fs.readFileSync(path.join(ROOT, 'docs', 'WASTE-LEDGER.md'), 'utf8');
 
     const allSurfaces = [workflow, preCommit, instructions, contributing, prTemplate, inventory, onboard];
     for (const content of allSurfaces) {
@@ -111,6 +112,8 @@ describe('agent customization contract', () => {
     expect(preCommit).toMatch(/current commit|newly created commit/);
     expect(preCommit).toContain('reviewer-approved no-impact exemption');
     expect(preCommit).toContain('WASTE-LEDGER Support Evidence (BLOCK if incomplete)');
+    expect(ledger).toContain('Every required CI check MUST complete successfully before merge');
+    expect(ledger).not.toMatch(/CI checks MUST[\s\S]{0,120}emergency exception/i);
     expect(instructions).toContain('user-facing workflows');
     expect(contributing).toContain('user-facing workflows');
     expect(prTemplate).toContain('current commit');
