@@ -51,7 +51,7 @@ FMV at 365d: $109.23, confidence 88%, bullion-spot-premium method
 - Includes all denominations (1/20, 1/10, 1/4, 1/2, 1 oz)
 - Includes all conditions (raw + graded)
 - Sold Items pages use Best Match ordering by default (not chronological)
-- We capture pages 1-6 for bullion (max 300 listings) and pages 1-2 for non-bullion (max 100); with date sorting, these are the most recent
+- We capture pages 1-5 for non-gold bullion (max 250 listings) and pages 1-2 for gold bullion and non-bullion (max 100); with date sorting, these are the most recent
 - After filtering (correct year, 1oz, raw, time window), usable pool shrinks
 - **Only paid transactions appear** -- cancelled/refunded sales are excluded
 - **Sold Price = actual price paid** (includes accepted Best Offers and discounts)

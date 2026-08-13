@@ -20,11 +20,14 @@ Operational scripts for data collection, migration, and maintenance. Most script
 | Script | Purpose | Usage |
 |---|---|---|
 | `terapeak-export.py` | Semi-automated Terapeak CSV exporter (page 1) | `python3 scripts/terapeak-export.py --run --limit 20` |
-| `sales-aggregator.py` | Deep pagination aggregator (pages 2-6) with dashboard mode | `python3 scripts/sales-aggregator.py` (dashboard) or `--run --limit 10` |
+| `sales-aggregator.py` | Deep pagination aggregator (pages 2-5/250 results for non-gold bullion; page 2/100 results for gold and non-bullion) with dashboard mode | `python3 scripts/sales-aggregator.py` (dashboard) or `--run --limit 10` |
 | `bootstrap-surface-wsl.sh` | One-command Surface/WSL bootstrap for PR250 flow (deps, venv, Playwright, env templates) | `bash scripts/bootstrap-surface-wsl.sh` |
 | `surface` | One-word launcher for the Surface freshness loop (loads validated env + runs loop) | `surface` |
 | `terapeak-operator.sh` | Canonical H launcher with #284H risk states, Cooldown restart gates, randomized Normal batches, Elevated pacing, and shared pass telemetry | `bash scripts/terapeak-operator.sh` |
 | `terapeak-operator-codespace.sh` | Canonical W launcher using the same #284H state and telemetry contract | `bash scripts/terapeak-operator-codespace.sh --max-passes 1` |
+| `_parse-terapeak-pass.py` | Parse pass logs into `cache/terapeak-runs/{passes,coins}.jsonl` and apply #284H risk transitions | Invoked by operators; use `--help` for direct diagnostics |
+| `_terapeak_risk.py` | Shared #284H risk-state classification and persistence helpers | Imported by parser/operators; direct use is uncommon |
+| `show-terapeak-runs.sh` | View recent runs, pass totals, stop conditions, or coin history from the JSONL ledger | `bash scripts/show-terapeak-runs.sh recent 20` |
 | `commit-terapeak-progress.sh` | Safely branch, commit, push, and open a PR for one operator run's CSV/meta changes | `bash scripts/commit-terapeak-progress.sh --dry-run`, then rerun without `--dry-run` |
 | `validate-pass-telemetry.py` | Validate required #284H fields in pass JSONL; add `--json` for machine-readable output | `python3 scripts/validate-pass-telemetry.py cache/terapeak-runs/passes.jsonl` |
 | `analyze-pacing-pilot.py` | Compare one scoped #280H baseline vs normal-tuned crossover using attempt-weighted speed and safety metrics | `python3 scripts/analyze-pacing-pilot.py --pilot-id ID cache/terapeak-runs/passes.jsonl` |
@@ -76,8 +79,11 @@ Operational scripts for data collection, migration, and maintenance. Most script
 ### Initial Terapeak export run
 
 ```bash
-# 1. Start server
-node server.js &
+# 1. Inspect port 3000 before starting from the repository root
+PID=$(lsof -t -i:3000 2>/dev/null || true)
+# If set, verify with: ps -p "$PID" -o args=; readlink -f "/proc/$PID/cwd"
+# Kill only this repository's `node server.js`; stop on an unknown listener.
+# Then use the execute tool to run `node server.js` with background/async mode.
 
 # 2. Login to eBay via VNC
 python3 scripts/vnc-login.py
@@ -164,7 +170,7 @@ Notes:
 - Use raw `ADMIN_API_KEY` value, not `@Microsoft.KeyVault(SecretUri=...)`.
 - If Playwright install fails on Ubuntu 26.04, use Ubuntu 24.04/22.04 for scraper runs.
 - Loop page-1 batching uses `--limit` semantics (no implicit `--resume`) to avoid skipping valid freshness backlog candidates.
-- HTTP 422 import responses (`No valid comps found`) are treated as no-data attempts to drive dormant convergence.
+- The import endpoint returns HTTP 422 (`No valid comps found`) without writing metadata. The canonical exporter recognizes that response and separately calls `/api/terapeak/report-no-data`, which advances dormant tracking.
 
 ### Upload mode (UPLOAD_MODE) -- #251 parity
 

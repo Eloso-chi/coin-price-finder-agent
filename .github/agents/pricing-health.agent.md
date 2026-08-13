@@ -26,15 +26,19 @@ surface in the app, and produce a health report that highlights:
 ## Prerequisites
 
 The Node server **must** be running at `http://localhost:3000` before you start.
-Check with `curl -sf http://localhost:3000/api/health` first. If it's not up:
+Check with `curl -sf http://localhost:3000/api/health` first. If it is unhealthy,
+inspect the listener before stopping it:
 
 ```bash
-kill $(lsof -t -i:3000) 2>/dev/null
-cd /workspaces/coin-price-agent/src && node server.js &
-# MUST run as background (mode=async / isBackground=true) -- it never exits
+lsof -t -i:3000
+ps -p PID -o args=
+readlink -f /proc/PID/cwd
 ```
 
-Wait for the health endpoint to respond before proceeding.
+Kill only a `node server.js` process whose cwd is this repository root. If the
+listener is unknown, stop and report it instead. Then use the execute tool from
+the repository root to run `node server.js` with background/async mode. Do not
+append `&` or run the server synchronously; it never exits. Wait for health.
 
 ### ADMIN_API_KEY required for --full / --limit / --filter modes (#262W)
 
@@ -64,22 +68,22 @@ Run the health check script in ONE terminal invocation. Choose the mode based on
 
 ### Default sample (14 coins, ~15 seconds):
 ```bash
-cd /workspaces/coin-price-agent && node scripts/pricing-health-full.js --quiet 2>/dev/null
+cd "$(git rev-parse --show-toplevel)" && node scripts/pricing-health-full.js --quiet 2>/dev/null
 ```
 
 ### Full dataset run (all datasets with 10+ comps, ~20 minutes):
 ```bash
-cd /workspaces/coin-price-agent && node scripts/pricing-health-full.js --full --out cache/health-report.json 2>&1
+cd "$(git rev-parse --show-toplevel)" && node scripts/pricing-health-full.js --full --out cache/health-report.json 2>&1
 ```
 
 ### Filtered run (specific series):
 ```bash
-cd /workspaces/coin-price-agent && node scripts/pricing-health-full.js --full --filter "Morgan" --out cache/health-morgan.json 2>&1
+cd "$(git rev-parse --show-toplevel)" && node scripts/pricing-health-full.js --full --filter "Morgan" --out cache/health-morgan.json 2>&1
 ```
 
 ### Limited run (first N datasets by comp count):
 ```bash
-cd /workspaces/coin-price-agent && node scripts/pricing-health-full.js --full --limit 100 --out cache/health-top100.json 2>&1
+cd "$(git rev-parse --show-toplevel)" && node scripts/pricing-health-full.js --full --limit 100 --out cache/health-top100.json 2>&1
 ```
 
 The script handles all HTTP calls internally with parallel execution. Output is structured JSON with pre-flagged issues (RED/YELLOW/GREEN).
@@ -227,7 +231,7 @@ Brief list of coins that passed all checks (GREEN across the board).
 |------|-------|
 | Runtime | Node.js 22, Express 5.2, CommonJS |
 | Golden set | `__tests__/fixtures/golden_coins.json` (14 coins, 3 series) |
-| Terapeak CSVs | 3,593 files in the current repository snapshot; use admin endpoints for production truth |
+| Terapeak CSVs | Count repository files locally; use admin endpoints for production truth |
 | Pricing routes | `/api/price`, `/api/pricing-batch`, `/api/bulk-evaluate`, `/api/market/ebay` |
 | eBay response shape | `ebay.us.{comps, gathered, attritionPct, removed}` |
 | Valuation shape | `valuation.{fmvCore, confidence, method, compCount, lowData, gradePool}` |

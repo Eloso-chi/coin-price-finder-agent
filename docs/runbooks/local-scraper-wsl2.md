@@ -79,8 +79,8 @@ available one.
 
 ```bash
 mkdir -p ~/cpf && cd ~/cpf
-git clone https://github.com/<your-org>/coin-price-agent.git
-cd coin-price-agent
+git clone https://github.com/<your-org>/coin-price-finder-agent.git
+cd coin-price-finder-agent
 ```
 
 ### 4. Python env + Playwright Chromium
@@ -105,7 +105,7 @@ mkdir -p ~/cpf/state
 
 ### 6. Environment variables
 
-Create `~/cpf/coin-price-agent/.env.surface` (do **not** commit this file):
+Create `~/cpf/coin-price-finder-agent/.env.surface` (do **not** commit this file):
 
 ```env
 # --- target ---
@@ -151,7 +151,7 @@ curl -s -o /dev/null -w 'admin=%{http_code}\n' \
 ## First sign-in
 
 ```bash
-cd ~/cpf/coin-price-agent
+cd ~/cpf/coin-price-finder-agent
 source .venv/bin/activate
 set -a; source .env.surface; set +a
 python3 scripts/terapeak-export.py --login
@@ -220,7 +220,7 @@ pip install playwright requests
 python3 -m playwright install chromium
 ```
 
-### Fast path: `scripts/cpf-go` (#252)
+### Fast path: `scripts/cpf-go` (#258)
 
 One command handles login, dependency checks, freshness report, scraper run,
 and optional looping. Recommended for almost all daily use.
@@ -345,6 +345,8 @@ When reporting scraper status in chat, use this exact template:
 ```text
 Pass N | Batch: XX coins | ~YY min
 
+  Run totals: XXX coins | XXX new | XXX dups
+
   Coin                                New   Dups  Result
   ----------------------------------- ----  ----  -------
   1884-O Morgan Silver Dollar MS64     48    87   OK
@@ -354,6 +356,8 @@ Pass N | Batch: XX coins | ~YY min
   Batch total: XX new, XX dups, X no-export out of XX coins
 
   Queue: X,XXX stale | XXX ok | XXX dormant | XX deep-paginate pending
+
+  Highlights: cookie/probe/risk transition, failures, ledger errors, server health, or none
 ```
 
 Rules:
@@ -361,7 +365,9 @@ Rules:
 - `~YY min` is approximate. If pass is still running, print `in progress`.
 - Per-coin rows include only `OK` and `NO DATA` outcomes.
 - `Batch total` must aggregate only the current pass (or current partial pass if in progress).
+- `Run totals` must aggregate coins, new rows, and duplicate rows across all passes in the current run.
 - `Queue` must report only stale(refresh), ok, dormant, and deep-paginate counts.
+- `Highlights` is mandatory; write `none` when no unusual event occurred.
 - Do not include the full freshness report body unless explicitly requested.
 
 #### CRLF warning
@@ -382,7 +388,7 @@ sed -i 's/\r$//' scripts/cpf-go
 If you need to drive each step yourself (e.g. debugging the login flow):
 
 ```bash
-cd ~/cpf/coin-price-agent
+cd ~/cpf/coin-price-finder-agent
 source .venv/bin/activate
 set -a; source .env.surface; set +a
 
@@ -415,9 +421,10 @@ command.
 Notes:
 - The loop uses `--limit` for page-1 batches (not `--batch`) to avoid
   resume-history skipping of valid backlog refresh candidates.
-- `SAVED but upload failed` with HTTP 422 (`No valid comps found`) is **not**
-  treated as a no-data attempt for dormancy. Dormancy progression only advances
-  through explicit no-result reporting (`POST /api/terapeak/report-no-data`).
+- `SAVED but upload failed` with HTTP 422 (`No valid comps found`) does not
+  change metadata inside the import endpoint. The exporter recognizes that
+  response and separately calls `POST /api/terapeak/report-no-data`, advancing
+  dormant tracking through the explicit no-result route.
 - P3 monitor/evidence-probe entries are excluded by default; include them with
   `--include-thin` when you intentionally want monitor passes.
 

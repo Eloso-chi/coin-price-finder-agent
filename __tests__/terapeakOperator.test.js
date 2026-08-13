@@ -24,6 +24,8 @@ const os = require('os');
 const PROJECT_ROOT = path.join(__dirname, '..');
 const OPERATOR_SCRIPT = path.join(PROJECT_ROOT, 'scripts', 'terapeak-operator.sh');
 const PREFLIGHT_SCRIPT = path.join(PROJECT_ROOT, 'scripts', 'terapeak-startup-preflight.sh');
+const SALES_AGGREGATOR_SCRIPT = path.join(PROJECT_ROOT, 'scripts', 'sales-aggregator.py');
+const BULLION_LOOP_SCRIPT = path.join(PROJECT_ROOT, 'scripts', 'run-bullion-loop.sh');
 const OPERATOR_SCRIPT_REL = 'scripts/terapeak-operator.sh';
 const PREFLIGHT_SCRIPT_REL = 'scripts/terapeak-startup-preflight.sh';
 
@@ -65,6 +67,21 @@ ADMIN_API_KEY=test-key-12345
   });
 
   describe('script syntax and availability', () => {
+    test('deep aggregator stops on the first hard challenge', () => {
+      const source = fs.readFileSync(SALES_AGGREGATOR_SCRIPT, 'utf8');
+      expect(source).toContain('_mod.challenge_indicators(page, response)');
+      expect(source).toContain('BOT DETECTION: hard challenge signal. Stopping now');
+      expect(source).toContain('raise SystemExit(2)');
+      expect(source).not.toContain('consecutive_blocks');
+    });
+
+    test('bullion loop stops on actual backlog exhaustion without a fixed total', () => {
+      const source = fs.readFileSync(BULLION_LOOP_SCRIPT, 'utf8');
+      expect(source).toContain("grep -q '^No terms to process\\.$'");
+      expect(source).toContain('EXIT_CODE=${PIPESTATUS[0]}');
+      expect(source).not.toMatch(/TOTAL_EXPORTED|246/);
+    });
+
     test('operator script exists and is executable', () => {
       expect(fs.existsSync(OPERATOR_SCRIPT)).toBe(true);
       const stat = fs.statSync(OPERATOR_SCRIPT);

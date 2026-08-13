@@ -22,6 +22,8 @@
   - terapeak-sold (pk: /searchTerm) -- terapeakService
   - greysheet-history (pk: /coinKey) -- 592 real coin snapshots migrated
   - metals-history (pk: /metal) -- 4 metals (91 days) migrated
+  - admin-audit (pk: /actorUsername) -- administrative action events
+  - valuation-audit (pk: /computedAtDate) -- append-only valuation events
 - Connection: COSMOS_ENDPOINT + COSMOS_KEY (via KV) + COSMOS_DB app settings
 
 ## Azure Files

@@ -17,26 +17,31 @@ user a clear, actionable triage of what datasets need attention.
 
 ## Startup Procedure (ALWAYS do this first)
 
-1. Ensure the server is running:
+1. Check whether the server is healthy:
    ```bash
-   curl -sf http://localhost:3000/api/health || (cd /workspaces/coin-price-agent && node server.js &)
+   curl -sf http://localhost:3000/api/health
    ```
-   Wait for healthy response before proceeding.
+   If unhealthy, inspect each port-3000 PID with `ps -p PID -o args=` and
+   `readlink -f /proc/PID/cwd`. Kill it only when the command is `node server.js`
+   and its cwd is this repository root. If ownership is unknown, stop and report
+   the listener instead of terminating it. Then use the execute tool from the
+   repository root to run `node server.js` with background/async mode. Do not
+   append `&` or run the server synchronously. Wait for health before proceeding.
 
 2. Generate a fresh report (overwrites any stale cached copy):
    ```bash
-   cd /workspaces/coin-price-agent && node scripts/generate-freshness-report.js
+   cd "$(git rev-parse --show-toplevel)" && node scripts/generate-freshness-report.js
    ```
    This writes `cache/freshness-report.json` with 24h validity.
 
 3. Read the report:
    ```bash
-   cd /workspaces/coin-price-agent && node scripts/generate-freshness-report.js --summary
+   cd "$(git rev-parse --show-toplevel)" && node scripts/generate-freshness-report.js --summary
    ```
 
 4. Get the headless dashboard view:
    ```bash
-   cd /workspaces/coin-price-agent && python3 scripts/sales-aggregator.py --no-dashboard --output markdown --decision q
+   cd "$(git rev-parse --show-toplevel)" && python3 scripts/sales-aggregator.py --no-dashboard --output markdown --decision q
    ```
 
 ## What to Present

@@ -12,7 +12,7 @@
 - **Azure Services:** Key Vault (`coinpricefinder-kv`), Cosmos DB (`coinpricefinder-cosmos`, serverless), Blob Storage (`coinpricecache01/terapeak-csvs`), Azure Files (`appcache` at `/mnt/cache`)
 - **CI/CD:** GitHub Actions with OIDC -> Azure (`main_coinpricefinder-h3a3b5g0dmdydna4.yml`)
 - **Observability:** X-Request-ID async context, redacted Pino JSON logs, shallow/deep health checks, versioned valuation audits
-- **Tests:** Jest 30; latest verified run 161 suites / 4,425 tests. Run `npm test` for the current count.
+- **Tests:** Jest 30; latest verified run 161 suites / 4,441 tests. Run `npm test` for the current count.
 
 ## Project Structure
 ```
@@ -30,7 +30,7 @@ src/
   schemas/                 JSON schema for /api/price responses
   data/                    Static reference data (PCGS numbers, key dates, mintages, greysheetTypeMap, etc.)
   utils/                   Cache, stats, filters, coinMetalProfile, responseValidator, excelMapper, cachePath, cosmosClient, blobClient
-data/terapeak/             CSV import folder (3,593 CSVs + 2,593 `.meta` sidecars in the current snapshot)
+data/terapeak/             CSV import folder; count local CSV/meta files as needed (production truth is via admin endpoints)
 cache/                     Persisted caches (ebay, pcgs, greysheet, metals, terapeak, users, user_coins, history files)
 scripts/                   Terapeak scrapers, greysheet-refresh, migrate-to-cosmos, upload-csvs-to-blob, test-metrics
 docs/ARCHITECTURE.md       Full technical docs
@@ -101,17 +101,17 @@ __tests__/                 161 current *.test.js files recursively plus fixtures
 - **Client modules:** `auth.js` (thin /api/auth/* wrapper), `storage.js` (thin /api/coins/* wrapper), `my-coins.js` (portfolio UI)
 
 ## Key User Features
-- **Export Backup** -- Downloads plaintext JSON of all coins (decrypted). Account-independent.
-- **Import Backup (JSON)** -- Reads JSON backup, re-encrypts under current account, skips duplicates.
-- **Import Backup (Excel)** -- Reads .xlsx spreadsheet via POST /api/import/excel. Maps headers, normalizes series names, extracts year/mint/weight. Returns standard backup JSON for client-side encryption.
+- **Export Backup** -- Downloads authenticated plaintext JSON from server-side coin storage.
+- **Import Backup (JSON)** -- Sends a JSON backup to the server, which validates records and skips duplicate hashes.
+- **Import Backup (Excel)** -- Reads `.xlsx` via `POST /api/import/excel`, maps headers, and returns normalized coin records for server-side import.
 - **Auto-Seed Test Account** -- On page load, if `testcollector` doesn't exist, silently creates account with 10 sample coins. Credentials: testcollector / Coins2026!. Logs out immediately so user sees normal login prompt.
-- **"I Have This Coin"** -- In search results; adds coin to encrypted storage. Shows lock icon if logged out.
-- **Change Password** -- Re-derives key, re-encrypts all coins via `CoinStorage.reEncryptAll()`.
+- **"I Have This Coin"** -- In search results; adds a coin to authenticated server-side storage. Shows a lock icon if logged out.
+- **Change Password** -- Updates the bcrypt password hash and increments token version; plaintext server-side coin records require no re-encryption.
 - **Auth-gated tabs** -- My Coins + Price History locked for logged-out users.
 - **Cross-tab linkage** -- Price Discovery auto-loads tracker series and history chart.
 - **My Coins Table Columns** -- Checkbox (multi-select), Coin, Grade, Qty (+/-), Troy Oz, FMV (ea), Total, Cost (ea -- inline editable), P/L, Melt Value (from live spot), Avg eBay, Range, Notes, Added, Remove.
 - **Bulk Delete** -- Select All checkbox + "Delete Selected" button with count and confirmation.
-- **Coin Dedup** -- coinHash = SHA-256(series|year|mint|grade|notes), so same coin with different notes = different entry.
+- **Coin Dedup** -- Server/client hash parity uses SHA-256 of `series|year|mint|grade|notes|label`; different notes or labels produce distinct entries.
 
 ## Env Vars
 See the authoritative tables in `README.md` and `docs/ARCHITECTURE.md`. Recent operational settings include `COMMUNICATION_CONNECTION_STRING`, `ALERT_EMAIL_TO`, `ALERT_FROM_EMAIL`, `LOG_LEVEL`, `PCGS_429_COOLDOWN_MS`, `TERAPEAK_PACING_PROFILE`, and `TERAPEAK_PACING_PILOT_ID`.

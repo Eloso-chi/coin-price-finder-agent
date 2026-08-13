@@ -9,7 +9,7 @@ Mexican Silver Libertad 2020 searches return:
 ## Root Causes Identified
 
 ### 1. Year Filtering Gap (1962 Libertad Issue)
-**Location:** [ebayService.js](ebayService.js#L860-L880)
+**Location:** [ebayService.js](../../src/services/ebayService.js#L860-L880)
 - Year filtering uses LOOSE tolerance (+/- 1 year for non-bullion, exact for bullion)
 - No DATABASE of historical coin existence (e.g., when Libertad production started)
 - **Gap:** 1962 Libertad is physically impossible but score doesn't catch it
@@ -17,29 +17,29 @@ Mexican Silver Libertad 2020 searches return:
 - **Problem:** "1962 Libertad" has only ONE year, which matches expected if Libertad was searched generically
 
 ### 2. Weight Filtering (1/2 oz vs 1 oz)
-**Detection Function:** [ebayService.js#L81-L107](ebayService.js#L81-L107)
+**Detection Function:** [ebayService.js#L81-L107](../../src/services/ebayService.js#L81-L107)
 - `detectWeightFromTitle()` extracts oz from title
 - Returns 0.5 for "1/2 oz", 1 for "1 oz", etc.
-- **Weight Match Logic:** [ebayService.js#L533-L543](ebayService.js#L533-L543)
+- **Weight Match Logic:** [ebayService.js#L533-L543](../../src/services/ebayService.js#L533-L543)
   - Match: +25 points
   - Mismatch: -35 points
   - Not stated: -15 points
-- **Hard Filter:** [ebayService.js#L818-L826](ebayService.js#L818-L826)
+- **Hard Filter:** [ebayService.js#L818-L826](../../src/services/ebayService.js#L818-L826)
   - Removes comps with explicit WRONG weight (e.g., 1/2 oz title when 1 oz searched)
   - Tolerance: 0.01 oz
-- **Melt Sanity Check:** [ebayService.js#L827-L837](ebayService.js#L827-L837) (fractional)
+- **Melt Sanity Check:** [ebayService.js#L827-L837](../../src/services/ebayService.js#L827-L837) (fractional)
   - If detected weight is NULL (not stated) AND price > 1.8× full-oz melt, DROP
   - Threshold: 1.8× melt ceiling (generous)
 
 ### 3. Bullion Default Weight (1 oz Auto-Assignment)
-**Location:** [priceRoute.js#L23-L35](priceRoute.js#L23-L35)
+**Location:** [priceRoute.js#L23-L35](../../src/routes/priceRoute.js#L23-L35)
 - If no weight specified AND series matches 'libertad', 'silver eagle', etc., DEFAULT to 1 oz
 - **List includes:** libertad, silver eagle, gold eagle, maple leaf, britannia, etc.
 - **Effect:** "Mexican Silver Libertad 2020" auto-defaults to 1 oz search
-- **Then applyFilters() hard-filters 1/2 oz results** [ebayService.js#L818-L826](ebayService.js#L818-L826)
+- **Then applyFilters() hard-filters 1/2 oz results** [ebayService.js#L818-L826](../../src/services/ebayService.js#L818-L826)
 
 ### 4. Deny-List Filtering
-**Location:** [filters.js#L2-L15](filters.js#L2-L15)
+**Location:** [filters.js#L2-L15](../../src/utils/filters.js#L2-L15)
 - Blocks: lots, collection, roll, estate, replica, fake, token, plated, album, folder, whitman
 - **Roll exception:** Can be allowed by `{ allowRoll: true }` option
 - **Effect:** Rejects multi-coin collections but NOT individual "copy" coins
@@ -47,7 +47,7 @@ Mexican Silver Libertad 2020 searches return:
 ## Current Filtering Pipeline
 
 ### Scoring Phase (per-comp)
-[ebayService.js#L272-L581](ebayService.js#L272-L581)
+[ebayService.js#L272-L581](../../src/services/ebayService.js#L272-L581)
 
 | Factor | Match | Mismatch | Source |
 |--------|-------|----------|--------|
@@ -64,7 +64,7 @@ Mexican Silver Libertad 2020 searches return:
 **Quality gates:** exact=85+, close=65+, loose=<65
 
 ### Hard Filtering Phase
-[ebayService.js#L596-L965](ebayService.js#L596-L965)
+[ebayService.js#L596-L965](../../src/services/ebayService.js#L596-L965)
 
 | Filter | Condition | Effect |
 |--------|-----------|--------|
@@ -85,17 +85,17 @@ Mexican Silver Libertad 2020 searches return:
 | MAD Outlier Removal | 3.5σ on price | DROP |
 
 ## Market Matrix Route (Live eBay Tracker)
-**Location:** [marketRoute.js](marketRoute.js) → [marketAggregator.js](marketAggregator.js)
+**Location:** [marketRoute.js](../../src/routes/marketRoute.js) -> [marketAggregator.js](../../src/services/marketAggregator.js)
 
 ### Bullion Detection
-[marketAggregator.js#L17](marketAggregator.js#L17)
+[marketAggregator.js#L17](../../src/services/marketAggregator.js#L17)
 ```javascript
 const BULLION_SERIES_RE = /\b(silver eagle|libertad|...)\b/i;
 ```
 **Bullion series:** Switch from year×mint matrix → grade×year matrix
 
 ### Matrix Building
-[marketAggregator.js#L194-L272](marketAggregator.js#L194-L272)
+[marketAggregator.js#L194-L272](../../src/services/marketAggregator.js#L194-L272)
 
 1. Group completed comps by year+mint (or year+grade for bullion)
 2. Calculate median from completed sales
@@ -104,13 +104,13 @@ const BULLION_SERIES_RE = /\b(silver eagle|libertad|...)\b/i;
 5. Support weight parameter (`?weight=0.5`)
 
 ### Grade Extraction
-[marketAggregator.js#L107-L114](marketAggregator.js#L107-L114)
+[marketAggregator.js#L107-L114](../../src/services/marketAggregator.js#L107-L114)
 - Pattern: `MS65`, `PR69`, `AU58+`
 - Returns "RAW" if no formal grade detected
-- Grade filter: Full title match required [marketAggregator.js#L155-L161](marketAggregator.js#L155-L161)
+- Grade filter: Full title match required [marketAggregator.js#L155-L161](../../src/services/marketAggregator.js#L155-L161)
 
 ### Year-Dependent Filtering
-**Lunar Series:** [marketAggregator.js#L763-L789](marketAggregator.js#L763-L789)
+**Lunar Series:** [marketAggregator.js#L763-L789](../../src/services/marketAggregator.js#L763-L789)
 - Perth Lunar Series I: 1996-2007
 - Perth Lunar Series II: 2008-2019
 - Perth Lunar Series III: 2020-2031
@@ -126,15 +126,15 @@ const BULLION_SERIES_RE = /\b(silver eagle|libertad|...)\b/i;
 
 ### 2. Strengthen Year Validation for Bullion
 - For bullion (weight specified): Strict year match without tolerance
-- Already implemented for `expected.weight > 0` [ebayService.js#L853](ebayService.js#L853)
+- Already implemented for `expected.weight > 0` [ebayService.js#L853](../../src/services/ebayService.js#L853)
 - BUT: Relies on `detectWeightFromTitle()` finding weight in comp title
 - **Gap:** If comp title says "Libertad 1962" with NO weight, tolerance is +/- 1
 
 ### 3. Improve Libertad-Specific Detection
 - Add 'libertad' to DENOM_RULES or series-specific validation
 - Reject pre-1982 Libertad coins with specific check
-- Location: [filters.js#L44-L70](filters.js#L44-L70)
+- Location: [filters.js#L44-L70](../../src/utils/filters.js#L44-L70)
 
 ### 4. Add Weight Requirement for Fractional Searches
 - If weight < 1 oz, REQUIRE weight in title (no benefit-of-doubt)
-- Currently benefit-of-doubt allows unlabeled 1 oz as 1/4 oz[ebayService.js#L540](ebayService.js#L540)
+- Currently benefit-of-doubt allows unlabeled 1 oz as 1/4 oz [ebayService.js#L540](../../src/services/ebayService.js#L540)

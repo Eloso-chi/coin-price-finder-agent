@@ -1,8 +1,8 @@
 # Future Edits & Ideas -- HISTORICAL ARCHIVE
 
-> **DEPRECATED.** Canonical backlog is [docs/BACKLOG.md](BACKLOG.md). All items
+> **DEPRECATED.** Canonical backlog is [docs/BACKLOG.md](../BACKLOG.md). All items
 > that once lived here were rationalized into BACKLOG.md on or before May 31,
-> 2026. See [docs/BACKLOG.rules.md](BACKLOG.rules.md) for governance.
+> 2026. See [docs/BACKLOG.rules.md](../BACKLOG.rules.md) for governance.
 
 ## Renumbered items
 
@@ -48,5 +48,5 @@ is preserved in:
    `W` (Codespace) machine, retained as a non-authoritative reference and not
    committed to git. May drift over time.
 
-Do **not** add new items here. Open them in [docs/BACKLOG.md](BACKLOG.md) under
+Do **not** add new items here. Open them in [docs/BACKLOG.md](../BACKLOG.md) under
 the per-machine ID convention.

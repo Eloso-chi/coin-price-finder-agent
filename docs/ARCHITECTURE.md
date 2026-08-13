@@ -101,7 +101,7 @@ server.js                              Express entry point (port 3000)
 │   └─ blobClient.js                   Azure Blob Storage client (managed identity)
 │
 ├─ src/data/
-│   └─ greysheetTypeMap.js             Series-to-GSID mapping (55 MS + 18 Proof) + finish detection
+│   └─ greysheetTypeMap.js             Dynamic series-to-GSID map + finish detection
 │
 ├─ public/
 │   ├─ index.html                      SPA frontend (dark theme, 9 tabs)
@@ -124,7 +124,7 @@ server.js                              Express entry point (port 3000)
 │   └─ user_coins.json                 Server-side coin collections (plaintext JSON by userId)
 │
 ├─ data/
-│   ├─ terapeak/                       3,593 CSV exports in the current repository snapshot
+│   ├─ terapeak/                       Repository sold-comp CSV exports (count locally as needed)
 │   └─ terapeak-meta.json              Git-tracked aggregation metadata sidecar (see below) + dormant tracking
 │                                      Production truth comes from admin endpoints, not local cache counts
 │
@@ -200,7 +200,7 @@ server.js                              Express entry point (port 3000)
 │   └─ copilot-instructions.md                    Workspace-wide Copilot rules
 │
 └─ __tests__/                          161 current `*.test.js` files recursively plus fixtures/helpers/setup
-                                        Latest verified run: 161 suites / 4,425 tests
+                                        Latest verified run: 161 suites / 4,441 tests
     ├─ fixtures/
     │   └─ golden_coins.json           Curated golden set (14 deterministic test coins)
     └─ helpers/
@@ -266,7 +266,7 @@ Request
   │       ├─ greysheetTypeMap.lookupTypeGsid(queryText, hints)
   │       ├─ _detectFinish(text) → proof / reverse proof / burnished / satin / null
   │       ├─ Finish-aware: tries `series|proof` GSID keys first, falls back to MS
-  │       └─ 73 total type GSIDs: 55 MS + 18 Proof
+  │       └─ Type GSIDs are enumerated dynamically from `TYPE_GSID_MAP`
   │
   ├── 6. Valuation + Decisions ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   │   computeValuation(pcgs, ebay, askingPrice, userGrade, { greysheet })
@@ -352,7 +352,7 @@ POST { text | items | file(.xlsx) }
   │   └─ Excel: mapExcelToBackup() via excelMapper.js
   │
   ├── 2. Create Job ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  │   ├─ Validate: 1-500 coins, max 3 concurrent jobs server-wide
+  │   ├─ Validate: 50-500 coins, max 3 concurrent jobs server-wide
   │   ├─ Check result cache (SHA-256 of input array, 1hr TTL)
   │   └─ Return { jobId, coinCount } with 202 status
   │
@@ -744,7 +744,7 @@ Automates Terapeak CSV downloads from eBay Seller Hub Research:
 │    5. Write .meta file (search_term, collected_at)          │
 │    6. Upload CSV to Azure Blob Storage (upload_to_blob)   │
 │       Falls back to POST /api/terapeak/import if no creds │
-│  Browser recycled every 40 coins (fresh context)          │
+│  Browser recycled every 80 (export) / 120 (deep) coins    │
 │  Auto-recovery on crash (up to 5 retries)                 │
 │  Bot-detection abort: stops batch on CAPTCHA/block        │
 └───────────────────────────────────────────────────────────┘
@@ -777,7 +777,7 @@ JSON, and atomically replaces the local sidecar. Any failure (missing key,
 non-200, non-JSON, transport error) logs `[warn]` and the loop proceeds
 with the existing on-disk copy -- never crashes.
 
-**Sort-skip optimization (#200):** Both scripts use a module-level `_sort_confirmed` flag to skip redundant "Date sold" column sort clicks. On first page load the script clicks the sort column and waits for re-render; after CSV write, it validates date order (first >= last = descending). If confirmed, subsequent pages skip the sort step entirely. The flag resets on browser recycle (every 40/80 coins), bot-block detection, or crash recovery via `reset_sort_state()`.
+**Sort-skip optimization (#200):** Both scripts use a module-level `_sort_confirmed` flag to skip redundant "Date sold" column sort clicks. On first page load the script clicks the sort column and waits for re-render; after CSV write, it validates date order (first >= last = descending). If confirmed, subsequent pages skip the sort step entirely. The flag resets on browser recycle (every 80 coins for `terapeak-export.py`, 120 for `sales-aggregator.py`), bot-block detection, or crash recovery via `reset_sort_state()`.
 
 **Active Listings Guard (S0):** Two-layer protection against ingesting unsold asking prices when Terapeak falls back to the Active Listings tab: (1) DOM tab check detects active-tab selectors after results load, (2) date validation rejects pages where <20% of rows have parseable sold dates.
 
@@ -830,7 +830,7 @@ The `newestSaleDate` field enables **reliable staleness detection** based on act
 
 **deepAt inference:** When `importComps()` receives a dataset with >=100 comps but no explicit `deepAt` marker, it automatically infers `deepAt` from the current timestamp. This handles legacy deep-paginated datasets collected before aggregationMeta tracking was added.
 
-**Dormant dataset tracking:** Datasets that consistently return zero Terapeak results are marked dormant to avoid wasting scrape cycles. When `terapeak-export.py` encounters "NO EXPORT", it calls `POST /api/terapeak/report-no-data` to increment `noDataCount` and stamp `noDataAt`. After 2+ consecutive empty attempts, `generate-freshness-report.js` assigns the `dormant` action and the export script skips those datasets. Self-healing: successful import resets `noDataCount` to 0; dormant status auto-expires after 60 days. Parse/upload failures that return HTTP 422 from `/api/terapeak/import` do **not** increment no-data markers.
+**Dormant dataset tracking:** Datasets that consistently return zero Terapeak results are marked dormant to avoid wasting scrape cycles. When `terapeak-export.py` encounters "NO EXPORT", it calls `POST /api/terapeak/report-no-data` to increment `noDataCount` and stamp `noDataAt`. After 2+ consecutive empty attempts, `generate-freshness-report.js` assigns the `dormant` action and the export script skips those datasets. Self-healing: successful import resets `noDataCount` to 0; dormant status auto-expires after 60 days. `/api/terapeak/import` returns HTTP 422 without directly changing metadata; the canonical exporter recognizes `No valid comps found` and makes a separate `/report-no-data` call that advances dormant tracking.
 
 **CSV merge protection (PR #21):** The export script's file-move step uses `_merge_csv()` instead of destructive overwrite. New rows are deduplicated against existing data (by `itemId` exact match and `title+price+date` composite key). A shrink guard refuses to write if the merged result has fewer rows than the existing file -- preventing deep-paginated CSVs (100-580 rows) from being truncated by single-page refreshes (<=50 rows).
 
