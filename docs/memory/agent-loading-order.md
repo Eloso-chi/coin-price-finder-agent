@@ -60,7 +60,7 @@ section references.
 
 7. **`.github/prompts/*.prompt.md`** (slash commands, loaded on invocation)
    - Each file defines a slash command (`/pre-commit`, `/review-deep`,
-     `/onboard`, `/test-coverage`, `/ux-reviewer`, `/apply-approved`).
+     `/onboard`, `/test-coverage`, `/pricing-health`, `/apply-approved`).
    - These are thin wrappers over the corresponding agent files in
      `.github/agents/`.
 

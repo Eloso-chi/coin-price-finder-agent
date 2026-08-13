@@ -6,7 +6,7 @@ Operational scripts for data collection, migration, and maintenance. Most script
 
 | Requirement | Scripts that need it |
 |---|---|
-| Node server running (`node server.js`) | `sales-aggregator.py`, `terapeak-export.py`, `pricing-health-full.js` |
+| Node server running (`npm start`, background terminal) | `pricing-health-full.js`; Terapeak exporters only when `UPLOAD_MODE=api` |
 | VNC desktop + browser session | `terapeak-export.py`, `sales-aggregator.py`, `vnc-login.py` |
 | Azure credentials (Key Vault) | `upload-csvs-to-blob.js`, `migrate-to-cosmos.js`, `greysheet-refresh.js`, `load-secrets.sh` |
 | Python 3 + playwright | `terapeak-export.py`, `sales-aggregator.py`, `vnc-login.py`, `create_placeholders.py` |
@@ -53,8 +53,8 @@ Operational scripts for data collection, migration, and maintenance. Most script
 | `pricing-health-full.js` | Full-dataset pricing health audit | `node scripts/pricing-health-full.js --full` |
 | `lot-estimator-health.js` | Randomized lot parity + consistency health audit (bulk vs individual) | `node scripts/lot-estimator-health.js --lots 8 --seed 18652` |
 | `generate-freshness-report.js` | Dataset freshness triage (5-state + recently-confirmed-stale split) | `node scripts/generate-freshness-report.js [--summary] [--batch N]` |
-| `freshness-composition-analyzer.js` | Cross-tabulate the freshness report by composition (bullion/numismatic/proof/set) to surface structural coverage gaps (#270H) | `node scripts/freshness-composition-analyzer.js` |
-| `parallel-key-drift-scanner.js` | Silent-drift detector for the #267H class -- flags Terapeak datasets whose normalized key collides with an empty sibling (#272H) | `node scripts/parallel-key-drift-scanner.js` |
+| `analyze-freshness-composition.js` | Cross-tabulate the freshness report by composition (bullion/numismatic/proof/set) to surface structural coverage gaps (#270H) | `node scripts/analyze-freshness-composition.js` |
+| `scan-parallel-key-drift.js` | Silent-drift detector for the #267H class -- flags Terapeak datasets whose normalized key collides with an empty sibling (#272H) | `npm run scan:parallel-key-drift` |
 | `greysheet-refresh.js` | Bulk Greysheet price snapshot collector | `node scripts/greysheet-refresh.js` |
 | `upload-csvs-to-blob.js` | Upload local Terapeak CSVs to Azure Blob | `node scripts/upload-csvs-to-blob.js [folderPath]` |
 | `migrate-to-cosmos.js` | One-time migration of history data to Cosmos DB | `node scripts/migrate-to-cosmos.js` |

@@ -147,10 +147,17 @@ Keyed by Terapeak search term (lowercase, e.g., "morgan dollar"). Tracks refresh
 | `[searchTerm]` | object | Public | Metadata for this Terapeak dataset |
 | `.compCount` | number | Public | Number of sold comps currently in memory for this series |
 | `.newestSaleDate` | date (YYYY-MM-DD) | Public | Most recent sale date in current dataset |
+| `.oldestSaleDate` | date (YYYY-MM-DD) | Public | Earliest sale date in current dataset |
+| `.page1At` | ISO 8601 or null | Public | Last successful page-1 collection/import marker |
+| `.deepAt` | ISO 8601 or null | Public | Last deep-pagination marker |
+| `.maxPageReached` | number or null | Public | Highest collected page number |
 | `.lastRefreshAt` | date (YYYY-MM-DD) | Public | Last date a refresh/reimport was attempted |
 | `.refreshCount` | number | Public | Cumulative count of refresh attempts |
 | `.consecutiveDryRefreshes` | number | Public | Counter for consecutive refresh-with-no-new-comps (triggers dormant classification via freshnessClassifier) |
 | `.lastRefreshNewComps` | number | Public | Number of new comps added in most recent refresh |
+| `.noDataAt` | ISO 8601 or null | Public | Most recent direct page-1 no-data observation |
+| `.noDataCount` | number | Public | Consecutive no-data observations, capped by the service |
+| `.identifiers` | object, optional | Public | Evidence-derived composition/volume classification and confidence metadata |
 
 Example:
 ```json
@@ -190,6 +197,32 @@ Schema mirrors user coins in `cache/user_coins.json`.
 
 ---
 
+### Container: `terapeak-sold`
+
+Terapeak comps and aggregation metadata keyed by normalized search term.
+
+- Item id: normalized/search-derived identifier
+- Partition key: `/searchTerm`
+- Writer/reader: `src/services/terapeakService.js`
+
+---
+
+### Containers: `greysheet-history`, `metals-history`
+
+Daily price snapshots written by `greysheetHistoryService` and
+`metalsHistoryService`. Partition keys are `/coinKey` and `/metal`
+respectively. Local JSON cache files remain the synchronous fallback.
+
+---
+
+### Container: `admin-audit`
+
+Structured administrative action events written by `auditService`. Records
+use action/actor/resource triples with partition key `/actorUsername`. Access is
+operator-only; audit writes never expose credentials in public responses.
+
+---
+
 ### Container: `valuation-audit`
 
 Append-only valuation events emitted by `/api/price`, `/api/pricing-batch`, and `/api/bulk-evaluate`. Provisioned lazily with partition key `/computedAtDate`.
@@ -226,17 +259,23 @@ When Cosmos is unavailable, the same records append to `cache/valuation-audit-YY
 
 ## CSV File Format (Terapeak)
 
-Terapeak CSV exports follow this structure:
+Terapeak export headers vary by export version and locale. The importer maps
+known aliases to these canonical internal fields:
 
 | Column | Type | Example | Notes |
 |--------|------|---------|-------|
-| `Sell Date` | date | 2026-05-15 | Sale transaction date |
-| `Sales Price` | USD | 85.50 | Realized sale price |
-| `Title` | text | "1881-CC Morgan Dollar MS 64" | Listing title; parsed for grade/finish |
-| `Item Condition` | enum | "Used" | Item condition code |
-| `Quantity Sold` | number | 1 | Number of units in transaction |
+| `title` | text | "1881-CC Morgan Dollar MS 64" | Required listing/product title; parsed for grade/finish |
+| `itemId` | string or null | `1234567890` | Preferred deduplication key |
+| `soldDate` | date | 2026-05-15 | Sale transaction/end date |
+| `price` / `total` | currency amount | 85.50 | Realized price; `total` is accepted when separate price/shipping are absent |
+| `shipping` | currency amount | 5.00 | Added to price when separately present |
+| `condition`, `quantity`, `seller`, `listingType` | mixed | -- | Optional listing attributes |
+| `imageUrl`, `url`, `category`, `country`, `bids`, `currency` | mixed | -- | Optional enrichment fields |
 
-After import, Terapeak data is de-duped and merged into a single in-memory result set keyed by series. Duplicates are detected by `{title, saleDate, price}` tuple to avoid double-counting.
+After import, data is normalized and merged by search key. Duplicates use
+`itemId` when available, otherwise a title + total USD + sold-date fingerprint.
+The exact accepted aliases live in `COLUMN_MAP` in
+`src/services/terapeakService.js`.
 
 ---
 

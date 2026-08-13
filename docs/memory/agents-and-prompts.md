@@ -6,7 +6,7 @@
 > The root [`AGENTS.md`](../../AGENTS.md) provides a concise discoverability
 > index for contributors and tools that expect that convention.
 >
-> Updated 2026-06-17 as part of the memory-corpus migration
+> Migrated 2026-06-17 and inventory-verified 2026-08-12
 > (`docs/memory-corpus-migration` branch). A non-authoritative copy lives at
 > `/memories/repo/agents-and-prompts.md` on the W (Codespace) machine; that
 > copy may drift and should not be edited directly.

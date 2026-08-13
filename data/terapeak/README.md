@@ -4,10 +4,10 @@ Drop your Terapeak CSV exports in this folder. They'll be auto-imported on serve
 
 ## IMPORTANT: Data Authenticity
 
-**Most CSV files in this folder are REAL data** exported from eBay Seller Hub
-Research (Terapeak) via the automated aggregator (`scripts/terapeak-export.py`).
-A small number of legacy files may still contain synthetic data from early
-development -- these are being replaced as scraping continues.
+CSV files in this folder are real eBay Seller Hub Research exports. The
+synthetic-data audit completed its purge on 2026-05-07; see
+[`docs/memory/synthetic-data-audit.md`](../../docs/memory/synthetic-data-audit.md).
+Do not add generated price rows to this directory.
 
 CSVs can also be stored in Azure Blob Storage (`coinpricecache01/terapeak-csvs`)
 and auto-imported at startup when `TERAPEAK_BLOB_ACCOUNT` + `TERAPEAK_BLOB_CONTAINER`
@@ -37,13 +37,11 @@ Title, Price, Sold date, Shipping, Total, Item number, Seller, Buyer country, Ca
 Listing Title, Sold For, Sold Date, Shipping Cost, Quantity Sold, Item ID, Seller
 ```
 
-**Our generated format (synthetic data):**
-```
-Item Title, Item ID, Sold Date, Sold Price, Shipping, Condition, Seller, Format, Item URL
-```
-
-The parser handles all variations. If only a "Total" column is present (no
-separate Price/Shipping), it uses Total as the price. Currency defaults to USD.
+The parser maps known title, item-ID, sold-date, price/total, shipping,
+condition, quantity, image, URL, seller, category, format, country, bid, and
+currency aliases. If only `Total` is present, it is treated as the delivered
+price. See `COLUMN_MAP` in `src/services/terapeakService.js` for the canonical
+header contract.
 
 ## File naming
 
@@ -56,13 +54,26 @@ The filename (without extension) becomes the search term used for matching:
 
 ## Update schedule
 
-Terapeak data is relatively static -- **monthly updates** are sufficient.
-Just replace the CSV files and restart the server. Duplicate items are automatically skipped.
+Refresh priority is controlled by the freshness report and canonical operator,
+not a blanket monthly schedule. Run `npm run freshness` to sync production
+metadata and regenerate `cache/freshness-report.json`. Duplicate rows are
+merged by item ID, falling back to title + total price + sold date.
 
 ## Semi-automated export with Playwright
 
-Instead of manually exporting each coin, use `scripts/terapeak-export.py` to automate
-the process. It drives a real Chromium browser via Playwright.
+Use the canonical operators rather than constructing ad-hoc exporter commands:
+
+```bash
+# H machine / Surface WSL
+bash scripts/terapeak-operator.sh
+
+# W machine / Codespace
+bash scripts/terapeak-operator-codespace.sh --max-passes 1
+```
+
+They enforce preflight, cookie health, #284H risk states, immediate
+hard-challenge stops, Cooldown recovery gates, and pass telemetry. The full
+procedure is in [`docs/memory/terapeak-runbook.md`](../../docs/memory/terapeak-runbook.md).
 
 ### Setup
 
@@ -71,24 +82,22 @@ pip install playwright requests
 python3 -m playwright install chromium
 ```
 
-### Phase 1: Login (manual, one-time)
+### Login (manual)
 
 ```bash
 python3 scripts/terapeak-export.py --login
 ```
 
 Opens a visible browser to eBay. Log in manually (including any 2FA). Once you reach
-the eBay homepage, the script saves your session cookies to `cache/terapeak_cookies.json`
+the eBay homepage, the script saves your session cookies to `COOKIE_FILE`
+(default `cache/ebay_cookies.json`)
 and closes the browser. Cookies typically last several hours.
 
-### Phase 2: Automated export
+### Exporter diagnostics
 
 ```bash
 # Dry-run -- see what would be searched, no browser launched
 python3 scripts/terapeak-export.py --dry-run
-
-# Run all 525 search terms
-python3 scripts/terapeak-export.py --run
 
 # Filter to specific coins
 python3 scripts/terapeak-export.py --run --filter "Morgan"
@@ -97,23 +106,26 @@ python3 scripts/terapeak-export.py --run --filter "Morgan"
 python3 scripts/terapeak-export.py --run --resume
 ```
 
-The script searches each coin term on eBay Seller Hub Research, clicks Export,
-downloads the CSV, and uploads it to the running server via `POST /api/terapeak/import`.
-Progress is saved to `cache/terapeak_progress.json` for resume support.
+The exporter saves CSVs under `data/terapeak/`. In `UPLOAD_MODE=api` it posts
+to `APP_URL/api/terapeak/import`; `blob` uploads to configured Blob Storage;
+`auto` retains the legacy preference behavior. Progress is saved to
+`cache/terapeak_export_progress.json`.
 
 ### Environment variables
 
 | Variable | Default | Description |
 |---|---|---|
-| `APP_BASE_URL` | `http://localhost:3000` | Server URL for CSV upload |
+| `APP_URL` | `http://localhost:3000` | Server URL for API uploads |
 | `ADMIN_API_KEY` | (none) | API key for the upload endpoint |
+| `COOKIE_FILE` | `cache/ebay_cookies.json` | Per-machine cookie jar; prefer a host-local path outside the worktree |
+| `UPLOAD_MODE` | `api` | `api`, `blob`, or legacy `auto` upload behavior |
+| `TERAPEAK_BLOB_ACCOUNT` / `TERAPEAK_BLOB_CONTAINER` | (none) | Required for Blob uploads |
 
 ### Step-by-step walkthrough
 
-1. **Start the server** (in a separate terminal):
+1. **Start the server only when using API upload mode** (in a background terminal):
    ```bash
-   export ADMIN_API_KEY="your-key-here"
-   node src/server.js
+   npm start
    ```
 
 2. **Login** -- opens a real browser window:
@@ -135,12 +147,7 @@ Progress is saved to `cache/terapeak_progress.json` for resume support.
    python3 scripts/terapeak-export.py --run --filter "Morgan" --limit 5
    ```
 
-5. **Full export** (all 525 coins, ~2 hours):
-   ```bash
-   python3 scripts/terapeak-export.py --run
-   ```
-
-6. **If the session expires mid-run**, the script stops and saves progress:
+5. **If the session expires mid-run**, the script stops and saves progress:
    ```bash
    python3 scripts/terapeak-export.py --login     # re-login
    python3 scripts/terapeak-export.py --run --resume  # pick up where you left off
@@ -150,15 +157,20 @@ CSVs are saved locally to `data/terapeak/` even if the upload fails -- nothing i
 
 ### Safety features
 
-- Human-like delays (5--10s between searches) to avoid rate limits
-- Session health check every 25 searches
+- Human-like bounded delays, scrolls, breaks, and browser recycling
+- Persisted Normal/Elevated/Cooldown state with pass-level telemetry
+- Optional #280H pacing pilot; baseline remains the default
+- Immediate stop on the first hard challenge; never automate CAPTCHA solving
 - No credentials stored -- only session cookies
 - Headed browser mode (visible) so you can monitor progress
 - All temp files stored in `cache/` (git-ignored)
 
-## Chain Scraping
+## Legacy Chain Scraping
 
-For multi-series batch runs, use `scripts/chain-aggregate.sh`:
+`scripts/chain-aggregate.sh` is retained for legacy/manual sessions. Prefer the
+canonical operators above. Any hard challenge must stop immediately under
+[`docs/memory/anti-bot-operations.md`](../../docs/memory/anti-bot-operations.md);
+do not wait for a three-failure threshold.
 
 ```bash
 # Source the helper functions
@@ -173,8 +185,8 @@ run_batch "walking_liberty" "Walking Liberty.*Half"
 The `run_batch()` function:
 1. Runs `terapeak-export.py --run --resume --filter REGEX`
 2. Logs to `cache/terapeak_<name>.log`
-3. After each batch, `check_antibot` tails the log for 3+ consecutive bot-detection failures
-4. If detected, aborts the chain to avoid account flags
+3. After each batch, `check_antibot` scans the log for a hard anti-bot signal
+4. The first matching signal aborts the chain to avoid account flags
 
 Write session-specific chain scripts (e.g. `chain-aggregate-session2.sh`) for large multi-batch runs.
 

@@ -88,7 +88,7 @@ Every valuation includes `algorithmVersion` (semantic version), `configVersion` 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
 | `GET` | `/api/health` | None | Health check + uptime |
-| `GET` | `/api/health?deep=1` | 🔒 | Downstream status for Cosmos, Key Vault, metals, PCGS, and Terapeak |
+| `GET` | `/api/health?deep=1` | 🔒 | Downstream status for Cosmos, metals, PCGS, and Terapeak; Key Vault is reported as `not_probed` |
 | `GET` | `/api/admin/dashboard` | 🔒 | System overview: user count, dataset count, quota, uptime |
 | `GET` | `/api/admin/stale-datasets` | 🔒 | Datasets older than N days (filters dormant/thin via freshness classifier) |
 | `GET` | `/api/admin/data-health` | 🔒 | Total files, empty files, date ranges |
@@ -140,4 +140,4 @@ All endpoints return standard HTTP status codes:
 - `500` — Server error
 - `503` — Service unavailable (dependency down, Azure, Terapeak, etc.)
 
-Error responses include a `message` field with details.
+Error responses use an `error` field and include `requestId` for correlation. Some endpoint-specific responses may add safe structured details; raw upstream errors and credentials are never returned.

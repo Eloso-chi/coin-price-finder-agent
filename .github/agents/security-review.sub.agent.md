@@ -28,7 +28,7 @@ security review on assigned files in the coin-price-finder-agent codebase.
 | Storage | Server-side: plaintext JSON + Azure Cosmos DB dual-mode write-through |
 | Admin endpoints | Protected by `ADMIN_API_KEY` via `x-api-key` header |
 | Secrets | `.env` file (never committed); Azure Key Vault in production |
-| External APIs | eBay (OAuth), PCGS, Numista (API keys), Greysheet CDN V2, metals (3 providers) |
+| External APIs | eBay (OAuth), PCGS, Numista (API keys), Greysheet CDN V2, metals (4 providers) |
 | File uploads | Terapeak CSV + Excel .xlsx via multer (multipart), magic-byte validation |
 | Image proxy | Allowlisted hosts only (Numista) |
 

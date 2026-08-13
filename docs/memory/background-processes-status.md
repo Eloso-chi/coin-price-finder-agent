@@ -1,11 +1,11 @@
-# Background Processes & Automation Status (refreshed 2026-07-31 for #285H)
+# Background Processes & Automation Status (refreshed 2026-08-12 for #282W/#285H)
 
 ## Working Processes ✓
 
 ### 1. PCGS APR Prefetch Scheduler
 - **Status:** ACTIVE; #285H recovery implementation complete, production observation pending
 - **Schedule:** Nightly 11 PM PT (in-process) + 6:05 AM UTC (GH Actions safety net)
-- **Last run:** 2026-05-26 07:58:14 UTC (28.7 min, 990 calls, 79 new records, 0 errors)
+- **Production truth:** Use `/api/admin/prefetch-status` or the nightly workflow logs; local `cache/` files are not production evidence.
 - **Fixes (PR #50):** Fire-and-forget (202 response), idempotency guard, 30-min workflow polling, metrics reporting
 - **Fixes (#277W, 2026-07-03):**
   - `lastStatus` no longer clobbered by safety-net "no quota" skip writes.  The skip attempt now records into `lastAttempt` / `lastAttemptStatus` / `lastAttemptReason` and leaves the completed-run `status` / `lastRun` / `callsMade` / `newRecords` fields intact.
@@ -15,14 +15,15 @@
   - Scheduled and manual triggers make no PCGS calls during cooldown. After expiry, one bounded probe must succeed before the normal queue continues.
   - Unexpired cooldown survives process restart and Pacific day rollover. Missing or malformed reset headers use `PCGS_429_COOLDOWN_MS` (default one hour).
   - Production validation remains open for three consecutive nightly runs without the prior one-call-then-429 pattern.
+- **Alerting (#282W, 2026-08-12):** Partial and fatal runs share a two-run alert gate. Completed runs reset the streak; ACS delivery and fallback logs share one-hour per-topic burst limiting.
 - **Code:** src/services/prefetchScheduler.js, .github/workflows/nightly-prefetch.yml
 
 ### 2. Metals Spot Price Polling
 - **Status:** ✓ ACTIVE
 - **Interval:** 30 min (configurable: METALS_POLL_MS)
-- **Providers:** Round-robin goldapi.io / metals-api.com
+- **Providers:** Four-provider round-robin: gold-api.com, goldprice.org, GoldAPI, and Metals-API
 - **Persistence:** cache/metals_spot.json
-- **Failure alert:** After 2+ consecutive failures (if ACS Email configured)
+- **Failure alert:** After 3+ consecutive failures (if ACS Email configured)
 - **Code:** server.js, src/services/metalsSpotPrice.js
 
 ### 3. Greysheet Price History Refresh
