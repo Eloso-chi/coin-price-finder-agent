@@ -3,7 +3,7 @@
 ## Testing Rules
 
 - The canonical test command is `jest --verbose` (via `npm test`).
-- All test files live in `__tests__/*.test.js`. Shared helpers go in `__tests__/helpers/`.
+- Test files live under `__tests__/**/*.test.js`. Shared helpers go in `__tests__/helpers/`.
 - Mock HTTP calls with `axios-mock-adapter` -- never make real network requests in tests.
 - **Never delete tests.**
 - **Never reduce assertion strength** (e.g., replacing `.toEqual` with `.toBeDefined()`).
@@ -36,6 +36,23 @@
 - The pre-commit reviewer auto-detects UI changes and recommends running `@ux-reviewer` before merge.
 - Include the UX Decision Log from `@ux-reviewer` in PR descriptions when UI changes are involved.
 - Shared review logic lives in `.github/skills/code-review/SKILL.md`.
+- Any PR materially changing architecture, routes/APIs, persistence/data models,
+  operations/runbooks, environment variables, agents/prompts/skills, or
+  user-facing workflows MUST
+	update every mapped documentation surface in `CONTRIBUTING.md` and run the
+  Onboard agent after commit as an end-to-end acceptance check tied to that commit
+  before merge. Onboard must report no actionable active documentation gaps.
+  Typo/formatting-only or non-behavioral metadata changes may use a documented
+  reviewer-approved no-impact exemption.
+- Never merge unless every required CI check completes successfully. Queued,
+  in-progress, failed, or cancelled checks block merge and cannot be bypassed.
+  Normal merge is the default; `--admin` requires explicit user approval and a
+  documented reason after checks succeed, never a shortcut.
+- Any new `docs/WASTE-LEDGER.md` incident MUST use the support-ready schema in
+  `.github/skills/process-discipline/SKILL.md`, including redacted public
+  references, measured-versus-estimated usage, evidence confidence, and a
+  copy/paste GitHub Support summary. Full session/case/billing identifiers must
+  remain in ignored `.local/github-support/` packets for private submission.
 
 ### Test-only PR review threshold
 
