@@ -2260,6 +2260,8 @@ Ops can override to any value (e.g., `BROWSER_RECYCLE_EVERY=40 python scripts/te
 
 **Status update (2026-07-31):** The implementation now persists sanitized upstream cooldown state independently of local quota, gates scheduled and manual starts before reset, permits one bounded recovery probe, preserves unexpired cooldown across restart and Pacific day rollover, and exposes the distinction in admin status. Missing or malformed reset headers use a configurable one-hour fallback. Focused recovery and header-propagation tests pass. This item remains open only for the acceptance observation period of three consecutive productive or valid-empty nightly runs without the one-call-then-429 pattern.
 
+**Follow-up (2026-08-13):** Four consecutive production runs established a repeatable 100-success/101st-request-429 boundary despite the published 1,000-call daily entitlement. The scheduler now defaults `PCGS_PREFETCH_OBSERVED_LIMIT` to 100 and subtracts the existing 10-call reserve, limiting a fresh nightly run to 90 calls without changing `DAILY_LIMIT=1000`. Numeric limit/remaining headers from 429 responses are sanitized, persisted in cooldown state, and exposed through prefetch status. Recovery probes cannot widen the run past its initial observed budget, and partial/fatal alerts now use neutral "degraded" wording. Production validation remains pending; no backlog status or scope change is made by this follow-up.
+
 - **Problem**: The nightly PCGS APR prefetch is firing, but recent production runs stop almost immediately on an upstream HTTP 429. The scheduler's local quota state can still report substantial capacity while PCGS rejects the first request, so the local `remaining` counter is not a reliable signal that work may proceed. The breaker correctly prevents a retry storm within the run, but the next night's run repeats the same one-request failure instead of recovering or waiting for an authoritative upstream cooldown.
 
 - **Production evidence** (GitHub Actions status payloads, observed 2026-07-31):
@@ -2279,6 +2281,7 @@ Ops can override to any value (e.g., `BROWSER_RECYCLE_EVERY=40 python scripts/te
   5. Reconcile day-boundary and process-restart behavior so an in-memory breaker reset cannot contradict persisted upstream rate-limit state.
   6. Make same-night triggers idempotent while a run, cooldown, or completed attempt already exists. Coordinate with #281W rather than duplicating its workflow run-correlation change.
   7. Expose local quota and upstream availability as distinct fields in `/api/admin/prefetch-status`; do not present `remaining=994` as runnable capacity while upstream cooldown is active.
+  8. Temporarily bound nightly calls below the observed 100-request enforcement point while PCGS investigates the entitlement mismatch; retain the official 1,000-call local entitlement separately.
 
 - **Acceptance criteria**:
   - A mocked first-request 429 stores the upstream cooldown, trips the breaker, ends the run `partial`, and makes no additional PCGS calls.
@@ -2293,6 +2296,8 @@ Ops can override to any value (e.g., `BROWSER_RECYCLE_EVERY=40 python scripts/te
   - `src/services/pcgsQuotaService.js` -- persisted upstream cooldown and recovery state.
   - `src/services/auctionPriceService.js` -- capture sanitized 429 metadata and pass it to quota state.
   - `src/services/prefetchScheduler.js` -- cooldown/start gates, bounded probe, and status fields.
+  - `src/services/pcgsService.js` -- capture the same sanitized 429 quota headers for CoinFacts calls.
+  - `src/services/alertService.js` -- neutral degraded-run alert wording for partial and fatal outcomes.
   - `__tests__/pcgsQuotaService.test.js`, `__tests__/pcgsBreakerInteraction.test.js`, `__tests__/prefetchScheduler.test.js` -- regression and recovery coverage.
   - `docs/api-reference.md` -- document the status distinction.
 

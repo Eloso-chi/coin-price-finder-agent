@@ -102,9 +102,11 @@ Every valuation includes `algorithmVersion` (semantic version), `configVersion` 
 PCGS status distinguishes the local daily counter from upstream availability. The
 prefetch response includes `quota.localQuotaRemaining`,
 `quota.upstreamAvailability`, `quota.nextEligibleProbeAt`,
-`quota.rateLimitedAt`, and `quota.rateLimitReason`, plus the top-level
-`upstreamAvailability`, with `lastProbeAt` and `lastProbeOutcome` under
-`quota`. Upstream availability is `available`, `cooldown`, `probe-required`,
+`quota.rateLimitedAt`, `quota.rateLimitReason`, `quota.upstreamReportedLimit`,
+`quota.upstreamReportedRemaining`, `quota.prefetchObservedLimit`, and
+`quota.prefetchBudgetRemaining`, plus the top-level `upstreamAvailability`,
+with `lastProbeAt` and `lastProbeOutcome` under `quota`. Upstream availability
+is `available`, `cooldown`, `probe-required`,
 or `probe-in-flight`. After cooldown expiry, the scheduler permits one recovery
 probe before continuing the queue. When a 429 response has no usable reset
 metadata, `PCGS_429_COOLDOWN_MS` controls the fallback cooldown (default: one

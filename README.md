@@ -207,6 +207,7 @@ Optional variables:
 | `PREFETCH_HOUR_PT` | Nightly prefetch trigger hour (Pacific time) | `23` |
 | `PREFETCH_THROTTLE_MS` | Delay between prefetch API calls | `1000` |
 | `PREFETCH_RESERVE` | PCGS quota calls reserved from prefetching | `10` |
+| `PCGS_PREFETCH_OBSERVED_LIMIT` | Temporary upstream request-window limit used only to bound nightly prefetch; preserves the separate published 1,000-call entitlement | `100` |
 | `APR_DATE_WINDOW_YEARS` | Auction history lookback window | `3` |
 | `APR_FRESHNESS_DAYS` | Auction history recrawl freshness threshold | `30` |
 | `COMMUNICATION_CONNECTION_STRING` | Azure Communication Services Email connection string for crash/ops alerts | *(none)* |

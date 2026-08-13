@@ -1073,6 +1073,7 @@ This ensures unslabbed proof coins (e.g. Proof Libertads in OGP) don't inflate r
 | `PREFETCH_HOUR_PT` | No | `23` | Prefetch run hour in Pacific time |
 | `PREFETCH_THROTTLE_MS` | No | `1000` | Delay between prefetch PCGS calls (ms) |
 | `PREFETCH_RESERVE` | No | `10` | Quota calls reserved from prefetching |
+| `PCGS_PREFETCH_OBSERVED_LIMIT` | No | `100` | Temporary upstream request-window limit for nightly prefetch; does not replace the published 1,000-call entitlement |
 | `APR_DATE_WINDOW_YEARS` | No | `3` | Auction history lookback window in years |
 | `APR_FRESHNESS_DAYS` | No | `30` | Auction history recrawl freshness threshold in days |
 | `COMMUNICATION_CONNECTION_STRING` | No | -- | Azure Communication Services Email connection string for crash/ops alerts |
@@ -1102,8 +1103,12 @@ The server starts several background tasks on boot:
 `src/services/prefetchScheduler.js` builds the nightly queue from the data
 tables in `src/data/pcgsNumbers.js`. The queue is a flat list of
 `{pcgsNo, grade, priority, lastFetched}` records consumed by
-`executePrefetchRun()` until the daily PCGS quota (default 990 calls) is
-spent or the breaker trips.
+`executePrefetchRun()` until its effective budget is spent or the breaker
+trips. The effective budget is the minimum of local quota availability and
+`PCGS_PREFETCH_OBSERVED_LIMIT - used - PREFETCH_RESERVE` (90 calls from a
+fresh counter by default). This temporary safety bound prevents the known
+101st-request 429 while preserving the published 1,000-call entitlement in
+the shared quota service.
 
 **Phase 1 -- Key dates (always at the front of the queue)**
 

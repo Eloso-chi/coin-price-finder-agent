@@ -4,6 +4,30 @@ Reference for critical data stores, schemas, and privacy classifications used by
 
 ## Local Filesystem Stores
 
+### cache/pcgs_quota.json
+
+Persisted local PCGS request counter and upstream cooldown state. The local
+entitlement remains capped at 1,000 calls; observed 429 values are diagnostic
+fields and do not replace that entitlement.
+
+| Field | Type | Privacy | Notes |
+|-------|------|---------|-------|
+| `date` | `YYYY-MM-DD` | Public | Pacific-date counter window |
+| `used` | non-negative integer | Public | Calls consumed in the local window |
+| `remaining` | non-negative integer | Public | Local calls remaining; never exceeds `limit` |
+| `limit` | positive integer | Public | Local entitlement, bounded to 1,000 |
+| `headerSynced` | boolean | Public | Whether valid successful-response headers synchronized the counter |
+| `upstreamCooldown` | object or null | Public | Persisted 429 cooldown and recovery-probe state |
+| `upstreamCooldown.reportedRemaining` | non-negative integer or null | Public | Sanitized `X-RateLimit-Remaining` observed on a 429 |
+| `upstreamCooldown.reportedLimit` | non-negative integer or null | Public | Sanitized `X-RateLimit-Limit` observed on a 429 |
+| `upstreamCooldown.resetAt` | ISO 8601 | Public | Next eligible recovery-probe time |
+| `upstreamCooldown.reason` | string | Public | Sanitized rate-limit reason |
+
+Invalid or inconsistent persisted counters are normalized fail-closed during
+load so they cannot expand the nightly prefetch budget.
+
+---
+
 ### cache/users.json
 
 Keyed by username (lowercased, alphanumeric + `-_.`, max 50 chars). Structure:
