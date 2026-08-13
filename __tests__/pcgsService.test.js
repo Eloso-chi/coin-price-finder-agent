@@ -95,7 +95,9 @@ describe('lookupByCert', () => {
       status: 429,
       headers: {
         'retry-after': '120',
-        'x-ratelimit-reset': '1785550000'
+        'x-ratelimit-reset': '1785550000',
+        'x-ratelimit-remaining': '0',
+        'x-ratelimit-limit': '100'
       }
     };
     axios.get.mockRejectedValueOnce(err429);
@@ -107,8 +109,31 @@ describe('lookupByCert', () => {
     expect(pcgsQuota.tripBreaker).toHaveBeenCalledWith({
       retryAfter: '120',
       resetAt: '1785550000',
+      upstreamRemaining: 0,
+      upstreamLimit: 100,
       reason: 'PCGS CoinFacts rate limit exceeded (429)'
     });
+    expect(pcgsQuota.syncFromHeaders).not.toHaveBeenCalled();
+  });
+
+  test('ignores malformed quota headers on 429', async () => {
+    const err429 = new Error('Too Many Requests');
+    err429.response = {
+      status: 429,
+      headers: {
+        'x-ratelimit-remaining': '0junk',
+        'x-ratelimit-limit': '-100'
+      }
+    };
+    axios.get.mockRejectedValueOnce(err429);
+
+    await pcgsService.lookupByCert('11111112');
+
+    expect(pcgsQuota.syncFromHeaders).not.toHaveBeenCalled();
+    expect(pcgsQuota.tripBreaker).toHaveBeenCalledWith(expect.objectContaining({
+      upstreamRemaining: null,
+      upstreamLimit: null
+    }));
   });
 
   test('retries on 5xx errors', async () => {

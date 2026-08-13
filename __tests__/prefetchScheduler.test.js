@@ -10,6 +10,7 @@
 // Set throttle to 1ms BEFORE module loads (0 won't work due to `|| 1000` in source)
 process.env.PREFETCH_THROTTLE_MS = '1';
 process.env.PREFETCH_RESERVE = '10';
+process.env.PCGS_PREFETCH_OBSERVED_LIMIT = '100';
 
 const fs = require('fs');
 
@@ -149,6 +150,23 @@ describe('prefetchScheduler — executePrefetchRun', () => {
     expect(mockStatusStore.callsMade).toBeLessThanOrEqual(3);
   });
 
+  test('caps nightly calls at observed upstream limit minus reserve', async () => {
+    pcgsQuota.getAvailableForPrefetch.mockReturnValue(990);
+    pcgsQuota.getStatus.mockReturnValue({
+      used: 0,
+      remaining: 1000,
+      limit: 1000,
+      breakerTripped: false,
+      upstreamAvailability: 'available'
+    });
+
+    await scheduler.executePrefetchRun();
+
+    expect(auctionPrice.fetchByGrade).toHaveBeenCalledTimes(90);
+    expect(mockStatusStore.status).toBe('completed');
+    expect(mockStatusStore.callsMade).toBe(90);
+  });
+
   test('stops mid-run when breaker trips', async () => {
     pcgsQuota.getAvailableForPrefetch.mockReturnValue(20);
     let checkCount = 0;
@@ -227,6 +245,25 @@ describe('prefetchScheduler — executePrefetchRun', () => {
     expect(auctionPrice.fetchByGrade).toHaveBeenCalledTimes(4);
     expect(mockStatusStore.status).toBe('completed');
     expect(mockStatusStore.callsMade).toBe(4);
+  });
+
+  test('does not expand past the observed budget after a recovery probe', async () => {
+    pcgsQuota.isRecoveryProbeRequired.mockReturnValue(true);
+    pcgsQuota.getAvailableForPrefetch
+      .mockReturnValueOnce(1)
+      .mockReturnValue(990);
+    pcgsQuota.getStatus.mockReturnValue({
+      used: 89,
+      remaining: 911,
+      limit: 1000,
+      breakerTripped: false,
+      upstreamAvailability: 'probe-required'
+    });
+
+    await scheduler.executePrefetchRun();
+
+    expect(auctionPrice.fetchByGrade).toHaveBeenCalledTimes(1);
+    expect(mockStatusStore.status).toBe('completed');
   });
 
   test('alerts on consecutive failures >= 2 (fatal error)', async () => {

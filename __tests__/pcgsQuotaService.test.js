@@ -89,13 +89,23 @@ describe('pcgsQuotaService', () => {
     });
 
     it('tripBreaker() preserves local quota and records upstream cooldown', () => {
-      quota.tripBreaker({ retryAfter: '3600' });
+      quota.tripBreaker({ retryAfter: '3600', upstreamRemaining: 0, upstreamLimit: 100 });
       expect(quota.isBreakerTripped()).toBe(true);
       const status = quota.getStatus();
       expect(status.remaining).toBe(1000);
       expect(status.breakerTrippedAt).toBeTruthy();
       expect(status.upstreamAvailability).toBe('cooldown');
+      expect(status.upstreamReportedRemaining).toBe(0);
+      expect(status.upstreamReportedLimit).toBe(100);
       expect(Date.parse(status.nextEligibleProbeAt)).toBeGreaterThan(Date.now());
+    });
+
+    it('drops malformed upstream quota values from persisted status', () => {
+      quota.tripBreaker({ upstreamRemaining: null, upstreamLimit: undefined });
+      expect(quota.getStatus()).toEqual(expect.objectContaining({
+        upstreamReportedRemaining: null,
+        upstreamReportedLimit: null
+      }));
     });
 
     it('uses a valid upstream reset timestamp when supplied', () => {

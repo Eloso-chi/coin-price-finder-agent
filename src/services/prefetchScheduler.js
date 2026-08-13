@@ -1,5 +1,5 @@
 // src/services/prefetchScheduler.js — Nightly APR prefetch scheduler
-// Burns remaining PCGS API quota before midnight PT reset.
+// Uses the nightly PCGS API budget before midnight PT reset.
 // Trigger: 11:00 PM Pacific Time (configurable via PREFETCH_HOUR_PT env var).
 // Cycle: runs nightly, seeding new coins then refreshing stale entries.
 // CommonJS
@@ -20,6 +20,11 @@ const PREFETCH_ENABLED = (process.env.PCGS_PREFETCH_ENABLED || 'true') !== 'fals
 const PREFETCH_HOUR_PT = parseInt(process.env.PREFETCH_HOUR_PT, 10) || 23; // 11 PM Pacific
 const THROTTLE_MS = parseInt(process.env.PREFETCH_THROTTLE_MS, 10) || 1000; // 1 sec between calls
 const RESERVE_CALLS = parseInt(process.env.PREFETCH_RESERVE, 10) || 10;
+const configuredObservedLimit = Number(process.env.PCGS_PREFETCH_OBSERVED_LIMIT);
+const OBSERVED_UPSTREAM_LIMIT = Number.isInteger(configuredObservedLimit)
+  && configuredObservedLimit > 0
+  ? configuredObservedLimit
+  : 100;
 const STATUS_PATH = path.join(CACHE_DIR, 'prefetch_status.json');
 const ALERT_FAILURE_THRESHOLD = 2;
 
@@ -305,7 +310,7 @@ function getKeyDatePcgsNumbers() {
 
 /**
  * Execute the nightly prefetch run.
- * Burns all remaining quota (minus reserve) on APR calls.
+ * Uses available quota up to the observed upstream limit minus reserve.
  */
 async function executePrefetchRun() {
   if (_running) {
@@ -333,6 +338,9 @@ async function executePrefetchRun() {
 
   try {
     let available = pcgsQuota.getAvailableForPrefetch(RESERVE_CALLS);
+    const quotaAtStart = pcgsQuota.getStatus();
+    const observedBudget = Math.max(0, OBSERVED_UPSTREAM_LIMIT - quotaAtStart.used - RESERVE_CALLS);
+    available = Math.min(available, observedBudget);
     if (available <= 0) {
       const quotaStatus = pcgsQuota.getStatus();
       const skipReason = quotaStatus.upstreamAvailability === 'cooldown'
@@ -355,7 +363,13 @@ async function executePrefetchRun() {
       return;
     }
 
-    logger.info({ event: 'quota_available', available, reserveCalls: RESERVE_CALLS }, 'Prefetch quota available');
+    logger.info({
+      event: 'quota_available',
+      available,
+      reserveCalls: RESERVE_CALLS,
+      observedUpstreamLimit: OBSERVED_UPSTREAM_LIMIT,
+      localQuotaLimit: quotaAtStart.limit,
+    }, 'Prefetch quota available');
     const queue = buildQueue();
     logger.info({ event: 'queue_built', queueSize: queue.length }, 'Prefetch queue built');
 
@@ -397,7 +411,7 @@ async function executePrefetchRun() {
         if (recoveryProbePending) {
           recoveryProbePending = false;
           available = pcgsQuota.getAvailableForPrefetch(RESERVE_CALLS);
-          limit = Math.min(available, queue.length);
+          limit = Math.min(available, observedBudget, queue.length);
           logger.info({ event: 'recovery_probe_succeeded', limit }, 'Prefetch recovery probe succeeded');
         }
       } catch (err) {
@@ -631,6 +645,10 @@ function getSchedulerStatus() {
       nextEligibleProbeAt: quota.nextEligibleProbeAt || null,
       rateLimitedAt: quota.rateLimitedAt || null,
       rateLimitReason: quota.rateLimitReason || null,
+      upstreamReportedRemaining: quota.upstreamReportedRemaining ?? null,
+      upstreamReportedLimit: quota.upstreamReportedLimit ?? null,
+      prefetchObservedLimit: OBSERVED_UPSTREAM_LIMIT,
+      prefetchBudgetRemaining: Math.max(0, OBSERVED_UPSTREAM_LIMIT - quota.used - RESERVE_CALLS),
       lastProbeAt: quota.lastProbeAt || null,
       lastProbeOutcome: quota.lastProbeOutcome || null
     },

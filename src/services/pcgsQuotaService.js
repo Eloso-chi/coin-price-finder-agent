@@ -49,6 +49,12 @@ function parseRetryAfter(value, now = Date.now()) {
   return normalizeResetAt(value, now);
 }
 
+function normalizeQuotaValue(value) {
+  if (value == null) return null;
+  const numeric = Number(value);
+  return Number.isInteger(numeric) && numeric >= 0 ? numeric : null;
+}
+
 // ── Persistent state ────────────────────────────────────────
 let _state = null;
 
@@ -182,6 +188,8 @@ function tripBreaker(options = {}) {
     resetAt,
     reason: options.reason || 'PCGS API rate limit exceeded (429)',
     retryAfter: options.retryAfter == null ? null : String(options.retryAfter),
+    reportedRemaining: normalizeQuotaValue(options.upstreamRemaining),
+    reportedLimit: normalizeQuotaValue(options.upstreamLimit),
     lastProbeAt: null,
     lastProbeOutcome: 'blocked'
   };
@@ -265,6 +273,8 @@ function getStatus() {
     rateLimitedAt: state.upstreamCooldown?.rateLimitedAt || null,
     nextEligibleProbeAt: state.upstreamCooldown?.resetAt || null,
     rateLimitReason: state.upstreamCooldown?.reason || null,
+    upstreamReportedRemaining: state.upstreamCooldown?.reportedRemaining ?? null,
+    upstreamReportedLimit: state.upstreamCooldown?.reportedLimit ?? null,
     lastProbeAt: state.upstreamCooldown?.lastProbeAt || state.lastRecoveryProbe?.at || null,
     lastProbeOutcome: state.upstreamCooldown?.lastProbeOutcome || state.lastRecoveryProbe?.outcome || null,
     previousDay: state.previousDay

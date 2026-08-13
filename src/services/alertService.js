@@ -143,8 +143,8 @@ function alertBlobImportFailure(consecutiveFailures, error) {
 function alertPrefetchFailure(consecutiveFailures, error) {
   return sendAlert(
     'prefetch-failed',
-    `APR prefetch failed ${consecutiveFailures}x`,
-    `The nightly APR prefetch scheduler has failed ${consecutiveFailures} consecutive times.\n\nError: ${error}`
+    `APR prefetch degraded ${consecutiveFailures}x`,
+    `The nightly APR prefetch scheduler has completed partially or failed ${consecutiveFailures} consecutive times.\n\nError: ${error}`
   );
 }
 

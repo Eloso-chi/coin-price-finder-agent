@@ -137,6 +137,22 @@ describe('alertService', () => {
       expect(result).toHaveProperty('sent', false);
     });
 
+    test('alertPrefetchFailure describes partial and failed runs neutrally', async () => {
+      mockBeginSend.mockResolvedValue({ pollUntilDone: mockPollUntilDone });
+      mockPollUntilDone.mockResolvedValue({ status: 'Succeeded' });
+      const alertService = loadFreshAlertService({
+        COMMUNICATION_CONNECTION_STRING: 'endpoint=https://example.communication.azure.com/;accesskey=test',
+        ALERT_EMAIL_TO: 'to@example.com',
+        ALERT_FROM_EMAIL: 'alerts@example.azurecomm.net',
+      });
+
+      await alertService.alertPrefetchFailure(2, 'partial run');
+
+      const message = mockBeginSend.mock.calls[0][0];
+      expect(message.content.subject).toBe('[CoinPriceFinder] APR prefetch degraded 2x');
+      expect(message.content.plainText).toContain('completed partially or failed 2 consecutive times');
+    });
+
     test('alertServerCrash returns a result', async () => {
       const alertService = loadFreshAlertService();
       const result = await alertService.alertServerCrash('uncaughtException', 'ReferenceError');

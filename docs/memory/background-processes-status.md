@@ -15,7 +15,8 @@
   - Scheduled and manual triggers make no PCGS calls during cooldown. After expiry, one bounded probe must succeed before the normal queue continues.
   - Unexpired cooldown survives process restart and Pacific day rollover. Missing or malformed reset headers use `PCGS_429_COOLDOWN_MS` (default one hour).
   - Production validation remains open for three consecutive nightly runs without the prior one-call-then-429 pattern.
-- **Alerting (#282W, 2026-08-12):** Partial and fatal runs share a two-run alert gate. Completed runs reset the streak; ACS delivery and fallback logs share one-hour per-topic burst limiting.
+- **Observed-limit safety follow-up (#285H, 2026-08-13):** Numeric `X-RateLimit-Limit` and `X-RateLimit-Remaining` values from 429 responses are persisted and exposed in status. Nightly prefetch is temporarily bounded by `PCGS_PREFETCH_OBSERVED_LIMIT=100` minus the 10-call reserve, for a fresh-run maximum of 90 calls; the shared published entitlement remains 1,000.
+- **Alerting (#282W/#285H, 2026-08-13):** Partial and fatal runs share a two-run alert gate and neutral "degraded" wording. Completed runs reset the streak; ACS delivery and fallback logs share one-hour per-topic burst limiting.
 - **Code:** src/services/prefetchScheduler.js, .github/workflows/nightly-prefetch.yml
 
 ### 2. Metals Spot Price Polling
@@ -93,6 +94,7 @@ All background processes have status endpoints:
 | Prefetch hour | PREFETCH_HOUR_PT | 23 (11 PM) | ✓ Yes |
 | Prefetch throttle | PREFETCH_THROTTLE_MS | 1000 | ✓ Yes |
 | Prefetch reserve | PREFETCH_RESERVE | 10 | ✓ Yes |
+| Prefetch observed upstream limit | PCGS_PREFETCH_OBSERVED_LIMIT | 100 (90-call effective fresh budget) | ✓ Yes |
 | Prefetch enabled | PCGS_PREFETCH_ENABLED | true | ✓ Yes |
 | PCGS 429 fallback cooldown | PCGS_429_COOLDOWN_MS | 3600000 (1h) | ✓ Yes |
 | ACS Email connection | COMMUNICATION_CONNECTION_STRING | (none) | ✓ Needs setup |
