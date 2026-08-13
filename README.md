@@ -6,8 +6,8 @@ A dealer-oriented pricing tool that calculates **Fair Market Value (FMV)** for U
 
 1. **Identifies the coin** — accepts a PCGS cert number, barcode, PCGS coin number, or free-text description (e.g. "1881-CC Morgan dollar MS 64").
 2. **Enriches via PCGS** — fetches price guide value, population, auction history, mintage, and reference images from the PCGS CoinFacts API.
-3. **Pulls eBay sold comps** — queries up to three eBay APIs (Marketplace Insights → Finding → Browse) to collect recent sold prices, then scores and filters them for relevance.
-4. **Supplements with Terapeak data** -- imports Terapeak CSV exports (manual upload or auto-import from `data/terapeak/`) for additional sold-comp coverage with daily quota tracking. Tracks per-dataset metadata (`newestSaleDate`, `oldestSaleDate`, `compCount`, deep-pagination markers, dormant tracking) in a git-tracked sidecar (`data/terapeak-meta.json`) for reliable staleness detection. CSV merge with shrink-guard prevents data loss on refresh. Dormant dataset tracking (`noDataCount`, `noDataAt`) skips datasets that consistently return no Terapeak results.
+3. **Pulls sold comps** — uses Terapeak sold-data imports first, optionally supplements through the deprecated Finding API when explicitly enabled, and uses Browse active listings only as a fallback signal. Comps are scored and filtered for relevance without crossing valuation pools.
+4. **Maintains Terapeak coverage** -- imports Terapeak CSV exports (manual upload, operator workflow, or auto-import from `data/terapeak/`) with daily quota tracking. Tracks per-dataset metadata (`newestSaleDate`, `oldestSaleDate`, `compCount`, deep-pagination markers, dormant tracking) in a git-tracked sidecar (`data/terapeak-meta.json`) for reliable staleness detection. CSV merge with shrink-guard prevents data loss on refresh. Dormant dataset tracking (`noDataCount`, `noDataAt`) skips datasets that consistently return no Terapeak results.
 5. **Fetches Greysheet wholesale pricing** -- queries the CDN Public API V2 by PCGS coin number for wholesale (GreyVal), retail (CPG), PCGS, NGC, and Blue Book values.
 6. **Computes FMV** -- blends PCGS, eBay, auction, and Greysheet data using a weighted median with outlier removal, producing a confidence-scored valuation.
 6. **Generates buy/sell decisions** — outputs max-buy thresholds (70/75/80% of FMV) and sell tiers (fast/normal/premium) with a recommendation.
@@ -29,10 +29,17 @@ This is an active project with clear contributor expectations:
 - **[CONTRIBUTING.md](CONTRIBUTING.md)** — Local setup, testing rules, branching strategy, per-machine backlog ID convention (W/H), PR process, required review gates
 - **[SECURITY.md](SECURITY.md)** — Vulnerability reporting policy, response SLAs, coordinated disclosure
 - **[LICENSE](LICENSE)** — Proprietary All Rights Reserved (aligns with `UNLICENSED` in package.json; public GitHub visibility does not grant reuse rights)
-- **[docs/api-reference.md](docs/api-reference.md)** — Complete HTTP endpoint reference for all 30+ routes
+- **[docs/api-reference.md](docs/api-reference.md)** — Complete HTTP endpoint reference across all 15 route modules
 - **[docs/data-dictionary.md](docs/data-dictionary.md)** — Critical data stores, schemas, and privacy classifications
 
 See also [BACKLOG.md](docs/BACKLOG.md) (roadmap) and [.github/copilot-instructions.md](.github/copilot-instructions.md) (testing & code conventions).
+
+### Operational Observability
+
+- Every API request receives or safely generates an `X-Request-ID`; error responses echo it for correlation.
+- Pino emits redacted JSON completion, startup, crash, and prefetch logs with request IDs when request context exists.
+- Every valuation includes `algorithmVersion`, `configVersion`, and `computedAt`; single, batch, and bulk outcomes are audited asynchronously with a Cosmos-first, bounded JSONL fallback.
+- `GET /api/health` remains a shallow load-balancer probe. Admin-authorized `GET /api/health?deep=1` checks configured downstream dependencies without exposing secrets or raw errors.
 
 ---
 
@@ -171,7 +178,8 @@ Optional variables:
 |----------|---------|---------|
 | `GOLDAPI_KEY` | Gold API key for spot prices | *(none)* |
 | `METALS_API_KEY` | Metals API key (fallback provider) | *(none)* |
-| `NUMISTA_API_KEY` | Numista API key for rarity/mintage data | *(none)* || `GREYSHEET_API_TOKEN` | Greysheet CDN Public API V2 token | *(none)* |
+| `NUMISTA_API_KEY` | Numista API key for rarity/mintage data | *(none)* |
+| `GREYSHEET_API_TOKEN` | Greysheet CDN Public API V2 token | *(none)* |
 | `GREYSHEET_API_KEY` | Greysheet CDN Public API V2 key | *(none)* |
 | `GREYSHEET_BASE_URL` | Greysheet API base URL override | `https://cpgpublicapiv2.greysheet.com/api` |
 | `ADMIN_API_KEY` | API key for admin/destructive endpoints. In local WSL/shell usage this must be the raw secret value (not App Service Key Vault reference syntax like `@Microsoft.KeyVault(...)`). | *(none -- endpoints locked)* |
@@ -201,9 +209,10 @@ Optional variables:
 | `PREFETCH_RESERVE` | PCGS quota calls reserved from prefetching | `10` |
 | `APR_DATE_WINDOW_YEARS` | Auction history lookback window | `3` |
 | `APR_FRESHNESS_DAYS` | Auction history recrawl freshness threshold | `30` |
-| `SENDGRID_API_KEY` | SendGrid API key for crash/ops email alerts | *(none)* |
+| `COMMUNICATION_CONNECTION_STRING` | Azure Communication Services Email connection string for crash/ops alerts | *(none)* |
 | `ALERT_EMAIL_TO` | Destination email for server alerts | *(none)* |
-| `ALERT_FROM_EMAIL` | Sender email for alert notifications | `alerts@coinpricefinder.app` |
+| `ALERT_FROM_EMAIL` | Verified Azure Communication Services Email sender address | *(none)* |
+| `LOG_LEVEL` | Pino structured-log level | `info` |
 | `STRICT_TOKEN_CACHE_TTL_MS` | TTL for the `verifyTokenStrict` admin-verification cache. Set `0` to disable. (#218) | `5000` |
 | `BROWSER_RECYCLE_EVERY` | Override for the Playwright browser-recycle interval in `terapeak-export.py` (default `80`) and `sales-aggregator.py` (default `120`). Lower if memory pressure returns. (#199) | *(per-script default)* |
 
@@ -416,7 +425,7 @@ All `/api/coins/*` endpoints require `Authorization: Bearer <jwt>` header.
 |--------|------|-------------|
 | `POST` | `/api/terapeak/import` | Upload a Terapeak CSV (multipart) 🔒 |
 | `POST` | `/api/terapeak/import-text` | Import CSV as pasted text 🔒 |
-| `GET` | `/api/terapeak/datasets` | List all imported datasets |
+| `GET` | `/api/terapeak/datasets` | List all imported datasets 🔒 |
 | `GET` | `/api/terapeak/lookup` | Look up sold comps by search term |
 | `DELETE` | `/api/terapeak/datasets/:key` | Delete a specific dataset 🔒 |
 | `DELETE` | `/api/terapeak/datasets` | Clear all Terapeak data 🔒 |
@@ -431,7 +440,7 @@ All `/api/coins/*` endpoints require `Authorization: Bearer <jwt>` header.
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `GET` | `/api/terapeak/quota` | Get current daily quota status |
+| `GET` | `/api/terapeak/quota` | Get current daily quota status 🔒 |
 | `POST` | `/api/terapeak/quota/record` | Record Terapeak queries 🔒 |
 | `POST` | `/api/terapeak/quota/set-used` | Set the used count 🔒 |
 | `POST` | `/api/terapeak/quota/reset` | Reset today's counter to 0 🔒 |
@@ -565,7 +574,7 @@ Stryker thresholds (from `stryker.conf.json`): high=80, low=60, break=null. The 
 
 > **Note on baseline comparability:** The 75.47% baseline was captured with `enableFindRelatedTests: true`. The config has since been switched to `false` for accuracy (see code-reviewer note in `stryker.conf.json`). Re-running may yield a slightly *lower* score because more tests will execute per mutant, exposing assertion gaps that `findRelatedTests` was skipping. Treat the next run's score as the new authoritative baseline.
 
-Runs **Jest** across 115 test suites:
+Runs **Jest** across a growing suite. The latest verified run completed **161 suites / 4,425 tests**; use `npm test` for the current count:
 
 | Suite | What it covers |
 |---|---|
@@ -712,7 +721,7 @@ public/
 samples/
   test-collection.xlsx             Sample Excel import fixture
   no-collectors-sheet.xlsx         Error-case fixture (missing sheet)
-__tests__/                         115 Jest test suites (see Tests section)
+__tests__/                         Jest suites, fixtures, helpers, and setup (see Tests section)
   fixtures/
     golden_coins.json              Curated golden set coins (14 deterministic test coins)
   helpers/
@@ -766,8 +775,8 @@ scripts/
   reclassify-comps.js              Batch comp reclassification (weight mismatch detection + reroute to correct dataset)
   build-evidence-index.js          Historical evidence index builder (scans logs + CSVs)
   generate-freshness-report.js     Freshness triage report (5-state: Fresh/Stale/LowSignal/Missing/Dormant + recently-confirmed-stale split)
-  freshness-composition-analyzer.js  Cross-tabulates the freshness report by composition (bullion / numismatic / proof / set / etc.) to surface coverage gaps. (#270H)
-  parallel-key-drift-scanner.js    Silent-drift detector for the #267H class -- finds Terapeak datasets whose normalized key collides with a sibling that has empty/missing comps so live lookups fall through to the wrong bucket. (#272H)
+  analyze-freshness-composition.js  Cross-tabulates the freshness report by composition (bullion / numismatic / proof / set / etc.) to surface coverage gaps. (#270H)
+  scan-parallel-key-drift.js        Silent-drift detector for the #267H class -- finds Terapeak datasets whose normalized key collides with a sibling that has empty/missing comps so live lookups fall through to the wrong bucket. (#272H)
   clean-csvs.js                    CSV junk cleaner (deny-pattern purge across all CSVs)
   greysheet-refresh.js             Bulk Greysheet price snapshot collector (runs automatically every 3 days)
   migrate-to-cosmos.js             One-time migration of history data to Azure Cosmos DB
@@ -818,7 +827,7 @@ scripts/
 
 - **#267H -- `lookupComps` skips empty parallel-key datasets (PR #128).** Previously a normalized-key collision could route a live lookup to an empty sibling dataset; the symptom was "plenty of comps in JSON, FMV reports 0 comps." Fix: when multiple datasets share a normalized key, prefer the populated one; skip empty parallel keys.
 - **#269H -- self-heal Terapeak `/import` 422 (PR #132).** A 422 from the Azure import path used to be permanent because the local meta was never stamped, so the freshness loop re-attempted the same coin forever. Fix: stamp `noDataAt` + increment `noDataCount` on 422 so the dormant-tracking path can demote it. Spec-detected via the meta-sync swallowing local state on POST failure.
-- **#272H -- parallel-key drift scanner (PR #134).** New `scripts/parallel-key-drift-scanner.js` -- offline detector for the #267H class. Walks `terapeak_sold.json`, groups by `normalizeSearchKey()`, flags any group where a populated key collides with an empty sibling. Run periodically to catch silent drift before users see bad FMVs.
+- **#272H -- parallel-key drift scanner (PR #134).** `scripts/scan-parallel-key-drift.js` is the offline detector for the #267H class. It walks `terapeak_sold.json`, groups by `normalizeSearchKey()`, and flags groups where a populated key collides with an empty sibling. Run with `npm run scan:parallel-key-drift`.
 
 ### Reverse-proof pool selector in valuationService (#260W, June 9, 2026, PR #126)
 
@@ -827,7 +836,7 @@ scripts/
 
 ### Freshness composition analyzer (#270H, PR #131)
 
-- **[scripts/freshness-composition-analyzer.js](scripts/freshness-composition-analyzer.js)** -- post-processor on the freshness report. Cross-tabulates by composition (bullion / silver-numismatic / bullion-proof / set / base-metal / bar / etc.) and surfaces coverage gaps that a flat report obscures (e.g. "bullion-fractional-gold: 597/600 datasets below 100 comps -- structural, not a refresh problem").
+- **[scripts/analyze-freshness-composition.js](scripts/analyze-freshness-composition.js)** -- post-processor on the freshness report. Cross-tabulates by composition (bullion / silver-numismatic / bullion-proof / set / base-metal / bar / etc.) and surfaces structural coverage gaps hidden by a flat report.
 
 ### Remote-scraper meta sync (#259, June 4, 2026)
 
@@ -925,9 +934,9 @@ scripts/
 
 ### Terapeak Data Pipeline
 
-The project includes ~2,800 Terapeak CSV files in `data/terapeak/` containing real sold-comp data collected from eBay Seller Hub Research. The data pipeline has three stages:
+The current repository snapshot includes 3,593 Terapeak CSV files in `data/terapeak/` containing real sold-comp data collected from eBay Seller Hub Research. Production freshness and dataset counts come from admin endpoints, not local cache files. The data pipeline has three stages:
 
-**Stage 1: Page 1 Collection** -- `scripts/terapeak-export.py` uses Playwright to automate Terapeak searches and CSV downloads. It loops through all coin search terms, exports 50 rows per coin, and uploads CSVs directly to Azure Blob Storage via the Azure SDK (`upload_to_blob()`), falling back to HTTP POST to the local server if blob credentials are unavailable. Features: `--login` for manual eBay cookie capture, `--run` for headless batch execution, `--batch N` for safe incremental collection, `--priority` for thin-data-first ordering, `--resume` to continue after interruption, `--refresh` to re-collect stale CSVs (age-aware, skips fresh files), `--max-age DAYS` to set the staleness threshold (default 14), browser recycling every 40 coins, and auto-recovery from crashes (up to 5). Requires VNC (Xtigervnc :1), Python 3.12+, and Playwright.
+**Stage 1: Page 1 Collection** -- the canonical H/W operators wrap `scripts/terapeak-export.py` with preflight, cookie health, persisted risk states, hard-challenge stops, Cooldown recovery, randomized batches, and pass telemetry. The exporter saves local CSVs and defaults to immediate API upload (`UPLOAD_MODE=api`); explicit `blob` mode uploads to Blob Storage, while legacy `auto` prefers Blob when configured and otherwise falls back to API. Browser recycling defaults to 80 coins. See `docs/memory/terapeak-runbook.md` for supported launch options and the optional fail-closed #280H pacing pilot.
 
 **Dual-path runtime (#250)** -- the scraper is designed to run from two environments:
 
@@ -1077,7 +1086,7 @@ A comprehensive UX and accessibility review produced 36 findings across four sev
 
 ### Chain Aggregation Automation (#113)
 
-- **`scripts/chain-aggregate.sh`** -- chains multiple Terapeak collect batches sequentially with anti-bot monitoring. Exports a reusable `run_batch()` function that runs `terapeak-export.py` with the given filter and logs to `cache/terapeak_<name>.log`. Includes `check_antibot()` which tails the batch log for 3+ consecutive bot-detection failures and aborts the chain if detected. Supports passing a PID to wait on before starting (for session handoffs).
+- **`scripts/chain-aggregate.sh`** -- legacy helper that chains Terapeak batches and aborts on the first matching hard anti-bot signal. Canonical operators remain preferred because they add preflight, persisted risk state, Cooldown gates, and pass telemetry.
 - **`scripts/refresh-stale.sh`** -- one-command biweekly stale data refresh. Queries `GET /api/admin/stale-datasets?days=N` to identify datasets older than the threshold (default 14 days), builds a filter regex from stale search terms, and passes it to `terapeak-export.py --run --refresh --max-age N --filter`. Uses `--refresh` mode (age-aware) instead of `--resume` (binary existence check) so that stale CSVs are refreshed even though they already exist on disk. Options: `--full` (cold start refresh), `--days N` (staleness threshold), `--dry-run` (preview without collecting), `--include-empty` (include datasets with zero comps), `--limit N` (cap the number of terms).
 
 ### Comp Reclassification (Weight Mismatch Recovery)
@@ -1108,7 +1117,7 @@ A comprehensive UX and accessibility review produced 36 findings across four sev
 
 ### Copilot Agents & Prompts
 
-The project includes 13 custom Copilot agents and 6 prompt commands in `.github/agents/` and `.github/prompts/`:
+The project includes 14 custom Copilot agents and 6 prompt commands in `.github/agents/` and `.github/prompts/`:
 
 **Agents:**
 
@@ -1124,6 +1133,7 @@ The project includes 13 custom Copilot agents and 6 prompt commands in `.github/
 | `pricing-health` | Pricing accuracy diagnostics (runs golden set through pipeline) |
 | `numismatic-audit` | Audit classification/filters against numismatic terminology |
 | `sales-aggregator` | Sales data aggregation assistant |
+| `terapeak-operator` | Canonical guarded Terapeak startup workflow |
 | `test-coverage` | Test coverage gap analysis + generation |
 | `test-monitor` | Test health monitoring and failure diagnostics |
 | `onboard` | Project onboarding assistant |

@@ -57,6 +57,9 @@
 | `@ux-reviewer` | UX/IA/a11y review (WCAG 2.2, Nielsen heuristics, component states, performance UX); focused + comprehensive modes |
 | `@onboard` | Project onboarding assistant |
 | `@pricing-health` | End-to-end pricing flow validator -- picks coins, traces through all routes, flags comp attrition anomalies |
+| `@freshness-triage` | Prioritize stale, thin, and missing Terapeak datasets |
+| `@sales-aggregator` | Manage Terapeak collection priorities and batch runs |
+| `@numismatic-audit` | Audit classification and filter behavior against numismatic contracts |
 | `@terapeak-operator` | Deterministic local Terapeak startup operator (preflight -> login -> freshness-only loop) |
 | `/review-deep` | Orchestrate primary, security, and performance reviews |
 | `/apply-approved` | Implement approved findings |
@@ -68,7 +71,7 @@
 ## Onboarding
 
 - Use `/onboard` at the start of a new conversation to bootstrap full project understanding.
-- Reads all repo memory files, architecture docs, and key source file exports.
+- Detects repository growth, reads every canonical repo-memory file and project doc, scans current source/customization inventories, and verifies test/module/backlog counts.
 - Produces a Readiness Report confirming what was learned.
 
 ## Backlog Per-Machine ID Convention

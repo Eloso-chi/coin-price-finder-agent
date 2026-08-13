@@ -161,7 +161,7 @@ Print a concise report:
 | Check | Status |
 |-------|--------|
 | Secrets scan | PASS / BLOCK |
-| Tests (48 suites) | PASS / BLOCK |
+| Tests (current suite) | PASS / BLOCK |
 | Data model sync | PASS / WARN |
 | Lint errors | PASS / WARN |
 | UX / IA review | PASS / WARN |

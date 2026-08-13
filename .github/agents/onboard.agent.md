@@ -118,6 +118,14 @@ Read these project docs:
 20. `LICENSE` -- proprietary All Rights Reserved notice (aligns with UNLICENSED in package.json)
 21. `docs/api-reference.md` -- comprehensive HTTP endpoint reference (30+ endpoints organized by feature)
 22. `docs/data-dictionary.md` -- critical data stores, schemas, privacy classifications, CSV format, test fixtures
+23. `AGENTS.md` -- root discoverability index for all project agents
+24. `docs/adrs/README.md` -- accepted architecture decision index and ADR template
+25. `docs/runbooks/first-launch-surface.md` -- historical handoff that points Surface operators to the canonical WSL runbook
+26. `docs/testing/test-runtime-294w-baseline.md` -- measured test-runtime baseline and targeted-import optimization evidence
+27. `scripts/README.md` -- canonical operational script catalog and prerequisites
+28. `docs/runbooks/secret-bootstrap.md` -- Azure Key Vault bootstrap and safe local secret loading
+29. `.github/pull_request_template.md` -- required backlog, testing, review, and documentation fields
+30. `docs/adrs/ADR-001-fmv-pool-isolation.md` through `ADR-005-terapeak-anti-bot-state-machine.md` -- accepted load-bearing decisions
 
 ### Phase 3: Key Source Files (scan exports/structure only)
 
@@ -147,7 +155,7 @@ Read the first 50 lines of each to understand the module interface (80 lines for
 21. `src/services/auditService.js` -- audit log writer (action + actor + resource triples)
 22. `src/services/freshnessClassifier.js` -- shared refresh-skip logic (thresholds + shouldSkipRefresh) used by adminService and generate-freshness-report.js (#229)
 
-**Routes (all 14):**
+**Routes (all 15):**
 1. `src/routes/priceRoute.js` -- main pricing endpoint (first 80 lines)
 2. `src/routes/pricingBatchRoute.js` -- batch pricing (up to 25 coins)
 3. `src/routes/bulkEvaluateRoute.js` -- lot evaluator + SSE streaming
@@ -162,6 +170,7 @@ Read the first 50 lines of each to understand the module interface (80 lines for
 12. `src/routes/excelImportRoute.js` -- Excel collection import
 13. `src/routes/imageProxyRoute.js` -- proxied coin image fetching
 14. `src/routes/coinHistoryRoute.js` -- per-coin price history
+15. `src/routes/healthRoute.js` -- shallow load-balancer health + admin-gated deep dependency checks
 
 **Data:**
 1. `src/data/greysheetTypeMap.js` -- series-to-GSID mapping + finish detection
@@ -174,7 +183,7 @@ Read the first 50 lines of each to understand the module interface (80 lines for
 8. `src/data/barSeries.js` -- bar brand/series data (7 brands, 40+ series) + detection helpers
 9. `src/data/lunarReference.js` -- Perth / Royal / RAMint lunar comparison
 
-**Utils:**
+**Utils (all 14):**
 1. `src/utils/filters.js` -- deny lists, denomination detection, series conflicts, two-way composition mismatch (silver/clad)
 2. `src/utils/cosmosClient.js` -- Cosmos DB client singleton
 3. `src/utils/blobClient.js` -- Blob Storage client
@@ -186,11 +195,16 @@ Read the first 50 lines of each to understand the module interface (80 lines for
 9. `src/utils/responseValidator.js` -- /api/price response schema + sanity validation
 10. `src/utils/excelMapper.js` -- Excel-to-backup converter (header aliases, series normalization)
 11. `src/utils/redactForPublic.js` -- strips admin-only fields from public responses
+12. `src/utils/versionHash.js` -- cached valuation configuration fingerprint
+13. `src/utils/logger.js` -- redacted Pino JSON logger with request-ID context
+14. `src/utils/gracefulShutdown.js` -- bounded shutdown task registration/draining
 
-**Middleware + Schemas:**
+**Middleware (all 4) + Schemas:**
 1. `src/middleware/requireAdminOrKey.js` -- guards admin routes (JWT or ADMIN_API_KEY)
 2. `src/middleware/optionalAdminContext.js` -- enriches request with admin flag if key present
-3. `src/schemas/priceResponse.schema.js` -- JSON schema for /api/price response validation
+3. `src/middleware/requestId.js` -- X-Request-ID validation/generation + async request context
+4. `src/middleware/requestLogger.js` -- structured API completion logging
+5. `src/schemas/priceResponse.schema.js` -- JSON schema for /api/price response validation
 
 **Entry point + scripts:**
 1. `server.js` -- Express entry, middleware, route mounting, background timers
@@ -205,22 +219,26 @@ Read the first 50 lines of each to understand the module interface (80 lines for
 10. `scripts/fmv-drift-monitor.js` -- FMV drift monitor against dealer-premium bands (#196) (first 20 lines)
 11. `scripts/investigate-libertad-batch.js` -- Libertad lot-evaluator diagnostic (#202) (first 20 lines)
 12. `scripts/cpf-go` -- one-word launcher (Surface / WSL) for the Playwright scraper (#258/#268H) (first 20 lines)
-13. `scripts/parallel-key-drift-scanner.js` -- parallel key drift detection across terapeak meta (#272H) (first 20 lines)
+13. `scripts/scan-parallel-key-drift.js` -- parallel key drift detection across terapeak meta (#272H) (first 20 lines)
 14. `scripts/analyze-freshness-composition.js` -- freshness composition breakdown by category (#270H) (first 20 lines)
 15. `scripts/machine-id.sh` -- prints machine letter (W or H) for per-machine backlog IDs (#264W) (first 20 lines)
 16. `scripts/audit-duplicate-keys.js` -- finds duplicate keys in terapeak meta (first 20 lines)
 17. `scripts/terapeak-export.py` -- Playwright-based Terapeak data export (first 20 lines)
 18. `scripts/sales-aggregator.py` -- batch Terapeak sales aggregation via Playwright (first 20 lines)
-19. `scripts/sync-terapeak-meta.js` -- syncs terapeak-meta.json from Azure Blob Storage (#253) (first 20 lines)
+19. `scripts/sync-terapeak-meta.js` -- standalone workstation HTTP sync from `/api/admin/terapeak-meta`; the loop uses its own `sync_meta_from_app()` helper (first 20 lines)
 20. `scripts/load-secrets.sh` -- fetches 8 dev secrets from Azure Key Vault into .env (#137) (first 20 lines)
 21. `scripts/terapeak-operator-codespace.sh` -- W-machine (codespace) operator sibling of `terapeak-operator.sh` (#200): no venv, unlimited loop by default, single-instance `flock` lock (first 30 lines)
 22. `scripts/_parse-terapeak-pass.py` -- best-effort parser; appends per-pass + per-coin records to `cache/terapeak-runs/{passes,coins}.jsonl` (#200) (first 20 lines)
 23. `scripts/show-terapeak-runs.sh` -- jq-backed viewer for the run ledger (#200); subcommands `recent`, `runs`, `run <RUN_ID>`, `coin <pattern>`, `totals`, `stop-conditions` (first 20 lines)
+24. `scripts/commit-terapeak-progress.sh` -- fail-closed post-run branch/commit/PR helper (#293W) (first 30 lines)
+25. `scripts/analyze-pacing-pilot.py` -- scoped #280H A/B crossover analyzer (first 30 lines)
+26. `scripts/validate-pass-telemetry.py` -- validates risk/pacing pass telemetry contracts (first 30 lines)
 
 **Test infrastructure:**
 1. `__tests__/helpers/coinTestConstants.js` -- shared test helpers, golden set loader, selectCoins()
 2. `__tests__/fixtures/golden_coins.json` -- 14 curated deterministic test coins
 3. `scripts/test_parse_terapeak_pass.py` -- unit tests for `_parse-terapeak-pass.py` (synthetic fixture; `python3 scripts/test_parse_terapeak_pass.py` exits 0 on pass) (#200)
+4. `__tests__/terapeakPacingPilot.test.js` -- #280H pacing authorization, telemetry, crossover, and analyzer regressions
 
 ### Phase 4: Verification
 

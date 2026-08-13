@@ -31,7 +31,7 @@ multi-agent review pipeline orchestrated by `/review-deep`.
 | Test runner | Jest 30 (`npm test`) |
 | Client | Vanilla JS, single-page app (`public/index.html`) |
 | Auth | Server-side bcrypt + JWT (authService.js), session token in memory |
-| APIs | eBay (Marketplace Insights + Browse), PCGS, Numista v3, Greysheet CDN V2, metals (3 providers) |
+| APIs | Terapeak-first eBay cascade, PCGS, Numista v3, Greysheet CDN V2, metals (4 providers) |
 | Caching | Custom TTLCache with JSON disk persistence |
 
 ## Operating Procedure

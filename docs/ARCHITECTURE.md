@@ -68,6 +68,12 @@ server.js                              Express entry point (port 3000)
 │   │                                  JWT_SECRET REQUIRED in production (FATAL throw if unset)
 │   └─ coinStorageService.js           Server-side coin CRUD (dual-mode Cosmos + local JSON)
 │
+├─ src/middleware/
+│   ├─ requestId.js                    X-Request-ID validation/generation + async request context
+│   ├─ requestLogger.js                Structured API completion logging via Pino
+│   ├─ optionalAdminContext.js         Non-blocking admin context for audience gating
+│   └─ requireAdminOrKey.js            Admin JWT or ADMIN_API_KEY authorization gate
+│
 ├─ src/data/
 │   ├─ pcgsNumbers.js                  Static PCGS coin number lookup (10 US series + 7 world bullion: Kookaburra, Krugerrand, Kangaroo, Maple Leaf, Britannia, China Panda, China Lunar)
 │   ├─ keyDates.js                     Key date / semi-key detection tables
@@ -86,6 +92,9 @@ server.js                              Express entry point (port 3000)
 │   ├─ coinIntent.js                   Route-layer extractor: canonicalizes {grade, finish, isProof, designation} across coinData / options / pcgs / parsed (#254)
 │   ├─ responseValidator.js            /api/price response schema & sanity validation
 │   ├─ versionHash.js                  Cached valuation configuration SHA-256 fingerprint
+│   ├─ logger.js                       Redacted Pino JSON logger with request-ID injection
+│   ├─ gracefulShutdown.js             Shutdown task registration and bounded draining
+│   ├─ redactForPublic.js              Public/admin response audience gating
 │   ├─ excelMapper.js                  Excel-to-backup converter (header aliases, series normalization)
 │   ├─ cachePath.js                    Centralized CACHE_DIR from env var
 │   ├─ cosmosClient.js                 Azure Cosmos DB client singleton (env-var gated)
@@ -109,14 +118,15 @@ server.js                              Express entry point (port 3000)
 │   ├─ metals_spot.json                Persisted metals spot prices (stale fallback)
 │   ├─ metals_history.json             Daily spot price snapshots
 │   ├─ greysheet_history.json          Daily Greysheet price snapshots
-│   ├─ terapeak_sold.json              Imported Terapeak comp data (~3,306 datasets)
+│   ├─ terapeak_sold.json              Local imported Terapeak comp snapshot (not production truth)
 │   ├─ terapeak-runs/                  Append-only JSONL ledger for operator-codespace runs (#200): `passes.jsonl` (one record per pass), `coins.jsonl` (one record per coin attempt)
 │   ├─ users.json                      Server-side user accounts (bcrypt hashes + UUIDs)
 │   └─ user_coins.json                 Server-side coin collections (plaintext JSON by userId)
 │
 ├─ data/
-│   ├─ terapeak/                       ~3,249 Terapeak CSV exports (real sold data)
+│   ├─ terapeak/                       3,593 CSV exports in the current repository snapshot
 │   └─ terapeak-meta.json              Git-tracked aggregation metadata sidecar (see below) + dormant tracking
+│                                      Production truth comes from admin endpoints, not local cache counts
 │
 ├─ docs/
 │   ├─ ARCHITECTURE.md                 This file -- technical architecture reference
@@ -154,12 +164,14 @@ server.js                              Express entry point (port 3000)
 │   ├─ reclassify-comps.js             Batch comp reclassification (weight mismatch detection + reroute)
 │   ├─ build-evidence-index.js         Historical evidence index builder
 │   ├─ generate-freshness-report.js    Freshness triage report (5-state decision tree: Fresh/Stale/LowSignal/Missing/Dormant + recently-confirmed-stale split)
-│   ├─ freshness-composition-analyzer.js  Cross-tabulates the freshness report by composition to surface structural coverage gaps (#270H)
 │   ├─ scan-parallel-key-drift.js      Silent-drift detector for the #267H class -- flags datasets whose normalized key collides with an empty sibling (#272H). `npm run scan:parallel-key-drift`
+│   ├─ analyze-freshness-composition.js  Cross-tabulates freshness by category/composition
+│   ├─ commit-terapeak-progress.sh      Fail-closed post-run branch/commit/PR helper (#293W)
+│   ├─ analyze-pacing-pilot.py          Scoped #280H baseline/tuned crossover analyzer
 │   ├─ fmv-drift-monitor.js            FMV drift monitor (#196) -- runs bullion catalog through /api/price, flags rows outside dealer-premium band
 │   ├─ investigate-libertad-batch.js   Libertad lot-evaluator diagnostic (#202) -- re-runs 13-coin batch, flags thin comps + duplicate FMV instability
 │   ├─ lot-estimator-health.js         Lot Evaluator health check -- runs the 13-coin diagnostic batch through the batch route + reports FMV stability. `npm run health:lot-estimator`
-│   ├─ sync-terapeak-meta.js           Remote-scraper meta sync helper (#253) -- called by `run-surface-freshness-loop.sh` before each pass; pulls current `data/terapeak-meta.json` from `/api/admin/terapeak-meta` and atomically replaces the local sidecar so the freshness classifier reads Azure-current state, not a git-frozen snapshot. `npm run sync:meta`
+│   ├─ sync-terapeak-meta.js           Standalone workstation HTTP sync from `/api/admin/terapeak-meta`; `npm run sync:meta`
 │   └─ test-metrics/                   Jest metrics capture + summary reporter
 │
 ├─ .github/
@@ -174,6 +186,7 @@ server.js                              Express entry point (port 3000)
 │   │   ├─ pricing-health.agent.md                Pricing accuracy diagnostics
 │   │   ├─ numismatic-audit.agent.md              Audit classification against numismatic terminology
 │   │   ├─ sales-aggregator.agent.md              Sales data aggregation assistant
+│   │   ├─ terapeak-operator.agent.md              Canonical guarded Terapeak startup operator
 │   │   ├─ test-coverage.agent.md                 Test coverage gap analysis + generation
 │   │   ├─ test-monitor.agent.md                  Test health monitoring and diagnostics
 │   │   └─ onboard.agent.md                       Project onboarding assistant
@@ -186,7 +199,8 @@ server.js                              Express entry point (port 3000)
 │   │   └─ onboard.prompt.md                      /onboard slash command
 │   └─ copilot-instructions.md                    Workspace-wide Copilot rules
 │
-└─ __tests__/                          73 Jest test suites
+└─ __tests__/                          161 current `*.test.js` files recursively plus fixtures/helpers/setup
+                                        Latest verified run: 161 suites / 4,425 tests
     ├─ fixtures/
     │   └─ golden_coins.json           Curated golden set (14 deterministic test coins)
     └─ helpers/
@@ -318,7 +332,7 @@ Request (valid metals: XAU, XAG, XPT, XPD)
   │   └── Per metal → getMetalsSpotPrice(metal, currency)
   │       ├── Check in-memory cache → HIT? return
   │       ├── Check in-flight dedup map → already fetching? await
-  │       └── Round-robin 3 providers:
+  │       └── Round-robin 4 providers:
   │           ① goldprice-org (no auth, free baseline)
   │           ② goldapi (requires GOLDAPI_KEY)
   │           ③ metals-api (requires METALS_API_KEY)
@@ -884,7 +898,7 @@ Chains multiple Terapeak collect batches sequentially with anti-bot monitoring:
 │  2. run_batch "name" "Filter.*Regex"                      │
 │     └─ terapeak-export.py --run --resume --filter REGEX   │
 │     └─ Logs to cache/terapeak_<name>.log                  │
-│  3. check_antibot (tail log for 3+ consecutive bot blocks)│
+│  3. check_antibot (scan log for first hard signal)        │
 │     └─ If detected → abort chain, log warning             │
 │  4. Continue to next batch                                │
 └───────────────────────────────────────────────────────────┘
@@ -1013,7 +1027,7 @@ The valuation engine separates eBay comps by `gradeType` (three-way split):
 
 This ensures unslabbed proof coins (e.g. Proof Libertads in OGP) don't inflate raw BU valuations.
 
-**#282H -- proof / RP skip the bullion spot+premium branch.** Once the proof comp pool is selected, the engine also sets `skipSpotMath = wantsProof || wantsReverseProof`. This routes proof traffic through the standard comp-blend path (`raw-blend` / `certified-blend`) rather than the `bullion-spot-premium` math, whose silver / gold premium clamps (spot * 2 / spot * 1.4) would silently collapse dozens of distinct proof dates to one FMV. For BU bullion queries with no eBay comps, the fallback ladder is `bullion-greysheet-anchor` (Greysheet >= 80% of spot) -> `bullion-spot-only`. See [docs/memory/decision-engine-spec.md](docs/memory/decision-engine-spec.md) for the full mode list and triggers.
+**#282H -- proof / RP skip the bullion spot+premium branch.** Once the proof comp pool is selected, the engine also sets `skipSpotMath = wantsProof || wantsReverseProof`. This routes proof traffic through the standard comp-blend path (`raw-blend` / `certified-blend`) rather than the `bullion-spot-premium` math, whose silver / gold premium clamps (spot * 2 / spot * 1.4) would silently collapse dozens of distinct proof dates to one FMV. For BU bullion queries with no eBay comps, the fallback ladder is `bullion-greysheet-anchor` (Greysheet >= 80% of spot) -> `bullion-spot-only`. See [docs/memory/decision-engine-spec.md](memory/decision-engine-spec.md) for the full mode list and triggers.
 
 ---
 
