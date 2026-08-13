@@ -19,12 +19,24 @@ const logger = require('../utils/logger').child({ component: 'prefetch' });
 const PREFETCH_ENABLED = (process.env.PCGS_PREFETCH_ENABLED || 'true') !== 'false';
 const PREFETCH_HOUR_PT = parseInt(process.env.PREFETCH_HOUR_PT, 10) || 23; // 11 PM Pacific
 const THROTTLE_MS = parseInt(process.env.PREFETCH_THROTTLE_MS, 10) || 1000; // 1 sec between calls
-const RESERVE_CALLS = parseInt(process.env.PREFETCH_RESERVE, 10) || 10;
-const configuredObservedLimit = Number(process.env.PCGS_PREFETCH_OBSERVED_LIMIT);
-const OBSERVED_UPSTREAM_LIMIT = Number.isInteger(configuredObservedLimit)
-  && configuredObservedLimit > 0
-  ? configuredObservedLimit
-  : 100;
+const LOCAL_DAILY_LIMIT = Number.isInteger(pcgsQuota.DAILY_LIMIT) ? pcgsQuota.DAILY_LIMIT : 1000;
+
+function parseBoundedInteger(value, fallback, minimum, maximum) {
+  const normalized = value == null ? '' : String(value).trim();
+  if (!/^\d+$/.test(normalized)) return fallback;
+  const parsed = Number(normalized);
+  return Number.isSafeInteger(parsed) && parsed >= minimum && parsed <= maximum
+    ? parsed
+    : fallback;
+}
+
+const RESERVE_CALLS = parseBoundedInteger(process.env.PREFETCH_RESERVE, 10, 0, LOCAL_DAILY_LIMIT);
+const OBSERVED_UPSTREAM_LIMIT = parseBoundedInteger(
+  process.env.PCGS_PREFETCH_OBSERVED_LIMIT,
+  100,
+  1,
+  LOCAL_DAILY_LIMIT
+);
 const STATUS_PATH = path.join(CACHE_DIR, 'prefetch_status.json');
 const ALERT_FAILURE_THRESHOLD = 2;
 
@@ -741,5 +753,6 @@ module.exports = {
   getCategorizedEntries,
   logMissingKeyDateCategories,
   buildQueue,
-  extractAllPcgsNumbers
+  extractAllPcgsNumbers,
+  parseBoundedInteger
 };

@@ -319,6 +319,13 @@ describe('prefetchScheduler — executePrefetchRun', () => {
 
 describe('prefetchScheduler — getSchedulerStatus', () => {
 
+  test('validates reserve and observed-limit configuration boundaries', () => {
+    expect(scheduler.parseBoundedInteger('0', 10, 0, 1000)).toBe(0);
+    expect(scheduler.parseBoundedInteger('-10', 10, 0, 1000)).toBe(10);
+    expect(scheduler.parseBoundedInteger('1001', 100, 1, 1000)).toBe(100);
+    expect(scheduler.parseBoundedInteger('100', 100, 1, 1000)).toBe(100);
+  });
+
   test('returns expected shape', () => {
     const status = scheduler.getSchedulerStatus();
     expect(status).toMatchObject({

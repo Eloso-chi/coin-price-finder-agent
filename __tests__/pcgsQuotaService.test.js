@@ -81,6 +81,34 @@ describe('pcgsQuotaService', () => {
       expect(status.remaining).toBe(1000);
       expect(status.headerSynced).toBe(false);
     });
+
+    it('rejects remaining values above the reported limit', () => {
+      quota.syncFromHeaders(101, 100);
+      expect(quota.getStatus()).toEqual(expect.objectContaining({
+        used: 0,
+        remaining: 1000,
+        limit: 1000,
+        headerSynced: false
+      }));
+    });
+
+    it('fails closed when persisted quota counters are inconsistent', () => {
+      jest.resetModules();
+      fs = require('fs');
+      fs.readFileSync.mockReturnValue(JSON.stringify({
+        date: new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' }),
+        used: -900,
+        remaining: 1000,
+        limit: 100
+      }));
+      quota = require('../src/services/pcgsQuotaService');
+
+      expect(quota.getStatus()).toEqual(expect.objectContaining({
+        used: 100,
+        remaining: 0,
+        limit: 100
+      }));
+    });
   });
 
   describe('circuit breaker', () => {
