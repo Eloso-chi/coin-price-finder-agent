@@ -622,6 +622,10 @@ function init() {
 function getSchedulerStatus() {
   const status = loadStatus();
   const quota = pcgsQuota.getStatus();
+  const observedBudgetRemaining = Math.max(0, OBSERVED_UPSTREAM_LIMIT - quota.used - RESERVE_CALLS);
+  const localBudgetRemaining = quota.upstreamAvailability === 'cooldown'
+    ? 0
+    : Math.max(0, quota.remaining - RESERVE_CALLS);
   return {
     enabled: PREFETCH_ENABLED,
     running: _running,
@@ -660,7 +664,7 @@ function getSchedulerStatus() {
       upstreamReportedRemaining: quota.upstreamReportedRemaining ?? null,
       upstreamReportedLimit: quota.upstreamReportedLimit ?? null,
       prefetchObservedLimit: OBSERVED_UPSTREAM_LIMIT,
-      prefetchBudgetRemaining: Math.max(0, OBSERVED_UPSTREAM_LIMIT - quota.used - RESERVE_CALLS),
+      prefetchBudgetRemaining: Math.min(observedBudgetRemaining, localBudgetRemaining),
       lastProbeAt: quota.lastProbeAt || null,
       lastProbeOutcome: quota.lastProbeOutcome || null
     },

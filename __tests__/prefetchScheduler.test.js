@@ -341,6 +341,10 @@ describe('prefetchScheduler — getSchedulerStatus', () => {
         breakerTripped: expect.any(Boolean),
         localQuotaRemaining: expect.any(Number),
         upstreamAvailability: expect.any(String),
+        upstreamReportedRemaining: null,
+        upstreamReportedLimit: null,
+        prefetchObservedLimit: 100,
+        prefetchBudgetRemaining: 80,
       }),
       upstreamAvailability: expect.any(String),
     });
@@ -360,6 +364,28 @@ describe('prefetchScheduler — getSchedulerStatus', () => {
     expect(status.quota.remaining).toBe(5);
     expect(status.upstreamAvailability).toBe('cooldown');
     expect(status.quota.nextEligibleProbeAt).toBe('2026-08-01T07:00:00.000Z');
+    expect(status.quota.prefetchBudgetRemaining).toBe(0);
+  });
+
+  test('reports zero runnable budget when local quota is exhausted', () => {
+    pcgsQuota.getStatus.mockReturnValue({
+      used: 90,
+      remaining: 5,
+      limit: 1000,
+      breakerTripped: false,
+      upstreamAvailability: 'available',
+      upstreamReportedRemaining: 0,
+      upstreamReportedLimit: 100
+    });
+
+    const status = scheduler.getSchedulerStatus();
+
+    expect(status.quota).toEqual(expect.objectContaining({
+      upstreamReportedRemaining: 0,
+      upstreamReportedLimit: 100,
+      prefetchObservedLimit: 100,
+      prefetchBudgetRemaining: 0
+    }));
   });
 });
 
