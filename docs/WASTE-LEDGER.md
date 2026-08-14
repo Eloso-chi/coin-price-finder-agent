@@ -438,6 +438,53 @@ Please inspect actual premium-request multipliers, plan/overage treatment, and b
 
 ---
 
+### INC-018: Recursive Onboard Acceptance Expanded One PR Follow-Up into an Unbounded Repository Audit
+
+| Field | Value |
+|-------|-------|
+| Date / UTC window | 2026-08-13T19:04:04Z through 2026-08-14T17:56:17Z. Wall-clock span: 22h52m, including long idle gaps. Conservative active-work estimate: 230.4 minutes, calculated by summing transcript event gaps of at most 15 minutes. Incident documentation after the end timestamp is excluded. |
+| Category | `agent-violation` / `documentation-drift` / `recovery-ops` |
+| Attribution | GitHub Copilot agent execution failure. Onboard produced repository-wide findings, but the controlling failure was the primary agent repeatedly treating pre-existing debt as a blocker for the PR #280 follow-up instead of freezing delta scope. |
+| Rule(s) violated | The coding-agent scope rule required changes to remain closely scoped and prohibited fixing unrelated bugs. `.github/skills/workflow/SKILL.md` "Scope Isolation Rule" required separate rollback surfaces. The agent instead expanded a post-merge documentation check into source, test, script, agent, skill, architecture, runbook, and backlog changes without a new user-approved repository-audit scope. |
+| Root cause | The agent prompted Onboard to be exhaustive and to pass only with zero actionable gaps anywhere in the repository. Each Onboard failure exposed another layer of pre-existing drift. The agent fixed that layer, reran tests/reviews, amended the same unpushed commit, and invoked Onboard again. No stopping rule distinguished `BLOCKING_DELTA` from `PRE_EXISTING_DEBT`, and no cap limited correction/verification cycles. |
+| Impact | PR #280 itself was already merged, deployed, and healthy. The recursive follow-up delayed completion by nearly one day of wall time, consumed approximately 230 active local minutes, touched 120 files during investigation, and produced an unpushed 38-file commit (`465da07b`, +317/-344) plus additional worktree revisions. No production data corruption or outage was identified. The user had to interrupt the loop repeatedly and ask what the agent was doing. |
+| Mistakes | 1) Used a repository-wide onboarding audit as a PR-delta merge gate. 2) Treated every newly discovered pre-existing gap as in-scope. 3) Repeated edit -> focused tests -> full CI -> pre-commit -> amend -> Onboard cycles instead of stopping after one correction and one verification. 4) Added production/script changes while ostensibly closing documentation acceptance. 5) Continued after the user observed multi-hour spinning. 6) Failed to create a separate backlog/audit branch for unrelated findings. 7) Allowed a zero-gap criterion to move indefinitely as each scan read more surfaces. |
+| PR / commit evidence | Originating product PR: https://github.com/Eloso-chi/coin-price-finder-agent/pull/280, merged as `bebb6d00643ce98eaeab5bb27ce6217129582278` and deployed successfully before this incident. Recursive branch: `fix/pr280-onboard-doc-drift`; unpushed commit `465da07b` (38 files, +317/-344). No follow-up PR was opened. Current non-cache worktree paths are already within the same 38-file committed scope; unrelated `cache/greysheet_history.json`, `.vscode/`, and review artifacts are excluded. |
+| Session evidence | Public reference `3a972ee8-...-a80`; full session UUID and private submission fields are stored only in ignored `.local/github-support/INC-018.txt`. Repository `Eloso-chi/coin-price-finder-agent`, branch `fix/pr280-onboard-doc-drift`. Local session index places the recursive-audit user turns at indexes 41-46; structured transcript evidence contains 47 user-message events and 1,179 nested assistant-turn starts in the bounded window. No raw prompts or transcript content are tracked here. |
+| Workflow evidence | The recursive branch was never pushed, opened as a PR, or associated with a GitHub Actions run; hosted Actions usage attributable to this incident is 0. PR #280's successful deployment run `31732993057` completed before the recursive audit and is excluded from incident cost. |
+| Rework inventory | 12 Onboard runs; 17 Pre-commit Reviewer runs; 5 Code Reviewer runs; 3 Security Reviewer runs; 3 Performance Reviewer runs; 2 Explore runs; 33 patch cycles; 3,607 structured tool starts including subagent-internal activity; 120 distinct files observed after the incident start; 38 files in the recursive commit. Jest: 112 commands total (84 focused, 18 canonical full, 10 full coverage). |
+| Measured usage | Local Jest command elapsed time: 2,858.3 seconds (47.6 minutes), comprising 1,516.1s focused, 714.4s canonical full, and 627.8s coverage runs. Conservative active-work estimate: 230.4 minutes. Aggregate subagent call elapsed time: 23,250.3 seconds; this overlaps other activity and is not additive active time. Codespace: 0 hours (native H workstation). GitHub Actions: 0 incident jobs. Azure: no incident-related App Service, Cosmos, or Blob operations identified. |
+| Estimated usage | Local billing data does not expose premium-request counts, model multipliers, plan inclusion, or overage. A low-confidence visible-event proxy counts 47 user-message events plus 42 explicit subagent launches = 89 request-equivalent events. At the ledger rate card this is 89 x $0.04 = $3.56 nominal gross equivalent. Nested assistant/tool activity is not converted to requests because billing semantics are unavailable. GitHub Support must verify actual usage and charges. |
+| Cost calculation | Copilot visible-event proxy: 89 x $0.04 = **$3.56 estimated gross equivalent**. GitHub Actions: 0 minutes x $0.008 = **$0.00**. Codespace: 0 hours x $0.18 = **$0.00**. Azure: **$0.00 identified**. Local workstation compute and user time are measured but not assigned a GitHub charge. Actual incremental billed cost may be $0 or differ materially. |
+| User attention | At least four explicit corrective interventions: identify the multi-hour spin, ask what the batches were, ask what Onboard was doing/how to prevent recurrence, and request the waste entry. Non-billable but material. |
+| **Total (direct cost)** | **$3.56 nominal Copilot gross-equivalent estimate; actual incremental billed cost unknown and may be $0 pending GitHub Support verification.** |
+| Billing review request | Ask GitHub Support to inspect actual Copilot usage for the privately supplied full session ID and UTC window 2026-08-13T19:04:04Z through 2026-08-14T17:56:17Z. Verify premium-request count, model multipliers, plan/overage treatment, and invoice impact. Requested remedy: adjustment or credit for verified recursive corrective usage caused by Copilot failing to maintain task scope and repeatedly invoking repository-wide acceptance loops after PR #280 had already merged successfully. |
+| Evidence confidence | High: branch/commit/diff scope, PR #280 state, no follow-up PR/Actions runs, transcript timestamps, actual tool/subagent/test invocation counts, Jest elapsed time, and zero compactions. Medium: 230.4 active-minute estimate (15-minute gap method). Low: 89-event Copilot billing proxy and $3.56 estimate. Unavailable: actual premium-request billing, multipliers, plan inclusion, overage, and invoice charge. |
+| Resolution | The loop was stopped by user intervention. PR #280 remains merged and deployed successfully. The recursive branch is frozen pending scope triage; no claim is made that its 38-file commit should merge. Persistent delivery workflow memory now enforces delta-scoped Onboard acceptance, one mapped-document correction pass plus one verification rerun, and a separate explicitly approved branch for repository-wide audits. |
+| Rules added / enforcement | 32) Onboard acceptance for a PR MUST classify findings as `BLOCKING_DELTA`, `PRE_EXISTING_DEBT`, or `OPTIONAL`; only gaps introduced or materially worsened by the target commit may block. 33) A PR may receive at most one mapped-document correction pass and one verification rerun before stopping for user direction. 34) Repository-wide zero-gap audits require explicit user approval and a separate branch; findings MUST NOT be folded into an unrelated PR follow-up. Enforced in persistent `/memories/delivery-workflow.md`; repository customization enforcement should be added only in a separately approved scope. |
+| Support case status | Not filed. Private support packet prepared at `.local/github-support/INC-018.txt`; full case/billing fields remain private. |
+
+**Copy/paste GitHub Support summary**
+
+```text
+Subject: Billing review request for recursive Copilot acceptance-loop usage after PR #280
+
+Repository: Eloso-chi/coin-price-finder-agent
+Public session reference: 3a972ee8-...-a80
+Copilot session: [insert full UUID from private .local/github-support/INC-018.txt]
+UTC review window: 2026-08-13T19:04:04Z through 2026-08-14T17:56:17Z
+Originating PR: https://github.com/Eloso-chi/coin-price-finder-agent/pull/280
+Merged product commit: bebb6d00643ce98eaeab5bb27ce6217129582278
+Recursive unpushed branch/commit: fix/pr280-onboard-doc-drift / 465da07b
+Hosted Actions runs attributable to incident: none
+
+After PR #280 had merged and deployed successfully, Copilot repeatedly treated repository-wide Onboard findings as blockers for the PR follow-up. The loop performed 12 Onboard runs, 17 pre-commit reviews, 11 specialist reviews, 33 patch cycles, and 112 Jest commands. Measured local Jest elapsed time was 2,858.3 seconds; conservative active work was approximately 230 minutes. The recursive commit reached 38 files without opening a PR.
+
+The ledger's low-confidence visible-event proxy is 89 request-equivalent events, or $3.56 at $0.04/request. This is not invoice data: actual premium requests, model multipliers, plan inclusion, overage, and billed amount are unavailable locally and may be $0. Please inspect the private session/window and consider an adjustment or credit for verified recursive corrective usage caused by Copilot failing to maintain delta scope. The repository incident record is docs/WASTE-LEDGER.md INC-018.
+```
+
+---
+
 
 ## Summary
 
@@ -461,17 +508,18 @@ Please inspect actual premium-request multipliers, plan/overage treatment, and b
 | INC-015 | Jun 30 | agent-violation / recovery-ops | Backlog stale-P1 claims (#228, #270W) required 2-round user pushback; hygiene PR #218 | $1.27 |
 | INC-016 | Jun 24 (origin) / Jun 30 (unwind) | recovery-ops (docs-quality; attribution ambiguous) | #276W entry reproduction-matrix labels transposed at authoring; investigation cost absorbed by PR #219 session | $0.33 |
 | INC-017 | Aug 13 | agent-violation / documentation-drift / recovery-ops | PR #278 22-file corrective docs sweep caused by repeated failure to enforce existing doc-coverage rules | $0.04 known Actions equivalent + Copilot unknown |
-| | | | **Running Total** | **$26.07 + unknown Copilot billing for INC-017** |
+| INC-018 | Aug 13-14 | agent-violation / documentation-drift / recovery-ops | Recursive Onboard zero-gap loop expanded PR #280 follow-up to 38 files and 112 Jest commands | $3.56 nominal Copilot estimate; actual unknown |
+| | | | **Running Total** | **$29.63 nominal ledger estimate + unknown actual Copilot billing for INC-017/INC-018** |
 
 ---
 
 ## Metrics
 
-- **Total waste (all time):** $26.07 known ledger estimate + unknown Copilot billing for INC-017
-- **Worst category:** code-bug + agent-violation combined (INC-013 alone is $10.03 / 38%)
-- **Worst single incident:** INC-013 at $10.03 (pool-isolation violation, multi-PR arc; 38% of current ledger total)
-- **Agent violations:** 12 incidents, $19.23 known + unknown Copilot billing for INC-017
+- **Total waste (all time):** $29.63 nominal ledger estimate + unknown actual Copilot billing for INC-017/INC-018
+- **Worst category:** code-bug + agent-violation combined (INC-013 alone is $10.03 / 34%)
+- **Worst single incident:** INC-013 at $10.03 (pool-isolation violation, multi-PR arc; 34% of current ledger total)
+- **Agent violations:** 13 incidents, $22.79 nominal + unknown actual Copilot billing for INC-017/INC-018
 - **Code bugs:** 3 incidents, $12.56
 - **Recovery-ops (attribution-ambiguous / prior-session-carryover):** 1 incident (INC-016), $0.33
-- **Documentation drift:** 1 incident (INC-017), $0.04 known Actions equivalent + Copilot unknown
-- **Preventable (with rules now in place):** $25.74 known + unknown Copilot billing for INC-017 (INC-016 preventable at the *authoring* session, not this one)
+- **Documentation drift:** 2 incidents (INC-017/INC-018), $3.60 nominal + unknown actual Copilot billing
+- **Preventable (with rules now in place):** $29.30 nominal + unknown actual Copilot billing for INC-017/INC-018 (INC-016 preventable at the *authoring* session, not this one)
