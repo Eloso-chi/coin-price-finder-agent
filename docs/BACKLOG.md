@@ -2324,6 +2324,189 @@ Ops can override to any value (e.g., `BROWSER_RECYCLE_EVERY=40 python scripts/te
 
 ---
 
+### #287H. Recover Greysheet world-PCGS coverage and refresh single-flight guard from frozen recursive branch [P2 -- DATA-COVERAGE / PERFORMANCE] -- PROPOSED 2026-08-14
+
+- **Origin**: Recovery item from INC-018. The mixed commit `465da07b` on frozen branch `fix/pr280-onboard-doc-drift` contains useful Greysheet changes but MUST NOT be cherry-picked because it mixes 38 files and unrelated rollback surfaces.
+- **Problem**:
+  1. `scripts/greysheet-refresh.js` extracts only 3-5 digit PCGS numbers, excluding representative 6-7 digit world-bullion numbers already present in `src/data/pcgsNumbers.js`.
+  2. Expanding the target set can make a refresh overlap the hourly scheduler check because refresh completion is recorded only after the run finishes.
+  3. Fixed Type-GSID counts in help/docs drift whenever `TYPE_GSID_MAP` changes.
+- **Recovery approach**:
+  1. Create a fresh branch from current `main`; do not cherry-pick `465da07b` or `baf0c87c`.
+  2. Recover only the relevant hunks from `scripts/greysheet-refresh.js` and `__tests__/greysheetHistoryService.test.js`.
+  3. Expand static PCGS extraction to 3-7 digits and retain representative 4-5 digit US coverage.
+  4. Add module-level single-flight protection so concurrent callers receive the same in-flight Promise and a later call can start after settlement.
+  5. Replace fixed Type-GSID counts with wording that targets are enumerated from `TYPE_GSID_MAP`.
+- **Strict file allowlist**:
+  - `scripts/greysheet-refresh.js`
+  - `__tests__/greysheetHistoryService.test.js`
+  - `README.md` and `docs/ARCHITECTURE.md` only where Greysheet target behavior is documented
+- **Explicit exclusions**:
+  - No PCGS prefetch/quota changes.
+  - No edits to `src/data/pcgsNumbers.js` or `greysheetTypeMap.js` data.
+  - No unrelated documentation truth-sync, agent, Terapeak, cache, or backlog cleanup.
+- **Acceptance criteria**:
+  - `getAllPcgsNumbers()` includes representative 4-, 5-, 6-, and 7-digit IDs such as `7130`, `32496`, `114425`, and `1004509`.
+  - Two overlapping `runRefresh()` calls return the same Promise and perform one run.
+  - A call after settlement returns a new Promise.
+  - No fixed Type-GSID count remains in changed Greysheet surfaces.
+  - Focused Greysheet tests and canonical CI pass.
+- **Review / delivery gates**:
+  - Tier M: pre-commit + correctness + performance review.
+  - One correction pass maximum, followed by one verification rerun.
+  - Onboard is delta-scoped to the changed Greysheet contract; pre-existing findings become backlog debt and cannot expand this PR.
+- **Rollback**: Revert this PR only; Greysheet scheduler behavior and target extraction return to the prior implementation without affecting PCGS quota or Terapeak operations.
+
+---
+
+### #288H. Isolate Terapeak eviction tests from persisted local cache state [P2 -- TEST-INFRA / DETERMINISM] -- PROPOSED 2026-08-14
+
+- **Origin**: Recovery item from INC-018. The deterministic reset-order fix exists in mixed commit `465da07b` but must be recovered independently.
+- **Problem**: `__tests__/terapeakImportEviction.test.js` calls `clearAll()` before `_resetStoreCache()`. The next test can reload the developer's persisted Terapeak cache, causing exact dataset-count assertions to fail in isolation or during pre-commit review.
+- **Recovery approach**:
+  1. Start from current `main` on a test-only branch.
+  2. Reset the in-memory cache handle before calling `clearAll()` in setup and teardown, so the loaded store is cleared once and cannot be rehydrated unexpectedly.
+  3. Preserve all exact assertions; do not weaken counts or replace them with containment checks.
+  4. Prove the test passes when a non-empty persisted test cache exists through the existing mocked/test storage boundary.
+- **Strict file allowlist**:
+  - `__tests__/terapeakImportEviction.test.js`
+  - A shared test helper only if required to create deterministic temporary storage
+- **Explicit exclusions**:
+  - No production changes to `src/services/terapeakService.js`.
+  - No changes to real `cache/`, `data/terapeak/`, or metadata sidecars.
+  - No assertion reductions, retries, skips, or cleanup of unrelated tests.
+- **Acceptance criteria**:
+  - The suite passes alone and in canonical CI with exact dataset-count assertions unchanged.
+  - Tests never write or clear real repository/operator state.
+  - Repeated local runs are deterministic with a non-empty developer cache present.
+- **Review / delivery gates**:
+  - Tier XS/S test-only PR: pre-commit review and author self-review.
+  - One focused run plus canonical CI; no repository-wide audit.
+  - Delta-scoped Onboard is not required unless a mapped test-process document changes.
+- **Rollback**: Revert the isolated test commit; production behavior is unaffected.
+
+---
+
+### #289H. Recover Terapeak hard-challenge stop and dynamic bullion-loop exhaustion behavior [P1 -- BOT-RESILIENCE / OPERATIONS] -- PROPOSED 2026-08-14
+
+- **Origin**: Recovery item from INC-018. Relevant committed hunks are in `465da07b`; additional unfinished behavior tests and loop seams remain unstaged in `__tests__/terapeakOperator.test.js`, `docs/memory/terapeak-runbook.md`, and `scripts/run-bullion-loop.sh`. Treat all of them as reference only.
+- **Problem**:
+  1. Deep aggregation must stop immediately on the first canonical hard-challenge signal rather than continue to another candidate.
+  2. The stale-bullion wrapper previously used fixed-total assumptions instead of actual exporter exhaustion output.
+  3. Existing source-text assertions do not prove exit code, attempt count, or shell-loop behavior.
+- **Recovery approach**:
+  1. Create a fresh operator branch from current `main`; recover selected hunks manually, never cherry-pick the mixed commit.
+  2. Reuse `terapeak-export.py`'s canonical `challenge_indicators(page, response)` detector in `sales-aggregator.py`, including HTTP 403/429, challenge URLs, CAPTCHA/hCaptcha DOM, unusual-activity text, and security-measure pages.
+  3. Stop the deep loop on the first signal, perform normal cleanup, and return/exit with the documented nonzero hard-block code.
+  4. Make `run-bullion-loop.sh` stop only when the exporter reports actual backlog exhaustion; propagate exporter failures unchanged.
+  5. Add narrow dependency seams for executable tests without real browser or network calls.
+- **Strict file allowlist**:
+  - `scripts/sales-aggregator.py`
+  - `scripts/run-bullion-loop.sh`
+  - `__tests__/terapeakOperator.test.js`
+  - `docs/memory/terapeak-runbook.md` only for changed operator behavior
+- **Explicit exclusions**:
+  - No changes to anti-bot thresholds, pacing profiles, cookie identity, IP strategy, or Cooldown duration.
+  - Never rotate identity/token/IP to evade a block.
+  - No live eBay/Terapeak calls in tests.
+  - No broad scraper documentation cleanup or unrelated wrapper modernization.
+- **Acceptance criteria**:
+  - A fake deep candidate list with two terms and a first-term hard challenge attempts exactly one term and exits with code `2`.
+  - Shared canonical challenge detection is used rather than a divergent detector.
+  - A fake exporter emitting `No terms to process.` causes the bullion loop to exit `0` with backlog-exhausted status.
+  - A fake exporter exiting `7` causes the wrapper to exit `7` without another batch.
+  - Python and Bash syntax checks, focused operator tests, and canonical CI pass on Windows/WSL-compatible harness paths.
+- **Review / delivery gates**:
+  - Tier M: pre-commit + correctness + security review because process termination and browser challenge handling are operational safety surfaces.
+  - At most one approved finding pass and one verification rerun.
+  - Onboard is delta-scoped to these four files and their direct contract; unrelated docs become separate backlog debt.
+- **Rollback**: Revert this PR to restore prior deep-loop/wrapper behavior; no data migration is involved.
+
+---
+
+### #290H. Recover agent/workflow safety rules without production-script changes [P2 -- AGENT-SAFETY / PROCESS] -- PROPOSED 2026-08-14
+
+- **Origin**: Recovery item from INC-018. Ten agent/skill files in `465da07b` contain potentially useful safety and portability changes but are mixed with production and repository-wide cleanup.
+- **Problem**:
+  1. Agent commands hardcode one Codespace repository path instead of resolving the active repository root.
+  2. Server-start guidance can kill an unknown listener on port 3000 without proving process ownership.
+  3. Persistence guidance overstates `NODE_ENV=test` as a universal no-write rule instead of the actual requirement: tests must not reach real repository/operator state and may use no-op, mocks, or temporary paths.
+  4. Onboard acceptance lacks an enforced delta/pre-existing-debt classification and cycle limit, enabling INC-018 recurrence.
+- **Recovery approach**:
+  1. Use the agent-customization workflow on a fresh branch from `main`.
+  2. Replace hardcoded repo paths with `git rev-parse --show-toplevel` or equivalent current-workspace resolution.
+  3. Require command/cwd verification before stopping a port-3000 listener; unknown listeners must be reported, not killed.
+  4. Align review guidance around test persistence isolation using `NODE_ENV=test` no-op or injected mock/temp paths.
+  5. Add explicit Onboard output categories: `BLOCKING_DELTA`, `PRE_EXISTING_DEBT`, `OPTIONAL`; only the first may block the target PR.
+  6. Enforce one mapped-document correction pass plus one verification rerun; repository-wide zero-gap audits require explicit approval and a separate branch.
+- **Strict file allowlist**:
+  - `.github/agents/code-reviewer.approval-gated.agent.md`
+  - `.github/agents/freshness-triage.agent.md`
+  - `.github/agents/implementer.approval-only.agent.md`
+  - `.github/agents/onboard.agent.md`
+  - `.github/agents/pricing-health.agent.md`
+  - `.github/agents/sales-aggregator.agent.md`
+  - `.github/agents/test-coverage.agent.md`
+  - `.github/agents/test-monitor.agent.md`
+  - `.github/skills/code-review/SKILL.md`
+  - `.github/skills/testing/TESTING-PLAN.md`
+  - `docs/memory/agents-and-prompts.md`
+  - `__tests__/agentCustomizationContract.test.js` only for enforceable customization contracts not already merged via PR #281
+- **Explicit exclusions**:
+  - No production JS/Python/Bash changes.
+  - No README/architecture/runbook truth-sync beyond the canonical customization inventory.
+  - Do not reapply PR #281's already-merged schema-test changes.
+- **Acceptance criteria**:
+  - Customization contract tests validate frontmatter, inventory, portable paths, safe listener ownership, and delta-scoped Onboard behavior.
+  - No changed agent instructs killing an unknown process or running a foreground server.
+  - No hardcoded `/workspaces/coin-price-agent` path remains in changed agents.
+  - Agent customization evaluation and canonical CI pass.
+- **Review / delivery gates**:
+  - Tier M customization PR: pre-commit + approval-gated correctness review.
+  - Use the agent-customization skill and update the canonical inventory in the same PR.
+  - One correction pass plus one verification rerun; no recursive repository audit.
+- **Rollback**: Revert only this customization PR; production code and data remain unchanged.
+
+---
+
+### #291H. Recover documentation truth-sync as bounded thematic patches [P3 -- DOCUMENTATION / MAINTAINABILITY] -- PROPOSED 2026-08-14
+
+- **Origin**: Recovery item from INC-018. Nineteen documentation files in `465da07b` contain a mixture of valid corrections and audit-driven scope expansion. They MUST NOT be merged as one zero-gap sweep.
+- **Problem**: Active docs contain some verified drift (module inventories, scraper defaults, 422 flow, Cosmos audit containers, server-side storage, relative links), but combining every correction creates an oversized rollback surface and recreates the failure documented in INC-018.
+- **Recovery approach**:
+  1. Treat `465da07b`/`baf0c87c` only as a hunk inventory, not a commit to cherry-pick.
+  2. Before editing, classify every candidate hunk as `CURRENT_CONTRACT`, `DATED_HISTORICAL_EVIDENCE`, or `DISCARD`.
+  3. Group approved current-contract fixes into small thematic PRs, each from current `main`:
+     - storage/auth/module inventory,
+     - Terapeak operator defaults and two-step 422 flow,
+     - Azure/Cosmos/data dictionary,
+     - broken relative links/historical banners.
+  4. Leave dated backlog, incident, and test-runtime evidence unchanged unless objectively false in its historical context.
+  5. Replace volatile counts with dynamic discovery/admin-endpoint wording rather than updating snapshots repeatedly.
+- **Strict file allowlist for triage**:
+  - `README.md`, `docs/ARCHITECTURE.md`, `docs/data-dictionary.md`, `docs/BACKLOG.md`
+  - `docs/memory/README.md`, `agents-and-prompts.md`, `azure-infrastructure.md`, `bulk-evaluate-feature.md`, `codebase-overview.md`, `decision-engine-spec.md`, `ebay-search-filtering-analysis.md`, `future-edits.md`, `label-feature-context.md`, `pool-isolation-rule.md`, `terapeak-data-structure-analysis.md`, `terapeak-export-automation.md`, `terapeak-runbook.md`
+  - `docs/runbooks/local-scraper-wsl2.md`, `docs/runbooks/scraper-travel-mode.md`
+  - `scripts/README.md` only when changed script contracts require it
+- **Explicit exclusions**:
+  - No source, test, agent, skill, workflow, cache, or data changes in a docs-only PR.
+  - No repository-wide requirement to reach zero pre-existing gaps.
+  - No hardcoded test/dataset/container counts unless generated and intentionally snapshot-dated.
+  - No duplicate of INC-018 or PR #281 content.
+- **Acceptance criteria for each thematic PR**:
+  - PR body lists the exact contract and file allowlist.
+  - Relative-link validator passes for changed Markdown files.
+  - Claims are grounded in current source or clearly labeled historical evidence.
+  - Pre-commit review passes; canonical CI runs once.
+  - Delta-scoped Onboard returns no `BLOCKING_DELTA`; `PRE_EXISTING_DEBT` is logged for later and does not expand the PR.
+- **Review / delivery gates**:
+  - Tier XS/S per thematic docs PR unless load-bearing agents/source are touched (then move that work to #290H or another source backlog item).
+  - Maximum one correction pass and one verification rerun per PR.
+  - User approval is required before selecting each thematic subgroup for implementation.
+- **Rollback**: Each thematic PR is independently revertible; never combine all candidate docs into one merge.
+
+---
+
 ### #283W. Libertad tracker + Terapeak pool leak -- "onza" weight synonym + specialty-edition variant [P2 -- PRICING-ACCURACY / POOL-ISOLATION] -- DONE 2026-07-14 (PR #230)
 - **Problem**: A user searched `2011 Mexican Silver Libertad Proof` and the Live eBay Tracker returned off-weight and specialty-edition comps (e.g. `2023 Mexico Libertad 1/4 Onza Proof Silver Coin...`, `2022 Mexico Elite Libertad Traders 1 oz .999 Proof Silver Coin with COA`). The FMV path reported "8 verified sold comps used" but the source Terapeak dataset (`1oz 2011 libertad mexican proof silver`, compCount 21) contains at least one comp that was not rerouted at import time (`2011 MO SILVER PROOF MEXICO 1/20 ONZA LIBERTAD NGC PF 69 UC`).
 - **Root causes** (two independent gaps, both surfaced by the same query):
