@@ -150,11 +150,18 @@ describe('agent customization contract', () => {
     expect(ledgerFields).toEqual(skillFields);
     expect(ledgerFields).toEqual(requiredFields);
 
-    const incidentSection = ledger.split('### INC-017:')[1].split('## Summary')[0].replaceAll('**', '');
-    const incidentFields = [...incidentSection.matchAll(/^\| ([^|]+?) \|/gm)]
-      .map(match => match[1].trim())
-      .filter(field => field !== 'Field' && field !== '-------');
-    expect(incidentFields).toEqual(requiredFields);
+    const supportReadyIncidents = ledger
+      .split('## Summary')[0]
+      .split(/^### INC-/m)
+      .slice(1)
+      .filter(section => Number.parseInt(section, 10) >= 17);
+    expect(supportReadyIncidents.length).toBeGreaterThanOrEqual(2);
+    for (const incidentSection of supportReadyIncidents) {
+      const incidentFields = [...incidentSection.replaceAll('**', '').matchAll(/^\| ([^|]+?) \|/gm)]
+        .map(match => match[1].trim())
+        .filter(field => field !== 'Field' && field !== '-------');
+      expect(incidentFields).toEqual(requiredFields);
+    }
 
     const testSource = fs.readFileSync(__filename, 'utf8');
     const privacySurfaces = [ledger, processSkill, preCommit, prTemplate];
