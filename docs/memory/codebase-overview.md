@@ -6,12 +6,13 @@
 
 ## Stack
 - **Runtime:** Node.js 22, Express 5.2, CommonJS
-- **Frontend:** Single-page app in `public/index.html` (~6,982 lines), dark theme, 9 tabs
+- **Frontend:** Single-page app in `public/index.html`, dark theme, 9 tabs
 - **Auth:** Server-side bcrypt + JWT (authService.js); client modules are thin API wrappers
 - **Hosting:** Azure App Service (Linux, B2, Canada Central) -- `coinpricefinder-h3a3b5g0dmdydna4`
 - **Azure Services:** Key Vault (`coinpricefinder-kv`), Cosmos DB (`coinpricefinder-cosmos`, serverless), Blob Storage (`coinpricecache01/terapeak-csvs`), Azure Files (`appcache` at `/mnt/cache`)
 - **CI/CD:** GitHub Actions with OIDC -> Azure (`main_coinpricefinder-h3a3b5g0dmdydna4.yml`)
-- **Tests:** Jest 30, 48 suites, ~2,100+ tests, `npm test`
+- **Observability:** X-Request-ID async context, redacted Pino JSON logs, shallow/deep health checks, versioned valuation audits
+- **Tests:** Jest 30; latest verified run 161 suites / 4,425 tests. Run `npm test` for the current count.
 
 ## Project Structure
 ```
@@ -22,21 +23,24 @@ public/
   js/storage.js            CoinStorage: server-backed coin CRUD via /api/coins/*
   js/my-coins.js           MyCoins: portfolio render with batch pricing
 src/
-  routes/                  14 Express route modules
-  services/                16 service modules
+  routes/                  15 Express route modules
+  services/                22 service modules
+  utils/                   14 shared utility modules
+  middleware/              4 request/auth/logging middleware modules
+  schemas/                 JSON schema for /api/price responses
   data/                    Static reference data (PCGS numbers, key dates, mintages, greysheetTypeMap, etc.)
   utils/                   Cache, stats, filters, coinMetalProfile, responseValidator, excelMapper, cachePath, cosmosClient, blobClient
-data/terapeak/             CSV import folder (~2,834 CSVs, auto-loaded at startup)
+data/terapeak/             CSV import folder (3,593 CSVs + 2,593 `.meta` sidecars in the current snapshot)
 cache/                     Persisted caches (ebay, pcgs, greysheet, metals, terapeak, users, user_coins, history files)
 scripts/                   Terapeak scrapers, greysheet-refresh, migrate-to-cosmos, upload-csvs-to-blob, test-metrics
 docs/ARCHITECTURE.md       Full technical docs
 docs/BACKLOG.md            Canonical backlog (single source of truth for planned/in-progress/done work)
 docs/BACKLOG.rules.md      Backlog governance rules, approval gates, PR hygiene expectations
 docs/testing/test-monitor.md  Test Monitor usage guide & command reference
-.github/agents/            13 Copilot agents (code-reviewer, implementer, onboard, pricing-health, sales-aggregator, freshness-triage, etc.)
+.github/agents/            14 Copilot agents (see root AGENTS.md)
 .github/prompts/           6 slash-command prompts (/review-deep, /apply-approved, /pre-commit, /test-coverage, /onboard, /pricing-health)
-.github/skills/            Shared code-review skill (SKILL.md)
-__tests__/                 56 Jest test suites (~2,658 tests)
+.github/skills/            7 shared workflow/domain skill directories
+__tests__/                 161 current *.test.js files recursively plus fixtures/helpers/setup
 ```
 
 ## 9 Tabs
@@ -68,10 +72,11 @@ __tests__/                 56 Jest test suites (~2,658 tests)
 | /api/coins/* | Mixed | JWT | Collection CRUD (add, list, update, delete, export, import) |
 | /api/admin/* | Mixed | Admin | Dashboard, users, data health, stale datasets |
 | /api/clear-cache | POST | Admin | Clear all caches |
-| /api/health | GET | -- | Health check |
+| /api/health | GET | -- | Shallow load-balancer health check |
+| /api/health?deep=1 | GET | Admin | Bounded downstream dependency health |
 
 ## Services
-- **ebayService** -- 4-tier comp cascade (Terapeak CSV -> Marketplace Insights -> Finding (dead) -> Browse API), circuit breaker (5min), throttle (1.1s), match scoring, outlier removal
+- **ebayService** -- Terapeak-first comp cascade; deprecated Finding is disabled by default and Browse provides active-listing fallback, with circuit breakers, throttling, match scoring, and pool isolation
 - **pcgsService** -- PCGS CoinFacts API, parseDescription text parser, static PCGS number table
 - **valuationService** -- FMV blending (3 modes: bullion-spot-premium, certified-blend, raw-blend), confidence scoring, buy/sell decisions, grade-tiered weights, sale context adjustment
 - **greysheetService** -- Greysheet CDN Public API V2 (wholesale/retail pricing, 5 price sources), finish-aware type fallback
@@ -85,6 +90,10 @@ __tests__/                 56 Jest test suites (~2,658 tests)
 - **marketAggregator** -- Year x mint/grade/brand matrix builder
 - **authService** -- Server-side auth (bcrypt + JWT, dual-mode Cosmos + local JSON)
 - **coinStorageService** -- Server-side coin CRUD (dual-mode Cosmos + local JSON)
+- **auctionPriceService / prefetchScheduler / pcgsQuotaService** -- PCGS APR history, nightly prefetch, local quota and persisted upstream cooldown recovery
+- **auditService** -- Admin and versioned valuation audit events, Cosmos-first with bounded JSONL fallback
+- **alertService** -- Rate-limited Azure Communication Services Email alerts with local fallback logging
+- **adminService / freshnessClassifier** -- Admin health and shared freshness/dormancy decisions
 
 ## Auth System (Server-Side)
 - **authService.js:** bcrypt 12 rounds, JWT HS256 (7d expiry), users.json + Cosmos `users` container
@@ -105,7 +114,7 @@ __tests__/                 56 Jest test suites (~2,658 tests)
 - **Coin Dedup** -- coinHash = SHA-256(series|year|mint|grade|notes), so same coin with different notes = different entry.
 
 ## Env Vars
-EBAY_APP_ID, EBAY_CLIENT_SECRET, PCGS_API_KEY, GOLDAPI_KEY, METALS_API_KEY, NUMISTA_API_KEY, GREYSHEET_API_TOKEN, GREYSHEET_API_KEY, ADMIN_API_KEY, JWT_SECRET, PORT, CACHE_DIR, COSMOS_ENDPOINT, COSMOS_KEY, TERAPEAK_BLOB_ACCOUNT, TERAPEAK_BLOB_CONTAINER, TERAPEAK_DATA_DIR, METALS_POLL_MS
+See the authoritative tables in `README.md` and `docs/ARCHITECTURE.md`. Recent operational settings include `COMMUNICATION_CONNECTION_STRING`, `ALERT_EMAIL_TO`, `ALERT_FROM_EMAIL`, `LOG_LEVEL`, `PCGS_429_COOLDOWN_MS`, `TERAPEAK_PACING_PROFILE`, and `TERAPEAK_PACING_PILOT_ID`.
 
 ## Admin Features
 - Terapeak CSV import (POST /api/terapeak/import, requires x-api-key)
@@ -115,24 +124,23 @@ EBAY_APP_ID, EBAY_CLIENT_SECRET, PCGS_API_KEY, GOLDAPI_KEY, METALS_API_KEY, NUMI
 
 ## Test Utilities
 - **Auto-seed (server.js)** -- `seedTestAccount()` creates `testcollector` / `Coins2026!` with 10 coins on startup if missing. Server-side, persists across browser clears.
-- **`__tests__/`** -- 56 Jest test suites (~2,658 tests). Run with `npm test`.
+- **`__tests__/`** -- Current Jest tests plus fixtures/helpers/setup. Run `npm test`; use `npm run test:metrics`, `npm run test:summary`, and `npm run test:analyze` for timing history.
 - **`__tests__/helpers/coinTestConstants.js`** -- Shared test helpers: `makeComp()`, `makeComps()`, token lists
 - **`samples/`** -- Test fixtures: `test-collection.xlsx`, `no-collectors-sheet.xlsx`.
 - **`.test-metrics/`** -- Jest timing metrics: `npm run test:metrics`, `npm run test:summary`
 
 ## Dependencies
-- **Runtime:** express, helmet, express-rate-limit, axios, csv-parse, dotenv, multer, xlsx, bcrypt, jsonwebtoken, @azure/cosmos, @azure/storage-blob, @azure/identity
-- **Dev:** jest, axios-mock-adapter, supertest
+- **Runtime:** Express, Pino, Helmet, rate limiting, Axios, csv-parse, dotenv, multer, ExcelJS, bcryptjs, JWT, AJV, Azure Cosmos/Blob/Identity/Communication Email
+- **Dev:** Jest/jsdom, ESLint, Stryker, axios-mock-adapter, Supertest
 
 
 ## Quick Start for New Conversations
 - Run `/onboard` to read all docs and source files systematically.
-- Or at minimum, read this file + `/memories/repo/future-edits.md` for the full backlog.
-- The canonical backlog is `docs/BACKLOG.md` (git-tracked, single source of truth). `/memories/repo/future-edits.md` is a detailed supplemental reference.
-- For decision engine details, read `/memories/repo/decision-engine-spec.md`.
-- Key commits this session: df0a3e6 (Azure KV/Cosmos/cachePath), 17952c7 (Blob/tests/UI features), b41b12c (terapeakService tests).
+- Or at minimum, read this file, `docs/memory/numismatic-terminology.md`, and `docs/BACKLOG.md`.
+- The canonical backlog is `docs/BACKLOG.md`; `docs/memory/future-edits.md` is historical only.
+- For decision-engine details, read `docs/memory/decision-engine-spec.md`.
 
-## Copilot Agents (12)
+## Copilot Agents (14)
 | Agent | Type | Purpose |
 |-------|------|---------|
 | `@code-reviewer` | Primary | Full approval-gated code review (conductor) |
@@ -145,16 +153,19 @@ EBAY_APP_ID, EBAY_CLIENT_SECRET, PCGS_API_KEY, GOLDAPI_KEY, METALS_API_KEY, NUMI
 | `@pricing-health` | Primary | End-to-end pricing flow validator, comp attrition auditor |
 | `@freshness-triage` | Primary | Terapeak data freshness triage and staleness detection |
 | `@sales-aggregator` | Primary | Terapeak scraping session orchestrator |
+| `@numismatic-audit` | Primary | Classification/filter audit against numismatic contracts |
+| `@terapeak-operator` | Primary | Canonical guarded Terapeak startup workflow |
 | `@security-review` | Sub-agent | OWASP-focused security sub-reviewer |
 | `@performance-review` | Sub-agent | Performance bottleneck sub-reviewer |
 
 ## Terapeak Operators
 - **H-machine (WSL Surface)**: `scripts/terapeak-operator.sh` -- preflight(login) -> optional login -> preflight(loop) -> freshness pass. Run via `@terapeak-operator` agent.
 - **W-machine (Codespace)**: `scripts/terapeak-operator-codespace.sh` (#200) -- system `python3`, no `~/.env.surface`, default `--max-passes 0` (unlimited loop), single-instance `flock`. Per-pass records appended to `cache/terapeak-runs/{passes,coins}.jsonl` by `scripts/_parse-terapeak-pass.py`; view with `scripts/show-terapeak-runs.sh recent|runs|totals|stop-conditions`.
-- Both operators share randomized batch (15-30) + jittered pause (600s +/- 90s) for anti-detection. Full operator/runbook details in `docs/memory/terapeak-runbook.md`.
+- Both operators use #284H risk states, randomized Normal batches (30-35 by default), smaller Elevated batches, longer Elevated pauses, hard-challenge Cooldown stops, and shared pass telemetry. #280H adds an opt-in baseline/tuned pilot that remains baseline by default. Full details live in `docs/memory/terapeak-runbook.md` and `docs/memory/anti-bot-operations.md`.
 
 ## Background Timers (server.js startup)
 - **Metals polling**: every 30 min (METALS_POLL_MS), records daily history snapshots
-- **Greysheet refresh**: weekly check on startup + 24h re-check interval (GS_REFRESH_DAYS)
+- **Greysheet refresh**: every 3 days by default (`GS_REFRESH_INTERVAL_DAYS`), checked on startup and hourly
 - **Blob re-import**: every 30 min (BLOB_REIMPORT_MS), picks up new Terapeak CSVs from Azure Blob
 - **Stale eviction**: 180-day Terapeak comp eviction + CSV purge on startup
+- **PCGS APR prefetch**: nightly scheduler with local quota, persisted upstream cooldown, bounded recovery probe, and repeated-partial alerts

@@ -39,15 +39,24 @@ function container(name) {
  * (no-op) when Cosmos is not configured so callers do not need to gate.
  * @param {string} id
  * @param {string} partitionKeyPath  e.g. '/actorUsername'
+ * @param {object} [options]
  * @returns {Promise<void>}
  */
-async function ensureContainer(id, partitionKeyPath) {
+async function ensureContainer(id, partitionKeyPath, options = {}) {
   if (!_enabled && !_client) init();
   if (!_db) return;
-  await _db.containers.createIfNotExists({
+  const result = await _db.containers.createIfNotExists({
     id,
     partitionKey: { paths: [partitionKeyPath] },
+    ...options,
   });
+  if (Object.hasOwn(options, 'defaultTtl') && result) {
+    const ensuredContainer = result.container || _db.container(id);
+    const resource = result.resource || (await ensuredContainer.read()).resource;
+    if (resource.defaultTtl !== options.defaultTtl) {
+      await ensuredContainer.replace({ ...resource, defaultTtl: options.defaultTtl });
+    }
+  }
 }
 
 module.exports = { isEnabled, container, ensureContainer };

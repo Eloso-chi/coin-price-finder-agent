@@ -54,6 +54,13 @@ EXPECTED_PASS = {
     "dormant": 1,         # 1900-O
     "new_rows": 177,      # 124 + 48 + 5
     "dup_rows": 160,      # 143 + 15 + 2
+    "pacing_profile_requested": "normal-tuned",
+    "pacing_profile_effective": "normal-tuned",
+    "pacing_pilot_id": "pilot-test",
+    "pacing_batch_min": 30,
+    "pacing_batch_max": 35,
+    "pacing_p01_fixed": 15,
+    "pacing_upload_mode": "api",
 }
 
 # Per-coin status assertions (idx -> expected status)
@@ -90,6 +97,13 @@ def main():
                 "--end-ts",   "2026-06-29T00:01:00Z",
                 "--machine",  "W",
                 "--include-thin", "false",
+                "--pacing-profile-requested", "normal-tuned",
+                "--pacing-profile-effective", "normal-tuned",
+                "--pacing-pilot-id", "pilot-test",
+                "--pacing-batch-min", "30",
+                "--pacing-batch-max", "35",
+                "--pacing-p01-fixed", "15",
+                "--pacing-upload-mode", "api",
             ],
             env=env,
             capture_output=True,

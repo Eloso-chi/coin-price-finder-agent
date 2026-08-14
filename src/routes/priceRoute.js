@@ -10,6 +10,7 @@ const greysheetService = require('../services/greysheetService');
 const greysheetHistory = require('../services/greysheetHistoryService');
 const auctionPriceService = require('../services/auctionPriceService');
 const { computeValuation } = require('../services/valuationService');
+const { writeValuationAudit } = require('../services/auditService');
 const { getMetalsSpotPrice } = require('../services/metalsSpotPrice');
 const numistaService = require('../services/numistaService');
 const { lookupKeyDate } = require('../data/keyDates');
@@ -22,7 +23,7 @@ const { hasSeriesConflict, detectDenomination } = require('../utils/filters');
 const { getCoinMetalProfile } = require('../utils/coinMetalProfile');
 const terapeakService = require('../services/terapeakService');
 const { redactCompsForPublic } = require('../utils/redactForPublic');
-const { extractCoinIntent } = require('../utils/coinIntent');
+const { extractCoinIntent, isValidFinishInput, MAX_FINISH_LENGTH } = require('../utils/coinIntent');
 const stats = require('../utils/stats');
 
 // ── #41: Adjacent-year context ──
@@ -76,6 +77,12 @@ router.post('/', async (req, res) => {
     const { query, askingPrice, options, coinData, weight: bodyWeight, saleContext: rawSaleCtx, appealMultiplier: rawAppeal } = req.body || {};
     if (!query) {
       return res.status(400).json({ error: 'query field is required' });
+    }
+    if (String(query).length > 300) {
+      return res.status(400).json({ error: 'query must be 300 characters or fewer' });
+    }
+    if (!isValidFinishInput(coinData?.finish)) {
+      return res.status(400).json({ error: `coinData.finish must be a string of ${MAX_FINISH_LENGTH} characters or fewer` });
     }
 
     // #55: Validate sale context
@@ -444,7 +451,7 @@ router.post('/', async (req, res) => {
       // #260W: forward canonical finish so valuationService can split
       // reverse-proof comps from the regular proof pool. extractCoinIntent
       // already normalized this to "Reverse Proof" / "Enhanced Reverse Proof".
-      finish: expected.finish,
+      finish: expected.finish || expected.label,
       greysheet,
       saleContext,
       appealMultiplier: resolvedAppeal,
@@ -570,6 +577,18 @@ router.post('/', async (req, res) => {
     }
 
     // ── Response ──
+    void writeValuationAudit({
+      query,
+      fmv: valuation.fmvCore,
+      method: valuation.method || valuation.dataSource?.label || null,
+      confidence: valuation.confidence,
+      algorithmVersion: valuation.algorithmVersion,
+      configVersion: valuation.configVersion,
+      computedAt: valuation.computedAt,
+      requestId: req.id,
+      actorId: req.isAdmin ? req.adminActor?.userId : undefined,
+      ip: req.isAdmin ? req.ip : undefined,
+    });
     return res.json(redactCompsForPublic({
       query: { input: query, askingPrice: askingPrice || null, weight: resolvedWeight, setType: resolvedSetType, options: opts },
       coinData: coinData || null,

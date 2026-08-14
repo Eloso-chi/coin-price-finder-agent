@@ -67,3 +67,9 @@ The low comp count was caused by **stale eBay disk cache** (`cache/ebay_cache.js
 - **Node `importComps()`**: `title|price|soldDate` (was `title|price`)
 - **Python `append_to_csv()`**: `title|itemId|soldDate|soldPrice` (was `id|date|price`)
 - Old keys were too aggressive -- collapsed different listings with same price or blank IDs
+
+### 8. Targeted Folder Import
+- `autoImportFolder(folder, { includeFiles })` accepts an array of exact child filenames.
+- Entries are matched against files returned by the target directory, so unknown and traversal-like names are ignored.
+- Omitting `includeFiles` preserves the full-folder startup import.
+- Seeded integrity tests use this option for their sampled and pinned cohort, with a strict-majority resolution assertion to prevent reduced setup from becoming soft-skipped coverage.

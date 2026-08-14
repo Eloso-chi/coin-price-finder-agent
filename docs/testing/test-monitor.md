@@ -134,6 +134,8 @@ Runtime budgets:
 
 Tests exceeding these thresholds are flagged for optimization.
 
+Real-data suites that exercise a seeded cohort should import only that cohort when the production importer supports an explicit file allowlist. The cohort must retain a minimum-resolution assertion so reduced setup work cannot turn downstream checks into soft skips.
+
 ## Recommended Workflow
 
 1. **During development**: Run targeted tests first for fast feedback.
