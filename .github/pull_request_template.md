@@ -88,7 +88,23 @@
   - [ ] Deep review (`@code-reviewer.approval-gated`) -- required for M / L; report attached
   - [ ] `@numismatic-audit` Step 5b -- required if PR touches pool-isolation surfaces (ebayService classifyGradeType / applyFilters, valuationService pool selection)
   - [ ] Tests pass (`npm test`)
+  - [ ] Onboard acceptance tied to the current commit reports no actionable active documentation gaps (required for material architecture/API/data/operations/environment/customization/user-facing workflow changes)
+  - [ ] N/A -- reviewer-approved no-impact exemption documented for typo/formatting-only or non-behavioral metadata changes
+  - [ ] Required CI checks completed successfully before merge
+  - [ ] Normal merge planned; any `--admin` exception has explicit user approval and a documented reason
   - [ ] No `--no-verify` (or active hooks verified absent)
+
+### WASTE-LEDGER Evidence
+
+<!-- Required when this PR adds a new INC entry. -->
+
+- [ ] N/A -- no new WASTE-LEDGER incident
+- [ ] New incident uses the support-ready schema from `.github/skills/process-discipline/SKILL.md`
+- [ ] Redacted session reference, PR/commit, workflow, measured/estimated usage, confidence, billing-review scope, and support-case status are recorded
+- [ ] Tracked evidence is public-safe; full identifiers are stored only in ignored `.local/github-support/INC-NNN.txt`
+- [ ] Tracked evidence contains no credentials, cookies, signed URLs, emails, IPs, local user paths, raw prompts/transcripts, billing/account IDs, full session IDs, or full support-case IDs
+- [ ] Copy/paste GitHub Support summary is included
+- [ ] WASTE-LEDGER Summary and Metrics totals are updated
 
 ### Scraper Risk And Compliance
 

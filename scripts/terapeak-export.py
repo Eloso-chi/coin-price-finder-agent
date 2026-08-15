@@ -51,6 +51,13 @@ import time
 from datetime import datetime, timedelta
 from pathlib import Path
 
+SCRIPT_MODULE_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_MODULE_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_MODULE_DIR))
+
+from _terapeak_pacing import BASELINE, authorized_effective_profile, scale_range, scale_seconds, validate_profile
+from _terapeak_risk import load_state
+
 try:
     from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeout
 except ImportError:
@@ -103,6 +110,21 @@ if UPLOAD_MODE not in ("api", "blob", "auto"):
 # upload path cannot confirm immediate ingestion (e.g. blob mode).
 VERIFY_IMPORT = os.environ.get("VERIFY_IMPORT", "").strip().lower() in ("1", "true", "yes", "on")
 
+REQUESTED_PACING_PROFILE = validate_profile(os.environ.get("TERAPEAK_PACING_PROFILE", BASELINE))
+_candidate_pacing_profile = validate_profile(os.environ.get("TERAPEAK_EFFECTIVE_PACING_PROFILE", BASELINE))
+_risk_state_path = os.environ.get("TERAPEAK_RISK_STATE_FILE", "")
+_persisted_risk_state = (
+    load_state(_risk_state_path).get("state", "Cooldown")
+    if _risk_state_path and os.path.isfile(_risk_state_path)
+    else "Cooldown"
+)
+EFFECTIVE_PACING_PROFILE = authorized_effective_profile(
+    REQUESTED_PACING_PROFILE,
+    _candidate_pacing_profile,
+    _persisted_risk_state,
+    os.environ.get("TERAPEAK_PACING_PILOT_ID", ""),
+)
+
 # Auto-read keys from .env if not set in environment
 if not ADMIN_API_KEY or not BLOB_ACCOUNT:
     env_file = PROJECT_DIR / ".env"
@@ -143,7 +165,7 @@ def has_display():
 
 def rand_delay(range_tuple):
     """Sleep for a random duration within the given range."""
-    time.sleep(random.uniform(*range_tuple))
+    time.sleep(random.uniform(*scale_range(range_tuple, EFFECTIVE_PACING_PROFILE)))
 
 
 # ── Human mouse/scroll simulation ──────────────────────────
@@ -230,7 +252,7 @@ def human_scroll(page, direction="down", distance=None):
 def human_idle(page):
     """Simulate a brief idle period -- human looking at the page. Occasionally
     wiggle the mouse a little."""
-    idle_time = random.uniform(1.5, 4.0)
+    idle_time = scale_seconds(random.uniform(1.5, 4.0), EFFECTIVE_PACING_PROFILE)
     end = time.time() + idle_time
     while time.time() < end:
         if random.random() < 0.3:
@@ -244,7 +266,7 @@ def human_idle(page):
             page.mouse.move(cx, cy)
             page._mouse_x = cx
             page._mouse_y = cy
-        time.sleep(random.uniform(0.3, 0.8))
+        time.sleep(scale_seconds(random.uniform(0.3, 0.8), EFFECTIVE_PACING_PROFILE))
 
 
 # ── Smart render waits (#198) ───────────────────────────────

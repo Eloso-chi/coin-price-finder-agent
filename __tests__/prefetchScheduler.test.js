@@ -10,6 +10,7 @@
 // Set throttle to 1ms BEFORE module loads (0 won't work due to `|| 1000` in source)
 process.env.PREFETCH_THROTTLE_MS = '1';
 process.env.PREFETCH_RESERVE = '10';
+process.env.PCGS_PREFETCH_OBSERVED_LIMIT = '100';
 
 const fs = require('fs');
 
@@ -149,6 +150,23 @@ describe('prefetchScheduler — executePrefetchRun', () => {
     expect(mockStatusStore.callsMade).toBeLessThanOrEqual(3);
   });
 
+  test('caps nightly calls at observed upstream limit minus reserve', async () => {
+    pcgsQuota.getAvailableForPrefetch.mockReturnValue(990);
+    pcgsQuota.getStatus.mockReturnValue({
+      used: 0,
+      remaining: 1000,
+      limit: 1000,
+      breakerTripped: false,
+      upstreamAvailability: 'available'
+    });
+
+    await scheduler.executePrefetchRun();
+
+    expect(auctionPrice.fetchByGrade).toHaveBeenCalledTimes(90);
+    expect(mockStatusStore.status).toBe('completed');
+    expect(mockStatusStore.callsMade).toBe(90);
+  });
+
   test('stops mid-run when breaker trips', async () => {
     pcgsQuota.getAvailableForPrefetch.mockReturnValue(20);
     let checkCount = 0;
@@ -172,6 +190,35 @@ describe('prefetchScheduler — executePrefetchRun', () => {
     await scheduler.executePrefetchRun();
     expect(mockStatusStore.status).toBe('partial');
     expect(mockStatusStore.errors.length).toBeGreaterThan(0);
+  });
+
+  test('alerts when a partial run raises the failure streak to 2', async () => {
+    mockStatusStore = { consecutiveFailures: 1 };
+    pcgsQuota.getAvailableForPrefetch.mockReturnValue(3);
+    auctionPrice.fetchByGrade
+      .mockResolvedValueOnce({ records: [{ price: 50 }], newRecords: 1 })
+      .mockRejectedValueOnce(new Error('upstream timeout'))
+      .mockResolvedValueOnce({ records: [{ price: 50 }], newRecords: 1 });
+
+    await scheduler.executePrefetchRun();
+
+    expect(mockStatusStore.status).toBe('partial');
+    expect(mockStatusStore.consecutiveFailures).toBe(2);
+    expect(alertService.alertPrefetchFailure).toHaveBeenCalledWith(
+      2,
+      expect.stringMatching(/Partial run: 1 errors in 3 calls.*upstream timeout/)
+    );
+  });
+
+  test('does not alert on the first partial run', async () => {
+    pcgsQuota.getAvailableForPrefetch.mockReturnValue(2);
+    auctionPrice.fetchByGrade.mockRejectedValueOnce(new Error('upstream timeout'));
+
+    await scheduler.executePrefetchRun();
+
+    expect(mockStatusStore.status).toBe('partial');
+    expect(mockStatusStore.consecutiveFailures).toBe(1);
+    expect(alertService.alertPrefetchFailure).not.toHaveBeenCalled();
   });
 
   test('stops immediately on 429 error', async () => {
@@ -200,6 +247,25 @@ describe('prefetchScheduler — executePrefetchRun', () => {
     expect(mockStatusStore.callsMade).toBe(4);
   });
 
+  test('does not expand past the observed budget after a recovery probe', async () => {
+    pcgsQuota.isRecoveryProbeRequired.mockReturnValue(true);
+    pcgsQuota.getAvailableForPrefetch
+      .mockReturnValueOnce(1)
+      .mockReturnValue(990);
+    pcgsQuota.getStatus.mockReturnValue({
+      used: 89,
+      remaining: 911,
+      limit: 1000,
+      breakerTripped: false,
+      upstreamAvailability: 'probe-required'
+    });
+
+    await scheduler.executePrefetchRun();
+
+    expect(auctionPrice.fetchByGrade).toHaveBeenCalledTimes(1);
+    expect(mockStatusStore.status).toBe('completed');
+  });
+
   test('alerts on consecutive failures >= 2 (fatal error)', async () => {
     mockStatusStore = { consecutiveFailures: 1 };
     // Throw from getAvailableForPrefetch to trigger the outer catch
@@ -218,6 +284,7 @@ describe('prefetchScheduler — executePrefetchRun', () => {
     await scheduler.executePrefetchRun();
     expect(mockStatusStore.consecutiveFailures).toBe(0);
     expect(mockStatusStore.status).toBe('completed');
+    expect(alertService.alertPrefetchFailure).not.toHaveBeenCalled();
   });
 
   test('completes with "fresh" when queue is empty', async () => {
@@ -252,6 +319,13 @@ describe('prefetchScheduler — executePrefetchRun', () => {
 
 describe('prefetchScheduler — getSchedulerStatus', () => {
 
+  test('validates reserve and observed-limit configuration boundaries', () => {
+    expect(scheduler.parseBoundedInteger('0', 10, 0, 1000)).toBe(0);
+    expect(scheduler.parseBoundedInteger('-10', 10, 0, 1000)).toBe(10);
+    expect(scheduler.parseBoundedInteger('1001', 100, 1, 1000)).toBe(100);
+    expect(scheduler.parseBoundedInteger('100', 100, 1, 1000)).toBe(100);
+  });
+
   test('returns expected shape', () => {
     const status = scheduler.getSchedulerStatus();
     expect(status).toMatchObject({
@@ -267,6 +341,10 @@ describe('prefetchScheduler — getSchedulerStatus', () => {
         breakerTripped: expect.any(Boolean),
         localQuotaRemaining: expect.any(Number),
         upstreamAvailability: expect.any(String),
+        upstreamReportedRemaining: null,
+        upstreamReportedLimit: null,
+        prefetchObservedLimit: 100,
+        prefetchBudgetRemaining: 80,
       }),
       upstreamAvailability: expect.any(String),
     });
@@ -286,6 +364,28 @@ describe('prefetchScheduler — getSchedulerStatus', () => {
     expect(status.quota.remaining).toBe(5);
     expect(status.upstreamAvailability).toBe('cooldown');
     expect(status.quota.nextEligibleProbeAt).toBe('2026-08-01T07:00:00.000Z');
+    expect(status.quota.prefetchBudgetRemaining).toBe(0);
+  });
+
+  test('reports zero runnable budget when local quota is exhausted', () => {
+    pcgsQuota.getStatus.mockReturnValue({
+      used: 90,
+      remaining: 5,
+      limit: 1000,
+      breakerTripped: false,
+      upstreamAvailability: 'available',
+      upstreamReportedRemaining: 0,
+      upstreamReportedLimit: 100
+    });
+
+    const status = scheduler.getSchedulerStatus();
+
+    expect(status.quota).toEqual(expect.objectContaining({
+      upstreamReportedRemaining: 0,
+      upstreamReportedLimit: 100,
+      prefetchObservedLimit: 100,
+      prefetchBudgetRemaining: 0
+    }));
   });
 });
 

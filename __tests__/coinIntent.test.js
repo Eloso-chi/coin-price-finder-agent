@@ -1,7 +1,12 @@
 // __tests__/coinIntent.test.js -- #254 route-layer intent extraction
 'use strict';
 
-const { extractCoinIntent, FINISH_CANONICAL } = require('../src/utils/coinIntent');
+const {
+  extractCoinIntent,
+  FINISH_CANONICAL,
+  isValidFinishInput,
+  MAX_FINISH_LENGTH,
+} = require('../src/utils/coinIntent');
 
 describe('extractCoinIntent', () => {
   describe('grade', () => {
@@ -71,6 +76,9 @@ describe('extractCoinIntent', () => {
       expect(extractCoinIntent({ coinData: { finish: 'burnished' } }).finish).toBe('Burnished');
       expect(extractCoinIntent({ coinData: { finish: 'satin' } }).finish).toBe('Satin Finish');
       expect(extractCoinIntent({ coinData: { finish: 'antiqued' } }).finish).toBe('Antiqued');
+      expect(extractCoinIntent({ coinData: { finish: 'gilded' } }).finish).toBe('Gilded');
+      expect(extractCoinIntent({ coinData: { finish: 'high relief' } }).finish).toBe('High Relief');
+      expect(extractCoinIntent({ coinData: { finish: 'coloured' } }).finish).toBe('Colorized');
     });
 
     test('unknown finishes pass through unchanged (no signal lost)', () => {
@@ -247,5 +255,18 @@ describe('extractCoinIntent', () => {
       expect(FINISH_CANONICAL.proof).toBe('Proof');
       expect(FINISH_CANONICAL['reverse proof']).toBe('Reverse Proof');
     });
+  });
+});
+
+describe('isValidFinishInput', () => {
+  test('accepts absent and bounded string finishes', () => {
+    expect(isValidFinishInput(null)).toBe(true);
+    expect(isValidFinishInput('High Relief')).toBe(true);
+    expect(isValidFinishInput('x'.repeat(MAX_FINISH_LENGTH))).toBe(true);
+  });
+
+  test('rejects oversized and non-string structured finishes', () => {
+    expect(isValidFinishInput('x'.repeat(MAX_FINISH_LENGTH + 1))).toBe(false);
+    expect(isValidFinishInput({ finish: 'Antiqued' })).toBe(false);
   });
 });

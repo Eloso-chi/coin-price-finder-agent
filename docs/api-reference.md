@@ -15,6 +15,8 @@ Comprehensive reference of all HTTP endpoints exposed by the coin-price-finder-a
 | `GET` | `/api/coin-variant` | None | Design-series metadata (e.g., ASE variants, Proof vs BU) |
 | `GET` | `/api/coin-history` | None | Sold-price time-series with optional spot-price overlay |
 
+Every valuation includes `algorithmVersion` (semantic version), `configVersion` (`sha256:` fingerprint), and `computedAt` (UTC ISO timestamp). Successful and null-FMV outcomes are audited asynchronously. Anonymous audits omit actor and IP; authenticated admin audits may include both. Audit persistence never delays the pricing response.
+
 ## Bulk Lot Evaluator
 
 | Method | Endpoint | Auth | Description |
@@ -86,7 +88,7 @@ Comprehensive reference of all HTTP endpoints exposed by the coin-price-finder-a
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
 | `GET` | `/api/health` | None | Health check + uptime |
-| `GET` | `/api/health?deep=1` | 🔒 | Downstream status for Cosmos, Key Vault, metals, PCGS, and Terapeak |
+| `GET` | `/api/health?deep=1` | 🔒 | Downstream status for Cosmos, metals, PCGS, and Terapeak; Key Vault is reported as `not_probed` |
 | `GET` | `/api/admin/dashboard` | 🔒 | System overview: user count, dataset count, quota, uptime |
 | `GET` | `/api/admin/stale-datasets` | 🔒 | Datasets older than N days (filters dormant/thin via freshness classifier) |
 | `GET` | `/api/admin/data-health` | 🔒 | Total files, empty files, date ranges |
@@ -100,9 +102,11 @@ Comprehensive reference of all HTTP endpoints exposed by the coin-price-finder-a
 PCGS status distinguishes the local daily counter from upstream availability. The
 prefetch response includes `quota.localQuotaRemaining`,
 `quota.upstreamAvailability`, `quota.nextEligibleProbeAt`,
-`quota.rateLimitedAt`, and `quota.rateLimitReason`, plus the top-level
-`upstreamAvailability`, with `lastProbeAt` and `lastProbeOutcome` under
-`quota`. Upstream availability is `available`, `cooldown`, `probe-required`,
+`quota.rateLimitedAt`, `quota.rateLimitReason`, `quota.upstreamReportedLimit`,
+`quota.upstreamReportedRemaining`, `quota.prefetchObservedLimit`, and
+`quota.prefetchBudgetRemaining`, plus the top-level `upstreamAvailability`,
+with `lastProbeAt` and `lastProbeOutcome` under `quota`. Upstream availability
+is `available`, `cooldown`, `probe-required`,
 or `probe-in-flight`. After cooldown expiry, the scheduler permits one recovery
 probe before continuing the queue. When a 429 response has no usable reset
 metadata, `PCGS_429_COOLDOWN_MS` controls the fallback cooldown (default: one
@@ -138,4 +142,4 @@ All endpoints return standard HTTP status codes:
 - `500` — Server error
 - `503` — Service unavailable (dependency down, Azure, Terapeak, etc.)
 
-Error responses include a `message` field with details.
+Error responses use an `error` field and include `requestId` for correlation. Some endpoint-specific responses may add safe structured details; raw upstream errors and credentials are never returned.

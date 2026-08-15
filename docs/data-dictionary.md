@@ -4,6 +4,30 @@ Reference for critical data stores, schemas, and privacy classifications used by
 
 ## Local Filesystem Stores
 
+### cache/pcgs_quota.json
+
+Persisted local PCGS request counter and upstream cooldown state. The local
+entitlement remains capped at 1,000 calls; observed 429 values are diagnostic
+fields and do not replace that entitlement.
+
+| Field | Type | Privacy | Notes |
+|-------|------|---------|-------|
+| `date` | `YYYY-MM-DD` | Public | Pacific-date counter window |
+| `used` | non-negative integer | Public | Calls consumed in the local window |
+| `remaining` | non-negative integer | Public | Local calls remaining; never exceeds `limit` |
+| `limit` | positive integer | Public | Local entitlement, bounded to 1,000 |
+| `headerSynced` | boolean | Public | Whether valid successful-response headers synchronized the counter |
+| `upstreamCooldown` | object or null | Public | Persisted 429 cooldown and recovery-probe state |
+| `upstreamCooldown.reportedRemaining` | non-negative integer or null | Public | Sanitized `X-RateLimit-Remaining` observed on a 429 |
+| `upstreamCooldown.reportedLimit` | non-negative integer or null | Public | Sanitized `X-RateLimit-Limit` observed on a 429 |
+| `upstreamCooldown.resetAt` | ISO 8601 | Public | Next eligible recovery-probe time |
+| `upstreamCooldown.reason` | string | Public | Sanitized rate-limit reason |
+
+Invalid or inconsistent persisted counters are normalized fail-closed during
+load so they cannot expand the nightly prefetch budget.
+
+---
+
 ### cache/users.json
 
 Keyed by username (lowercased, alphanumeric + `-_.`, max 50 chars). Structure:
@@ -100,6 +124,11 @@ Append-only JSONL ledger written by `scripts/_parse-terapeak-pass.py` after each
 | `start_ts` | ISO 8601 | Public | Pass start timestamp (UTC) |
 | `end_ts` | ISO 8601 | Public | Pass end timestamp (UTC) |
 | `duration_sec` | number or null | Public | Wall-clock seconds; null if timestamps unparseable |
+| `pacing_profile_requested` | string | Public | Operator-selected profile: `baseline` or `normal-tuned` |
+| `pacing_profile_effective` | string | Public | Profile actually applied; forced to `baseline` outside Normal risk state |
+| `pacing_pilot_id` | string or null | Public | Safe identifier used to isolate one #280H A/B pilot from routine baseline history |
+| `pacing_batch_min`, `pacing_batch_max`, `pacing_p01_fixed` | number or null | Public | Operator batch policy used to reject incomparable pilot arms |
+| `pacing_upload_mode` | string or null | Public | Upload mode used to reject incomparable pilot arms |
 | `attempted` | number | Public | Coins attempted in this pass |
 | `succeeded` | number | Public | Coins that returned `ok` (non-empty result) |
 | `empty` | number | Public | Coins that returned zero comps |
@@ -142,10 +171,17 @@ Keyed by Terapeak search term (lowercase, e.g., "morgan dollar"). Tracks refresh
 | `[searchTerm]` | object | Public | Metadata for this Terapeak dataset |
 | `.compCount` | number | Public | Number of sold comps currently in memory for this series |
 | `.newestSaleDate` | date (YYYY-MM-DD) | Public | Most recent sale date in current dataset |
+| `.oldestSaleDate` | date (YYYY-MM-DD) | Public | Earliest sale date in current dataset |
+| `.page1At` | ISO 8601 or null | Public | Last successful page-1 collection/import marker |
+| `.deepAt` | ISO 8601 or null | Public | Last deep-pagination marker |
+| `.maxPageReached` | number or null | Public | Highest collected page number |
 | `.lastRefreshAt` | date (YYYY-MM-DD) | Public | Last date a refresh/reimport was attempted |
 | `.refreshCount` | number | Public | Cumulative count of refresh attempts |
 | `.consecutiveDryRefreshes` | number | Public | Counter for consecutive refresh-with-no-new-comps (triggers dormant classification via freshnessClassifier) |
 | `.lastRefreshNewComps` | number | Public | Number of new comps added in most recent refresh |
+| `.noDataAt` | ISO 8601 or null | Public | Most recent direct page-1 no-data observation |
+| `.noDataCount` | number | Public | Consecutive no-data observations, capped by the service |
+| `.identifiers` | object, optional | Public | Evidence-derived composition/volume classification and confidence metadata |
 
 Example:
 ```json
@@ -185,29 +221,85 @@ Schema mirrors user coins in `cache/user_coins.json`.
 
 ---
 
+### Container: `terapeak-sold`
+
+Terapeak comps and aggregation metadata keyed by normalized search term.
+
+- Item id: normalized/search-derived identifier
+- Partition key: `/searchTerm`
+- Writer/reader: `src/services/terapeakService.js`
+
+---
+
+### Containers: `greysheet-history`, `metals-history`
+
+Daily price snapshots written by `greysheetHistoryService` and
+`metalsHistoryService`. Partition keys are `/coinKey` and `/metal`
+respectively. Local JSON cache files remain the synchronous fallback.
+
+---
+
+### Container: `admin-audit`
+
+Structured administrative action events written by `auditService`. Records
+use action/actor/resource triples with partition key `/actorUsername`. Access is
+operator-only; audit writes never expose credentials in public responses.
+
+---
+
+### Container: `valuation-audit`
+
+Append-only valuation events emitted by `/api/price`, `/api/pricing-batch`, and `/api/bulk-evaluate`. Provisioned lazily with partition key `/computedAtDate`.
+
+| Field | Type | Notes |
+|---|---|---|
+| `id` | UUID | Unique event identifier |
+| `query` | string | Pricing query as received |
+| `fmv` | number or null | Computed fair-market value |
+| `method` | string or null | Valuation/data-source method |
+| `confidence` | number or null | Confidence score |
+| `algorithmVersion` | semver string | Valuation logic version |
+| `configVersion` | string | `sha256:` fingerprint of versioned valuation/config sources |
+| `computedAt` | ISO timestamp | Valuation computation time |
+| `computedAtDate` | `YYYY-MM-DD` | Cosmos partition value |
+| `requestId` | string or null | Correlation ID |
+| `actorId`, `ip` | string, optional | Included only for authenticated admin context |
+
+When Cosmos is unavailable, the same records append to `cache/valuation-audit-YYYY-MM-DD.jsonl`. Audit failures never block pricing responses. `NODE_ENV=test` disables persistence.
+
+**Privacy and retention:** Treat `query`, `requestId`, `actorId`, and `ip` as Private operational data because free-form queries may contain user-supplied text. Access is limited to operators with Cosmos RBAC or host filesystem access. Queries are capped at 300 characters. The container is provisioned with a 90-day Cosmos TTL, and the serialized fallback writer prunes JSONL files older than 90 days before each day's first write.
+
+---
+
 ## Data Privacy Classifications
 
 | Classification | Examples | Handling |
 |---|---|---|
 | **Public** | Series names, grades, years, mint marks, spot prices, FMV | Safe to log, cache, expose in API responses |
-| **Private** | Cost basis, user notes, payment details, JWT tokens | Never log to unsecured systems; don't expose in API unless authenticated |
+| **Private** | Cost basis, user notes, payment details, valuation audit queries, request/actor IDs, admin IPs, JWT tokens | Never log to unsecured systems; restrict audit access to operators; don't expose in API unless authenticated |
 | **Sensitive** | Passwords (hashes only), API keys, secrets in .env | Never commit; rotate on leak; use Azure Key Vault for team access |
 
 ---
 
 ## CSV File Format (Terapeak)
 
-Terapeak CSV exports follow this structure:
+Terapeak export headers vary by export version and locale. The importer maps
+known aliases to these canonical internal fields:
 
 | Column | Type | Example | Notes |
 |--------|------|---------|-------|
-| `Sell Date` | date | 2026-05-15 | Sale transaction date |
-| `Sales Price` | USD | 85.50 | Realized sale price |
-| `Title` | text | "1881-CC Morgan Dollar MS 64" | Listing title; parsed for grade/finish |
-| `Item Condition` | enum | "Used" | Item condition code |
-| `Quantity Sold` | number | 1 | Number of units in transaction |
+| `title` | text | "1881-CC Morgan Dollar MS 64" | Required listing/product title; parsed for grade/finish |
+| `itemId` | string or null | `1234567890` | Preferred deduplication key |
+| `soldDate` | date | 2026-05-15 | Sale transaction/end date |
+| `price` / `total` | currency amount | 85.50 | Realized price; `total` is accepted when separate price/shipping are absent |
+| `shipping` | currency amount | 5.00 | Added to price when separately present |
+| `condition`, `quantity`, `seller`, `listingType` | mixed | -- | Optional listing attributes |
+| `imageUrl`, `url`, `category`, `country`, `bids`, `currency` | mixed | -- | Optional enrichment fields |
 
-After import, Terapeak data is de-duped and merged into a single in-memory result set keyed by series. Duplicates are detected by `{title, saleDate, price}` tuple to avoid double-counting.
+After import, data is normalized and merged by search key. Duplicates use
+`itemId` when available, otherwise a title + total USD + sold-date fingerprint.
+The exact accepted aliases live in `COLUMN_MAP` in
+`src/services/terapeakService.js`.
 
 ---
 

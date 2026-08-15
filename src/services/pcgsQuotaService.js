@@ -49,8 +49,29 @@ function parseRetryAfter(value, now = Date.now()) {
   return normalizeResetAt(value, now);
 }
 
+function normalizeQuotaValue(value) {
+  if (value == null) return null;
+  const numeric = Number(value);
+  return Number.isInteger(numeric) && numeric >= 0 ? numeric : null;
+}
+
 // ── Persistent state ────────────────────────────────────────
 let _state = null;
+
+function normalizeCurrentDayState(raw) {
+  const limit = Number.isInteger(raw.limit) && raw.limit > 0 && raw.limit <= DAILY_LIMIT
+    ? raw.limit
+    : DAILY_LIMIT;
+  let remaining;
+  if (Number.isInteger(raw.remaining) && raw.remaining >= 0 && raw.remaining <= limit) {
+    remaining = raw.remaining;
+  } else if (Number.isInteger(raw.used) && raw.used >= 0 && raw.used <= limit) {
+    remaining = limit - raw.used;
+  } else {
+    remaining = 0;
+  }
+  return { ...raw, limit, remaining, used: limit - remaining };
+}
 
 function loadState() {
   const today = todayPacific();
@@ -58,7 +79,7 @@ function loadState() {
   try {
     const raw = JSON.parse(fs.readFileSync(QUOTA_PATH, 'utf8'));
     if (raw.date === today) {
-      _state = raw;
+      _state = normalizeCurrentDayState(raw);
     } else {
       _state = newDayState(raw);
     }
@@ -123,10 +144,18 @@ function saveState() {
  */
 function syncFromHeaders(remaining, limit) {
   const state = loadState();
-  if (typeof remaining === 'number' && !isNaN(remaining)) {
+  const effectiveLimit = limit == null ? state.limit : limit;
+  const validLimit = Number.isInteger(effectiveLimit)
+    && effectiveLimit > 0
+    && effectiveLimit <= DAILY_LIMIT;
+  const validRemaining = Number.isInteger(remaining)
+    && remaining >= 0
+    && validLimit
+    && remaining <= effectiveLimit;
+  if (validRemaining) {
     state.remaining = remaining;
-    state.used = (limit || DAILY_LIMIT) - remaining;
-    state.limit = limit || DAILY_LIMIT;
+    state.used = effectiveLimit - remaining;
+    state.limit = effectiveLimit;
     state.headerSynced = true;
   }
   saveState();
@@ -182,6 +211,8 @@ function tripBreaker(options = {}) {
     resetAt,
     reason: options.reason || 'PCGS API rate limit exceeded (429)',
     retryAfter: options.retryAfter == null ? null : String(options.retryAfter),
+    reportedRemaining: normalizeQuotaValue(options.upstreamRemaining),
+    reportedLimit: normalizeQuotaValue(options.upstreamLimit),
     lastProbeAt: null,
     lastProbeOutcome: 'blocked'
   };
@@ -265,6 +296,8 @@ function getStatus() {
     rateLimitedAt: state.upstreamCooldown?.rateLimitedAt || null,
     nextEligibleProbeAt: state.upstreamCooldown?.resetAt || null,
     rateLimitReason: state.upstreamCooldown?.reason || null,
+    upstreamReportedRemaining: state.upstreamCooldown?.reportedRemaining ?? null,
+    upstreamReportedLimit: state.upstreamCooldown?.reportedLimit ?? null,
     lastProbeAt: state.upstreamCooldown?.lastProbeAt || state.lastRecoveryProbe?.at || null,
     lastProbeOutcome: state.upstreamCooldown?.lastProbeOutcome || state.lastRecoveryProbe?.outcome || null,
     previousDay: state.previousDay

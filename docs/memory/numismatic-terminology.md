@@ -131,6 +131,10 @@ These are TPG (PCGS/NGC) designations added AFTER the grade. They do not change 
 - **Thin Date / Fat Date** -- die variety. Filter but don't split pools.
 - **Small Date / Large Date** -- die variety. Filter but don't split pools.
 
+## Specialty Finish Pools
+
+Colorized, antiqued, gilded, burnished, and high-relief issues are distinct finish pools. When a query explicitly requests one family, its FMV may use only raw comps carrying that same family. Plain BU, graded, proof, reverse-proof, specialty-edition, and other finish-family comps must be excluded rather than blended. Mint-issued and aftermarket examples within a requested family remain in that family but receive positive/negative relevance signals so official issues rank ahead of altered novelty pieces.
+
 ## Bar Design Series
 
 Cataloged bar product lines from the same manufacturer can carry materially different collector premiums even when metal and weight are identical. When a query names both a cataloged brand and series, comps positively identified as another series must be rejected. A title with no identifiable series remains eligible, but a sparse isolated pool must return an explicit null FMV rather than substitute other designs.
@@ -140,6 +144,7 @@ Cataloged bar product lines from the same manufacturer can carry materially diff
 | Function | File | Decision It Makes |
 |----------|------|-------------------|
 | `classifyGradeType()` | ebayService.js | Assigns comp to raw/graded/proof pool |
+| `requestedVariantFamily()` | ebayService.js | Selects the explicit specialty finish pool for scoring and hard filtering |
 | `PROOF_RE` | ebayService.js | Detects proof in titles (with PL lookahead) |
 | `_detectFinish()` | greysheetTypeMap.js | Maps text to Greysheet finish key |
 | `parseDescription()` | pcgsService.js | Extracts grade, finish, series from free text |
