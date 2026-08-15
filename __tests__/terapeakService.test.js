@@ -437,6 +437,40 @@ describe('autoImportFolder', () => {
     expect(result.errors).toHaveLength(0);
   });
 
+  test('imports only explicitly included files', () => {
+    const header = 'Title,Sold Price,Shipping,Sold Date,Item Number\n';
+    fs.writeFileSync(path.join(tmpDir, 'Included.csv'),
+      header + '1889 Morgan Dollar,$45.00,$5.00,2025-06-01,111');
+    fs.writeFileSync(path.join(tmpDir, 'Excluded.csv'),
+      header + '1922 Peace Dollar,$30.00,$4.00,2025-06-01,222');
+
+    const result = autoImportFolder(tmpDir, { force: true, includeFiles: ['Included.csv'] });
+
+    expect(result.imported).toBe(1);
+    expect(result.skipped).toBe(0);
+    expect(listDatasets().some(dataset => dataset.searchTerm === 'Included')).toBe(true);
+    expect(listDatasets().some(dataset => dataset.searchTerm === 'Excluded')).toBe(false);
+  });
+
+  test('an empty or unmatched include list imports nothing', () => {
+    const header = 'Title,Sold Price,Shipping,Sold Date,Item Number\n';
+    fs.writeFileSync(path.join(tmpDir, 'Available.csv'),
+      header + '1889 Morgan Dollar,$45.00,$5.00,2025-06-01,111');
+
+    expect(autoImportFolder(tmpDir, { force: true, includeFiles: [] })).toEqual({
+      imported: 0, skipped: 0, errors: [], freshSkipped: 0,
+    });
+    expect(autoImportFolder(tmpDir, {
+      force: true,
+      includeFiles: ['Missing.csv', '../Available.csv'],
+    })).toEqual({ imported: 0, skipped: 0, errors: [], freshSkipped: 0 });
+  });
+
+  test('rejects a malformed include list', () => {
+    expect(() => autoImportFolder(tmpDir, { includeFiles: 'Included.csv' }))
+      .toThrow('includeFiles must be an array');
+  });
+
   test('uses .meta file for search term', () => {
     const header = 'Title,Sold Price,Shipping,Sold Date,Item Number\n';
     fs.writeFileSync(path.join(tmpDir, 'data.csv'),

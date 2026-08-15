@@ -51,32 +51,61 @@ File a new INC entry for any of the following:
 
 ### Required schema
 
-Copy this template verbatim. All fields are required unless marked
-optional. Examples live in `docs/WASTE-LEDGER.md` itself -- read a few
-recent entries before authoring.
+Copy this template verbatim. All fields are required. Examples live in
+`docs/WASTE-LEDGER.md`; INC-017 is the support/billing evidence reference.
+Measured usage and estimates MUST be separate. Never state an internal cost
+estimate as an invoice charge; provide IDs and timestamps so Support can verify.
+The user requires this support-grade detail for every future incident. Use
+`N/A -- not billing-relevant` where appropriate; do not omit fields.
+
+Tracked evidence must be public-safe. NEVER commit credentials, cookies,
+signed URLs, API keys, emails, IP addresses, local user paths, raw prompts or
+transcripts, billing/account IDs, full support-case IDs, or full Copilot session
+UUIDs. Use redacted references in the ledger and put full identifiers in an
+ignored `.local/github-support/INC-NNN.txt` packet for private submission.
+Summarize untrusted logs/payloads, escape Markdown table delimiters, and use
+only trusted `https://github.com/` or repository-relative links.
 
 ```markdown
 ### INC-NNN: <Short Title>
 
 | Field | Value |
 |---|---|
-| Date | YYYY-MM-DD or YYYY-MM-DD through YYYY-MM-DD |
-| Category | one or more of: `data-corruption`, `agent-violation`, `duplicate-pull`, `bot-detection`, `code-bug`, `config-error`, `recovery-ops`, `observability-debt` (join with ` / ` if multiple) |
-| Root Cause | one paragraph naming the specific bug / violation |
-| Impact | what broke for the user / system / data |
-| Mistakes | (required when Category includes `agent-violation`) numbered list of what the agent did vs what it should have done |
-| Codespace | hours x $0.18/hr = $X.XX |
-| Copilot | requests x $0.04 = $X.XX |
-| Azure | $X.XX or `< $0.01` |
-| **Total** | **$X.XX** |
-| Resolution | what fixed it (PR / commit + short description) |
-| Rule Added / Rules Added | numbered list of new rules with explicit "must" / "never" language |
+| Date / UTC window | Start/end timestamps; distinguish active work from idle wall-clock |
+| Category | one or more of: `data-corruption`, `agent-violation`, `duplicate-pull`, `bot-detection`, `code-bug`, `config-error`, `recovery-ops`, `observability-debt`, `documentation-drift` (join with ` / ` if multiple) |
+| Attribution | Agent, code, config, upstream, ambiguous, or shared |
+| Rule(s) violated | Exact pre-existing rule and authoritative path |
+| Root cause | Specific bug/violation and why gates failed |
+| Impact | Rework, delay, data risk, user attention, and any production effect |
+| Mistakes | Numbered actions versus required actions |
+| PR / commit evidence | URLs/numbers, branch, feature/merge SHAs, diff scope |
+| Session evidence | Redacted session reference, repository, branch, relevant turn/timestamp window; private packet path for full ID |
+| Workflow evidence | Actions run/job IDs, URLs, timings, conclusions |
+| Rework inventory | Files, tests, reviews, subagents, corrective artifacts |
+| Measured usage | Runner seconds, test durations, Codespace/Azure usage where observable |
+| Estimated usage | Copilot estimate and method/range; mark unavailable billing facts |
+| Cost calculation | Arithmetic by resource; measured/estimated subtotals separated |
+| User attention | Corrective prompts/decisions; mark non-billable |
+| **Total (direct cost)** | **Measured billed value or nominal gross-equivalent estimate; actual incremental billing may be unknown/$0** |
+| Billing review request | Exact Support scope and requested remedy |
+| Evidence confidence | High/medium/low by component and exclusions |
+| Resolution | Corrective PR/commit and verification |
+| Rules added / enforcement | MUST/NEVER rules plus concrete enforcement path |
+| Support case status | Not filed / filed privately / resolved with outcome; full case ID stays in private packet |
 ```
+
+After the table, include a fenced `text` block titled
+`Copy/paste GitHub Support summary` containing repository, redacted session reference, UTC window,
+PR/commit, workflow IDs, concise cause/impact, estimated amount, caveat that
+Support must verify invoice data, and the requested adjustment/credit. Create
+the ignored private packet with the full session/case/billing identifiers.
 
 ### Cost rate card
 
 - Codespace: $0.18 / hour (round to nearest 0.5 hour)
 - Copilot: $0.04 / premium request
+- GitHub Actions Linux runner: $0.008 / minute (estimate rounded per job;
+  Support verifies whether minutes were actually billed)
 - Azure: actual ledger amount; `< $0.01` is acceptable
 
 ### Post-entry housekeeping
@@ -85,7 +114,10 @@ After adding the entry:
 
 1. Update the **Summary** table at the bottom of `docs/WASTE-LEDGER.md`
 2. Update the **Metrics** section (Running Total, Worst Category, etc.)
-3. If a new rule was added, also update the appropriate downstream surface
+3. Verify the support-ready table contains every required field and a
+  copy/paste support summary. Missing billing data is acceptable only when
+  explicitly marked unavailable with a Support-verification request.
+4. If a new rule was added, also update the appropriate downstream surface
    so the next agent can find it:
    - User-side / cross-workspace rule -> `/memories/operating-rules.md`
      or topic-specific user-memory file
@@ -93,8 +125,11 @@ After adding the entry:
      or `docs/memory/<topic>.md`
    - Pool-isolation rule -> `docs/memory/numismatic-terminology.md`
      MANDATORY contract section
-4. Cite the new rule's location in the INC's "Resolution" or "Rule Added"
+5. Cite the new rule's location in the INC's "Resolution" or "Rule Added"
    row so future readers can find the enforcement
+6. When the ledger reaches 25 incidents, move resolved support detail to
+  `docs/waste-evidence/INC-NNN.md`; preserve summary rows, totals, rules, and
+  stable links in the main ledger.
 
 ### Citation discipline
 

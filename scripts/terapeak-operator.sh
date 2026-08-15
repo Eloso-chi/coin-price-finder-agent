@@ -38,6 +38,8 @@ PASS_LOG_ROOT_DIR="cache/terapeak-operator-passes"
 PASS_LOG_DIR=""
 RISK_STATE_FILE="cache/terapeak-risk-state-H.json"
 RISK_STATE_ENABLED="${TERAPEAK_RISK_STATE_ENABLED:-1}"
+PACING_PROFILE_OVERRIDE="${TERAPEAK_PACING_PROFILE-}"
+PACING_PILOT_ID_OVERRIDE="${TERAPEAK_PACING_PILOT_ID-}"
 ELEVATED_BATCH_MIN="${TERAPEAK_ELEVATED_BATCH_MIN:-15}"
 ELEVATED_BATCH_MAX="${TERAPEAK_ELEVATED_BATCH_MAX:-20}"
 ELEVATED_PAUSE_SECONDS="${TERAPEAK_ELEVATED_PAUSE_SECONDS:-900}"
@@ -314,11 +316,30 @@ write_state "preflight-login" "running" "Checking startup prerequisites"
 bash scripts/terapeak-startup-preflight.sh --env-file "$ENV_FILE" --mode login
 write_state "preflight-login" "ok" "Startup prerequisites satisfied"
 
+# shellcheck disable=SC1090
+set -a; source "$ENV_FILE"; set +a
+PACING_PROFILE="${PACING_PROFILE_OVERRIDE:-${TERAPEAK_PACING_PROFILE:-baseline}}"
+PACING_PILOT_ID="${PACING_PILOT_ID_OVERRIDE:-${TERAPEAK_PACING_PILOT_ID:-}}"
+export TERAPEAK_PACING_PROFILE="$PACING_PROFILE"
+export TERAPEAK_PACING_PILOT_ID="$PACING_PILOT_ID"
+if [[ "$PACING_PROFILE" != "baseline" && "$PACING_PROFILE" != "normal-tuned" ]]; then
+  echo "[operator:FAIL] TERAPEAK_PACING_PROFILE must be baseline or normal-tuned" >&2
+  exit 2
+fi
+if [[ "$PACING_PROFILE" == "normal-tuned" && -z "$PACING_PILOT_ID" ]]; then
+  echo "[operator:FAIL] TERAPEAK_PACING_PILOT_ID is required for normal-tuned" >&2
+  exit 2
+fi
+if [[ -n "$PACING_PILOT_ID" && ! "$PACING_PILOT_ID" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$ ]]; then
+  echo "[operator:FAIL] TERAPEAK_PACING_PILOT_ID has an invalid format" >&2
+  exit 2
+fi
+export TERAPEAK_RISK_STATE_FILE="$RISK_STATE_FILE"
+export TERAPEAK_EFFECTIVE_PACING_PROFILE="baseline"
+
 if [[ "$DO_LOGIN" == true ]]; then
   CURRENT_STAGE="login"
   write_state "login" "running" "Starting interactive eBay login"
-  # shellcheck disable=SC1090
-  set -a; source "$ENV_FILE"; set +a
   "$PYTHON_BIN" scripts/terapeak-export.py --login
   if [[ "$CURRENT_RISK_STATE" == "Cooldown" ]]; then
     if ! "$PYTHON_BIN" scripts/cookie-health-check.py --probe; then
@@ -348,6 +369,12 @@ write_state "preflight-loop" "ok" "Loop preflight passed"
 
 while true; do
   state_before="$CURRENT_RISK_STATE"
+  effective_pacing_profile="baseline"
+  if [[ "$PACING_PROFILE" == "normal-tuned" && "$state_before" == "Normal" ]]; then
+    effective_pacing_profile="normal-tuned"
+  fi
+  export TERAPEAK_EFFECTIVE_PACING_PROFILE="$effective_pacing_profile"
+  echo "[operator:pacing] requested=${PACING_PROFILE} effective=${effective_pacing_profile} state=${state_before}"
   pass_batch_min="$BATCH_MIN"
   pass_batch_max="$BATCH_MAX"
   if [[ "$RISK_STATE_ENABLED" != "0" && "$state_before" == "Elevated" ]]; then
@@ -392,6 +419,8 @@ while true; do
     --mixed-p01-fixed "$P01_FIXED"
     --mixed-extra-min "$pass_extra"
     --mixed-extra-max "$pass_extra"
+    --effective-pacing-profile "$effective_pacing_profile"
+    --risk-state-file "$RISK_STATE_FILE"
   )
   if [[ "$INCLUDE_THIN" == true ]]; then
     LOOP_ARGS+=(--include-thin)
@@ -422,8 +451,16 @@ while true; do
     --machine H \
     --operator terapeak-operator \
     --pass-exit-code "$PASS_EXIT_RC" \
+    --include-thin "$INCLUDE_THIN" \
     --cookie-health-status HEALTHY \
     --probe-status SKIPPED \
+    --pacing-profile-requested "$PACING_PROFILE" \
+    --pacing-profile-effective "$effective_pacing_profile" \
+    --pacing-pilot-id "$PACING_PILOT_ID" \
+    --pacing-batch-min "$BATCH_MIN" \
+    --pacing-batch-max "$BATCH_MAX" \
+    --pacing-p01-fixed "$P01_FIXED" \
+    --pacing-upload-mode "${UPLOAD_MODE:-blob}" \
     --state-file "$RISK_STATE_FILE" \
     --stateful "$RISK_STATE_ENABLED" \
     --transition-output "$TRANSITION_FILE" \

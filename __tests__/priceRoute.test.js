@@ -79,9 +79,17 @@ jest.mock('../src/services/ebayService', () => ({
 
 jest.mock('../src/services/valuationService', () => ({
   computeValuation: jest.fn(() => ({
-    valuation: { fmvCore: 835, rangeLow: 780, rangeHigh: 890, confidence: 82, explanation: [] },
+    valuation: {
+      fmvCore: 835, rangeLow: 780, rangeHigh: 890, confidence: 82, explanation: [],
+      algorithmVersion: '1.0.0', configVersion: `sha256:${'a'.repeat(64)}`,
+      computedAt: '2026-08-11T12:34:56.000Z', dataSource: { label: 'sold-data' },
+    },
     decisions: { buy: { max70: 584.5 }, sell: { normal: 835 } },
   })),
+}));
+
+jest.mock('../src/services/auditService', () => ({
+  writeValuationAudit: jest.fn(async () => {}),
 }));
 
 jest.mock('../src/services/metalsSpotPrice', () => ({
@@ -130,6 +138,7 @@ const request = require('supertest');
 const priceRoute = require('../src/routes/priceRoute');
 const ebayService = require('../src/services/ebayService');
 const pcgsService = require('../src/services/pcgsService');
+const { writeValuationAudit } = require('../src/services/auditService');
 
 function createApp() {
   const app = express();
@@ -157,6 +166,13 @@ describe('POST /api/price', () => {
     expect(res.status).toBe(400);
   });
 
+  test('rejects queries longer than 300 characters', async () => {
+    const res = await request(app).post('/api/price').send({ query: 'x'.repeat(301) });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toContain('300');
+    expect(writeValuationAudit).not.toHaveBeenCalled();
+  });
+
   // ── Successful pricing ──
   test('returns 200 with full response for valid query', async () => {
     const res = await request(app)
@@ -170,6 +186,13 @@ describe('POST /api/price', () => {
     expect(res.body).toHaveProperty('ebay');
     expect(res.body).toHaveProperty('identification');
     expect(res.body.query.input).toBe('1881-CC Morgan Dollar MS 64');
+    expect(writeValuationAudit).toHaveBeenCalledWith(expect.objectContaining({
+      query: '1881-CC Morgan Dollar MS 64',
+      fmv: 835,
+      method: 'sold-data',
+      algorithmVersion: '1.0.0',
+      computedAt: '2026-08-11T12:34:56.000Z',
+    }));
   });
 
   test('passes askingPrice through to response', async () => {

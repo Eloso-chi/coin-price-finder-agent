@@ -228,6 +228,13 @@ def main(argv=None):
     p.add_argument("--pass-exit-code", default=0, type=int)
     p.add_argument("--cookie-health-status", default="UNKNOWN")
     p.add_argument("--probe-status", default="SKIPPED")
+    p.add_argument("--pacing-profile-requested", default="baseline", choices=("baseline", "normal-tuned"))
+    p.add_argument("--pacing-profile-effective", default="baseline", choices=("baseline", "normal-tuned"))
+    p.add_argument("--pacing-pilot-id", default="")
+    p.add_argument("--pacing-batch-min", type=int)
+    p.add_argument("--pacing-batch-max", type=int)
+    p.add_argument("--pacing-p01-fixed", type=int)
+    p.add_argument("--pacing-upload-mode", default="")
     p.add_argument("--state-before", default="Normal")
     p.add_argument("--state-after", default="Normal")
     p.add_argument("--transition-reason", default="")
@@ -299,6 +306,13 @@ def main(argv=None):
         "no_export_count": totals["no_export_count"],
         "cookie_health_status": args.cookie_health_status,
         "probe_status": args.probe_status,
+        "pacing_profile_requested": args.pacing_profile_requested,
+        "pacing_profile_effective": args.pacing_profile_effective,
+        "pacing_pilot_id": args.pacing_pilot_id or None,
+        "pacing_batch_min": args.pacing_batch_min,
+        "pacing_batch_max": args.pacing_batch_max,
+        "pacing_p01_fixed": args.pacing_p01_fixed,
+        "pacing_upload_mode": args.pacing_upload_mode or None,
         "challenge_signal_count": challenge_signal_count,
         "soft_risk_signal_count": soft_risk_signal_count,
         "state_before": state_before,
