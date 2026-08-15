@@ -81,6 +81,34 @@ describe('pcgsQuotaService', () => {
       expect(status.remaining).toBe(1000);
       expect(status.headerSynced).toBe(false);
     });
+
+    it('rejects remaining values above the reported limit', () => {
+      quota.syncFromHeaders(101, 100);
+      expect(quota.getStatus()).toEqual(expect.objectContaining({
+        used: 0,
+        remaining: 1000,
+        limit: 1000,
+        headerSynced: false
+      }));
+    });
+
+    it('fails closed when persisted quota counters are inconsistent', () => {
+      jest.resetModules();
+      fs = require('fs');
+      fs.readFileSync.mockReturnValue(JSON.stringify({
+        date: new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' }),
+        used: -900,
+        remaining: 1000,
+        limit: 100
+      }));
+      quota = require('../src/services/pcgsQuotaService');
+
+      expect(quota.getStatus()).toEqual(expect.objectContaining({
+        used: 100,
+        remaining: 0,
+        limit: 100
+      }));
+    });
   });
 
   describe('circuit breaker', () => {
@@ -89,13 +117,23 @@ describe('pcgsQuotaService', () => {
     });
 
     it('tripBreaker() preserves local quota and records upstream cooldown', () => {
-      quota.tripBreaker({ retryAfter: '3600' });
+      quota.tripBreaker({ retryAfter: '3600', upstreamRemaining: 0, upstreamLimit: 100 });
       expect(quota.isBreakerTripped()).toBe(true);
       const status = quota.getStatus();
       expect(status.remaining).toBe(1000);
       expect(status.breakerTrippedAt).toBeTruthy();
       expect(status.upstreamAvailability).toBe('cooldown');
+      expect(status.upstreamReportedRemaining).toBe(0);
+      expect(status.upstreamReportedLimit).toBe(100);
       expect(Date.parse(status.nextEligibleProbeAt)).toBeGreaterThan(Date.now());
+    });
+
+    it('drops malformed upstream quota values from persisted status', () => {
+      quota.tripBreaker({ upstreamRemaining: null, upstreamLimit: undefined });
+      expect(quota.getStatus()).toEqual(expect.objectContaining({
+        upstreamReportedRemaining: null,
+        upstreamReportedLimit: null
+      }));
     });
 
     it('uses a valid upstream reset timestamp when supplied', () => {

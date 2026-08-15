@@ -337,7 +337,9 @@ describe('fetchByGrade -- cache + force', () => {
         status: 429,
         headers: {
           'retry-after': '120',
-          'x-ratelimit-reset': '1785550000'
+          'x-ratelimit-reset': '1785550000',
+          'x-ratelimit-remaining': '0',
+          'x-ratelimit-limit': '100'
         }
       }
     });
@@ -346,8 +348,31 @@ describe('fetchByGrade -- cache + force', () => {
     expect(pcgsQuota.tripBreaker).toHaveBeenCalledWith({
       retryAfter: '120',
       resetAt: '1785550000',
+      upstreamRemaining: 0,
+      upstreamLimit: 100,
       reason: 'PCGS APR rate limit exceeded (429)'
     });
+    expect(pcgsQuota.syncFromHeaders).not.toHaveBeenCalled();
+  });
+
+  it('ignores malformed upstream quota headers from a 429 response', async () => {
+    const { svc, axios, pcgsQuota } = setupFresh();
+    axios.get.mockRejectedValue({
+      response: {
+        status: 429,
+        headers: {
+          'x-ratelimit-remaining': '0junk',
+          'x-ratelimit-limit': '-100'
+        }
+      }
+    });
+
+    await expect(svc.fetchByGrade(7296, 65)).rejects.toThrow(/rate limit/i);
+    expect(pcgsQuota.syncFromHeaders).not.toHaveBeenCalled();
+    expect(pcgsQuota.tripBreaker).toHaveBeenCalledWith(expect.objectContaining({
+      upstreamRemaining: null,
+      upstreamLimit: null
+    }));
   });
 
   it('throws when breaker is already tripped before making any HTTP call', async () => {

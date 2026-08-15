@@ -9,6 +9,7 @@ const multer  = require('multer');
 const router  = express.Router();
 
 const { runBulkEvaluation, MAX_COINS } = require('../services/bulkEvaluateService');
+const { writeValuationAudit } = require('../services/auditService');
 const { mapExcelToBackup, parseCoinString } = require('../utils/excelMapper');
 const { redactCompsForPublic } = require('../utils/redactForPublic');
 
@@ -24,6 +25,8 @@ const upload = multer({
 
 // ── In-memory job store ──────────────────────────────────────
 const _jobs = new Map();
+const _activeJobPromises = new Set();
+let _acceptingJobs = true;
 const JOB_TTL = 60 * 60 * 1000; // 1 hr
 
 function _pruneJobs() {
@@ -31,6 +34,12 @@ function _pruneJobs() {
   for (const [id, job] of _jobs) {
     if (now - job.created > JOB_TTL) _jobs.delete(id);
   }
+}
+
+function _trackJobPromise(jobPromise) {
+  _activeJobPromises.add(jobPromise);
+  void jobPromise.finally(() => _activeJobPromises.delete(jobPromise));
+  return jobPromise;
 }
 
 // ── Input parsers ────────────────────────────────────────────
@@ -68,9 +77,16 @@ function parseTextInput(text) {
 function parseJsonInput(items) {
   if (!Array.isArray(items)) return [];
   return items.slice(0, MAX_COINS).map(item => {
-    if (typeof item === 'string') return { query: item };
+    if (typeof item === 'string') {
+      return {
+        query: item.slice(0, 300),
+        ...(item.length > 300 ? { _queryTooLong: true } : {}),
+      };
+    }
+    const query = String(item.query || item.name || item.coin || '');
     return {
-      query:    String(item.query || item.name || item.coin || '').slice(0, 300),
+      query:    query.slice(0, 300),
+      ...(query.length > 300 ? { _queryTooLong: true } : {}),
       qty:      parseInt(item.qty || item.quantity) || 1,
       grade:    item.grade || null,
       year:     item.year ? String(item.year) : null,
@@ -109,6 +125,9 @@ function parseExcelInput(buffer) {
 
 router.post('/', upload.single('file'), async (req, res) => {
   try {
+    if (!_acceptingJobs) {
+      return res.status(503).json({ error: 'Bulk evaluation is shutting down.' });
+    }
     let coins;
 
     // 1. Excel upload
@@ -130,6 +149,9 @@ router.post('/', upload.single('file'), async (req, res) => {
     if (!coins.length) {
       return res.status(400).json({ error: 'No valid coins found in input.' });
     }
+    if (coins.some(coin => coin._queryTooLong || String(coin.query || '').length > 300)) {
+      return res.status(400).json({ error: 'Each query must be 300 characters or fewer.' });
+    }
     if (coins.length > MAX_COINS) {
       return res.status(400).json({ error: `Maximum ${MAX_COINS} coins per evaluation.` });
     }
@@ -143,6 +165,11 @@ router.post('/', upload.single('file'), async (req, res) => {
       // #232 -- captured at request time so background processing uses
       // the caller's admin context (req is gone by then).
       audience: req.isAdmin === true ? 'admin' : 'public',
+      auditContext: {
+        requestId: req.id,
+        actorId: req.isAdmin ? req.adminActor?.userId : undefined,
+        ip: req.isAdmin ? req.ip : undefined,
+      },
       status: 'pending',     // pending → running → complete | error
       results: [],
       lotSummary: null,
@@ -158,7 +185,7 @@ router.post('/', upload.single('file'), async (req, res) => {
     _jobs.set(jobId, job);
 
     // Start evaluation in background (non-blocking)
-    _runJob(job);
+    _trackJobPromise(_runJob(job));
 
     return res.status(202).json({ jobId, coinCount: coins.length });
   } catch (err) {
@@ -244,6 +271,18 @@ async function _runJob(job) {
   job.status = 'running';
   try {
     const { results, lotSummary } = await runBulkEvaluation(job.coins, (result, index, total) => {
+      if (!result.error) {
+        void writeValuationAudit({
+          query: result.query,
+          fmv: result.fmv,
+          method: result.method,
+          confidence: result.confidence,
+          algorithmVersion: result.algorithmVersion,
+          configVersion: result.configVersion,
+          computedAt: result.computedAt,
+          ...job.auditContext,
+        });
+      }
       // Store the RAW result -- per-subscriber redaction happens at fanout
       // time. Pre-redacting here would force every subscriber to see the
       // job creator's redaction level (#243).
@@ -279,6 +318,24 @@ async function _runJob(job) {
   }
 }
 
+function stopAndDrainBulkJobs() {
+  _acceptingJobs = false;
+  for (const job of _jobs.values()) {
+    for (const [res] of job.listeners) {
+      _sseWrite(res, 'error', { message: 'Server is shutting down.' });
+      res.end();
+    }
+    job.listeners.clear();
+  }
+  return Promise.allSettled([..._activeJobPromises]);
+}
+
+function _resetForTests() {
+  _acceptingJobs = true;
+  _activeJobPromises.clear();
+  _jobs.clear();
+}
+
 module.exports = router;
 
 // Exposed for testing
@@ -286,3 +343,6 @@ module.exports._parseTextInput  = parseTextInput;
 module.exports._parseJsonInput  = parseJsonInput;
 module.exports._parseExcelInput = parseExcelInput;
 module.exports._jobs = _jobs;
+module.exports.stopAndDrainBulkJobs = stopAndDrainBulkJobs;
+module.exports._trackJobPromise = _trackJobPromise;
+module.exports._resetForTests = _resetForTests;

@@ -227,7 +227,7 @@ Brief list of coins that passed all checks (GREEN across the board).
 |------|-------|
 | Runtime | Node.js 22, Express 5.2, CommonJS |
 | Golden set | `__tests__/fixtures/golden_coins.json` (14 coins, 3 series) |
-| Terapeak CSVs | ~2,493 files in `data/terapeak/` |
+| Terapeak CSVs | 3,593 files in the current repository snapshot; use admin endpoints for production truth |
 | Pricing routes | `/api/price`, `/api/pricing-batch`, `/api/bulk-evaluate`, `/api/market/ebay` |
 | eBay response shape | `ebay.us.{comps, gathered, attritionPct, removed}` |
 | Valuation shape | `valuation.{fmvCore, confidence, method, compCount, lowData, gradePool}` |

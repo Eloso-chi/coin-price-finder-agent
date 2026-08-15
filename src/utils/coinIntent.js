@@ -11,6 +11,23 @@
 
 const { canonicalizeBarIntent } = require('../data/barSeries');
 
+const MAX_FINISH_LENGTH = 100;
+const SPECIALTY_FINISHES = new Set(['Colorized', 'Antiqued', 'Gilded', 'Burnished', 'High Relief']);
+const SPECIALTY_FINISH_FAMILIES = {
+  Colorized: 'colorized',
+  Antiqued: 'antiqued',
+  Gilded: 'gilded',
+  Burnished: 'burnished',
+  'High Relief': 'highRelief',
+};
+const SPECIALTY_TITLE_TOKENS = {
+  colorized: ['colorized', 'colourized', 'colorised', 'coloured', 'enameled', 'enamelled', 'painted', 'full color', 'full-colour', 'spot color', 'spot-colour'],
+  antiqued: ['antiqued', 'antique finish'],
+  gilded: ['gilded', 'guilded', 'gold plated', 'gold-plated', 'golden finish', 'gilt'],
+  burnished: ['burnished'],
+  highRelief: ['high relief', 'ultra high relief', 'uhr'],
+};
+
 // Shared Reverse Proof / Enhanced Reverse Proof detection (#260W review m3).
 // Three sites previously each had their own regex with subtly different
 // strictness (valuationService and ebayService used the loose `/reverse[\s-]*proof/i`
@@ -33,6 +50,33 @@ function ownString(object, property) {
     : null;
 }
 
+function isValidFinishInput(value) {
+  return value == null || (typeof value === 'string' && value.length <= MAX_FINISH_LENGTH);
+}
+
+function isSpecialtyFinish(value) {
+  if (value == null) return false;
+  const normalized = String(value).trim();
+  const canonical = FINISH_CANONICAL[normalized.toLowerCase()] || normalized;
+  return SPECIALTY_FINISHES.has(canonical);
+}
+
+function specialtyFinishFamily(value) {
+  if (value == null) return null;
+  const normalized = String(value).trim();
+  const canonical = FINISH_CANONICAL[normalized.toLowerCase()] || normalized;
+  return SPECIALTY_FINISH_FAMILIES[canonical] || null;
+}
+
+function detectSpecialtyFinishFamilies(value) {
+  const text = String(value || '').toLowerCase();
+  const families = new Set();
+  for (const [family, tokens] of Object.entries(SPECIALTY_TITLE_TOKENS)) {
+    if (tokens.some(token => text.includes(token))) families.add(family);
+  }
+  return families;
+}
+
 // PCGS-canonical finish spelling.  Downstream classifiers compare against
 // `expected.finish` literally, so we normalize on the way in.
 const FINISH_CANONICAL = {
@@ -44,9 +88,15 @@ const FINISH_CANONICAL = {
   'matte proof':               'Matte Proof',
   'matte-proof':               'Matte Proof',
   'burnished':                 'Burnished',
+  'colorized':                 'Colorized',
+  'colourized':                'Colorized',
+  'coloured':                  'Colorized',
+  'gilded':                    'Gilded',
   'satin finish':              'Satin Finish',
   'satin':                     'Satin Finish',
   'antiqued':                  'Antiqued',
+  'high relief':               'High Relief',
+  'ultra high relief':         'High Relief',
   'business strike':           'Business Strike',
 };
 
@@ -122,4 +172,13 @@ function extractCoinIntent({ coinData, options, parsed, pcgs, isSet } = {}) {
   return { grade, finish, isProof, designation, barBrand, barSeries };
 }
 
-module.exports = { extractCoinIntent, FINISH_CANONICAL, isReverseProofFinish };
+module.exports = {
+  extractCoinIntent,
+  FINISH_CANONICAL,
+  isReverseProofFinish,
+  isSpecialtyFinish,
+  specialtyFinishFamily,
+  detectSpecialtyFinishFamilies,
+  isValidFinishInput,
+  MAX_FINISH_LENGTH,
+};
