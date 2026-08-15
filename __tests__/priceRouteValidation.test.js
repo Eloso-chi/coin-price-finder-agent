@@ -80,7 +80,10 @@ jest.mock('../src/utils/filters', () => ({
   detectDenomination: jest.fn(() => null),
 }));
 jest.mock('../src/utils/redactForPublic', () => ({ redactCompsForPublic: jest.fn((x) => x) }));
-jest.mock('../src/utils/coinIntent', () => ({ extractCoinIntent: jest.fn(() => ({ grade: null, designation: null, finish: null, isProof: false })) }));
+jest.mock('../src/utils/coinIntent', () => ({
+  ...jest.requireActual('../src/utils/coinIntent'),
+  extractCoinIntent: jest.fn(() => ({ grade: null, designation: null, finish: null, isProof: false })),
+}));
 jest.mock('../src/utils/coinMetalProfile', () => ({ getCoinMetalProfile: jest.fn(() => ({ metal: null })) }));
 
 const express = require('express');
@@ -153,6 +156,27 @@ describe('POST /api/price -- input validation', () => {
     // downstream valuation pipeline uses minimal mocks.
     expect(res.status).not.toBe(400);
     if (res.status >= 400) expect(isSafeErrorBody(res.body)).toBe(true);
+  });
+
+  test.each([
+    ['oversized', 'x'.repeat(101)],
+    ['non-string', { name: 'Antiqued' }],
+  ])('coinData.finish: %s value -> 400', async (_case, finish) => {
+    const res = await request(app).post('/api/price').send({ query: 'q', coinData: { finish } });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/coinData\.finish/);
+  });
+
+  test('forwards label-only specialty intent to valuation', async () => {
+    const res = await request(app).post('/api/price').send({
+      query: '2018 Libertad MS70',
+      coinData: { label: 'Colorized', grade: 'MS70' },
+    });
+    expect(res.status).not.toBe(400);
+    expect(valuationService.computeValuation).toHaveBeenCalled();
+    expect(valuationService.computeValuation.mock.calls.at(-1)[4]).toEqual(
+      expect.objectContaining({ finish: 'Colorized' })
+    );
   });
 
   test('query: 5000-char string is processed without crashing the server', async () => {

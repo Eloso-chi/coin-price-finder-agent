@@ -81,6 +81,78 @@ describe('computeValuation — basic FMV', () => {
     expect(result.valuation.confidence).toBeGreaterThan(0);
   });
 
+  test('#273W computes antiqued FMV from an isolated raw specialty pool', () => {
+    const comps = makeComps([320, 340, 350, 360, 380], {
+      title: '2018 Mexico Libertad Antiqued Finish',
+      gradeType: 'raw',
+    });
+    const result = computeValuation(mockPcgs(), mockEbay({ usComps: comps }), null, null, {
+      finish: 'Antiqued',
+    });
+
+    expect(result.valuation.gradePool.usedPool).toBe('raw');
+    expect(result.valuation.fmvCore).toBeGreaterThan(300);
+    expect(result.valuation.fmvCore).toBeLessThan(400);
+  });
+
+  test('#273W specialty finish overrides conflicting graded intent', () => {
+    const comps = makeComps([320, 340, 350, 360, 380], {
+      title: '2018 Mexico Libertad Antiqued Finish',
+      gradeType: 'raw',
+    });
+    const result = computeValuation(mockPcgs(), mockEbay({ usComps: comps }), null, 'MS70', {
+      finish: 'Antiqued',
+    });
+
+    expect(result.valuation.gradePool.usedPool).toBe('raw');
+    expect(result.valuation.fmvCore).toBeGreaterThan(300);
+    expect(result.valuation.fmvCore).toBeLessThan(400);
+  });
+
+  test.each([
+    ['Colorized', 'Colorized'],
+    ['Antiqued', 'Antiqued'],
+    ['Gilded', 'Gilded'],
+    ['Burnished', 'Burnished'],
+    ['High Relief', 'High Relief'],
+  ])('#273W %s valuation independently rejects other specialty families', (finish, titleFinish) => {
+    const requested = makeComps([320, 340, 360], {
+      title: `2018 Libertad ${titleFinish}`,
+      gradeType: 'raw',
+    });
+    const wrongFamily = makeComps([50, 55, 60], {
+      title: '2018 Libertad Gilded Colorized',
+      gradeType: 'raw',
+    });
+    const result = computeValuation(
+      mockPcgs(),
+      mockEbay({ usComps: [...requested, ...wrongFamily] }),
+      null,
+      null,
+      { finish }
+    );
+    expect(result.valuation.gradePool.usedPool).toBe('raw');
+    expect(result.valuation.fmvCore).toBeGreaterThan(300);
+  });
+
+  test('#273W specialty finish overrides an explicit reverse-proof flag', () => {
+    const raw = makeComps([320, 340, 360], {
+      title: '2018 Libertad Antiqued',
+      gradeType: 'raw',
+    });
+    const reverseProof = makeComps([50, 55, 60], { gradeType: 'reverse-proof' });
+    const result = computeValuation(
+      mockPcgs(),
+      mockEbay({ usComps: [...raw, ...reverseProof] }),
+      null,
+      null,
+      { finish: 'Antiqued', isReverseProof: true }
+    );
+    expect(result.valuation.gradePool.wantsReverseProof).toBe(false);
+    expect(result.valuation.gradePool.usedPool).toBe('raw');
+    expect(result.valuation.fmvCore).toBeGreaterThan(300);
+  });
+
   test('FMV is reasonable relative to comp prices', () => {
     const prices = [100, 105, 110, 115, 120];
     const comps = makeComps(prices);
@@ -1486,7 +1558,6 @@ describe('computeValuation — reverse-proof pool separation (#260W)', () => {
     ['null',                    null],
     ['undefined',               undefined],
     ['empty string',            ''],
-    ['unrelated word',          'Burnished'],
     ['reverseproof no separator', 'reverseproof'],  // stricter regex requires whitespace/hyphen
     ['irreverseproof',          'irreverseproof'],  // word boundary blocks substring
     ['proof-like',              'Proof-Like'],      // PL coins must NOT match RP
@@ -1503,6 +1574,20 @@ describe('computeValuation — reverse-proof pool separation (#260W)', () => {
     expect(result.valuation.gradePool.wantsReverseProof).toBe(false);
     // With isProof + non-RP finish, routes through the generic proof branch.
     expect(result.valuation.gradePool.usedPool).toBe('proof');
+  });
+
+  test('burnished specialty intent overrides a conflicting proof flag', () => {
+    const raw = makeComps([150, 160, 170], { gradeType: 'raw' });
+    const proof = makeComps([100, 110, 120], { gradeType: 'proof' });
+    const result = computeValuation(
+      mockPcgs(),
+      mockEbay({ usComps: [...raw, ...proof] }),
+      null,
+      'Proof',
+      { isProof: true, finish: 'Burnished' }
+    );
+    expect(result.valuation.gradePool.wantsReverseProof).toBe(false);
+    expect(result.valuation.gradePool.usedPool).toBe('raw');
   });
 });
 

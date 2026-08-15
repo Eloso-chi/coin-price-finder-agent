@@ -212,7 +212,17 @@ const VARIANT_FAMILY_TOKENS = {
 };
 
 const COLORIZED_MINT_ISSUED_TOKENS = ['perth mint', 'royal canadian mint', 'rcm', 'royal mint', 'with coa', 'coa', 'pcgs colorized', 'ngc colorized'];
-const COLORIZED_AFTERMARKET_TOKENS = ['novelty', 'painted by', 'custom', 'art coin', 'hand painted', 'hand-painted'];
+const COLORIZED_AFTERMARKET_TOKENS = ['novelty', 'painted by', 'custom', 'art coin', 'hand painted', 'hand-painted', 'overlay', 'altered'];
+const VARIANT_MINT_ISSUED_TOKENS = ['united states mint', 'u.s. mint', 'us mint', 'west point', 'perth mint', 'royal canadian mint', 'rcm', 'royal mint', 'banco de mexico', 'casa de moneda', 'with coa', 'coa', 'original mint packaging', 'omp'];
+const VARIANT_AFTERMARKET_TOKENS = ['novelty', 'custom', 'art coin', 'hand painted', 'hand-painted', 'gold plated', 'gold-plated', 'overlay', 'altered'];
+
+function includesMintToken(text, token) {
+  if (token === 'rcm') return /\brcm\b/.test(text);
+  if (token === 'coa') return /\bcoa\b/.test(text);
+  if (token === 'with coa') return /\bwith\s+coa\b/.test(text);
+  if (token === 'omp') return /\bomp\b/.test(text);
+  return text.includes(token);
+}
 
 function detectVariantFamilies(text) {
   const tLow = (text || '').toLowerCase();
@@ -234,20 +244,42 @@ function detectVariantFamilies(text) {
 function colorizedMintSignal(title) {
   const tLow = (title || '').toLowerCase();
   if (!tLow) return 0;
-  if (COLORIZED_MINT_ISSUED_TOKENS.some(tok => tLow.includes(tok))) return 10;
   if (COLORIZED_AFTERMARKET_TOKENS.some(tok => tLow.includes(tok))) return -10;
+  if (COLORIZED_MINT_ISSUED_TOKENS.some(tok => includesMintToken(tLow, tok))) return 10;
   return 0;
 }
 
-function queryWantsColorized(expected) {
-  const rawQuery = (expected && expected._rawQuery ? expected._rawQuery : '').toLowerCase();
-  const label = (expected && expected.label ? expected.label : '').toLowerCase().trim();
-  const finish = (expected && expected.finish ? expected.finish : '').toLowerCase().trim();
-  return detectVariantFamilies(rawQuery).has('colorized')
-    || label === 'colorized'
-    || label === 'colourized'
-    || finish === 'colorized'
-    || finish === 'colourized';
+function variantMintSignal(title, family) {
+  if (family === 'colorized') return colorizedMintSignal(title);
+  const tLow = (title || '').toLowerCase();
+  if (!tLow) return 0;
+  if (VARIANT_AFTERMARKET_TOKENS.some(token => tLow.includes(token))) return -10;
+  if (VARIANT_MINT_ISSUED_TOKENS.some(token => includesMintToken(tLow, token))) return 10;
+  return 0;
+}
+
+function hasConflictingVariantFamily(families, requestedFamily) {
+  return REQUESTABLE_VARIANT_FAMILIES.some(family =>
+    family !== requestedFamily && families.has(family));
+}
+
+const REQUESTABLE_VARIANT_FAMILIES = ['colorized', 'antiqued', 'gilded', 'burnished', 'highRelief'];
+const AMBIGUOUS_VARIANT_FAMILY = 'ambiguous';
+const requestedVariantFamilyCache = new WeakMap();
+
+function requestedVariantFamily(expected) {
+  if (!expected || typeof expected !== 'object') return null;
+  if (requestedVariantFamilyCache.has(expected)) return requestedVariantFamilyCache.get(expected);
+  const rawQuery = expected && expected._rawQuery ? expected._rawQuery : '';
+  const structured = `${expected?.label || ''} ${expected?.finish || ''}`;
+  const requested = new Set([
+    ...detectVariantFamilies(rawQuery),
+    ...detectVariantFamilies(structured),
+  ]);
+  const matched = REQUESTABLE_VARIANT_FAMILIES.filter(family => requested.has(family));
+  const family = matched.length > 1 ? AMBIGUOUS_VARIANT_FAMILY : (matched[0] || null);
+  requestedVariantFamilyCache.set(expected, family);
+  return family;
 }
 
 function queryWantsProof(expected) {
@@ -761,14 +793,11 @@ function scoreMatch(comp, expected) {
     score += 3; notes.push('lunar-match');
   }
 
-  // ── Variant mismatch (colorized-first policy) ──
-  // Hard variant treatment is reserved for colorized only:
-  // - default (non-colorized query): penalize colorized titles
-  // - colorized query: prefer colorized; penalize non-colorized specialty variants
-  const wantsColorized = queryWantsColorized(expected);
+  // ── Variant mismatch ──
+  const requestedFamily = requestedVariantFamily(expected);
   const titleFamilies = detectVariantFamilies(tLow);
   const isTitleColorized = titleFamilies.has('colorized');
-  if (!wantsColorized) {
+  if (!requestedFamily) {
     const hasOnlyPrivy = titleFamilies.size === 1 && titleFamilies.has('privy');
     const hasProofFamily = titleFamilies.has('proof') || titleFamilies.has('reverseProof');
     if (isTitleColorized) {
@@ -776,22 +805,26 @@ function scoreMatch(comp, expected) {
     } else if (titleFamilies.size > 0 && !hasOnlyPrivy && !(userWantsProof && hasProofFamily)) {
       score -= 20; notes.push('variant-specialty-mismatch');
     }
-  } else if (titleFamilies.size > 0) {
-    if (isTitleColorized) {
+  } else {
+    if (titleFamilies.has(requestedFamily)
+      && !titleFamilies.has('specialtyEdition')
+      && !hasConflictingVariantFamily(titleFamilies, requestedFamily)) {
       score += 5; notes.push('variant-match');
     } else {
-      score -= 30; notes.push('variant-wrong-colorized-family');
+      score -= 30; notes.push(`variant-wrong-${requestedFamily}-family`);
     }
   }
 
-  if (wantsColorized && isTitleColorized) {
-    const mintSignal = colorizedMintSignal(tLow);
+  if (requestedFamily
+      && titleFamilies.has(requestedFamily)
+      && !hasConflictingVariantFamily(titleFamilies, requestedFamily)) {
+    const mintSignal = variantMintSignal(tLow, requestedFamily);
     if (mintSignal > 0) {
       score += mintSignal;
-      notes.push('colorized-mint-issued');
+      notes.push(`${requestedFamily}-mint-issued`);
     } else if (mintSignal < 0) {
       score += mintSignal;
-      notes.push('colorized-aftermarket');
+      notes.push(`${requestedFamily}-aftermarket`);
     }
   }
 
@@ -1017,7 +1050,7 @@ function applyFilters(comps, options, expected) {
   // Proof-match filter: when searching for a proof coin, keep ONLY listings
   // that contain "proof" in the title. BU/uncirculated comps should not be
   // blended into proof pricing — they are fundamentally different products.
-  if (expected.isProof) {
+  if (expected.isProof && !requestedVariantFamily(expected)) {
     removed.notProof = 0;
     kept = kept.filter(c => {
       if (!/\bproof\b/i.test(c.title)) { removed.notProof++; return false; }
@@ -1224,14 +1257,14 @@ function applyFilters(comps, options, expected) {
     });
   }
 
-  // Variant hard filter (colorized-first policy):
+  // Variant hard filter:
   // - default (non-colorized query): remove specialty variants that can skew FMV,
   //   but allow privy-only comps and proof pools when user explicitly asks proof
-  // - colorized query: keep colorized OR plain BU; reject non-colorized specialty variants
+  // - specialty query: retain only the explicitly requested variant family
   {
-    const wantsColorizedHF = queryWantsColorized(expected);
+    const requestedFamilyHF = requestedVariantFamily(expected);
     const wantsProofHF = queryWantsProof(expected);
-    if (!wantsColorizedHF) {
+    if (!requestedFamilyHF) {
       removed.variantMismatch = 0;
       kept = kept.filter(c => {
         const titleFamiliesHF = detectVariantFamilies(c.title);
@@ -1253,20 +1286,19 @@ function applyFilters(comps, options, expected) {
         return false;
       });
     } else {
-      // Colorized query -- keep colorized family OR plain BU.
       removed.variantWrongColor = 0;
       kept = kept.filter(c => {
         const titleFamiliesHF = detectVariantFamilies(c.title);
-        if (titleFamiliesHF.size === 0) return true; // plain BU -- keep
-        // #283W: specialtyEdition rejection is symmetric across branches --
-        // a colorized query wants standard colorized comps, not Casa's
-        // specialty runs (which command their own premium). Rejected even
-        // if the comp also carries the `colorized` family token.
+        if (classifyGradeType(c) !== 'raw') {
+          removed.variantWrongColor++;
+          return false;
+        }
         if (titleFamiliesHF.has('specialtyEdition')) {
           removed.variantWrongColor++;
           return false;
         }
-        if (titleFamiliesHF.has('colorized')) return true;
+        if (titleFamiliesHF.has(requestedFamilyHF)
+          && !hasConflictingVariantFamily(titleFamiliesHF, requestedFamilyHF)) return true;
         removed.variantWrongColor++;
         return false;
       });
@@ -1610,10 +1642,13 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
     // two-pool FMV surfacing -- NEVER pool merging).
     const wantsProof = !!expected.isProof;
     const wantsReverseProof = wantsProof && isReverseProofFinish(expected.finish);
+    const specialtyFamily = requestedVariantFamily(expected);
     const wantsGraded = !!expected.grade;
-    const targetPool = wantsReverseProof
-      ? 'reverse-proof'
-      : (wantsProof ? 'proof' : (wantsGraded ? 'graded' : 'raw'));
+    const targetPool = specialtyFamily
+      ? 'raw'
+      : (wantsReverseProof
+        ? 'reverse-proof'
+        : (wantsProof ? 'proof' : (wantsGraded ? 'graded' : 'raw')));
     const beforeSplit = tpComps.length;
     tpComps = tpComps.filter(c => {
       const gt = classifyGradeType(c);

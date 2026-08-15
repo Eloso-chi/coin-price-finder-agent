@@ -24,7 +24,23 @@
  */
 
 const stats = require('../utils/stats');
-const { isReverseProofFinish } = require('../utils/coinIntent');
+const {
+  isReverseProofFinish,
+  specialtyFinishFamily,
+  detectSpecialtyFinishFamilies,
+} = require('../utils/coinIntent');
+const { getConfigVersion } = require('../utils/versionHash');
+
+const ALGORITHM_VERSION = '1.0.0';
+const CONFIG_VERSION = getConfigVersion();
+
+function valuationVersionStamp() {
+  return {
+    algorithmVersion: ALGORITHM_VERSION,
+    configVersion: CONFIG_VERSION,
+    computedAt: new Date().toISOString(),
+  };
+}
 
 /**
  * Compute FMV and dealer decisions from PCGS data + eBay comps + Greysheet.
@@ -59,24 +75,31 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
   // Use the explicit user-supplied grade, NOT the PCGS-resolved grade.
   // pcgs.grade can be set by PCGS Search API even when the user didn't
   // specify a grade, which would incorrectly filter to graded comps.
-  const wantsGraded = !!(userGrade);
+  const requestedSpecialtyFamily = specialtyFinishFamily(opts.finish);
+  const wantsSpecialty = !!requestedSpecialtyFamily;
+  const wantsGraded = !!(userGrade) && !wantsSpecialty;
   // #184 + #260W: proof / reverse-proof intent detection.  RP is a distinct
   // pool (PR #114).  Gate matches ebayService's pre-filter: RP requires proof
   // intent + RP-matching finish, OR an explicit isReverseProof flag.  RP then
   // suppresses generic proof so RP queries don't double-route.  See ADR or PR
   // body for the contract rationale (review M1).
-  const proofIntent = !!(opts.isProof)
-    || (wantsGraded && /^(proof|pr|pf)/i.test(String(userGrade || '').trim()));
-  const wantsReverseProof = !!(opts.isReverseProof)
-    || (proofIntent && isReverseProofFinish(opts.finish));
+  const proofIntent = !wantsSpecialty && (!!(opts.isProof)
+    || (wantsGraded && /^(proof|pr|pf)/i.test(String(userGrade || '').trim())));
+  const wantsReverseProof = !wantsSpecialty && (!!(opts.isReverseProof)
+    || (proofIntent && isReverseProofFinish(opts.finish)));
   const wantsProof = proofIntent && !wantsReverseProof;
 
   const usGraded   = usCompsAll.filter(c => c.gradeType === 'graded');
-  const usRaw      = usCompsAll.filter(c => c.gradeType === 'raw');
+  const isExactSpecialtyFamily = (comp) => {
+    if (!requestedSpecialtyFamily) return true;
+    const families = detectSpecialtyFinishFamilies(comp.title);
+    return families.size === 1 && families.has(requestedSpecialtyFamily);
+  };
+  const usRaw      = usCompsAll.filter(c => c.gradeType === 'raw' && isExactSpecialtyFamily(c));
   const usProof    = usCompsAll.filter(c => c.gradeType === 'proof');
   const usRevProof = usCompsAll.filter(c => c.gradeType === 'reverse-proof');
   const glGraded   = glCompsAll.filter(c => c.gradeType === 'graded');
-  const glRaw      = glCompsAll.filter(c => c.gradeType === 'raw');
+  const glRaw      = glCompsAll.filter(c => c.gradeType === 'raw' && isExactSpecialtyFamily(c));
   const glProof    = glCompsAll.filter(c => c.gradeType === 'proof');
   const glRevProof = glCompsAll.filter(c => c.gradeType === 'reverse-proof');
 
@@ -404,6 +427,7 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
     }
     return {
       valuation: {
+        ...valuationVersionStamp(),
         fmvCore: null,
         rangeLow: null,
         rangeHigh: null,
@@ -475,6 +499,7 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
     );
     return {
       valuation: {
+        ...valuationVersionStamp(),
         fmvCore: null,
         rangeLow: null,
         rangeHigh: null,
@@ -661,6 +686,7 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
 
   return {
     valuation: {
+      ...valuationVersionStamp(),
       fmvCore: fmv,
       rangeLow,
       rangeHigh,
@@ -959,6 +985,7 @@ function _emptyDecisions(askingPrice) {
 
 module.exports = {
   computeValuation,
+  ALGORITHM_VERSION,
   // #283H -- exported for unit tests pinning the proof / RP half-life
   // dispatch.  Not used by production callers.
   computeWeightedMedian,

@@ -31,6 +31,8 @@ MIXED_PAGE1=false
 MIXED_P01_FIXED=15
 MIXED_EXTRA_MIN=15
 MIXED_EXTRA_MAX=20
+EFFECTIVE_PACING_PROFILE="baseline"
+RISK_STATE_FILE=""
 
 usage() {
   cat <<'EOF'
@@ -52,6 +54,8 @@ Options:
   --mixed-p01-fixed N  Blended mode: fixed P0.1 picks per pass (default: 15).
   --mixed-extra-min N  Blended mode: min non-P0.1 picks (default: 15).
   --mixed-extra-max N  Blended mode: max non-P0.1 picks (default: 20).
+  --effective-pacing-profile NAME  Operator-derived profile for this pass.
+  --risk-state-file FILE  Persisted #284H risk-state file used to authorize tuned pacing.
   -h, --help           Show this help text.
 
 Required environment:
@@ -199,6 +203,14 @@ while [[ $# -gt 0 ]]; do
       MIXED_EXTRA_MAX="$2"
       shift 2
       ;;
+    --effective-pacing-profile)
+      EFFECTIVE_PACING_PROFILE="$2"
+      shift 2
+      ;;
+    --risk-state-file)
+      RISK_STATE_FILE="$2"
+      shift 2
+      ;;
     -h|--help)
       usage
       exit 0
@@ -219,6 +231,13 @@ if [[ -n "$ENV_FILE" ]]; then
   # shellcheck disable=SC1090
   set -a; source "$ENV_FILE"; set +a
 fi
+
+if [[ "$EFFECTIVE_PACING_PROFILE" != "baseline" && "$EFFECTIVE_PACING_PROFILE" != "normal-tuned" ]]; then
+  echo "effective pacing profile must be baseline or normal-tuned" >&2
+  exit 1
+fi
+export TERAPEAK_EFFECTIVE_PACING_PROFILE="$EFFECTIVE_PACING_PROFILE"
+export TERAPEAK_RISK_STATE_FILE="$RISK_STATE_FILE"
 
 : "${APP_URL:?APP_URL must be set}"
 : "${COOKIE_FILE:?COOKIE_FILE must be set}"

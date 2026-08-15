@@ -1,5 +1,11 @@
 # PR 168 Alignment & Gap Remediation — Summary Report
 
+> **Historical report (2026-06-21).** The merge-preparation steps below are no
+> longer active instructions. PR #168-era work has been superseded by the
+> current canonical operator workflow in `docs/memory/terapeak-runbook.md`,
+> `docs/memory/anti-bot-operations.md`, and `.github/skills/workflow/SKILL.md`.
+> Retained only as evidence of the original alignment review.
+
 **Date**: 2026-06-21  
 **Branch**: rebuild-pr-168 (commit 6272152)  
 **Task**: Verify runbook alignment, identify gaps, propose test-compliant fixes
@@ -300,7 +306,7 @@ npm test -- __tests__/terapeakOperator.test.js --verbose
 
 ---
 
-## Next Steps (Ready for Merge)
+## Historical Next Steps (Completed / Superseded)
 
 1. **Stage changes**:
    ```bash

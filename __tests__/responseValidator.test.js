@@ -50,6 +50,9 @@ function validResponse(overrides = {}) {
       explanation: ['Raw coin blend.'],
       dataSource: { soldCount: 3, activeCount: 0, totalComps: 3, soldRatio: 1, browseOnly: false, label: 'sold-data' },
       gradePool: { wantsGraded: false, usedPool: 'raw', gradedCount: 0, rawCount: 3, poolCount: 3, totalCount: 3 },
+      algorithmVersion: '1.0.0',
+      configVersion: `sha256:${'a'.repeat(64)}`,
+      computedAt: '2026-08-11T00:00:00.000Z',
     },
     decisions: {
       buy: { max70: 7.70, max75: 8.25, max80: 8.80, askingPrice: null, recommendation: null, notes: [] },
@@ -87,9 +90,23 @@ describe('validateSchema()', () => {
     const resp = validResponse();
     delete resp.valuation.fmvCore;
     delete resp.valuation.confidence;
+    delete resp.valuation.algorithmVersion;
     const { errors } = validateSchema(resp);
     expect(errors.some(e => e.includes('fmvCore'))).toBe(true);
     expect(errors.some(e => e.includes('confidence'))).toBe(true);
+    expect(errors.some(e => e.includes('algorithmVersion'))).toBe(true);
+  });
+
+  test('malformed valuation version metadata is rejected', () => {
+    const resp = validResponse();
+    resp.valuation.algorithmVersion = 'v1';
+    resp.valuation.configVersion = 'sha256:not-a-hash';
+    resp.valuation.computedAt = '2026-08-11';
+    const { valid, errors } = validateSchema(resp);
+    expect(valid).toBe(false);
+    expect(errors.some(e => e.includes('algorithmVersion'))).toBe(true);
+    expect(errors.some(e => e.includes('configVersion'))).toBe(true);
+    expect(errors.some(e => e.includes('computedAt'))).toBe(true);
   });
 
   test('missing decisions sub-keys detected', () => {

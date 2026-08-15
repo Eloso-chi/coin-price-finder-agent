@@ -114,7 +114,7 @@ If the user provides a commit message, check:
 - Is it descriptive (not just "fix" or "update")?
 - Does it match what the staged changes actually do?
 
-#### G. Documentation Coverage (WARN if missing)
+#### G. Documentation Coverage (BLOCK if missing)
 
 Inspect the staged paths to decide whether docs must be updated alongside the
 code. The full mapping lives in `CONTRIBUTING.md` under "Documentation
@@ -130,8 +130,8 @@ If the diff includes only `__tests__/**`, `coverage/**`, `package-lock.json`,
 this check (PASS).
 
 Otherwise, apply the matchers below. For each match where no listed doc was
-also touched in the staged diff, raise a single WARN with the suggested
-surfaces. Do NOT raise per-file noise -- one consolidated WARN is enough.
+also touched in the staged diff, raise a single BLOCK with the required
+surfaces. Do NOT raise per-file noise -- one consolidated BLOCK is enough.
 
 | Staged path matches | Suggest updating |
 |---|---|
@@ -151,6 +151,48 @@ refactor with no behavior change, dependency bump, etc.) then downgrade to
 PASS but record the justification in the report so the PR reviewer can
 confirm. Do not bypass silently.
 
+If staged changes materially affect architecture, routes/APIs,
+persistence/data models, operations/runbooks, environment variables,
+agents/prompts/skills, or user-facing workflows, require a top-level `@onboard`
+acceptance run after commit and before merge. The acceptance must report no
+actionable active documentation gaps and identify the newly created commit.
+During pre-commit, report `Onboard acceptance` as `REQUIRED POST-COMMIT`; do not
+BLOCK the commit for evidence that cannot yet exist. Nested reviewers must not
+fabricate it. A reviewer-approved no-impact exemption is allowed only for typo/formatting edits
+or non-behavioral metadata, and the reviewer must record why full Onboard adds
+no contract coverage. Any later relevant commit invalidates the acceptance.
+
+#### H. WASTE-LEDGER Support Evidence (BLOCK if incomplete)
+
+When `docs/WASTE-LEDGER.md` is staged with a new `INC-NNN` entry, read
+`.github/skills/process-discipline/SKILL.md` "WASTE-LEDGER Author Guide" and
+verify all support-ready fields are present, including:
+
+- UTC window, attribution, violated rules, mistakes, impact
+- PR/commit and workflow identifiers; redacted public session reference
+- rework inventory and measured-versus-estimated usage
+- cost arithmetic, user attention, billing-review scope, evidence confidence
+- resolution, concrete enforcement paths, and support-case status
+- fenced copy/paste GitHub Support summary
+- ignored `.local/github-support/INC-NNN.txt` private packet when full
+  session/case/billing identifiers are needed; verify it is ignored and not staged
+- Summary table and Metrics totals updated
+
+BLOCK if a field is omitted. `Unavailable` is acceptable only when the entry
+states why and asks Support to verify the underlying billing data.
+Tracked incident evidence must be public-safe. Also BLOCK if tracked content includes full session IDs or full support-case IDs,
+emails, IPs, local user paths, raw prompts/transcripts, credentials, cookies, signed
+URLs, or billing/account IDs. Public evidence must follow the redaction
+and trusted-link rules in the process-discipline SKILL.
+
+#### I. Merge Readiness (BLOCK if required checks incomplete)
+
+Before recommending merge, inspect required CI/check status. PASS only when all
+required checks completed successfully. BLOCK queued, in-progress, failed, or
+cancelled required checks. Incomplete or unsuccessful required checks cannot be bypassed.
+Normal merge is the default. `--admin` requires explicit user approval and a
+documented reason; it must never be used to bypass queued or in-progress checks.
+
 ### Step 3: Report
 
 Print a concise report:
@@ -161,11 +203,14 @@ Print a concise report:
 | Check | Status |
 |-------|--------|
 | Secrets scan | PASS / BLOCK |
-| Tests (48 suites) | PASS / BLOCK |
+| Tests (current suite) | PASS / BLOCK |
 | Data model sync | PASS / WARN |
 | Lint errors | PASS / WARN |
 | UX / IA review | PASS / WARN |
-| Documentation coverage | PASS / WARN |
+| Documentation coverage | PASS / BLOCK |
+| Onboard acceptance | REQUIRED POST-COMMIT / PASS / NOT REQUIRED |
+| WASTE-LEDGER evidence | PASS / BLOCK / NOT APPLICABLE |
+| Required CI checks | PASS / BLOCK / NOT CHECKED (pre-commit only) |
 
 [Details for any BLOCK or WARN items]
 

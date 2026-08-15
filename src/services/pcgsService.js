@@ -14,6 +14,13 @@ const PCGS_API_KEY = process.env.PCGS_API_KEY || '';
 const PCGS_BASE   = (process.env.PCGS_BASE_URL || 'https://api.pcgs.com/publicapi').replace(/\/+$/, '');
 const TIMEOUT      = 10000;
 
+function parseQuotaHeader(value) {
+  const normalized = value == null ? '' : String(value).trim();
+  if (!/^\d+$/.test(normalized)) return null;
+  const parsed = Number(normalized);
+  return Number.isSafeInteger(parsed) ? parsed : null;
+}
+
 // Ensure cache directory exists
 const CACHE_DIR = require('../utils/cachePath').CACHE_DIR;
 
@@ -41,10 +48,10 @@ async function pcgsGet(urlPath, retries = 2) {
       });
 
       // Sync quota from response headers
-      const remaining = parseInt(resp.headers?.['x-ratelimit-remaining'], 10);
-      const limit = parseInt(resp.headers?.['x-ratelimit-limit'], 10);
-      if (!isNaN(remaining)) {
-        pcgsQuota.syncFromHeaders(remaining, isNaN(limit) ? undefined : limit);
+      const remaining = parseQuotaHeader(resp.headers?.['x-ratelimit-remaining']);
+      const limit = parseQuotaHeader(resp.headers?.['x-ratelimit-limit']);
+      if (remaining !== null) {
+        pcgsQuota.syncFromHeaders(remaining, limit ?? undefined);
       }
       pcgsQuota.recordCall('coinfacts');
 
@@ -52,20 +59,25 @@ async function pcgsGet(urlPath, retries = 2) {
     } catch (err) {
       const status = err.response?.status;
 
-      // Sync headers even on error responses
-      if (err.response?.headers) {
-        const remaining = parseInt(err.response.headers['x-ratelimit-remaining'], 10);
-        const limit = parseInt(err.response.headers['x-ratelimit-limit'], 10);
-        if (!isNaN(remaining)) {
-          pcgsQuota.syncFromHeaders(remaining, isNaN(limit) ? undefined : limit);
+      // Sync non-rate-limit error headers; 429 observations remain separate
+      // from the published local entitlement in the breaker state below.
+      if (status !== 429 && err.response?.headers) {
+        const remaining = parseQuotaHeader(err.response.headers['x-ratelimit-remaining']);
+        const limit = parseQuotaHeader(err.response.headers['x-ratelimit-limit']);
+        if (remaining !== null) {
+          pcgsQuota.syncFromHeaders(remaining, limit ?? undefined);
         }
       }
 
       if (status === 429) {
         const headers = err.response?.headers || {};
+        const upstreamRemaining = parseQuotaHeader(headers['x-ratelimit-remaining']);
+        const upstreamLimit = parseQuotaHeader(headers['x-ratelimit-limit']);
         pcgsQuota.tripBreaker({
           retryAfter: headers['retry-after'],
           resetAt: headers['x-ratelimit-reset'],
+          upstreamRemaining,
+          upstreamLimit,
           reason: 'PCGS CoinFacts rate limit exceeded (429)'
         });
         throw err;
@@ -334,6 +346,7 @@ function parseDescription(text) {
     { re: /\bburnished\b/i,                     finish: 'Burnished' },
     { re: /\bsatin\s+finish\b/i,               finish: 'Satin Finish' },
     { re: /\bantiqued\b/i,                      finish: 'Antiqued' },
+    { re: /\bgilded\b/i,                        finish: 'Gilded' },
     { re: /\bhigh\s+relief\b/i,                finish: 'High Relief' },
     { re: /\bcolorized\b/i,                     finish: 'Colorized' },
     { re: /\bcoloured\b/i,                      finish: 'Colorized' },
