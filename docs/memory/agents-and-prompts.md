@@ -3,8 +3,10 @@
 > This file is the canonical inventory of agents, prompts, and skills shipped
 > in `.github/`. It is read by the **Onboard** agent during Phase 1 so the agent
 > knows what tools are available.
+> The root [`AGENTS.md`](../../AGENTS.md) provides a concise discoverability
+> index for contributors and tools that expect that convention.
 >
-> Updated 2026-06-17 as part of the memory-corpus migration
+> Migrated 2026-06-17 and inventory-verified 2026-08-12
 > (`docs/memory-corpus-migration` branch). A non-authoritative copy lives at
 > `/memories/repo/agents-and-prompts.md` on the W (Codespace) machine; that
 > copy may drift and should not be edited directly.
@@ -17,7 +19,7 @@ The `.github` directory is hidden -- use explicit paths.
 | Agent File | Name | Mode | Purpose |
 |---|---|---|---|
 | `code-reviewer.approval-gated.agent.md` | Code Reviewer | Read-only | Primary correctness, testing, maintainability, domain, and operability review. Runs beside specialist reviewers under `/review-deep`. |
-| `pre-commit-reviewer.agent.md` | Pre-commit Reviewer | Read-only | Fast staged-changes review: secrets scan, test pass, data model sync. BLOCK/WARN severity. |
+| `pre-commit-reviewer.agent.md` | Pre-commit Reviewer | Read-only | Staged-change gate: secrets/tests, data-model sync, mapped documentation, Onboard acceptance, support-ready incident evidence, and merge readiness. |
 | `implementer.approval-only.agent.md` | Implementer | Write | Applies ONLY explicitly approved findings from Code Review Report. Minimal diffs. |
 | `onboard.agent.md` | Onboard | Read-only | Bootstraps full project context (reads `docs/memory/`, docs, key source files). |
 | `sales-aggregator.agent.md` | Sales Aggregator | Mixed | Manages Terapeak data pipeline: dashboard, freshness, batch runs. |
@@ -49,7 +51,7 @@ The `.github` directory is hidden -- use explicit paths.
 | `.github/skills/code-review/SKILL.md` | Shared review framework (severity defs, finding schema, report structure) |
 | `.github/skills/numismatics/SKILL.md` | Domain knowledge: classification decision tree, finish detection, audit checklist, MANDATORY Pool-Isolation Contract |
 | `.github/skills/testing/TESTING-PLAN.md` | Testing standards, batch plan, coverage targets |
-| `.github/skills/workflow/SKILL.md` | Canonical PR workflow (hard rule, tiered execution, 8-step lifecycle, WASTE-LEDGER carve-out) |
+| `.github/skills/workflow/SKILL.md` | Canonical PR workflow (hard rule, tiered execution, 10-step lifecycle, WASTE-LEDGER carve-out) |
 | `.github/skills/process-discipline/SKILL.md` | Hot-file -> INC mapping + WASTE-LEDGER author guide (schema, rate card, citation discipline) |
 | `.github/skills/valuation/SKILL.md` | FMV / confidence / buy-sell decision engine routing reference; cites decision-engine-spec, pool-isolation contract, INC-013 |
 | `.github/skills/comp-data/SKILL.md` | eBay 3-tier cascade + Terapeak ingestion / lookup; cites terapeak-runbook, pool-isolation contract, INC-001/002/004/011/013 |
@@ -65,12 +67,21 @@ Summary (the SKILL is authoritative; this is a pointer):
    [`.github/skills/process-discipline/SKILL.md`](../../.github/skills/process-discipline/SKILL.md)
    before editing any flagged surface)
 3. Run **Pre-commit Reviewer** (`@pre-commit-reviewer` or `/pre-commit`)
-4. Commit (no `--no-verify` reflex) and push (`unset GITHUB_TOKEN GH_TOKEN`
+4. Commit (no `--no-verify` reflex)
+5. For material architecture/API/data/operations/environment/customization/user-facing
+   workflow changes, run Onboard acceptance against that exact commit; use a
+   reviewer-approved documented no-impact exemption only for typo/formatting-only
+   or non-behavioral metadata work
+6. Push (`unset GITHUB_TOKEN GH_TOKEN`
    first in Codespace)
-5. Open PR using `.github/pull_request_template.md`
-6. For M / L tier: run `/review-deep` and present its synthesized findings
-7. After user approval, merge with `gh pr merge <N> --admin --merge
-   --delete-branch`
+7. Open PR using `.github/pull_request_template.md`
+8. For M / L tier: run `/review-deep` and present its synthesized findings
+9. Wait for every required CI check to complete successfully, then after user
+   approval merge normally. `--admin` requires explicit approval and a
+   documented reason; it is never a shortcut around queued checks.
+10. Complete post-merge bookkeeping: update local `main`, prune deleted refs,
+    and ensure the backlog status was flipped in the implementing PR (or use a
+    follow-up PR if it was missed).
 
 Carve-out: `docs/WASTE-LEDGER.md` postmortem entries referencing
 already-merged or already-closed PRs may commit direct to `main` (see
@@ -87,7 +98,7 @@ expectation is enforced in three places:
 2. **`CONTRIBUTING.md`** -- "Documentation Expectations" section with the
    full code-surface to doc-surface mapping table.
 3. **`.github/agents/pre-commit-reviewer.agent.md`** -- Documentation
-   Coverage check (Step 2.G) that inspects staged paths and WARNs when a
+   Coverage check (Step 2.G) that inspects staged paths and BLOCKS when a
    matching doc was not also updated.
 
 When adding a new file under `docs/memory/` or `docs/runbooks/`, also

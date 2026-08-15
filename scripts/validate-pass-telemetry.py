@@ -3,6 +3,7 @@
 
 import argparse
 import json
+import re
 import sys
 from datetime import datetime
 
@@ -26,6 +27,8 @@ REQUIRED_FIELDS = {
     "transition_reason": (str, type(None)),
 }
 VALID_STATES = {"Normal", "Elevated", "Challenged", "Cooldown"}
+VALID_PACING_PROFILES = {"baseline", "normal-tuned"}
+PILOT_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
 
 
 def validate_timestamp(value):
@@ -49,6 +52,26 @@ def validate_record(record):
     for field in ("state_before", "state_after"):
         if field in record and record[field] not in VALID_STATES:
             errors.append(f"invalid risk state: {field}")
+    for field in ("pacing_profile_requested", "pacing_profile_effective"):
+        if field in record and record[field] not in VALID_PACING_PROFILES:
+            errors.append(f"invalid pacing profile: {field}")
+    pacing_fields = {"pacing_profile_requested", "pacing_profile_effective"}
+    if pacing_fields.intersection(record) and not pacing_fields.issubset(record):
+        errors.append("pacing profile fields must appear together")
+    requested = record.get("pacing_profile_requested")
+    effective = record.get("pacing_profile_effective")
+    state_before = record.get("state_before")
+    if effective == "normal-tuned" and (requested != "normal-tuned" or state_before != "Normal"):
+        errors.append("normal-tuned effective profile requires Normal state and normal-tuned request")
+    if requested == "baseline" and effective == "normal-tuned":
+        errors.append("baseline request cannot produce normal-tuned effective profile")
+    if requested == "normal-tuned" and state_before == "Normal" and effective != "normal-tuned":
+        errors.append("Normal-state normal-tuned request must produce normal-tuned effective profile")
+    pilot_id = record.get("pacing_pilot_id")
+    if pilot_id is not None and (not isinstance(pilot_id, str) or not PILOT_ID_PATTERN.fullmatch(pilot_id)):
+        errors.append("invalid pacing pilot ID")
+    if requested == "normal-tuned" and pilot_id is None:
+        errors.append("normal-tuned request requires pacing pilot ID")
     for field in (
         "pass_id", "batch_size_requested", "batch_size_executed", "new_count",
         "dup_count", "no_data_count", "no_export_count", "challenge_signal_count",

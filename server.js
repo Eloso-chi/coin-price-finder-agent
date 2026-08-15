@@ -8,6 +8,7 @@ const alertService = require('./src/services/alertService');
 const { requestId, getRequestId } = require('./src/middleware/requestId');
 const requestLogger = require('./src/middleware/requestLogger');
 const logger = require('./src/utils/logger');
+const { gracefulShutdown } = require('./src/utils/gracefulShutdown');
 const healthRoute = require('./src/routes/healthRoute');
 
 process.on('unhandledRejection', reason => {
@@ -160,7 +161,7 @@ app.post('/api/clear-cache', requireAdmin, (_req, res) => {
 app.use('/api/health', healthRoute);
 
 // ── Start ───────────────────────────────────────────────────
-app.listen(PORT, '0.0.0.0', async () => {
+const server = app.listen(PORT, '0.0.0.0', async () => {
   logger.info({
     event: 'server_started',
     port: Number(PORT),
@@ -435,3 +436,20 @@ app.listen(PORT, '0.0.0.0', async () => {
   const prefetchScheduler = require('./src/services/prefetchScheduler');
   prefetchScheduler.init();
 });
+
+let shuttingDown = false;
+async function shutdown(signal) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  logger.info({ event: 'server_shutdown', signal }, 'Draining valuation audits');
+  const bulkEvaluateRoute = require('./src/routes/bulkEvaluateRoute');
+  const { closeAndDrainValuationAudits } = require('./src/services/auditService');
+  await gracefulShutdown({
+    server,
+    stopAndDrainProducers: bulkEvaluateRoute.stopAndDrainBulkJobs,
+    closeAndDrainAudits: closeAndDrainValuationAudits,
+  });
+}
+
+process.once('SIGTERM', () => { void shutdown('SIGTERM'); });
+process.once('SIGINT', () => { void shutdown('SIGINT'); });

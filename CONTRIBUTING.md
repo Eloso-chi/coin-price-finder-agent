@@ -77,7 +77,7 @@ Example:
 agents, skills, tests, data, schemas -- goes through a feature branch + PR.
 The canonical workflow lives in
 [.github/skills/workflow/SKILL.md](.github/skills/workflow/SKILL.md)
-(tiered execution model, 8-step lifecycle, author checklist).
+(tiered execution model, 10-step lifecycle, author checklist).
 
 The only carve-out is `docs/WASTE-LEDGER.md` postmortem entries that
 reference an already-merged or already-closed PR / branch -- see the
@@ -146,6 +146,23 @@ Use the following mapping to decide which doc surfaces are affected:
 Drift is a real cost on this project: stale docs mislead future contributors
 and onboarded agents. When in doubt, update the doc -- a few lines is cheaper
 than the next reader's confusion.
+
+### Documentation acceptance gate
+
+PRs that materially change architecture, routes/APIs, persistence/data models,
+operations/runbooks, environment variables, agents/prompts/skills, or
+user-facing workflows must run the Onboard agent after documentation edits and
+after commit, before merge. The PR must record an Onboard acceptance result
+tied to that commit with no actionable active documentation gaps. Typo/formatting
+edits and non-behavioral metadata may use a documented reviewer-approved
+no-impact exemption; later relevant commits invalidate prior acceptance.
+Mapped documentation omissions are merge blockers, not advisory warnings.
+
+Every required CI check must complete successfully before merge. Queued,
+in-progress, failed, or cancelled checks block merge. Do not use an admin
+override while checks are incomplete.
+Normal merge is the default. Any `--admin` use requires explicit user approval
+and a documented reason in the PR.
 
 ### When adding a new doc file
 

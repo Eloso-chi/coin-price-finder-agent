@@ -6,11 +6,12 @@ Operational scripts for data collection, migration, and maintenance. Most script
 
 | Requirement | Scripts that need it |
 |---|---|
-| Node server running (`node server.js`) | `sales-aggregator.py`, `terapeak-export.py`, `pricing-health-full.js` |
+| Node server running (`npm start`, background terminal) | `pricing-health-full.js`; Terapeak exporters only when `UPLOAD_MODE=api` |
 | VNC desktop + browser session | `terapeak-export.py`, `sales-aggregator.py`, `vnc-login.py` |
 | Azure credentials (Key Vault) | `upload-csvs-to-blob.js`, `migrate-to-cosmos.js`, `greysheet-refresh.js`, `load-secrets.sh` |
 | Python 3 + playwright | `terapeak-export.py`, `sales-aggregator.py`, `vnc-login.py`, `create_placeholders.py` |
 | `az` CLI logged into the right subscription | `load-secrets.sh` (see [../docs/runbooks/secret-bootstrap.md](../docs/runbooks/secret-bootstrap.md)) |
+| Bash + Git + Python + authenticated `gh` CLI | `commit-terapeak-progress.sh` |
 
 ## Script Reference
 
@@ -24,7 +25,9 @@ Operational scripts for data collection, migration, and maintenance. Most script
 | `surface` | One-word launcher for the Surface freshness loop (loads validated env + runs loop) | `surface` |
 | `terapeak-operator.sh` | Canonical H launcher with #284H risk states, Cooldown restart gates, randomized Normal batches, Elevated pacing, and shared pass telemetry | `bash scripts/terapeak-operator.sh` |
 | `terapeak-operator-codespace.sh` | Canonical W launcher using the same #284H state and telemetry contract | `bash scripts/terapeak-operator-codespace.sh --max-passes 1` |
+| `commit-terapeak-progress.sh` | Safely branch, commit, push, and open a PR for one operator run's CSV/meta changes | `bash scripts/commit-terapeak-progress.sh --dry-run`, then rerun without `--dry-run` |
 | `validate-pass-telemetry.py` | Validate required #284H fields in pass JSONL; add `--json` for machine-readable output | `python3 scripts/validate-pass-telemetry.py cache/terapeak-runs/passes.jsonl` |
+| `analyze-pacing-pilot.py` | Compare one scoped #280H baseline vs normal-tuned crossover using attempt-weighted speed and safety metrics | `python3 scripts/analyze-pacing-pilot.py --pilot-id ID cache/terapeak-runs/passes.jsonl` |
 | `repair-terapeak-dormancy.js` | Derive proven dormancy resets from pinned run evidence; dry-run by default and require ETag-guarded Cosmos writes plus a sidecar lock for durable apply | `node scripts/repair-terapeak-dormancy.js [--run-id=ID]`; apply with `--apply --confirm-cosmos=<COSMOS_DB> --confirm-cosmos-account=<COSMOS_ENDPOINT hostname>` |
 | `audit-terapeak-dormancy.js` | Audit all run-ledger evidence against current metadata for missing dormancy and stale dormancy after later success; exits 2 when anomalies exist | `npm run audit:dormancy` after `npm run sync:meta` |
 | `terapeak-startup-preflight.sh` | Startup gate for runtime/env/tooling/cookie health checks (login or loop mode) | `bash scripts/terapeak-startup-preflight.sh --mode login` |
@@ -50,8 +53,8 @@ Operational scripts for data collection, migration, and maintenance. Most script
 | `pricing-health-full.js` | Full-dataset pricing health audit | `node scripts/pricing-health-full.js --full` |
 | `lot-estimator-health.js` | Randomized lot parity + consistency health audit (bulk vs individual) | `node scripts/lot-estimator-health.js --lots 8 --seed 18652` |
 | `generate-freshness-report.js` | Dataset freshness triage (5-state + recently-confirmed-stale split) | `node scripts/generate-freshness-report.js [--summary] [--batch N]` |
-| `freshness-composition-analyzer.js` | Cross-tabulate the freshness report by composition (bullion/numismatic/proof/set) to surface structural coverage gaps (#270H) | `node scripts/freshness-composition-analyzer.js` |
-| `parallel-key-drift-scanner.js` | Silent-drift detector for the #267H class -- flags Terapeak datasets whose normalized key collides with an empty sibling (#272H) | `node scripts/parallel-key-drift-scanner.js` |
+| `analyze-freshness-composition.js` | Cross-tabulate the freshness report by composition (bullion/numismatic/proof/set) to surface structural coverage gaps (#270H) | `node scripts/analyze-freshness-composition.js` |
+| `scan-parallel-key-drift.js` | Silent-drift detector for the #267H class -- flags Terapeak datasets whose normalized key collides with an empty sibling (#272H) | `npm run scan:parallel-key-drift` |
 | `greysheet-refresh.js` | Bulk Greysheet price snapshot collector | `node scripts/greysheet-refresh.js` |
 | `upload-csvs-to-blob.js` | Upload local Terapeak CSVs to Azure Blob | `node scripts/upload-csvs-to-blob.js [folderPath]` |
 | `migrate-to-cosmos.js` | One-time migration of history data to Cosmos DB | `node scripts/migrate-to-cosmos.js` |

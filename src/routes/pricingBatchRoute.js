@@ -11,13 +11,14 @@ const ebayService  = require('../services/ebayService');
 const greysheetService = require('../services/greysheetService');
 const auctionPriceService = require('../services/auctionPriceService');
 const { computeValuation } = require('../services/valuationService');
+const { writeValuationAudit } = require('../services/auditService');
 const { getMetalsSpotPrice } = require('../services/metalsSpotPrice');
 const { getCoinMetalProfile } = require('../utils/coinMetalProfile');
 const { lookupKeyDate } = require('../data/keyDates');
 const { zodiacForYear, perthLunarSeries, getRollQuantity, BULLION_1OZ_DEFAULT, ALLOWED_LABELS } = require('../data/constants');
 const { detectDenomination } = require('../utils/filters');
 const { redactCompsForPublic } = require('../utils/redactForPublic');
-const { extractCoinIntent } = require('../utils/coinIntent');
+const { extractCoinIntent, isValidFinishInput, MAX_FINISH_LENGTH } = require('../utils/coinIntent');
 
 const MAX_ITEMS = 25;
 
@@ -30,9 +31,30 @@ router.post('/', async (req, res) => {
     if (items.length > MAX_ITEMS) {
       return res.status(400).json({ error: `Maximum ${MAX_ITEMS} items per batch` });
     }
+    if (items.some(item => String(item?.query || '').length > 300)) {
+      return res.status(400).json({ error: 'Each query must be 300 characters or fewer' });
+    }
+    if (items.some(item => !isValidFinishInput(item?.coinData?.finish))) {
+      return res.status(400).json({ error: `Each coinData.finish must be a string of ${MAX_FINISH_LENGTH} characters or fewer` });
+    }
 
     const audience = req.isAdmin ? 'admin' : 'public';
     const results = await Promise.all(items.map(item => _priceOne(item, { audience })));
+    for (const result of results) {
+      if (result.error) continue;
+      void writeValuationAudit({
+        query: result.query,
+        fmv: result.fmv,
+        method: result.method,
+        confidence: result.confidence,
+        algorithmVersion: result.algorithmVersion,
+        configVersion: result.configVersion,
+        computedAt: result.computedAt,
+        requestId: req.id,
+        actorId: req.isAdmin ? req.adminActor?.userId : undefined,
+        ip: req.isAdmin ? req.ip : undefined,
+      });
+    }
     return res.json(redactCompsForPublic({ ok: true, results }, req.isAdmin));
   } catch (err) {
     console.error('pricing-batch error:', err.message);
@@ -273,7 +295,7 @@ async function _priceOne(item, opts = {}) {
       isRoll,
       // #260W: forward canonical finish so valuationService can split
       // reverse-proof comps from the regular proof pool.
-      finish: intent.finish,
+      finish: intent.finish || validLabel,
       greysheet,
       appealMultiplier: coaAppealMultiplier > 1.0 ? coaAppealMultiplier : undefined,
       spotPrice: (isBullion && meltPerOz && weight)
@@ -300,6 +322,10 @@ async function _priceOne(item, opts = {}) {
       rangeHigh: val.rangeHigh || null,
       avgEbay: ebay?.us?.stats?.median || ebay?.us?.stats?.mean || null,
       confidence: val.confidence ?? null,
+      method: val.method || val.dataSource?.label || null,
+      algorithmVersion: val.algorithmVersion,
+      configVersion: val.configVersion,
+      computedAt: val.computedAt,
       dataSource: val.dataSource ?? null,
       spotStale: spotStale || undefined,
       spotAsOf: spotAsOf || undefined,

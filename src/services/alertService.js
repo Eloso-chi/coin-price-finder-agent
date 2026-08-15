@@ -69,15 +69,16 @@ function getEmailClient() {
  * @returns {Promise<{sent: boolean, reason?: string}>}
  */
 async function sendAlert(topic, subject, body) {
+  // Apply the same burst protection to fallback logs and configured email.
+  if (isRateLimited(topic)) {
+    return { sent: false, reason: 'rate-limited' };
+  }
+
   // No-op if not configured
   if (!COMMUNICATION_CONNECTION_STRING || !ALERT_EMAIL_TO || !ALERT_FROM_EMAIL) {
     logToFile(topic, `${subject}: ${body}`, 'not-configured');
+    markSent(topic);
     return { sent: false, reason: 'not-configured' };
-  }
-
-  // Rate limit check
-  if (isRateLimited(topic)) {
-    return { sent: false, reason: 'rate-limited' };
   }
 
   try {
@@ -142,8 +143,8 @@ function alertBlobImportFailure(consecutiveFailures, error) {
 function alertPrefetchFailure(consecutiveFailures, error) {
   return sendAlert(
     'prefetch-failed',
-    `APR prefetch failed ${consecutiveFailures}x`,
-    `The nightly APR prefetch scheduler has failed ${consecutiveFailures} consecutive times.\n\nError: ${error}`
+    `APR prefetch degraded ${consecutiveFailures}x`,
+    `The nightly APR prefetch scheduler has completed partially or failed ${consecutiveFailures} consecutive times.\n\nError: ${error}`
   );
 }
 
