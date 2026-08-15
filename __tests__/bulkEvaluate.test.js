@@ -491,6 +491,17 @@ describe('POST /api/bulk-evaluate (route)', () => {
     expect(body.coinCount).toBe(2);
   });
 
+  test('rejects oversized queries in every JSON/text shape', async () => {
+    const oversized = 'x'.repeat(301);
+    const responses = await Promise.all([
+      post('/api/bulk-evaluate', { text: oversized }),
+      post('/api/bulk-evaluate', { items: [oversized] }),
+      post('/api/bulk-evaluate', { items: [{ query: oversized }] }),
+    ]);
+    expect(responses.map(response => response.status)).toEqual([400, 400, 400]);
+    for (const response of responses) expect(response.body.error).toContain('300');
+  });
+
   test('text input supports pipe-delimited fields', async () => {
     const { status, body } = await post('/api/bulk-evaluate', {
       text: '1921 Morgan Dollar | qty=5 | grade=MS-63',
@@ -513,6 +524,22 @@ describe('POST /api/bulk-evaluate (route)', () => {
     const { status, body } = await post('/api/bulk-evaluate', { items });
     expect(status).toBe(202);
     expect(body.coinCount).toBe(500);
+  });
+
+  test('shutdown ends SSE listeners, waits for producers, and blocks admission', async () => {
+    let finishProducer;
+    const producer = new Promise(resolve => { finishProducer = resolve; });
+    bulkEvaluateRoute._trackJobPromise(producer);
+    const listener = { write: jest.fn(), end: jest.fn() };
+    bulkEvaluateRoute._jobs.set('shutdown-job', { listeners: new Map([[listener, { isAdmin: false }]]) });
+
+    const draining = bulkEvaluateRoute.stopAndDrainBulkJobs();
+    const response = await post('/api/bulk-evaluate', { items: [{ query: '1921 Morgan Dollar' }] });
+    expect(response.status).toBe(503);
+    expect(listener.end).toHaveBeenCalledTimes(1);
+    finishProducer();
+    await draining;
+    bulkEvaluateRoute._resetForTests();
   });
 });
 

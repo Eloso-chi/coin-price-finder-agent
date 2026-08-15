@@ -20,7 +20,10 @@
 'use strict';
 
 const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
 const cosmos = require('../utils/cosmosClient');
+const { CACHE_DIR } = require('../utils/cachePath');
 
 const CONTAINER = 'admin-audit';
 // Partition key choice trade-off:
@@ -32,6 +35,10 @@ const CONTAINER = 'admin-audit';
 //   well under Cosmos's 20 GB cap. Time-range queries are cross-partition,
 //   which is fine at this write rate.
 const PARTITION_KEY_PATH = '/actorUsername';
+const VALUATION_CONTAINER = 'valuation-audit';
+const VALUATION_PARTITION_KEY_PATH = '/computedAtDate';
+const VALUATION_RETENTION_SECONDS = 90 * 24 * 60 * 60;
+const MAX_VALUATION_QUEUE = 2000;
 
 // Once-per-process flag so we don't spam logs when the audit container hasn't
 // been provisioned yet on a fresh deployment.
@@ -48,6 +55,16 @@ let _provisioningDisabled = false;
 // disabled. Subsequent audits await the same promise -- so we never race
 // container creation against the first .items.create() call.
 let _ensurePromise = null;
+let _valuationEnsurePromise = null;
+let _valuationProvisioningDisabled = false;
+let _valuationActive = false;
+let _valuationQueue = [];
+let _valuationDrainWaiters = [];
+let _valuationQueueWarned = false;
+let _valuationAccepting = true;
+let _valuationFallbackWarned = false;
+let _fallbackWriteChain = Promise.resolve();
+let _lastFallbackPruneDate = null;
 function _ensureContainer() {
   if (!cosmos.isEnabled() || _provisioningDisabled) return Promise.resolve();
   if (_ensurePromise) return _ensurePromise;
@@ -65,6 +82,22 @@ function _ensureContainer() {
       throw err;
     });
   return _ensurePromise;
+}
+
+function _ensureValuationContainer() {
+  if (!cosmos.isEnabled() || _valuationProvisioningDisabled) return Promise.resolve();
+  if (_valuationEnsurePromise) return _valuationEnsurePromise;
+  _valuationEnsurePromise = cosmos.ensureContainer(VALUATION_CONTAINER, VALUATION_PARTITION_KEY_PATH, {
+    defaultTtl: VALUATION_RETENTION_SECONDS,
+  })
+    .catch((err) => {
+      if (_PERMANENT_COSMOS_ERRORS.has(err && err.code)) {
+        _valuationProvisioningDisabled = true;
+      }
+      _valuationEnsurePromise = null;
+      throw err;
+    });
+  return _valuationEnsurePromise;
 }
 
 /**
@@ -124,6 +157,126 @@ async function audit(ev) {
   }
 }
 
+function _buildValuationAuditRecord(ev) {
+  const computedAt = ev.computedAt || new Date().toISOString();
+  const record = {
+    id: crypto.randomUUID(),
+    type: 'valuation',
+    query: String(ev.query || ''),
+    fmv: Number.isFinite(ev.fmv) ? ev.fmv : null,
+    method: ev.method || null,
+    confidence: Number.isFinite(ev.confidence) ? ev.confidence : null,
+    algorithmVersion: ev.algorithmVersion,
+    configVersion: ev.configVersion,
+    computedAt,
+    computedAtDate: computedAt.slice(0, 10),
+    requestId: ev.requestId || null,
+  };
+  if (ev.actorId) record.actorId = ev.actorId;
+  if (ev.actorId && ev.ip) record.ip = ev.ip;
+  return record;
+}
+
+async function _appendValuationFallback(record) {
+  const operation = _fallbackWriteChain.then(async () => {
+    if (_lastFallbackPruneDate !== record.computedAtDate) {
+      await _pruneValuationFallbacks(record.computedAt);
+      _lastFallbackPruneDate = record.computedAtDate;
+    }
+    const fallbackPath = path.join(CACHE_DIR, `valuation-audit-${record.computedAtDate}.jsonl`);
+    await fs.promises.appendFile(fallbackPath, `${JSON.stringify(record)}\n`, 'utf8');
+  });
+  _fallbackWriteChain = operation.catch(() => {});
+  return operation;
+}
+
+async function _persistValuationAudit(record) {
+  if (!cosmos.isEnabled() || _valuationProvisioningDisabled) {
+    await _writeValuationFallback(record);
+    return;
+  }
+  try {
+    await _ensureValuationContainer();
+    await cosmos.container(VALUATION_CONTAINER).items.create(record);
+  } catch (err) {
+    if (_PERMANENT_COSMOS_ERRORS.has(err && err.code)) {
+      _valuationProvisioningDisabled = true;
+    }
+    await _writeValuationFallback(record);
+  }
+}
+
+async function _writeValuationFallback(record) {
+  try {
+    await _appendValuationFallback(record);
+  } catch (err) {
+    if (!_valuationFallbackWarned) {
+      _valuationFallbackWarned = true;
+      console.warn(`[valuation-audit] persistence failed: ${err.code || err.message}`);
+    }
+  }
+}
+
+async function _pruneValuationFallbacks(now = new Date().toISOString()) {
+  const cutoff = new Date(Date.parse(now) - VALUATION_RETENTION_SECONDS * 1000)
+    .toISOString().slice(0, 10);
+  const names = await fs.promises.readdir(CACHE_DIR);
+  await Promise.all(names
+    .filter(name => /^valuation-audit-\d{4}-\d{2}-\d{2}\.jsonl$/.test(name))
+    .filter(name => name.slice(16, 26) < cutoff)
+    .map(name => fs.promises.unlink(path.join(CACHE_DIR, name))));
+}
+
+function _resolveValuationDrains() {
+  if (_valuationActive || _valuationQueue.length) return;
+  const waiters = _valuationDrainWaiters;
+  _valuationDrainWaiters = [];
+  for (const resolve of waiters) resolve();
+}
+
+function _runNextValuationAudit() {
+  if (_valuationActive) return;
+  const next = _valuationQueue.shift();
+  if (!next) {
+    _resolveValuationDrains();
+    return;
+  }
+  _valuationActive = true;
+  _persistValuationAudit(next.record)
+    .then(() => next.resolve(true))
+    .finally(() => {
+      _valuationActive = false;
+      _runNextValuationAudit();
+    });
+}
+
+function writeValuationAudit(ev) {
+  if (process.env.NODE_ENV === 'test') return Promise.resolve(false);
+  if (!_valuationAccepting) return Promise.resolve(false);
+  if (_valuationQueue.length + Number(_valuationActive) >= MAX_VALUATION_QUEUE) {
+    if (!_valuationQueueWarned) {
+      _valuationQueueWarned = true;
+      console.warn(`[valuation-audit] queue full; dropping records above ${MAX_VALUATION_QUEUE}`);
+    }
+    return Promise.resolve(false);
+  }
+  const record = _buildValuationAuditRecord(ev);
+  return new Promise((resolve) => {
+    _valuationQueue.push({ record, resolve });
+    _runNextValuationAudit();
+  });
+}
+
+function drainValuationAudits() {
+  if (!_valuationActive && !_valuationQueue.length) return Promise.resolve();
+  return new Promise(resolve => _valuationDrainWaiters.push(resolve));
+}
+
+function closeAndDrainValuationAudits() {
+  _valuationAccepting = false;
+  return drainValuationAudits();
+}
+
 function _extractIp(req) {
   if (!req) return null;
   // Trust Express's resolution. `app.set('trust proxy', 1)` in server.js
@@ -139,6 +292,24 @@ function _resetForTests() {
   _cosmosWriteWarned = false;
   _provisioningDisabled = false;
   _ensurePromise = null;
+  _valuationEnsurePromise = null;
+  _valuationProvisioningDisabled = false;
+  _valuationActive = false;
+  _valuationQueue = [];
+  _valuationDrainWaiters = [];
+  _valuationQueueWarned = false;
+  _valuationAccepting = true;
+  _valuationFallbackWarned = false;
+  _fallbackWriteChain = Promise.resolve();
+  _lastFallbackPruneDate = null;
 }
 
-module.exports = { audit, _resetForTests };
+module.exports = {
+  audit,
+  writeValuationAudit,
+  drainValuationAudits,
+  closeAndDrainValuationAudits,
+  _buildValuationAuditRecord,
+  _pruneValuationFallbacks,
+  _resetForTests,
+};

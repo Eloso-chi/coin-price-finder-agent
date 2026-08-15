@@ -947,7 +947,11 @@ Verified:
 
 ---
 
-### #280H. Static "human behavior" delays are conservative and always-on -- add adaptive pacing by risk signal [P2 -- BOT-EVASION / PERFORMANCE] -- OPEN 2026-06-19
+### #280H. Static "human behavior" delays are conservative and always-on -- add adaptive pacing by risk signal [P2 -- BOT-EVASION / PERFORMANCE] -- PARTIAL 2026-08-12
+
+**Audit update (2026-08-12):** #284H completed the risk-state and operator-orchestration portion of this item for both canonical operators: Normal/Elevated/Cooldown transitions, risk-driven batch sizing, longer Elevated between-pass pauses, persisted transition reasons, a rollback switch, and a one-week safety pilot. Focused risk-state/operator tests pass (46/46). The residual performance scope remains open: `terapeak-export.py` and `sales-aggregator.py` still use fixed human-idle, scroll, per-coin delay, coffee-break, and browser-recycle policies without risk-state input. The #284H pilot does not establish the proposed throughput gain; across its three runs, Normal passes averaged about 66 seconds per attempted coin and Elevated passes about 67 seconds. Defer lower-level pacing changes until a controlled A/B pilot is approved; do not treat the safety-state rollout as evidence that stable-session scraping became 15-30% faster.
+
+**Pilot instrumentation (2026-08-12):** Added fail-closed `baseline` / `normal-tuned` profile selection to both canonical operators. `normal-tuned` scales centralized page-1 exporter idle/action delays to 80% only for passes that start in Normal; Elevated and Cooldown force effective baseline, and the exporter independently verifies persisted Normal state. Pass telemetry records requested/effective profiles and a scoped pilot ID. `scripts/analyze-pacing-pilot.py` requires an exact 12-pass crossover, complete reconciled telemetry, and a comparable machine/operator/include-thin cohort; it reports attempt-weighted speed and safety rates and rejects any hard challenge. Baseline remains the default. Live A/B evidence and the residual `sales-aggregator.py` deep-pagination pacing remain open.
 
 **Problem:** The scraper always applies heavy idle/scroll/pause behavior even when session health is stable. This reduces throughput substantially and may be overpaying for stealth on low-risk stretches.
 
@@ -995,9 +999,19 @@ Verified:
 
 ---
 
-### #284H. Anti-bot operations hardening: staged rollout for process, telemetry contract, and risk-state transitions [P2 -- OPERATIONS / BOT-RESILIENCE] -- IMPLEMENTED / PILOT PENDING 2026-07-29
+### #284H. Anti-bot operations hardening: staged rollout for process, telemetry contract, and risk-state transitions [P2 -- OPERATIONS / BOT-RESILIENCE] -- DONE 2026-08-10
 
-**Status update (2026-07-29):** Stages 1-3 are implemented for both canonical operators. Shared telemetry and validation, deterministic risk transitions, bounded Elevated pacing, immediate hard-challenge stop, persisted Cooldown, wait/re-login/probe restart gates, rollback mode, compliance guidance, PR review gates, and incident evidence fields are in place. The item remains open only for the acceptance observation period: >=95% telemetry completeness across one week and measured challenge-waste reduction without data-integrity regressions.
+**Closure (2026-08-10):** Stages 1-3 are implemented for both canonical operators, and the one-week H-machine pilot produced sufficient acceptance evidence to close the item. Because no comparable pre-Stage-3 structured ledger exists, the user accepted avoided post-detection work as the challenge-waste proxy instead of requiring a retrospective decline calculation.
+
+- Observation window: `2026-08-03T01:50:26Z` through `2026-08-10T01:53:33Z`.
+- Runs: `20260803T014918Z-31818`, `20260807T014217Z-2334`, and `20260809T193443Z-6334`.
+- Coverage: 51 passes with 100% completeness across the canonical 17-field telemetry contract (867/867 required values present; threshold: >=95%).
+- Work completed: 971 attempted coins, 691 successful exports, 15,324 new rows, and 61,869 duplicates identified.
+- State behavior: Normal -> Elevated, Elevated -> Normal, and hard-challenge -> Cooldown transitions were all observed and attributable from structured telemetry.
+- Challenge handling: three hard-challenge events each caused an immediate exit with no retry loop. The stop decisions abandoned 30 still-requested selections across the three terminal passes, providing the accepted measurable avoided-work proxy.
+- Data integrity: the post-pilot CSV/meta checkpoint passed the full suite (147 suites, 4,311 tests), and the P0.1 backfill exercised during the pilot was separately reviewed and merged in PR #260.
+
+The visible second-challenge recovery gap discovered during Cooldown is tracked separately in #302W. It does not invalidate the #284H state machine: challenge detection, immediate stop, persisted Cooldown, and restart gating behaved as designed.
 
 **Problem:** Current scraper safety controls are strong but fragmented across runbooks and scripts. We need one staged plan that hardens operator behavior first, then standardizes observability, then introduces controlled runtime state transitions without forcing all changes in one risky PR.
 
@@ -2205,7 +2219,10 @@ Ops can override to any value (e.g., `BROWSER_RECYCLE_EVERY=40 python scripts/te
 
 ---
 
-### #282W. Alert on partial-with-elevated-errors -- consecutiveFailures gate misses partial runs [P2 -- ALERTING] -- PROPOSED 2026-07-05
+### #282W. Alert on partial-with-elevated-errors -- consecutiveFailures gate misses partial runs [P2 -- ALERTING] -- DONE 2026-08-12
+
+**Completion (2026-08-12):** Added a shared two-run alert gate for partial and fatal PCGS prefetch outcomes. Partial alerts include error and call counts plus the first sanitized error; completed runs reset the streak without alerting. The existing per-topic one-hour limiter now covers both ACS Email delivery and unconfigured fallback logging. Focused tests passed 57/57, and the deterministic full suite passed 160 suites / 4,417 tests with `COIN_TEST_SEED=28220260812`.
+
 - **Problem**: `alertPrefetchFailure` fires only from `executePrefetchRun`'s fatal `catch` block at [src/services/prefetchScheduler.js#L378-L380](../src/services/prefetchScheduler.js#L378): `if (failures >= 2) { alertService.alertPrefetchFailure(failures, err.message); }`. But `consecutiveFailures` also increments on **partial** completions (the normal try-path exit where `status = 'partial'`, per the ternary at [prefetchScheduler.js#L400](../src/services/prefetchScheduler.js#L400)). The result: a run that returns 990 calls with 500 timeouts and `status: 'partial'` increments the counter to 2, 3, N without ever triggering an alert. The catch block only fires on truly fatal errors (uncaught exceptions in the try body), which is a much narrower failure mode than "run degraded to partial N nights running".
 - **Live evidence (2026-07-05)**: prod `/api/admin/prefetch-status` shows `consecutiveFailures: 3` after two consecutive partial runs (one with 21 calls / 3 timeouts, one with 990 calls / 20+ stored timeouts / ~375 uncharged timeouts). Zero alerts fired. Even had SendGrid been configured, no alert would have been sent because the catch path never executed.
 - **Compounding factor**: SendGrid alerting is documented as **NOT CONFIGURED** in production per [docs/memory/background-processes-status.md](../docs/memory/background-processes-status.md#L48-L64). So the alerting failure is currently double-latent: the code path is broken AND the delivery channel is unconfigured. Both must be fixed for alerts to actually reach an operator.
@@ -2243,6 +2260,8 @@ Ops can override to any value (e.g., `BROWSER_RECYCLE_EVERY=40 python scripts/te
 
 **Status update (2026-07-31):** The implementation now persists sanitized upstream cooldown state independently of local quota, gates scheduled and manual starts before reset, permits one bounded recovery probe, preserves unexpired cooldown across restart and Pacific day rollover, and exposes the distinction in admin status. Missing or malformed reset headers use a configurable one-hour fallback. Focused recovery and header-propagation tests pass. This item remains open only for the acceptance observation period of three consecutive productive or valid-empty nightly runs without the one-call-then-429 pattern.
 
+**Follow-up (2026-08-13):** Four consecutive production runs established a repeatable 100-success/101st-request-429 boundary despite the published 1,000-call daily entitlement. The scheduler now defaults `PCGS_PREFETCH_OBSERVED_LIMIT` to 100 and subtracts the existing 10-call reserve, limiting a fresh nightly run to 90 calls without changing `DAILY_LIMIT=1000`. Numeric limit/remaining headers from 429 responses are sanitized, persisted in cooldown state, and exposed through prefetch status. Recovery probes cannot widen the run past its initial observed budget, and partial/fatal alerts now use neutral "degraded" wording. Production validation remains pending; no backlog status or scope change is made by this follow-up.
+
 - **Problem**: The nightly PCGS APR prefetch is firing, but recent production runs stop almost immediately on an upstream HTTP 429. The scheduler's local quota state can still report substantial capacity while PCGS rejects the first request, so the local `remaining` counter is not a reliable signal that work may proceed. The breaker correctly prevents a retry storm within the run, but the next night's run repeats the same one-request failure instead of recovering or waiting for an authoritative upstream cooldown.
 
 - **Production evidence** (GitHub Actions status payloads, observed 2026-07-31):
@@ -2262,6 +2281,7 @@ Ops can override to any value (e.g., `BROWSER_RECYCLE_EVERY=40 python scripts/te
   5. Reconcile day-boundary and process-restart behavior so an in-memory breaker reset cannot contradict persisted upstream rate-limit state.
   6. Make same-night triggers idempotent while a run, cooldown, or completed attempt already exists. Coordinate with #281W rather than duplicating its workflow run-correlation change.
   7. Expose local quota and upstream availability as distinct fields in `/api/admin/prefetch-status`; do not present `remaining=994` as runnable capacity while upstream cooldown is active.
+  8. Temporarily bound nightly calls below the observed 100-request enforcement point while PCGS investigates the entitlement mismatch; retain the official 1,000-call local entitlement separately.
 
 - **Acceptance criteria**:
   - A mocked first-request 429 stores the upstream cooldown, trips the breaker, ends the run `partial`, and makes no additional PCGS calls.
@@ -2276,6 +2296,8 @@ Ops can override to any value (e.g., `BROWSER_RECYCLE_EVERY=40 python scripts/te
   - `src/services/pcgsQuotaService.js` -- persisted upstream cooldown and recovery state.
   - `src/services/auctionPriceService.js` -- capture sanitized 429 metadata and pass it to quota state.
   - `src/services/prefetchScheduler.js` -- cooldown/start gates, bounded probe, and status fields.
+  - `src/services/pcgsService.js` -- capture the same sanitized 429 quota headers for CoinFacts calls.
+  - `src/services/alertService.js` -- neutral degraded-run alert wording for partial and fatal outcomes.
   - `__tests__/pcgsQuotaService.test.js`, `__tests__/pcgsBreakerInteraction.test.js`, `__tests__/prefetchScheduler.test.js` -- regression and recovery coverage.
   - `docs/api-reference.md` -- document the status distinction.
 
@@ -2299,6 +2321,189 @@ Ops can override to any value (e.g., `BROWSER_RECYCLE_EVERY=40 python scripts/te
 - **Non-goals**: No automated generic 7-9 digit extraction; no scheduler changes; no claim that cert lookup discovers unindexed sales.
 - **Potential files**: `src/services/auctionPriceService.js`, `src/services/pcgsService.js`, `src/services/terapeakService.js`, scheduler/valuation tests.
 - **Status**: Preserve for later decision only. Implementation requires separate approval.
+
+---
+
+### #287H. Recover Greysheet world-PCGS coverage and refresh single-flight guard from frozen recursive branch [P2 -- DATA-COVERAGE / PERFORMANCE] -- PROPOSED 2026-08-14
+
+- **Origin**: Recovery item from INC-018. The mixed commit `465da07b` on frozen branch `fix/pr280-onboard-doc-drift` contains useful Greysheet changes but MUST NOT be cherry-picked because it mixes 38 files and unrelated rollback surfaces.
+- **Problem**:
+  1. `scripts/greysheet-refresh.js` extracts only 3-5 digit PCGS numbers, excluding representative 6-7 digit world-bullion numbers already present in `src/data/pcgsNumbers.js`.
+  2. Expanding the target set can make a refresh overlap the hourly scheduler check because refresh completion is recorded only after the run finishes.
+  3. Fixed Type-GSID counts in help/docs drift whenever `TYPE_GSID_MAP` changes.
+- **Recovery approach**:
+  1. Create a fresh branch from current `main`; do not cherry-pick `465da07b` or `baf0c87c`.
+  2. Recover only the relevant hunks from `scripts/greysheet-refresh.js` and `__tests__/greysheetHistoryService.test.js`.
+  3. Expand static PCGS extraction to 3-7 digits and retain representative 4-5 digit US coverage.
+  4. Add module-level single-flight protection so concurrent callers receive the same in-flight Promise and a later call can start after settlement.
+  5. Replace fixed Type-GSID counts with wording that targets are enumerated from `TYPE_GSID_MAP`.
+- **Strict file allowlist**:
+  - `scripts/greysheet-refresh.js`
+  - `__tests__/greysheetHistoryService.test.js`
+  - `README.md` and `docs/ARCHITECTURE.md` only where Greysheet target behavior is documented
+- **Explicit exclusions**:
+  - No PCGS prefetch/quota changes.
+  - No edits to `src/data/pcgsNumbers.js` or `greysheetTypeMap.js` data.
+  - No unrelated documentation truth-sync, agent, Terapeak, cache, or backlog cleanup.
+- **Acceptance criteria**:
+  - `getAllPcgsNumbers()` includes representative 4-, 5-, 6-, and 7-digit IDs such as `7130`, `32496`, `114425`, and `1004509`.
+  - Two overlapping `runRefresh()` calls return the same Promise and perform one run.
+  - A call after settlement returns a new Promise.
+  - No fixed Type-GSID count remains in changed Greysheet surfaces.
+  - Focused Greysheet tests and canonical CI pass.
+- **Review / delivery gates**:
+  - Tier M: pre-commit + correctness + performance review.
+  - One correction pass maximum, followed by one verification rerun.
+  - Onboard is delta-scoped to the changed Greysheet contract; pre-existing findings become backlog debt and cannot expand this PR.
+- **Rollback**: Revert this PR only; Greysheet scheduler behavior and target extraction return to the prior implementation without affecting PCGS quota or Terapeak operations.
+
+---
+
+### #288H. Isolate Terapeak eviction tests from persisted local cache state [P2 -- TEST-INFRA / DETERMINISM] -- PROPOSED 2026-08-14
+
+- **Origin**: Recovery item from INC-018. The deterministic reset-order fix exists in mixed commit `465da07b` but must be recovered independently.
+- **Problem**: `__tests__/terapeakImportEviction.test.js` calls `clearAll()` before `_resetStoreCache()`. The next test can reload the developer's persisted Terapeak cache, causing exact dataset-count assertions to fail in isolation or during pre-commit review.
+- **Recovery approach**:
+  1. Start from current `main` on a test-only branch.
+  2. Reset the in-memory cache handle before calling `clearAll()` in setup and teardown, so the loaded store is cleared once and cannot be rehydrated unexpectedly.
+  3. Preserve all exact assertions; do not weaken counts or replace them with containment checks.
+  4. Prove the test passes when a non-empty persisted test cache exists through the existing mocked/test storage boundary.
+- **Strict file allowlist**:
+  - `__tests__/terapeakImportEviction.test.js`
+  - A shared test helper only if required to create deterministic temporary storage
+- **Explicit exclusions**:
+  - No production changes to `src/services/terapeakService.js`.
+  - No changes to real `cache/`, `data/terapeak/`, or metadata sidecars.
+  - No assertion reductions, retries, skips, or cleanup of unrelated tests.
+- **Acceptance criteria**:
+  - The suite passes alone and in canonical CI with exact dataset-count assertions unchanged.
+  - Tests never write or clear real repository/operator state.
+  - Repeated local runs are deterministic with a non-empty developer cache present.
+- **Review / delivery gates**:
+  - Tier XS/S test-only PR: pre-commit review and author self-review.
+  - One focused run plus canonical CI; no repository-wide audit.
+  - Delta-scoped Onboard is not required unless a mapped test-process document changes.
+- **Rollback**: Revert the isolated test commit; production behavior is unaffected.
+
+---
+
+### #289H. Recover Terapeak hard-challenge stop and dynamic bullion-loop exhaustion behavior [P1 -- BOT-RESILIENCE / OPERATIONS] -- PROPOSED 2026-08-14
+
+- **Origin**: Recovery item from INC-018. Relevant committed hunks are in `465da07b`; additional unfinished behavior tests and loop seams remain unstaged in `__tests__/terapeakOperator.test.js`, `docs/memory/terapeak-runbook.md`, and `scripts/run-bullion-loop.sh`. Treat all of them as reference only.
+- **Problem**:
+  1. Deep aggregation must stop immediately on the first canonical hard-challenge signal rather than continue to another candidate.
+  2. The stale-bullion wrapper previously used fixed-total assumptions instead of actual exporter exhaustion output.
+  3. Existing source-text assertions do not prove exit code, attempt count, or shell-loop behavior.
+- **Recovery approach**:
+  1. Create a fresh operator branch from current `main`; recover selected hunks manually, never cherry-pick the mixed commit.
+  2. Reuse `terapeak-export.py`'s canonical `challenge_indicators(page, response)` detector in `sales-aggregator.py`, including HTTP 403/429, challenge URLs, CAPTCHA/hCaptcha DOM, unusual-activity text, and security-measure pages.
+  3. Stop the deep loop on the first signal, perform normal cleanup, and return/exit with the documented nonzero hard-block code.
+  4. Make `run-bullion-loop.sh` stop only when the exporter reports actual backlog exhaustion; propagate exporter failures unchanged.
+  5. Add narrow dependency seams for executable tests without real browser or network calls.
+- **Strict file allowlist**:
+  - `scripts/sales-aggregator.py`
+  - `scripts/run-bullion-loop.sh`
+  - `__tests__/terapeakOperator.test.js`
+  - `docs/memory/terapeak-runbook.md` only for changed operator behavior
+- **Explicit exclusions**:
+  - No changes to anti-bot thresholds, pacing profiles, cookie identity, IP strategy, or Cooldown duration.
+  - Never rotate identity/token/IP to evade a block.
+  - No live eBay/Terapeak calls in tests.
+  - No broad scraper documentation cleanup or unrelated wrapper modernization.
+- **Acceptance criteria**:
+  - A fake deep candidate list with two terms and a first-term hard challenge attempts exactly one term and exits with code `2`.
+  - Shared canonical challenge detection is used rather than a divergent detector.
+  - A fake exporter emitting `No terms to process.` causes the bullion loop to exit `0` with backlog-exhausted status.
+  - A fake exporter exiting `7` causes the wrapper to exit `7` without another batch.
+  - Python and Bash syntax checks, focused operator tests, and canonical CI pass on Windows/WSL-compatible harness paths.
+- **Review / delivery gates**:
+  - Tier M: pre-commit + correctness + security review because process termination and browser challenge handling are operational safety surfaces.
+  - At most one approved finding pass and one verification rerun.
+  - Onboard is delta-scoped to these four files and their direct contract; unrelated docs become separate backlog debt.
+- **Rollback**: Revert this PR to restore prior deep-loop/wrapper behavior; no data migration is involved.
+
+---
+
+### #290H. Recover agent/workflow safety rules without production-script changes [P2 -- AGENT-SAFETY / PROCESS] -- PROPOSED 2026-08-14
+
+- **Origin**: Recovery item from INC-018. Ten agent/skill files in `465da07b` contain potentially useful safety and portability changes but are mixed with production and repository-wide cleanup.
+- **Problem**:
+  1. Agent commands hardcode one Codespace repository path instead of resolving the active repository root.
+  2. Server-start guidance can kill an unknown listener on port 3000 without proving process ownership.
+  3. Persistence guidance overstates `NODE_ENV=test` as a universal no-write rule instead of the actual requirement: tests must not reach real repository/operator state and may use no-op, mocks, or temporary paths.
+  4. Onboard acceptance lacks an enforced delta/pre-existing-debt classification and cycle limit, enabling INC-018 recurrence.
+- **Recovery approach**:
+  1. Use the agent-customization workflow on a fresh branch from `main`.
+  2. Replace hardcoded repo paths with `git rev-parse --show-toplevel` or equivalent current-workspace resolution.
+  3. Require command/cwd verification before stopping a port-3000 listener; unknown listeners must be reported, not killed.
+  4. Align review guidance around test persistence isolation using `NODE_ENV=test` no-op or injected mock/temp paths.
+  5. Add explicit Onboard output categories: `BLOCKING_DELTA`, `PRE_EXISTING_DEBT`, `OPTIONAL`; only the first may block the target PR.
+  6. Enforce one mapped-document correction pass plus one verification rerun; repository-wide zero-gap audits require explicit approval and a separate branch.
+- **Strict file allowlist**:
+  - `.github/agents/code-reviewer.approval-gated.agent.md`
+  - `.github/agents/freshness-triage.agent.md`
+  - `.github/agents/implementer.approval-only.agent.md`
+  - `.github/agents/onboard.agent.md`
+  - `.github/agents/pricing-health.agent.md`
+  - `.github/agents/sales-aggregator.agent.md`
+  - `.github/agents/test-coverage.agent.md`
+  - `.github/agents/test-monitor.agent.md`
+  - `.github/skills/code-review/SKILL.md`
+  - `.github/skills/testing/TESTING-PLAN.md`
+  - `docs/memory/agents-and-prompts.md`
+  - `__tests__/agentCustomizationContract.test.js` only for enforceable customization contracts not already merged via PR #281
+- **Explicit exclusions**:
+  - No production JS/Python/Bash changes.
+  - No README/architecture/runbook truth-sync beyond the canonical customization inventory.
+  - Do not reapply PR #281's already-merged schema-test changes.
+- **Acceptance criteria**:
+  - Customization contract tests validate frontmatter, inventory, portable paths, safe listener ownership, and delta-scoped Onboard behavior.
+  - No changed agent instructs killing an unknown process or running a foreground server.
+  - No hardcoded `/workspaces/coin-price-agent` path remains in changed agents.
+  - Agent customization evaluation and canonical CI pass.
+- **Review / delivery gates**:
+  - Tier M customization PR: pre-commit + approval-gated correctness review.
+  - Use the agent-customization skill and update the canonical inventory in the same PR.
+  - One correction pass plus one verification rerun; no recursive repository audit.
+- **Rollback**: Revert only this customization PR; production code and data remain unchanged.
+
+---
+
+### #291H. Recover documentation truth-sync as bounded thematic patches [P3 -- DOCUMENTATION / MAINTAINABILITY] -- PROPOSED 2026-08-14
+
+- **Origin**: Recovery item from INC-018. Nineteen documentation files in `465da07b` contain a mixture of valid corrections and audit-driven scope expansion. They MUST NOT be merged as one zero-gap sweep.
+- **Problem**: Active docs contain some verified drift (module inventories, scraper defaults, 422 flow, Cosmos audit containers, server-side storage, relative links), but combining every correction creates an oversized rollback surface and recreates the failure documented in INC-018.
+- **Recovery approach**:
+  1. Treat `465da07b`/`baf0c87c` only as a hunk inventory, not a commit to cherry-pick.
+  2. Before editing, classify every candidate hunk as `CURRENT_CONTRACT`, `DATED_HISTORICAL_EVIDENCE`, or `DISCARD`.
+  3. Group approved current-contract fixes into small thematic PRs, each from current `main`:
+     - storage/auth/module inventory,
+     - Terapeak operator defaults and two-step 422 flow,
+     - Azure/Cosmos/data dictionary,
+     - broken relative links/historical banners.
+  4. Leave dated backlog, incident, and test-runtime evidence unchanged unless objectively false in its historical context.
+  5. Replace volatile counts with dynamic discovery/admin-endpoint wording rather than updating snapshots repeatedly.
+- **Strict file allowlist for triage**:
+  - `README.md`, `docs/ARCHITECTURE.md`, `docs/data-dictionary.md`, `docs/BACKLOG.md`
+  - `docs/memory/README.md`, `agents-and-prompts.md`, `azure-infrastructure.md`, `bulk-evaluate-feature.md`, `codebase-overview.md`, `decision-engine-spec.md`, `ebay-search-filtering-analysis.md`, `future-edits.md`, `label-feature-context.md`, `pool-isolation-rule.md`, `terapeak-data-structure-analysis.md`, `terapeak-export-automation.md`, `terapeak-runbook.md`
+  - `docs/runbooks/local-scraper-wsl2.md`, `docs/runbooks/scraper-travel-mode.md`
+  - `scripts/README.md` only when changed script contracts require it
+- **Explicit exclusions**:
+  - No source, test, agent, skill, workflow, cache, or data changes in a docs-only PR.
+  - No repository-wide requirement to reach zero pre-existing gaps.
+  - No hardcoded test/dataset/container counts unless generated and intentionally snapshot-dated.
+  - No duplicate of INC-018 or PR #281 content.
+- **Acceptance criteria for each thematic PR**:
+  - PR body lists the exact contract and file allowlist.
+  - Relative-link validator passes for changed Markdown files.
+  - Claims are grounded in current source or clearly labeled historical evidence.
+  - Pre-commit review passes; canonical CI runs once.
+  - Delta-scoped Onboard returns no `BLOCKING_DELTA`; `PRE_EXISTING_DEBT` is logged for later and does not expand the PR.
+- **Review / delivery gates**:
+  - Tier XS/S per thematic docs PR unless load-bearing agents/source are touched (then move that work to #290H or another source backlog item).
+  - Maximum one correction pass and one verification rerun per PR.
+  - User approval is required before selecting each thematic subgroup for implementation.
+- **Rollback**: Each thematic PR is independently revertible; never combine all candidate docs into one merge.
 
 ---
 
@@ -2446,9 +2651,9 @@ Ops can override to any value (e.g., `BROWSER_RECYCLE_EVERY=40 python scripts/te
 
 ---
 
-### #285W. Bar-series variant filter -- coin route silently mixes all bar designs into one FMV [P2 -- PRICING-ACCURACY] -- IMPLEMENTED / PR PENDING 2026-08-08
+### #285W. Bar-series variant filter -- coin route silently mixes all bar designs into one FMV [P2 -- PRICING-ACCURACY] -- DONE 2026-08-08 (PR #253, merge `adbf746f`)
 
-**Status update (2026-08-08):** Implemented cataloged bar brand/series intent across the single and batch coin routes. Positively identified competing series are rejected as `barSeriesMismatch`, exact matches receive a scoring bonus, unknown-series titles remain eligible, and pools with fewer than three survivors return `fmvCore: null` with `dataSource.label = 'insufficient-series-comps'`. The response schema now requires explicit grade-pool attribution. Focused tests, the mandatory numismatic audit, and the full suite (146 suites / 4,310 tests) pass. Merge remains pending.
+**Status update (2026-08-08):** Implemented cataloged bar brand/series intent across the single and batch coin routes. Positively identified competing series are rejected as `barSeriesMismatch`, exact matches receive a scoring bonus, unknown-series titles remain eligible, and pools with fewer than three survivors return `fmvCore: null` with `dataSource.label = 'insufficient-series-comps'`. The response schema now requires explicit grade-pool attribution. Focused tests, the mandatory numismatic audit, and the full suite (146 suites / 4,310 tests) passed before PR #253 merged as `adbf746f`.
 
 **Origin:** User-reported 2026-08-05. Two reproductions on prod-parity server:
 
@@ -2586,9 +2791,9 @@ Option 1 is cleanest because it collapses login + first-visit-verification into 
 <!-- BEGIN fmv-repository-review batch 2026-08-06 -->
 <!-- 16 items filed together from the fmv-repository-review pass. -->
 
-### #286W. Unblock CI npm-audit gate -- red baseline is masking real regressions [P1 -- CI / SECURITY] -- IMPLEMENTED / PR PENDING 2026-08-10
+### #286W. Unblock CI npm-audit gate -- red baseline is masking real regressions [P1 -- CI / SECURITY] -- DONE 2026-08-10
 
-**Implementation:** Added npm overrides for patched `qs` and `uuid` releases, clearing all production dependency advisories without downgrading ExcelJS. Replaced the stale `xlsx` exception script with a direct `npm audit --audit-level=moderate --omit=dev` gate, so CI now rejects new moderate, high, or critical production advisories. Clean-install audit reports zero vulnerabilities; the focused Excel import suite and full Jest suite pass with `uuid` 11. Mark DONE after PR CI passes without an admin override.
+**Implementation:** Added npm overrides for patched `qs` and `uuid` releases, clearing all production dependency advisories without downgrading ExcelJS. Replaced the stale `xlsx` exception script with a direct `npm audit --audit-level=moderate --omit=dev` gate, so CI now rejects new moderate, high, or critical production advisories. Clean-install audit reports zero vulnerabilities; the focused Excel import suite and full Jest suite pass with `uuid` 11. PR #259 merged at `73ecd053cbc92d4709d6f7ba8d85e8af7666ab5b` after all required CI checks passed; the admin merge overrode self-review protection, not a failed check.
 
 **Problem:** `.github/workflows/main_coinpricefinder-h3a3b5g0dmdydna4.yml`'s `test` job runs `npm audit --audit-level=high --omit=dev` and has been failing for 6+ days on three high CVEs (`ip-address <=10.3.0`, two `fast-uri` host-confusion CVEs) plus moderate `qs` and `uuid`. Every recent PR (#242, #243, #244, #246, #247, #248 in this session) has been admin-merged. A real Jest regression could ship because "CI is always red anyway."
 
@@ -2608,7 +2813,9 @@ Option 1 is cleanest because it collapses login + first-visit-verification into 
 
 ---
 
-### #287W. Algorithm/config versioning + valuation reproducibility fields [P2 -- AUDITABILITY / PRICING-ACCURACY] -- OPEN 2026-08-06
+### #287W. Algorithm/config versioning + valuation reproducibility fields [P2 -- AUDITABILITY / PRICING-ACCURACY] -- DONE 2026-08-11
+
+**Completion (2026-08-11):** Added semantic `algorithmVersion`, cached SHA-256 `configVersion`, and UTC `computedAt` to every valuation outcome, including null-FMV paths. The response schema requires all three fields and focused tests cover stable hashes plus successful/no-data valuations. Implemented as the prerequisite for #288W.
 
 **Problem:** `/api/price` responses ship a `reproducibility` field at runtime but neither the schema ([src/schemas/priceResponse.schema.js](src/schemas/priceResponse.schema.js)) nor the response body declare an `algorithmVersion` (semver of the valuation logic) or `configVersion` (hash of blend-weight constants + [src/data/dealerPremiums.js](src/data/dealerPremiums.js) + [src/data/greysheetTypeMap.js](src/data/greysheetTypeMap.js)). We cannot answer "which model priced this coin on this date." Schema also has `additionalProperties: true` (per #244 telemetry work), which permits silent contract drift.
 
@@ -2630,7 +2837,9 @@ Option 1 is cleanest because it collapses login + first-visit-verification into 
 
 ---
 
-### #288W. Valuation audit log -- write every /api/price call to Cosmos [P2 -- AUDITABILITY] -- OPEN 2026-08-06
+### #288W. Valuation audit log -- write every /api/price call to Cosmos [P2 -- AUDITABILITY] -- DONE 2026-08-11
+
+**Completion (2026-08-11):** Added fire-and-forget audit emission for single, batch, and bulk pricing. Versioned records write to lazily provisioned Cosmos `valuation-audit` (`/computedAtDate`) with daily local JSONL fallback. Anonymous records omit actor/IP, admin records may include them, request IDs are retained, and persistence is disabled under `NODE_ENV=test`. Focused tests cover Cosmos, fallback, privacy, and all route paths.
 
 **Problem:** [src/services/auditService.js](src/services/auditService.js) writes admin actions to Cosmos `admin-audit` (signin, admin-granted, etc.) but no valuation calls are recorded. We cannot answer "who priced what coin at what FMV when," which is a real gap for a pricing service that dealers may rely on.
 
@@ -2655,7 +2864,9 @@ Option 1 is cleanest because it collapses login + first-visit-verification into 
 
 ---
 
-### #289W. Deep /api/health with downstream dependency status [P3 -- OBSERVABILITY] -- OPEN 2026-08-06
+### #289W. Deep /api/health with downstream dependency status [P3 -- OBSERVABILITY] -- DONE 2026-08-11 (PR #265, merge `7e48312a`)
+
+**Status update (2026-08-10):** The public shallow endpoint retains `{status, uptime}`. Rate-limited, admin-authorized `GET /api/health?deep=1` adds abortable Cosmos reachability, fresh per-provider metals observations, PCGS quota/upstream state, and already-loaded Terapeak dataset health. App Service resolves Key Vault references outside the process, so Key Vault is explicitly `not_probed` rather than reporting false reachability. Concurrent checks are deduplicated and results cached for 10 seconds. Optional failures return HTTP 200 with `overall: degraded`; configured Cosmos failure returns HTTP 503. Responses omit configuration values, credentials, and raw error details.
 
 **Problem:** [server.js](server.js) `/api/health` returns only `{status: 'ok', uptime}`. Load balancers get what they need, but operators cannot diagnose "which downstream is broken" without SSH + logs.
 
@@ -2681,7 +2892,9 @@ Option 1 is cleanest because it collapses login + first-visit-verification into 
 
 ---
 
-### #290W. Correlation-ID (X-Request-ID) middleware [P3 -- OBSERVABILITY] -- OPEN 2026-08-06
+### #290W. Correlation-ID (X-Request-ID) middleware [P3 -- OBSERVABILITY] -- DONE 2026-08-10 (PR #263, merge `cffb5d2c`)
+
+**Status update (2026-08-10):** Added global request-ID middleware before rate limiting and routes. Safe caller-supplied IDs are echoed; missing or unsafe values are replaced with a UUID v4 generated by Node's built-in crypto API. The ID is attached to `req.id`, returned in `X-Request-ID`, propagated through asynchronous request context, and automatically added to JSON error bodies. Top-level crash logs and alerts include the active request ID when available. Focused middleware and alert-service tests pass. Threading the ID into valuation-audit records remains deferred to #288W because that writer does not exist yet.
 
 **Problem:** No request correlation across services. When an operator sees a bad valuation and asks "why," we cannot correlate the response to server logs without wall-clock guessing.
 
@@ -2703,7 +2916,9 @@ Option 1 is cleanest because it collapses login + first-visit-verification into 
 
 ---
 
-### #291W. Add AGENTS.md at repo root [P3 -- COPILOT / ONBOARDING] -- OPEN 2026-08-06
+### #291W. Add AGENTS.md at repo root [P3 -- COPILOT / ONBOARDING] -- DONE 2026-08-12
+
+**Completion (2026-08-12):** Added a root discoverability index covering all 14 workspace agents with one-line purposes and direct definition links. The file points to the canonical inventory for prompts, skills, invocation guidance, and workflow rules; the canonical inventory now links back to the root index.
 
 **Problem:** [docs/memory/agents-and-prompts.md](docs/memory/agents-and-prompts.md) is the canonical agent inventory but lives inside `docs/memory/`. External tooling and new contributors that expect the standard `AGENTS.md` at repo root won't find our 14 agents / 6 prompts / 7 skills.
 
@@ -2723,7 +2938,9 @@ Option 1 is cleanest because it collapses login + first-visit-verification into 
 
 ---
 
-### #292W. Seed docs/adrs/ with 5 ADRs for load-bearing decisions [P2 -- ARCHITECTURE DOCS] -- OPEN 2026-08-06
+### #292W. Seed docs/adrs/ with 5 ADRs for load-bearing decisions [P2 -- ARCHITECTURE DOCS] -- DONE 2026-08-11
+
+**Completion (2026-08-11):** Added a Nygard-style ADR template/index and five Accepted records covering FMV pool isolation, the Terapeak-first comp cascade, valuation-mode routing, public/admin audience gating, and the Terapeak anti-bot risk-state machine. Each record links to its governing memory docs, implementation surface, and relevant WASTE-LEDGER incident. Added the ADR index to `docs/ARCHITECTURE.md`.
 
 **Problem:** No ADRs. Five high-stakes decisions with high blast radius live in memory docs + WASTE-LEDGER, which functions as an implicit ADR log but doesn't follow the Context/Decision/Consequences shape. External readers cannot answer "why does this system make this design choice."
 
@@ -2749,7 +2966,9 @@ Option 1 is cleanest because it collapses login + first-visit-verification into 
 
 ---
 
-### #293W. Automate post-run Terapeak progress commit [P2 -- OPERATIONS] -- OPEN 2026-08-06
+### #293W. Automate post-run Terapeak progress commit [P2 -- OPERATIONS] -- DONE 2026-08-11
+
+**Completion (2026-08-11):** Added a fail-closed post-run helper that resolves either operator state schema, aggregates the selected run's pass telemetry, previews changes without mutation, and permits only Terapeak CSV/meta files. Apply mode requires `main` and a clean staging area, creates a run-specific branch, commits and pushes it, and opens a manual-merge PR with totals. Added temporary-repository Jest coverage for dry-run, no-change, branch/staging/untracked-file guards, and the complete apply workflow, plus runbook and script-catalog documentation.
 
 **Problem:** After a Terapeak operator run (e.g. run 20260805T063214Z-43164 this session), the modified CSVs and freshness sidecar sit as working-tree drift until someone remembers to commit them. Cooldown-terminated runs are the most-forgotten case. Two PRs (#246 and #248) had to be filed manually this session to catch up.
 
@@ -2776,9 +2995,9 @@ Option 1 is cleanest because it collapses login + first-visit-verification into 
 
 ---
 
-### #294W. Test suite runtime budget -- shard CI or triage slow suites [P3 -- CI / DX] -- OPEN 2026-08-06
+### #294W. Test suite runtime budget -- shard CI or triage slow suites [P3 -- CI / DX] -- DONE 2026-08-11
 
-**Problem:** Full test suite runs ~102s locally (measured this session). [docs/testing/test-monitor.md](docs/testing/test-monitor.md) budget target is 60s. 70% over budget. Slows PR feedback and CI throughput.
+**Problem:** A seeded in-band baseline ran 489.9s (513.3s wall clock) against the 60s budget. One integrity suite consumed 341.5s (70% of Jest runtime). See [testing/test-runtime-294w-baseline.md](testing/test-runtime-294w-baseline.md).
 
 **Approach:**
 
@@ -2786,7 +3005,11 @@ Option 1 is cleanest because it collapses login + first-visit-verification into 
 - Phase 2 (data-driven): fix the top offenders (usually a slow beforeAll or unnecessary async fanout).
 - Phase 3 (if still over budget): introduce `jest --shard` in CI (2-3 shards) and update the workflow to fan out.
 
-**Files:** NEW `scripts/analyze-slow-tests.js`, likely surgical MOD in offender test files, potentially MOD CI workflow.
+**Progress (2026-08-11):** Phase 1 complete. Added a reproducible full-JSON top-20 analyzer and expanded retained metrics to 20 suites/tests. Phase 2 started: caching immutable CSV parses and the global source-price index reduced `terapeakDataIntegrity.test.js` from 341.5s to 55.0s (84%) with all 111 tests passing. Fake timers and production timer cleanup reduced the Excel suite from 16.5s wall time with an open handle to a clean 3.6s Jest run. The canonical suite passes in 96.3s (99.6s wall), still above budget; a four-worker experiment took 89.3s and was rejected.
+
+**Completion (2026-08-11):** A V8 CPU profile showed the remaining critical path was reading and parsing all 3,593 Terapeak CSVs for a seeded suite that exercises only a sampled and pinned cohort. `autoImportFolder({ includeFiles })` now supports targeted real-data imports; the integrity suite fell from 55.0s to 15.1s while retaining a majority-resolution guard. The final hardened canonical run passed 155 suites / 4,346 tests in 47.9s (50.7s wall), meeting the 60s budget. Phase 3 sharding was not needed.
+
+**Files:** [scripts/test-metrics/analyze-slow-tests.cjs](scripts/test-metrics/analyze-slow-tests.cjs), [__tests__/terapeakDataIntegrity.test.js](__tests__/terapeakDataIntegrity.test.js), [src/services/terapeakService.js](src/services/terapeakService.js), [src/utils/excelMapper.js](src/utils/excelMapper.js).
 
 **Effort/Risk:** Small (analysis) + Medium (parallelism) / Low.
 
@@ -2908,7 +3131,9 @@ Option 1 is cleanest because it collapses login + first-visit-verification into 
 
 ---
 
-### #300W. Structured logging (pino) with correlation IDs [P3 -- OBSERVABILITY] -- OPEN 2026-08-06
+### #300W. Structured logging (pino) with correlation IDs [P3 -- OBSERVABILITY] -- PHASE 1 DONE 2026-08-11 (PR #264, merge `5ecaebb7`); LATER PHASES OPEN
+
+**Status update (2026-08-10):** Phase 1 adds Pino as a production dependency, a JSON logger with `LOG_LEVEL` support and common-secret redaction, automatic #290W request-ID injection, and API completion logs without query strings or client IPs. Server start/crash events and `prefetchScheduler` now emit structured fields. Remaining phases migrate `terapeakService`, `ebayService`, and the long tail of services incrementally; Azure JSON parsing configuration remains an operational follow-up.
 
 **Problem:** All logging is unstructured `console.log|warn|error`. Distributed debugging (Codespace, App Service, workflow logs) is manual grep. #120 is a very old backlog note about this.
 
@@ -3262,7 +3487,9 @@ Current repo state: 63 total PRs, **0 open**. Item was stale-imported; root caus
 
 ---
 
-### #265W. Rotate `ADMIN_API_KEY` + remove hardcoded fallback from `scripts/bar-pricing-health.js` [P1 -- SECURITY] -- PARTIAL / ROTATION OPEN 2026-07-29
+### #265W. Rotate `ADMIN_API_KEY` + remove hardcoded fallback from `scripts/bar-pricing-health.js` [P1 -- SECURITY] -- DEFERRED 2026-08-11
+
+**Deferral (2026-08-11):** External Key Vault rotation, App Service restart, both-machine secret refresh, and old-key rejection verification are deferred by user decision. The live code remains sanitized and fail-fast; no credential values were accessed or changed. Resume before treating the exposed historical credential as remediated.
 
 **Status update (2026-07-29):** The hardcoded literal fallback is no longer present in the live `scripts/bar-pricing-health.js`; the script reads `process.env.ADMIN_API_KEY` and fails when no usable key is supplied. The credential remains recoverable from git history, and the current key was also exposed in local terminal output during an H-machine diagnostic on 2026-07-28. Key Vault rotation, App Service restart, both-machine secret refresh, and old-key rejection verification remain OPEN and urgent. Do not place either old or new values in chat, commands, docs, or commits.
 
@@ -4142,7 +4369,9 @@ When the graded pool is empty AND the engine cannot otherwise produce a graded F
 
 ---
 
-### #273W. First-class intent + strict pool isolation for `colorized`, `antiqued`, `gilded`, `burnished`, `high-relief` variant families [P2 -- DATA-QUALITY] -- OPEN 2026-06-24
+### #273W. First-class intent + strict pool isolation for `colorized`, `antiqued`, `gilded`, `burnished`, `high-relief` variant families [P2 -- DATA-QUALITY] -- DONE 2026-08-11
+
+**Completion (2026-08-11):** Added canonical positive intent for all five specialty families, strict same-family hard filtering, and generalized mint-issued/aftermarket scoring before top-K selection. Colorized intent no longer admits plain BU. Finish parsing/canonicalization now covers colorized, gilded, antiqued, burnished, and high relief. Terapeak orchestration tests prove requested raw-family comps survive while plain BU, graded, proof, and wrong-family comps are excluded; valuation coverage verifies the isolated antiqued pool produces the expected premium FMV. The mandatory pool-isolation contract is documented in `docs/memory/numismatic-terminology.md`.
 
 **Discovered while:** post-#270W Option #1 (PR #188, branch `feat/270W-option-1-tiered-lookback`) pricing-health investigation. After running 75 health queries (25 Panda / 25 Libertad / 25 Morgan) and validating the "pool routing dominates dropout" thesis, drill-down on `variantMismatch` rejections for the two highest-variant-share libertads (2023 Mexican Silver Libertad, 2018 Mexico 1 oz Silver Libertad) found:
 - 2023 Libertad: 25/25 rejections were aftermarket painted/gilded/antiqued novelties -- ALL CORRECT.

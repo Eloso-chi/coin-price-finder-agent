@@ -51,6 +51,13 @@ import time
 from datetime import datetime, timedelta
 from pathlib import Path
 
+SCRIPT_MODULE_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_MODULE_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_MODULE_DIR))
+
+from _terapeak_pacing import BASELINE, authorized_effective_profile, scale_range, scale_seconds, validate_profile
+from _terapeak_risk import load_state
+
 try:
     from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeout
 except ImportError:
@@ -103,6 +110,21 @@ if UPLOAD_MODE not in ("api", "blob", "auto"):
 # upload path cannot confirm immediate ingestion (e.g. blob mode).
 VERIFY_IMPORT = os.environ.get("VERIFY_IMPORT", "").strip().lower() in ("1", "true", "yes", "on")
 
+REQUESTED_PACING_PROFILE = validate_profile(os.environ.get("TERAPEAK_PACING_PROFILE", BASELINE))
+_candidate_pacing_profile = validate_profile(os.environ.get("TERAPEAK_EFFECTIVE_PACING_PROFILE", BASELINE))
+_risk_state_path = os.environ.get("TERAPEAK_RISK_STATE_FILE", "")
+_persisted_risk_state = (
+    load_state(_risk_state_path).get("state", "Cooldown")
+    if _risk_state_path and os.path.isfile(_risk_state_path)
+    else "Cooldown"
+)
+EFFECTIVE_PACING_PROFILE = authorized_effective_profile(
+    REQUESTED_PACING_PROFILE,
+    _candidate_pacing_profile,
+    _persisted_risk_state,
+    os.environ.get("TERAPEAK_PACING_PILOT_ID", ""),
+)
+
 # Auto-read keys from .env if not set in environment
 if not ADMIN_API_KEY or not BLOB_ACCOUNT:
     env_file = PROJECT_DIR / ".env"
@@ -143,7 +165,7 @@ def has_display():
 
 def rand_delay(range_tuple):
     """Sleep for a random duration within the given range."""
-    time.sleep(random.uniform(*range_tuple))
+    time.sleep(random.uniform(*scale_range(range_tuple, EFFECTIVE_PACING_PROFILE)))
 
 
 # ── Human mouse/scroll simulation ──────────────────────────
@@ -230,7 +252,7 @@ def human_scroll(page, direction="down", distance=None):
 def human_idle(page):
     """Simulate a brief idle period -- human looking at the page. Occasionally
     wiggle the mouse a little."""
-    idle_time = random.uniform(1.5, 4.0)
+    idle_time = scale_seconds(random.uniform(1.5, 4.0), EFFECTIVE_PACING_PROFILE)
     end = time.time() + idle_time
     while time.time() < end:
         if random.random() < 0.3:
@@ -244,7 +266,7 @@ def human_idle(page):
             page.mouse.move(cx, cy)
             page._mouse_x = cx
             page._mouse_y = cy
-        time.sleep(random.uniform(0.3, 0.8))
+        time.sleep(scale_seconds(random.uniform(0.3, 0.8), EFFECTIVE_PACING_PROFILE))
 
 
 # ── Smart render waits (#198) ───────────────────────────────
@@ -1309,6 +1331,12 @@ def do_search_and_export(page, search_term, download_dir):
     return csv_path
 
 
+def mixed_selection_targets(p01_fixed, extra_target, p01_available):
+    selected_p01_target = min(p01_fixed, p01_available)
+    total_target = p01_fixed + extra_target
+    return selected_p01_target, total_target - selected_p01_target, total_target
+
+
 def do_export_run(args):
     """Main export loop -- iterate search terms, export CSVs, upload to app."""
     if not args.dry_run and not COOKIE_FILE.exists():
@@ -1462,8 +1490,11 @@ def do_export_run(args):
         p01_pool = [t for t in terms if t.get("_backlog_priority") == "P0.1"]
         other_pool = [t for t in terms if t.get("_backlog_priority") != "P0.1"]
         extra_target = random.randint(extra_min, extra_max)
-        selected_p01 = _pick(p01_pool, p01_fixed)
-        selected_other = _pick(other_pool, extra_target)
+        p01_target, other_target, total_target = mixed_selection_targets(
+            p01_fixed, extra_target, len(p01_pool)
+        )
+        selected_p01 = _pick(p01_pool, p01_target)
+        selected_other = _pick(other_pool, other_target)
         terms = selected_p01 + selected_other
         if args.shuffle and len(terms) > 1:
             random.shuffle(terms)
@@ -1471,8 +1502,8 @@ def do_export_run(args):
         print(
             "Mixed backlog selection: "
             f"P0.1 {len(selected_p01)}/{p01_fixed}, "
-            f"non-P0.1 {len(selected_other)}/{extra_target}, "
-            f"total {len(terms)}"
+            f"non-P0.1 {len(selected_other)}/{other_target}, "
+            f"total {len(terms)}/{total_target}"
         )
 
     # Apply resume

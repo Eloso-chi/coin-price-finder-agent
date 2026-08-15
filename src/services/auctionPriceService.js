@@ -17,6 +17,13 @@ const PCGS_API_KEY = process.env.PCGS_API_KEY || '';
 const PCGS_BASE = (process.env.PCGS_BASE_URL || 'https://api.pcgs.com/publicapi').replace(/\/+$/, '');
 const TIMEOUT = 15000;
 
+function parseQuotaHeader(value) {
+  const normalized = value == null ? '' : String(value).trim();
+  if (!/^\d+$/.test(normalized)) return null;
+  const parsed = Number(normalized);
+  return Number.isSafeInteger(parsed) ? parsed : null;
+}
+
 // Auction history stored in a subdirectory of cache
 const APR_DIR = path.join(CACHE_DIR, 'auction_history');
 if (!fs.existsSync(APR_DIR)) fs.mkdirSync(APR_DIR, { recursive: true });
@@ -95,10 +102,10 @@ async function aprGet(urlPath) {
     });
 
     // Sync quota from response headers
-    const remaining = parseInt(resp.headers['x-ratelimit-remaining'], 10);
-    const limit = parseInt(resp.headers['x-ratelimit-limit'], 10);
-    if (!isNaN(remaining)) {
-      pcgsQuota.syncFromHeaders(remaining, isNaN(limit) ? undefined : limit);
+    const remaining = parseQuotaHeader(resp.headers['x-ratelimit-remaining']);
+    const limit = parseQuotaHeader(resp.headers['x-ratelimit-limit']);
+    if (remaining !== null) {
+      pcgsQuota.syncFromHeaders(remaining, limit ?? undefined);
     }
     pcgsQuota.recordCall('apr');
 
@@ -107,19 +114,23 @@ async function aprGet(urlPath) {
     const status = err.response?.status;
     if (status === 429) {
       const headers = err.response?.headers || {};
+      const upstreamRemaining = parseQuotaHeader(headers['x-ratelimit-remaining']);
+      const upstreamLimit = parseQuotaHeader(headers['x-ratelimit-limit']);
       pcgsQuota.tripBreaker({
         retryAfter: headers['retry-after'],
         resetAt: headers['x-ratelimit-reset'],
+        upstreamRemaining,
+        upstreamLimit,
         reason: 'PCGS APR rate limit exceeded (429)'
       });
       throw new Error('PCGS API rate limit exceeded (429) — breaker tripped');
     }
     // Still sync headers on error responses if available
     if (err.response?.headers) {
-      const remaining = parseInt(err.response.headers['x-ratelimit-remaining'], 10);
-      const limit = parseInt(err.response.headers['x-ratelimit-limit'], 10);
-      if (!isNaN(remaining)) {
-        pcgsQuota.syncFromHeaders(remaining, isNaN(limit) ? undefined : limit);
+      const remaining = parseQuotaHeader(err.response.headers['x-ratelimit-remaining']);
+      const limit = parseQuotaHeader(err.response.headers['x-ratelimit-limit']);
+      if (remaining !== null) {
+        pcgsQuota.syncFromHeaders(remaining, limit ?? undefined);
       }
     }
     pcgsQuota.releaseRecoveryProbe?.('failed');

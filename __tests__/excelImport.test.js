@@ -478,16 +478,9 @@ describe('parse timeout', () => {
   test('rejects when xlsx.load exceeds timeout', async () => {
     // Create a buffer that looks like a valid ZIP but contains garbage
     // so ExcelJS will attempt to parse it and fail/hang.
-    // We override the timeout to a short value for this test.
-    const originalTimeout = require('../src/utils/excelMapper').PARSE_TIMEOUT_MS;
-
-    // Temporarily reduce timeout by re-requiring with a patched constant
-    // Instead, we verify the mechanism works by providing a never-resolving load.
-    // Use jest.spyOn on the workbook instance via a module-level mock:
+    // Verify the mechanism with a never-resolving load and advance the
+    // production timeout without waiting for real time to pass.
     const ExcelJS = require('exceljs');
-    const realLoad = ExcelJS.Workbook.prototype.xlsx.load;
-
-    // Use Object.defineProperty to override the getter temporarily
     const origDescriptor = Object.getOwnPropertyDescriptor(ExcelJS.Workbook.prototype, 'xlsx');
     Object.defineProperty(ExcelJS.Workbook.prototype, 'xlsx', {
       configurable: true,
@@ -497,9 +490,13 @@ describe('parse timeout', () => {
     });
 
     try {
-      await expect(mapExcelToBackup(Buffer.alloc(100))).rejects.toThrow(/timeout/i);
+      jest.useFakeTimers();
+      const rejection = expect(mapExcelToBackup(Buffer.alloc(100))).rejects.toThrow(/timeout/i);
+      await jest.advanceTimersByTimeAsync(PARSE_TIMEOUT_MS);
+      await rejection;
     } finally {
+      jest.useRealTimers();
       Object.defineProperty(ExcelJS.Workbook.prototype, 'xlsx', origDescriptor);
     }
-  }, 15_000);
+  });
 });

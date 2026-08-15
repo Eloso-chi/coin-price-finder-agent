@@ -5,17 +5,25 @@ require('dotenv').config();
 
 // ── Process crash handlers (#202/#194) ───────────────────────
 const alertService = require('./src/services/alertService');
+const { requestId, getRequestId } = require('./src/middleware/requestId');
+const requestLogger = require('./src/middleware/requestLogger');
+const logger = require('./src/utils/logger');
+const { gracefulShutdown } = require('./src/utils/gracefulShutdown');
+const healthRoute = require('./src/routes/healthRoute');
 
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('[FATAL] Unhandled rejection:', reason);
-  alertService.alertServerCrash('unhandledRejection', String(reason));
+process.on('unhandledRejection', reason => {
+  const activeRequestId = getRequestId();
+  const err = reason instanceof Error ? reason : new Error(String(reason));
+  logger.fatal({ err, requestId: activeRequestId || undefined, event: 'unhandled_rejection' }, 'Unhandled rejection');
+  alertService.alertServerCrash('unhandledRejection', String(reason), activeRequestId);
   // Brief delay to allow log flush + alert send, then hard exit
   setTimeout(() => process.exit(1), 500);
 });
 
 process.on('uncaughtException', (err) => {
-  console.error('[FATAL] Uncaught exception:', err);
-  alertService.alertServerCrash('uncaughtException', err.message || String(err));
+  const activeRequestId = getRequestId();
+  logger.fatal({ err, requestId: activeRequestId || undefined, event: 'uncaught_exception' }, 'Uncaught exception');
+  alertService.alertServerCrash('uncaughtException', err.message || String(err), activeRequestId);
   setTimeout(() => process.exit(1), 500);
 });
 
@@ -41,6 +49,8 @@ app.set('trust proxy', 1);
 const requireAdmin = require('./src/middleware/requireAdminOrKey');
 
 // ── Middleware ───────────────────────────────────────────────
+app.use(requestId);
+app.use(requestLogger);
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
@@ -147,24 +157,22 @@ app.post('/api/clear-cache', requireAdmin, (_req, res) => {
   res.json({ status: 'ok', message: 'All caches cleared', terapeakEvicted: evicted });
 });
 
-// Health check (minimal info — no config details)
-app.get('/api/health', (_req, res) => {
-  res.json({
-    status: 'ok',
-    uptime: process.uptime()
-  });
-});
+// Shallow health is public; `?deep=1` is admin-gated by the route.
+app.use('/api/health', healthRoute);
 
 // ── Start ───────────────────────────────────────────────────
-app.listen(PORT, '0.0.0.0', async () => {
-  console.log(`CoinPriceDiscoveryAgent listening on http://localhost:${PORT}`);
-  console.log(`  eBay configured: ${!!(process.env.EBAY_APP_ID && process.env.EBAY_CLIENT_SECRET)}`);
-  console.log(`  PCGS configured: ${!!process.env.PCGS_API_KEY}`);
-  console.log(`  Metals configured: ${!!(process.env.GOLDAPI_KEY || process.env.METALS_API_KEY)}`);
-  console.log(`  Cache dir: ${require('./src/utils/cachePath').CACHE_DIR}`);
-  if (process.env.CACHE_DIR) {
-    console.log(`  Cache dir (custom): ${process.env.CACHE_DIR}`);
-  }
+const server = app.listen(PORT, '0.0.0.0', async () => {
+  logger.info({
+    event: 'server_started',
+    port: Number(PORT),
+    integrations: {
+      ebay: !!(process.env.EBAY_APP_ID && process.env.EBAY_CLIENT_SECRET),
+      pcgs: !!process.env.PCGS_API_KEY,
+      metals: !!(process.env.GOLDAPI_KEY || process.env.METALS_API_KEY),
+    },
+    cacheDir: require('./src/utils/cachePath').CACHE_DIR,
+    customCacheDir: !!process.env.CACHE_DIR,
+  }, 'CoinPriceDiscoveryAgent listening');
 
   // ── Auto-seed testcollector account (server-side) ──────────
   const authService = require('./src/services/authService');
@@ -428,3 +436,20 @@ app.listen(PORT, '0.0.0.0', async () => {
   const prefetchScheduler = require('./src/services/prefetchScheduler');
   prefetchScheduler.init();
 });
+
+let shuttingDown = false;
+async function shutdown(signal) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  logger.info({ event: 'server_shutdown', signal }, 'Draining valuation audits');
+  const bulkEvaluateRoute = require('./src/routes/bulkEvaluateRoute');
+  const { closeAndDrainValuationAudits } = require('./src/services/auditService');
+  await gracefulShutdown({
+    server,
+    stopAndDrainProducers: bulkEvaluateRoute.stopAndDrainBulkJobs,
+    closeAndDrainAudits: closeAndDrainValuationAudits,
+  });
+}
+
+process.once('SIGTERM', () => { void shutdown('SIGTERM'); });
+process.once('SIGINT', () => { void shutdown('SIGINT'); });

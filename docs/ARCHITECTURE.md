@@ -6,6 +6,20 @@ For a quick endpoint reference, see [docs/api-reference.md](api-reference.md). F
 
 ---
 
+## Architecture Decisions
+
+Load-bearing design choices are recorded in [docs/adrs/](adrs/README.md):
+
+| ADR | Decision |
+|---|---|
+| [ADR-001](adrs/ADR-001-fmv-pool-isolation.md) | Isolate FMV comp pools |
+| [ADR-002](adrs/ADR-002-terapeak-first-comp-cascade.md) | Use a Terapeak-first comp cascade |
+| [ADR-003](adrs/ADR-003-valuation-mode-routing.md) | Route bullion and numismatic valuation modes separately |
+| [ADR-004](adrs/ADR-004-public-admin-audience-gating.md) | Gate response detail by public/admin audience |
+| [ADR-005](adrs/ADR-005-terapeak-anti-bot-state-machine.md) | Use a fail-closed anti-bot risk-state machine |
+
+---
+
 ## Module Map
 
 ```
@@ -23,6 +37,7 @@ server.js                              Express entry point (port 3000)
 │   ├─ coinVariantRoute.js             GET /api/coin-variant -- design series resolver
 │   ├─ excelImportRoute.js             POST /api/import/excel -- Excel spreadsheet import
 │   ├─ imageProxyRoute.js              GET /api/image-proxy -- proxied coin images
+│   ├─ healthRoute.js                  GET /api/health -- shallow + admin-gated deep dependency health
 │   ├─ terapeakRoute.js                /api/terapeak/* -- Terapeak data, quota, aggregation-status
 │   ├─ adminRoute.js                   /api/admin/* -- dashboard, stale datasets, data health
 │   ├─ authRoute.js                    /api/auth/* -- signup, login, me, change-password
@@ -30,10 +45,10 @@ server.js                              Express entry point (port 3000)
 │
 ├─ src/services/
 │   ├─ pcgsService.js                  PCGS CoinFacts API (cert, coin#, description)
-│   ├─ ebayService.js                  eBay sold comps (3-tier API cascade + grade-type pool split)
+│   ├─ ebayService.js                  eBay sold comps (3-tier cascade + strike and specialty-finish pool isolation)
 │   ├─ valuationService.js             FMV blend + buy/sell decision engine; routes Reverse Proof / Enhanced Reverse Proof queries to a separate `reverse-proof` comp pool (#260W) via `isReverseProofFinish()` from `coinIntent`
 │   ├─ greysheetService.js             Greysheet CDN Public API V2 (wholesale pricing)
-│   ├─ alertService.js                 Crash/ops alert notifications (SendGrid)
+│   ├─ alertService.js                 Crash/ops alert notifications (Azure Communication Services Email)
 │   ├─ auctionPriceService.js          PCGS auction history fetch + local history cache
 │   ├─ bulkEvaluateService.js           Bulk lot evaluator engine (per-coin FMV + lot summary)
 │   ├─ metalsSpotPrice.js              Multi-provider spot price (round-robin)
@@ -46,12 +61,18 @@ server.js                              Express entry point (port 3000)
 │   ├─ terapeakService.js              Terapeak CSV import, fuzzy lookup, eviction, auto-import, aggregationMeta tracking (Cosmos write-through + hydration + git-tracked sidecar)
 │   ├─ terapeakQuotaService.js         Daily Terapeak query quota tracker
 │   ├─ adminService.js                 Admin dashboard aggregation (stats, stale detection [filters via freshnessClassifier], data health)
-│   ├─ auditService.js                 Audit log writer (action + actor + resource triples)
+│   ├─ auditService.js                 Admin + valuation audit writer (Cosmos with valuation JSONL fallback)
 │   ├─ freshnessClassifier.js          Shared refresh-skip logic (thresholds + shouldSkipRefresh) used by adminService and generate-freshness-report.js -- #229
 │   ├─ greysheetHistoryService.js      Daily Greysheet price history snapshots
 │   ├─ authService.js                  Server-side auth (bcrypt + JWT, dual-mode Cosmos + local JSON)
 │   │                                  JWT_SECRET REQUIRED in production (FATAL throw if unset)
 │   └─ coinStorageService.js           Server-side coin CRUD (dual-mode Cosmos + local JSON)
+│
+├─ src/middleware/
+│   ├─ requestId.js                    X-Request-ID validation/generation + async request context
+│   ├─ requestLogger.js                Structured API completion logging via Pino
+│   ├─ optionalAdminContext.js         Non-blocking admin context for audience gating
+│   └─ requireAdminOrKey.js            Admin JWT or ADMIN_API_KEY authorization gate
 │
 ├─ src/data/
 │   ├─ pcgsNumbers.js                  Static PCGS coin number lookup (10 US series + 7 world bullion: Kookaburra, Krugerrand, Kangaroo, Maple Leaf, Britannia, China Panda, China Lunar)
@@ -70,6 +91,10 @@ server.js                              Express entry point (port 3000)
 │   ├─ coinMetalProfile.js             Metal detection + weight detection (detectWeightFromTitle, weightToKeyToken) for bullion
 │   ├─ coinIntent.js                   Route-layer extractor: canonicalizes {grade, finish, isProof, designation} across coinData / options / pcgs / parsed (#254)
 │   ├─ responseValidator.js            /api/price response schema & sanity validation
+│   ├─ versionHash.js                  Cached valuation configuration SHA-256 fingerprint
+│   ├─ logger.js                       Redacted Pino JSON logger with request-ID injection
+│   ├─ gracefulShutdown.js             Shutdown task registration and bounded draining
+│   ├─ redactForPublic.js              Public/admin response audience gating
 │   ├─ excelMapper.js                  Excel-to-backup converter (header aliases, series normalization)
 │   ├─ cachePath.js                    Centralized CACHE_DIR from env var
 │   ├─ cosmosClient.js                 Azure Cosmos DB client singleton (env-var gated)
@@ -93,14 +118,15 @@ server.js                              Express entry point (port 3000)
 │   ├─ metals_spot.json                Persisted metals spot prices (stale fallback)
 │   ├─ metals_history.json             Daily spot price snapshots
 │   ├─ greysheet_history.json          Daily Greysheet price snapshots
-│   ├─ terapeak_sold.json              Imported Terapeak comp data (~3,306 datasets)
+│   ├─ terapeak_sold.json              Local imported Terapeak comp snapshot (not production truth)
 │   ├─ terapeak-runs/                  Append-only JSONL ledger for operator-codespace runs (#200): `passes.jsonl` (one record per pass), `coins.jsonl` (one record per coin attempt)
 │   ├─ users.json                      Server-side user accounts (bcrypt hashes + UUIDs)
 │   └─ user_coins.json                 Server-side coin collections (plaintext JSON by userId)
 │
 ├─ data/
-│   ├─ terapeak/                       ~3,249 Terapeak CSV exports (real sold data)
+│   ├─ terapeak/                       3,593 CSV exports in the current repository snapshot
 │   └─ terapeak-meta.json              Git-tracked aggregation metadata sidecar (see below) + dormant tracking
+│                                      Production truth comes from admin endpoints, not local cache counts
 │
 ├─ docs/
 │   ├─ ARCHITECTURE.md                 This file -- technical architecture reference
@@ -138,12 +164,14 @@ server.js                              Express entry point (port 3000)
 │   ├─ reclassify-comps.js             Batch comp reclassification (weight mismatch detection + reroute)
 │   ├─ build-evidence-index.js         Historical evidence index builder
 │   ├─ generate-freshness-report.js    Freshness triage report (5-state decision tree: Fresh/Stale/LowSignal/Missing/Dormant + recently-confirmed-stale split)
-│   ├─ freshness-composition-analyzer.js  Cross-tabulates the freshness report by composition to surface structural coverage gaps (#270H)
 │   ├─ scan-parallel-key-drift.js      Silent-drift detector for the #267H class -- flags datasets whose normalized key collides with an empty sibling (#272H). `npm run scan:parallel-key-drift`
+│   ├─ analyze-freshness-composition.js  Cross-tabulates freshness by category/composition
+│   ├─ commit-terapeak-progress.sh      Fail-closed post-run branch/commit/PR helper (#293W)
+│   ├─ analyze-pacing-pilot.py          Scoped #280H baseline/tuned crossover analyzer
 │   ├─ fmv-drift-monitor.js            FMV drift monitor (#196) -- runs bullion catalog through /api/price, flags rows outside dealer-premium band
 │   ├─ investigate-libertad-batch.js   Libertad lot-evaluator diagnostic (#202) -- re-runs 13-coin batch, flags thin comps + duplicate FMV instability
 │   ├─ lot-estimator-health.js         Lot Evaluator health check -- runs the 13-coin diagnostic batch through the batch route + reports FMV stability. `npm run health:lot-estimator`
-│   ├─ sync-terapeak-meta.js           Remote-scraper meta sync helper (#253) -- called by `run-surface-freshness-loop.sh` before each pass; pulls current `data/terapeak-meta.json` from `/api/admin/terapeak-meta` and atomically replaces the local sidecar so the freshness classifier reads Azure-current state, not a git-frozen snapshot. `npm run sync:meta`
+│   ├─ sync-terapeak-meta.js           Standalone workstation HTTP sync from `/api/admin/terapeak-meta`; `npm run sync:meta`
 │   └─ test-metrics/                   Jest metrics capture + summary reporter
 │
 ├─ .github/
@@ -158,6 +186,7 @@ server.js                              Express entry point (port 3000)
 │   │   ├─ pricing-health.agent.md                Pricing accuracy diagnostics
 │   │   ├─ numismatic-audit.agent.md              Audit classification against numismatic terminology
 │   │   ├─ sales-aggregator.agent.md              Sales data aggregation assistant
+│   │   ├─ terapeak-operator.agent.md              Canonical guarded Terapeak startup operator
 │   │   ├─ test-coverage.agent.md                 Test coverage gap analysis + generation
 │   │   ├─ test-monitor.agent.md                  Test health monitoring and diagnostics
 │   │   └─ onboard.agent.md                       Project onboarding assistant
@@ -170,7 +199,8 @@ server.js                              Express entry point (port 3000)
 │   │   └─ onboard.prompt.md                      /onboard slash command
 │   └─ copilot-instructions.md                    Workspace-wide Copilot rules
 │
-└─ __tests__/                          73 Jest test suites
+└─ __tests__/                          161 current `*.test.js` files recursively plus fixtures/helpers/setup
+                                        Latest verified run: 161 suites / 4,425 tests
     ├─ fixtures/
     │   └─ golden_coins.json           Curated golden set (14 deterministic test coins)
     └─ helpers/
@@ -302,7 +332,7 @@ Request (valid metals: XAU, XAG, XPT, XPD)
   │   └── Per metal → getMetalsSpotPrice(metal, currency)
   │       ├── Check in-memory cache → HIT? return
   │       ├── Check in-flight dedup map → already fetching? await
-  │       └── Round-robin 3 providers:
+  │       └── Round-robin 4 providers:
   │           ① goldprice-org (no auth, free baseline)
   │           ② goldapi (requires GOLDAPI_KEY)
   │           ③ metals-api (requires METALS_API_KEY)
@@ -511,7 +541,18 @@ Clears both eBay and PCGS in-memory and persisted caches. Returns `{ cleared: tr
 
 ### `GET /api/health`
 
-Returns `{ status: "ok", ... }` with configuration status flags.
+The public shallow path returns `{ status: "ok", uptime }` without touching
+downstream services. `GET /api/health?deep=1` is admin-gated and adds bounded
+dependency observations for Cosmos, metals providers, PCGS quota/upstream
+availability, and the already-loaded Terapeak store. Key Vault is reported as
+`not_probed` because App Service resolves Key Vault references before process
+startup.
+
+Deep Cosmos reads are abort-bounded at two seconds. Concurrent deep checks
+share one in-flight probe and reuse results for 10 seconds; a dedicated limiter
+caps probe pressure. Optional failures produce HTTP 200 with
+`overall: "degraded"`, while configured Cosmos failure produces HTTP 503.
+No raw errors, credentials, endpoints, or configuration values are returned.
 
 ---
 
@@ -601,23 +642,22 @@ The cascade maximizes data quality while handling API limitations. Terapeak loca
 │  If enough comps → skip all live API tiers                │
 ├───────────────────────────────────────────────────────────┤
 │  Tier 1: Marketplace Insights API                         │
-│  Good quality -- actual sold prices + dates               │
-│  Requires: eBay Partner oauth token                       │
-│  If circuit-tripped or fails → fall through               │
+│  Sold prices + dates; unavailable without approved access │
+│  Current project does not have this API access             │
 ├───────────────────────────────────────────────────────────┤
 │  Tier 2: Finding API (findCompletedItems)                 │
 │  DECOMMISSIONED by eBay (Feb 4, 2025)                    │
-│  Code remains but always falls through                    │
+│  Legacy code is feature-gated and disabled by default     │
 ├───────────────────────────────────────────────────────────┤
 │  Tier 3: Browse API (search)                              │
 │  Last resort -- ACTIVE listings (not sold)                │
 │  Only triggers when zero sold comps exist                 │
-│  Requires: OAuth client credentials flow                  │
+│  Uses bounded retries and throttling; no circuit breaker   │
 │  Confidence penalty applied in valuation                  │
 └───────────────────────────────────────────────────────────┘
 ```
 
-**Circuit breaker:** When an API returns an error, it is marked as tripped for 5 minutes. Subsequent calls skip the tripped API and try the next tier.
+**Circuit breaker:** Implemented sold-data API paths can be marked as tripped for 5 minutes so subsequent calls skip them. Browse uses bounded retries but is not circuit-protected.
 
 **Throttling:** A global 1,100 ms minimum gap between any eBay API call prevents rate-limit issues.
 
@@ -673,6 +713,8 @@ When the user provides a free-text description (not a cert number), `resolveFrom
 **Type 1/2 variant filter (#180):** When `expected.label` contains "Type 1" or "Type 2", `applyFilters()` hard-removes comps whose titles reference the opposite type (e.g. "Type 2" titles when pricing a Type 1 coin). `pcgsService.parseDescription()` detects "Type 1" / "Type 2" in descriptions and sets `result.label`, which is passed through from the identification step to the expected object in `priceRoute.js` and `pricingBatchRoute.js`.
 
 **Specialty-edition family filter (#283W):** `VARIANT_FAMILY_TOKENS.specialtyEdition` (in `ebayService.js`) covers mint-issued commemorative runs that share the standard `proof` title token but command different premiums (e.g. Casa de Moneda `elite libertad`, `libertad traders`, `traders convention`). `applyFilters()` rejects these titles regardless of the caller's `wantsProof` intent, so they never blend into the standard-Proof pool. Add new tokens here as additional specialty runs are identified.
+
+**Specialty-finish pools (#273W):** `requestedVariantFamily()` recognizes explicit colorized, antiqued, gilded, burnished, and high-relief intent from query, label, or canonical finish. `scoreMatch()` promotes same-family mint-issued comps and penalizes aftermarket or wrong-family results before top-K selection. `applyFilters()` then retains only raw comps from the requested family; plain BU, graded, proof, reverse-proof, and other specialty families cannot enter that FMV.
 
 **Bar-series filter (#285W):** Coin-route queries that name a cataloged bar brand and product series carry `barBrand` and `barSeries` intent into `scoreMatch()` and `applyFilters()`. Exact series matches receive +10; positively identified competing series are counted under `barSeriesMismatch` and rejected. Titles with no identifiable series remain neutral. If fewer than three correctly isolated comps remain, valuation returns `fmvCore: null` with `dataSource.label = 'insufficient-series-comps'` rather than blending other bar designs.
 
@@ -768,6 +810,8 @@ Extends CSVs from 50 rows (page 1 limit) to up to 250 rows by collecting pages 2
 3. **CSV row-count inference** -- `importComps()` infers `deepAt` from comp count (>50 = was deep-paginated). Catches legacy datasets that predate explicit tracking.
 4. **Remote-scraper HTTP pull (#259)** -- machines running `scripts/run-surface-freshness-loop.sh` (WSL/Surface, Codespaces) call `sync_meta_from_app()` before every freshness pass, which `curl`s `GET /api/admin/terapeak-meta` and atomically replaces their local `data/terapeak-meta.json`. Without this step the local sidecar is git-frozen and the classifier re-targets already-scraped coins forever, making the scraper loop appear to make zero progress. Failures degrade to `[warn]` and the loop continues with whatever is on disk.
 
+**Targeted folder imports:** `autoImportFolder(folder, { includeFiles })` can restrict an import to exact child filenames already discovered in `folder`. Normal server startup omits this option and imports the full eligible folder. Seeded real-data tests use it to load only their exercised cohort without changing parsing, reclassification, or lookup behavior.
+
 **Per-dataset metadata fields:**
 
 | Field | Type | Description |
@@ -854,7 +898,7 @@ Chains multiple Terapeak collect batches sequentially with anti-bot monitoring:
 │  2. run_batch "name" "Filter.*Regex"                      │
 │     └─ terapeak-export.py --run --resume --filter REGEX   │
 │     └─ Logs to cache/terapeak_<name>.log                  │
-│  3. check_antibot (tail log for 3+ consecutive bot blocks)│
+│  3. check_antibot (scan log for first hard signal)        │
 │     └─ If detected → abort chain, log warning             │
 │  4. Continue to next batch                                │
 └───────────────────────────────────────────────────────────┘
@@ -983,7 +1027,7 @@ The valuation engine separates eBay comps by `gradeType` (three-way split):
 
 This ensures unslabbed proof coins (e.g. Proof Libertads in OGP) don't inflate raw BU valuations.
 
-**#282H -- proof / RP skip the bullion spot+premium branch.** Once the proof comp pool is selected, the engine also sets `skipSpotMath = wantsProof || wantsReverseProof`. This routes proof traffic through the standard comp-blend path (`raw-blend` / `certified-blend`) rather than the `bullion-spot-premium` math, whose silver / gold premium clamps (spot * 2 / spot * 1.4) would silently collapse dozens of distinct proof dates to one FMV. For BU bullion queries with no eBay comps, the fallback ladder is `bullion-greysheet-anchor` (Greysheet >= 80% of spot) -> `bullion-spot-only`. See [docs/memory/decision-engine-spec.md](docs/memory/decision-engine-spec.md) for the full mode list and triggers.
+**#282H -- proof / RP skip the bullion spot+premium branch.** Once the proof comp pool is selected, the engine also sets `skipSpotMath = wantsProof || wantsReverseProof`. This routes proof traffic through the standard comp-blend path (`raw-blend` / `certified-blend`) rather than the `bullion-spot-premium` math, whose silver / gold premium clamps (spot * 2 / spot * 1.4) would silently collapse dozens of distinct proof dates to one FMV. For BU bullion queries with no eBay comps, the fallback ladder is `bullion-greysheet-anchor` (Greysheet >= 80% of spot) -> `bullion-spot-only`. See [docs/memory/decision-engine-spec.md](memory/decision-engine-spec.md) for the full mode list and triggers.
 
 ---
 
@@ -1018,6 +1062,8 @@ This ensures unslabbed proof coins (e.g. Proof Libertads in OGP) don't inflate r
 | `TERAPEAK_BLOB_CONTAINER` | No | -- | Azure Blob Storage container name |
 | `TERAPEAK_DATA_DIR` | No | `data/terapeak` | Local directory for Terapeak CSV files |
 | `COOKIE_FILE` | No | `cache/ebay_cookies.json` | Per-machine cookie jar for `terapeak-export.py` and `cookie-health-check.py`. Set to a path outside the worktree on each host (e.g. `~/cpf/state/cookies-surface.json`) to keep Akamai trust intact when running from multiple machines. (#250) |
+| `TERAPEAK_PACING_PROFILE` | No | `baseline` | #280H operator A/B profile (`baseline` or `normal-tuned`); tuned delays are effective only in Normal risk state |
+| `TERAPEAK_PACING_PILOT_ID` | No | -- | Safe #280H pilot identifier; required for `normal-tuned` and used to scope analysis |
 | `METALS_POLL_MS` | No | `1800000` | Metals spot-price polling interval (ms) |
 | `EBAY_DEFAULT_LOOKBACK_DAYS` | No | `180` | Default sold-comp lookback window. Tier ladder extends through 365 -> 730 -> `all` when the Terapeak-only pool is thin (#270W Option #1, PR #188). Supplemented path still caps at 365 (tracked: #275W). |
 | `BLOB_REIMPORT_MS` | No | `1800000` | Periodic blob re-import interval (ms; 30 min default) |
@@ -1027,11 +1073,12 @@ This ensures unslabbed proof coins (e.g. Proof Libertads in OGP) don't inflate r
 | `PREFETCH_HOUR_PT` | No | `23` | Prefetch run hour in Pacific time |
 | `PREFETCH_THROTTLE_MS` | No | `1000` | Delay between prefetch PCGS calls (ms) |
 | `PREFETCH_RESERVE` | No | `10` | Quota calls reserved from prefetching |
+| `PCGS_PREFETCH_OBSERVED_LIMIT` | No | `100` | Temporary upstream request-window limit for nightly prefetch; does not replace the published 1,000-call entitlement |
 | `APR_DATE_WINDOW_YEARS` | No | `3` | Auction history lookback window in years |
 | `APR_FRESHNESS_DAYS` | No | `30` | Auction history recrawl freshness threshold in days |
-| `SENDGRID_API_KEY` | No | -- | SendGrid key for crash/ops alerts |
+| `COMMUNICATION_CONNECTION_STRING` | No | -- | Azure Communication Services Email connection string for crash/ops alerts |
 | `ALERT_EMAIL_TO` | No | -- | Destination email for alerts |
-| `ALERT_FROM_EMAIL` | No | `alerts@coinpricefinder.app` | Sender email for alerts |
+| `ALERT_FROM_EMAIL` | No | -- | Verified ACS Email sender address |
 | `STRICT_TOKEN_CACHE_TTL_MS` | No | `5000` | TTL (ms) for `verifyTokenStrict` username cache. `0` disables. Invalidated on every `_saveUser` / `deleteUser`. (#218) |
 | `BROWSER_RECYCLE_EVERY` | No | `80` / `120` | Playwright browser-recycle interval override. Defaults: `terapeak-export.py` 80, `sales-aggregator.py` 120. (#199) |
 
@@ -1056,8 +1103,12 @@ The server starts several background tasks on boot:
 `src/services/prefetchScheduler.js` builds the nightly queue from the data
 tables in `src/data/pcgsNumbers.js`. The queue is a flat list of
 `{pcgsNo, grade, priority, lastFetched}` records consumed by
-`executePrefetchRun()` until the daily PCGS quota (default 990 calls) is
-spent or the breaker trips.
+`executePrefetchRun()` until its effective budget is spent or the breaker
+trips. The effective budget is the minimum of local quota availability and
+`PCGS_PREFETCH_OBSERVED_LIMIT - used - PREFETCH_RESERVE` (90 calls from a
+fresh counter by default). This temporary safety bound prevents the known
+101st-request 429 while preserving the published 1,000-call entitlement in
+the shared quota service.
 
 **Phase 1 -- Key dates (always at the front of the queue)**
 
@@ -1321,6 +1372,7 @@ appear at the bottom of both coin and bar results.
 |----------|--------|---------|
 | `cache/users.json` + Cosmos `users` | authService | `{ [username]: { userId, hash, createdAt } }` |
 | `cache/user_coins.json` + Cosmos `user-coins` | coinStorageService | `{ [userId]: coin[] }` |
+| `cache/valuation-audit-YYYY-MM-DD.jsonl` + Cosmos `valuation-audit` | auditService | Versioned valuation events through a bounded, shutdown-drained queue; Cosmos and JSONL retention is 90 days |
 | In-memory `_session` | CoinAuth (client) | `{ username, userId, token }` -- lost on reload |
 
 ---

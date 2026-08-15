@@ -26,12 +26,12 @@ review on assigned files in the coin-price-finder-agent codebase.
 | Server | Express 5.2, single-threaded Node.js |
 | Caching | Custom TTLCache: in-memory + JSON disk persistence (500ms debounce) |
 | Cache TTLs | eBay 1hr, PCGS 24hr, Greysheet 24hr, Numista 24hr, metals 45min, bulk-evaluate 1hr |
-| External APIs | eBay (3-tier cascade), PCGS, Greysheet CDN V2, Numista, metals (3 providers round-robin) |
+| External APIs | Terapeak-first eBay cascade, PCGS, Greysheet CDN V2, Numista, metals (4-provider round-robin) |
 | Throttling | eBay: 1100ms between calls, circuit breaker on failure |
-| Background | Metals polling every 30 min, blob re-import every 30 min, Greysheet weekly refresh |
+| Background | Metals polling every 30 min, blob re-import every 30 min, Greysheet refresh every 3 days, nightly PCGS prefetch |
 | Batch | Up to 25 coins per batch request; bulk lot evaluator: 500 coins, 10 parallel, 3 concurrent jobs |
 | Client | Vanilla JS SPA, no bundler, no virtual DOM |
-| Test budget | Individual test: 500ms max; full suite: 10s target |
+| Test budget | Individual test: 500ms target; full suite: <60s target (see `docs/testing/test-monitor.md`) |
 
 ## Review Checklist
 

@@ -41,10 +41,18 @@ Required fields are:
 | Outcomes | `new_count`, `dup_count`, `no_data_count`, `no_export_count` |
 | Health | `cookie_health_status`, `probe_status`, `challenge_signal_count` |
 | Risk transition | `state_before`, `state_after`, `transition_reason` |
+| Pacing pilot | `pacing_profile_requested`, `pacing_profile_effective`, `pacing_pilot_id` |
 
 State values are `Normal`, `Elevated`, `Challenged`, and `Cooldown`. A null
 `transition_reason` means no transition. Legacy fields such as `pass`,
 `new_rows`, and `dup_rows` remain present for existing reports.
+
+The default pacing profile is `baseline`. Set
+`TERAPEAK_PACING_PROFILE=normal-tuned` only for an approved pilot. The tuned
+profile scales centralized idle and action delays to 80% during Normal passes.
+Elevated and Cooldown passes always use baseline pacing. Scroll behavior,
+coffee breaks, and browser recycling are unchanged. The exporter independently
+checks the persisted risk-state file before accepting tuned pacing.
 
 Validate one or more JSONL files in human-readable or JSON form:
 

@@ -173,6 +173,7 @@ const providers = [
 const cache      = new Map();  // key → { data, expiresAt }
 const staleCache = new Map();  // key → data (never auto-deleted; last-known-good)
 const inFlight   = new Map();  // key → Promise
+const providerLastSuccess = new Map(); // provider name → successful live fetch time
 let   rotationIdx = 0;         // round-robin index across cache misses
 
 /* ---------- Helpers ---------- */
@@ -239,7 +240,9 @@ async function fetchFromProviders(metal, currency, startIdx) {
     const provider = providers[(startIdx + i) % providers.length];
     tried.push(provider.name);
     try {
-      return await provider.fetch(metal, currency);
+      const result = await provider.fetch(metal, currency);
+      providerLastSuccess.set(provider.name, new Date().toISOString());
+      return result;
     } catch (err) {
       lastStatus = err.response?.status || err.status || null;
       lastErrorMessage = err.message;
@@ -364,6 +367,7 @@ function _reset() {
   cache.clear();
   staleCache.clear();
   inFlight.clear();
+  providerLastSuccess.clear();
   rotationIdx = 0;
   _diskCache = null;
 }
@@ -371,13 +375,34 @@ function _reset() {
 /** Expose rotation index for test assertions */
 function _getRotationIdx() { return rotationIdx; }
 
+function getHealthStatus() {
+  const freshnessMs = CACHE_TTL_MS * 2;
+  const now = Date.now();
+  const providerStatus = Object.fromEntries(providers.map(provider => {
+    const lastSuccess = providerLastSuccess.get(provider.name) || null;
+    const fresh = lastSuccess && now - Date.parse(lastSuccess) <= freshnessMs;
+    return [provider.name, { status: fresh ? 'ok' : (lastSuccess ? 'stale' : 'unknown'), lastSuccess }];
+  }));
+  const freshSuccesses = Object.values(providerStatus)
+    .filter(item => item.status === 'ok')
+    .map(item => item.lastSuccess)
+    .sort();
+  return {
+    status: freshSuccesses.length ? 'ok' : 'degraded',
+    lastSuccess: freshSuccesses.at(-1) || null,
+    providers: providerStatus,
+  };
+}
+
 module.exports = {
   getMetalsSpotPrice,
   getMetalsSpotPrices,
+  getHealthStatus,
   // internals for tests
   _reset,
   _getRotationIdx,
   _providers: providers,
+  _providerLastSuccess: providerLastSuccess,
   _cache: cache,
   _staleCache: staleCache,
   _HARDCODED_FALLBACK: HARDCODED_FALLBACK,

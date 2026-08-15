@@ -12,6 +12,9 @@ npm run test:metrics
 # View health summary
 npm run test:summary
 
+# Analyze a complete Jest JSON result (top 20 suites/tests)
+npm run test:analyze -- --jest-json path/to/jest-results.json --out path/to/report.md
+
 # Pass extra Jest args
 npm run test:metrics -- --runInBand
 npm run test:metrics -- --testPathPattern=cache
@@ -42,8 +45,8 @@ Reads the JSONL history and prints:
 | **Failure frequency** | Tests ranked by how often they fail, with last-seen date. |
 | **Flaky tests** | Tests that fail intermittently (failed in some runs, passed in others). Shows fail rate as fraction and percentage. |
 | **Duration trends** | Avg/min/max suite duration over the last 10 runs, with a visual timeline. |
-| **Slowest files** | Top 5 test files by average wall-clock time. |
-| **Slowest tests** | Top 10 individual tests by average duration. |
+| **Slowest files** | Top 20 test files by average wall-clock time. |
+| **Slowest tests** | Top 20 individual tests by average duration. |
 | **New failures** | Tests that failed after the last fully-green run. |
 | **Flake hints** | Runs where the recorder flagged potential flakiness. |
 
@@ -131,6 +134,8 @@ Runtime budgets:
 
 Tests exceeding these thresholds are flagged for optimization.
 
+Real-data suites that exercise a seeded cohort should import only that cohort when the production importer supports an explicit file allowlist. The cohort must retain a minimum-resolution assertion so reduced setup work cannot turn downstream checks into soft skips.
+
 ## Recommended Workflow
 
 1. **During development**: Run targeted tests first for fast feedback.
@@ -156,6 +161,7 @@ Tests exceeding these thresholds are flagged for optimization.
 
 ```
 scripts/test-metrics/
+  analyze-slow-tests.cjs # One-run top-20 budget report from Jest JSON
   run-with-metrics.cjs    # Test runner wrapper
   summarize.cjs           # Summary report generator
 
