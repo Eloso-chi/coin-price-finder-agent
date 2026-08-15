@@ -60,7 +60,7 @@ the corpus into git so both machines see the same content.
 
 **Not migrated (superseded):**
 
-- `/memories/repo/terapeak-operator-pr168.md` -- content is covered by [../runbooks/local-scraper-wsl2.md](../runbooks/local-scraper-wsl2.md) (preflight + UPLOAD_MODE, with #251 overriding pr168's api->blob claim) and [../../.github/agents/terapeak-operator.agent.md](../../.github/agents/terapeak-operator.agent.md). Unique detail (python resolver order) lives in `scripts/terapeak-operator.sh::resolve_python_bin()`. `PR-168-ALIGNMENT-REPORT.md` referenced there no longer exists.
+- `/memories/repo/terapeak-operator-pr168.md` -- content is covered by [../runbooks/local-scraper-wsl2.md](../runbooks/local-scraper-wsl2.md) (preflight + UPLOAD_MODE, with #251 overriding pr168's api->blob claim) and [../../.github/agents/terapeak-operator.agent.md](../../.github/agents/terapeak-operator.agent.md). Unique detail (python resolver order) lives in `scripts/terapeak-operator.sh::resolve_python_bin()`. The root `PR-168-ALIGNMENT-REPORT.md` exists as a clearly marked historical artifact, not an active runbook.
 
 ## Audit notes (2026-06-17)
 

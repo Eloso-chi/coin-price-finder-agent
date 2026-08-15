@@ -1,5 +1,5 @@
 // src/services/prefetchScheduler.js — Nightly APR prefetch scheduler
-// Burns remaining PCGS API quota before midnight PT reset.
+// Uses the nightly PCGS API budget before midnight PT reset.
 // Trigger: 11:00 PM Pacific Time (configurable via PREFETCH_HOUR_PT env var).
 // Cycle: runs nightly, seeding new coins then refreshing stale entries.
 // CommonJS
@@ -19,8 +19,26 @@ const logger = require('../utils/logger').child({ component: 'prefetch' });
 const PREFETCH_ENABLED = (process.env.PCGS_PREFETCH_ENABLED || 'true') !== 'false';
 const PREFETCH_HOUR_PT = parseInt(process.env.PREFETCH_HOUR_PT, 10) || 23; // 11 PM Pacific
 const THROTTLE_MS = parseInt(process.env.PREFETCH_THROTTLE_MS, 10) || 1000; // 1 sec between calls
-const RESERVE_CALLS = parseInt(process.env.PREFETCH_RESERVE, 10) || 10;
+const LOCAL_DAILY_LIMIT = Number.isInteger(pcgsQuota.DAILY_LIMIT) ? pcgsQuota.DAILY_LIMIT : 1000;
+
+function parseBoundedInteger(value, fallback, minimum, maximum) {
+  const normalized = value == null ? '' : String(value).trim();
+  if (!/^\d+$/.test(normalized)) return fallback;
+  const parsed = Number(normalized);
+  return Number.isSafeInteger(parsed) && parsed >= minimum && parsed <= maximum
+    ? parsed
+    : fallback;
+}
+
+const RESERVE_CALLS = parseBoundedInteger(process.env.PREFETCH_RESERVE, 10, 0, LOCAL_DAILY_LIMIT);
+const OBSERVED_UPSTREAM_LIMIT = parseBoundedInteger(
+  process.env.PCGS_PREFETCH_OBSERVED_LIMIT,
+  100,
+  1,
+  LOCAL_DAILY_LIMIT
+);
 const STATUS_PATH = path.join(CACHE_DIR, 'prefetch_status.json');
+const ALERT_FAILURE_THRESHOLD = 2;
 
 // Grades worth fetching APR data for (collectible grades)
 const TARGET_GRADES = [60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70];
@@ -46,6 +64,11 @@ function saveStatus(status) {
   } catch (err) {
     logger.error({ err, event: 'status_save_failed' }, 'Failed to save prefetch status');
   }
+}
+
+function maybeAlertPrefetchFailure(status, consecutiveFailures, detail) {
+  if (status === 'completed' || consecutiveFailures < ALERT_FAILURE_THRESHOLD) return;
+  alertService.alertPrefetchFailure(consecutiveFailures, detail);
 }
 
 // ── Priority queue builder ──────────────────────────────────
@@ -299,7 +322,7 @@ function getKeyDatePcgsNumbers() {
 
 /**
  * Execute the nightly prefetch run.
- * Burns all remaining quota (minus reserve) on APR calls.
+ * Uses available quota up to the observed upstream limit minus reserve.
  */
 async function executePrefetchRun() {
   if (_running) {
@@ -327,6 +350,9 @@ async function executePrefetchRun() {
 
   try {
     let available = pcgsQuota.getAvailableForPrefetch(RESERVE_CALLS);
+    const quotaAtStart = pcgsQuota.getStatus();
+    const observedBudget = Math.max(0, OBSERVED_UPSTREAM_LIMIT - quotaAtStart.used - RESERVE_CALLS);
+    available = Math.min(available, observedBudget);
     if (available <= 0) {
       const quotaStatus = pcgsQuota.getStatus();
       const skipReason = quotaStatus.upstreamAvailability === 'cooldown'
@@ -349,7 +375,13 @@ async function executePrefetchRun() {
       return;
     }
 
-    logger.info({ event: 'quota_available', available, reserveCalls: RESERVE_CALLS }, 'Prefetch quota available');
+    logger.info({
+      event: 'quota_available',
+      available,
+      reserveCalls: RESERVE_CALLS,
+      observedUpstreamLimit: OBSERVED_UPSTREAM_LIMIT,
+      localQuotaLimit: quotaAtStart.limit,
+    }, 'Prefetch quota available');
     const queue = buildQueue();
     logger.info({ event: 'queue_built', queueSize: queue.length }, 'Prefetch queue built');
 
@@ -391,7 +423,7 @@ async function executePrefetchRun() {
         if (recoveryProbePending) {
           recoveryProbePending = false;
           available = pcgsQuota.getAvailableForPrefetch(RESERVE_CALLS);
-          limit = Math.min(available, queue.length);
+          limit = Math.min(available, observedBudget, queue.length);
           logger.info({ event: 'recovery_probe_succeeded', limit }, 'Prefetch recovery probe succeeded');
         }
       } catch (err) {
@@ -430,6 +462,9 @@ async function executePrefetchRun() {
     }, 'Prefetch run completed');
 
     const prevStatus = loadStatus();
+    const consecutiveFailures = status === 'completed'
+      ? 0
+      : (prevStatus.consecutiveFailures || 0) + 1;
     saveStatus({
       lastRun: new Date().toISOString(),
       status,
@@ -439,12 +474,17 @@ async function executePrefetchRun() {
       newRecords,
       perCategory,
       errors: errors.slice(0, 20), // cap stored errors
-      consecutiveFailures: status === 'completed' ? 0 : (prevStatus.consecutiveFailures || 0) + 1,
+      consecutiveFailures,
       nextScheduled: getNextRunTime().toISOString(),
       queueRemaining: Math.max(0, queue.length - callsMade)
     });
 
     auctionPrice.updateRunStatus(status, { callsMade, recordsStored, newRecords });
+    maybeAlertPrefetchFailure(
+      status,
+      consecutiveFailures,
+      `Partial run: ${errors.length} errors in ${callsMade} calls. First error: ${errors[0] || 'unknown'}`
+    );
 
   } catch (err) {
     logger.error({ err, event: 'run_failed', callsMade }, 'Prefetch run failed');
@@ -459,9 +499,7 @@ async function executePrefetchRun() {
       consecutiveFailures: failures,
       nextScheduled: getNextRunTime().toISOString()
     });
-    if (failures >= 2) {
-      alertService.alertPrefetchFailure(failures, err.message);
-    }
+    maybeAlertPrefetchFailure('failed', failures, err.message);
   } finally {
     _running = false;
     _todayCompleted = true;
@@ -584,6 +622,10 @@ function init() {
 function getSchedulerStatus() {
   const status = loadStatus();
   const quota = pcgsQuota.getStatus();
+  const observedBudgetRemaining = Math.max(0, OBSERVED_UPSTREAM_LIMIT - quota.used - RESERVE_CALLS);
+  const localBudgetRemaining = quota.upstreamAvailability === 'cooldown'
+    ? 0
+    : Math.max(0, quota.remaining - RESERVE_CALLS);
   return {
     enabled: PREFETCH_ENABLED,
     running: _running,
@@ -619,6 +661,10 @@ function getSchedulerStatus() {
       nextEligibleProbeAt: quota.nextEligibleProbeAt || null,
       rateLimitedAt: quota.rateLimitedAt || null,
       rateLimitReason: quota.rateLimitReason || null,
+      upstreamReportedRemaining: quota.upstreamReportedRemaining ?? null,
+      upstreamReportedLimit: quota.upstreamReportedLimit ?? null,
+      prefetchObservedLimit: OBSERVED_UPSTREAM_LIMIT,
+      prefetchBudgetRemaining: Math.min(observedBudgetRemaining, localBudgetRemaining),
       lastProbeAt: quota.lastProbeAt || null,
       lastProbeOutcome: quota.lastProbeOutcome || null
     },
@@ -711,5 +757,6 @@ module.exports = {
   getCategorizedEntries,
   logMissingKeyDateCategories,
   buildQueue,
-  extractAllPcgsNumbers
+  extractAllPcgsNumbers,
+  parseBoundedInteger
 };

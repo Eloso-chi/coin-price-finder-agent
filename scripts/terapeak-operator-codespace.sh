@@ -65,6 +65,8 @@ STATE_FILE="cache/terapeak-operator-codespace.state.json"
 LOCK_FILE="cache/terapeak-operator-codespace.lock"
 RISK_STATE_FILE="cache/terapeak-risk-state-W.json"
 RISK_STATE_ENABLED="${TERAPEAK_RISK_STATE_ENABLED:-1}"
+PACING_PROFILE_OVERRIDE="${TERAPEAK_PACING_PROFILE-}"
+PACING_PILOT_ID_OVERRIDE="${TERAPEAK_PACING_PILOT_ID-}"
 ELEVATED_BATCH_MIN="${TERAPEAK_ELEVATED_BATCH_MIN:-15}"
 ELEVATED_BATCH_MAX="${TERAPEAK_ELEVATED_BATCH_MAX:-20}"
 ELEVATED_PAUSE_SECONDS="${TERAPEAK_ELEVATED_PAUSE_SECONDS:-900}"
@@ -290,6 +292,22 @@ preflight_runtime
 preflight_env
 preflight_server
 
+PACING_PROFILE="${PACING_PROFILE_OVERRIDE:-${TERAPEAK_PACING_PROFILE:-baseline}}"
+PACING_PILOT_ID="${PACING_PILOT_ID_OVERRIDE:-${TERAPEAK_PACING_PILOT_ID:-}}"
+export TERAPEAK_PACING_PROFILE="$PACING_PROFILE"
+export TERAPEAK_PACING_PILOT_ID="$PACING_PILOT_ID"
+if [[ "$PACING_PROFILE" != "baseline" && "$PACING_PROFILE" != "normal-tuned" ]]; then
+  fail "TERAPEAK_PACING_PROFILE must be baseline or normal-tuned"
+fi
+if [[ "$PACING_PROFILE" == "normal-tuned" && -z "$PACING_PILOT_ID" ]]; then
+  fail "TERAPEAK_PACING_PILOT_ID is required for normal-tuned"
+fi
+if [[ -n "$PACING_PILOT_ID" && ! "$PACING_PILOT_ID" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$ ]]; then
+  fail "TERAPEAK_PACING_PILOT_ID has an invalid format"
+fi
+export TERAPEAK_RISK_STATE_FILE="$RISK_STATE_FILE"
+export TERAPEAK_EFFECTIVE_PACING_PROFILE="baseline"
+
 CURRENT_RISK_STATE="$(python3 scripts/_terapeak_risk.py current --state-file "$RISK_STATE_FILE")"
 if [[ "$CURRENT_RISK_STATE" == "Cooldown" ]]; then
   cooldown_gate_rc=0
@@ -328,6 +346,12 @@ while (( MAX_PASSES == 0 || PASS_NUM < MAX_PASSES )); do
   PASS_NUM=$((PASS_NUM + 1))
   PASS_LOG="${RUN_DIR}/pass-$(printf '%04d' "$PASS_NUM").log"
   STATE_BEFORE="$CURRENT_RISK_STATE"
+  EFFECTIVE_PACING_PROFILE="baseline"
+  if [[ "$PACING_PROFILE" == "normal-tuned" && "$STATE_BEFORE" == "Normal" ]]; then
+    EFFECTIVE_PACING_PROFILE="normal-tuned"
+  fi
+  export TERAPEAK_EFFECTIVE_PACING_PROFILE="$EFFECTIVE_PACING_PROFILE"
+  log "pacing requested=${PACING_PROFILE} effective=${EFFECTIVE_PACING_PROFILE} state=${STATE_BEFORE}"
   PASS_BATCH_MIN="$BATCH_MIN"
   PASS_BATCH_MAX="$BATCH_MAX"
   if [[ "$RISK_STATE_ENABLED" != "0" && "$STATE_BEFORE" == "Elevated" ]]; then
@@ -393,6 +417,13 @@ while (( MAX_PASSES == 0 || PASS_NUM < MAX_PASSES )); do
     --pass-exit-code "$PASS_EXIT_RC" \
     --cookie-health-status HEALTHY \
     --probe-status SKIPPED \
+    --pacing-profile-requested "$PACING_PROFILE" \
+    --pacing-profile-effective "$EFFECTIVE_PACING_PROFILE" \
+    --pacing-pilot-id "$PACING_PILOT_ID" \
+    --pacing-batch-min "$BATCH_MIN" \
+    --pacing-batch-max "$BATCH_MAX" \
+    --pacing-p01-fixed "$P01_FIXED" \
+    --pacing-upload-mode "${UPLOAD_MODE:-api}" \
     --state-file "$RISK_STATE_FILE" \
     --stateful "$RISK_STATE_ENABLED" \
     --transition-output "$TRANSITION_FILE" \

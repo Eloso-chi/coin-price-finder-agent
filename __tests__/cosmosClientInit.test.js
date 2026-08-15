@@ -30,11 +30,18 @@ function loadFresh(envOverrides = {}) {
   // Capture the DB name passed to client.database(...) so callers can verify
   // that COSMOS_DB env var (or the default) was honored.
   let capturedDbName = null;
+  let ensuredContainer = null;
   let mod;
   jest.isolateModules(() => {
     jest.doMock('@azure/cosmos', () => {
+      ensuredContainer = {
+        replace: jest.fn().mockResolvedValue(undefined),
+      };
       const containers = {
-        createIfNotExists: jest.fn().mockResolvedValue(undefined),
+        createIfNotExists: jest.fn().mockResolvedValue({
+          container: ensuredContainer,
+          resource: { id: 'audit', defaultTtl: -1 },
+        }),
       };
       const database = jest.fn().mockImplementation((name) => {
         capturedDbName = name;
@@ -50,7 +57,10 @@ function loadFresh(envOverrides = {}) {
     });
     mod = require('../src/utils/cosmosClient');
   });
-  return Object.assign(mod, { __getCapturedDbName: () => capturedDbName });
+  return Object.assign(mod, {
+    __getCapturedDbName: () => capturedDbName,
+    __getEnsuredContainer: () => ensuredContainer,
+  });
 }
 
 describe('cosmosClient init contract', () => {
@@ -117,6 +127,18 @@ describe('cosmosClient init contract', () => {
     // We assert no throw rather than inspecting the mock -- the contract is
     // "must not raise on repeated calls"
     expect(cosmos.isEnabled()).toBe(true);
+  });
+
+  test('ensureContainer() updates an existing container TTL', async () => {
+    const cosmos = loadFresh({
+      COSMOS_ENDPOINT: 'https://example.documents.azure.com:443/',
+      COSMOS_KEY: 'secret-key',
+    });
+    await cosmos.ensureContainer('valuation-audit', '/computedAtDate', { defaultTtl: 7776000 });
+    expect(cosmos.__getEnsuredContainer().replace).toHaveBeenCalledWith({
+      id: 'audit',
+      defaultTtl: 7776000,
+    });
   });
 
   test('default COSMOS_DB name is "coinprice" when unset', () => {

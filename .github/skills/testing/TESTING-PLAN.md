@@ -135,7 +135,7 @@ low-match-score. Fix tracked separately.
 ## Running Tests
 
 ```bash
-# Full suite (68 suites, ~2859 tests)
+# Full suite (counts are reported by Jest; latest verified run: 161 suites / 4,425 tests)
 npm test
 
 # Excel import suite only
