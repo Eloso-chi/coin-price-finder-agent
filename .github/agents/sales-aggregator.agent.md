@@ -96,8 +96,11 @@ python3 scripts/sales-aggregator.py --run --min-rows 45
 3. **VNC display** (only needed for `--run` mode, NOT for `--no-dashboard`)
 4. **eBay login cookies** (only needed for `--run` mode)
 
-The script auto-starts the server if needed. VNC is only started in
-dashboard mode (without `--no-dashboard`) and run mode.
+If the server is unhealthy, inspect every port-3000 PID's command and cwd
+before replacing it. Kill only a `node server.js` whose cwd is the repository
+root; report unknown listeners instead of terminating them. Start the server
+from `git rev-parse --show-toplevel` with background/async execution. VNC is
+only started in dashboard mode (without `--no-dashboard`) and run mode.
 
 ## Workflow
 

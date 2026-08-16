@@ -75,6 +75,8 @@ Run this loop every time you are invoked:
 - **Never add blanket retries** (`jest.retryTimes` globally) to mask flakiness.
 - **Never modify production code solely to make a test pass** without explaining the production-side justification.
 - If a test is genuinely wrong (testing removed behavior), explain why before proposing removal and get user confirmation.
+- Persistence tests must use a no-op, injected mock, or temporary path at the
+  storage boundary; do not treat `NODE_ENV=test` alone as a no-write guarantee.
 
 ## Testing Strategy
 
