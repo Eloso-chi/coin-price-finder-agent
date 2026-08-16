@@ -12,7 +12,8 @@ BATCH_SIZE=50
 BATCH_NUM=1
 LOGFILE="/tmp/terapeak-batch-output.log"
 
-cd /workspaces/coin-price-agent
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$REPO_ROOT"
 
 while true; do
     REMAINING=$(python3 -c "import json; d=json.load(open('$BACKLOG')); print(len(d['datasets']))")

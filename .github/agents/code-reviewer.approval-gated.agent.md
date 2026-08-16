@@ -65,7 +65,7 @@ Generic correctness/security/performance heuristics do not catch domain-contract
 | `src/services/terapeakService.js`, `data/terapeak/**`, `scripts/terapeak-*.py` | `docs/memory/terapeak-data-structure-analysis.md` AND `docs/memory/terapeak-runbook.md`. |
 | `src/services/authService.js`, `src/middleware/**`, `src/services/auditService.js`, anything auth / RBAC / rate-limits | `SECURITY.md` AND `docs/memory/azure-infrastructure.md` (Key Vault sections). |
 | `src/services/adminService.js`, `src/utils/redactForPublic.js`, response-shape changes in `src/routes/**` | `docs/memory/audience-gating.md`. |
-| Any disk-write path (`saveStore`, `saveMetaSidecar`, new `fs.writeFile` calls) | `docs/WASTE-LEDGER.md` INC-002 (debounce-race postmortem) AND verify `NODE_ENV === 'test'` guard is present. |
+| Any disk-write path (`saveStore`, `saveMetaSidecar`, new `fs.writeFile` calls) | `docs/WASTE-LEDGER.md` INC-002 (debounce-race postmortem); verify tests cannot write real repository/operator state via a `NODE_ENV === 'test'` no-op or injected mocked/temp path. |
 | Anything that prefetches or caches (`src/utils/cache.js`, `src/services/prefetchScheduler.js`, `src/services/freshnessClassifier.js`) | `docs/memory/cache-invalidation-fix.md` AND `docs/memory/background-processes-status.md`. |
 
 Findings produced from this step go into **Category 8 (Domain Correctness)** when synthesizing the report (see `.github/skills/code-review/SKILL.md` section 8).

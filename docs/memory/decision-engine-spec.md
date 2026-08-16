@@ -177,9 +177,9 @@ Three buy tiers: cherry-pick (55-65%), fair lot (70-80%), full retail (85-90% mi
 |------|--------|-------|------------|
 | Stale hardcoded metals fallback | Bullion FMV off 20%+ | metalsSpotPrice.js L22-28 | All 4 providers must fail AND disk cache cold; add staleness flag |
 | Browse-only FMV inflation | Asking prices inflate FMV | valuationService.js L186-190 | browseOnly flag + confidence penalty exists; could add 10% haircut |
-| Synthetic Terapeak CSVs | Fake data in data/terapeak/ | /memories/repo/synthetic-data-audit.md | 525 original CSVs are script-generated; real data added later |
+| Synthetic Terapeak CSVs | Resolved: synthetic contamination purged 2026-05-07 | docs/memory/synthetic-data-audit.md | Keep integrity tests and provenance checks active; repository sold comps are real data |
 | Single-process batch timers | Restart kills timers | server.js L250-330 | Timers re-check on startup (Greysheet); blob reimport stateless |
-| Bullion series list duplication | New series needs 4 file edits | bulkEvaluateService, marketAggregator, priceRoute, terapeak-page2.py | Extract to shared src/data/bullionSeries.js |
+| Bullion series list duplication | New series can require coordinated consumer updates | bulkEvaluateService, marketAggregator, priceRoute, sales-aggregator.py | Prefer shared canonical series helpers; deep pagination is handled by the active freshness/aggregator flow |
 
 ## Response Schema (key fields)
 

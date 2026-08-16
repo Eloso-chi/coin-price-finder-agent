@@ -575,7 +575,7 @@ Stryker thresholds (from `stryker.conf.json`): high=80, low=60, break=null. The 
 
 > **Note on baseline comparability:** The 75.47% baseline was captured with `enableFindRelatedTests: true`. The config has since been switched to `false` for accuracy (see code-reviewer note in `stryker.conf.json`). Re-running may yield a slightly *lower* score because more tests will execute per mutant, exposing assertion gaps that `findRelatedTests` was skipping. Treat the next run's score as the new authoritative baseline.
 
-Runs **Jest** across a growing suite. The latest verified run completed **161 suites / 4,425 tests**; use `npm test` for the current count:
+Runs **Jest** across a growing suite. The latest verified run completed **161 suites / 4,441 tests**; use `npm test` for the current count:
 
 | Suite | What it covers |
 |---|---|
@@ -645,149 +645,35 @@ Test helpers live in `__tests__/helpers/coinTestConstants.js` (shared token list
 ## Project Structure
 
 ```
-server.js                          Express entry point
-public/index.html                  Single-page frontend (dark theme)
-src/
-  routes/
-    priceRoute.js                  POST /api/price -- coin pricing orchestrator
-    barPriceRoute.js               POST /api/bar-price -- bullion bar pricing
-    metalsRoute.js                 GET /api/metals -- spot price endpoints
-    coinVariantRoute.js            GET /api/coin-variant -- design series resolver
-    marketRoute.js                 GET /api/market/ebay -- year x mint market matrix
-    coinHistoryRoute.js            GET /api/coin-history -- sold-price time-series
-    excelImportRoute.js            POST /api/import/excel -- Excel spreadsheet import
-    imageProxyRoute.js             GET /api/image-proxy -- proxied coin images
-    pricingBatchRoute.js           POST /api/pricing-batch -- batch coin pricing
-    bulkEvaluateRoute.js            POST /api/bulk-evaluate + SSE streaming (lot evaluator)
-    terapeakRoute.js               /api/terapeak/* -- Terapeak data & quota management
-    adminRoute.js                  /api/admin/* -- dashboard, stale datasets, data health (admin-gated)
-    authRoute.js                   /api/auth/* -- signup, login, change-password (bcrypt + JWT)
-    coinRoute.js                   /api/coins/* -- collection CRUD (requires Bearer JWT)
-  services/
-    pcgsService.js                 PCGS CoinFacts API integration + parser
-    ebayService.js                 eBay sold comps (3-tier API cascade)
-    valuationService.js            FMV computation + buy/sell decisions
-    bulkEvaluateService.js          Bulk lot evaluator engine (per-coin FMV + lot summary)
-    greysheetService.js            Greysheet CDN Public API V2 (wholesale pricing)
-    metalsSpotPrice.js             Multi-provider spot price with round-robin
-    MetalsSpotPriceError.js        Custom error class for metals failures
-    metalsHistoryService.js        Daily spot price history snapshots
-    marketAggregator.js            Year×mint market matrix builder + caching
-    numistaService.js              Numista API — search, mintages, rarity
-    terapeakService.js             Terapeak CSV import, lookup, eviction
-    terapeakQuotaService.js        Daily Terapeak query quota tracker
-    adminService.js                Admin dashboard stats, stale dataset detection, data health
-    authService.js                 Server-side auth (bcrypt + JWT, dual-mode Cosmos + local JSON)
-    coinStorageService.js          Server-side coin CRUD (dual-mode Cosmos + local JSON)
-  data/
-    halfDollarSeries.js            Half Dollar design eras + year-based resolver
-    pcgsNumbers.js                 PCGS coin number lookup table (10 US series)
-    keyDates.js                    Key date / semi-key detection
-    mintages.js                    Static mintage reference data
-    constants.js                   Zodiac cycle, Perth Lunar series helpers
-    lunarReference.js              Lunar series cross-mint comparison
-  utils/
-    cache.js                       TTLCache with optional JSON file persistence
-    stats.js                       Statistical functions (median, MAD, weighted median)
-    coinIntent.js                  Route-layer canonical {grade, finish, isProof, designation} extractor (#254)
-│   ├─ coinMetalProfile.js             Metal detection, weight detection (detectWeightFromTitle, weightToKeyToken) for bullion coins
-    filters.js                     Deny-list filtering, denomination & series checks
-    responseValidator.js           /api/price response schema & sanity validation
-    excelMapper.js                 Excel-to-backup converter (header aliases, series normalization)
-    cachePath.js                   Centralized CACHE_DIR from env var
-    cosmosClient.js                Azure Cosmos DB client singleton (env-var gated)
-    blobClient.js                  Azure Blob Storage client (env-var gated, managed identity)
-  data/
-    greysheetTypeMap.js            Series-to-GSID mapping for Greysheet API lookups
-cache/
-  ebay_cache.json                  Persisted eBay comp cache (1-hour TTL)
-  pcgs_cache.json                  Persisted PCGS data cache (24-hour TTL)
-  metals_spot.json                 Persisted metals spot prices (stale fallback)
-  metals_history.json              Daily spot price snapshots
-  terapeak_sold.json               Imported Terapeak comp data
-  numista_cache.json               Persisted Numista data cache (24-hour TTL)
-  users.json                       Server-side user accounts (bcrypt hashes)
-  user_coins.json                  Server-side coin collections (plaintext JSON)
-  greysheet_history.json           Daily Greysheet price snapshots
-data/
-  terapeak/                        Drop Terapeak CSV exports here for auto-import
-public/
-  index.html                       SPA frontend (dark theme, 9 tabs)
-  js/
-    auth.js                        CoinAuth -- server-backed signup/login/logout (JWT in memory)
-    storage.js                     CoinStorage -- server-backed coin CRUD via /api/coins/*
-    my-coins.js                    MyCoins -- portfolio rendering with parallel pricing
-    test-my-coins.js               Client-side test harness for CoinStorage
-  test-my-coins.html               Test runner page for storage/crypto tests
-samples/
-  test-collection.xlsx             Sample Excel import fixture
-  no-collectors-sheet.xlsx         Error-case fixture (missing sheet)
-__tests__/                         Jest suites, fixtures, helpers, and setup (see Tests section)
-  fixtures/
-    golden_coins.json              Curated golden set coins (14 deterministic test coins)
-  helpers/
-    coinTestConstants.js           Shared token lists, PRNG, coin catalog, golden set loader, selectCoins()
-docs/
-  ARCHITECTURE.md                  Technical architecture reference
-  BACKLOG.md                       Canonical backlog (single source of truth)
-  BACKLOG.rules.md                 Backlog governance rules & PR hygiene expectations
-  testing/
-    test-monitor.md                Test Monitor usage guide & command reference
-.github/
-  pull_request_template.md         PR template enforcing backlog references
-  agents/
-    code-reviewer.approval-gated.agent.md  Conductor for multi-agent code review
-    freshness-triage.agent.md              Dataset freshness triage + refresh prioritization
-    implementer.approval-only.agent.md     Applies approved review findings
-    numismatic-audit.agent.md              Audit classification/filters against numismatic terminology
-    onboard.agent.md                       Project onboarding assistant
-    performance-review.sub.agent.md        Performance-focused sub-reviewer
-    pre-commit-reviewer.agent.md           Quick pre-commit safety check
-    pricing-health.agent.md                Pricing accuracy diagnostics
-    sales-aggregator.agent.md              Sales data aggregation assistant
-    security-review.sub.agent.md           OWASP-focused security sub-reviewer
-    test-coverage.agent.md                 Test coverage engineer (gap analysis + generation)
-    test-monitor.agent.md                  Test health monitoring and diagnostics
-    ux-reviewer.agent.md                   Accessibility and UX review
-  prompts/
-    apply-approved.prompt.md               /apply-approved slash command
-    onboard.prompt.md                      /onboard slash command
-    pre-commit.prompt.md                   /pre-commit slash command
-    pricing-health.prompt.md               /pricing-health slash command
-    review-deep.prompt.md                  /review-deep slash command
-    test-coverage.prompt.md                /test-coverage slash command
-  copilot-instructions.md          Workspace-wide Copilot rules (testing, safety, conventions)
-  workflows/
-    main_coinpricefinder-*.yml     CI/CD: GitHub Actions OIDC → Azure App Service
-scripts/
-  terapeak-export.py               Semi-automated Terapeak CSV exporter (Playwright)
-  sales-aggregator.py              Sales data aggregator -- dashboard mode + deep pagination (extends CSVs beyond 50 rows)
-  chain-aggregate.sh               Chain multiple aggregation batches sequentially with anti-bot monitoring
-  refresh-stale.sh                 One-command stale data refresh (queries staleness API, builds filter, runs aggregator)
-  cpf-go                           One-command WSL bootstrap + scraper launcher: apt prereqs, repo clone/pull, venv, Playwright Chromium, npm ci, optional cookie refresh, looped ./surface (#258; merge commit reads `#252`). Page-1 batch size randomized (15-30) per loop pass for bot evasion (#268H). See docs/runbooks/local-scraper-wsl2.md "Fast path".
-  terapeak-operator.sh             Canonical deterministic Terapeak launcher (H-machine / WSL Surface): preflight(login) -> optional login -> preflight(loop) -> freshness pass (#168). Supports randomized page-1 batch window (`--batch-min/--batch-max`) and writes run-scoped pass logs under `cache/terapeak-operator-passes/<RUN_ID>/`.
-  terapeak-operator-codespace.sh   Codespace (W-machine) operator sibling (#200): no `~/.env.surface` dependency, system `python3`, unlimited loop by default (`--max-passes 0`), single-instance `flock` lock. Pairs with `_parse-terapeak-pass.py` (ledger writer) and `show-terapeak-runs.sh` (viewer). See [docs/memory/terapeak-runbook.md](docs/memory/terapeak-runbook.md#long-running-operator-codespace--w-machine).
-  _parse-terapeak-pass.py          Best-effort parser invoked by the codespace operator after each pass; appends to `cache/terapeak-runs/passes.jsonl` + `coins.jsonl`. Never fails the operator loop. (#200)
-  show-terapeak-runs.sh            jq-backed viewer for the JSONL run ledger. Subcommands: `recent`, `runs`, `run <RUN_ID>`, `coin <pattern>`, `totals`, `stop-conditions`. (#200)
-  terapeak-startup-preflight.sh    Startup gate for env/runtime/tooling/cookie health checks (login or loop mode) (#168)
-  run-surface-freshness-loop.sh    Orchestrator invoked by ./surface: sync meta from Azure (#259) -> generate freshness report -> page-1 backlog batch -> optional deep-paginate. Logs each phase and exits non-zero on bot block so cpf-go's --loop knows to stop.
-  load-secrets.sh                  Pull 8 dev secrets (eBay, PCGS, Greysheet, ADMIN_API_KEY, JWT_SECRET) from Azure Key Vault `coinpricefinder-kv` into local `.env` (mode 600 via umask 077). Modes: dryrun (default), `--print`, `--write`. Used by new-machine bootstrap and after secret rotation. (#137; see docs/runbooks/secret-bootstrap.md)
-  pricing-health-full.js           Pricing health check runner (--full, --filter, --limit, --concurrency, --out)
-  reclassify-comps.js              Batch comp reclassification (weight mismatch detection + reroute to correct dataset)
-  build-evidence-index.js          Historical evidence index builder (scans logs + CSVs)
-  generate-freshness-report.js     Freshness triage report (5-state: Fresh/Stale/LowSignal/Missing/Dormant + recently-confirmed-stale split)
-  analyze-freshness-composition.js  Cross-tabulates the freshness report by composition (bullion / numismatic / proof / set / etc.) to surface coverage gaps. (#270H)
-  scan-parallel-key-drift.js        Silent-drift detector for the #267H class -- finds Terapeak datasets whose normalized key collides with a sibling that has empty/missing comps so live lookups fall through to the wrong bucket. (#272H)
-  clean-csvs.js                    CSV junk cleaner (deny-pattern purge across all CSVs)
-  greysheet-refresh.js             Bulk Greysheet price snapshot collector (runs automatically every 3 days)
-  migrate-to-cosmos.js             One-time migration of history data to Azure Cosmos DB
-  upload-csvs-to-blob.js           Upload Terapeak CSVs to Azure Blob Storage
-  vnc-login.py                     VNC + eBay login helper for Playwright sessions
-  seedFromEbay.js                  Bulk seed from Finding API (dead -- API decommissioned)
-  test-metrics/
-    run-with-metrics.cjs           Jest wrapper — captures metrics to JSONL
-    summarize.cjs                  Summary reporter — failures, flakes, trends
-.test-metrics/                     JSONL test-run logs (git-ignored)
+server.js
+public/                 SPA assets and server-backed auth/collection clients
+src/routes/             adminRoute, authRoute, barPriceRoute, bulkEvaluateRoute,
+                        coinHistoryRoute, coinRoute, coinVariantRoute,
+                        excelImportRoute, healthRoute, imageProxyRoute,
+                        marketRoute, metalsRoute, priceRoute, pricingBatchRoute,
+                        terapeakRoute
+src/services/           adminService, alertService, auctionPriceService,
+                        auditService, authService, bulkEvaluateService,
+                        coinStorageService, ebayService, freshnessClassifier,
+                        greysheetHistoryService, greysheetService,
+                        marketAggregator, metalsHistoryService, metalsSpotPrice,
+                        MetalsSpotPriceError, numistaService, pcgsQuotaService,
+                        pcgsService, prefetchScheduler, terapeakQuotaService,
+                        terapeakService, valuationService
+src/utils/              blobClient, cache, cachePath, coinIntent,
+                        coinMetalProfile, cosmosClient, excelMapper, filters,
+                        gracefulShutdown, logger, redactForPublic,
+                        responseValidator, stats, versionHash
+src/middleware/         optionalAdminContext, requestId, requestLogger,
+                        requireAdminOrKey
+src/data/               Static coin, PCGS, key-date, mintage, and series data
+src/schemas/            API response schemas
+cache/                  Local/Azure Files persistence and operator ledgers
+data/terapeak/          Repository sold-comp CSV exports
+__tests__/              Jest suites, fixtures, helpers, and setup
+docs/                   Architecture, API, runbooks, memory, ADRs, and backlog
+.github/                Agents, prompts, skills, CI workflows, and PR template
+scripts/                Collection, audit, migration, maintenance, and test tools
 ```
 
 ---
@@ -827,7 +713,7 @@ scripts/
 ### Terapeak hardening trio (#267H, #269H, #272H, June 11-12, 2026)
 
 - **#267H -- `lookupComps` skips empty parallel-key datasets (PR #128).** Previously a normalized-key collision could route a live lookup to an empty sibling dataset; the symptom was "plenty of comps in JSON, FMV reports 0 comps." Fix: when multiple datasets share a normalized key, prefer the populated one; skip empty parallel keys.
-- **#269H -- self-heal Terapeak `/import` 422 (PR #132).** A 422 from the Azure import path used to be permanent because the local meta was never stamped, so the freshness loop re-attempted the same coin forever. Fix: stamp `noDataAt` + increment `noDataCount` on 422 so the dormant-tracking path can demote it. Spec-detected via the meta-sync swallowing local state on POST failure.
+- **#269H -- Terapeak `/import` 422 handling (PR #132, superseded by `25a99162`).** PR #132 initially stamped metadata inside the import route. The June 25 correction established the current two-step contract: the endpoint returns 422 without writing metadata; the canonical exporter recognizes `No valid comps found` and separately calls `/api/terapeak/report-no-data` to advance dormant tracking.
 - **#272H -- parallel-key drift scanner (PR #134).** `scripts/scan-parallel-key-drift.js` is the offline detector for the #267H class. It walks `terapeak_sold.json`, groups by `normalizeSearchKey()`, and flags groups where a populated key collides with an empty sibling. Run with `npm run scan:parallel-key-drift`.
 
 ### Reverse-proof pool selector in valuationService (#260W, June 9, 2026, PR #126)
@@ -935,7 +821,7 @@ scripts/
 
 ### Terapeak Data Pipeline
 
-The current repository snapshot includes 3,593 Terapeak CSV files in `data/terapeak/` containing real sold-comp data collected from eBay Seller Hub Research. Production freshness and dataset counts come from admin endpoints, not local cache files. The data pipeline has three stages:
+The `data/terapeak/` directory contains real sold-comp CSV data collected from eBay Seller Hub Research. Count repository files locally when needed; production freshness and dataset counts come from authenticated admin endpoints. The data pipeline has three stages:
 
 **Stage 1: Page 1 Collection** -- the canonical H/W operators wrap `scripts/terapeak-export.py` with preflight, cookie health, persisted risk states, hard-challenge stops, Cooldown recovery, randomized batches, and pass telemetry. The exporter saves local CSVs and defaults to immediate API upload (`UPLOAD_MODE=api`); explicit `blob` mode uploads to Blob Storage, while legacy `auto` prefers Blob when configured and otherwise falls back to API. Browser recycling defaults to 80 coins. See `docs/memory/terapeak-runbook.md` for supported launch options and the optional fail-closed #280H pacing pilot.
 
@@ -946,11 +832,11 @@ The current repository snapshot includes 3,593 Terapeak CSV files in `data/terap
 
 The `COOKIE_FILE` env var keeps each machine's jar separate (sharing a single persistent eBay identity across two IPs is the exact pattern Akamai flags). Pre-flight every batch with `scripts/cookie-health-check.py` -- exits `0` HEALTHY / `1` EXPIRED / `2` CHALLENGED / `3` MISSING / `4` PROBE_FAILED so cron and scheduler callers can gate cleanly. Optional `--probe` (~10s, costs 1 quota unit) confirms eBay actually accepts the session.
 
-**Stage 2: Page 2+ Deep Pagination** -- `scripts/sales-aggregator.py` extends existing CSVs beyond 50 rows by navigating to pages 2-5 of Terapeak results. Bullion series get up to 5 pages (250 results), non-bullion stays at page 2 (100 results). Identifies candidate coins (>=50 rows with no `deepAt` marker), clicks the Next pagination button, collects additional rows, and appends them with composite-key deduplication (itemId|soldDate|soldPrice). Sends `deepAt` and `maxPageReached` metadata to stamp the dataset. Gold coins are automatically excluded from candidates. 243 datasets deep-aggregated so far. **Dashboard mode:** run without `--run` or `--dry-run` to get an interactive priority dashboard that queries the server's `/api/terapeak/aggregation-status` endpoint and presents categorized work (needs-deep, stale, thin) with one-click launch. VNC and noVNC are auto-started in both dashboard and run modes.
+**Stage 2: Page 2+ Deep Pagination** -- `scripts/sales-aggregator.py` extends existing CSVs beyond 50 rows by navigating Terapeak pagination. Non-gold bullion gets pages 2-5 (250 results); gold bullion and non-bullion stay at page 2 (100 results). Identifies candidate coins (>=50 rows with no `deepAt` marker), clicks the Next pagination button, collects additional rows, and appends them with composite-key deduplication (itemId|soldDate|soldPrice). Sends `deepAt` and `maxPageReached` metadata to stamp the dataset. Gold coins are automatically excluded from default deep candidates. Use authenticated admin endpoints for the current deep-aggregation count. **Dashboard mode:** run without `--run` or `--dry-run` to get an interactive priority dashboard that queries the server's `/api/terapeak/aggregation-status` endpoint and presents categorized work (needs-deep, stale, thin) with one-click launch. VNC and noVNC are auto-started in both dashboard and run modes.
 
 **Stage 3: CSV Cleanup** -- `scripts/clean-csvs.js` purges junk rows (stamps, sports cards, trading cards, toys, media) that contaminated CSV files due to generic search terms. Uses `isDenied()` from `src/utils/filters.js` plus extended deny patterns. Run with `--dry-run` to preview or `--run` to rewrite files in place. Initial cleanup removed 4,050 junk rows across 427 of 650 files.
 
-**Auto-import** -- on server startup, `terapeakService.autoImportFolder()` scans `data/terapeak/*.csv` and imports any files newer than 7 days. If `TERAPEAK_BLOB_ACCOUNT` + `TERAPEAK_BLOB_CONTAINER` are set, `autoImportFromBlob()` reads CSVs from Azure Blob Storage first, then falls back to local folder. A 30-minute periodic timer re-polls blob storage for new uploads (configurable via `BLOB_REIMPORT_MS`), and `POST /api/terapeak/reimport` provides an admin endpoint for manual triggers. When new data is imported, the eBay comp cache is automatically cleared. The server currently loads ~2,326 datasets with ~119,000 total comps.
+**Auto-import** -- on server startup, `terapeakService.autoImportFolder()` scans `data/terapeak/*.csv` and imports any files newer than 7 days. If `TERAPEAK_BLOB_ACCOUNT` + `TERAPEAK_BLOB_CONTAINER` are set, `autoImportFromBlob()` reads CSVs from Azure Blob Storage first, then falls back to local folder. A 30-minute periodic timer re-polls blob storage for new uploads (configurable via `BLOB_REIMPORT_MS`), and `POST /api/terapeak/reimport` provides an admin endpoint for manual triggers. When new data is imported, the eBay comp cache is automatically cleared. Use the authenticated admin status endpoints for current production dataset and comp counts.
 
 **Search term quality matters** -- generic terms like "US Mint Set" capture unrelated items (stamps, cards). Better terms include the full coin name (e.g. "2005 US Mint Uncirculated Coin Set" instead of "2005 US Mint Set"). Some mint set CSVs are thin after cleanup and need re-collecting with improved terms.
 
@@ -982,12 +868,12 @@ The `COOKIE_FILE` env var keeps each machine's jar separate (sharing a single pe
 - **FMV blend updated** -- Greysheet wholesale is now the 4th data source at 20% weight. Certified blend: eBay 55% + PCGS Guide 15% + Auction 10% + Greysheet 20%. Raw blend: eBay 70% + PCGS 10% + Greysheet 20%. Weights renormalize automatically when Greysheet is unavailable.
 - **Confidence boost** -- Greysheet data adds +5 confidence points to the valuation score.
 - **Response enrichment** -- `/api/price` and `/api/pricing-batch` responses include a `greysheet` object with GSID, wholesale/retail values, and all five pricing sources.
-- **Proof/finish support** (#109) -- `greysheetTypeMap.js` now stores Proof GSIDs alongside MS entries (73 total: 55 MS + 18 Proof). `_detectFinish(text)` identifies proof, reverse proof, burnished, and satin finishes from query text. `lookupTypeGsid()` is finish-aware: when a proof finish is detected, it tries `series|proof` keys first and falls back to MS. The `finish` hint is passed through from `priceRoute.js` to `fetchTypePrice()`.
+- **Proof/finish support** (#109) -- `greysheetTypeMap.js` stores Proof GSIDs alongside MS entries; refresh targets are enumerated dynamically from the map. `_detectFinish(text)` identifies proof, reverse proof, burnished, and satin finishes from query text. `lookupTypeGsid()` is finish-aware: when a proof finish is detected, it tries `series|proof` keys first and falls back to MS. The `finish` hint is passed through from `priceRoute.js` to `fetchTypePrice()`.
 
 ### Azure Infrastructure
 
 - **Key Vault** (#97) -- All 9 API secrets moved to `coinpricefinder-kv`. App Service reads them via `@Microsoft.KeyVault(SecretUri=...)` references. Managed identity (`0a61d4ad-36de-4b31-860a-eaaf4b3c86b7`) has Key Vault Secrets User role. No application code changes needed.
-- **Cosmos DB** (#98) -- `coinpricefinder-cosmos` (serverless) with database `coinprice` and 5 containers: `users`, `user-coins`, `terapeak-sold`, `greysheet-history`, `metals-history`. Dual-mode write-through: all writes go to both local JSON and Cosmos. `src/utils/cosmosClient.js` provides a singleton gated by `COSMOS_ENDPOINT` env var. Migration script: `scripts/migrate-to-cosmos.js` (history data only -- no synthetic Terapeak or user data).
+- **Cosmos DB** (#98) -- `coinpricefinder-cosmos` (serverless) with database `coinprice` and seven containers: `users`, `user-coins`, `terapeak-sold`, `greysheet-history`, `metals-history`, `admin-audit`, and `valuation-audit`. Dual-mode write-through applies to primary data stores; audit services append to their dedicated containers with local fallback. `src/utils/cosmosClient.js` provides a singleton gated by `COSMOS_ENDPOINT` env var. Migration script: `scripts/migrate-to-cosmos.js` (history data only -- no synthetic Terapeak or user data).
 - **Blob Storage** (#99) -- `terapeak-csvs` container on `coinpricecache01`. `src/utils/blobClient.js` uses `DefaultAzureCredential` (managed identity in prod, `az login` locally). `autoImportFromBlob()` in terapeakService reads CSVs from blob first, local folder second. Upload script: `scripts/upload-csvs-to-blob.js`.
 - **Azure Files** (#95) -- Storage account `coinpricecache01`, share `appcache` (1 GB) mounted at `/mnt/cache`. `CACHE_DIR=/mnt/cache` on App Service. `src/utils/cachePath.js` centralizes the path.
 
@@ -1075,7 +961,7 @@ A comprehensive UX and accessibility review produced 36 findings across four sev
 
 ### Aggregation Depth Tracking (aggregationMeta)
 
-- **Per-dataset `aggregationMeta`** -- `terapeakService.importComps()` now stores a `aggregationMeta` object alongside each dataset: `{ page1At, deepAt, maxPageReached, lastRefreshAt }`. Tracks when page 1 was first collected, when deep pagination (pages 2-6) was completed, the highest page reached, and when the last refresh occurred.
+- **Per-dataset `aggregationMeta`** -- `terapeakService.importComps()` now stores an `aggregationMeta` object alongside each dataset: `{ page1At, deepAt, maxPageReached, lastRefreshAt }`. Tracks when page 1 was first collected, when deep pagination was completed, the highest page reached, and when the last refresh occurred.
 - **Intelligent merge** -- `aggregationMeta` fields are merged non-destructively: `page1At` is never overwritten by a later import, `maxPageReached` only increases, `deepAt` preserves the first deep-aggregation timestamp.
 - **Aggregation status endpoint** -- `GET /api/terapeak/aggregation-status` returns a summary (`total`, `withPage1`, `withDeep`, `needsDeep`) plus filtered dataset lists. Supports query params: `needs=deep` (datasets not yet deep-aggregated), `needs=page1` (no initial collect), `needs=refresh&maxAge=N` (stale by days), `minComps=N` (only high-volume datasets).
 - **Backfill endpoint** -- `POST /api/terapeak/backfill-aggregation-meta` parses existing page2 log files and the export progress JSON to stamp historical `aggregationMeta` on datasets collected before this feature was added. One-time use.

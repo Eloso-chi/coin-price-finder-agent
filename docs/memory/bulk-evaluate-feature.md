@@ -1,7 +1,7 @@
 # Bulk Evaluate Feature (Lot Evaluator) - Complete Reference
 
 ## Overview
-The "Lot Evaluator" or "Bulk Evaluate" feature allows users to price 1-500 coins at once, producing per-coin FMV values and lot-level buy recommendations. Implemented as #108 in the codebase.
+The "Lot Evaluator" or "Bulk Evaluate" feature allows users to price 50-500 coins at once, producing per-coin FMV values and lot-level buy recommendations. Implemented as #108 in the codebase.
 
 ## Architecture
 - **Route**: `POST /api/bulk-evaluate` + `GET /api/bulk-evaluate/:jobId/stream`
@@ -14,7 +14,7 @@ The "Lot Evaluator" or "Bulk Evaluate" feature allows users to price 1-500 coins
 2. **JSON**: Array of objects: `[{query: "1921 Morgan Dollar", qty: 5, grade: "MS-63", year: "1921", mintMark: "S", weight: 26.73, series: "Morgan"}]`
 3. **Excel**: `.xlsx` file parsed via `mapExcelToBackup()` utility from excelMapper.js
 
-Max 500 coins per evaluation.
+Minimum 50 and maximum 500 coins per product evaluation.
 
 ## Endpoints
 
@@ -221,7 +221,7 @@ Total Discount = Size Discount + Confidence Penalty + Concentration Penalty
 - `__tests__/bulkEvaluate.test.js`: Integration tests with mocked services (full workflow)
 
 ## Files
-- **Route**: [src/routes/bulkEvaluateRoute.js](src/routes/bulkEvaluateRoute.js)
-- **Service**: [src/services/bulkEvaluateService.js](src/services/bulkEvaluateService.js)
-- **Frontend**: [public/index.html](public/index.html) (lines ~1980-2050 UI, ~6199+ JavaScript)
-- **Tests**: [__tests__/bulkEvaluateService.test.js]((__tests__/bulkEvaluateService.test.js), [__tests__/bulkEvaluateRoute.test.js](__tests__/bulkEvaluateRoute.test.js)
+- **Route**: [src/routes/bulkEvaluateRoute.js](../../src/routes/bulkEvaluateRoute.js)
+- **Service**: [src/services/bulkEvaluateService.js](../../src/services/bulkEvaluateService.js)
+- **Frontend**: [public/index.html](../../public/index.html) (lines ~1980-2050 UI, ~6199+ JavaScript)
+- **Tests**: [__tests__/bulkEvaluateService.test.js](../../__tests__/bulkEvaluateService.test.js), [__tests__/bulkEvaluateRoute.test.js](../../__tests__/bulkEvaluateRoute.test.js)

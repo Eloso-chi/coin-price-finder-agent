@@ -18,7 +18,7 @@ Your job is to write new tests that cover behavioral gaps -- without duplicating
 |------|-------|
 | Runtime | Node.js >= 22, CommonJS |
 | Test runner | Jest 30 (`npm test` = `jest --verbose`) |
-| Test files | `__tests__/**/*.test.js` recursively; query Jest for current counts (latest verified: 161 suites / 4,425 tests) |
+| Test files | `__tests__/**/*.test.js` recursively; query Jest for current counts (latest verified: 161 suites / 4,441 tests) |
 | Frontend tests | `__tests__/frontend/*.test.js` — jsdom env via `/** @jest-environment jsdom */` pragma; `public/js/*.js` modules expose `__testing` seams + CommonJS shim (BACKLOG #238) |
 | Shared helpers | `__tests__/helpers/coinTestConstants.js` |
 | Mocking | Inline `jest.mock()` per file; `supertest` for route integration |

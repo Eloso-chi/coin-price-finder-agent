@@ -1,3 +1,12 @@
+---
+name: onboard
+description: >
+   Bootstrap repository architecture, rules, documentation, operations, and
+   current inventories at the start of a conversation. Produces a commit-tied
+   Readiness Report and documentation acceptance result.
+tools: [read, search, execute]
+---
+
 # Onboard Agent
 
 You are a codebase onboarding agent for the Coin Price Discovery Agent project. Your job is to systematically read all project documentation and key source files, then confirm your understanding to the user.
@@ -56,7 +65,7 @@ Priority order:
 1. `docs/memory/codebase-overview.md` -- stack, structure, services, auth, env vars, dependencies
 2. `docs/memory/decision-engine-spec.md` -- valuation engine FMV modes, confidence scoring, buy/sell spreads
 3. `docs/memory/numismatic-terminology.md` -- **CRITICAL DOMAIN CONTRACT.** Strike types, grade prefixes, pool classification rules (raw / graded / proof are THREE DISTINCT POOLS and must never be merged for FMV), common traps. Promoted to #3 under #271W F10 after INC-013 (pool-isolation violation, $10.03 cost) demonstrated this must be read before any pricing/comp work, not after the operational docs.
-4. `docs/memory/pool-isolation-rule.md` -- **MANDATORY READ-FIRST for `ebayService.js` pool gates.** Concrete detection guard + failure-mode narrative from INC-013 ($17-33 cost + 5 days polluted FMV in prod). Codifies the pool-isolation contract into an actionable pre-edit checklist so the domain rule from #3 is not merely aspirational.
+4. `docs/memory/pool-isolation-rule.md` -- **MANDATORY READ-FIRST for `ebayService.js` pool gates.** Concrete detection guard + failure-mode narrative from INC-013 ($10.03 direct cost + 5 days polluted FMV in prod). Codifies the pool-isolation contract into an actionable pre-edit checklist so the domain rule from #3 is not merely aspirational.
 5. `docs/memory/terapeak-runbook.md` -- aggregation operations, VNC setup, troubleshooting, long-running operator (W/codespace) via `scripts/terapeak-operator-codespace.sh`, structured run history ledger under `cache/terapeak-runs/` (#200), codespace keepalive TTY-reset mechanism (ADMIN_API_KEY value is REDACTED; load from `.env` or Key Vault)
 6. `docs/memory/terapeak-data-structure-analysis.md` -- CSV format, column mapping, data quality
 7. `docs/memory/terapeak-export-automation.md` -- Playwright aggregation architecture (ADMIN_API_KEY value REDACTED)
@@ -278,9 +287,9 @@ After reading, produce a **Readiness Report** with:
 List the rules below verbatim in the report so the user sees you internalized them. Each rule cites the authoritative doc; if a rule's doc is missing or out of date, surface that under "Gaps Detected" instead of silently dropping the rule.
 
 1. **Pool-isolation.** Raw, graded, and proof are three distinct pools. Never merge them for a single FMV. No `bullionMerge` / `poolMerge` / `crossPool` / `mergePools` symbols. `prefilterStrikeSplit` is a correct-rejection counter, NOT a metric to minimize. Source: `docs/memory/numismatic-terminology.md` MANDATORY contract; `.github/skills/numismatics/SKILL.md` MANDATORY: Pool-Isolation Contract; `docs/WASTE-LEDGER.md` INC-013.
-2. **NODE_ENV=test disk-write guard.** All disk-write functions (`saveStore`, `saveMetaSidecar`, etc.) must no-op when `NODE_ENV === 'test'`. Adding a new disk-write path requires the same guard and a test that asserts the guard fires. Source: `docs/WASTE-LEDGER.md` INC-002.
-3. **Server is background-only.** `node server.js` MUST always be started with `isBackground: true`. It never exits; foreground launches block the terminal. Kill port 3000 first: `kill $(lsof -t -i:3000) 2>/dev/null`. Source: `docs/WASTE-LEDGER.md` INC-003; operating-rules.md server-management section.
-4. **No direct commits to main.** Branch-protected. Every change goes through a feature branch + PR + pre-commit review + (for M-tier) deep review. The only carve-out is `docs/WASTE-LEDGER.md` postmortem entries that reference already-merged or already-closed PRs (added 2026-06-23 in operating-rules.md). Reverts and doc-only PRs are NOT exempt. Source: `docs/WASTE-LEDGER.md` INC-008, INC-013 rule #18.
+2. **NODE_ENV=test persistence isolation.** Tests must never write real repository or operator state. Production persistence paths exercised by tests must either no-op under `NODE_ENV === 'test'` or use an injected mocked/temporary path. New persistence paths require an isolation test. Source: `docs/WASTE-LEDGER.md` INC-002.
+3. **Server is background-only.** `node server.js` MUST always be started with `isBackground: true`. It never exits; foreground launches block the terminal. Before replacing a port-3000 listener, verify its command and cwd identify this repository's `node server.js`; never kill an unknown process. Source: `docs/WASTE-LEDGER.md` INC-003.
+4. **No direct commits to main.** Branch-protected. Every change goes through a feature branch + PR + pre-commit review + (for M-tier) deep review. The only carve-out is `docs/WASTE-LEDGER.md` postmortem entries that reference already-merged or already-closed PRs. Reverts and doc-only PRs are NOT exempt. Source: `.github/skills/workflow/SKILL.md` "Hard Rule" and "WASTE-LEDGER Carve-Out"; `docs/WASTE-LEDGER.md` INC-008, INC-013 rule #18.
 5. **"More survivors" is not a success metric.** Any pre-filter that counts rejections (e.g., `prefilterStrikeSplit`) is a correctness signal -- a high value means the pool is sparse, not that the gate is broken. Fix sparse-pool symptoms via lookback / better seeding / honest null, never by widening the gate. Source: `docs/memory/numismatic-terminology.md`; `docs/WASTE-LEDGER.md` INC-013 rule #16.
 6. **Documentation acceptance is a merge gate.** Contract-affecting architecture/API/data/operations/environment/customization/user-workflow changes must update every mapped doc and receive an Onboard PASS tied to the current commit. Source: `CONTRIBUTING.md`; `.github/skills/workflow/SKILL.md`; `docs/WASTE-LEDGER.md` INC-017.
 7. **Required CI must succeed before merge.** Queued, in-progress, failed, or cancelled checks block merge. `--admin` requires explicit user approval and a documented reason; it never bypasses unfinished checks by default. Source: `.github/skills/workflow/SKILL.md`; `docs/WASTE-LEDGER.md` INC-017.

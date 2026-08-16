@@ -52,7 +52,7 @@ the #252 floor from 1.0 to 0.9 oz to "fix" 30g Panda attrition. It had this
 rule's prerequisite (numismatic-terminology.md) in its own /memories/repo/ and
 did not consult it until the user challenged three times. The fix was wrong
 on the merits. Cost: ~9-12h engineering across original + extension + revert,
-~$17-33 in direct Copilot+Azure cost, plus 5 days of polluted bullion FMV
+$10.03 in direct cost, plus 5 days of polluted bullion FMV
 in production. Do not repeat.
 
 ## Detection guard

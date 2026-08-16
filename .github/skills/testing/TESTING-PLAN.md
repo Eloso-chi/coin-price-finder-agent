@@ -37,8 +37,8 @@ automated test agents and future reviewers know what to verify.
 ## 2. Process Crash Handlers (#202)
 
 ### What Changed
-- `process.on('unhandledRejection')` logs and exits after 100ms
-- `process.on('uncaughtException')` logs and exits after 100ms
+- `process.on('unhandledRejection')` emits a structured fatal log, sends a crash alert, and exits after 500ms
+- `process.on('uncaughtException')` emits a structured fatal log, sends a crash alert, and exits after 500ms
 
 ### Test Coverage Required
 
@@ -135,7 +135,7 @@ low-match-score. Fix tracked separately.
 ## Running Tests
 
 ```bash
-# Full suite (counts are reported by Jest; latest verified run: 161 suites / 4,425 tests)
+# Full suite (counts are reported by Jest; latest verified run: 161 suites / 4,441 tests)
 npm test
 
 # Excel import suite only

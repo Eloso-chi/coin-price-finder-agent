@@ -6,7 +6,7 @@
 > The root [`AGENTS.md`](../../AGENTS.md) provides a concise discoverability
 > index for contributors and tools that expect that convention.
 >
-> Migrated 2026-06-17 and inventory-verified 2026-08-12
+> Migrated 2026-06-17 and inventory-verified 2026-08-13
 > (`docs/memory-corpus-migration` branch). A non-authoritative copy lives at
 > `/memories/repo/agents-and-prompts.md` on the W (Codespace) machine; that
 > copy may drift and should not be edited directly.
@@ -18,13 +18,13 @@ The `.github` directory is hidden -- use explicit paths.
 
 | Agent File | Name | Mode | Purpose |
 |---|---|---|---|
-| `code-reviewer.approval-gated.agent.md` | Code Reviewer | Read-only | Primary correctness, testing, maintainability, domain, and operability review. Runs beside specialist reviewers under `/review-deep`. |
+| `code-reviewer.approval-gated.agent.md` | Code Reviewer | Read-only | Primary correctness, testing, maintainability, domain, and operability review, including test persistence isolation via no-op or mocked/temp paths. Runs beside specialist reviewers under `/review-deep`. |
 | `pre-commit-reviewer.agent.md` | Pre-commit Reviewer | Read-only | Staged-change gate: secrets/tests, data-model sync, mapped documentation, Onboard acceptance, support-ready incident evidence, and merge readiness. |
 | `implementer.approval-only.agent.md` | Implementer | Write | Applies ONLY explicitly approved findings from Code Review Report. Minimal diffs. |
 | `onboard.agent.md` | Onboard | Read-only | Bootstraps full project context (reads `docs/memory/`, docs, key source files). |
-| `sales-aggregator.agent.md` | Sales Aggregator | Mixed | Manages Terapeak data pipeline: dashboard, freshness, batch runs. |
-| `freshness-triage.agent.md` | Freshness Triage | Read-only | Generates freshness report, presents prioritized triage. |
-| `pricing-health.agent.md` | Pricing Health | Read-only | End-to-end pricing flow validation, comp attrition audit, cross-route FMV comparison. |
+| `sales-aggregator.agent.md` | Sales Aggregator | Mixed | Uses portable repository-root commands; manages Terapeak dashboard, freshness, and deep batches using pages 2-5/250 results for non-gold bullion, page 2/100 results for gold and non-bullion, and a 120-search recycle default. |
+| `freshness-triage.agent.md` | Freshness Triage | Read-only | Uses portable repository-root commands; if unhealthy, verifies listener ownership before guarded tool-level background startup. |
+| `pricing-health.agent.md` | Pricing Health | Read-only | Uses portable repository-root commands to validate pricing flows and comp attrition; verifies listener ownership before background startup. |
 | `numismatic-audit.agent.md` | Numismatic Audit | Read-only | Audits classification/filter functions against `.github/skills/numismatics/SKILL.md` ground truth. Catches grade/finish/pool misclassification (e.g. Proof-Like as Proof, Burnished into proof pool, raw into graded pool). |
 | `terapeak-operator.agent.md` | Terapeak Operator | Mixed | Runs the canonical local Terapeak startup flow with strict preflight, interactive login, and freshness-only loop mode. Use when: starting a reliable Terapeak run from chat without ad-hoc command construction. |
 | `test-coverage.agent.md` | Test Coverage Engineer | Write | Identifies behavioral gaps, writes new tests using existing helpers. |

@@ -18,9 +18,11 @@ bash /usr/share/novnc/utils/novnc_proxy --vnc localhost:5901 --listen 6080 &>/de
 ### 2. App Server
 ```bash
 kill $(lsof -t -i:3000) 2>/dev/null
-cd /workspaces/coin-price-agent/src && node server.js
-# MUST run as background (isBackground: true) -- it never exits
+cd "$(git rev-parse --show-toplevel)"
 ```
+
+Then use the execute tool to run `node server.js` with background/async mode.
+Do not append `&` or run it synchronously; the server never exits.
 
 Server startup calls `autoImportFolder()` without a file allowlist, so all eligible Terapeak exports are considered. The optional `includeFiles` service argument is reserved for targeted tests and tools; it does not narrow normal startup imports.
 
@@ -33,7 +35,7 @@ curl -s -X POST http://localhost:3000/api/terapeak/quota/reset \
 
 ### 4. eBay Login via VNC
 ```bash
-cd /workspaces/coin-price-agent && DISPLAY=:1 python3 scripts/vnc-login.py
+cd "$(git rev-parse --show-toplevel)" && DISPLAY=:1 python3 scripts/vnc-login.py
 # Opens eBay in Playwright browser inside VNC
 # Open port 6080 in your browser, solve CAPTCHA/2FA, log in
 # Script auto-detects login (sin=in cookie) and saves 60 cookies
@@ -71,21 +73,21 @@ threshold matters as long as PTY output is flowing.
 
 ### 6. Launch Page 1 Export
 ```bash
-cd /workspaces/coin-price-agent && DISPLAY=:1 python3 scripts/terapeak-export.py --run --resume 2>&1 | tee cache/terapeak_export.log
+cd "$(git rev-parse --show-toplevel)" && DISPLAY=:1 python3 scripts/terapeak-export.py --run --resume 2>&1 | tee cache/terapeak_export.log
 # --resume skips already-completed coins
 # --filter "REGEX" to target specific coins
 # --dry-run to preview without collecting
 ```
 
-### 7. Launch Deep Pagination (Pages 2-6)
+### 7. Launch Deep Pagination (Pages 2-5)
 ```bash
 # Dashboard mode (interactive priority menu -- no flags needed):
-cd /workspaces/coin-price-agent && python3 scripts/sales-aggregator.py
+cd "$(git rev-parse --show-toplevel)" && python3 scripts/sales-aggregator.py
 
 # Direct run:
-cd /workspaces/coin-price-agent && DISPLAY=:1 python3 scripts/sales-aggregator.py --run --filter "REGEX" --min-rows 25 2>&1 | tee cache/terapeak_p2.log
-# Bullion coins auto-detect to pages 2-6 (max 300 results)
-# Non-bullion: page 2 only (max 100 results)
+cd "$(git rev-parse --show-toplevel)" && DISPLAY=:1 python3 scripts/sales-aggregator.py --run --filter "REGEX" --min-rows 25 2>&1 | tee cache/terapeak_p2.log
+# Non-gold bullion auto-detects to pages 2-5 (max 250 results)
+# Gold bullion and non-bullion: page 2 only (max 100 results)
 # --max-pages N to override (e.g. --max-pages 3)
 # --dry-run to preview candidates
 ```
@@ -93,7 +95,7 @@ cd /workspaces/coin-price-agent && DISPLAY=:1 python3 scripts/sales-aggregator.p
 ### 8. Resume After Interruption (codespace restart, etc.)
 ```bash
 # Resume uses the previous log to skip already-completed coins:
-cd /workspaces/coin-price-agent && DISPLAY=:1 python3 scripts/sales-aggregator.py --run --resume cache/terapeak_p2.log --filter "REGEX" --min-rows 25 2>&1 | tee cache/terapeak_p2_resume.log
+cd "$(git rev-parse --show-toplevel)" && DISPLAY=:1 python3 scripts/sales-aggregator.py --run --resume cache/terapeak_p2.log --filter "REGEX" --min-rows 25 2>&1 | tee cache/terapeak_p2_resume.log
 # --resume LOGFILE is required (path to the interrupted run's log)
 # Data is uploaded per-coin, so partial runs save all completed work
 # Always commit partial data before resuming so nothing is lost
@@ -116,7 +118,7 @@ and requires `~/.env.surface`). The codespace flavor:
 - Uses system `python3` (no project venv discovery)
 - Runs preflight checks: runtime, server health, cookie health
   (`scripts/cookie-health-check.py`)
-- Loops with randomized per-pass batch size (15-30 default) and jittered
+- Loops with randomized per-pass batch size (30-35 default) and jittered
   pause (600s +/- 90s default) for anti-detection
 - Default `--max-passes 0` = unlimited; loops until pass failure or cookie
   health degrade. Set `--max-passes N` to install a cap
@@ -239,7 +241,7 @@ both the generated remote and local branches first.
 | Script | Purpose | Pages | When to use |
 |--------|---------|-------|-------------|
 | `terapeak-export.py` | Page 1 export (initial data) | 1 | New coins, empty CSVs |
-| `sales-aggregator.py` | Deep pagination (enrich existing) + dashboard | 2-6 | CSVs with 25+ rows, or dashboard mode |
+| `sales-aggregator.py` | Deep pagination (enrich existing) + dashboard | 2-5 for non-gold bullion; 2 otherwise | CSVs with 25+ rows, or dashboard mode |
 
 Both scripts:
 - Sort by "Date last sold" (descending) before collecting
@@ -265,15 +267,15 @@ Both scripts:
 - **Human click/scroll** -- random offset mouse movements, incremental pixel scrolling
 - **Page 1 delays** -- 8-18s between searches, coffee breaks every 12-25 coins
 - **Page 2+ delays** -- 2.5-6s between pages, occasional 4-10s "reading" pauses, 30% chance of 15-45s micro-breaks between coins for deep pagination
-- **Browser recycling** -- every 40 coins (prevents OOM)
+- **Browser recycling** -- every 80 coins in `terapeak-export.py` and every 120 coins in `sales-aggregator.py` (prevents OOM)
 
 ## Bullion Detection (sales-aggregator.py)
 18 regex patterns in BULLION_PATTERNS match: Libertad, Silver/Gold Eagle, Panda, Perth (Kookaburra, Kangaroo, Lunar, Koala), RCM (Maple Leaf, Polar Bear), Royal Mint (Britannia), Krugerrand, Philharmonic, Gold Buffalo, Platinum/Palladium Eagle.
 
-`is_bullion_term(term)` returns True if any pattern matches. Bullion coins get pages 2-6; non-bullion gets page 2 only.
+`is_bullion_term(term)` returns True if any pattern matches. Non-gold bullion gets pages 2-5; gold bullion and non-bullion get page 2 only.
 
 ## Key Facts
-- ~830+ total CSVs in data/terapeak/ (as of April 13, 2026)
+- Repository CSV inventory changes continuously; count `data/terapeak/*.csv` locally and use admin endpoints for production truth.
 - ADMIN_API_KEY: stored in local `.env` (gitignored) and Azure Key Vault secret `ADMIN-API-KEY` (prod). Bootstrap a fresh machine with `bash scripts/load-secrets.sh`. Never commit the value.
 - Cookie file: cache/ebay_cookies.json (gitignored)
 - Progress tracking: cache/terapeak_export_progress.json (for --resume)

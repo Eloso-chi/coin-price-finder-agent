@@ -35,19 +35,19 @@ The sales data pipeline has these components:
 
 3. **`/api/terapeak/import`** -- Server endpoint that ingests CSV data
 
-4. **Terapeak store** -- Local JSON cache of sold comp datasets (2326+ datasets)
+4. **Terapeak store** -- Local JSON cache of sold comp datasets; use the admin status endpoints for current production counts
 
 ## Dashboard Mode
 
 When the user wants to see what needs attention, run:
 
 ```bash
-cd /workspaces/coin-price-agent && python3 scripts/sales-aggregator.py
+cd "$(git rev-parse --show-toplevel)" && python3 scripts/sales-aggregator.py
 ```
 
 This shows three priority categories:
 - **Stale** (>14 days since last pull)
-- **Needs-deep** (coins with exactly 50 rows -- likely have more on page 2)
+- **Needs-deep** (server-selected datasets meeting the configured deep-pagination threshold)
 - **Thin** (low comp count, may need fresh collection)
 
 ### Headless Dashboard (recommended in Codespaces)
@@ -103,7 +103,7 @@ dashboard mode (without `--no-dashboard`) and run mode.
 
 1. **Read the freshness report** (generate if missing or stale):
    ```bash
-   cd /workspaces/coin-price-agent && node scripts/generate-freshness-report.js --summary
+   cd "$(git rev-parse --show-toplevel)" && node scripts/generate-freshness-report.js --summary
    ```
    This writes `cache/freshness-report.json` and prints a summary.
    If the report already exists and is valid (<24h old), it uses the cached copy.
@@ -124,7 +124,7 @@ dashboard mode (without `--no-dashboard`) and run mode.
 ## Important Notes
 
 - The aggregator uses Playwright with human-like delays to interact with Terapeak
-- Bullion series get deeper pagination (up to 6 pages) vs 2 pages for others
+- Non-gold bullion gets pages 2-5 (250 results maximum); gold bullion and non-bullion get page 2 only (100 results maximum)
 - The import pipeline deduplicates by itemId and title+price, so overlaps are safe
-- Browser is recycled every ~80 searches to prevent memory issues
+- Browser is recycled every 120 searches in deep-pagination mode to prevent memory issues
 - Coffee breaks are built in every 30-55 searches to avoid rate limiting

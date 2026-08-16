@@ -47,7 +47,7 @@ the corpus into git so both machines see the same content.
 | `numismatic-terminology.md` | Strike types, grade prefixes, pool classification, common traps |
 | `operator-status-format.md` | User-required schema for operator/codespace/run status reports (pass number, coins run, new rows, dup rows, highlights). Added 2026-07-05. |
 | `pcgs-numbers-collisions.md` | 80-PCGS# collision data bug between Silver Eagle and Gold Eagle tables (`src/data/pcgsNumbers.js`). Referenced from `__tests__/prefetchScheduler.test.js` and `src/services/prefetchScheduler.js`. Migrated 2026-07-05 to make the code refs resolve cross-machine. |
-| `pool-isolation-rule.md` | **MANDATORY READ-FIRST for `ebayService.js` pool gates.** INC-013 safety rule ($17-33 cost + 5 days polluted FMV from PR #252 revert). Migrated 2026-07-05. |
+| `pool-isolation-rule.md` | **MANDATORY READ-FIRST for `ebayService.js` pool gates.** INC-013 safety rule ($10.03 direct cost + 5 days polluted FMV from PR #252 revert). Migrated 2026-07-05. |
 | `production-state-lookup.md` | **CRITICAL OBSERVABILITY CONTRACT.** Codespace `cache/` is `.gitignore`d and never production truth; use `/api/admin/*` endpoints or `gh run` logs. Added 2026-07-03 under #277W after a Copilot misdiagnosis ("prefetch hasn't run in 3 nights" from a stale local file). |
 | `synthetic-data-audit.md` | Synthetic data purge (2026-05-07) |
 | `terapeak-cache-wipe-gotcha.md` | `cache/terapeak_sold.json` wipe + CSV-only re-import produces degraded `compCount`; self-heals on next hydration. Design, not a bug. Added 2026-07-05. |
