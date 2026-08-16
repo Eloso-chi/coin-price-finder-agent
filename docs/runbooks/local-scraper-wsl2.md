@@ -79,7 +79,7 @@ available one.
 
 ```bash
 mkdir -p ~/cpf && cd ~/cpf
-git clone https://github.com/<your-org>/coin-price-finder-agent.git
+git clone https://github.com/Eloso-chi/coin-price-finder-agent.git
 cd coin-price-finder-agent
 ```
 
