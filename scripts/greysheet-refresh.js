@@ -3,7 +3,7 @@
 //
 // Usage:
 //   node scripts/greysheet-refresh.js              # Full refresh (PCGS + Type GSIDs)
-//   node scripts/greysheet-refresh.js --types-only  # Only 56 Type GSIDs (~30s)
+//   node scripts/greysheet-refresh.js --types-only  # Only mapped Type GSIDs
 //   node scripts/greysheet-refresh.js --dry-run     # Count targets, no API calls
 //
 // Designed to run:
@@ -26,7 +26,7 @@ function getAllPcgsNumbers() {
     require('path').resolve(__dirname, '..', 'src', 'data', 'pcgsNumbers.js'), 'utf8'
   );
   const nums = new Set();
-  const re = /:\s*(\d{3,5})\b/g;
+  const re = /:\s*(\d{3,7})\b/g;
   let m;
   while ((m = re.exec(src)) !== null) nums.add(parseInt(m[1], 10));
   return [...nums].sort((a, b) => a - b);
@@ -79,7 +79,9 @@ async function processBatch(items, fetchFn, label, delayMs = 500) {
 }
 
 // ── Main refresh logic (also called from server.js) ─────────
-async function runRefresh(options = {}) {
+let _refreshInFlight = null;
+
+async function executeRefresh(options = {}) {
   const typesOnly = options.typesOnly || false;
   const dryRun = options.dryRun || false;
   const defaultGrade = options.defaultGrade || 63; // MS-63 as baseline
@@ -151,6 +153,14 @@ async function runRefresh(options = {}) {
   return summary;
 }
 
+function runRefresh(options = {}) {
+  if (_refreshInFlight) return _refreshInFlight;
+  _refreshInFlight = executeRefresh(options).finally(() => {
+    _refreshInFlight = null;
+  });
+  return _refreshInFlight;
+}
+
 // ── CLI entry point ─────────────────────────────────────────
 if (require.main === module) {
   const args = process.argv.slice(2);
@@ -169,4 +179,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { runRefresh };
+module.exports = { runRefresh, getAllPcgsNumbers };

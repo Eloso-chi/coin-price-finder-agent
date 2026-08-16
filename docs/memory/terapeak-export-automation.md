@@ -5,8 +5,8 @@
 ### 1. scripts/terapeak-export.py (Page 1)
 Semi-automated Playwright script that exports page 1 of sold data from eBay Seller Hub Research (Terapeak). Gets up to 50 results per coin.
 
-### 2. scripts/sales-aggregator.py (Pages 2-6 + Dashboard)
-Deep pagination script that enriches existing CSVs with additional pages. Imports `get_search_terms` from terapeak-export.py. Bullion coins auto-detect to pages 2-6 (max 300 results); non-bullion gets page 2 only (max 100).
+### 2. scripts/sales-aggregator.py (Pages 2-5 + Dashboard)
+Deep pagination script that enriches existing CSVs with additional pages. Imports `get_search_terms` from terapeak-export.py. Non-gold bullion gets pages 2-5 (max 250 results); gold bullion and non-bullion get page 2 only (max 100).
 
 **Dashboard mode:** Run without `--run` or `--dry-run` to get an interactive priority menu. Queries `GET /api/terapeak/aggregation-status` and shows needs-deep, stale, and thin categories for user selection.
 
@@ -56,12 +56,12 @@ Both scripts click the "Date last sold" column header before scraping to ensure 
 - **Page delays** -- p1: 8-18s between searches; p2+: 2.5-6s between pages
 - **Reading pauses** -- occasional 4-10s pauses every 2-3 pages
 - **Micro-breaks** -- 30% chance of 15-45s break between coins (deep pagination)
-- **Browser recycling** -- every 40 coins
+- **Browser recycling** -- every 80 coins in `terapeak-export.py` and every 120 coins in `sales-aggregator.py`
 
 ## Bullion Detection (sales-aggregator.py)
 18 BULLION_PATTERNS regexes: Libertad, Silver/Gold Eagle, Panda, Perth (Kookaburra, Kangaroo, Lunar, Koala), RCM (Maple Leaf, Polar Bear), Britannia, Krugerrand, Philharmonic, Gold Buffalo, Platinum/Palladium Eagle.
 
-`is_bullion_term(term)` → True = pages 2-6, False = page 2 only.
+`is_bullion_term(term)` identifies bullion; non-gold bullion gets pages 2-5, while gold bullion and non-bullion get page 2 only.
 
 ## Flow: CSV → App
 1. Results collected from Terapeak DOM table (JS executed in page)

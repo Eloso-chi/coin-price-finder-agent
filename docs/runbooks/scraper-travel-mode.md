@@ -26,7 +26,7 @@ The repo is already cloned in the Codespace. Make sure dependencies are in
 place once per Codespace rebuild:
 
 ```bash
-cd /workspaces/coin-price-agent
+cd "$(git rev-parse --show-toplevel)"
 python3 -m pip install --user playwright requests
 python3 -m playwright install chromium
 ```
@@ -65,7 +65,7 @@ chmod 600 ~/codespace-state/cookies-travel.json
 ### 3. Configure environment
 
 ```bash
-cd /workspaces/coin-price-agent
+cd "$(git rev-parse --show-toplevel)"
 
 # Use the same App Service the laptop uses (data lands in the same Cosmos):
 export APP_URL=https://coinpricefinder-h3a3b5g0dmdydna4.azurewebsites.net

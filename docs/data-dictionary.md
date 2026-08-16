@@ -119,7 +119,13 @@ Append-only JSONL ledger written by `scripts/_parse-terapeak-pass.py` after each
 | `operator` | string | Public | Name of the invoking operator (e.g. `terapeak-operator-codespace`) |
 | `machine` | string | Public | `W` (codespace) or `H` (Surface/WSL) -- the calling machine letter |
 | `pass` | number | Public | 1-indexed pass number within the run |
-| `batch_size` | number | Public | Randomized batch for this pass (15-30 default) |
+| `batch_size` | number | Public | Randomized batch for this pass (30-35 default in Normal state) |
+| `pass_id` | number | Public | Canonical #284H pass identifier (same value as `pass`) |
+| `started_at`, `ended_at` | ISO 8601 | Public | Canonical #284H aliases for pass boundaries |
+| `batch_size_requested`, `batch_size_executed` | number | Public | Requested queue size and actual attempts |
+| `new_count`, `dup_count` | number | Public | Canonical aliases for new and duplicate rows |
+| `no_data_count`, `no_export_count` | number | Public | Explicit empty/no-export outcomes parsed from the pass log |
+| `cookie_health_status`, `probe_status` | string or null | Public | Startup cookie and active-probe results |
 | `include_thin` | boolean | Public | Whether thin-data datasets were included this pass |
 | `start_ts` | ISO 8601 | Public | Pass start timestamp (UTC) |
 | `end_ts` | ISO 8601 | Public | Pass end timestamp (UTC) |
@@ -129,6 +135,10 @@ Append-only JSONL ledger written by `scripts/_parse-terapeak-pass.py` after each
 | `pacing_pilot_id` | string or null | Public | Safe identifier used to isolate one #280H A/B pilot from routine baseline history |
 | `pacing_batch_min`, `pacing_batch_max`, `pacing_p01_fixed` | number or null | Public | Operator batch policy used to reject incomparable pilot arms |
 | `pacing_upload_mode` | string or null | Public | Upload mode used to reject incomparable pilot arms |
+| `challenge_signal_count`, `soft_risk_signal_count` | number | Public | #284H hard/soft anti-bot signals observed during the pass |
+| `state_before`, `state_after` | string | Public | Persisted risk state before and after classification |
+| `transition_reason` | string or null | Public | Why the #284H risk state changed or remained stable |
+| `pass_exit_code` | number or null | Public | Operator pass process exit code |
 | `attempted` | number | Public | Coins attempted in this pass |
 | `succeeded` | number | Public | Coins that returned `ok` (non-empty result) |
 | `empty` | number | Public | Coins that returned zero comps |

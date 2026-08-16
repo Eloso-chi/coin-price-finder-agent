@@ -25,14 +25,14 @@ const {
 
 // Reset store before each test to avoid cross-contamination
 beforeEach(() => {
-  clearAll();
   _resetStoreCache();
+  clearAll();
 });
 // Cancel any pending debounced writes after all tests complete
 afterAll(() => {
   terapeakService._cancelPendingSaves();
-  clearAll();
   _resetStoreCache();
+  clearAll();
 });
 
 /* ════════════════════════════════════════════════════════════

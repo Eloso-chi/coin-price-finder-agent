@@ -78,7 +78,7 @@ Print a summary:
 | 1 | [title] | Done | `path/to/file` |
 | 3 | [title] | Done | `path/to/file` |
 
-Tests: PASS (1483/1483)
+Tests: PASS (<passed>/<total>)
 Follow-ups: [list any new issues found, or "None"]
 ```
 

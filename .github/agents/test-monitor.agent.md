@@ -18,7 +18,7 @@ Your job is to keep the test suite fast, deterministic, and comprehensive.
 |------|-------|
 | Runtime | Node.js >= 22, CommonJS |
 | Test runner | Jest 30 (`npm test` = `jest --verbose`) |
-| Test files | `__tests__/**/*.test.js` recursively; query Jest for current counts (latest verified: 161 suites / 4,425 tests) |
+| Test files | `__tests__/**/*.test.js` recursively; query Jest for current counts (latest verified: 161 suites / 4,441 tests) |
 | Frontend tests | `__tests__/frontend/*.test.js` — require `/** @jest-environment jsdom */` pragma (BACKLOG #238) |
 | Test helpers | `__tests__/helpers/` (excluded from Jest) |
 | Mocking | axios-mock-adapter, `jest.mock('axios')` |

@@ -2,9 +2,9 @@
 """
 sales-aggregator.py -- Terapeak sales data aggregator (deep pagination)
 
-Supplements the main terapeak-export.py by fetching the SECOND page of
-results for high-volume coins (those with exactly 50 rows from page 1).
-Appends new rows to the existing CSV and uploads to the app server.
+Supplements the main `terapeak-export.py` with server-selected page 2+
+enrichment candidates. The default threshold is 50 rows (`--min-rows`),
+with deeper pages for eligible non-gold bullion.
 
 The import pipeline (terapeakService.importComps) deduplicates by itemId
 and title+price, so overlapping rows are handled safely.
@@ -16,7 +16,7 @@ Usage:
   # Dry run -- show which coins qualify for page 2 enrichment:
   python3 scripts/sales-aggregator.py --dry-run
 
-  # Enrich all 50-row coins:
+    # Enrich all server-selected deep-pagination candidates:
   python3 scripts/sales-aggregator.py --run
 
   # Only Morgans:
@@ -25,7 +25,7 @@ Usage:
   # Limit batch size:
   python3 scripts/sales-aggregator.py --run --limit 20
 
-  # Custom row threshold (default: coins with exactly 50 rows):
+    # Custom row threshold (default minimum: 50 rows):
   python3 scripts/sales-aggregator.py --run --min-rows 45
 
 Requirements:
@@ -570,12 +570,18 @@ EXTRACT_TABLE_JS = """() => {
 def do_search_and_collect(page, search_term, download_dir, max_pages=2):
     """
     Search Terapeak for search_term, then navigate to pages 2..max_pages and collect.
-    For bullion series, max_pages can be higher (e.g., 6) to capture deeper history.
+    Non-gold bullion can use max_pages=5; gold and non-bullion default to 2.
     Returns (csv_path, row_count) tuple, or None on failure, or "BOT_BLOCKED".
     """
     # Navigate to Research page
-    page.goto(EBAY_RESEARCH_URL, wait_until="domcontentloaded")
+    response = page.goto(EBAY_RESEARCH_URL, wait_until="domcontentloaded")
     rand_delay(DELAY_PAGE_LOAD)
+
+    challenge_evidence = _mod.challenge_indicators(page, response)
+    if challenge_evidence:
+        print(f"    WARNING: Hard challenge detected: {'; '.join(challenge_evidence)}")
+        page.screenshot(path=str(download_dir / f"_debug_p2_challenge_{search_term[:30]}.png"))
+        return "BOT_BLOCKED"
 
     # Simulate human arrival
     human_idle(page)
@@ -583,13 +589,11 @@ def do_search_and_collect(page, search_term, download_dir, max_pages=2):
     time.sleep(random.uniform(0.5, 1.5))
     human_scroll(page, "up", random.randint(60, 150))
 
-    # Check for redirects (bot detection)
+    # Check for non-challenge redirects.
     actual_url = page.url
     if "/sh/research" not in actual_url:
         print(f"    WARNING: Redirected to {actual_url}")
         page.screenshot(path=str(download_dir / f"_debug_p2_redirect_{search_term[:30]}.png"))
-        if "distil" in actual_url or "splashui" in actual_url or "block" in actual_url:
-            return "BOT_BLOCKED"
 
     # Find Terapeak search input
     search_selectors = [
@@ -1098,7 +1102,7 @@ def do_page2_run(args):
     skipped = 0
     total_new_rows = 0
     consecutive_crashes = 0
-    consecutive_blocks = 0
+    hard_challenge = False
     next_coffee = random.randint(*COFFEE_BREAK_EVERY)
 
     for i, entry in enumerate(candidates):
@@ -1139,23 +1143,11 @@ def do_page2_run(args):
 
             # Bot detection
             if result == "BOT_BLOCKED":
-                consecutive_blocks += 1
-                print(f"BOT BLOCKED ({consecutive_blocks}/3)")
-                if consecutive_blocks >= 3:
-                    print("\n  BOT DETECTION: 3 consecutive blocks. Stopping.")
-                    break
-                cooldown = random.uniform(120, 300)
-                print(f"  ... cooling down for {cooldown:.0f}s ...")
-                time.sleep(cooldown)
-                try:
-                    page = launch_browser()
-                    reset_sort_state()
-                except Exception:
-                    pass
+                print("BOT BLOCKED")
+                print("\n  BOT DETECTION: hard challenge signal. Stopping now for mandatory Cooldown.")
+                hard_challenge = True
                 failed += 1
-                continue
-
-            consecutive_blocks = 0
+                break
 
             if result is None:
                 skipped += 1
@@ -1236,6 +1228,8 @@ def do_page2_run(args):
     print(f"  No page 2:  {skipped}")
     print(f"  Failed:     {failed}")
     print(f"  Remaining:  {len(candidates) - success - failed - skipped}")
+    if hard_challenge:
+        raise SystemExit(2)
 
 
 # ── CLI ─────────────────────────────────────────────────────
@@ -1273,7 +1267,7 @@ Headless mode (--no-dashboard):
     parser.add_argument("--limit", type=int, help="Max number of coins to enrich")
     parser.add_argument("--min-rows", type=int, default=50, help="Min rows to qualify (default: 50)")
     parser.add_argument("--max-pages", type=int, default=None,
-                        help="Max pages to collect (default: 6 for bullion, 2 for others)")
+                        help="Max pages to collect (default: 5 for non-gold bullion; 2 for gold and non-bullion)")
     parser.add_argument("--resume", type=str, metavar="LOGFILE",
                         help="Skip coins already completed in this log file (legacy fallback -- server tracking handles this automatically now)")
     parser.add_argument("--backlog", type=str, metavar="FILE",

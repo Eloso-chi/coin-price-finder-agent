@@ -10,7 +10,7 @@
 #   scripts/load-secrets.sh --vault NAME # override vault name
 #
 # Requires: az CLI logged in (`az login`) with get-secret permission on the vault.
-# Default vault: coinpricefinder-kv  (see /memories/repo/azure-infrastructure.md)
+# Default vault: coinpricefinder-kv  (see docs/memory/azure-infrastructure.md)
 #
 # Mapping: Key Vault names use hyphens (EBAY-APP-ID); env vars use underscores
 # (EBAY_APP_ID). The list below is the source of truth for which secrets the

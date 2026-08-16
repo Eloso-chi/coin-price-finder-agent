@@ -35,6 +35,23 @@ const {
   coinCount,
   _loadStore,
 } = require('../src/services/greysheetHistoryService');
+const { getAllPcgsNumbers, runRefresh } = require('../scripts/greysheet-refresh');
+
+test('Greysheet refresh includes 6-7 digit world-bullion PCGS numbers', () => {
+  const numbers = getAllPcgsNumbers();
+  expect(numbers).toEqual(expect.arrayContaining([7130, 32496, 114425, 1004509]));
+});
+
+test('Greysheet refresh is single-flight while a run is active', async () => {
+  const first = runRefresh({ dryRun: true });
+  const second = runRefresh({ dryRun: true });
+  expect(second).toBe(first);
+  await first;
+
+  const afterSettlement = runRefresh({ dryRun: true });
+  expect(afterSettlement).not.toBe(first);
+  await afterSettlement;
+});
 
 // ═══════════════════════════════════════════════════════════════
 //  makeKey

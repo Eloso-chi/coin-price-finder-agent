@@ -657,14 +657,14 @@ The scraper's in-flight stdout literally prints `(dormant: 2 consecutive empty a
 
 **Root cause (hypothesis -- to verify):** `scripts/terapeak-export.py` (or its caller `run-surface-freshness-loop.sh` meta-sync step) treats the Azure round-trip as the sole authoritative source for meta updates. When Azure returns non-JSON (HTML auth page) or HTTP error, the local-only path is short-circuited instead of falling back to writing local state.
 
-**Proposed fix (one of, or both):**
+**Historical proposed fix (superseded by `25a99162`; not current behavior):**
 
 1. **Fail-open meta persistence:** If the Azure meta POST/GET fails, still write the local in-memory deltas (`lastFetchedAt`, `lastEmptyAt`, `noDataCount`, `dormant` flag) to `data/terapeak-meta.json` directly. Treat Azure as eventually-consistent, not authoritative.
 2. **HTTP 422 = empty:** Any 422 from the Azure import endpoint should be treated as a confirmed-empty outcome for that coin. Bump `noDataCount`, set `lastEmptyAt`, promote to dormant after the 2nd strike -- same as a real "0 tables on page" empty.
 
 Fix 2 is the narrow patch; Fix 1 is the structural one. Recommend doing both: Fix 2 short-term to unblock the current scraper, Fix 1 when there's time to test.
 
-**Acceptance:**
+**Historical acceptance (superseded):**
 - After 2 consecutive HTTP 422 outcomes for the same coin, the coin is marked dormant in `data/terapeak-meta.json` and excluded from subsequent freshness passes.
 - `lastFetchedAt` is non-null for every coin the scraper has touched (regardless of Azure POST result).
 - The 3 known-affected coins above stop appearing in new passes (or get explicitly dormant-promoted).
@@ -680,7 +680,7 @@ Fix 2 is the narrow patch; Fix 1 is the structural one. Recommend doing both: Fi
 - #245 (freshness safeguards) -- the dormancy classifier works correctly; the bug is upstream of it, in the meta writer.
 - The `meta sync returned non-JSON payload` warning has been present in logs for a while -- worth a one-shot audit to see how many coins have `lastFetchedAt=None` cluster-wide.
 
-**Resolved 2026-06-16 (PR #132 -- wave-1/269h-import-422-self-heal):** Server-side self-healing added to `/api/terapeak/import` and `/api/terapeak/import-text`. New helper `_stampNoDataMeta(searchTerm, clientPage1At)` in `src/routes/terapeakRoute.js` writes `{ noDataAt, noDataCount: prev+1, page1At }` via `terapeakService.updateDatasetMeta` on the zero-comp 422 branch, wrapped in try/catch so meta-write failure cannot mask the 422. Two consecutive 422s now trip `DORMANT_MIN_NO_DATA_COUNT=2` and the coin is excluded from subsequent passes. Regression test: `__tests__/terapeakImport422SelfHeal.test.js` (10 cases). Follow-ups tracked in #271H.
+**Resolved 2026-06-16 (PR #132 -- wave-1/269h-import-422-self-heal), route behavior superseded 2026-06-25 (`25a99162`):** PR #132 initially added `_stampNoDataMeta` inside the zero-comp 422 route branch. The later correction removed that direct write. Current `/api/terapeak/import` and `/api/terapeak/import-text` behavior returns 422 without changing no-data or page-one metadata; the canonical exporter recognizes `No valid comps found` and separately calls `/api/terapeak/report-no-data`, preserving dormant convergence. Route regression coverage remains in `__tests__/terapeakImport422SelfHeal.test.js`.
 
 ---
 
@@ -3067,7 +3067,7 @@ Option 1 is cleanest because it collapses login + first-visit-verification into 
 
 ### #297W. Performance benchmarks for bulk evaluator (500-coin path) [P3 -- PERFORMANCE / PRICING-ACCURACY] -- OPEN 2026-08-06
 
-**Problem:** [src/services/bulkEvaluateService.js](src/services/bulkEvaluateService.js) supports 1-500 coins per lot, 10-coin per-job concurrency, 3 concurrent jobs. No benchmark exists for the 500-coin path. Under load or with unusual comp shapes we may already be slow; we won't know until we ship a regression.
+**Problem:** [src/services/bulkEvaluateService.js](../src/services/bulkEvaluateService.js) supports the current 50-500 coin product range, 10-coin per-job concurrency, and 3 concurrent jobs. No benchmark exists for the 500-coin path. Under load or with unusual comp shapes we may already be slow; we won't know until we ship a regression.
 
 **Approach:**
 
