@@ -10,6 +10,9 @@ export UPLOAD_MODE=blob
 BACKLOG="cache/freshness-batch-bullion-stale.json"
 LIMIT=50
 BATCH=1
+PYTHON_BIN="${PYTHON_BIN:-python3}"
+EXPORTER_SCRIPT="${TERAPEAK_EXPORTER_SCRIPT:-scripts/terapeak-export.py}"
+PAUSE_SECONDS="${TERAPEAK_BATCH_PAUSE_SECONDS:-30}"
 
 echo "=== Stale Bullion Loop Started $(date) ==="
 echo "Backlog: $BACKLOG"
@@ -19,7 +22,7 @@ echo ""
 while true; do
     echo "--- Batch $BATCH starting at $(date) ---"
     BATCH_LOG="$(mktemp)"
-    python3 scripts/terapeak-export.py --run --resume --backlog "$BACKLOG" --limit "$LIMIT" 2>&1 | tee "$BATCH_LOG"
+    "$PYTHON_BIN" "$EXPORTER_SCRIPT" --run --resume --backlog "$BACKLOG" --limit "$LIMIT" 2>&1 | tee "$BATCH_LOG"
     EXIT_CODE=${PIPESTATUS[0]}
 
     if [ $EXIT_CODE -ne 0 ]; then
@@ -43,7 +46,7 @@ while true; do
     echo ""
 
     # Brief pause between batches (human-like)
-    echo "Pausing 30s before next batch..."
-    sleep 30
+    echo "Pausing ${PAUSE_SECONDS}s before next batch..."
+    sleep "$PAUSE_SECONDS"
     BATCH=$((BATCH + 1))
 done
