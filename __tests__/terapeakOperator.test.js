@@ -84,6 +84,19 @@ ADMIN_API_KEY=test-key-12345
 import types
 import importlib.util
 import os
+import sys
+
+playwright = types.ModuleType("playwright")
+playwright_sync_api = types.ModuleType("playwright.sync_api")
+playwright_sync_api.sync_playwright = lambda: None
+playwright_sync_api.TimeoutError = type("PlaywrightTimeout", (Exception,), {})
+playwright.sync_api = playwright_sync_api
+sys.modules["playwright"] = playwright
+sys.modules["playwright.sync_api"] = playwright_sync_api
+
+requests = types.ModuleType("requests")
+requests.exceptions = types.SimpleNamespace(ConnectionError=type("ConnectionError", (Exception,), {}))
+sys.modules["requests"] = requests
 
 module_path = os.path.join(os.environ["PYTHONPATH"], "sales-aggregator.py")
 module_spec = importlib.util.spec_from_file_location("sales_aggregator", module_path)
