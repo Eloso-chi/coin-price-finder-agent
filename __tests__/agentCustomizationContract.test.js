@@ -71,6 +71,48 @@ describe('agent customization contract', () => {
     expect(primaryReviewer).not.toContain('performance-review.sub');
   });
 
+  test('customization commands use portable roots and safe listener ownership', () => {
+    const contents = customizationFiles().map(file => fs.readFileSync(file, 'utf8'));
+    for (const content of contents) {
+      expect(content).not.toContain('/workspaces/coin-price-agent');
+    }
+
+    const startupAgents = contents.filter(content => /port-?3000|localhost:3000/i.test(content));
+    for (const content of startupAgents) {
+      expect(content).toMatch(/git rev-parse --show-toplevel/);
+      expect(content).toMatch(/command[\s\S]{0,120}cwd|listener ownership|whose cwd/i);
+      expect(content).toMatch(/unknown listener|unknown process|report[\s\S]{0,80}(instead of terminating|it)/i);
+      expect(content).toMatch(/background(?:\/async)?|isBackground.*true/i);
+    }
+  });
+
+  test('Onboard acceptance is delta-scoped and persistence guidance is boundary-based', () => {
+    const onboard = fs.readFileSync(
+      path.join(ROOT, '.github', 'agents', 'onboard.agent.md'),
+      'utf8',
+    );
+    const reviewSkill = fs.readFileSync(
+      path.join(ROOT, '.github', 'skills', 'code-review', 'SKILL.md'),
+      'utf8',
+    );
+    const testingPlan = fs.readFileSync(
+      path.join(ROOT, '.github', 'skills', 'testing', 'TESTING-PLAN.md'),
+      'utf8',
+    );
+
+    for (const category of ['BLOCKING_DELTA', 'PRE_EXISTING_DEBT', 'OPTIONAL']) {
+      expect(onboard).toContain(category);
+    }
+    expect(onboard).toMatch(/one mapped-document correction pass/i);
+    expect(onboard).toMatch(/one verification rerun/i);
+    expect(onboard).toMatch(/repository-wide zero-gap audit requires explicit approval/i);
+    expect(onboard).not.toContain('NODE_ENV=test persistence isolation');
+    for (const content of [onboard, reviewSkill, testingPlan]) {
+      expect(content).toMatch(/no-op|injected mock|temporary path/i);
+      expect(content).toMatch(/actual storage boundary|storage boundary/i);
+    }
+  });
+
   test('INC-017 workflow gates stay aligned across canonical surfaces', () => {
     const workflow = fs.readFileSync(path.join(ROOT, '.github', 'skills', 'workflow', 'SKILL.md'), 'utf8');
     const preCommit = fs.readFileSync(path.join(ROOT, '.github', 'agents', 'pre-commit-reviewer.agent.md'), 'utf8');

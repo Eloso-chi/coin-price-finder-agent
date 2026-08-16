@@ -134,6 +134,9 @@ When invoked without a specific behavioral spec, check these areas:
 - **Never modify production code** unless the test reveals a genuine parser/filter gap (document the fix).
 - **Always use seeded randomization** -- no `Math.random()` without `seedRandom()`.
 - **Always validate with full suite** before declaring done.
+- **Persistence isolation is mandatory.** Tests must use a no-op, injected
+  mock, or temporary path at the storage boundary; `NODE_ENV=test` alone is
+  not sufficient to prove repository/operator state is protected.
 
 ## Output Format
 

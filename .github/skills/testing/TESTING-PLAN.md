@@ -147,3 +147,11 @@ npx jest __tests__/constants.test.js
 # Data integrity (requires terapeak-meta.json)
 npx jest __tests__/terapeakDataIntegrity.test.js
 ```
+
+## Persistence Isolation
+
+At the actual storage boundary, tests must not write real repository or
+operator state. Exercise production persistence through a `NODE_ENV === 'test'`
+no-op, an injected mock, or a temporary path, and add an isolation assertion
+for each new persistence path.
+The environment name alone is not a universal no-write guarantee.

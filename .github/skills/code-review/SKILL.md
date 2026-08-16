@@ -55,6 +55,10 @@ Apply OWASP Top 10 thinking to every change:
 - Are test assertions strong (`.toEqual`, not `.toBeDefined()`)?
 - Suggest verification commands (`npm test`, targeted suite runs).
 
+For persistence touched by tests, verify isolation at the actual storage boundary:
+use a test no-op, an injected mock, or a temporary path. `NODE_ENV=test` by
+itself does not prove that repository or operator state cannot be written.
+
 ## 6. Maintainability
 
 - **Dead code** -- unused exports, unreachable branches, orphan files, commented-out blocks, functions with zero call sites, routes never hit
