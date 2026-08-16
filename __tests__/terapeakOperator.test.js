@@ -24,7 +24,6 @@ const os = require('os');
 const PROJECT_ROOT = path.join(__dirname, '..');
 const OPERATOR_SCRIPT = path.join(PROJECT_ROOT, 'scripts', 'terapeak-operator.sh');
 const PREFLIGHT_SCRIPT = path.join(PROJECT_ROOT, 'scripts', 'terapeak-startup-preflight.sh');
-const SALES_AGGREGATOR_SCRIPT = path.join(PROJECT_ROOT, 'scripts', 'sales-aggregator.py');
 const BULLION_LOOP_SCRIPT = path.join(PROJECT_ROOT, 'scripts', 'run-bullion-loop.sh');
 const OPERATOR_SCRIPT_REL = 'scripts/terapeak-operator.sh';
 const PREFLIGHT_SCRIPT_REL = 'scripts/terapeak-startup-preflight.sh';
@@ -38,9 +37,22 @@ function runBash(args, options = {}) {
   });
 }
 
-function toBashPath(winPath) {
+function toWslPath(winPath) {
   const normalized = winPath.replace(/\\/g, '/');
-  return normalized.replace(/^([A-Za-z]):/, (_, drive) => `/${drive.toLowerCase()}`);
+  return normalized.replace(/^([A-Za-z]):/, (_, drive) => `/mnt/${drive.toLowerCase()}`);
+}
+
+function runPython(snippet) {
+  const scriptDir = toWslPath(path.join(PROJECT_ROOT, 'scripts'));
+  if (process.platform === 'win32') {
+    return childProcess.spawnSync('wsl', [
+      'env', `PYTHONPATH=${scriptDir}`, 'python3', '-c', snippet,
+    ], { encoding: 'utf8', cwd: PROJECT_ROOT, timeout: 10000 });
+  }
+  return childProcess.spawnSync('python3', ['-c', snippet], {
+    encoding: 'utf8', cwd: PROJECT_ROOT, timeout: 10000,
+    env: { ...process.env, PYTHONPATH: path.join(PROJECT_ROOT, 'scripts') },
+  });
 }
 
 describe('terapeak-operator.sh -- deterministic startup orchestration', () => {
@@ -67,19 +79,113 @@ ADMIN_API_KEY=test-key-12345
   });
 
   describe('script syntax and availability', () => {
-    test('deep aggregator stops on the first hard challenge', () => {
-      const source = fs.readFileSync(SALES_AGGREGATOR_SCRIPT, 'utf8');
-      expect(source).toContain('_mod.challenge_indicators(page, response)');
-      expect(source).toContain('BOT DETECTION: hard challenge signal. Stopping now');
-      expect(source).toContain('raise SystemExit(2)');
-      expect(source).not.toContain('consecutive_blocks');
+    test('deep aggregator exits 2 after one mocked hard-challenge attempt', () => {
+      const res = runPython(`
+import types
+import importlib.util
+import os
+import sys
+
+playwright = types.ModuleType("playwright")
+playwright_sync_api = types.ModuleType("playwright.sync_api")
+playwright_sync_api.sync_playwright = lambda: None
+playwright_sync_api.TimeoutError = type("PlaywrightTimeout", (Exception,), {})
+playwright.sync_api = playwright_sync_api
+sys.modules["playwright"] = playwright
+sys.modules["playwright.sync_api"] = playwright_sync_api
+
+requests = types.ModuleType("requests")
+requests.exceptions = types.SimpleNamespace(ConnectionError=type("ConnectionError", (Exception,), {}))
+sys.modules["requests"] = requests
+
+module_path = os.path.join(os.environ["PYTHONPATH"], "sales-aggregator.py")
+module_spec = importlib.util.spec_from_file_location("sales_aggregator", module_path)
+s = importlib.util.module_from_spec(module_spec)
+module_spec.loader.exec_module(s)
+
+attempts = []
+s.ensure_environment = lambda: True
+s.get_candidates_from_server = lambda **kwargs: [
+    {"term": "first", "row_count": 50},
+    {"term": "second", "row_count": 50},
+]
+s.random.shuffle = lambda items: None
+s.has_display = lambda: True
+s.wait_for_research_page = lambda page: None
+s.load_cookies = lambda context: None
+s.save_cookies = lambda context: None
+s.drain_upload = lambda: None
+
+class Page:
+    def goto(self, *args, **kwargs): return None
+    def screenshot(self, *args, **kwargs): return None
+class Context:
+    def add_init_script(self, *args, **kwargs): pass
+    def new_page(self): return Page()
+class Browser:
+    def new_context(self, **kwargs): return Context()
+    def close(self): pass
+class Chromium:
+    def launch(self, **kwargs): return Browser()
+class Playwright:
+    chromium = Chromium()
+    def stop(self): pass
+class Starter:
+    def start(self): return Playwright()
+s.sync_playwright = lambda: Starter()
+
+def collect(page, term, download_dir, max_pages=2):
+    attempts.append(term)
+    return "BOT_BLOCKED"
+s.do_search_and_collect = collect
+
+args = types.SimpleNamespace(
+    backlog=None, filter=None, exclude=None, min_rows=50, resume=None,
+    limit=None, dry_run=False, max_pages=None,
+)
+try:
+    s.do_page2_run(args)
+except SystemExit as exc:
+    assert exc.code == 2, exc.code
+else:
+    raise AssertionError("expected SystemExit(2)")
+assert attempts == ["first"], attempts
+`);
+      expect(res.status).toBe(0);
+      expect(res.stderr).toBe('');
     });
 
-    test('bullion loop stops on actual backlog exhaustion without a fixed total', () => {
-      const source = fs.readFileSync(BULLION_LOOP_SCRIPT, 'utf8');
-      expect(source).toContain("grep -q '^No terms to process\\.$'");
-      expect(source).toContain('EXIT_CODE=${PIPESTATUS[0]}');
-      expect(source).not.toMatch(/TOTAL_EXPORTED|246/);
+    test('bullion loop exits 0 on mocked dynamic backlog exhaustion', () => {
+      const fakeExporter = path.join(tempDir, 'fake-exporter.sh');
+      fs.writeFileSync(fakeExporter, '#!/bin/bash\necho "No terms to process."\n');
+      const res = runBash([toWslPath(BULLION_LOOP_SCRIPT)], {
+        env: {
+          ...process.env,
+          WSLENV: 'PYTHON_BIN:TERAPEAK_EXPORTER_SCRIPT:TERAPEAK_BATCH_PAUSE_SECONDS',
+          PYTHON_BIN: 'bash',
+          TERAPEAK_EXPORTER_SCRIPT: toWslPath(fakeExporter),
+          TERAPEAK_BATCH_PAUSE_SECONDS: '0',
+        },
+      });
+      expect(res.status).toBe(0);
+      expect(res.stdout).toContain('ALL DONE');
+      expect(res.stdout).toContain('backlog exhausted');
+    });
+
+    test('bullion loop propagates a mocked exporter failure', () => {
+      const fakeExporter = path.join(tempDir, 'fake-exporter-fail.sh');
+      fs.writeFileSync(fakeExporter, '#!/bin/bash\necho "blocked"\nexit 7\n');
+      const res = runBash([toWslPath(BULLION_LOOP_SCRIPT)], {
+        env: {
+          ...process.env,
+          WSLENV: 'PYTHON_BIN:TERAPEAK_EXPORTER_SCRIPT:TERAPEAK_BATCH_PAUSE_SECONDS',
+          PYTHON_BIN: 'bash',
+          TERAPEAK_EXPORTER_SCRIPT: toWslPath(fakeExporter),
+          TERAPEAK_BATCH_PAUSE_SECONDS: '0',
+        },
+      });
+      expect(res.status).toBe(7);
+      expect(res.stdout).toContain('STOPPED: Exit code 7');
     });
 
     test('operator script exists and is executable', () => {
@@ -238,7 +344,7 @@ ADMIN_API_KEY=test-key-12345
       const badEnvFile = path.join(tempDir, '.env.bad');
       fs.writeFileSync(badEnvFile, 'COOKIE_FILE=/tmp/cookies.json\n');
       
-      const res = runBash([PREFLIGHT_SCRIPT_REL, '--env-file', toBashPath(badEnvFile), '--mode', 'login']);
+      const res = runBash([PREFLIGHT_SCRIPT_REL, '--env-file', toWslPath(badEnvFile), '--mode', 'login']);
       
       expect(res.status).not.toBe(0);
       expect(res.stderr).toMatch(/APP_URL|required env vars|Unsupported Ubuntu version|Missing env file/i);
@@ -248,7 +354,7 @@ ADMIN_API_KEY=test-key-12345
       const badEnvFile = path.join(tempDir, '.env.bad');
       fs.writeFileSync(badEnvFile, 'APP_URL=https://test.local\n');
       
-      const res = runBash([PREFLIGHT_SCRIPT_REL, '--env-file', toBashPath(badEnvFile), '--mode', 'login']);
+      const res = runBash([PREFLIGHT_SCRIPT_REL, '--env-file', toWslPath(badEnvFile), '--mode', 'login']);
       
       expect(res.status).not.toBe(0);
       expect(res.stderr).toMatch(/COOKIE_FILE|required env vars|Unsupported Ubuntu version|Missing env file/i);
