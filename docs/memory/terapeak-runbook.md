@@ -36,7 +36,9 @@ curl -s -X POST http://localhost:3000/api/terapeak/quota/reset \
 cd "$(git rev-parse --show-toplevel)" && DISPLAY=:1 python3 scripts/vnc-login.py
 # Opens eBay in Playwright browser inside VNC
 # Open port 6080 in your browser, solve CAPTCHA/2FA, log in
-# Script auto-detects login (sin=in cookie) and saves 60 cookies
+# Script auto-detects login, then opens /sh/research in the same visible browser
+# so you can solve a second challenge before cookies are saved.
+# A hard bot-warning stops with exit 2; do not retry or bypass it.
 ```
 
 ### 5. Keepalive (prevents Codespace idle shutdown)

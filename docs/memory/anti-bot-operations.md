@@ -46,6 +46,12 @@ invariant in rollback mode.
 - Do not run parallel operators or retry while Cooldown is active.
 - Do not collect or persist credentials, private account data, or unrelated
   personal information in logs or telemetry.
+- A visible, user-solvable CAPTCHA encountered during the interactive VNC
+   login flow may be solved manually by the authorized user. The login helper
+   waits for the visible `/sh/research` page to clear before saving cookies.
+   This does not authorize automated solving, retries, or bypasses. An
+   unusual-activity/security-measure page or other hard bot-warning remains a
+   non-bypassable stop and preserves Cooldown.
 - A workflow change affecting challenge detection, identity, pacing, or retry
   behavior requires the scraper risk/compliance PR checklist.
 
