@@ -1,0 +1,10 @@
+{
+  "types": [{
+    "id": 12345,
+    "title": "United States Morgan Dollar",
+    "url": "https://en.numista.com/catalogue/pieces12345.html",
+    "issuer": { "name": "United States" },
+    "dates": "1878-1921",
+    "value": "1 Dollar"
+  }]
+}

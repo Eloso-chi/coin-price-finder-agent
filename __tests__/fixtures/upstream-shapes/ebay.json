@@ -1,0 +1,18 @@
+{
+  "itemSummaries": [
+    {
+      "itemId": "v1|REDACTED|0",
+      "title": "1921 Morgan Silver Dollar MS63",
+      "itemWebUrl": "https://www.ebay.com/itm/REDACTED",
+      "price": { "value": "125.00", "currency": "USD" },
+      "shippingOptions": [{ "shippingCost": { "value": "5.00" } }],
+      "itemLocation": { "country": "US" },
+      "conditionId": "2000",
+      "localizedAspects": [
+        { "name": "Certification", "value": "PCGS" },
+        { "name": "Grade", "value": "MS 63" },
+        { "name": "Composition", "value": "90% Silver" }
+      ]
+    }
+  ]
+}

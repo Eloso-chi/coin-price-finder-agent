@@ -1,0 +1,13 @@
+{
+  "PCGSNo": "7130",
+  "SeriesName": "Morgan Dollar",
+  "Year": 1921,
+  "MintMark": "S",
+  "Grade": "MS63",
+  "Designation": "",
+  "PriceGuideValue": 125,
+  "Population": 1200,
+  "PopHigher": 4100,
+  "AuctionList": [{ "Price": 118 }, { "Price": 132 }],
+  "Images": [{ "Fullsize": "https://images.example.test/obverse.jpg" }]
+}
