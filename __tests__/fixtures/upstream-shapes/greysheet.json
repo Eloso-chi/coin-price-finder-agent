@@ -1,0 +1,17 @@
+{
+  "OpCode": 200,
+  "Data": [{
+    "GsId": 7130,
+    "Name": "1921-S Morgan Dollar",
+    "PricingData": [{
+      "Grade": 63,
+      "GradeLabel": "MS63",
+      "GreyVal": "105.00",
+      "CpgVal": "125.00",
+      "PcgsVal": "130.00",
+      "NgcVal": "128.00",
+      "BlueBookVal": "140.00",
+      "IsCac": false
+    }]
+  }]
+}
