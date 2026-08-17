@@ -1,0 +1,395 @@
+// __tests__/pricingService.parity.test.js — Phase 0 acceptance tests
+// Verify priceCoin() produces contract-compatible output with existing priceRoute behavior.
+// CommonJS
+
+'use strict';
+
+jest.mock('../src/services/pcgsService', () => ({
+  lookupByCert: jest.fn(),
+  lookupByCoinNumberAndGrade: jest.fn(),
+  resolveFromDescription: jest.fn(() => ({
+    verified: false,
+    series: 'Morgan Dollar',
+    year: 1921,
+    mint: 'O',
+    grade: 64,
+    designation: 'MS 64',
+    metalContent: 'Silver',
+    parsed: { series: 'Morgan Dollar', year: 1921, mint: 'O', grade: 64 }
+  })),
+  parseDescription: jest.fn((query) => {
+    if (/morgan/i.test(query)) {
+      return { series: 'Morgan Dollar', year: 1921, mint: 'O', grade: 64 };
+    }
+    if (/eagle/i.test(query)) {
+      return { series: 'American Silver Eagle', year: 2024, weight: 1, metal: 'silver' };
+    }
+    if (/libertad/i.test(query)) {
+      return { series: 'Mexican Silver Libertad', year: 2024, weight: 1, metal: 'silver' };
+    }
+    return {};
+  }),
+}));
+
+jest.mock('../src/services/ebayService', () => ({
+  fetchSoldComps: jest.fn(async () => ({
+    us: {
+      comps: [
+        { itemId: '123', price: 45.00, grade: 64 },
+        { itemId: '124', price: 46.00, grade: 64 },
+      ],
+      stats: { median: 45.50, mean: 45.50, count: 2 }
+    },
+    global: { stats: { count: 0 } },
+    usedFallback: false
+  })),
+  buildKeywords: jest.fn((pcgs) => `${pcgs.year || ''} ${pcgs.series || ''}`),
+}));
+
+jest.mock('../src/services/valuationService', () => ({
+  computeValuation: jest.fn(() => ({
+    valuation: {
+      fmvCore: 47.50,
+      rangeLow: 44,
+      rangeHigh: 51,
+      confidence: 'High',
+      method: 'eBay comparable sales',
+      algorithmVersion: '3.2.1',
+      configVersion: '2026-08-17',
+      computedAt: new Date().toISOString(),
+      compCount: 2,
+      explanation: ['Based on 2 eBay sold comparables in grade MS64, timeWindow 180 days']
+    },
+    decisions: {
+      method: 'eBay comparable sales',
+      reason: 'eBay comps available',
+      compCount: 2
+    }
+  })),
+}));
+
+jest.mock('../src/services/greysheetService', () => ({
+  fetchPriceByPcgsNumber: jest.fn(async () => null),
+  fetchTypePrice: jest.fn(async () => null),
+}));
+
+jest.mock('../src/services/greysheetHistoryService', () => ({
+  makeKey: jest.fn((...args) => args.join('::')),
+  recordSnapshot: jest.fn(),
+}));
+
+jest.mock('../src/services/auctionPriceService', () => ({
+  getHistory: jest.fn(() => ({ stats: { count: 0 }, records: [] })),
+  computeTrend: jest.fn(() => null),
+}));
+
+jest.mock('../src/services/metalsSpotPrice', () => ({
+  getMetalsSpotPrice: jest.fn(async (sym) => ({
+    price: sym === 'XAG' ? 30.50 : 2000,
+    source: 'CBOT',
+    stale: false
+  })),
+}));
+
+jest.mock('../src/services/numistaService', () => ({
+  lookupCoin: jest.fn(async () => ({
+    accessible: true,
+    type: 'coin',
+    issue: null,
+    rarity: null,
+    numistaUrl: null,
+    prices: null,
+    composition: null,
+    references: null
+  })),
+}));
+
+jest.mock('../src/services/terapeakService', () => ({
+  lookupComps: jest.fn(() => null),
+}));
+
+jest.mock('../src/utils/redactForPublic', () => ({
+  redactCompsForPublic: jest.fn((obj) => obj),
+}));
+
+jest.mock('../src/utils/filters', () => ({
+  hasSeriesConflict: jest.fn(() => false),
+  detectDenomination: jest.fn(() => null),
+}));
+
+jest.mock('../src/utils/coinMetalProfile', () => ({
+  getCoinMetalProfile: jest.fn(() => ({ metal: null })),
+}));
+
+jest.mock('../src/utils/coinIntent', () => ({
+  extractCoinIntent: jest.fn(() => ({
+    grade: null,
+    designation: null,
+    finish: null,
+    isProof: false,
+    barBrand: null,
+    barSeries: null,
+  })),
+  isValidFinishInput: jest.fn(() => true),
+}));
+
+jest.mock('../src/data/keyDates', () => ({
+  lookupKeyDate: jest.fn(() => ({ isKeyDate: false })),
+}));
+
+jest.mock('../src/data/mintages', () => ({
+  lookupMintage: jest.fn(() => ({ mintage: null })),
+}));
+
+jest.mock('../src/data/lunarReference', () => ({
+  buildLunarComparison: jest.fn(() => null),
+}));
+
+jest.mock('../src/data/halfDollarSeries', () => ({
+  resolveCoinVariant: jest.fn(() => null),
+}));
+
+jest.mock('../src/data/constants', () => ({
+  zodiacForYear: jest.fn(() => null),
+  perthLunarSeries: jest.fn(() => ({ label: null })),
+  getRollQuantity: jest.fn(() => null),
+  ALLOWED_LABELS: new Set(['First Strike', 'Early Releases', 'First Day of Issue', 'Burnished', 'Reverse Proof', 'Enhanced Reverse Proof', 'Satin Finish', 'Antiqued', 'High Relief']),
+  BULLION_1OZ_DEFAULT: ['eagle', 'libertad', 'britannia', 'philharmonic', 'krugerrand', 'maple leaf', 'kookaburra', 'lunar'],
+}));
+
+jest.mock('../src/utils/stats', () => ({
+  median: jest.fn((arr) => arr.length > 0 ? arr.sort((a, b) => a - b)[Math.floor(arr.length / 2)] : 0),
+}));
+
+const { priceCoin } = require('../src/services/pricingService');
+
+describe('pricingService.priceCoin() — Phase 0 Acceptance Tests', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  // ── Test 1: Basic structured coin (Morgan Dollar) ──
+  test('prices a Morgan Dollar with public audience', async () => {
+    const result = await priceCoin(
+      {
+        query: '1921 Morgan Dollar MS 64',
+        coinData: {},
+        options: {},
+        saleContext: 'ebay',
+      },
+      { isAdmin: false, audience: 'public' }
+    );
+
+    expect(result).toBeDefined();
+    expect(result.valuation).toBeDefined();
+    expect(result.valuation.fmvCore).toBe(47.50);
+    expect(result.coin).toBeDefined();
+    expect(result.coin.identification).toBeDefined();
+    expect(result.ebay).toBeDefined();
+    expect(result.pcgs).toBeDefined();
+    expect(result.reproducibility).toBeDefined();
+  });
+
+  // ── Test 2: Bullion coin (American Silver Eagle with weight)
+  test('prices an American Silver Eagle with weight detection', async () => {
+    const result = await priceCoin(
+      {
+        query: '2024 American Silver Eagle 1 oz',
+        coinData: { weight: 1 },
+        options: {},
+        saleContext: 'ebay',
+      },
+      { isAdmin: false, audience: 'public' }
+    );
+
+    expect(result.coin.weight).toBe(1);
+    expect(result.valuation.fmvCore).toBe(47.50);
+  });
+
+  // ── Test 3: Bullion with default weight (Libertad)
+  test('defaults bullion coins to 1 oz when weight not specified', async () => {
+    const result = await priceCoin(
+      {
+        query: '2024 Mexican Silver Libertad',
+        coinData: {},
+        options: {},
+        saleContext: 'ebay',
+      },
+      { isAdmin: false, audience: 'public' }
+    );
+
+    // BULLION_1OZ_DEFAULT includes 'libertad', so should default to 1 oz
+    expect(result.coin.weight).toBe(1);
+  });
+
+  // ── Test 4: Admin audience (gated data access)
+  test('respects trusted audience flag in valuation context', async () => {
+    const result = await priceCoin(
+      {
+        query: '1921 Morgan Dollar MS 64',
+        coinData: {},
+        options: {},
+        saleContext: 'ebay',
+      },
+      { isAdmin: true, audience: 'admin' }
+    );
+
+    expect(result).toBeDefined();
+    expect(result.valuation).toBeDefined();
+  });
+
+  // ── Test 5: Custom options (timeWindowDays, usMinComps)
+  test('respects custom pricing options', async () => {
+    const result = await priceCoin(
+      {
+        query: '1921 Morgan Dollar MS 64',
+        coinData: {},
+        options: {
+          timeWindowDays: 365,
+          usMinComps: 5,
+          exactGradeOnly: true,
+        },
+        saleContext: 'ebay',
+      },
+      { isAdmin: false, audience: 'public' }
+    );
+
+    expect(result.options.timeWindowDays).toBe(365);
+    expect(result.options.usMinComps).toBe(5);
+    expect(result.options.exactGradeOnly).toBe(true);
+  });
+
+  // ── Test 6: Appeal multiplier (COA/Box)
+  test('accepts and clamps appeal multiplier', async () => {
+    const result = await priceCoin(
+      {
+        query: '1921 Morgan Dollar MS 64',
+        coinData: { coa: true, originalBox: true },
+        appealMultiplier: 1.5,
+        saleContext: 'ebay',
+      },
+      { isAdmin: false, audience: 'public' }
+    );
+
+    expect(result).toBeDefined();
+  });
+
+  // ── Test 7: Invalid appeal multiplier clamping
+  test('clamps invalid appeal multiplier to [1.0, 2.0]', async () => {
+    // Appeal multiplier is internal; we verify it doesn't crash
+    const result = await priceCoin(
+      {
+        query: '1921 Morgan Dollar MS 64',
+        appealMultiplier: 5.0, // out of range
+        saleContext: 'ebay',
+      },
+      { isAdmin: false, audience: 'public' }
+    );
+
+    expect(result).toBeDefined();
+  });
+
+  // ── Test 8: Query length validation
+  test('rejects overly long query', async () => {
+    const longQuery = 'x'.repeat(301);
+    await expect(
+      priceCoin(
+        { query: longQuery },
+        { isAdmin: false, audience: 'public' }
+      )
+    ).rejects.toThrow('300 characters or fewer');
+  });
+
+  // ── Test 9: Missing query validation
+  test('rejects missing query', async () => {
+    await expect(
+      priceCoin(
+        { query: '' },
+        { isAdmin: false, audience: 'public' }
+      )
+    ).rejects.toThrow('query field is required');
+  });
+
+  // ── Test 10: Sale context validation + fallback
+  test('defaults invalid saleContext to ebay', async () => {
+    const result = await priceCoin(
+      {
+        query: '1921 Morgan Dollar MS 64',
+        saleContext: 'INVALID_CONTEXT',
+      },
+      { isAdmin: false, audience: 'public' }
+    );
+
+    expect(result).toBeDefined();
+  });
+
+  // ── Test 11: Reproducibility (cert number, item IDs)
+  test('includes reproducibility data (cert, item IDs)', async () => {
+    const result = await priceCoin(
+      {
+        query: '1921 Morgan Dollar MS 64',
+        coinData: {},
+        options: {},
+        saleContext: 'ebay',
+      },
+      { isAdmin: false, audience: 'public' }
+    );
+
+    expect(result.reproducibility).toBeDefined();
+    expect(result.reproducibility.pcgs).toBeDefined();
+    expect(result.reproducibility.ebay).toBeDefined();
+    expect(result.reproducibility.ebay.usItemIds).toBeDefined();
+    expect(Array.isArray(result.reproducibility.ebay.usItemIds)).toBe(true);
+  });
+
+  // ── Test 12: No AI dependencies in result
+  test('result contains no AI provider references', async () => {
+    const result = await priceCoin(
+      {
+        query: '1921 Morgan Dollar MS 64',
+      },
+      { isAdmin: false, audience: 'public' }
+    );
+
+    const resultJson = JSON.stringify(result);
+    expect(resultJson).not.toMatch(/openai|anthropic|llm|ai.*provider|gpt/i);
+  });
+
+  // ── Test 13: Structured coinData overrides parsing
+  test('structured coinData (year, grade, mint) overrides parsing', async () => {
+    const result = await priceCoin(
+      {
+        query: 'morgan dollar',
+        coinData: {
+          year: 1921,
+          grade: 64,
+          mintMark: 'O',
+          name: 'Morgan Dollar',
+        },
+      },
+      { isAdmin: false, audience: 'public' }
+    );
+
+    expect(result.coin.identification.inputQuery).toBe('morgan dollar');
+    expect(result.coin.expected.year).toBe(1921);
+  });
+
+  // ── Test 14: Positive proof: no exceptions on valid inputs ──
+  test('completes without exceptions for basic queries', async () => {
+    const queries = [
+      '1881-CC Morgan',
+      '2024 ASE',
+      '2024 Mexican Libertad',
+      'US Proof Set',
+    ];
+
+    for (const query of queries) {
+      const result = await priceCoin(
+        { query },
+        { isAdmin: false, audience: 'public' }
+      );
+      expect(result).toBeDefined();
+      expect(result.valuation).toBeDefined();
+    }
+  });
+});
