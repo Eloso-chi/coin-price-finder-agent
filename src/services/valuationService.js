@@ -989,4 +989,5 @@ module.exports = {
   // #283H -- exported for unit tests pinning the proof / RP half-life
   // dispatch.  Not used by production callers.
   computeWeightedMedian,
+  _computeConfidence: computeConfidence,
 };
