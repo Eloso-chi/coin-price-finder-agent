@@ -2387,7 +2387,7 @@ Ops can override to any value (e.g., `BROWSER_RECYCLE_EVERY=40 python scripts/te
 
 ---
 
-### #289H. Recover Terapeak hard-challenge stop and dynamic bullion-loop exhaustion behavior [P1 -- BOT-RESILIENCE / OPERATIONS] -- PROPOSED 2026-08-14
+### #289H. Recover Terapeak hard-challenge stop and dynamic bullion-loop exhaustion behavior [P1 -- BOT-RESILIENCE / OPERATIONS] -- DONE 2026-08-17 (PR #285)
 
 - **Origin**: Recovery item from INC-018. Relevant committed hunks are in `465da07b`; additional unfinished behavior tests and loop seams remain unstaged in `__tests__/terapeakOperator.test.js`, `docs/memory/terapeak-runbook.md`, and `scripts/run-bullion-loop.sh`. Treat all of them as reference only.
 - **Problem**:
@@ -2424,7 +2424,7 @@ Ops can override to any value (e.g., `BROWSER_RECYCLE_EVERY=40 python scripts/te
 
 ---
 
-### #290H. Recover agent/workflow safety rules without production-script changes [P2 -- AGENT-SAFETY / PROCESS] -- PROPOSED 2026-08-14
+### #290H. Recover agent/workflow safety rules without production-script changes [P2 -- AGENT-SAFETY / PROCESS] -- DONE 2026-08-17 (PR #286)
 
 - **Origin**: Recovery item from INC-018. Ten agent/skill files in `465da07b` contain potentially useful safety and portability changes but are mixed with production and repository-wide cleanup.
 - **Problem**:
@@ -2469,7 +2469,7 @@ Ops can override to any value (e.g., `BROWSER_RECYCLE_EVERY=40 python scripts/te
 
 ---
 
-### #291H. Recover documentation truth-sync as bounded thematic patches [P3 -- DOCUMENTATION / MAINTAINABILITY] -- PROPOSED 2026-08-14
+### #291H. Recover documentation truth-sync as bounded thematic patches [P3 -- DOCUMENTATION / MAINTAINABILITY] -- DONE 2026-08-17 (PR #287, thematic slice)
 
 - **Origin**: Recovery item from INC-018. Nineteen documentation files in `465da07b` contain a mixture of valid corrections and audit-driven scope expansion. They MUST NOT be merged as one zero-gap sweep.
 - **Problem**: Active docs contain some verified drift (module inventories, scraper defaults, 422 flow, Cosmos audit containers, server-side storage, relative links), but combining every correction creates an oversized rollback surface and recreates the failure documented in INC-018.
@@ -2504,6 +2504,74 @@ Ops can override to any value (e.g., `BROWSER_RECYCLE_EVERY=40 python scripts/te
   - Maximum one correction pass and one verification rerun per PR.
   - User approval is required before selecting each thematic subgroup for implementation.
 - **Rollback**: Each thematic PR is independently revertible; never combine all candidate docs into one merge.
+
+---
+
+### #292H. Phase 0: Extract a shared deterministic pricing boundary [P2 -- AI FOUNDATION] -- PROPOSED 2026-08-17
+
+- **Purpose**: Create a stable `priceCoin(input, trustedContext)` application boundary that preserves the existing structured pricing behavior and can be called by both the current routes and a future conversational interface.
+- **Requirements**:
+  - Preserve behavioral parity for existing `/api/price`, batch, bulk, bar, history, and collection workflows.
+  - Keep caller-controlled coin input separate from server-derived trusted context, including audience, identity, authorization, and redaction state.
+  - Keep deterministic domain services independent of any AI provider or orchestration code.
+- **Files**: `src/services/pricingService.js` (new or extracted boundary), affected pricing routes/services, focused parity tests, and mapped architecture/API documentation.
+- **Acceptance**: Existing route outputs remain contract-compatible; parity tests cover representative coin, bullion, proof, no-data, and authorization paths; no LLM dependency is required; documentation acceptance is tied to the implementing commit.
+- **Depends on**: None. This is the prerequisite for #293H.
+
+### #293H. Phase 1: Add a dual-mode conversational pricing vertical slice [P2 -- AI EXPERIENCE] -- PROPOSED 2026-08-17
+
+- **Purpose**: Add an optional conversational entry point alongside the existing structured experience, starting with natural-language coin identification and pricing.
+- **Requirements**:
+  - Traditional forms, routes, batch tools, collections, comps, history, and bullion workflows remain first-class and usable without an LLM.
+  - The conversational path calls the shared deterministic pricing boundary from #292H through allowlisted tools; it must not directly access providers or persistence.
+  - Provider failure, unavailable configuration, and ambiguous input degrade to a clear structured response rather than breaking existing workflows.
+- **Files**: New AI route/service and provider adapter, new conversational UI surface, focused tests, and API/UI documentation.
+- **Acceptance**: A user can ask a supported pricing question and receive a valuation plus structured provenance; unsupported or ambiguous requests receive safe clarification; the traditional UI remains fully functional with the AI provider disabled.
+- **Depends on**: #292H.
+
+### #294H. Phase 2: Add provenance, explainability, history, and cross-mode context [P2 -- AI TRUST / AUDITABILITY] -- PROPOSED 2026-08-17
+
+- **Purpose**: Make conversational answers traceable and allow users to move between structured and conversational views without losing trusted valuation context.
+- **Requirements**:
+  - Reuse valuation version, source, confidence, comp-count, and audit metadata already exposed by deterministic services.
+  - Keep licensed/admin-only details audience-gated and redact public responses consistently.
+  - Support structured-to-conversation and conversation-to-structured handoff using allowlisted context only.
+- **Files**: AI response schema/service, history or audit integration, UI handoff components, focused tests, and mapped documentation.
+- **Acceptance**: A response can be traced to its valuation inputs and algorithm/config versions; public and admin views remain correctly gated; a handoff round-trip preserves the intended structured query without accepting caller-controlled trusted context.
+- **Depends on**: #293H.
+
+### #295H. Phase 3: Add authenticated collection intelligence [P2 -- AI COLLECTIONS] -- PROPOSED 2026-08-17
+
+- **Purpose**: Let authenticated users ask questions about their own stored collection through deterministic, permission-checked tools.
+- **Requirements**:
+  - Enforce user ownership and admin boundaries before any collection tool runs.
+  - Keep collection CRUD and structured collection views available without AI.
+  - Return actionable gaps, valuation summaries, and uncertainty without exposing another user's records or secrets.
+- **Files**: Authenticated AI collection tools/routes, collection-context service, UI views, focused authorization tests, and mapped documentation.
+- **Acceptance**: Ownership, empty collection, mixed-quality data, and unauthorized access cases are covered; AI-disabled collection workflows remain unchanged; no tool can access arbitrary user IDs supplied by the model or caller.
+- **Depends on**: #294H.
+
+### #296H. Phase 4: Add deterministic market intelligence and analytics [P3 -- AI MARKET INTELLIGENCE] -- PROPOSED 2026-08-17
+
+- **Purpose**: Expose deterministic cross-coin and market analytics as allowlisted tools that the conversational experience can explain without inventing calculations.
+- **Requirements**:
+  - Build on existing market, history, comp, freshness, and pricing services.
+  - Keep analytics reproducible, bounded, and independently callable from the structured UI/API.
+  - Clearly distinguish observed data, derived metrics, estimates, and missing data.
+- **Files**: Analytics service/tools, structured API/UI surface, conversational adapters, focused tests, and mapped documentation.
+- **Acceptance**: Representative trend, comparison, sparse-data, stale-data, and no-data cases are deterministic and documented; analytics do not silently blend incompatible pools or sources.
+- **Depends on**: #295H.
+
+### #297H. Phase 5: Evaluate OpenAPI and external-agent/MCP exposure [P3 -- AI INTEGRATION / GOVERNANCE] -- PROPOSED 2026-08-17
+
+- **Purpose**: Evaluate whether selected deterministic tools should be exposed through OpenAPI or MCP for external agents, without committing to an integration that expands the attack surface unnecessarily.
+- **Requirements**:
+  - Inventory candidate tools, authentication, authorization, rate limits, redaction, audit, and abuse controls.
+  - Compare OpenAPI and MCP against the existing route/tool contracts and operational cost.
+  - Produce an explicit adopt, defer, or reject decision; no external exposure is implied by the evaluation.
+- **Files**: Evaluation report and, only if approved by the decision, narrowly scoped schema/config/tests and documentation.
+- **Acceptance**: The decision records threat model, trust boundary, versioning, rate limits, data classification, and rollback; any prototype is disabled by default and cannot bypass existing authorization.
+- **Depends on**: #296H.
 
 ---
 
@@ -2734,7 +2802,7 @@ Both queries produced `null` FMV alongside a high-confidence stamp, which is non
 
 ---
 
-### #302W. vnc-login/probe: expose second Akamai challenge on `/sh/research` to the user via noVNC [P2 -- OPERATIONS / DX] -- OPEN 2026-08-06
+### #302W. vnc-login/probe: expose second Akamai challenge on `/sh/research` to the user via noVNC [P2 -- OPERATIONS / DX] -- DONE 2026-08-17 (PR #288)
 
 **Problem observed 2026-08-06 (this session):** After solving the signin CAPTCHA in noVNC (`scripts/vnc-login.py`) and saving 44 cookies, the operator's Cooldown-recovery gate ran `scripts/cookie-health-check.py --probe`, which navigated to `https://www.ebay.com/sh/research` in **headless** Chromium (line 165: `headless=True`). Akamai served a second challenge on that URL, the probe exited **2 (CHALLENGED)**, and the operator hard-stopped in `stopped/fail` with message `post-login Cooldown probe failed (exit=2)`. **The user was never notified of the second challenge and had no way to solve it via noVNC**, even though a visible Chromium browser was up on `DISPLAY=:1` at that exact moment.
 
@@ -3019,7 +3087,7 @@ Option 1 is cleanest because it collapses login + first-visit-verification into 
 
 ---
 
-### #295W. Property-based tests for FMV math [P3 -- TEST-DEPTH] -- OPEN 2026-08-06
+### #295W. Property-based tests for FMV math [P3 -- TEST-DEPTH] -- DONE 2026-08-17 (PR #289)
 
 **Problem:** Fuzzy numerical functions (`computeWeightedMedian`, `computeConfidence`, `applyFilters` attrition math, weight-based melt-sanity ceiling) are tested with fixed fixtures. Edge cases (empty pools, single-item pools, extreme premium clamps, degenerate weights) rely on human insight to enumerate. Property-based generation would surface classes we don't think to write.
 
@@ -3044,7 +3112,7 @@ Option 1 is cleanest because it collapses login + first-visit-verification into 
 
 ---
 
-### #296W. Contract tests for external comp sources [P3 -- TEST-DEPTH / RESILIENCE] -- OPEN 2026-08-06
+### #296W. Contract tests for external comp sources [P3 -- TEST-DEPTH / RESILIENCE] -- DONE 2026-08-17 (PR #290)
 
 **Problem:** eBay Marketplace Insights, PCGS APR, Greysheet CDN, and Numista responses are all mocked via `axios-mock-adapter`. If any upstream changes response shape, our unit tests happily pass and we discover the drift in production. Terapeak CSV format is documented but not contract-tested against a real export.
 
