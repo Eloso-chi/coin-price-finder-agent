@@ -52,6 +52,78 @@ describe('AI orchestrator', () => {
       .rejects.toThrow(/not allowlisted/i);
   });
 
+  test('rejects fabricated numerical answers without a deterministic tool result', async () => {
+    const provider = { enabled: true, complete: jest.fn(async () => ({ role: 'assistant', content: 'It is worth $999.' })) };
+    await expect(orchestrate({ query: 'What is this worth?', provider, registry: createToolRegistry() }))
+      .rejects.toThrow(/unsupported numerical claims/i);
+  });
+
+  test('rejects an unformatted fabricated numeric answer too', async () => {
+    const provider = { enabled: true, complete: jest.fn(async () => ({ role: 'assistant', content: 'The value is 999.' })) };
+    await expect(orchestrate({ query: 'What is this worth?', provider, registry: createToolRegistry() }))
+      .rejects.toThrow(/unsupported numerical claims/i);
+  });
+
+  test('does not treat numeric substrings as matching evidence', async () => {
+    let call = 0;
+    const provider = {
+      enabled: true,
+      complete: jest.fn(async () => {
+        call += 1;
+        return call === 1
+          ? { role: 'assistant', tool_calls: [{ id: 'price', function: { name: 'price_coin', arguments: '{"query":"Morgan Dollar"}' } }] }
+          : { role: 'assistant', content: 'The value is 45 dollars.' };
+      }),
+    };
+    const registry = createToolRegistry({ price: jest.fn(async () => ({ valuation: { fmvCore: 245 } })) });
+    await expect(orchestrate({ query: 'Morgan Dollar', provider, registry }))
+      .rejects.toThrow(/unsupported numerical claims/i);
+  });
+
+  test('does not use unrelated coin metadata as financial evidence', async () => {
+    let call = 0;
+    const provider = {
+      enabled: true,
+      complete: jest.fn(async () => {
+        call += 1;
+        return call === 1
+          ? { role: 'assistant', tool_calls: [{ id: 'price', function: { name: 'price_coin', arguments: '{"query":"Morgan Dollar"}' } }] }
+          : { role: 'assistant', content: 'The FMV is 1881.' };
+      }),
+    };
+    const registry = createToolRegistry({ price: jest.fn(async () => ({ coin: { identification: { year: 1881 } }, valuation: { fmvCore: 245 } })) });
+    await expect(orchestrate({ query: 'Morgan Dollar', provider, registry }))
+      .rejects.toThrow(/unsupported numerical claims/i);
+  });
+
+  test('does not use comp count as price evidence', async () => {
+    let call = 0;
+    const provider = {
+      enabled: true,
+      complete: jest.fn(async () => {
+        call += 1;
+        return call === 1
+          ? { role: 'assistant', tool_calls: [{ id: 'price', function: { name: 'price_coin', arguments: '{"query":"Morgan Dollar"}' } }] }
+          : { role: 'assistant', content: 'The value is $8.' };
+      }),
+    };
+    const registry = createToolRegistry({ price: jest.fn(async () => ({ valuation: { fmvCore: 245, compCount: 8 } })) });
+    await expect(orchestrate({ query: 'Morgan Dollar', provider, registry }))
+      .rejects.toThrow(/unsupported numerical claims/i);
+  });
+
+  test('rejects multiple tool calls instead of silently truncating them', async () => {
+    const provider = { enabled: true, complete: jest.fn(async () => ({
+      role: 'assistant',
+      tool_calls: [
+        { id: 'one', function: { name: 'identify_coin', arguments: '{"query":"Morgan"}' } },
+        { id: 'two', function: { name: 'price_coin', arguments: '{"query":"Morgan"}' } },
+      ],
+    })) };
+    await expect(orchestrate({ query: 'Morgan', provider, registry: createToolRegistry() }))
+      .rejects.toThrow(/multiple tool calls/i);
+  });
+
   test('bounds conversation context and states the calculation policy', () => {
     expect(boundedContext(Array.from({ length: 20 }, (_, index) => ({ role: 'user', content: `turn-${index}` })))).toHaveLength(8);
     expect(SYSTEM_POLICY).toMatch(/deterministic tool results/i);

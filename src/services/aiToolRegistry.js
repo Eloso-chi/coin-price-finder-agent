@@ -10,6 +10,14 @@ const {
 
 const TOOL_NAMES = Object.freeze(['identify_coin', 'price_coin', 'evaluate_purchase']);
 
+function withTimeout(promise, timeoutMs, name) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`${name} timed out`)), timeoutMs);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
 function createToolRegistry({ identify = pcgsService.parseDescription, price = priceCoin } = {}) {
   const tools = {
     identify_coin: {
@@ -17,7 +25,7 @@ function createToolRegistry({ identify = pcgsService.parseDescription, price = p
       timeoutMs: 5000,
       execute: async (input) => ({
         query: input.query,
-        parsed: identify(input.query),
+        parsed: await identify(input.query),
         provenance: { source: 'deterministic-coin-intent', observed: true },
       }),
     },
@@ -50,7 +58,7 @@ function createToolRegistry({ identify = pcgsService.parseDescription, price = p
     async execute(name, input, trustedContext) {
       const tool = this.get(name);
       const validated = tool.validate(input);
-      return tool.execute(validated, trustedContext);
+      return withTimeout(tool.execute(validated, trustedContext), tool.timeoutMs, name);
     },
   });
 }

@@ -6,6 +6,36 @@ const { redactCompsForPublic } = require('../utils/redactForPublic');
 const { MAX_CONTEXT_TURNS } = require('../schemas/aiToolSchemas');
 
 const MAX_TOOL_TURNS = 3;
+const COIN_DATA_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    name: { type: 'string', maxLength: 200 }, year: { anyOf: [{ type: 'string', pattern: '^[1-9][0-9]{0,3}$' }, { type: 'integer', minimum: 1, maximum: 9999 }] },
+    mint: { type: 'string', maxLength: 10 }, grade: { type: 'string', maxLength: 30 },
+    finish: { type: 'string', maxLength: 100 }, designation: { type: 'string', maxLength: 30 },
+    composition: { type: 'string', maxLength: 50 }, isProof: { type: 'boolean' },
+    coa: { type: 'boolean' }, originalBox: { type: 'boolean' },
+  },
+};
+const OPTIONS_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    timeWindowDays: { type: 'number', minimum: 1, maximum: 365 },
+    usMinComps: { type: 'number', minimum: 1, maximum: 100 },
+    maxPages: { type: 'number', minimum: 1, maximum: 10 },
+    requirePCGSOnly: { type: 'boolean' }, exactGradeOnly: { type: 'boolean' },
+    weight: { type: 'number', minimum: 0.001, maximum: 100 },
+  },
+};
+const PRICING_PROPERTIES = {
+  query: { type: 'string', minLength: 1, maxLength: 300, pattern: '.*\\S.*' },
+  coinData: COIN_DATA_SCHEMA,
+  weight: { type: 'number', minimum: 0.001, maximum: 100 },
+  options: OPTIONS_SCHEMA,
+  askingPrice: { type: 'number', minimum: 0, maximum: 1000000 },
+  appealMultiplier: { type: 'number', minimum: 1, maximum: 2 },
+};
 const SYSTEM_POLICY = [
   'You are a coin pricing assistant.',
   'Use only the provided tools: identify_coin, price_coin, evaluate_purchase.',
@@ -23,7 +53,7 @@ const TOOL_DEFINITIONS = [
     function: {
       name: 'identify_coin',
       description: 'Identify a coin description and extract deterministic coin intent.',
-      parameters: { type: 'object', required: ['query'], properties: { query: { type: 'string', maxLength: 300 } } },
+      parameters: { type: 'object', additionalProperties: false, required: ['query'], properties: { query: { type: 'string', minLength: 1, maxLength: 300, pattern: '.*\\S.*' } } },
     },
   },
   {
@@ -31,7 +61,7 @@ const TOOL_DEFINITIONS = [
     function: {
       name: 'price_coin',
       description: 'Price a coin using deterministic pricing services.',
-      parameters: { type: 'object', required: ['query'], properties: { query: { type: 'string', maxLength: 300 }, coinData: { type: 'object' }, weight: { type: 'number' }, options: { type: 'object' } } },
+      parameters: { type: 'object', additionalProperties: false, required: ['query'], properties: PRICING_PROPERTIES },
     },
   },
   {
@@ -39,7 +69,7 @@ const TOOL_DEFINITIONS = [
     function: {
       name: 'evaluate_purchase',
       description: 'Evaluate an asking price against deterministic valuation results.',
-      parameters: { type: 'object', required: ['query', 'askingPrice'], properties: { query: { type: 'string', maxLength: 300 }, askingPrice: { type: 'number', minimum: 0 }, coinData: { type: 'object' }, options: { type: 'object' } } },
+      parameters: { type: 'object', additionalProperties: false, required: ['query', 'askingPrice'], properties: PRICING_PROPERTIES },
     },
   },
 ];
@@ -57,6 +87,29 @@ function publicToolResult(name, result, isAdmin) {
   const copy = JSON.parse(JSON.stringify(result));
   if (name !== 'identify_coin') redactCompsForPublic(copy, isAdmin === true);
   return copy;
+}
+
+function hasNumericalClaim(text) {
+  return /\b\d+(?:\.\d+)?\b|\$|\b(?:USD|dollars?|cents?|%)\b|\b(?:FMV|fair market value|comp count|confidence)\b/i.test(text || '');
+}
+
+function explanationIsGrounded(text, toolResults) {
+  if (!hasNumericalClaim(text)) return true;
+  if (!toolResults.length) return false;
+  const financialEvidence = toolResults.flatMap(tool => {
+    const result = tool.result?.result || {};
+    const valuation = result.valuation || {};
+    const decisions = { ...(result.decisions?.buy || {}), ...(result.decisions?.sell || {}) };
+    const priceNumbers = [valuation.fmvCore, valuation.rangeLow, valuation.rangeHigh, ...Object.values(decisions)]
+      .filter(value => typeof value === 'number' && Number.isFinite(value)).map(String);
+    const compNumbers = typeof valuation.compCount === 'number' ? [String(valuation.compCount)] : [];
+    const confidenceNumbers = typeof valuation.confidence === 'number' ? [String(valuation.confidence)] : [];
+    if (/\bcomp(?:s| count)?\b/i.test(text)) return [...priceNumbers, ...compNumbers];
+    if (/\bconfidence\b/i.test(text)) return [...priceNumbers, ...confidenceNumbers];
+    return priceNumbers;
+  });
+  const numbers = String(text).match(/\d+(?:\.\d+)?/g) || [];
+  return numbers.every(number => financialEvidence.includes(number));
 }
 
 async function orchestrate({ query, context = [], trustedContext = {}, provider, registry, userMessage }) {
@@ -79,16 +132,26 @@ async function orchestrate({ query, context = [], trustedContext = {}, provider,
       max_tokens: 700,
     });
     if (!Array.isArray(message.tool_calls) || message.tool_calls.length === 0) {
+      const answer = typeof message.content === 'string'
+        ? message.content
+        : 'I need more information to answer that safely.';
+      if (!explanationIsGrounded(answer, toolResults)) {
+        throw new Error('LLM response contains unsupported numerical claims');
+      }
       return {
-        answer: typeof message.content === 'string' ? message.content : 'I need more information to answer that safely.',
+        answer,
         toolResults,
         context: boundedContext([...context, { role: 'user', content: userMessage || query }, { role: 'assistant', content: message.content || '' }]),
         provider: 'azure-openai',
       };
     }
 
+    if (message.tool_calls.length !== 1) {
+      throw new Error('LLM returned multiple tool calls; one tool call is allowed per turn');
+    }
+
     messages.push(message);
-    for (const call of message.tool_calls.slice(0, 1)) {
+    for (const call of message.tool_calls) {
       const name = call?.function?.name;
       const tool = activeRegistry.get(name);
       let args;
@@ -112,4 +175,12 @@ async function orchestrate({ query, context = [], trustedContext = {}, provider,
   throw new Error('LLM tool-call limit exceeded');
 }
 
-module.exports = { orchestrate, SYSTEM_POLICY, TOOL_DEFINITIONS, boundedContext, publicToolResult };
+module.exports = {
+  orchestrate,
+  SYSTEM_POLICY,
+  TOOL_DEFINITIONS,
+  boundedContext,
+  publicToolResult,
+  hasNumericalClaim,
+  explanationIsGrounded,
+};
