@@ -180,7 +180,14 @@
     .status-bar.loading { color: var(--yellow); }
     .ai-response { white-space: pre-wrap; line-height: 1.6; }
     .ai-provenance { color: var(--text-secondary); font-size: 0.82rem; margin-top: 12px; }
-    .ai-handoff { margin-top: 12px; }
+    .ai-handoff { margin-top: 12px; min-height: 44px; }
+    .ai-query-input { flex: 1 1 260px; min-width: 0; }
+    .ai-context-note { color: var(--text-muted); font-size: 0.8rem; margin: 8px 0; }
+    .ai-error { color: var(--red); }
+    @media (max-width: 520px) {
+      .ai-query-row { flex-direction: column; align-items: stretch; }
+      .ai-query-row .btn { width: 100%; justify-content: center; }
+    }
     .spinner {
       width: 16px; height: 16px; border: 2px solid var(--border);
       border-top-color: var(--accent); border-radius: 50%;
@@ -1570,12 +1577,14 @@
       <h2>Conversational Pricing</h2>
       <div class="form-group">
         <label for="ai-query">Ask about a coin</label>
-        <div class="input-row">
-          <input id="ai-query" type="text" placeholder="e.g. 2024 American Silver Eagle" autocomplete="off">
+        <div class="input-row ai-query-row">
+          <input id="ai-query" class="ai-query-input" type="text" placeholder="e.g. 2024 American Silver Eagle" autocomplete="off">
           <button id="ai-submit" class="btn" type="button">Price with AI</button>
         </div>
       </div>
       <div id="ai-status" class="status-bar" role="status" aria-live="polite"></div>
+      <div id="ai-context-note" class="ai-context-note" hidden></div>
+      <button id="ai-new-conversation" class="btn ai-handoff" type="button">New conversation</button>
       <div id="ai-response" aria-live="polite"></div>
     </div>
   </section>
@@ -3704,7 +3713,7 @@ Silver Libertad 1 oz Proof"></textarea>
       html += '<a data-tab="tab-melt" title="Open in Melt Calculator">Melt Calculator</a>';
       html += '<a data-tab="tab-tracker" title="Open in Live eBay Tracker">eBay Tracker</a>';
       html += '<a data-tab="tab-history" title="Open in Price History">Price History</a>';
-      html += '<button type="button" class="ai-handoff" id="structured-to-ai">Continue in AI Pricing</button>';
+      html += '<button type="button" class="btn ai-handoff" id="structured-to-ai">Continue in AI Pricing</button>';
       html += '</div>';
 
       html += '<details><summary>View raw JSON response</summary>';
@@ -3825,6 +3834,9 @@ Silver Libertad 1 oz Proof"></textarea>
       coinData: context?.coinData || null,
       weight: context?.weight || null,
       options: context?.options || {},
+      askingPrice: context?.askingPrice ?? null,
+      saleContext: context?.saleContext || null,
+      appealMultiplier: context?.appealMultiplier ?? null,
     };
     aiQuery.value = window._aiStructuredContext.query;
     document.getElementById('tab-ai')?.click();
@@ -3836,8 +3848,21 @@ Silver Libertad 1 oz Proof"></textarea>
     const queryInput = document.getElementById('query');
     if (queryInput) queryInput.value = handoff.query;
     const coinData = handoff.coinData || {};
-    const yearInput = document.getElementById('coinYear');
-    if (yearInput && coinData.year != null) yearInput.value = coinData.year;
+    const fieldValues = {
+      coinName: coinData.name,
+      coinYear: coinData.year,
+      coinMint: coinData.mint || coinData.mintMark,
+      coinFinish: coinData.finish,
+      coinGrade: coinData.grade,
+      askingPrice: handoff.askingPrice,
+      saleContext: handoff.saleContext,
+      appealMultiplier: handoff.appealMultiplier,
+      coinWeight: handoff.weight,
+    };
+    Object.keys(fieldValues).forEach(function(id) {
+      const field = document.getElementById(id);
+      if (field && fieldValues[id] != null) field.value = fieldValues[id];
+    });
     document.getElementById('tab-price')?.click();
     const modeToggle = document.getElementById('mode-toggle');
     const quickSearch = document.getElementById('quick-search');
@@ -3850,6 +3875,8 @@ Silver Libertad 1 oz Proof"></textarea>
     if (!output) return;
     output.innerHTML = '';
     if (!data.ok) {
+      output.className = 'ai-error';
+      output.setAttribute('role', 'alert');
       output.textContent = data.error || 'The AI pricing request needs more information.';
       if (Array.isArray(data.suggestions) && data.suggestions.length) {
         const list = document.createElement('ul');
@@ -3862,6 +3889,8 @@ Silver Libertad 1 oz Proof"></textarea>
       }
       return;
     }
+    output.className = '';
+    output.removeAttribute('role');
     const card = document.createElement('div');
     card.className = 'card';
     const answer = document.createElement('p');
@@ -3870,11 +3899,16 @@ Silver Libertad 1 oz Proof"></textarea>
     const provenance = document.createElement('p');
     provenance.className = 'ai-provenance';
     if (data.provenance?.valuation) {
-      provenance.textContent = 'Confidence: ' + (data.provenance.valuation.confidence || 'unknown')
+      provenance.textContent = (data.fallback
+        ? 'AI provider unavailable; deterministic pricing used. '
+        : '') + 'Confidence: ' + (data.provenance.valuation.confidence || 'unknown')
         + ' | Comps: ' + (data.provenance.valuation.compCount || 0)
         + ' | Algorithm: ' + (data.provenance.valuation.algorithmVersion || 'unknown');
     } else {
-      provenance.textContent = 'Deterministic tools used: ' + (data.provenance?.tools || []).join(', ');
+      provenance.textContent = (data.fallback
+        ? 'AI provider unavailable; deterministic pricing used. '
+        : 'LLM explanation grounded in deterministic tools. ')
+        + 'Tools used: ' + (data.provenance?.tools || []).join(', ');
     }
     if (data.handoff?.query) {
       const handoff = document.createElement('button');
@@ -3897,12 +3931,19 @@ Silver Libertad 1 oz Proof"></textarea>
     if (!query) {
       status.className = 'status-bar error';
       status.textContent = 'Enter a coin description first.';
+      input.setAttribute('aria-invalid', 'true');
+      input.setAttribute('aria-describedby', 'ai-status');
+      input.focus();
       return;
     }
+    input.removeAttribute('aria-invalid');
+    input.removeAttribute('aria-describedby');
     button.disabled = true;
     status.className = 'status-bar loading';
     status.textContent = 'Pricing...';
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 50000);
       const response = await fetch('/api/ai/price', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -3911,18 +3952,22 @@ Silver Libertad 1 oz Proof"></textarea>
           structuredContext: window._aiStructuredContext || undefined,
           conversationContext: window._aiConversationContext || [],
         }),
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
       const data = await response.json();
       if (!response.ok && response.status !== 422) throw new Error(data.error || 'AI pricing failed');
       status.className = 'status-bar';
       status.textContent = '';
       if (Array.isArray(data.conversationContext)) {
         window._aiConversationContext = data.conversationContext.slice(-8);
+        const note = document.getElementById('ai-context-note');
+        if (note) { note.hidden = false; note.textContent = 'Continuing this conversation with the last ' + window._aiConversationContext.length + ' turns.'; }
       }
       renderAiResponse(data);
     } catch (err) {
       status.className = 'status-bar error';
-      status.textContent = err.message || 'AI pricing is unavailable.';
+      status.textContent = err.name === 'AbortError' ? 'AI pricing timed out. Try again.' : (err.message || 'AI pricing is unavailable.');
     } finally {
       button.disabled = false;
     }
@@ -3959,6 +4004,15 @@ Silver Libertad 1 oz Proof"></textarea>
   document.getElementById('ai-submit')?.addEventListener('click', runAiQuery);
   document.getElementById('ai-query')?.addEventListener('keydown', function(event) {
     if (event.key === 'Enter') runAiQuery();
+  });
+  document.getElementById('ai-new-conversation')?.addEventListener('click', function() {
+    window._aiConversationContext = [];
+    window._aiStructuredContext = null;
+    const note = document.getElementById('ai-context-note');
+    if (note) { note.hidden = true; note.textContent = ''; }
+    const output = document.getElementById('ai-response');
+    if (output) output.replaceChildren();
+    document.getElementById('ai-query')?.focus();
   });
   document.getElementById('collection-ai-btn')?.addEventListener('click', runCollectionAiQuery);
 
@@ -4222,6 +4276,9 @@ Silver Libertad 1 oz Proof"></textarea>
       coinData: d.coinData || null,
       weight: d.query?.weight || null,
       options: d.query?.options || {},
+      askingPrice: d.query?.askingPrice ?? null,
+      saleContext: d.query?.saleContext || null,
+      appealMultiplier: d.query?.appealMultiplier ?? null,
     };
 
     // ── Pass series to Live eBay Tracker FIRST (before HTML build) ──

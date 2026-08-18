@@ -100,6 +100,10 @@ describe('POST /api/ai/price', () => {
       query: '2024 American Silver Eagle',
       coinData: null,
       options: {},
+      weight: null,
+      askingPrice: null,
+      saleContext: null,
+      appealMultiplier: null,
     });
     expect(writeValuationAudit).toHaveBeenCalledWith(expect.objectContaining({
       query: '2024 American Silver Eagle',

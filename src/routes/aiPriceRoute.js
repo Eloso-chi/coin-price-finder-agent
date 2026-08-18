@@ -85,7 +85,11 @@ router.post('/price', async (req, res) => {
           handoff: {
             query: cleanedQuery,
             coinData: coinData || null,
+            weight: weight ?? null,
             options: options || {},
+            askingPrice: askingPrice ?? null,
+            saleContext: saleContext || null,
+            appealMultiplier: appealMultiplier ?? null,
           },
         });
       } catch (llmError) {
@@ -164,7 +168,11 @@ router.post('/price', async (req, res) => {
       handoff: {
         query: cleanedQuery,
         coinData: coinData || null,
+        weight: weight ?? null,
         options: options || {},
+        askingPrice: askingPrice ?? null,
+        saleContext: saleContext || null,
+        appealMultiplier: appealMultiplier ?? null,
       },
       response,
     });
