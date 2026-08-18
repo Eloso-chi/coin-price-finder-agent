@@ -123,7 +123,7 @@ async function aprGet(urlPath) {
         upstreamLimit,
         reason: 'PCGS APR rate limit exceeded (429)'
       });
-      throw new Error('PCGS API rate limit exceeded (429) — breaker tripped');
+      throw new Error('PCGS API rate limit exceeded (429) — breaker tripped', { cause: err });
     }
     // Still sync headers on error responses if available
     if (err.response?.headers) {
@@ -152,7 +152,9 @@ function todayEndDate() {
 
 // ── Storage helpers ─────────────────────────────────────────
 function getStoragePath(pcgsNo) {
-  return path.join(APR_DIR, `${pcgsNo}.json`);
+  const safePcgsNo = String(pcgsNo || '');
+  if (!/^\d{1,10}$/.test(safePcgsNo)) throw new Error('Invalid PCGS coin number');
+  return path.join(APR_DIR, `${safePcgsNo}.json`);
 }
 
 function loadCoinFile(pcgsNo) {

@@ -24,6 +24,9 @@ const cache = new TTLCache({
 
 // ── HTTP helper with retry ──────────────────────────────────
 async function gsGet(endpoint, params, retries = 2) {
+  if (!new Set(['GetPricingRequest', 'GetCollectibleRequest']).has(endpoint)) {
+    throw new Error('Unsupported Greysheet endpoint');
+  }
   const url = `${GS_BASE}/${endpoint}`;
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {

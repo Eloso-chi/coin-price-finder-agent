@@ -1419,7 +1419,8 @@ function applyFilters(comps, options, expected) {
 
   // exactGradeOnly
   if (options.exactGradeOnly && expected.grade) {
-    const gradeRe = new RegExp(`\\b${expected.grade.replace('+', '\\+')}\\b`, 'i');
+    const escapedGrade = String(expected.grade).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const gradeRe = new RegExp(`\\b${escapedGrade}\\b`, 'i');
     kept = kept.filter(c => {
       if (!gradeRe.test(c.title)) { removed.gradeOnly++; return false; }
       return true;
