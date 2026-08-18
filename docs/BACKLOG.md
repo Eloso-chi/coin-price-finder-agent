@@ -2550,6 +2550,11 @@ Ops can override to any value (e.g., `BROWSER_RECYCLE_EVERY=40 python scripts/te
   - ✅ Direct internal service calls reuse deterministic identification and pricing functions; orchestration does not call application routes over HTTP.
   - ✅ System policy, bounded follow-up context, provider-disabled/failure/no-data fallbacks, redaction, token/concurrency limits, and prompt-injection rejection are covered.
   - ✅ Focused provider, registry, orchestration, route, security, context, and end-to-end invocation tests pass.
+- **Delivery evidence**:
+  - ✅ Clean worktree at commit `6ba41a2a`: 173 Jest suites and 4,506 tests passed.
+  - ✅ Focused AI tests: 8 suites and 38 tests passed; targeted ESLint clean.
+  - ✅ UX Reviewer approved the AI Pricing UI with no remaining S2/S3 blockers.
+  - ✅ Onboard documentation acceptance passed for commit `6ba41a2a`.
 - **Initial conversation scenarios**:
   - `What is an 1881-S Morgan MS65 worth?`
   - `Someone wants $245 for it. Is that a good deal?`

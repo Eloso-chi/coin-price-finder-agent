@@ -64,6 +64,8 @@ The browser UI is a single-page app served from `public/index.html` with a dark 
 
 The AI endpoints are internal application routes. External OpenAPI/MCP exposure is deferred; see [docs/AI-EXTERNAL-EXPOSURE-EVALUATION.md](docs/AI-EXTERNAL-EXPOSURE-EVALUATION.md).
 
+Phase 1 delivery evidence is tracked in [docs/BACKLOG.md](docs/BACKLOG.md): the clean committed tree passed 173 Jest suites and 4,506 tests, UX review approved the AI Pricing UI, and Onboard documentation acceptance passed for commit `6ba41a2a`.
+
 ### Server-Side Auth (bcrypt + JWT)
 
 Authentication is handled server-side. Accounts and coin data persist across browser restarts, cache clears, and device changes.
