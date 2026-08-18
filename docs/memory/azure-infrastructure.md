@@ -10,7 +10,7 @@
 ## Key Vault
 - Name: coinpricefinder-kv
 - Access: managed identity (get, list)
-- Secrets: ADMIN-API-KEY, JWT-SECRET, EBAY-APP-ID, EBAY-CLIENT-SECRET, EBAY-CERT-ID, PCGS-API-KEY, GREYSHEET-API-TOKEN, GREYSHEET-API-KEY, COSMOS-KEY
+- Secrets: ADMIN-API-KEY, JWT-SECRET, EBAY-APP-ID, EBAY-CLIENT-SECRET, EBAY-CERT-ID, PCGS-API-KEY, GREYSHEET-API-TOKEN, GREYSHEET-API-KEY, COSMOS-KEY, AZURE-OPENAI-API-KEY (optional; only for explicitly enabled Phase 1 LLM mode)
 - All app settings use @Microsoft.KeyVault() references
 
 ## Cosmos DB
@@ -36,3 +36,14 @@
 - If no Cosmos: pure file storage (local dev, tests)
 - Tests run without COSMOS_ENDPOINT -- 100% backward compatible
 - Migration script: scripts/migrate-to-cosmos.js (one-time, real data only)
+
+## Phase 1 LLM provider
+
+Azure OpenAI is disabled by default. It is enabled only when the server has
+`LLM_PROVIDER=azure-openai`, `AZURE_OPENAI_ENDPOINT`,
+`AZURE_OPENAI_DEPLOYMENT`, and the Key Vault-backed
+`AZURE_OPENAI_API_KEY`. Endpoint, deployment, and API version are non-secret
+App Service settings; the API key is stored as `AZURE-OPENAI-API-KEY` in
+Key Vault and is never sent to the browser. The orchestrator remains limited
+to `identify_coin`, `price_coin`, and `evaluate_purchase`; disabling or
+removing the provider settings falls back to the deterministic pricing path.

@@ -1,7 +1,7 @@
 # Secret Bootstrap (New / Other Dev Machine)
 
 Pull the dev secrets this app needs (`EBAY_APP_ID`, `EBAY_CLIENT_SECRET`,
-`PCGS_API_KEY`, etc.) from Azure Key Vault `coinpricefinder-kv` into a local
+`PCGS_API_KEY`, and optional `AZURE_OPENAI_API_KEY`) from Azure Key Vault `coinpricefinder-kv` into a local
 `.env`. No secrets are ever committed to the repo or copied through chat,
 email, or files.
 
@@ -23,7 +23,8 @@ Steps:
      az login              # or: az login --use-device-code  (Codespace / headless)
 4. Dry-run the loader first so I can see which secrets will land:
      scripts/load-secrets.sh
-   Expect 8 OK lines from vault coinpricefinder-kv.
+  Expect 8 required OK lines, plus `AZURE_OPENAI_API_KEY` only when the
+  optional LLM provider secret is provisioned.
 5. If the dry-run looks right, write the values into .env:
      scripts/load-secrets.sh --write
    Confirm the resulting file is mode 600:
@@ -56,7 +57,7 @@ az keyvault set-policy --name coinpricefinder-kv \
 
 ## What the script does (and does not)
 
-- **Does** fetch 8 named secrets via `az keyvault secret show` and merge
+- **Does** fetch the named required secrets plus optional `AZURE_OPENAI_API_KEY` via `az keyvault secret show` and merge
   them into `./.env` (mode 600), preserving non-secret lines (`PORT`,
   endpoint URLs, TTLs).
 - **Does not** rotate, delete, or upload secrets.
