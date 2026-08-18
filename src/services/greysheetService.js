@@ -119,7 +119,7 @@ async function fetchPriceByPcgsNumber(pcgsNumber, grade) {
   } catch (err) {
     // Non-fatal: log and return null so valuation can proceed without Greysheet
     if (process.env.NODE_ENV !== 'test') {
-      console.error(`[greysheetService] fetchPriceByPcgsNumber(${pcgsNumber}, ${grade}):`, err.message);
+      console.error('[greysheetService] fetchPriceByPcgsNumber failed:', err.message);
     }
     return null;
   }
