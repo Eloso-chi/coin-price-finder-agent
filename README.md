@@ -182,6 +182,11 @@ Optional variables:
 | `GOLDAPI_KEY` | Gold API key for spot prices | *(none)* |
 | `METALS_API_KEY` | Metals API key (fallback provider) | *(none)* |
 | `NUMISTA_API_KEY` | Numista API key for rarity/mintage data | *(none)* |
+| `LLM_PROVIDER` | LLM provider for the Phase 1 conversational orchestrator; disabled unless set to `azure-openai` with complete Azure settings | *(disabled)* |
+| `AZURE_OPENAI_ENDPOINT` | Azure OpenAI endpoint for the server-side conversational provider | *(none)* |
+| `AZURE_OPENAI_DEPLOYMENT` | Azure OpenAI deployment name | *(none)* |
+| `AZURE_OPENAI_API_VERSION` | Azure OpenAI API version | `2024-10-21` |
+| `AZURE_OPENAI_API_KEY` | Azure OpenAI API key; load through the existing secret bootstrap/Key Vault flow | *(none)* |
 | `GREYSHEET_API_TOKEN` | Greysheet CDN Public API V2 token | *(none)* |
 | `GREYSHEET_API_KEY` | Greysheet CDN Public API V2 key | *(none)* |
 | `GREYSHEET_BASE_URL` | Greysheet API base URL override | `https://cpgpublicapiv2.greysheet.com/api` |

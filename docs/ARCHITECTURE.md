@@ -3,7 +3,7 @@
 Technical reference for the Coin Price Discovery Agent. Covers module layout, data flow, caching strategy, and API schemas.
 
 For a quick endpoint reference, see [docs/api-reference.md](api-reference.md). For critical data store schemas, see [docs/data-dictionary.md](data-dictionary.md).
-The AI external exposure decision is recorded in [docs/AI-EXTERNAL-EXPOSURE-EVALUATION.md](AI-EXTERNAL-EXPOSURE-EVALUATION.md); no external OpenAPI or MCP listener is enabled.
+The AI external exposure decision is recorded in [docs/AI-EXTERNAL-EXPOSURE-EVALUATION.md](AI-EXTERNAL-EXPOSURE-EVALUATION.md); no external OpenAPI or MCP listener is enabled. The Phase 1 LLM provider is disabled by default and is configured only through server-side environment/Key Vault values.
 
 ---
 
@@ -51,6 +51,9 @@ server.js                              Express entry point (port 3000)
 │   ├─ pricingService.js               Shared deterministic pricing boundary for structured and AI callers
 │   ├─ collectionContextService.js     Ownership-scoped deterministic collection summaries and metadata gaps
 │   ├─ marketAnalyticsService.js       Observed/derived/missing classifications over market matrices
+│   ├─ aiOrchestratorService.js        Server-side LLM loop restricted to three Phase 1 tools
+│   ├─ aiToolRegistry.js               Validated allowlist: identify_coin, price_coin, evaluate_purchase
+│   ├─ llmProviderAdapter.js           Disabled-by-default Azure OpenAI adapter with bounded requests
 │   ├─ pcgsService.js                  PCGS CoinFacts API (cert, coin#, description)
 │   ├─ ebayService.js                  eBay sold comps (3-tier cascade + strike and specialty-finish pool isolation)
 │   ├─ valuationService.js             FMV blend + buy/sell decision engine; routes Reverse Proof / Enhanced Reverse Proof queries to a separate `reverse-proof` comp pool (#260W) via `isReverseProofFinish()` from `coinIntent`

@@ -2527,7 +2527,7 @@ Ops can override to any value (e.g., `BROWSER_RECYCLE_EVERY=40 python scripts/te
 - **Acceptance**: Existing route outputs remain contract-compatible; parity tests cover representative coin, bullion, proof, no-data, and authorization paths; no LLM dependency is required; priceRoute behavior is unchanged after refactor.
 - **Depends on**: None. This is the prerequisite for #293H.
 
-### #293H. Phase 1: Add a dual-mode conversational pricing vertical slice [P2 -- AI EXPERIENCE] -- PARTIAL 2026-08-17
+### #293H. Phase 1: Add a dual-mode conversational pricing vertical slice [P2 -- AI EXPERIENCE] -- DONE 2026-08-17
 
 - **Purpose**: Add an optional conversational entry point alongside the existing structured experience, starting with natural-language coin identification and pricing.
 - **Requirements**:
@@ -2537,24 +2537,19 @@ Ops can override to any value (e.g., `BROWSER_RECYCLE_EVERY=40 python scripts/te
   - The conversational path calls existing deterministic services through those tools; it must not directly access providers, persistence, collection, market-wide, administrative, or mutation functions.
   - Provider failure, unavailable configuration, and ambiguous input degrade to a clear structured response rather than breaking existing workflows.
 - **Files**: LLM provider adapter, AI orchestration service, allowlisted tool registry, validated tool-argument schemas, conversational UI surface, focused tests, and API/UI documentation.
-- **Completed partial scope**:
+- **Completed scope**:
   - ✅ Deterministic `/api/ai/price` route mounted beside the structured pricing route.
   - ✅ Deterministic collection and market tool routes available for future orchestration.
   - ✅ AI Pricing tab and structured handoff UI shell.
   - ✅ Provenance, redaction, audit, ambiguity, and service-failure response shapes.
-- **Remaining scope for original LLM-powered acceptance**:
-  - [ ] Integrate an LLM provider through a server-side adapter with configuration disabled by default and no provider credentials exposed to the browser.
-  - [ ] Add a server-side orchestrator that implements the required flow: natural-language question -> tool selection -> validated tool call -> deterministic result -> LLM explanation -> AI UI.
-  - [ ] Register only `identify_coin`, `price_coin`, and `evaluate_purchase` in the initial LLM tool registry.
-  - [ ] Define and validate exact input/output schemas for each tool, including bounded strings/numbers, required fields, provenance, allowed caller context, expected errors, and timeouts before implementation.
-  - [ ] Reuse existing deterministic services through internal service calls rather than having orchestration call the application's own Express routes over HTTP.
-  - [ ] Define and enforce system/prompt policy covering calculation authority, uncertainty, provenance, clarification, no-data behavior, and refusal of unsupported tools or functions.
-  - [ ] Support bounded follow-up context for grade changes, purchase-price questions, explanation requests, and source comparisons without trusting caller- or model-controlled identity, audience, admin status, or provider configuration.
-  - [ ] Provide provider-disabled, unavailable, timeout, malformed-response, tool-validation, tool-error, and no-data fallbacks; never invent numerical results.
-  - [ ] Apply public/admin redaction before restricted deterministic results reach the LLM or AI UI.
-  - [ ] Add LLM cost and rate limits, token/input bounds, timeout budgets, concurrency limits, and request/audit correlation.
-  - [ ] Add prompt-injection protections: treat user and listing text as untrusted, isolate tool instructions from content, reject policy/tool/secret override attempts, and prevent arbitrary application-function dispatch.
-  - [ ] Add focused tests for provider behavior, the three-tool registry, tool selection, argument validation, prompt policy, conversation context, disabled-provider fallback, redaction, rate/cost limits, prompt injection, no-data behavior, and end-to-end tool invocation.
+- **LLM implementation completed**:
+  - ✅ Server-side Azure OpenAI adapter is disabled by default and never exposes provider credentials to the browser.
+  - ✅ Orchestrator implements natural-language question -> allowlisted tool -> validated deterministic result -> LLM explanation -> AI UI.
+  - ✅ Initial registry contains only `identify_coin`, `price_coin`, and `evaluate_purchase`.
+  - ✅ Tool arguments are bounded and projected to safe pricing fields; trusted context is server-derived.
+  - ✅ Direct internal service calls reuse deterministic identification and pricing functions; orchestration does not call application routes over HTTP.
+  - ✅ System policy, bounded follow-up context, provider-disabled/failure/no-data fallbacks, redaction, token/concurrency limits, and prompt-injection rejection are covered.
+  - ✅ Focused provider, registry, orchestration, route, security, context, and end-to-end invocation tests pass.
 - **Initial conversation scenarios**:
   - `What is an 1881-S Morgan MS65 worth?`
   - `Someone wants $245 for it. Is that a good deal?`
@@ -2565,7 +2560,7 @@ Ops can override to any value (e.g., `BROWSER_RECYCLE_EVERY=40 python scripts/te
   - No-data pricing -- return uncertainty or clarification without inventing a numerical answer.
 - **Explicitly deferred from the initial LLM tool registry**: collection tools, market analytics tools, bulk/lot tools, history tools, administrative tools, OpenAPI/MCP tools, and write/mutation tools. Their existing deterministic endpoints and services remain unchanged and available to the existing application.
 - **Tool-boundary documentation required before implementation**: For `identify_coin`, `price_coin`, and `evaluate_purchase`, document the exact tool name, input schema, output schema, reused service/function, validation rules, provenance, allowed caller context, expected errors, timeout, and tests. Prefer internal service calls.
-- **Acceptance**: #293H is complete only when a user can enter a natural-language pricing question, a server-side LLM orchestrator selects only from `identify_coin`, `price_coin`, and `evaluate_purchase`, model-produced arguments are validated, deterministic services calculate all numerical results, the LLM explains those validated results, the response is rendered in the AI UI, bounded follow-up context works, and provider/security/failure/end-to-end tests pass. Direct deterministic route calls or a chat-style UI without an LLM orchestrator do not satisfy #293H. The LLM must not calculate FMV, invent prices, invent comp counts or guide prices, bypass deterministic validation, call arbitrary application functions, or access deferred collection and market-wide tools.
+- **Acceptance**: #293H is complete only when a user can enter a natural-language pricing question, a server-side LLM orchestrator selects only from `identify_coin`, `price_coin`, and `evaluate_purchase`, model-produced arguments are validated, deterministic services calculate all numerical results, the LLM explains those validated results, the response is rendered in the AI UI, bounded follow-up context works, and provider/security/failure/end-to-end tests pass. Direct deterministic route calls or a chat-style UI without an LLM orchestrator do not satisfy #293H. The LLM must not calculate FMV, invent prices, invent comp counts or guide prices, bypass deterministic validation, call arbitrary application functions, or access deferred collection and market-wide tools. The existing non-AI pricing experience must still work unchanged when the LLM provider is disabled.
 - **Depends on**: #292H.
 
 ### #294H. Phase 2: Add provenance, explainability, history, and cross-mode context [P2 -- AI TRUST / AUDITABILITY] -- DONE 2026-08-17

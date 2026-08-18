@@ -3869,9 +3869,13 @@ Silver Libertad 1 oz Proof"></textarea>
     answer.textContent = data.answer || 'Pricing completed.';
     const provenance = document.createElement('p');
     provenance.className = 'ai-provenance';
-    provenance.textContent = 'Confidence: ' + (data.provenance?.valuation?.confidence || 'unknown')
-      + ' | Comps: ' + (data.provenance?.valuation?.compCount || 0)
-      + ' | Algorithm: ' + (data.provenance?.valuation?.algorithmVersion || 'unknown');
+    if (data.provenance?.valuation) {
+      provenance.textContent = 'Confidence: ' + (data.provenance.valuation.confidence || 'unknown')
+        + ' | Comps: ' + (data.provenance.valuation.compCount || 0)
+        + ' | Algorithm: ' + (data.provenance.valuation.algorithmVersion || 'unknown');
+    } else {
+      provenance.textContent = 'Deterministic tools used: ' + (data.provenance?.tools || []).join(', ');
+    }
     if (data.handoff?.query) {
       const handoff = document.createElement('button');
       handoff.type = 'button';
@@ -3905,12 +3909,16 @@ Silver Libertad 1 oz Proof"></textarea>
         body: JSON.stringify({
           query,
           structuredContext: window._aiStructuredContext || undefined,
+          conversationContext: window._aiConversationContext || [],
         }),
       });
       const data = await response.json();
       if (!response.ok && response.status !== 422) throw new Error(data.error || 'AI pricing failed');
       status.className = 'status-bar';
       status.textContent = '';
+      if (Array.isArray(data.conversationContext)) {
+        window._aiConversationContext = data.conversationContext.slice(-8);
+      }
       renderAiResponse(data);
     } catch (err) {
       status.className = 'status-bar error';

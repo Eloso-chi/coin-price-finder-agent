@@ -64,6 +64,8 @@ Successful responses include `provenance` with valuation method, algorithm/confi
 
 `POST /api/ai/market` supports `coverage` and `year-series` for one `series`, plus `compare` for at most three series. Responses distinguish `observed-completed-sales` from `derived-from-matrix` metrics and report missing observations explicitly. Year-series results are year-by-year completed-sale medians, not daily temporal trends.
 
+When `LLM_PROVIDER=azure-openai` and the complete server-side configuration is present, `POST /api/ai/price` uses the Phase 1 orchestrator. Its only available model tools are `identify_coin`, `price_coin`, and `evaluate_purchase`; deterministic services calculate all numerical results before the provider explains them. The provider is disabled by default, and provider failure falls back to the deterministic response path so the existing pricing experience remains functional.
+
 External OpenAPI/MCP exposure is not enabled. See [docs/AI-EXTERNAL-EXPOSURE-EVALUATION.md](AI-EXTERNAL-EXPOSURE-EVALUATION.md) for the governance decision and prerequisites for any future external gateway.
 | `GET` | `/api/image-proxy` | None | Proxy coin images from allowlisted hosts (SSRF-protected) |
 

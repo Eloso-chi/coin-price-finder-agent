@@ -8,6 +8,8 @@ const router = express.Router();
 const { priceCoin } = require('../services/pricingService');
 const { writeValuationAudit } = require('../services/auditService');
 const { redactCompsForPublic } = require('../utils/redactForPublic');
+const { orchestrate } = require('../services/aiOrchestratorService');
+const { createLlmProvider } = require('../services/llmProviderAdapter');
 
 function getHandoffInput(body) {
   const structuredContext = body && body.structuredContext && typeof body.structuredContext === 'object'
@@ -57,6 +59,40 @@ router.post('/price', async (req, res) => {
       isAdmin: req.isAdmin === true,
       audience: req.isAdmin === true ? 'admin' : 'public',
     };
+
+    const llmProvider = createLlmProvider();
+    if (llmProvider.enabled) {
+      try {
+        const conversation = await orchestrate({
+          query: cleanedQuery,
+          userMessage: cleanedQuery,
+          context: req.body?.conversationContext,
+          trustedContext,
+          provider: llmProvider,
+        });
+        return res.json({
+          ok: true,
+          mode: 'ai',
+          provider: conversation.provider,
+          answer: conversation.answer,
+          toolResults: conversation.toolResults,
+          conversationContext: conversation.context,
+          provenance: {
+            provider: conversation.provider,
+            audience: trustedContext.audience,
+            tools: conversation.toolResults.map(tool => tool.name),
+          },
+          handoff: {
+            query: cleanedQuery,
+            coinData: coinData || null,
+            options: options || {},
+          },
+        });
+      } catch (llmError) {
+        // Keep the non-AI pricing experience available when the provider fails.
+        console.warn('[ai] LLM orchestration failed; using deterministic fallback:', llmError.message);
+      }
+    }
 
     const response = await priceCoin({
       query: cleanedQuery,
@@ -122,6 +158,7 @@ router.post('/price', async (req, res) => {
       ok: true,
       mode: 'ai',
       provider: 'deterministic-boundary',
+      fallback: llmProvider.enabled ? 'llm-unavailable' : 'llm-disabled',
       answer: answerText,
       provenance,
       handoff: {
