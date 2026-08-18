@@ -34,12 +34,29 @@ function buildDeterministicAnswer(query, valuation = {}) {
   const high = Number.isFinite(valuation.rangeHigh) ? valuation.rangeHigh : null;
   const comps = Number.isFinite(valuation.compCount) ? valuation.compCount : 0;
 
-  if (fmv == null || comps === 0) {
+  if (fmv == null) {
     return `I couldn't find enough deterministic sold-comparable data to give ${query} a reliable numerical price. I won't invent one. Try adding the year, mint, grade, or exact finish.`;
   }
 
   const range = low != null && high != null ? ` A typical range is $${low.toFixed(2)}-$${high.toFixed(2)}.` : '';
+  if (comps === 0) {
+    return `The deterministic estimate for ${query} is $${fmv.toFixed(2)} based on current metal spot pricing only; no sold comparables were available, so confidence is low.${range}`;
+  }
   return `Based on ${comps} deterministic sold comparables, the estimated fair market value for ${query} is $${fmv.toFixed(2)}.${range}`;
+}
+
+function normalizePricingQuery(query) {
+  const value = String(query || '').trim().replace(/[?!.]+$/, '').trim();
+  const patterns = [
+    /^what\s+is\s+(?:a\s+)?(?:fair|good|reasonable)\s+price\s+for\s+(?:my\s+)?(.+)$/i,
+    /^how\s+much\s+is\s+(?:my\s+)?(.+?)(?:\s+worth)?$/i,
+    /^(?:price|value)\s+(?:a\s+|the\s+|my\s+)?(.+)$/i,
+  ];
+  for (const pattern of patterns) {
+    const match = value.match(pattern);
+    if (match?.[1]) return match[1].trim();
+  }
+  return value;
 }
 
 router.post('/price', async (req, res) => {
@@ -51,7 +68,8 @@ router.post('/price', async (req, res) => {
       return res.status(400).json({ ok: false, error: 'query field is required' });
     }
 
-    const normalized = cleanedQuery.toLowerCase();
+    const pricingQuery = normalizePricingQuery(cleanedQuery);
+    const normalized = pricingQuery.toLowerCase();
     const ambiguous = normalized === 'coin'
       || normalized === 'coin price'
       || normalized === 'silver coin'
@@ -113,7 +131,7 @@ router.post('/price', async (req, res) => {
     }
 
     const response = await priceCoin({
-      query: cleanedQuery,
+      query: pricingQuery,
       coinData,
       weight,
       options,
@@ -125,7 +143,7 @@ router.post('/price', async (req, res) => {
     redactCompsForPublic(response, trustedContext.isAdmin);
 
     void writeValuationAudit({
-      query: cleanedQuery,
+      query: pricingQuery,
       fmv: response?.valuation?.fmvCore,
       method: response?.valuation?.method || null,
       confidence: response?.valuation?.confidence,
@@ -137,7 +155,7 @@ router.post('/price', async (req, res) => {
       ip: trustedContext.isAdmin ? req.ip : undefined,
     });
 
-    const answerText = buildDeterministicAnswer(cleanedQuery, response?.valuation);
+    const answerText = buildDeterministicAnswer(pricingQuery, response?.valuation);
     const provenance = {
       provider: 'deterministic-boundary',
       mode: 'ai',
