@@ -2527,29 +2527,66 @@ Ops can override to any value (e.g., `BROWSER_RECYCLE_EVERY=40 python scripts/te
 - **Acceptance**: Existing route outputs remain contract-compatible; parity tests cover representative coin, bullion, proof, no-data, and authorization paths; no LLM dependency is required; priceRoute behavior is unchanged after refactor.
 - **Depends on**: None. This is the prerequisite for #293H.
 
-### #293H. Phase 1: Add a dual-mode conversational pricing vertical slice [P2 -- AI EXPERIENCE] -- PROPOSED 2026-08-17
+### #293H. Phase 1: Add a dual-mode conversational pricing vertical slice [P2 -- AI EXPERIENCE] -- DONE 2026-08-17
 
 - **Purpose**: Add an optional conversational entry point alongside the existing structured experience, starting with natural-language coin identification and pricing.
 - **Requirements**:
   - Traditional forms, routes, batch tools, collections, comps, history, and bullion workflows remain first-class and usable without an LLM.
-  - The conversational path calls the shared deterministic pricing boundary from #292H through allowlisted tools; it must not directly access providers or persistence.
+  - The LLM interprets natural-language requests and explains results, while deterministic services remain the sole authority for identification, pricing, collection, and market calculations.
+  - The first LLM-powered vertical slice exposes exactly three allowlisted tools: `identify_coin`, `price_coin`, and `evaluate_purchase`.
+  - The conversational path calls existing deterministic services through those tools; it must not directly access providers, persistence, collection, market-wide, administrative, or mutation functions.
   - Provider failure, unavailable configuration, and ambiguous input degrade to a clear structured response rather than breaking existing workflows.
-- **Files**: New AI route/service and provider adapter, new conversational UI surface, focused tests, and API/UI documentation.
-- **Acceptance**: A user can ask a supported pricing question and receive a valuation plus structured provenance; unsupported or ambiguous requests receive safe clarification; the traditional UI remains fully functional with the AI provider disabled.
+- **Files**: LLM provider adapter, AI orchestration service, allowlisted tool registry, validated tool-argument schemas, conversational UI surface, focused tests, and API/UI documentation.
+- **Completed scope**:
+  - ✅ Deterministic `/api/ai/price` route mounted beside the structured pricing route.
+  - ✅ Deterministic collection and market tool routes available for future orchestration.
+  - ✅ AI Pricing tab and structured handoff UI shell.
+  - ✅ Provenance, redaction, audit, ambiguity, and service-failure response shapes.
+- **LLM implementation completed**:
+  - ✅ Server-side Azure OpenAI adapter is disabled by default and never exposes provider credentials to the browser.
+  - ✅ Orchestrator implements natural-language question -> allowlisted tool -> validated deterministic result -> LLM explanation -> AI UI.
+  - ✅ Initial registry contains only `identify_coin`, `price_coin`, and `evaluate_purchase`.
+  - ✅ Tool arguments are bounded and projected to safe pricing fields; trusted context is server-derived.
+  - ✅ Direct internal service calls reuse deterministic identification and pricing functions; orchestration does not call application routes over HTTP.
+  - ✅ System policy, bounded follow-up context, provider-disabled/failure/no-data fallbacks, redaction, token/concurrency limits, and prompt-injection rejection are covered.
+  - ✅ Focused provider, registry, orchestration, route, security, context, and end-to-end invocation tests pass.
+- **Delivery evidence**:
+  - ✅ Clean worktree validation at commit `6ba41a2a`: 173 Jest suites and 4,506 tests passed; subsequent commits are documentation-only follow-ups.
+  - ✅ Focused AI tests: 8 suites and 38 tests passed; targeted ESLint clean.
+  - ✅ UX Reviewer approved the AI Pricing UI with no remaining S2/S3 blockers.
+  - ✅ Onboard documentation acceptance passed for the AI implementation lineage at commit `6ba41a2a`.
+- **Initial conversation scenarios**:
+  - `What is an 1881-S Morgan MS65 worth?`
+  - `Someone wants $245 for it. Is that a good deal?`
+  - `Why do you think that?`
+  - `What about MS64 instead?`
+  - `Price a 1921 Morgan.` -- ask the minimum clarification rather than guessing.
+  - `Why is Greysheet lower?` -- explain only from deterministic result/source context.
+  - No-data pricing -- return uncertainty or clarification without inventing a numerical answer.
+- **Explicitly deferred from the initial LLM tool registry**: collection tools, market analytics tools, bulk/lot tools, history tools, administrative tools, OpenAPI/MCP tools, and write/mutation tools. Their existing deterministic endpoints and services remain unchanged and available to the existing application.
+- **Tool-boundary documentation required before implementation**: For `identify_coin`, `price_coin`, and `evaluate_purchase`, document the exact tool name, input schema, output schema, reused service/function, validation rules, provenance, allowed caller context, expected errors, timeout, and tests. Prefer internal service calls.
+- **Acceptance**: #293H is complete only when a user can enter a natural-language pricing question, a server-side LLM orchestrator selects only from `identify_coin`, `price_coin`, and `evaluate_purchase`, model-produced arguments are validated, deterministic services calculate all numerical results, the LLM explains those validated results, the response is rendered in the AI UI, bounded follow-up context works, and provider/security/failure/end-to-end tests pass. Direct deterministic route calls or a chat-style UI without an LLM orchestrator do not satisfy #293H. The LLM must not calculate FMV, invent prices, invent comp counts or guide prices, bypass deterministic validation, call arbitrary application functions, or access deferred collection and market-wide tools. The existing non-AI pricing experience must still work unchanged when the LLM provider is disabled.
 - **Depends on**: #292H.
 
-### #294H. Phase 2: Add provenance, explainability, history, and cross-mode context [P2 -- AI TRUST / AUDITABILITY] -- PROPOSED 2026-08-17
+### #294H. Phase 2: Add provenance, explainability, history, and cross-mode context [P2 -- AI TRUST / AUDITABILITY] -- DONE 2026-08-17
 
 - **Purpose**: Make conversational answers traceable and allow users to move between structured and conversational views without losing trusted valuation context.
 - **Requirements**:
   - Reuse valuation version, source, confidence, comp-count, and audit metadata already exposed by deterministic services.
   - Keep licensed/admin-only details audience-gated and redact public responses consistently.
   - Support structured-to-conversation and conversation-to-structured handoff using allowlisted context only.
+- **Completed in current slice**:
+  - ✅ Public-safe provenance projection with valuation method, algorithm label, confidence, comp counts, source labels, and reproducibility counts.
+  - ✅ Structured-context handoff accepts only pricing fields and ignores caller-supplied trusted context or internal fields.
+  - ✅ AI response comp provenance is redacted through the existing public response helper.
+  - ✅ Valuation audit records receive algorithm/config versions, computed timestamp, request ID, and authenticated actor context.
+  - ✅ History context exposes adjacent-year and auction-history summaries without exposing raw licensed identifiers.
+  - ✅ UI supports structured-to-conversation and conversation-to-structured handoff.
 - **Files**: AI response schema/service, history or audit integration, UI handoff components, focused tests, and mapped documentation.
 - **Acceptance**: A response can be traced to its valuation inputs and algorithm/config versions; public and admin views remain correctly gated; a handoff round-trip preserves the intended structured query without accepting caller-controlled trusted context.
 - **Depends on**: #293H.
 
-### #295H. Phase 3: Add authenticated collection intelligence [P2 -- AI COLLECTIONS] -- PROPOSED 2026-08-17
+### #295H. Phase 3: Add authenticated collection intelligence [P2 -- AI COLLECTIONS] -- DONE 2026-08-17
 
 - **Purpose**: Let authenticated users ask questions about their own stored collection through deterministic, permission-checked tools.
 - **Requirements**:
@@ -2558,9 +2595,13 @@ Ops can override to any value (e.g., `BROWSER_RECYCLE_EVERY=40 python scripts/te
   - Return actionable gaps, valuation summaries, and uncertainty without exposing another user's records or secrets.
 - **Files**: Authenticated AI collection tools/routes, collection-context service, UI views, focused authorization tests, and mapped documentation.
 - **Acceptance**: Ownership, empty collection, mixed-quality data, and unauthorized access cases are covered; AI-disabled collection workflows remain unchanged; no tool can access arbitrary user IDs supplied by the model or caller.
+- **Completed**:
+  - ✅ Authenticated `/api/ai/collection` summary and metadata-gap tools use only the verified JWT user ID.
+  - ✅ Unsupported intents normalize to the read-only summary tool; caller-supplied user IDs are ignored.
+  - ✅ My Coins provides an authenticated handoff into the AI Pricing surface.
 - **Depends on**: #294H.
 
-### #296H. Phase 4: Add deterministic market intelligence and analytics [P3 -- AI MARKET INTELLIGENCE] -- PROPOSED 2026-08-17
+### #296H. Phase 4: Add deterministic market intelligence and analytics [P3 -- AI MARKET INTELLIGENCE] -- DONE 2026-08-17
 
 - **Purpose**: Expose deterministic cross-coin and market analytics as allowlisted tools that the conversational experience can explain without inventing calculations.
 - **Requirements**:
@@ -2569,9 +2610,14 @@ Ops can override to any value (e.g., `BROWSER_RECYCLE_EVERY=40 python scripts/te
   - Clearly distinguish observed data, derived metrics, estimates, and missing data.
 - **Files**: Analytics service/tools, structured API/UI surface, conversational adapters, focused tests, and mapped documentation.
 - **Acceptance**: Representative trend, comparison, sparse-data, stale-data, and no-data cases are deterministic and documented; analytics do not silently blend incompatible pools or sources.
+- **Completed**:
+  - ✅ `/api/ai/market` exposes bounded coverage, comparison, and year-series tools over the existing market matrix.
+  - ✅ Outputs distinguish observed completed-sale data, derived matrix metrics, and missing observations.
+  - ✅ Comparisons are capped at three series and year-series output explicitly avoids claiming daily temporal trends.
+  - ✅ Sparse and invalid-input behavior is covered by focused tests; existing structured market APIs remain unchanged.
 - **Depends on**: #295H.
 
-### #297H. Phase 5: Evaluate OpenAPI and external-agent/MCP exposure [P3 -- AI INTEGRATION / GOVERNANCE] -- PROPOSED 2026-08-17
+### #297H. Phase 5: Evaluate OpenAPI and external-agent/MCP exposure [P3 -- AI INTEGRATION / GOVERNANCE] -- DONE 2026-08-17
 
 - **Purpose**: Evaluate whether selected deterministic tools should be exposed through OpenAPI or MCP for external agents, without committing to an integration that expands the attack surface unnecessarily.
 - **Requirements**:
@@ -2580,6 +2626,10 @@ Ops can override to any value (e.g., `BROWSER_RECYCLE_EVERY=40 python scripts/te
   - Produce an explicit adopt, defer, or reject decision; no external exposure is implied by the evaluation.
 - **Files**: Evaluation report and, only if approved by the decision, narrowly scoped schema/config/tests and documentation.
 - **Acceptance**: The decision records threat model, trust boundary, versioning, rate limits, data classification, and rollback; any prototype is disabled by default and cannot bypass existing authorization.
+- **Completed**:
+  - ✅ Evaluation report: [docs/AI-EXTERNAL-EXPOSURE-EVALUATION.md](AI-EXTERNAL-EXPOSURE-EVALUATION.md).
+  - ✅ Explicit decision: defer OpenAPI/MCP external exposure; no external listener, schema, or prototype enabled.
+  - ✅ Candidate tools, data classification, threat model, required controls, versioning, audit, and rollback are recorded.
 - **Depends on**: #296H.
 
 ---

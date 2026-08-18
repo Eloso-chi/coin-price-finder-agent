@@ -64,6 +64,36 @@ Out of scope (unless a maintainers-approved exception exists):
 - Reports without a reproducible technical finding
 - Issues in third-party services with no project-controlled impact
 
+## AI Pricing Security Boundaries
+
+The internal AI pricing surface is server-controlled and does not grant the
+model arbitrary application access:
+
+- The Phase 1 model tool registry exposes only `identify_coin`, `price_coin`,
+   and `evaluate_purchase`. Collection, market, history, bulk, administrative,
+   mutation, OpenAPI, and MCP tools are not available to the orchestrator.
+- Model-produced root and nested arguments are allowlisted and type/bounds
+   validated before deterministic services execute. Unknown fields, trusted
+   context, user identity, admin status, provider settings, and explicit null
+   optional fields are rejected.
+- Collection context uses only the verified JWT user ID. Caller- or model-
+   supplied user IDs cannot select another user's records.
+- Deterministic services calculate all numerical results. Numerical LLM
+   explanations without matching valuation or purchase-decision evidence are
+   rejected; user text, listing titles, notes, and tool arguments are treated
+   as untrusted content for prompt-injection purposes.
+- Public response redaction runs before restricted comp provenance reaches the
+   model or browser. Provider credentials remain server-side and Azure OpenAI
+   is disabled unless explicitly configured.
+- Provider calls and tools have bounded turns, timeouts, input/context limits,
+   concurrency limits, request IDs, and deterministic fallback behavior when
+   the provider is disabled or unavailable.
+
+Report suspected AI authorization bypass, prompt injection leading to tool
+access, cross-user collection access, sensitive-data exposure, or fabricated
+financial output through the private channels above. Do not include real
+prompts containing personal data, credentials, tokens, or licensed raw data.
+
 ## Safe Harbor
 
 If you act in good faith, avoid privacy violations/destructive testing, and report promptly through private channels, maintainers will treat your research as authorized for this policy's scope.

@@ -45,13 +45,14 @@ See also [BACKLOG.md](docs/BACKLOG.md) (roadmap) and [.github/copilot-instructio
 
 ## Frontend — Web UI
 
-The browser UI is a single-page app served from `public/index.html` with a dark theme and nine tabbed panels. Client-side JavaScript is split across three modules loaded in order: `auth.js` → `storage.js` → `my-coins.js`. Authentication and coin storage are handled server-side via JWT + bcrypt.
+The browser UI is a single-page app served from `public/index.html` with a dark theme and ten tabbed panels. Client-side JavaScript is split across three modules loaded in order: `auth.js` → `storage.js` → `my-coins.js`. Authentication and coin storage are handled server-side via JWT + bcrypt.
 
 ### Tabs
 
 | Tab | Description |
 |-----|-------------|
 | **Price Discovery** | Main search -- two sub-modes: Coin (structured or quick-search entry) and Bar/Bullion. Coin mode shows a conditional "Silver" checkbox for post-1992 proof denominations (Kennedy, Washington, Roosevelt, etc.) to differentiate silver vs clad proofs. Bar mode has a dynamic series dropdown (populated from `GET /api/bar-price/options`) that filters by selected brand -- 7 brands with 40+ series (Geiger Edelmetalle, PAMP Fortuna, Coca-Cola, 12 Zodiac signs, Perth Lunar, Scottsdale, Valcambi, Heraeus, Credit Suisse). Submits to `/api/price` or `/api/bar-price`. Renders FMV hero card with image gallery, confidence score, buy/sell decisions, metadata chips, eBay stats, comp list, cross-tab quick links, and raw JSON. |
+| **AI Pricing** | Optional deterministic conversational pricing through `POST /api/ai/price`, with public-safe provenance, algorithm/config versions, ambiguity handling, and structured-to-conversation handoff. Authenticated My Coins users can request collection summaries through `POST /api/ai/collection`; bounded market coverage, comparison, and year-series analytics are available through `POST /api/ai/market`. |
 | **Melt Calculator** | Offline calculator for 80+ US coin types and 20 bar sizes. Auto-fetches spot prices from `/api/metals` and polls every 5 minutes. Shows per-coin, per-roll, and total melt values at spot and spot+premium. Quantity minimum enforced at 1. |
 | **Live eBay Tracker** | Market matrix from `/api/market/ebay`. Three display modes: Year × Mint (numismatic coins), Year × Grade (bullion), and Brand table (bars). Cells show median sold price, cheapest BIN link, key date badge, and Numista rarity. Color-coded legend. |
 | **Lot Evaluator** | Bulk collection pricing tool. Accepts a text list (one coin per line, pipe-delimited fields), JSON array, or Excel upload. Submits to `POST /api/bulk-evaluate`, then streams results via SSE. Shows per-coin FMV table with progress bar, lot summary card (total FMV, melt, avg confidence, bullion %), and three buy tiers (cherry-pick, fair lot, full retail). Applies lot-level discounts for size, low confidence, and concentration risk. Export results as CSV or JSON. |
@@ -60,6 +61,10 @@ The browser UI is a single-page app served from `public/index.html` with a dark 
 | **Price History** 🔒 | Auth-gated. Canvas-drawn chart from `/api/coin-history`. Shows daily median prices with IQR band, outlier dots, and optional precious-metal spot overlay (dashed line). Supports 90/180/365-day ranges. |
 | **About** | Confidence score key, privacy/security explanation, how login works, feature previews for logged-out users, and legal disclaimer. Renamed from "About (read me)" for brevity. |
 | **Admin** 🔒 | Hidden by default. Unlocked by entering the admin API key. Dashboard (uptime, total users, CSV datasets, Terapeak quota), users table, data health (total files, empty files, oldest/newest dates), stale datasets table, clear cache button, force Terapeak reimport button. Locked/unlocked state stored in sessionStorage. |
+
+The AI endpoints are internal application routes. External OpenAPI/MCP exposure is deferred; see [docs/AI-EXTERNAL-EXPOSURE-EVALUATION.md](docs/AI-EXTERNAL-EXPOSURE-EVALUATION.md).
+
+Phase 1 delivery evidence is tracked in [docs/BACKLOG.md](docs/BACKLOG.md): the clean implementation tree at commit `6ba41a2a` passed 173 Jest suites and 4,506 tests, UX review approved the AI Pricing UI, and Onboard documentation acceptance passed for that implementation lineage. Later changes are documentation-only follow-ups.
 
 ### Server-Side Auth (bcrypt + JWT)
 
@@ -179,6 +184,11 @@ Optional variables:
 | `GOLDAPI_KEY` | Gold API key for spot prices | *(none)* |
 | `METALS_API_KEY` | Metals API key (fallback provider) | *(none)* |
 | `NUMISTA_API_KEY` | Numista API key for rarity/mintage data | *(none)* |
+| `LLM_PROVIDER` | LLM provider for the Phase 1 conversational orchestrator; disabled unless set to `azure-openai` with complete Azure settings | *(disabled)* |
+| `AZURE_OPENAI_ENDPOINT` | Azure OpenAI endpoint for the server-side conversational provider | *(none)* |
+| `AZURE_OPENAI_DEPLOYMENT` | Azure OpenAI deployment name | *(none)* |
+| `AZURE_OPENAI_API_VERSION` | Azure OpenAI API version | `2024-10-21` |
+| `AZURE_OPENAI_API_KEY` | Azure OpenAI API key; load through the existing secret bootstrap/Key Vault flow | *(none)* |
 | `GREYSHEET_API_TOKEN` | Greysheet CDN Public API V2 token | *(none)* |
 | `GREYSHEET_API_KEY` | Greysheet CDN Public API V2 key | *(none)* |
 | `GREYSHEET_BASE_URL` | Greysheet API base URL override | `https://cpgpublicapiv2.greysheet.com/api` |

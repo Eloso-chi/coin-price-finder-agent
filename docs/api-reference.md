@@ -9,6 +9,9 @@ Comprehensive reference of all HTTP endpoints exposed by the coin-price-finder-a
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
 | `POST` | `/api/price` | None | Price a single coin — main entry point for pricing |
+| `POST` | `/api/ai/price` | None | Conversational pricing projection with public-safe provenance and structured handoff |
+| `POST` | `/api/ai/collection` | JWT | Authenticated deterministic collection summary or metadata-gap analysis |
+| `POST` | `/api/ai/market` | None | Bounded market coverage, comparison, and year-series analytics |
 | `POST` | `/api/bar-price` | None | Price a bullion bar by metal, size, brand |
 | `GET` | `/api/bar-price/options` | None | List available brands and series for bar pricing |
 | `POST` | `/api/pricing-batch` | None | Batch-price up to 25 coins in one request |
@@ -52,6 +55,30 @@ Every valuation includes `algorithmVersion` (semantic version), `configVersion` 
 | `GET` | `/api/market/ebay` | None | Year × mint market matrix (eBay median prices, key dates, Numista rarity) |
 | `GET` | `/api/metals` | None | Get current spot prices for multiple metals |
 | `GET` | `/api/metals/:metal` | None | Get spot price for single metal (gold, silver, platinum, palladium) |
+
+### AI pricing handoff
+
+`POST /api/ai/price` accepts `query` plus optional allowlisted `structuredContext` fields: `query`, `coinData`, `weight`, `options`, `saleContext`, `askingPrice`, and `appealMultiplier`. Trusted audience and admin fields are always derived from server authentication and are never accepted from the request body.
+
+Successful responses include `provenance` with valuation method, algorithm/config versions, confidence, comp counts, source labels, history summaries, and audit request metadata. Public responses redact licensed comp provenance through the same helper used by `/api/price`. The `handoff` object contains only structured pricing context suitable for returning to the traditional form.
+
+`POST /api/ai/market` supports `coverage` and `year-series` for one `series`, plus `compare` for at most three series. Responses distinguish `observed-completed-sales` from `derived-from-matrix` metrics and report missing observations explicitly. Year-series results are year-by-year completed-sale medians, not daily temporal trends.
+
+When `LLM_PROVIDER=azure-openai` and the complete server-side configuration is present, `POST /api/ai/price` uses the Phase 1 orchestrator. Its only available model tools are `identify_coin`, `price_coin`, and `evaluate_purchase`; deterministic services calculate all numerical results before the provider explains them. The provider is disabled by default, and provider failure falls back to the deterministic response path so the existing pricing experience remains functional.
+
+#### Phase 1 LLM tool contracts
+
+These are internal server-side tools. The model cannot call the HTTP routes, persistence layer, collection tools, market tools, history tools, administrative tools, or mutation functions.
+
+| Tool | Input schema | Deterministic service | Output and provenance | Timeout / errors |
+|---|---|---|---|---|
+| `identify_coin` | `{ query: string }`, trimmed and 1-300 non-whitespace characters; follow-up context is server-managed by the orchestrator and is not model-supplied tool input | `pcgsService.parseDescription(query)` | `{ query, parsed, provenance: { source: "deterministic-coin-intent", observed: true } }` | 5s; invalid object, missing query, malformed provider arguments |
+| `price_coin` | `{ query: string, coinData?: CoinData, weight?: number [0.001..100], options?: PriceOptions, askingPrice?: number [0..1000000], appealMultiplier?: number [1..2] }`. `CoinData` allows only `name`, `year`, `mint`, `grade`, `finish`, `designation`, `composition`, `isProof`, `coa`, `originalBox`; string fields are bounded, `year` is a bounded string/integer, and boolean flags are boolean. `PriceOptions` allows only `timeWindowDays [1..365]`, `usMinComps [1..100]`, `maxPages [1..10]`, `requirePCGSOnly` boolean, `exactGradeOnly` boolean, and `weight [0.001..100]`. | `pricingService.priceCoin(input, trustedContext)` | `{ result: { valuation, decisions, coin, ebay, pcgs, greysheet, reproducibility, ... }, provenance: { source: "deterministic-pricing-service", observed: true } }`; public comp provenance is redacted before model/UI exposure | 45s; validation failure, deterministic service failure, no-data result |
+| `evaluate_purchase` | Same exact `CoinData`, `PriceOptions`, `weight`, and `appealMultiplier` bounds as `price_coin`, with required `query` and `askingPrice [0..1000000]` | `pricingService.priceCoin(input, trustedContext)` and its buy/sell decision output | `{ result: { valuation, decisions: { buy, sell }, coin, ebay, pcgs, reproducibility, ... }, provenance: { source: "deterministic-purchase-evaluation", observed: true } }`; all numerical values remain deterministic | 45s; missing asking price, validation failure, deterministic service failure, no-data result |
+
+Allowed caller context is server-derived `{ audience, isAdmin }`; request bodies and model arguments cannot set identity, admin state, audience, secrets, provider configuration, or arbitrary function names. The orchestrator allows one tool call per turn and at most three tool turns. Tool results are validated and returned to the LLM for explanation; numerical explanations without deterministic evidence are rejected. Registry timeouts are enforced before a tool result is accepted. Focused coverage is in `__tests__/aiToolRegistry.test.js`, `__tests__/aiOrchestratorService.test.js`, `__tests__/aiPriceRoute.integration.test.js`, `__tests__/aiPriceRoute.llm.test.js`, `__tests__/aiPriceRoute.test.js`, `__tests__/aiCollectionRoute.test.js`, `__tests__/aiMarketRoute.test.js`, and `__tests__/llmProviderAdapter.test.js`.
+
+External OpenAPI/MCP exposure is not enabled. See [docs/AI-EXTERNAL-EXPOSURE-EVALUATION.md](AI-EXTERNAL-EXPOSURE-EVALUATION.md) for the governance decision and prerequisites for any future external gateway.
 | `GET` | `/api/image-proxy` | None | Proxy coin images from allowlisted hosts (SSRF-protected) |
 
 ## Data Imports

@@ -156,8 +156,8 @@ function extractCoinIntent({ coinData, options, parsed, pcgs, isSet } = {}) {
   const isExplicitTrue = (v) => v === true || v === 'true';
   const explicitFlag        = isExplicitTrue(options.isProof) || isExplicitTrue(coinData.isProof);
   const finishIsProof       = /\bproof\b/i.test(finish || '');
-  const designationIsProof  = /^(PR|PF)\s*[-]?\s*\d/i.test(String(designation || ''));
-  const gradeIsProof        = /^(PR|PF)[-\s]?\d/i.test(String(grade || ''))
+  const designationIsProof  = /^(PR|PF)/i.test(String(designation || '')) && /\d/.test(String(designation || ''));
+  const gradeIsProof        = /^(PR|PF)/i.test(String(grade || '')) && /\d/.test(String(grade || ''))
                            || /^proof$/i.test(String(grade || ''));
   const parsedGradeIsProof  = parsed.grade === 'Proof';
 
