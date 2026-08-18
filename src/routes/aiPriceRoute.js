@@ -28,6 +28,20 @@ function getHandoffInput(body) {
   };
 }
 
+function buildDeterministicAnswer(query, valuation = {}) {
+  const fmv = Number.isFinite(valuation.fmvCore) ? valuation.fmvCore : null;
+  const low = Number.isFinite(valuation.rangeLow) ? valuation.rangeLow : null;
+  const high = Number.isFinite(valuation.rangeHigh) ? valuation.rangeHigh : null;
+  const comps = Number.isFinite(valuation.compCount) ? valuation.compCount : 0;
+
+  if (fmv == null || comps === 0) {
+    return `I couldn't find enough deterministic sold-comparable data to give ${query} a reliable numerical price. I won't invent one. Try adding the year, mint, grade, or exact finish.`;
+  }
+
+  const range = low != null && high != null ? ` A typical range is $${low.toFixed(2)}-$${high.toFixed(2)}.` : '';
+  return `Based on ${comps} deterministic sold comparables, the estimated fair market value for ${query} is $${fmv.toFixed(2)}.${range}`;
+}
+
 router.post('/price', async (req, res) => {
   try {
     const { query, coinData, weight, options, saleContext, askingPrice, appealMultiplier } = getHandoffInput(req.body || {});
@@ -123,7 +137,7 @@ router.post('/price', async (req, res) => {
       ip: trustedContext.isAdmin ? req.ip : undefined,
     });
 
-    const answerText = `${cleanedQuery} is being priced using the deterministic pricing boundary.`;
+    const answerText = buildDeterministicAnswer(cleanedQuery, response?.valuation);
     const provenance = {
       provider: 'deterministic-boundary',
       mode: 'ai',
@@ -134,8 +148,8 @@ router.post('/price', async (req, res) => {
         algorithmVersion: response?.valuation?.algorithmVersion || null,
         configVersion: response?.valuation?.configVersion || null,
         computedAt: response?.valuation?.computedAt || null,
-        confidence: response?.valuation?.confidence || 'unknown',
-        compCount: response?.valuation?.compCount || 0,
+        confidence: response?.valuation?.confidence ?? 'unknown',
+        compCount: response?.valuation?.compCount ?? 0,
       },
       sources: {
         market: response?.ebay?.usedFallback ? 'ebay-fallback' : 'ebay',
