@@ -2527,7 +2527,7 @@ Ops can override to any value (e.g., `BROWSER_RECYCLE_EVERY=40 python scripts/te
 - **Acceptance**: Existing route outputs remain contract-compatible; parity tests cover representative coin, bullion, proof, no-data, and authorization paths; no LLM dependency is required; priceRoute behavior is unchanged after refactor.
 - **Depends on**: None. This is the prerequisite for #293H.
 
-### #293H. Phase 1: Add a dual-mode conversational pricing vertical slice [P2 -- AI EXPERIENCE] -- PROPOSED 2026-08-17
+### #293H. Phase 1: Add a dual-mode conversational pricing vertical slice [P2 -- AI EXPERIENCE] -- DONE 2026-08-17
 
 - **Purpose**: Add an optional conversational entry point alongside the existing structured experience, starting with natural-language coin identification and pricing.
 - **Requirements**:
@@ -2536,20 +2536,31 @@ Ops can override to any value (e.g., `BROWSER_RECYCLE_EVERY=40 python scripts/te
   - Provider failure, unavailable configuration, and ambiguous input degrade to a clear structured response rather than breaking existing workflows.
 - **Files**: New AI route/service and provider adapter, new conversational UI surface, focused tests, and API/UI documentation.
 - **Acceptance**: A user can ask a supported pricing question and receive a valuation plus structured provenance; unsupported or ambiguous requests receive safe clarification; the traditional UI remains fully functional with the AI provider disabled.
+- **Completed**:
+  - ✅ Deterministic `/api/ai/price` route mounted beside the structured pricing route.
+  - ✅ AI Pricing tab supports natural-language requests without an LLM dependency.
+  - ✅ Ambiguous input and service failure return structured, user-safe responses.
 - **Depends on**: #292H.
 
-### #294H. Phase 2: Add provenance, explainability, history, and cross-mode context [P2 -- AI TRUST / AUDITABILITY] -- PROPOSED 2026-08-17
+### #294H. Phase 2: Add provenance, explainability, history, and cross-mode context [P2 -- AI TRUST / AUDITABILITY] -- DONE 2026-08-17
 
 - **Purpose**: Make conversational answers traceable and allow users to move between structured and conversational views without losing trusted valuation context.
 - **Requirements**:
   - Reuse valuation version, source, confidence, comp-count, and audit metadata already exposed by deterministic services.
   - Keep licensed/admin-only details audience-gated and redact public responses consistently.
   - Support structured-to-conversation and conversation-to-structured handoff using allowlisted context only.
+- **Completed in current slice**:
+  - ✅ Public-safe provenance projection with valuation method, algorithm label, confidence, comp counts, source labels, and reproducibility counts.
+  - ✅ Structured-context handoff accepts only pricing fields and ignores caller-supplied trusted context or internal fields.
+  - ✅ AI response comp provenance is redacted through the existing public response helper.
+  - ✅ Valuation audit records receive algorithm/config versions, computed timestamp, request ID, and authenticated actor context.
+  - ✅ History context exposes adjacent-year and auction-history summaries without exposing raw licensed identifiers.
+  - ✅ UI supports structured-to-conversation and conversation-to-structured handoff.
 - **Files**: AI response schema/service, history or audit integration, UI handoff components, focused tests, and mapped documentation.
 - **Acceptance**: A response can be traced to its valuation inputs and algorithm/config versions; public and admin views remain correctly gated; a handoff round-trip preserves the intended structured query without accepting caller-controlled trusted context.
 - **Depends on**: #293H.
 
-### #295H. Phase 3: Add authenticated collection intelligence [P2 -- AI COLLECTIONS] -- PROPOSED 2026-08-17
+### #295H. Phase 3: Add authenticated collection intelligence [P2 -- AI COLLECTIONS] -- DONE 2026-08-17
 
 - **Purpose**: Let authenticated users ask questions about their own stored collection through deterministic, permission-checked tools.
 - **Requirements**:
@@ -2558,9 +2569,13 @@ Ops can override to any value (e.g., `BROWSER_RECYCLE_EVERY=40 python scripts/te
   - Return actionable gaps, valuation summaries, and uncertainty without exposing another user's records or secrets.
 - **Files**: Authenticated AI collection tools/routes, collection-context service, UI views, focused authorization tests, and mapped documentation.
 - **Acceptance**: Ownership, empty collection, mixed-quality data, and unauthorized access cases are covered; AI-disabled collection workflows remain unchanged; no tool can access arbitrary user IDs supplied by the model or caller.
+- **Completed**:
+  - ✅ Authenticated `/api/ai/collection` summary and metadata-gap tools use only the verified JWT user ID.
+  - ✅ Unsupported intents normalize to the read-only summary tool; caller-supplied user IDs are ignored.
+  - ✅ My Coins provides an authenticated handoff into the AI Pricing surface.
 - **Depends on**: #294H.
 
-### #296H. Phase 4: Add deterministic market intelligence and analytics [P3 -- AI MARKET INTELLIGENCE] -- PROPOSED 2026-08-17
+### #296H. Phase 4: Add deterministic market intelligence and analytics [P3 -- AI MARKET INTELLIGENCE] -- DONE 2026-08-17
 
 - **Purpose**: Expose deterministic cross-coin and market analytics as allowlisted tools that the conversational experience can explain without inventing calculations.
 - **Requirements**:
@@ -2569,9 +2584,14 @@ Ops can override to any value (e.g., `BROWSER_RECYCLE_EVERY=40 python scripts/te
   - Clearly distinguish observed data, derived metrics, estimates, and missing data.
 - **Files**: Analytics service/tools, structured API/UI surface, conversational adapters, focused tests, and mapped documentation.
 - **Acceptance**: Representative trend, comparison, sparse-data, stale-data, and no-data cases are deterministic and documented; analytics do not silently blend incompatible pools or sources.
+- **Completed**:
+  - ✅ `/api/ai/market` exposes bounded coverage, comparison, and year-series tools over the existing market matrix.
+  - ✅ Outputs distinguish observed completed-sale data, derived matrix metrics, and missing observations.
+  - ✅ Comparisons are capped at three series and year-series output explicitly avoids claiming daily temporal trends.
+  - ✅ Sparse and invalid-input behavior is covered by focused tests; existing structured market APIs remain unchanged.
 - **Depends on**: #295H.
 
-### #297H. Phase 5: Evaluate OpenAPI and external-agent/MCP exposure [P3 -- AI INTEGRATION / GOVERNANCE] -- PROPOSED 2026-08-17
+### #297H. Phase 5: Evaluate OpenAPI and external-agent/MCP exposure [P3 -- AI INTEGRATION / GOVERNANCE] -- DONE 2026-08-17
 
 - **Purpose**: Evaluate whether selected deterministic tools should be exposed through OpenAPI or MCP for external agents, without committing to an integration that expands the attack surface unnecessarily.
 - **Requirements**:
@@ -2580,6 +2600,10 @@ Ops can override to any value (e.g., `BROWSER_RECYCLE_EVERY=40 python scripts/te
   - Produce an explicit adopt, defer, or reject decision; no external exposure is implied by the evaluation.
 - **Files**: Evaluation report and, only if approved by the decision, narrowly scoped schema/config/tests and documentation.
 - **Acceptance**: The decision records threat model, trust boundary, versioning, rate limits, data classification, and rollback; any prototype is disabled by default and cannot bypass existing authorization.
+- **Completed**:
+  - ✅ Evaluation report: [docs/AI-EXTERNAL-EXPOSURE-EVALUATION.md](AI-EXTERNAL-EXPOSURE-EVALUATION.md).
+  - ✅ Explicit decision: defer OpenAPI/MCP external exposure; no external listener, schema, or prototype enabled.
+  - ✅ Candidate tools, data classification, threat model, required controls, versioning, audit, and rollback are recorded.
 - **Depends on**: #296H.
 
 ---

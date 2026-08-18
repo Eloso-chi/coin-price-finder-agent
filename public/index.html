@@ -178,6 +178,9 @@
     }
     .status-bar.error { color: var(--red); }
     .status-bar.loading { color: var(--yellow); }
+    .ai-response { white-space: pre-wrap; line-height: 1.6; }
+    .ai-provenance { color: var(--text-secondary); font-size: 0.82rem; margin-top: 12px; }
+    .ai-handoff { margin-top: 12px; }
     .spinner {
       width: 16px; height: 16px; border: 2px solid var(--border);
       border-top-color: var(--accent); border-radius: 50%;
@@ -1131,6 +1134,7 @@
   <!-- ── Tab Navigation ─────────────────────────────────── -->
   <nav class="tab-bar" role="tablist" aria-label="Main tools">
     <button class="tab-btn" role="tab" id="tab-price" aria-controls="panel-price" aria-selected="true" tabindex="0">Price Discovery</button>
+    <button class="tab-btn" role="tab" id="tab-ai" aria-controls="panel-ai" aria-selected="false" tabindex="-1">AI Pricing</button>
     <button class="tab-btn" role="tab" id="tab-melt" aria-controls="panel-melt" aria-selected="false" tabindex="-1">Melt Calculator</button>
     <button class="tab-btn" role="tab" id="tab-tracker" aria-controls="panel-tracker" aria-selected="false" tabindex="-1">Live eBay Tracker</button>
     <button class="tab-btn" role="tab" id="tab-terapeak" aria-controls="panel-terapeak" aria-selected="false" tabindex="-1" style="display:none">Sold Data</button>
@@ -1559,6 +1563,24 @@
   </section>
 
   <!-- ══════════════════════════════════════════════════════ -->
+  <!-- AI Pricing                                             -->
+  <!-- ══════════════════════════════════════════════════════ -->
+  <section id="panel-ai" class="tab-panel" role="tabpanel" aria-labelledby="tab-ai" aria-hidden="true">
+    <div class="card">
+      <h2>Conversational Pricing</h2>
+      <div class="form-group">
+        <label for="ai-query">Ask about a coin</label>
+        <div class="input-row">
+          <input id="ai-query" type="text" placeholder="e.g. 2024 American Silver Eagle" autocomplete="off">
+          <button id="ai-submit" class="btn" type="button">Price with AI</button>
+        </div>
+      </div>
+      <div id="ai-status" class="status-bar" role="status" aria-live="polite"></div>
+      <div id="ai-response" aria-live="polite"></div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════ -->
   <!-- TAB 2 — Melt Calculator                               -->
   <!-- ══════════════════════════════════════════════════════ -->
   <section id="panel-melt" class="tab-panel" role="tabpanel" aria-labelledby="tab-melt" aria-hidden="true">
@@ -1963,6 +1985,12 @@
       </div>
 
       <div id="backup-prompt-container" style="display:none"></div>
+      <div class="card" style="margin-top:12px">
+        <h2>Collection Intelligence</h2>
+        <p style="color:var(--text-secondary);font-size:.85rem;margin-bottom:10px">Review collection completeness and valuation uncertainty from your authenticated collection.</p>
+        <button id="collection-ai-btn" class="btn" type="button">Ask AI about my collection</button>
+        <div id="collection-ai-status" class="status-bar" role="status" aria-live="polite"></div>
+      </div>
       <div id="mycoins-content">
         <div class="mycoins-empty"><p>Log in to view your coin collection.</p></div>
       </div>
@@ -3676,6 +3704,7 @@ Silver Libertad 1 oz Proof"></textarea>
       html += '<a data-tab="tab-melt" title="Open in Melt Calculator">Melt Calculator</a>';
       html += '<a data-tab="tab-tracker" title="Open in Live eBay Tracker">eBay Tracker</a>';
       html += '<a data-tab="tab-history" title="Open in Price History">Price History</a>';
+      html += '<button type="button" class="ai-handoff" id="structured-to-ai">Continue in AI Pricing</button>';
       html += '</div>';
 
       html += '<details><summary>View raw JSON response</summary>';
@@ -3691,6 +3720,12 @@ Silver Libertad 1 oz Proof"></textarea>
           if (tabBtn) tabBtn.click();
         });
       });
+      var structuredToAi = document.getElementById('structured-to-ai');
+      if (structuredToAi) {
+        structuredToAi.addEventListener('click', function() {
+          openAiFromStructured(window._structuredForAi);
+        });
+      }
 
       // Wire "Show all" comps buttons
       container.querySelectorAll('.comps-show-all').forEach(function(btn) {
@@ -3781,6 +3816,143 @@ Silver Libertad 1 oz Proof"></textarea>
       _btnReset(qBtn);
     }
   }
+
+  function openAiFromStructured(context) {
+    const aiQuery = document.getElementById('ai-query');
+    if (!aiQuery) return;
+    window._aiStructuredContext = {
+      query: context?.query || '',
+      coinData: context?.coinData || null,
+      weight: context?.weight || null,
+      options: context?.options || {},
+    };
+    aiQuery.value = window._aiStructuredContext.query;
+    document.getElementById('tab-ai')?.click();
+    aiQuery.focus();
+  }
+
+  function openStructuredFromAi(handoff) {
+    if (!handoff || !handoff.query) return;
+    const queryInput = document.getElementById('query');
+    if (queryInput) queryInput.value = handoff.query;
+    const coinData = handoff.coinData || {};
+    const yearInput = document.getElementById('coinYear');
+    if (yearInput && coinData.year != null) yearInput.value = coinData.year;
+    document.getElementById('tab-price')?.click();
+    const modeToggle = document.getElementById('mode-toggle');
+    const quickSearch = document.getElementById('quick-search');
+    if (modeToggle && quickSearch && quickSearch.style.display === 'none') modeToggle.click();
+    if (queryInput) queryInput.focus();
+  }
+
+  function renderAiResponse(data) {
+    const output = document.getElementById('ai-response');
+    if (!output) return;
+    output.innerHTML = '';
+    if (!data.ok) {
+      output.textContent = data.error || 'The AI pricing request needs more information.';
+      if (Array.isArray(data.suggestions) && data.suggestions.length) {
+        const list = document.createElement('ul');
+        data.suggestions.forEach(function(suggestion) {
+          const item = document.createElement('li');
+          item.textContent = suggestion;
+          list.appendChild(item);
+        });
+        output.appendChild(list);
+      }
+      return;
+    }
+    const card = document.createElement('div');
+    card.className = 'card';
+    const answer = document.createElement('p');
+    answer.className = 'ai-response';
+    answer.textContent = data.answer || 'Pricing completed.';
+    const provenance = document.createElement('p');
+    provenance.className = 'ai-provenance';
+    provenance.textContent = 'Confidence: ' + (data.provenance?.valuation?.confidence || 'unknown')
+      + ' | Comps: ' + (data.provenance?.valuation?.compCount || 0)
+      + ' | Algorithm: ' + (data.provenance?.valuation?.algorithmVersion || 'unknown');
+    if (data.handoff?.query) {
+      const handoff = document.createElement('button');
+      handoff.type = 'button';
+      handoff.className = 'btn ai-handoff';
+      handoff.textContent = 'Open in Price Discovery';
+      handoff.addEventListener('click', function() { openStructuredFromAi(data.handoff); });
+      card.append(handoff);
+    }
+    card.prepend(answer, provenance);
+    output.appendChild(card);
+  }
+
+  async function runAiQuery() {
+    const input = document.getElementById('ai-query');
+    const status = document.getElementById('ai-status');
+    const button = document.getElementById('ai-submit');
+    if (!input || !status || !button) return;
+    const query = input.value.trim();
+    if (!query) {
+      status.className = 'status-bar error';
+      status.textContent = 'Enter a coin description first.';
+      return;
+    }
+    button.disabled = true;
+    status.className = 'status-bar loading';
+    status.textContent = 'Pricing...';
+    try {
+      const response = await fetch('/api/ai/price', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query,
+          structuredContext: window._aiStructuredContext || undefined,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok && response.status !== 422) throw new Error(data.error || 'AI pricing failed');
+      status.className = 'status-bar';
+      status.textContent = '';
+      renderAiResponse(data);
+    } catch (err) {
+      status.className = 'status-bar error';
+      status.textContent = err.message || 'AI pricing is unavailable.';
+    } finally {
+      button.disabled = false;
+    }
+  }
+
+  async function runCollectionAiQuery() {
+    const session = typeof CoinAuth !== 'undefined' ? CoinAuth.currentUser() : null;
+    const status = document.getElementById('collection-ai-status');
+    const button = document.getElementById('collection-ai-btn');
+    if (!session || !session.token) {
+      if (status) { status.className = 'status-bar error'; status.textContent = 'Log in to analyze your collection.'; }
+      return;
+    }
+    if (button) button.disabled = true;
+    if (status) { status.className = 'status-bar loading'; status.textContent = 'Reviewing your collection...'; }
+    try {
+      const response = await fetch('/api/ai/collection', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.token },
+        body: JSON.stringify({ intent: 'summary' }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Collection analysis failed');
+      renderAiResponse(data);
+      document.getElementById('tab-ai')?.click();
+      if (status) { status.className = 'status-bar'; status.textContent = 'Collection review ready in AI Pricing.'; }
+    } catch (err) {
+      if (status) { status.className = 'status-bar error'; status.textContent = err.message || 'Collection analysis unavailable.'; }
+    } finally {
+      if (button) button.disabled = false;
+    }
+  }
+
+  document.getElementById('ai-submit')?.addEventListener('click', runAiQuery);
+  document.getElementById('ai-query')?.addEventListener('keydown', function(event) {
+    if (event.key === 'Enter') runAiQuery();
+  });
+  document.getElementById('collection-ai-btn')?.addEventListener('click', runCollectionAiQuery);
 
   /* Helpers */
   function $(v) { return v != null ? '$' + Number(v).toFixed(2) : '\u2014'; }
@@ -4037,6 +4209,12 @@ Silver Libertad 1 oz Proof"></textarea>
     const usStats = d.ebay?.us?.stats || {};
     const glStats = d.ebay?.global?.stats || {};
     let html = '';
+    window._structuredForAi = {
+      query: d.query?.input || '',
+      coinData: d.coinData || null,
+      weight: d.query?.weight || null,
+      options: d.query?.options || {},
+    };
 
     // ── Pass series to Live eBay Tracker FIRST (before HTML build) ──
     // Done early so that even if the HTML templating below throws,

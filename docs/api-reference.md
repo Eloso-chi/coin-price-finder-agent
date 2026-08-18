@@ -9,6 +9,9 @@ Comprehensive reference of all HTTP endpoints exposed by the coin-price-finder-a
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
 | `POST` | `/api/price` | None | Price a single coin — main entry point for pricing |
+| `POST` | `/api/ai/price` | None | Conversational pricing projection with public-safe provenance and structured handoff |
+| `POST` | `/api/ai/collection` | JWT | Authenticated deterministic collection summary or metadata-gap analysis |
+| `POST` | `/api/ai/market` | None | Bounded market coverage, comparison, and year-series analytics |
 | `POST` | `/api/bar-price` | None | Price a bullion bar by metal, size, brand |
 | `GET` | `/api/bar-price/options` | None | List available brands and series for bar pricing |
 | `POST` | `/api/pricing-batch` | None | Batch-price up to 25 coins in one request |
@@ -52,6 +55,16 @@ Every valuation includes `algorithmVersion` (semantic version), `configVersion` 
 | `GET` | `/api/market/ebay` | None | Year × mint market matrix (eBay median prices, key dates, Numista rarity) |
 | `GET` | `/api/metals` | None | Get current spot prices for multiple metals |
 | `GET` | `/api/metals/:metal` | None | Get spot price for single metal (gold, silver, platinum, palladium) |
+
+### AI pricing handoff
+
+`POST /api/ai/price` accepts `query` plus optional allowlisted `structuredContext` fields: `query`, `coinData`, `weight`, `options`, `saleContext`, `askingPrice`, and `appealMultiplier`. Trusted audience and admin fields are always derived from server authentication and are never accepted from the request body.
+
+Successful responses include `provenance` with valuation method, algorithm/config versions, confidence, comp counts, source labels, history summaries, and audit request metadata. Public responses redact licensed comp provenance through the same helper used by `/api/price`. The `handoff` object contains only structured pricing context suitable for returning to the traditional form.
+
+`POST /api/ai/market` supports `coverage` and `year-series` for one `series`, plus `compare` for at most three series. Responses distinguish `observed-completed-sales` from `derived-from-matrix` metrics and report missing observations explicitly. Year-series results are year-by-year completed-sale medians, not daily temporal trends.
+
+External OpenAPI/MCP exposure is not enabled. See [docs/AI-EXTERNAL-EXPOSURE-EVALUATION.md](AI-EXTERNAL-EXPOSURE-EVALUATION.md) for the governance decision and prerequisites for any future external gateway.
 | `GET` | `/api/image-proxy` | None | Proxy coin images from allowlisted hosts (SSRF-protected) |
 
 ## Data Imports

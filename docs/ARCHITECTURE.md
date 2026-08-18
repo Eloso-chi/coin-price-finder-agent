@@ -3,6 +3,7 @@
 Technical reference for the Coin Price Discovery Agent. Covers module layout, data flow, caching strategy, and API schemas.
 
 For a quick endpoint reference, see [docs/api-reference.md](api-reference.md). For critical data store schemas, see [docs/data-dictionary.md](data-dictionary.md).
+The AI external exposure decision is recorded in [docs/AI-EXTERNAL-EXPOSURE-EVALUATION.md](AI-EXTERNAL-EXPOSURE-EVALUATION.md); no external OpenAPI or MCP listener is enabled.
 
 ---
 
@@ -27,6 +28,9 @@ server.js                              Express entry point (port 3000)
 │
 ├─ src/routes/
 │   ├─ priceRoute.js                   POST /api/price  -- coin pricing orchestrator
+│   ├─ aiPriceRoute.js                 POST /api/ai/price -- public conversational pricing projection and handoff
+│   ├─ aiCollectionRoute.js            POST /api/ai/collection -- authenticated collection context tools
+│   ├─ aiMarketRoute.js                POST /api/ai/market -- bounded deterministic market analytics
 │   ├─ barPriceRoute.js                POST /api/bar-price -- bullion bar pricing
 │   │                                  GET  /api/bar-price/options -- brand/series list for dropdowns
 │   ├─ pricingBatchRoute.js            POST /api/pricing-batch -- batch pricing (up to 25)
@@ -44,6 +48,9 @@ server.js                              Express entry point (port 3000)
 │   └─ coinRoute.js                    /api/coins/* -- collection CRUD (JWT-protected)
 │
 ├─ src/services/
+│   ├─ pricingService.js               Shared deterministic pricing boundary for structured and AI callers
+│   ├─ collectionContextService.js     Ownership-scoped deterministic collection summaries and metadata gaps
+│   ├─ marketAnalyticsService.js       Observed/derived/missing classifications over market matrices
 │   ├─ pcgsService.js                  PCGS CoinFacts API (cert, coin#, description)
 │   ├─ ebayService.js                  eBay sold comps (3-tier cascade + strike and specialty-finish pool isolation)
 │   ├─ valuationService.js             FMV blend + buy/sell decision engine; routes Reverse Proof / Enhanced Reverse Proof queries to a separate `reverse-proof` comp pool (#260W) via `isReverseProofFinish()` from `coinIntent`
