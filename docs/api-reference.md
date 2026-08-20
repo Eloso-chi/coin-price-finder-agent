@@ -58,7 +58,7 @@ Every valuation includes `algorithmVersion` (semantic version), `configVersion` 
 
 ### AI pricing handoff
 
-`POST /api/ai/price` accepts `query` plus optional allowlisted `structuredContext` fields: `query`, `coinData`, `weight`, `options`, `saleContext`, `askingPrice`, and `appealMultiplier`. Trusted audience and admin fields are always derived from server authentication and are never accepted from the request body.
+`POST /api/ai/price` accepts `query` plus optional allowlisted `structuredContext` fields: `query`, `coinData`, `weight`, `options`, `saleContext`, `askingPrice`, and `appealMultiplier`. Trusted audience and admin fields are always derived from server authentication and are never accepted from the request body. The deterministic-fallback path normalizes several natural-language phrasings before pricing, including "what is the value/price of my X", "what is a fair/good/reasonable price for X", "how much is my X worth", and "price/value X" -- input normalization only, no change to the request/response contract.
 
 Successful responses include `provenance` with valuation method, algorithm/config versions, confidence, comp counts, source labels, history summaries, and audit request metadata. Public responses redact licensed comp provenance through the same helper used by `/api/price`. The `handoff` object contains only structured pricing context suitable for returning to the traditional form.
 

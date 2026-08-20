@@ -3901,9 +3901,9 @@ Silver Libertad 1 oz Proof"></textarea>
     if (data.provenance?.valuation) {
       provenance.textContent = (data.fallback
         ? 'AI provider unavailable; deterministic pricing used. '
-        : '') + 'Confidence: ' + (data.provenance.valuation.confidence || 'unknown')
-        + ' | Comps: ' + (data.provenance.valuation.compCount || 0)
-        + ' | Algorithm: ' + (data.provenance.valuation.algorithmVersion || 'unknown');
+        : '') + 'Confidence: ' + (data.provenance.valuation.confidence ?? 'unknown')
+        + ' | Comps: ' + (data.provenance.valuation.compCount ?? 0)
+        + ' | Algorithm: ' + (data.provenance.valuation.algorithmVersion ?? 'unknown');
     } else {
       provenance.textContent = (data.fallback
         ? 'AI provider unavailable; deterministic pricing used. '

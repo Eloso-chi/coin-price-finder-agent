@@ -999,6 +999,80 @@ Verified:
 
 ---
 
+### #299H. Lot evaluator: single/thin-comp large-denomination coins produce unreliable outlier FMVs [P2 -- CORRECTNESS / PRICING-ACCURACY] -- PROPOSED 2026-08-20
+
+**Origin:** User ran the Bulk/Lot Evaluator against the full 2016 Mexican Silver Libertad Proof weight run (1/20 oz through 5 oz). Six of seven rows tracked a smooth, expected FMV-to-melt premium curve; the 5 oz row returned $2,206.48 against $334.25 melt (6.6x), breaking the trend the other six sizes established (~2.0-7.6x, trending down as weight increases). Expected FMV based on the established curve was roughly $600-750, consistent with the user's real-market expectation ($500-600).
+
+**Root cause (confirmed via code read of `valuationService.js` / `ebayService.js`):**
+1. The 5 oz row's `compCount = 1` -- FMV was set almost entirely by a single eBay comp with zero cross-validation possible.
+2. MAD outlier removal (`ebayService.js` ~L1430-1433) requires >= 2 price points to operate; it cannot catch a bad single comp.
+3. The melt-based sanity ceiling only guards `expected.weight < 1` (`ebayService.js` ~L1187: `if (expected.meltPerOz && expected.weight && expected.weight < 1)`). Coins >= 1 oz (2 oz, 5 oz, kilo, etc.) have **no ceiling protection at all**, so one mismatched/rare/bundled comp can set an arbitrarily high FMV.
+4. `computeConfidence()` genuinely returned 0 for this row (thin sample, no PCGS coverage, `usCompCount < 5` penalty, etc.), but `public/index.html` L6770 renders confidence with `(coin.confidence || '--')` -- since `0` is JS-falsy, a real 0-confidence result displays as `--` (looks like "no data" rather than "we don't trust this number"), masking the app's own low-confidence signal from the user.
+
+**Proposed fix (two independent, low-risk tracks):**
+
+*Track A -- extend outlier/ceiling protection to >= 1 oz coins:*
+- Generalize the melt-ceiling check in `ebayService.js` to also apply when `expected.weight >= 1`, scaled proportionally (e.g. a multiple of `expected.meltPerOz * expected.weight`), rather than being fractional-bullion-only.
+- Add an explicit low-confidence / single-comp warning path in `valuationService.js` when `compCount === 1` for any bullion-weighted coin, mirroring the existing `lowData` / `browseOnly` explanation pattern (do not silently return a high-confidence-looking number).
+
+*Track B -- fix the confidence display bug (independent, trivial):*
+- Change `public/index.html` L6770 from `(coin.confidence || '--')` to a null/undefined-safe check (e.g. `(coin.confidence != null ? coin.confidence : '--')`) so a genuine `confidence: 0` renders as `0`, not `--`.
+- Audit for the same falsy-check pattern elsewhere in `public/index.html` (the `_fmt` epsilon check at L6655 and similar `|| '--'` renders) in case the same bug exists for other zero-valued numeric fields.
+
+**Acceptance criteria:**
+- Re-running the same 7-size Libertad Proof lot no longer returns an FMV for the 5 oz coin that breaks the melt-premium trend of the other six sizes by more than a documented tolerance, OR the response explicitly flags the result as low-confidence/single-comp instead of presenting a bare high number.
+- New unit test(s) in `__tests__/computeValuation.test.js` (or `__tests__/ebayFetchSoldComps.test.js`) covering: a single, high-priced comp for a >= 1 oz bullion coin does not silently produce an unguarded FMV.
+- New unit test in a `public/index.html`-adjacent front-end test (or manual QA note, if no existing FE test harness covers this file) confirming `confidence: 0` renders as `0`.
+- No regression to existing sub-1oz ceiling behavior or existing bullion valuation tests.
+
+**Files (anticipated):** `src/services/ebayService.js` (ceiling generalization), `src/services/valuationService.js` (single-comp warning), `public/index.html` (confidence display fix), `__tests__/computeValuation.test.js`, `__tests__/ebayFetchSoldComps.test.js`.
+
+**Out of scope:** Re-tuning the general confidence-scoring formula (`computeConfidence()`) beyond what's needed to surface the single-comp case; broader bulk-evaluator UX changes.
+
+**Related:** #282H (proof valuation weight sanity cap -- same code area, established the pattern for defensive fixes here), #270W (pool-isolation / comp-recovery umbrella -- same family of "thin comp pool" problems, different mechanism).
+
+---
+
+### #300H. Type-cohort composite FMV fallback for thin same-year comp pools (large/rare denominations) [P3 -- PRICING-ACCURACY / DATA-QUALITY] -- PROPOSED 2026-08-20
+
+**Origin:** Follow-on from #299H. Once #299H's guardrails prevent a single unrepresentative comp from producing an unguarded FMV, the residual gap is that genuinely thin-market coins (e.g. 5 oz Proof Libertad) may still have no usable direct-year FMV at all. This item proposes an explicitly-labeled composite estimate as a last-resort fallback, discussed and scoped across two chat sessions (2026-08-20) covering both the technical approach and a numismatic key-date/rarity risk review.
+
+**Problem:** Large/rare denominations within a series (e.g. 2 oz and 5 oz Proof Libertads) are structurally low-mintage every year, not just in occasional "key date" years, so the existing year-specific comp pool is often too thin (<3 comps, sometimes 0-1) even after existing lookback-window widening (#270W Option #1). Today the only outcomes are an honest "insufficient comps" null FMV (post-#299H) or a single-comp number -- there is no attempt to derive a reasonable estimate from other, similar sales of the same coin type.
+
+**Proposed approach -- "type-cohort composite":**
+1. **Trigger:** only when the direct-year pool (after existing lookback widening) remains below a minimum threshold (e.g. `compCount < 3`, especially `=== 1` or `0`).
+2. **Cohort search:** run a secondary query for the same series + same weight + same finish/grade-pool (raw stays raw, proof stays proof -- pool-isolation contract unchanged), with the year constraint dropped or widened to a bounded window (default **+/-3 years**, tunable) rather than left fully unbounded.
+3. **Blend:** merge cohort comps with any direct-year comps (dedupe by item ID); reuse the existing recency-weighted median in `computeWeightedMedian()` (`valuationService.js`) -- no new normalization math required for v1, since existing half-life decay already down-weights older sales.
+4. **Minimum cohort size:** require e.g. >= 3 (ideally >= 5) cohort comps before using this path; otherwise fall through to the existing honest "insufficient comps" result.
+
+**Key-date / rarity risk (numismatic review, 2026-08-20):** Large Libertad sizes are low-mintage in essentially every year (a structural, not occasional, condition), so blending across nearby years risks masking a real per-year premium or discount. Decision after review: **do not build a hand-curated "key dates by size/year" table** -- exact historical mintage figures per year/size are not reliably verifiable from model memory and would introduce an uncited numismatic claim as a pricing guardrail. Instead:
+- Use the **existing PCGS population signal** (`pcgs.population.thisGrade`, already wired into the #50 low-population confidence penalty in `valuationService.js`) as an optional gate: when population data for the target year is well below the cohort's typical population, either skip the composite or apply a materially lower confidence cap and a sharper warning.
+- Because most Libertads trade raw (not PCGS-certified -- confirmed by every row in the originating lot evaluator run using `raw-blend`), population data will frequently be unavailable. When it is unavailable, default to conservative behavior: keep the +/-3 year bound, require the larger end of the minimum-cohort-size range, and disclose explicitly that year-specific rarity could not be verified.
+- The +/-3 year window is a blast-radius bound, not a substitute for the population check -- a year 1 away could still be a legitimate key date; a year 5 away could be perfectly ordinary. Both guards are complementary, not either/or.
+
+**Mandatory disclosure (both consumption surfaces):**
+- New `dataSource.label` value, e.g. `'cross-year-composite'`.
+- New structured field, e.g. `gradePool.compositeBasis: { usedCohort: true, cohortYears: [...], cohortCompCount, exactYearCompCount, populationGateApplied: boolean }`.
+- Explicit explanation line, e.g.: `"\u26a0 COMPOSITE ESTIMATE: only 1 direct sale of this exact year found. FMV is derived from N sales of other-year 5 oz Proof Libertads (years: ...) as a substitute -- treat as an approximation, not a confirmed price for this exact date."` Add a second line when population data could not verify relative rarity for the target year.
+- Confidence hard cap (e.g. max ~35-40), same pattern as the existing `browseOnly` penalty -- this is a proxy estimate, never a directly-observed price.
+- Visible UI badge (not just buried explanation text) on both the Pricing tab result card and the Lot Evaluator results table (e.g. `raw-blend (composite)` in the Method column) -- the Lot Evaluator gets this for free once implemented in the shared `computeValuation()` path (`bulkEvaluateService.js` calls the same valuation service), but still needs its own badge rendering.
+
+**Acceptance criteria:**
+- Composite fallback only activates when the direct-year pool (post-lookback-widening) is below the minimum threshold; never overrides a pool that already has adequate direct data.
+- Cohort comps never cross the raw/graded/proof pool-isolation boundary.
+- Every composite-derived response includes the new `dataSource.label`, `compositeBasis` field, explicit explanation text, and a confidence value at or below the documented cap.
+- Both UI surfaces (Pricing tab, Lot Evaluator) visibly distinguish composite estimates from direct sold-comp results.
+- New unit tests in `__tests__/computeValuation.test.js` and/or `__tests__/ebayFetchSoldComps.test.js` covering: cohort trigger conditions, minimum cohort size enforcement, pool-isolation preservation in the cohort search, confidence cap enforcement, and the population-gate branch (both when population data is present and when it is unavailable).
+- No regression to existing lookback-widening (#270W Option #1) or direct-year valuation behavior when direct data is already sufficient.
+
+**Files (anticipated):** `src/services/ebayService.js` (cohort/year-window search), `src/services/valuationService.js` (composite blend, confidence cap, disclosure fields), `public/index.html` (composite badge on both surfaces), `src/services/bulkEvaluateService.js` (badge/label passthrough if needed), `__tests__/computeValuation.test.js`, `__tests__/ebayFetchSoldComps.test.js`.
+
+**Out of scope:** A hand-curated key-date/mintage table (explicitly rejected per the numismatic review above); historical spot-price normalization of cohort comps (not required for v1 since cohort comps are bounded to sales that are still reasonably recent); automatic detection of key dates without a verifiable data source.
+
+**Related:** #299H (guards against the unguarded single-comp FMV this item builds on top of), #270W (existing lookback-widening pattern this reuses/extends into a new axis), #50 (existing low-population confidence penalty, reused here as an optional gate).
+
+---
+
 ### #284H. Anti-bot operations hardening: staged rollout for process, telemetry contract, and risk-state transitions [P2 -- OPERATIONS / BOT-RESILIENCE] -- DONE 2026-08-10
 
 **Closure (2026-08-10):** Stages 1-3 are implemented for both canonical operators, and the one-week H-machine pilot produced sufficient acceptance evidence to close the item. Because no comparable pre-Stage-3 structured ledger exists, the user accepted avoided post-detection work as the challenge-waste proxy instead of requiring a retrospective decline calculation.
@@ -2631,6 +2705,32 @@ Ops can override to any value (e.g., `BROWSER_RECYCLE_EVERY=40 python scripts/te
   - ✅ Explicit decision: defer OpenAPI/MCP external exposure; no external listener, schema, or prototype enabled.
   - ✅ Candidate tools, data classification, threat model, required controls, versioning, audit, and rollback are recorded.
 - **Depends on**: #296H.
+
+### #298H. Evaluate OpenRouter as an additional LLM provider for AI conversational pricing [P3 -- AI FOUNDATION / OPERATIONS] -- PROPOSED 2026-08-20
+
+**Origin:** Chat investigation 2026-08-19/20 into whether OpenRouter could serve as an alternative to the single hard-coded Azure OpenAI provider in the Phase 1 conversational pricing vertical (#293H).
+
+**Problem:** `src/services/llmProviderAdapter.js` supports exactly one provider (`azure-openai`) via `providerEnabled()` / `createLlmProvider()`. There is no way to add a second provider (OpenRouter or otherwise) without a code change, and no existing backlog item tracks that work.
+
+**Proposed approach:**
+1. Extend `llmProviderAdapter.js` with an `openrouter` branch selected by `LLM_PROVIDER=openrouter`, using `OPENROUTER_API_KEY` and `OPENROUTER_MODEL` env vars.
+2. Reuse the existing `complete(payload)` contract so `aiOrchestratorService.js` and the `/api/ai/*` routes require no changes.
+3. Call `https://openrouter.ai/api/v1/chat/completions` with `Authorization: Bearer <OPENROUTER_API_KEY>`, same timeout/concurrency guards as the Azure branch.
+4. Keep provider selection strictly server-side (env-driven only); no client-supplied provider/model, consistent with `docs/AI-EXTERNAL-EXPOSURE-EVALUATION.md`.
+5. No change to external exposure posture -- this stays behind the existing internal `/api/ai/*` routes; #297H's DEFER decision on OpenAPI/MCP is unaffected.
+
+**Acceptance criteria:**
+- `providerEnabled()` returns true only when `LLM_PROVIDER=openrouter` and `OPENROUTER_API_KEY` are both set.
+- `createLlmProvider().complete()` posts to the OpenRouter endpoint and returns the same `{ role, content, tool_calls }` shape the orchestrator already expects.
+- API key is never logged or returned to the caller (mirrors existing Azure test in `__tests__/llmProviderAdapter.test.js`).
+- Azure provider path is unchanged and its existing tests still pass.
+- `.env.example` and README env-var table document the new optional vars, disabled by default.
+
+**Files (anticipated):** `src/services/llmProviderAdapter.js`, `__tests__/llmProviderAdapter.test.js`, `.env.example`, `README.md`.
+
+**Out of scope:** External OpenAPI/MCP exposure (remains DEFERRED per #297H), client-selectable providers, multi-provider failover/fallback logic (candidate follow-up, not required for first landing).
+
+**Related:** #293H (Phase 1 conversational pricing), #297H (external exposure evaluation, DEFER decision still in force).
 
 ---
 

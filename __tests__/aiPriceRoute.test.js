@@ -76,7 +76,7 @@ describe('POST /api/ai/price', () => {
     expect(res.body.provider).toBe('deterministic-boundary');
     expect(priceCoin).toHaveBeenCalledTimes(1);
     expect(res.body.response.valuation.fmvCore).toBe(47.5);
-    expect(res.body.answer).toMatch(/2024 American Silver Eagle/i);
+    expect(res.body.answer).toMatch(/estimated fair market value.*\$47\.50/i);
     expect(res.body.provenance).toBeDefined();
     expect(res.body.provenance.valuation).toEqual({
       method: 'deterministic-boundary',
@@ -161,6 +161,62 @@ describe('POST /api/ai/price', () => {
     expect(res.body.ok).toBe(false);
     expect(res.body.error).toMatch(/need more detail|ambiguous|clarification/i);
     expect(Array.isArray(res.body.suggestions)).toBe(true);
+  });
+
+  test('refuses to invent a price when deterministic data is unavailable', async () => {
+    priceCoin.mockResolvedValueOnce({
+      valuation: { fmvCore: null, rangeLow: null, rangeHigh: null, compCount: 0 },
+    });
+
+    const res = await request(app)
+      .post('/api/ai/price')
+      .send({ query: '2024 Mexican Silver Libertad' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.answer).toMatch(/couldn't find enough deterministic sold-comparable data/i);
+    expect(res.body.answer).toMatch(/won't invent/i);
+  });
+
+  test('reports a low-confidence spot-only bullion estimate when FMV exists without comps', async () => {
+    priceCoin.mockResolvedValueOnce({
+      valuation: { fmvCore: 63.95, rangeLow: 57.55, rangeHigh: 70.34, compCount: 0, confidence: 0 },
+    });
+
+    const res = await request(app)
+      .post('/api/ai/price')
+      .send({ query: '2024 1oz silver Libertad' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.answer).toMatch(/\$63\.95.*spot pricing only/i);
+    expect(res.body.answer).toMatch(/no sold comparables/i);
+  });
+
+  test('extracts the coin subject from a natural-language value question', async () => {
+    priceCoin.mockResolvedValueOnce({
+      valuation: { fmvCore: 63.95, rangeLow: 57.55, rangeHigh: 70.34, compCount: 0 },
+    });
+
+    const res = await request(app)
+      .post('/api/ai/price')
+      .send({ query: 'What is the value of my 2024 Mexican Silver Libertad 1 oz?' });
+
+    expect(res.status).toBe(200);
+    expect(priceCoin).toHaveBeenCalledWith(expect.objectContaining({
+      query: '2024 Mexican Silver Libertad 1 oz',
+    }), expect.any(Object));
+    expect(res.body.answer).toMatch(/for 2024 Mexican Silver Libertad 1 oz is \$63\.95/i);
+  });
+
+  test('extracts the coin subject for conversational deterministic fallback', async () => {
+    const res = await request(app)
+      .post('/api/ai/price')
+      .send({ query: 'What is a fair price for my 2024 1oz silver Libertad?' });
+
+    expect(res.status).toBe(200);
+    expect(priceCoin).toHaveBeenCalledWith(expect.objectContaining({
+      query: '2024 1oz silver Libertad',
+    }), expect.any(Object));
+    expect(res.body.answer).toMatch(/2024 1oz silver Libertad/i);
   });
 
   test('degrades gracefully when pricing service rejects', async () => {
