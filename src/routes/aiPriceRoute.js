@@ -48,6 +48,7 @@ function buildDeterministicAnswer(query, valuation = {}) {
 function normalizePricingQuery(query) {
   const value = String(query || '').trim().replace(/[?!.]+$/, '').trim();
   const patterns = [
+    /^what\s+is\s+(?:the\s+)?(?:value|price)\s+of\s+(?:my\s+)?(.+)$/i,
     /^what\s+is\s+(?:a\s+)?(?:fair|good|reasonable)\s+price\s+for\s+(?:my\s+)?(.+)$/i,
     /^how\s+much\s+is\s+(?:my\s+)?(.+?)(?:\s+worth)?$/i,
     /^(?:price|value)\s+(?:a\s+|the\s+|my\s+)?(.+)$/i,

@@ -191,6 +191,22 @@ describe('POST /api/ai/price', () => {
     expect(res.body.answer).toMatch(/no sold comparables/i);
   });
 
+  test('extracts the coin subject from a natural-language value question', async () => {
+    priceCoin.mockResolvedValueOnce({
+      valuation: { fmvCore: 63.95, rangeLow: 57.55, rangeHigh: 70.34, compCount: 0 },
+    });
+
+    const res = await request(app)
+      .post('/api/ai/price')
+      .send({ query: 'What is the value of my 2024 Mexican Silver Libertad 1 oz?' });
+
+    expect(res.status).toBe(200);
+    expect(priceCoin).toHaveBeenCalledWith(expect.objectContaining({
+      query: '2024 Mexican Silver Libertad 1 oz',
+    }), expect.any(Object));
+    expect(res.body.answer).toMatch(/for 2024 Mexican Silver Libertad 1 oz is \$63\.95/i);
+  });
+
   test('extracts the coin subject for conversational deterministic fallback', async () => {
     const res = await request(app)
       .post('/api/ai/price')
