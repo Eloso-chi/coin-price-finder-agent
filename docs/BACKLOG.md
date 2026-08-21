@@ -1092,6 +1092,40 @@ Verified:
 
 ---
 
+### #301H. New operator run type: max batch size 20, same P0.1 rules, P0/P1-only backfill when P0.1 backlog is empty [P3 -- OPERATIONS / TOOLING] -- PROPOSED 2026-08-20
+
+**Origin:** User request 2026-08-20 for a smaller, discoverable operator run preset (max batch 20) that reuses the existing P0.1 fixed-slice + non-P0.1 backfill pattern already used by the larger default mixed-mode runs.
+
+**What already exists (confirmed via code read):**
+- `scripts/terapeak-export.py` `mixed_selection_targets(p01_fixed, extra_target, p01_available)` (~L1334) already implements the core rule: `selected_p01_target = min(p01_fixed, p01_available)`, and the full `total_target` (p01_fixed + extra_target) shifts entirely to the non-P0.1 pool when the P0.1 pool is empty. This already satisfies "if P0.1 backlog = 0, the run fills entirely from the next tiers" structurally.
+- `--mixed-page1` mode in `scripts/terapeak-operator.sh` / `scripts/terapeak-operator-codespace.sh` already exposes `--mixed-p01-fixed` (default 15), `--mixed-extra-min` (default 15), `--mixed-extra-max` (default 20) -- today's default mixed run caps at a 35-item total.
+- `--priority-include` / `--priority-exclude` flags already exist on `terapeak-export.py` for restricting the backlog priority pool (e.g. `--priority-include "P0.1,P0,P1"`).
+
+**Gap to close:** Today's default `allowed_priorities = {"P0.1","P0","P1","P2"}` (~L1385) means the non-P0.1 backfill pool can include P2 datasets. The user's rule is P0/P1 only during backfill (no P2), so this needs the existing `--priority-include` flag applied at the term-loading stage before the mixed split runs, not new filtering logic.
+
+**Proposed approach:**
+1. Add a new named preset (e.g. `--max20` flag, or a dedicated wrapper) to the operator shell scripts that wires:
+   - `--mixed-page1 --mixed-p01-fixed <N> --mixed-extra-min <M> --mixed-extra-max <K>` with `N + K` capped at 20 total (exact split TBD -- e.g. `p01_fixed=10, extra_min=8, extra_max=10`).
+   - `--priority-include "P0.1,P0,P1"` forwarded through, so the backfill pool is P0/P1 only, never P2.
+2. Preserve the existing P0.1-fixed-then-extra selection mechanism unchanged (`mixed_selection_targets`) -- no new core selection logic required.
+3. Decide (open question, needs user input): should the 20-cap be a hard fixed total every pass, or a jittered range (e.g. 15-20) consistent with this repo's existing bot-evasion randomization pattern (#268H, `pick_batch_size`)?
+
+**Acceptance criteria:**
+- New preset produces a total selected-term count that never exceeds 20 per pass.
+- When the P0.1 pool is non-empty, the pass still draws its fixed P0.1 slice first, exactly as today's mixed mode does.
+- When the P0.1 pool is empty, 100% of the pass's selected terms come from P0/P1 only -- never P2 -- verified by a focused test.
+- No regression to the existing default (35-cap) mixed-mode behavior; the new preset is additive, not a replacement.
+
+**Files (anticipated):** `scripts/terapeak-operator.sh`, `scripts/terapeak-operator-codespace.sh`, `scripts/terapeak-export.py` (flag wiring only, `mixed_selection_targets` itself unchanged), `docs/runbooks/local-scraper-wsl2.md`, `docs/memory/terapeak-runbook.md`, new/extended focused test (e.g. alongside `__tests__/terapeakExportUploadMode.test.js`).
+
+**Open questions (deferred until pickup):**
+1. Hard 20 total, or a jittered range like 15-20 for bot-evasion consistency with `pick_batch_size`?
+2. Exact `p01_fixed` / `extra_min` / `extra_max` split within the 20-cap.
+
+**Related:** #268H (existing batch-size randomization for bot evasion), #284H (anti-bot operations hardening umbrella), the existing `--mixed-page1` mode this extends.
+
+---
+
 ### #284H. Anti-bot operations hardening: staged rollout for process, telemetry contract, and risk-state transitions [P2 -- OPERATIONS / BOT-RESILIENCE] -- DONE 2026-08-10
 
 **Closure (2026-08-10):** Stages 1-3 are implemented for both canonical operators, and the one-week H-machine pilot produced sufficient acceptance evidence to close the item. Because no comparable pre-Stage-3 structured ledger exists, the user accepted avoided post-detection work as the challenge-waste proxy instead of requiring a retrospective decline calculation.
