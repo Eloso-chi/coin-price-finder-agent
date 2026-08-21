@@ -612,6 +612,26 @@ describe('GET /api/bulk-evaluate/:jobId (poll)', () => {
     expect(body).toHaveProperty('coinCount', 1);
     expect(['pending', 'running', 'complete']).toContain(body.status);
   });
+
+  test('redacts admin explanations from anonymous polling', async () => {
+    bulkEvaluateRoute._jobs.set('admin-poll-job', {
+      id: 'admin-poll-job',
+      created: Date.now(),
+      audience: 'admin',
+      coins: [{ query: '1921 Morgan Dollar' }],
+      status: 'complete',
+      results: [{ fmv: 100, explanation: ['Greysheet exact value: $85'] }],
+      lotSummary: {},
+      error: null,
+      listeners: new Map(),
+    });
+
+    const { body } = await get('/api/bulk-evaluate/admin-poll-job');
+
+    expect(body.results[0].explanation).toEqual([]);
+    expect(bulkEvaluateRoute._jobs.get('admin-poll-job').results[0].explanation)
+      .toEqual(['Greysheet exact value: $85']);
+  });
 });
 
 describe('GET /api/bulk-evaluate/:jobId/stream (SSE)', () => {
@@ -637,6 +657,55 @@ describe('GET /api/bulk-evaluate/:jobId/stream (SSE)', () => {
     expect(coinEvents[0].data).toHaveProperty('fmv');
     expect(summaryEvents[0].data).toHaveProperty('totalFmv');
     expect(summaryEvents[0].data).toHaveProperty('buyTiers');
+  });
+
+  test('redacts admin explanations from anonymous replay', async () => {
+    bulkEvaluateRoute._jobs.set('admin-replay-job', {
+      id: 'admin-replay-job',
+      created: Date.now(),
+      audience: 'admin',
+      coins: [{ query: '1921 Morgan Dollar' }],
+      status: 'complete',
+      results: [{ fmv: 100, explanation: ['Greysheet exact value: $85'] }],
+      lotSummary: {},
+      error: null,
+      listeners: new Map(),
+    });
+
+    const events = await sseStream('/api/bulk-evaluate/admin-replay-job/stream');
+    const coin = events.find(event => event.event === 'coin');
+
+    expect(coin.data.explanation).toEqual([]);
+  });
+
+  test('redacts admin explanations from anonymous live fanout', async () => {
+    const valuationService = require('../src/services/valuationService');
+    valuationService.computeValuation.mockReturnValueOnce({
+      valuation: { fmvCore: 100, confidence: 50, explanation: ['Greysheet exact value: $85'] },
+      decisions: { buy: {}, sell: {} },
+    });
+    const listener = { write: jest.fn(), end: jest.fn() };
+    const job = {
+      id: 'admin-live-job',
+      created: Date.now(),
+      audience: 'admin',
+      auditContext: {},
+      coins: [{ query: '1921 Morgan Dollar' }],
+      status: 'pending',
+      results: [],
+      lotSummary: null,
+      error: null,
+      listeners: new Map([[listener, { isAdmin: false }]]),
+    };
+
+    await bulkEvaluateRoute._runJob(job);
+
+    const coinWrite = listener.write.mock.calls
+      .map(([payload]) => payload)
+      .find(payload => payload.startsWith('event: coin'));
+    expect(coinWrite).toBeDefined();
+    const data = JSON.parse(coinWrite.match(/data: (.*)\n/)[1]);
+    expect(data.explanation).toEqual([]);
   });
 });
 

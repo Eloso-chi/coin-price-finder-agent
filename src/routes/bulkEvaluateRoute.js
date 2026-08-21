@@ -218,9 +218,10 @@ router.get('/:jobId/stream', (req, res) => {
   // admin context, not the job creator's (#243).
   const isAdmin = req.isAdmin === true;
   for (let i = 0; i < job.results.length; i++) {
-    _sseWrite(res, 'coin', redactCompsForPublic(
+    _sseWrite(res, 'coin', redactBulkResultForAudience(
       { index: i, total: job.coins.length, ...job.results[i] },
       isAdmin,
+      job.audience,
     ));
   }
   if (job.status === 'complete') {
@@ -248,7 +249,7 @@ router.get('/:jobId', (req, res) => {
   if (!job) {
     return res.status(404).json({ error: 'Job not found or expired.' });
   }
-  return res.json(redactCompsForPublic({
+  return res.json(redactBulkResultForAudience({
     jobId:      job.id,
     status:     job.status,
     coinCount:  job.coins.length,
@@ -256,7 +257,7 @@ router.get('/:jobId', (req, res) => {
     results:    job.results,
     lotSummary: job.lotSummary,
     error:      job.error,
-  }, req.isAdmin === true));
+  }, req.isAdmin === true, job.audience));
 });
 
 // ── Internal helpers ─────────────────────────────────────────
@@ -265,6 +266,21 @@ function _sseWrite(res, event, data) {
   try {
     res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
   } catch { /* client disconnected */ }
+}
+
+function redactBulkResultForAudience(response, isAdmin, jobAudience) {
+  const redacted = redactCompsForPublic(response, isAdmin);
+  if (isAdmin || jobAudience !== 'admin' || !redacted || typeof redacted !== 'object') {
+    return redacted;
+  }
+  if (Array.isArray(redacted.results)) {
+    redacted.results = redacted.results.map(result => (
+      result && typeof result === 'object' ? { ...result, explanation: [] } : result
+    ));
+  } else if (Object.prototype.hasOwnProperty.call(redacted, 'explanation')) {
+    redacted.explanation = [];
+  }
+  return redacted;
 }
 
 async function _runJob(job) {
@@ -288,9 +304,10 @@ async function _runJob(job) {
       // job creator's redaction level (#243).
       job.results[index] = result;
       for (const [res, meta] of job.listeners) {
-        _sseWrite(res, 'coin', redactCompsForPublic(
+        _sseWrite(res, 'coin', redactBulkResultForAudience(
           { index, total, ...result },
           meta.isAdmin,
+          job.audience,
         ));
       }
     }, { audience: job.audience });
@@ -346,3 +363,4 @@ module.exports._jobs = _jobs;
 module.exports.stopAndDrainBulkJobs = stopAndDrainBulkJobs;
 module.exports._trackJobPromise = _trackJobPromise;
 module.exports._resetForTests = _resetForTests;
+module.exports._runJob = _runJob;

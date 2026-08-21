@@ -50,7 +50,10 @@ describe('LLM-enabled POST /api/ai/price', () => {
       answer: 'The deterministic tool returned a thin-data estimate.',
       toolResults: [{
         name: 'price_coin',
-        result: { valuation: { fmvCore: 700, confidence: 0, compCount: 1, lowData: true } },
+        result: {
+          result: { valuation: { fmvCore: 700, confidence: 0, compCount: 1, lowData: true } },
+          provenance: { source: 'deterministic-pricing-service', observed: true },
+        },
       }],
       context: [],
       provider: 'azure-openai',

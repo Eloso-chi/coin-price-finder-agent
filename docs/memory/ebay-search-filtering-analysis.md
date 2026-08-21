@@ -27,9 +27,9 @@ Mexican Silver Libertad 2020 searches return:
 - **Hard Filter:** [ebayService.js#L818-L826](../../src/services/ebayService.js#L818-L826)
   - Removes comps with explicit WRONG weight (e.g., 1/2 oz title when 1 oz searched)
   - Tolerance: 0.01 oz
-- **Melt Sanity Check:** [ebayService.js#L827-L837](../../src/services/ebayService.js#L827-L837) (fractional)
-  - If detected weight is NULL (not stated) AND price > 1.8× full-oz melt, DROP
-  - Threshold: 1.8× melt ceiling (generous)
+- **Melt Sanity Check:** [ebayService.js](../../src/services/ebayService.js)
+  - If detected weight is NULL (not stated) AND price > `max(meltPerOz * expected weight * 5, $50)`, DROP
+  - Applies to fractional, 1 oz, and multi-ounce bullion
 
 ### 3. Bullion Default Weight (1 oz Auto-Assignment)
 **Location:** [priceRoute.js#L23-L35](../../src/routes/priceRoute.js#L23-L35)
@@ -72,7 +72,7 @@ Mexican Silver Libertad 2020 searches return:
 | Deny-List | replica, fake, etc. | DROP |
 | Year Mismatch | Bullion: exact; Non-bullion: ±1 tolerance | DROP |
 | Weight Mismatch | Detected ≠ Expected (±0.01 oz) | DROP |
-| Melt Sanity (Fractional) | No weight detected + price > 1.8× melt | DROP |
+| Melt Sanity | No weight detected + price > `max(expected melt * 5, $50)` | DROP |
 | Melt Floor (1oz+) | No weight detected + price < 0.4× melt | DROP |
 | Metal Mismatch | Detected metal ≠ Expected | DROP |
 | Composition Mismatch | Silver/clad era conflict | DROP |

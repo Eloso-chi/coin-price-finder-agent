@@ -113,7 +113,7 @@ router.post('/price', async (req, res) => {
           provider: llmProvider,
         });
         const toolValuation = conversation.toolResults
-          .map(tool => tool?.result?.valuation)
+          .map(tool => tool?.result?.result?.valuation)
           .find(Boolean) || {};
         return res.json({
           ok: true,
