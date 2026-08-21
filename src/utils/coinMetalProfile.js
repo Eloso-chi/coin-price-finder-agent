@@ -216,9 +216,15 @@ function detectWeightFromTitle(title) {
   // Gram-based weights (bars)
   const GRAM = '(?:grams?|g)\\b';
   const gm = t.match(new RegExp('\\b(\\d+(?:\\.\\d+)?)\\s*' + GRAM, 'i'));
-  if (gm) return parseFloat(gm[1]) / 31.1035;
+  if (gm) {
+    const weight = parseFloat(gm[1]) / 31.1035;
+    return weight > 0 ? weight : null;
+  }
   const gm2 = t.match(new RegExp('(?:^|\\s)\\.(\\d+)\\s*' + GRAM, 'i'));
-  if (gm2) return parseFloat('0.' + gm2[1]) / 31.1035;
+  if (gm2) {
+    const weight = parseFloat('0.' + gm2[1]) / 31.1035;
+    return weight > 0 ? weight : null;
+  }
   if (/\bhalf\s+gram\b/i.test(t)) return 0.5 / 31.1035;
   if (/\b(?:1\s*)?kilo(?:gram)?\b/i.test(t)) return 32.1507;
 

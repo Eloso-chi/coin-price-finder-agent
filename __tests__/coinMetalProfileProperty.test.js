@@ -28,4 +28,8 @@ describe('filter and weight properties', () => {
       },
     ), { numRuns: 80, maxSkips: 0, endOnFailure: true });
   });
+
+  test('rejects a zero-gram title weight', () => {
+    expect(detectWeightFromTitle('0g')).toBeNull();
+  });
 });
