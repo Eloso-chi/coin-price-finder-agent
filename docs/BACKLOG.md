@@ -999,6 +999,99 @@ Verified:
 
 ---
 
+### #299H. Lot evaluator: single/thin-comp large-denomination coins produce unreliable outlier FMVs [P2 -- CORRECTNESS / PRICING-ACCURACY] -- DONE 2026-08-21
+
+**Resolution:** Generalized the five-times-expected-melt ceiling from fractional-only to all positive bullion weights; added an explicit shared `SINGLE-COMP ESTIMATE` explanation; preserved `confidence: 0`, `lowData`, valuation comp count, method, and explanation through pricing-batch and bulk results; and added a visible Lot Evaluator single-comp warning plus zero-safe screen/CSV rendering. Regression coverage includes 1 oz and 5 oz ceiling cases, valuation warning semantics, Price/Batch/Bulk parity, and UI source contracts.
+
+**Origin:** User ran the Bulk/Lot Evaluator against the full 2016 Mexican Silver Libertad Proof weight run (1/20 oz through 5 oz). Six of seven rows tracked a smooth, expected FMV-to-melt premium curve; the 5 oz row returned $2,206.48 against $334.25 melt (6.6x), breaking the trend the other six sizes established (~2.0-7.6x, trending down as weight increases). Expected FMV based on the established curve was roughly $600-750, consistent with the user's real-market expectation ($500-600).
+
+**Root cause (confirmed via code read of `valuationService.js` / `ebayService.js`):**
+1. The 5 oz row's `compCount = 1` -- FMV was set almost entirely by a single eBay comp with zero cross-validation possible.
+2. MAD outlier removal (`ebayService.js` ~L1430-1433) requires >= 2 price points to operate; it cannot catch a bad single comp.
+3. The melt-based sanity ceiling only guards `expected.weight < 1` (`ebayService.js` ~L1187: `if (expected.meltPerOz && expected.weight && expected.weight < 1)`). Coins >= 1 oz (2 oz, 5 oz, kilo, etc.) have **no ceiling protection at all**, so one mismatched/rare/bundled comp can set an arbitrarily high FMV.
+4. `computeConfidence()` genuinely returned 0 for this row (thin sample, no PCGS coverage, `usCompCount < 5` penalty, etc.), but `public/index.html` L6770 renders confidence with `(coin.confidence || '--')` -- since `0` is JS-falsy, a real 0-confidence result displays as `--` (looks like "no data" rather than "we don't trust this number"), masking the app's own low-confidence signal from the user.
+
+**Proposed fix (two independent, low-risk tracks):**
+
+*Track A -- extend outlier/ceiling protection to >= 1 oz coins:*
+- Generalize the melt-ceiling check in `ebayService.js` to also apply when `expected.weight >= 1`, scaled proportionally (e.g. a multiple of `expected.meltPerOz * expected.weight`), rather than being fractional-bullion-only.
+- Add an explicit low-confidence / single-comp warning path in `valuationService.js` when `compCount === 1` for any bullion-weighted coin, mirroring the existing `lowData` / `browseOnly` explanation pattern (do not silently return a high-confidence-looking number).
+
+*Track B -- fix the confidence display bug (independent, trivial):*
+- Change `public/index.html` L6770 from `(coin.confidence || '--')` to a null/undefined-safe check (e.g. `(coin.confidence != null ? coin.confidence : '--')`) so a genuine `confidence: 0` renders as `0`, not `--`.
+- Audit for the same falsy-check pattern elsewhere in `public/index.html` (the `_fmt` epsilon check at L6655 and similar `|| '--'` renders) in case the same bug exists for other zero-valued numeric fields.
+
+**Universal shared-engine scope:**
+- Implement the large-weight plausibility guard and single/thin-comp disclosure in the shared `ebayService` / `valuationService` path, not as Lot Evaluator-only behavior.
+- Apply identical FMV, confidence, `lowData`, comp-count, method-label, and explanation semantics to `POST /api/price`, `POST /api/pricing-batch`, and `POST /api/bulk-evaluate` for equivalent deterministic inputs. `POST /api/ai/price` must preserve the same semantics whenever it delegates to deterministic pricing; it must not calculate or present a conflicting value.
+- Render the warning and a genuine `confidence: 0` consistently in both the Price Discovery result and Lot Evaluator result. Any other UI surface that consumes the shared deterministic response must preserve, rather than suppress, the warning.
+- Preserve strict raw / graded / proof pool isolation on every route. No route-specific fallback may bypass the guard or substitute a different strike pool.
+
+**Acceptance criteria:**
+- Re-running the same 7-size Libertad Proof lot no longer returns an FMV for the 5 oz coin that breaks the melt-premium trend of the other six sizes by more than a documented tolerance, OR the response explicitly flags the result as low-confidence/single-comp instead of presenting a bare high number.
+- New unit test(s) in `__tests__/computeValuation.test.js` (or `__tests__/ebayFetchSoldComps.test.js`) covering: a single, high-priced comp for a >= 1 oz bullion coin does not silently produce an unguarded FMV.
+- New unit test in a `public/index.html`-adjacent front-end test (or manual QA note, if no existing FE test harness covers this file) confirming `confidence: 0` renders as `0`.
+- A cross-route regression sends the same 5 oz Proof Libertad fixture through `/api/price`, `/api/pricing-batch`, and `/api/bulk-evaluate` and verifies equivalent FMV/null outcome, confidence, `lowData`, comp count, method label, and warning semantics. AI-price coverage verifies deterministic provenance and no conflicting value when that route delegates to the same result.
+- Price Discovery and Lot Evaluator visibly distinguish a guarded single/thin-comp result; neither surface renders `confidence: 0` as missing data.
+- API reference, architecture/data-flow documentation, decision-engine documentation, and relevant UI/workflow documentation are updated in the implementation PR. Onboard documentation acceptance must PASS against the implementation commit.
+- No regression to existing sub-1oz ceiling behavior or existing bullion valuation tests.
+
+**Files (anticipated):** `src/services/ebayService.js` (ceiling generalization), `src/services/valuationService.js` (single-comp warning), `public/index.html` (confidence display fix and shared warning rendering), `__tests__/computeValuation.test.js`, `__tests__/ebayFetchSoldComps.test.js`, cross-route integration tests, and mapped API/architecture/valuation/UI documentation.
+
+**Out of scope:** Re-tuning the general confidence-scoring formula (`computeConfidence()`) beyond what's needed to surface the single-comp case; broader bulk-evaluator UX changes.
+
+**Related:** #282H (proof valuation weight sanity cap -- same code area, established the pattern for defensive fixes here), #270W (pool-isolation / comp-recovery umbrella -- same family of "thin comp pool" problems, different mechanism).
+
+---
+
+### #300H. Type-cohort composite FMV fallback for thin same-year comp pools (large/rare denominations) [P3 -- PRICING-ACCURACY / DATA-QUALITY] -- PROPOSED 2026-08-20
+
+**Origin:** Follow-on from #299H. Once #299H's guardrails prevent a single unrepresentative comp from producing an unguarded FMV, the residual gap is that genuinely thin-market coins (e.g. 5 oz Proof Libertad) may still have no usable direct-year FMV at all. This item proposes an explicitly-labeled composite estimate as a last-resort fallback, discussed and scoped across two chat sessions (2026-08-20) covering both the technical approach and a numismatic key-date/rarity risk review.
+
+**Problem:** Large/rare denominations within a series (e.g. 2 oz and 5 oz Proof Libertads) are structurally low-mintage every year, not just in occasional "key date" years, so the existing year-specific comp pool is often too thin (<3 comps, sometimes 0-1) even after existing lookback-window widening (#270W Option #1). Today the only outcomes are an honest "insufficient comps" null FMV (post-#299H) or a single-comp number -- there is no attempt to derive a reasonable estimate from other, similar sales of the same coin type.
+
+**Proposed approach -- "type-cohort composite":**
+1. **Trigger:** only when the direct-year pool (after existing lookback widening) remains below a minimum threshold (e.g. `compCount < 3`, especially `=== 1` or `0`).
+2. **Cohort search:** run a secondary query for the same series + same weight + same finish/grade-pool (raw stays raw, proof stays proof -- pool-isolation contract unchanged), with the year constraint dropped or widened to a bounded window (default **+/-3 years**, tunable) rather than left fully unbounded.
+3. **Blend:** merge cohort comps with any direct-year comps (dedupe by item ID); reuse the existing recency-weighted median in `computeWeightedMedian()` (`valuationService.js`) -- no new normalization math required for v1, since existing half-life decay already down-weights older sales.
+4. **Minimum cohort size:** require e.g. >= 3 (ideally >= 5) cohort comps before using this path; otherwise fall through to the existing honest "insufficient comps" result.
+
+**Key-date / rarity risk (numismatic review, 2026-08-20):** Large Libertad sizes are low-mintage in essentially every year (a structural, not occasional, condition), so blending across nearby years risks masking a real per-year premium or discount. Decision after review: **do not build a hand-curated "key dates by size/year" table** -- exact historical mintage figures per year/size are not reliably verifiable from model memory and would introduce an uncited numismatic claim as a pricing guardrail. Instead:
+- Use the **existing PCGS population signal** (`pcgs.population.thisGrade`, already wired into the #50 low-population confidence penalty in `valuationService.js`) as an optional gate: when population data for the target year is well below the cohort's typical population, either skip the composite or apply a materially lower confidence cap and a sharper warning.
+- Because most Libertads trade raw (not PCGS-certified -- confirmed by every row in the originating lot evaluator run using `raw-blend`), population data will frequently be unavailable. When it is unavailable, default to conservative behavior: keep the +/-3 year bound, require the larger end of the minimum-cohort-size range, and disclose explicitly that year-specific rarity could not be verified.
+- The +/-3 year window is a blast-radius bound, not a substitute for the population check -- a year 1 away could still be a legitimate key date; a year 5 away could be perfectly ordinary. Both guards are complementary, not either/or.
+
+**Mandatory disclosure (both consumption surfaces):**
+- New `dataSource.label` value, e.g. `'cross-year-composite'`.
+- New structured field, e.g. `gradePool.compositeBasis: { usedCohort: true, cohortYears: [...], cohortCompCount, exactYearCompCount, populationGateApplied: boolean }`.
+- Explicit explanation line, e.g.: `"\u26a0 COMPOSITE ESTIMATE: only 1 direct sale of this exact year found. FMV is derived from N sales of other-year 5 oz Proof Libertads (years: ...) as a substitute -- treat as an approximation, not a confirmed price for this exact date."` Add a second line when population data could not verify relative rarity for the target year.
+- Confidence hard cap (e.g. max ~35-40), same pattern as the existing `browseOnly` penalty -- this is a proxy estimate, never a directly-observed price.
+- Visible UI badge (not just buried explanation text) on both the Pricing tab result card and the Lot Evaluator results table (e.g. `raw-blend (composite)` in the Method column) -- the Lot Evaluator gets this for free once implemented in the shared `computeValuation()` path (`bulkEvaluateService.js` calls the same valuation service), but still needs its own badge rendering.
+
+**Universal shared-engine scope:**
+- Implement cohort selection, blending, confidence capping, provenance, and disclosure once in the shared deterministic pricing path. Do not add a Lot Evaluator-only composite calculation.
+- Apply the same composite decision and response contract to `POST /api/price`, `POST /api/pricing-batch`, and `POST /api/bulk-evaluate` for equivalent inputs. `POST /api/ai/price` must preserve the deterministic result, provenance, confidence cap, and warning whenever it delegates to this path.
+- Price Discovery and Lot Evaluator must both display the composite badge and warning. Other consumers must retain the structured `dataSource.label`, `compositeBasis`, explanation, and capped confidence.
+- Route parity does not relax pool isolation: cohort expansion may widen year only, never weight, finish, designation, or raw / graded / proof pool.
+
+**Acceptance criteria:**
+- Composite fallback only activates when the direct-year pool (post-lookback-widening) is below the minimum threshold; never overrides a pool that already has adequate direct data.
+- Cohort comps never cross the raw/graded/proof pool-isolation boundary.
+- Every composite-derived response includes the new `dataSource.label`, `compositeBasis` field, explicit explanation text, and a confidence value at or below the documented cap.
+- Both UI surfaces (Pricing tab, Lot Evaluator) visibly distinguish composite estimates from direct sold-comp results.
+- New unit tests in `__tests__/computeValuation.test.js` and/or `__tests__/ebayFetchSoldComps.test.js` covering: cohort trigger conditions, minimum cohort size enforcement, pool-isolation preservation in the cohort search, confidence cap enforcement, and the population-gate branch (both when population data is present and when it is unavailable).
+- A cross-route regression sends the same thin-pool 5 oz Proof Libertad fixture through `/api/price`, `/api/pricing-batch`, and `/api/bulk-evaluate` and verifies equivalent FMV, provenance, cohort basis, confidence cap, and warning semantics. AI-price coverage verifies deterministic provenance and no conflicting value when it delegates to the shared result.
+- API reference, architecture/data-flow documentation, decision-engine documentation, and relevant UI/workflow documentation are updated in the implementation PR. Onboard documentation acceptance must PASS against the implementation commit.
+- No regression to existing lookback-widening (#270W Option #1) or direct-year valuation behavior when direct data is already sufficient.
+
+**Files (anticipated):** `src/services/ebayService.js` (cohort/year-window search), `src/services/valuationService.js` (composite blend, confidence cap, disclosure fields), `public/index.html` (composite badge on both surfaces), `src/services/bulkEvaluateService.js` (badge/label passthrough if needed), `__tests__/computeValuation.test.js`, `__tests__/ebayFetchSoldComps.test.js`, cross-route integration tests, and mapped API/architecture/valuation/UI documentation.
+
+**Out of scope:** A hand-curated key-date/mintage table (explicitly rejected per the numismatic review above); historical spot-price normalization of cohort comps (not required for v1 since cohort comps are bounded to sales that are still reasonably recent); automatic detection of key dates without a verifiable data source.
+
+**Related:** #299H (guards against the unguarded single-comp FMV this item builds on top of), #270W (existing lookback-widening pattern this reuses/extends into a new axis), #50 (existing low-population confidence penalty, reused here as an optional gate).
+
+---
+
 ### #284H. Anti-bot operations hardening: staged rollout for process, telemetry contract, and risk-state transitions [P2 -- OPERATIONS / BOT-RESILIENCE] -- DONE 2026-08-10
 
 **Closure (2026-08-10):** Stages 1-3 are implemented for both canonical operators, and the one-week H-machine pilot produced sufficient acceptance evidence to close the item. Because no comparable pre-Stage-3 structured ledger exists, the user accepted avoided post-detection work as the challenge-waste proxy instead of requiring a retrospective decline calculation.
@@ -2387,7 +2480,7 @@ Ops can override to any value (e.g., `BROWSER_RECYCLE_EVERY=40 python scripts/te
 
 ---
 
-### #289H. Recover Terapeak hard-challenge stop and dynamic bullion-loop exhaustion behavior [P1 -- BOT-RESILIENCE / OPERATIONS] -- PROPOSED 2026-08-14
+### #289H. Recover Terapeak hard-challenge stop and dynamic bullion-loop exhaustion behavior [P1 -- BOT-RESILIENCE / OPERATIONS] -- DONE 2026-08-17 (PR #285)
 
 - **Origin**: Recovery item from INC-018. Relevant committed hunks are in `465da07b`; additional unfinished behavior tests and loop seams remain unstaged in `__tests__/terapeakOperator.test.js`, `docs/memory/terapeak-runbook.md`, and `scripts/run-bullion-loop.sh`. Treat all of them as reference only.
 - **Problem**:
@@ -2424,7 +2517,7 @@ Ops can override to any value (e.g., `BROWSER_RECYCLE_EVERY=40 python scripts/te
 
 ---
 
-### #290H. Recover agent/workflow safety rules without production-script changes [P2 -- AGENT-SAFETY / PROCESS] -- PROPOSED 2026-08-14
+### #290H. Recover agent/workflow safety rules without production-script changes [P2 -- AGENT-SAFETY / PROCESS] -- DONE 2026-08-17 (PR #286)
 
 - **Origin**: Recovery item from INC-018. Ten agent/skill files in `465da07b` contain potentially useful safety and portability changes but are mixed with production and repository-wide cleanup.
 - **Problem**:
@@ -2469,7 +2562,7 @@ Ops can override to any value (e.g., `BROWSER_RECYCLE_EVERY=40 python scripts/te
 
 ---
 
-### #291H. Recover documentation truth-sync as bounded thematic patches [P3 -- DOCUMENTATION / MAINTAINABILITY] -- PROPOSED 2026-08-14
+### #291H. Recover documentation truth-sync as bounded thematic patches [P3 -- DOCUMENTATION / MAINTAINABILITY] -- DONE 2026-08-17 (PR #287, thematic slice)
 
 - **Origin**: Recovery item from INC-018. Nineteen documentation files in `465da07b` contain a mixture of valid corrections and audit-driven scope expansion. They MUST NOT be merged as one zero-gap sweep.
 - **Problem**: Active docs contain some verified drift (module inventories, scraper defaults, 422 flow, Cosmos audit containers, server-side storage, relative links), but combining every correction creates an oversized rollback surface and recreates the failure documented in INC-018.
@@ -2504,6 +2597,159 @@ Ops can override to any value (e.g., `BROWSER_RECYCLE_EVERY=40 python scripts/te
   - Maximum one correction pass and one verification rerun per PR.
   - User approval is required before selecting each thematic subgroup for implementation.
 - **Rollback**: Each thematic PR is independently revertible; never combine all candidate docs into one merge.
+
+---
+
+### #292H. Phase 0: Extract a shared deterministic pricing boundary [P2 -- AI FOUNDATION] -- PARTIAL 2026-08-17
+
+- **Purpose**: Create a stable `priceCoin(input, trustedContext)` application boundary that preserves the existing structured pricing behavior and can be called by both the current routes and a future conversational interface.
+- **Completed**:
+  - ✅ `src/services/pricingService.js` exported with `priceCoin(input, trustedContext)` function (commit 7db2da5d)
+  - ✅ Parity tests in `__tests__/pricingService.parity.test.js` (14 tests passing)
+  - ✅ Zero behavior change verified: full suite 165/165 suites, 4468/4468 tests passing
+  - ✅ Trust boundary: `trustedContext.isAdmin` and `trustedContext.audience` gate sensitive data
+- **Remaining**:
+  - Refactor priceRoute.js to call priceCoin() instead of inline logic (preserves contract-compatibility)
+  - Update docs/ARCHITECTURE.md with pricingService export and usage
+  - Merge PR #298H for review
+- **Requirements**:
+  - Preserve behavioral parity for existing `/api/price`, batch, bulk, bar, history, and collection workflows.
+  - Keep caller-controlled coin input separate from server-derived trusted context, including audience, identity, authorization, and redaction state.
+  - Keep deterministic domain services independent of any AI provider or orchestration code.
+- **Files**: `src/services/pricingService.js` (new boundary), `__tests__/pricingService.parity.test.js`, priceRoute.js refactor (pending), docs/ARCHITECTURE.md update (pending).
+- **Acceptance**: Existing route outputs remain contract-compatible; parity tests cover representative coin, bullion, proof, no-data, and authorization paths; no LLM dependency is required; priceRoute behavior is unchanged after refactor.
+- **Depends on**: None. This is the prerequisite for #293H.
+
+### #293H. Phase 1: Add a dual-mode conversational pricing vertical slice [P2 -- AI EXPERIENCE] -- DONE 2026-08-17
+
+- **Purpose**: Add an optional conversational entry point alongside the existing structured experience, starting with natural-language coin identification and pricing.
+- **Requirements**:
+  - Traditional forms, routes, batch tools, collections, comps, history, and bullion workflows remain first-class and usable without an LLM.
+  - The LLM interprets natural-language requests and explains results, while deterministic services remain the sole authority for identification, pricing, collection, and market calculations.
+  - The first LLM-powered vertical slice exposes exactly three allowlisted tools: `identify_coin`, `price_coin`, and `evaluate_purchase`.
+  - The conversational path calls existing deterministic services through those tools; it must not directly access providers, persistence, collection, market-wide, administrative, or mutation functions.
+  - Provider failure, unavailable configuration, and ambiguous input degrade to a clear structured response rather than breaking existing workflows.
+- **Files**: LLM provider adapter, AI orchestration service, allowlisted tool registry, validated tool-argument schemas, conversational UI surface, focused tests, and API/UI documentation.
+- **Completed scope**:
+  - ✅ Deterministic `/api/ai/price` route mounted beside the structured pricing route.
+  - ✅ Deterministic collection and market tool routes available for future orchestration.
+  - ✅ AI Pricing tab and structured handoff UI shell.
+  - ✅ Provenance, redaction, audit, ambiguity, and service-failure response shapes.
+- **LLM implementation completed**:
+  - ✅ Server-side Azure OpenAI adapter is disabled by default and never exposes provider credentials to the browser.
+  - ✅ Orchestrator implements natural-language question -> allowlisted tool -> validated deterministic result -> LLM explanation -> AI UI.
+  - ✅ Initial registry contains only `identify_coin`, `price_coin`, and `evaluate_purchase`.
+  - ✅ Tool arguments are bounded and projected to safe pricing fields; trusted context is server-derived.
+  - ✅ Direct internal service calls reuse deterministic identification and pricing functions; orchestration does not call application routes over HTTP.
+  - ✅ System policy, bounded follow-up context, provider-disabled/failure/no-data fallbacks, redaction, token/concurrency limits, and prompt-injection rejection are covered.
+  - ✅ Focused provider, registry, orchestration, route, security, context, and end-to-end invocation tests pass.
+- **Delivery evidence**:
+  - ✅ Clean worktree validation at commit `6ba41a2a`: 173 Jest suites and 4,506 tests passed; subsequent commits are documentation-only follow-ups.
+  - ✅ Focused AI tests: 8 suites and 38 tests passed; targeted ESLint clean.
+  - ✅ UX Reviewer approved the AI Pricing UI with no remaining S2/S3 blockers.
+  - ✅ Onboard documentation acceptance passed for the AI implementation lineage at commit `6ba41a2a`.
+- **Initial conversation scenarios**:
+  - `What is an 1881-S Morgan MS65 worth?`
+  - `Someone wants $245 for it. Is that a good deal?`
+  - `Why do you think that?`
+  - `What about MS64 instead?`
+  - `Price a 1921 Morgan.` -- ask the minimum clarification rather than guessing.
+  - `Why is Greysheet lower?` -- explain only from deterministic result/source context.
+  - No-data pricing -- return uncertainty or clarification without inventing a numerical answer.
+- **Explicitly deferred from the initial LLM tool registry**: collection tools, market analytics tools, bulk/lot tools, history tools, administrative tools, OpenAPI/MCP tools, and write/mutation tools. Their existing deterministic endpoints and services remain unchanged and available to the existing application.
+- **Tool-boundary documentation required before implementation**: For `identify_coin`, `price_coin`, and `evaluate_purchase`, document the exact tool name, input schema, output schema, reused service/function, validation rules, provenance, allowed caller context, expected errors, timeout, and tests. Prefer internal service calls.
+- **Acceptance**: #293H is complete only when a user can enter a natural-language pricing question, a server-side LLM orchestrator selects only from `identify_coin`, `price_coin`, and `evaluate_purchase`, model-produced arguments are validated, deterministic services calculate all numerical results, the LLM explains those validated results, the response is rendered in the AI UI, bounded follow-up context works, and provider/security/failure/end-to-end tests pass. Direct deterministic route calls or a chat-style UI without an LLM orchestrator do not satisfy #293H. The LLM must not calculate FMV, invent prices, invent comp counts or guide prices, bypass deterministic validation, call arbitrary application functions, or access deferred collection and market-wide tools. The existing non-AI pricing experience must still work unchanged when the LLM provider is disabled.
+- **Depends on**: #292H.
+
+### #294H. Phase 2: Add provenance, explainability, history, and cross-mode context [P2 -- AI TRUST / AUDITABILITY] -- DONE 2026-08-17
+
+- **Purpose**: Make conversational answers traceable and allow users to move between structured and conversational views without losing trusted valuation context.
+- **Requirements**:
+  - Reuse valuation version, source, confidence, comp-count, and audit metadata already exposed by deterministic services.
+  - Keep licensed/admin-only details audience-gated and redact public responses consistently.
+  - Support structured-to-conversation and conversation-to-structured handoff using allowlisted context only.
+- **Completed in current slice**:
+  - ✅ Public-safe provenance projection with valuation method, algorithm label, confidence, comp counts, source labels, and reproducibility counts.
+  - ✅ Structured-context handoff accepts only pricing fields and ignores caller-supplied trusted context or internal fields.
+  - ✅ AI response comp provenance is redacted through the existing public response helper.
+  - ✅ Valuation audit records receive algorithm/config versions, computed timestamp, request ID, and authenticated actor context.
+  - ✅ History context exposes adjacent-year and auction-history summaries without exposing raw licensed identifiers.
+  - ✅ UI supports structured-to-conversation and conversation-to-structured handoff.
+- **Files**: AI response schema/service, history or audit integration, UI handoff components, focused tests, and mapped documentation.
+- **Acceptance**: A response can be traced to its valuation inputs and algorithm/config versions; public and admin views remain correctly gated; a handoff round-trip preserves the intended structured query without accepting caller-controlled trusted context.
+- **Depends on**: #293H.
+
+### #295H. Phase 3: Add authenticated collection intelligence [P2 -- AI COLLECTIONS] -- DONE 2026-08-17
+
+- **Purpose**: Let authenticated users ask questions about their own stored collection through deterministic, permission-checked tools.
+- **Requirements**:
+  - Enforce user ownership and admin boundaries before any collection tool runs.
+  - Keep collection CRUD and structured collection views available without AI.
+  - Return actionable gaps, valuation summaries, and uncertainty without exposing another user's records or secrets.
+- **Files**: Authenticated AI collection tools/routes, collection-context service, UI views, focused authorization tests, and mapped documentation.
+- **Acceptance**: Ownership, empty collection, mixed-quality data, and unauthorized access cases are covered; AI-disabled collection workflows remain unchanged; no tool can access arbitrary user IDs supplied by the model or caller.
+- **Completed**:
+  - ✅ Authenticated `/api/ai/collection` summary and metadata-gap tools use only the verified JWT user ID.
+  - ✅ Unsupported intents normalize to the read-only summary tool; caller-supplied user IDs are ignored.
+  - ✅ My Coins provides an authenticated handoff into the AI Pricing surface.
+- **Depends on**: #294H.
+
+### #296H. Phase 4: Add deterministic market intelligence and analytics [P3 -- AI MARKET INTELLIGENCE] -- DONE 2026-08-17
+
+- **Purpose**: Expose deterministic cross-coin and market analytics as allowlisted tools that the conversational experience can explain without inventing calculations.
+- **Requirements**:
+  - Build on existing market, history, comp, freshness, and pricing services.
+  - Keep analytics reproducible, bounded, and independently callable from the structured UI/API.
+  - Clearly distinguish observed data, derived metrics, estimates, and missing data.
+- **Files**: Analytics service/tools, structured API/UI surface, conversational adapters, focused tests, and mapped documentation.
+- **Acceptance**: Representative trend, comparison, sparse-data, stale-data, and no-data cases are deterministic and documented; analytics do not silently blend incompatible pools or sources.
+- **Completed**:
+  - ✅ `/api/ai/market` exposes bounded coverage, comparison, and year-series tools over the existing market matrix.
+  - ✅ Outputs distinguish observed completed-sale data, derived matrix metrics, and missing observations.
+  - ✅ Comparisons are capped at three series and year-series output explicitly avoids claiming daily temporal trends.
+  - ✅ Sparse and invalid-input behavior is covered by focused tests; existing structured market APIs remain unchanged.
+- **Depends on**: #295H.
+
+### #297H. Phase 5: Evaluate OpenAPI and external-agent/MCP exposure [P3 -- AI INTEGRATION / GOVERNANCE] -- DONE 2026-08-17
+
+- **Purpose**: Evaluate whether selected deterministic tools should be exposed through OpenAPI or MCP for external agents, without committing to an integration that expands the attack surface unnecessarily.
+- **Requirements**:
+  - Inventory candidate tools, authentication, authorization, rate limits, redaction, audit, and abuse controls.
+  - Compare OpenAPI and MCP against the existing route/tool contracts and operational cost.
+  - Produce an explicit adopt, defer, or reject decision; no external exposure is implied by the evaluation.
+- **Files**: Evaluation report and, only if approved by the decision, narrowly scoped schema/config/tests and documentation.
+- **Acceptance**: The decision records threat model, trust boundary, versioning, rate limits, data classification, and rollback; any prototype is disabled by default and cannot bypass existing authorization.
+- **Completed**:
+  - ✅ Evaluation report: [docs/AI-EXTERNAL-EXPOSURE-EVALUATION.md](AI-EXTERNAL-EXPOSURE-EVALUATION.md).
+  - ✅ Explicit decision: defer OpenAPI/MCP external exposure; no external listener, schema, or prototype enabled.
+  - ✅ Candidate tools, data classification, threat model, required controls, versioning, audit, and rollback are recorded.
+- **Depends on**: #296H.
+
+### #298H. Evaluate OpenRouter as an additional LLM provider for AI conversational pricing [P3 -- AI FOUNDATION / OPERATIONS] -- PROPOSED 2026-08-20
+
+**Origin:** Chat investigation 2026-08-19/20 into whether OpenRouter could serve as an alternative to the single hard-coded Azure OpenAI provider in the Phase 1 conversational pricing vertical (#293H).
+
+**Problem:** `src/services/llmProviderAdapter.js` supports exactly one provider (`azure-openai`) via `providerEnabled()` / `createLlmProvider()`. There is no way to add a second provider (OpenRouter or otherwise) without a code change, and no existing backlog item tracks that work.
+
+**Proposed approach:**
+1. Extend `llmProviderAdapter.js` with an `openrouter` branch selected by `LLM_PROVIDER=openrouter`, using `OPENROUTER_API_KEY` and `OPENROUTER_MODEL` env vars.
+2. Reuse the existing `complete(payload)` contract so `aiOrchestratorService.js` and the `/api/ai/*` routes require no changes.
+3. Call `https://openrouter.ai/api/v1/chat/completions` with `Authorization: Bearer <OPENROUTER_API_KEY>`, same timeout/concurrency guards as the Azure branch.
+4. Keep provider selection strictly server-side (env-driven only); no client-supplied provider/model, consistent with `docs/AI-EXTERNAL-EXPOSURE-EVALUATION.md`.
+5. No change to external exposure posture -- this stays behind the existing internal `/api/ai/*` routes; #297H's DEFER decision on OpenAPI/MCP is unaffected.
+
+**Acceptance criteria:**
+- `providerEnabled()` returns true only when `LLM_PROVIDER=openrouter` and `OPENROUTER_API_KEY` are both set.
+- `createLlmProvider().complete()` posts to the OpenRouter endpoint and returns the same `{ role, content, tool_calls }` shape the orchestrator already expects.
+- API key is never logged or returned to the caller (mirrors existing Azure test in `__tests__/llmProviderAdapter.test.js`).
+- Azure provider path is unchanged and its existing tests still pass.
+- `.env.example` and README env-var table document the new optional vars, disabled by default.
+
+**Files (anticipated):** `src/services/llmProviderAdapter.js`, `__tests__/llmProviderAdapter.test.js`, `.env.example`, `README.md`.
+
+**Out of scope:** External OpenAPI/MCP exposure (remains DEFERRED per #297H), client-selectable providers, multi-provider failover/fallback logic (candidate follow-up, not required for first landing).
+
+**Related:** #293H (Phase 1 conversational pricing), #297H (external exposure evaluation, DEFER decision still in force).
 
 ---
 
@@ -2734,7 +2980,7 @@ Both queries produced `null` FMV alongside a high-confidence stamp, which is non
 
 ---
 
-### #302W. vnc-login/probe: expose second Akamai challenge on `/sh/research` to the user via noVNC [P2 -- OPERATIONS / DX] -- OPEN 2026-08-06
+### #302W. vnc-login/probe: expose second Akamai challenge on `/sh/research` to the user via noVNC [P2 -- OPERATIONS / DX] -- DONE 2026-08-17 (PR #288)
 
 **Problem observed 2026-08-06 (this session):** After solving the signin CAPTCHA in noVNC (`scripts/vnc-login.py`) and saving 44 cookies, the operator's Cooldown-recovery gate ran `scripts/cookie-health-check.py --probe`, which navigated to `https://www.ebay.com/sh/research` in **headless** Chromium (line 165: `headless=True`). Akamai served a second challenge on that URL, the probe exited **2 (CHALLENGED)**, and the operator hard-stopped in `stopped/fail` with message `post-login Cooldown probe failed (exit=2)`. **The user was never notified of the second challenge and had no way to solve it via noVNC**, even though a visible Chromium browser was up on `DISPLAY=:1` at that exact moment.
 
@@ -3019,7 +3265,7 @@ Option 1 is cleanest because it collapses login + first-visit-verification into 
 
 ---
 
-### #295W. Property-based tests for FMV math [P3 -- TEST-DEPTH] -- OPEN 2026-08-06
+### #295W. Property-based tests for FMV math [P3 -- TEST-DEPTH] -- DONE 2026-08-17 (PR #289)
 
 **Problem:** Fuzzy numerical functions (`computeWeightedMedian`, `computeConfidence`, `applyFilters` attrition math, weight-based melt-sanity ceiling) are tested with fixed fixtures. Edge cases (empty pools, single-item pools, extreme premium clamps, degenerate weights) rely on human insight to enumerate. Property-based generation would surface classes we don't think to write.
 
@@ -3044,7 +3290,7 @@ Option 1 is cleanest because it collapses login + first-visit-verification into 
 
 ---
 
-### #296W. Contract tests for external comp sources [P3 -- TEST-DEPTH / RESILIENCE] -- OPEN 2026-08-06
+### #296W. Contract tests for external comp sources [P3 -- TEST-DEPTH / RESILIENCE] -- DONE 2026-08-17 (PR #290)
 
 **Problem:** eBay Marketplace Insights, PCGS APR, Greysheet CDN, and Numista responses are all mocked via `axios-mock-adapter`. If any upstream changes response shape, our unit tests happily pass and we discover the drift in production. Terapeak CSV format is documented but not contract-tested against a real export.
 

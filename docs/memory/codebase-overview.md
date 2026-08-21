@@ -6,13 +6,13 @@
 
 ## Stack
 - **Runtime:** Node.js 22, Express 5.2, CommonJS
-- **Frontend:** Single-page app in `public/index.html`, dark theme, 9 tabs
+- **Frontend:** Single-page app in `public/index.html`, dark theme, 10 tabs including AI Pricing
 - **Auth:** Server-side bcrypt + JWT (authService.js); client modules are thin API wrappers
 - **Hosting:** Azure App Service (Linux, B2, Canada Central) -- `coinpricefinder-h3a3b5g0dmdydna4`
 - **Azure Services:** Key Vault (`coinpricefinder-kv`), Cosmos DB (`coinpricefinder-cosmos`, serverless), Blob Storage (`coinpricecache01/terapeak-csvs`), Azure Files (`appcache` at `/mnt/cache`)
 - **CI/CD:** GitHub Actions with OIDC -> Azure (`main_coinpricefinder-h3a3b5g0dmdydna4.yml`)
 - **Observability:** X-Request-ID async context, redacted Pino JSON logs, shallow/deep health checks, versioned valuation audits
-- **Tests:** Jest 30; latest verified run 161 suites / 4,441 tests. Run `npm test` for the current count.
+- **Tests:** Jest 30; latest verified run 173 suites / 4,506 tests. Run `npm test` for the current count.
 
 ## Project Structure
 ```
@@ -23,8 +23,8 @@ public/
   js/storage.js            CoinStorage: server-backed coin CRUD via /api/coins/*
   js/my-coins.js           MyCoins: portfolio render with batch pricing
 src/
-  routes/                  15 Express route modules
-  services/                22 service modules
+  routes/                  18 Express route modules
+  services/                28 service modules
   utils/                   14 shared utility modules
   middleware/              4 request/auth/logging middleware modules
   schemas/                 JSON schema for /api/price responses
@@ -43,7 +43,7 @@ docs/testing/test-monitor.md  Test Monitor usage guide & command reference
 __tests__/                 161 current *.test.js files recursively plus fixtures/helpers/setup
 ```
 
-## 9 Tabs
+## 10 Tabs
 1. **Price Discovery** -- Coin + Bar sub-modes, POST /api/price or /api/bar-price
 2. **Melt Calculator** -- 80+ coin types + 20 bar types, live spot from /api/metals
 3. **Live eBay Tracker** -- Market matrix (year x mint, year x grade, or brand), GET /api/market/ebay
@@ -53,6 +53,7 @@ __tests__/                 161 current *.test.js files recursively plus fixtures
 7. **Price History** -- Auth-gated, canvas chart with metal overlay, GET /api/coin-history
 8. **About** -- Docs, confidence key, privacy, disclaimer, feature previews for logged-out users
 9. **Admin** -- Hidden, admin-key-gated dashboard (users, data health, stale datasets, cache controls)
+10. **AI Pricing** -- Optional LLM-powered conversational pricing with deterministic tools, bounded context, provenance, and deterministic fallback when the provider is disabled
 
 ## API Routes
 | Route | Method | Auth | Purpose |
@@ -74,6 +75,9 @@ __tests__/                 161 current *.test.js files recursively plus fixtures
 | /api/clear-cache | POST | Admin | Clear all caches |
 | /api/health | GET | -- | Shallow load-balancer health check |
 | /api/health?deep=1 | GET | Admin | Bounded downstream dependency health |
+| /api/ai/price | POST | -- | LLM-or-deterministic conversational pricing; provider disabled by default |
+| /api/ai/collection | POST | JWT | Authenticated deterministic collection context |
+| /api/ai/market | POST | -- | Bounded deterministic market analytics |
 
 ## Services
 - **ebayService** -- Terapeak-first comp cascade; deprecated Finding is disabled by default and Browse provides active-listing fallback, with circuit breakers, throttling, match scoring, and pool isolation
@@ -92,6 +96,9 @@ __tests__/                 161 current *.test.js files recursively plus fixtures
 - **coinStorageService** -- Server-side coin CRUD (dual-mode Cosmos + local JSON)
 - **auctionPriceService / prefetchScheduler / pcgsQuotaService** -- PCGS APR history, nightly prefetch, local quota and persisted upstream cooldown recovery
 - **auditService** -- Admin and versioned valuation audit events, Cosmos-first with bounded JSONL fallback
+- **aiOrchestratorService** -- Server-side Azure OpenAI loop restricted to `identify_coin`, `price_coin`, and `evaluate_purchase`; deterministic results are the numerical authority
+- **aiToolRegistry / aiToolSchemas** -- Strict three-tool allowlist, root/nested field validation, timeouts, and trusted-context boundaries
+- **llmProviderAdapter** -- Disabled-by-default Azure OpenAI adapter with request timeout and concurrency bounds
 - **alertService** -- Rate-limited Azure Communication Services Email alerts with local fallback logging
 - **adminService / freshnessClassifier** -- Admin health and shared freshness/dormancy decisions
 

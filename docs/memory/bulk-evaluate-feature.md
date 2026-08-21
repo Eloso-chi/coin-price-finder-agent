@@ -44,7 +44,7 @@ For each coin:
 4. **eBay Comps**: 1 page of sold comps, 90-day lookback via `ebayService.fetchSoldComps()` using expected context
 5. **PCGS Lookup**: `pcgsService.resolveFromDescription()` for certification number
 6. **Greysheet**: Wholesale pricing via `greysheetService.fetchPriceByPcgsNumber()` or type fallback
-7. **Valuation**: `computeValuation()` blends PCGS guide, eBay median (weighted), Greysheet wholesale, spot price premiums → FMV + range + confidence + method
+7. **Valuation**: `computeValuation()` blends PCGS guide, eBay median (weighted), Greysheet wholesale, spot price premiums -> FMV + range + confidence + low-data state + comp count + method + explanation
 
 ## Output: Per-Coin Result
 ```
@@ -65,6 +65,8 @@ For each coin:
   rangeLow: 40.00,
   rangeHigh: 50.00,
   confidence: 82,                // 0-100 confidence score
+  lowData: false,                // true when fewer than 3 sold comps support the result
+  explanation: [],               // includes SINGLE-COMP ESTIMATE when compCount is 1
   method: "ebay-weighted",       // How FMV was computed
   meltValue: null,               // Metal intrinsic value * qty
   avgEbay: 45.25,                // Median eBay comp price
@@ -73,6 +75,8 @@ For each coin:
   error?: null | "error message" // If pricing failed
 }
 ```
+
+Confidence `0` is preserved in the API, on-screen table, and CSV export. A one-comp result is visibly labeled `Single comp` in the Lot Evaluator. The shared bullion filter rejects unstated-weight comps above `max(meltPerOz * weight * 5, $50)` for fractional and multi-ounce coins.
 
 ## Lot Summary: Buy Tiers & Pricing Formula
 
@@ -163,7 +167,7 @@ Total Discount = Size Discount + Confidence Penalty + Concentration Penalty
 - Real-time row appends to results table
 
 **Results Table**:
-- Columns: #, Coin, Qty, Grade, FMV (ea), Total FMV, Melt, Comps, Confidence, Method
+- Columns: #, Coin, Qty, Grade, FMV (ea), Total FMV, Melt, Comps, Confidence, Warning, Method
 - Rows added as SSE events arrive
 - Color-coded confidence (green ≥70%, amber 50-69%, red <50%)
 - Pagination at 50 coins per page
@@ -188,7 +192,7 @@ Total Discount = Size Discount + Confidence Penalty + Concentration Penalty
 - Max 3 concurrent jobs server-wide (throttle with HTTP 429 if exceeded)
 
 **Result Caching**:
-- SHA-256 hash of input coin array
+- SHA-256 hash of audience and input coin array
 - 1-hour TTL
 - Replays cached results through `onProgress` callback for instant results on re-submit
 

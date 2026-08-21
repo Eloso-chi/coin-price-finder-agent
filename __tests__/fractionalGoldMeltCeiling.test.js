@@ -124,15 +124,17 @@ describe('applyFilters -- #261W fractional gold melt ceiling', () => {
     expect(kept[0].totalUsd).toBe(40);
   });
 
-  test('does not apply when expected.weight is 1 (full oz uses meltFloor instead)', () => {
-    // Outer guard `expected.weight < 1` skips this branch entirely for 1 oz queries.
-    // The melt-floor filter handles 1 oz+ queries.
+  test('#299H applies the proportional ceiling to 1 oz queries', () => {
+    // Ceiling = 5000 * 1 * 5 = $25,000. A normal full-ounce comp remains,
+    // while an unstated-weight lot or exceptional outlier is rejected.
     const comps = [
       makeComp({ title: '2024 Canada Gold Maple Leaf BU', totalUsd: 5100 }),
+      makeComp({ title: '2024 Canada Gold Maple Leaf BU', totalUsd: 25001 }),
     ];
     const { kept, removed } = applyFilters(comps, {}, { meltPerOz: GOLD_SPOT, weight: 1 });
-    expect(removed.meltSanity).toBeUndefined();
+    expect(removed.meltSanity).toBe(1);
     expect(kept.length).toBe(1);
+    expect(kept[0].totalUsd).toBe(5100);
   });
 });
 

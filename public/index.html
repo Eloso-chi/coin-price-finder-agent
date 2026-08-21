@@ -178,6 +178,16 @@
     }
     .status-bar.error { color: var(--red); }
     .status-bar.loading { color: var(--yellow); }
+    .ai-response { white-space: pre-wrap; line-height: 1.6; }
+    .ai-provenance { color: var(--text-secondary); font-size: 0.82rem; margin-top: 12px; }
+    .ai-handoff { margin-top: 12px; min-height: 44px; }
+    .ai-query-input { flex: 1 1 260px; min-width: 0; }
+    .ai-context-note { color: var(--text-muted); font-size: 0.8rem; margin: 8px 0; }
+    .ai-error { color: var(--red); }
+    @media (max-width: 520px) {
+      .ai-query-row { flex-direction: column; align-items: stretch; }
+      .ai-query-row .btn { width: 100%; justify-content: center; }
+    }
     .spinner {
       width: 16px; height: 16px; border: 2px solid var(--border);
       border-top-color: var(--accent); border-radius: 50%;
@@ -1131,6 +1141,7 @@
   <!-- ── Tab Navigation ─────────────────────────────────── -->
   <nav class="tab-bar" role="tablist" aria-label="Main tools">
     <button class="tab-btn" role="tab" id="tab-price" aria-controls="panel-price" aria-selected="true" tabindex="0">Price Discovery</button>
+    <button class="tab-btn" role="tab" id="tab-ai" aria-controls="panel-ai" aria-selected="false" tabindex="-1">AI Pricing</button>
     <button class="tab-btn" role="tab" id="tab-melt" aria-controls="panel-melt" aria-selected="false" tabindex="-1">Melt Calculator</button>
     <button class="tab-btn" role="tab" id="tab-tracker" aria-controls="panel-tracker" aria-selected="false" tabindex="-1">Live eBay Tracker</button>
     <button class="tab-btn" role="tab" id="tab-terapeak" aria-controls="panel-terapeak" aria-selected="false" tabindex="-1" style="display:none">Sold Data</button>
@@ -1559,6 +1570,26 @@
   </section>
 
   <!-- ══════════════════════════════════════════════════════ -->
+  <!-- AI Pricing                                             -->
+  <!-- ══════════════════════════════════════════════════════ -->
+  <section id="panel-ai" class="tab-panel" role="tabpanel" aria-labelledby="tab-ai" aria-hidden="true">
+    <div class="card">
+      <h2>Conversational Pricing</h2>
+      <div class="form-group">
+        <label for="ai-query">Ask about a coin</label>
+        <div class="input-row ai-query-row">
+          <input id="ai-query" class="ai-query-input" type="text" placeholder="e.g. 2024 American Silver Eagle" autocomplete="off">
+          <button id="ai-submit" class="btn" type="button">Price with AI</button>
+        </div>
+      </div>
+      <div id="ai-status" class="status-bar" role="status" aria-live="polite"></div>
+      <div id="ai-context-note" class="ai-context-note" hidden></div>
+      <button id="ai-new-conversation" class="btn ai-handoff" type="button">New conversation</button>
+      <div id="ai-response" aria-live="polite"></div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════ -->
   <!-- TAB 2 — Melt Calculator                               -->
   <!-- ══════════════════════════════════════════════════════ -->
   <section id="panel-melt" class="tab-panel" role="tabpanel" aria-labelledby="tab-melt" aria-hidden="true">
@@ -1963,6 +1994,12 @@
       </div>
 
       <div id="backup-prompt-container" style="display:none"></div>
+      <div class="card" style="margin-top:12px">
+        <h2>Collection Intelligence</h2>
+        <p style="color:var(--text-secondary);font-size:.85rem;margin-bottom:10px">Review collection completeness and valuation uncertainty from your authenticated collection.</p>
+        <button id="collection-ai-btn" class="btn" type="button">Ask AI about my collection</button>
+        <div id="collection-ai-status" class="status-bar" role="status" aria-live="polite"></div>
+      </div>
       <div id="mycoins-content">
         <div class="mycoins-empty"><p>Log in to view your coin collection.</p></div>
       </div>
@@ -2048,13 +2085,13 @@ Silver Libertad 1 oz Proof"></textarea>
 
       <div style="margin-top:12px;display:flex;align-items:center;gap:12px">
         <button id="bulk-evaluate-btn" class="btn-accent" style="padding:10px 28px;font-size:1rem">Evaluate Lot</button>
-        <span id="bulk-status" class="muted"></span>
+        <span id="bulk-status" class="muted" role="status" aria-live="polite"></span>
       </div>
 
       <!-- Progress bar -->
       <div id="bulk-progress-wrap" style="display:none;margin-top:12px">
         <div style="background:var(--border);border-radius:4px;height:8px;overflow:hidden">
-          <div id="bulk-progress-bar" style="height:100%;background:var(--accent);width:0%;transition:width 0.3s"></div>
+          <div id="bulk-progress-bar" role="progressbar" aria-label="Lot evaluation progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" style="height:100%;background:var(--accent);width:0%;transition:width 0.3s"></div>
         </div>
         <div id="bulk-progress-text" class="muted" style="font-size:0.8rem;margin-top:4px">0 / 0</div>
       </div>
@@ -2080,7 +2117,7 @@ Silver Libertad 1 oz Proof"></textarea>
           <tr>
             <th>#</th><th>Coin</th><th>Qty</th><th>Grade</th>
             <th>FMV (ea)</th><th>Total FMV</th><th>Melt</th>
-            <th>Comps</th><th>Conf.</th><th>Method</th>
+            <th>Comps</th><th>Conf.</th><th>Warning</th><th>Method</th>
           </tr>
         </thead>
         <tbody id="bulk-results-tbody"></tbody>
@@ -3457,7 +3494,7 @@ Silver Libertad 1 oz Proof"></textarea>
       if (d.coinData?.label) html += '<span class="fmv-chip" title="Graded slab label">&#x1F3F7;&#xFE0F; ' + _esc(d.coinData.label) + '</span>';
       // Low-data warning badge (#40)
       if (v.lowData) {
-        html += '<div style="margin-top:6px;padding:6px 10px;background:rgba(220,38,38,0.08);border:1px solid rgba(220,38,38,0.35);border-radius:6px;font-size:0.78rem;color:var(--accent-red)">';
+        html += '<div style="margin-top:6px;padding:6px 10px;background:rgba(220,38,38,0.08);border:1px solid rgba(220,38,38,0.35);border-radius:6px;font-size:0.78rem;color:var(--red)">';
         html += '&#9888;&#65039; <strong>Low confidence</strong> -- only ' + (v.compCount || 0) + ' sold comp' + (v.compCount === 1 ? '' : 's') + '. Cross-reference with dealer prices before buying or selling.';
         html += '</div>';
       }
@@ -3676,6 +3713,7 @@ Silver Libertad 1 oz Proof"></textarea>
       html += '<a data-tab="tab-melt" title="Open in Melt Calculator">Melt Calculator</a>';
       html += '<a data-tab="tab-tracker" title="Open in Live eBay Tracker">eBay Tracker</a>';
       html += '<a data-tab="tab-history" title="Open in Price History">Price History</a>';
+      html += '<button type="button" class="btn ai-handoff" id="structured-to-ai">Continue in AI Pricing</button>';
       html += '</div>';
 
       html += '<details><summary>View raw JSON response</summary>';
@@ -3691,6 +3729,12 @@ Silver Libertad 1 oz Proof"></textarea>
           if (tabBtn) tabBtn.click();
         });
       });
+      var structuredToAi = document.getElementById('structured-to-ai');
+      if (structuredToAi) {
+        structuredToAi.addEventListener('click', function() {
+          openAiFromStructured(window._structuredForAi);
+        });
+      }
 
       // Wire "Show all" comps buttons
       container.querySelectorAll('.comps-show-all').forEach(function(btn) {
@@ -3781,6 +3825,203 @@ Silver Libertad 1 oz Proof"></textarea>
       _btnReset(qBtn);
     }
   }
+
+  function openAiFromStructured(context) {
+    const aiQuery = document.getElementById('ai-query');
+    if (!aiQuery) return;
+    window._aiStructuredContext = {
+      query: context?.query || '',
+      coinData: context?.coinData || null,
+      weight: context?.weight || null,
+      options: context?.options || {},
+      askingPrice: context?.askingPrice ?? null,
+      saleContext: context?.saleContext || null,
+      appealMultiplier: context?.appealMultiplier ?? null,
+    };
+    aiQuery.value = window._aiStructuredContext.query;
+    document.getElementById('tab-ai')?.click();
+    aiQuery.focus();
+  }
+
+  function openStructuredFromAi(handoff) {
+    if (!handoff || !handoff.query) return;
+    const queryInput = document.getElementById('query');
+    if (queryInput) queryInput.value = handoff.query;
+    const coinData = handoff.coinData || {};
+    const fieldValues = {
+      coinName: coinData.name,
+      coinYear: coinData.year,
+      coinMint: coinData.mint || coinData.mintMark,
+      coinFinish: coinData.finish,
+      coinGrade: coinData.grade,
+      askingPrice: handoff.askingPrice,
+      saleContext: handoff.saleContext,
+      appealMultiplier: handoff.appealMultiplier,
+      coinWeight: handoff.weight,
+    };
+    Object.keys(fieldValues).forEach(function(id) {
+      const field = document.getElementById(id);
+      if (field && fieldValues[id] != null) field.value = fieldValues[id];
+    });
+    document.getElementById('tab-price')?.click();
+    const modeToggle = document.getElementById('mode-toggle');
+    const quickSearch = document.getElementById('quick-search');
+    if (modeToggle && quickSearch && quickSearch.style.display === 'none') modeToggle.click();
+    if (queryInput) queryInput.focus();
+  }
+
+  function renderAiResponse(data) {
+    const output = document.getElementById('ai-response');
+    if (!output) return;
+    output.innerHTML = '';
+    if (!data.ok) {
+      output.className = 'ai-error';
+      output.setAttribute('role', 'alert');
+      output.textContent = data.error || 'The AI pricing request needs more information.';
+      if (Array.isArray(data.suggestions) && data.suggestions.length) {
+        const list = document.createElement('ul');
+        data.suggestions.forEach(function(suggestion) {
+          const item = document.createElement('li');
+          item.textContent = suggestion;
+          list.appendChild(item);
+        });
+        output.appendChild(list);
+      }
+      return;
+    }
+    output.className = '';
+    output.removeAttribute('role');
+    const card = document.createElement('div');
+    card.className = 'card';
+    const answer = document.createElement('p');
+    answer.className = 'ai-response';
+    answer.textContent = data.answer || 'Pricing completed.';
+    const provenance = document.createElement('p');
+    provenance.className = 'ai-provenance';
+    if (data.provenance?.valuation) {
+      provenance.textContent = (data.fallback
+        ? 'AI provider unavailable; deterministic pricing used. '
+        : '') + 'Confidence: ' + (data.provenance.valuation.confidence ?? 'unknown')
+        + ' | Comps: ' + (data.provenance.valuation.compCount ?? 0)
+        + ' | Algorithm: ' + (data.provenance.valuation.algorithmVersion ?? 'unknown');
+    } else {
+      provenance.textContent = (data.fallback
+        ? 'AI provider unavailable; deterministic pricing used. '
+        : 'LLM explanation grounded in deterministic tools. ')
+        + 'Tools used: ' + (data.provenance?.tools || []).join(', ');
+    }
+    if (data.provenance?.valuation?.warning) {
+      const warning = document.createElement('p');
+      warning.className = 'ai-error';
+      warning.setAttribute('role', 'alert');
+      warning.textContent = 'Warning: ' + data.provenance.valuation.warning;
+      card.append(warning);
+    }
+    if (data.handoff?.query) {
+      const handoff = document.createElement('button');
+      handoff.type = 'button';
+      handoff.className = 'btn ai-handoff';
+      handoff.textContent = 'Open in Price Discovery';
+      handoff.addEventListener('click', function() { openStructuredFromAi(data.handoff); });
+      card.append(handoff);
+    }
+    card.prepend(answer, provenance);
+    output.appendChild(card);
+  }
+
+  async function runAiQuery() {
+    const input = document.getElementById('ai-query');
+    const status = document.getElementById('ai-status');
+    const button = document.getElementById('ai-submit');
+    if (!input || !status || !button) return;
+    const query = input.value.trim();
+    if (!query) {
+      status.className = 'status-bar error';
+      status.textContent = 'Enter a coin description first.';
+      input.setAttribute('aria-invalid', 'true');
+      input.setAttribute('aria-describedby', 'ai-status');
+      input.focus();
+      return;
+    }
+    input.removeAttribute('aria-invalid');
+    input.removeAttribute('aria-describedby');
+    button.disabled = true;
+    status.className = 'status-bar loading';
+    status.textContent = 'Pricing...';
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 50000);
+      const response = await fetch('/api/ai/price', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query,
+          structuredContext: window._aiStructuredContext || undefined,
+          conversationContext: window._aiConversationContext || [],
+        }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+      const data = await response.json();
+      if (!response.ok && response.status !== 422) throw new Error(data.error || 'AI pricing failed');
+      status.className = 'status-bar';
+      status.textContent = '';
+      if (Array.isArray(data.conversationContext)) {
+        window._aiConversationContext = data.conversationContext.slice(-8);
+        const note = document.getElementById('ai-context-note');
+        if (note) { note.hidden = false; note.textContent = 'Continuing this conversation with the last ' + window._aiConversationContext.length + ' turns.'; }
+      }
+      renderAiResponse(data);
+    } catch (err) {
+      status.className = 'status-bar error';
+      status.textContent = err.name === 'AbortError' ? 'AI pricing timed out. Try again.' : (err.message || 'AI pricing is unavailable.');
+    } finally {
+      button.disabled = false;
+    }
+  }
+
+  async function runCollectionAiQuery() {
+    const session = typeof CoinAuth !== 'undefined' ? CoinAuth.currentUser() : null;
+    const status = document.getElementById('collection-ai-status');
+    const button = document.getElementById('collection-ai-btn');
+    if (!session || !session.token) {
+      if (status) { status.className = 'status-bar error'; status.textContent = 'Log in to analyze your collection.'; }
+      return;
+    }
+    if (button) button.disabled = true;
+    if (status) { status.className = 'status-bar loading'; status.textContent = 'Reviewing your collection...'; }
+    try {
+      const response = await fetch('/api/ai/collection', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.token },
+        body: JSON.stringify({ intent: 'summary' }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Collection analysis failed');
+      renderAiResponse(data);
+      document.getElementById('tab-ai')?.click();
+      if (status) { status.className = 'status-bar'; status.textContent = 'Collection review ready in AI Pricing.'; }
+    } catch (err) {
+      if (status) { status.className = 'status-bar error'; status.textContent = err.message || 'Collection analysis unavailable.'; }
+    } finally {
+      if (button) button.disabled = false;
+    }
+  }
+
+  document.getElementById('ai-submit')?.addEventListener('click', runAiQuery);
+  document.getElementById('ai-query')?.addEventListener('keydown', function(event) {
+    if (event.key === 'Enter') runAiQuery();
+  });
+  document.getElementById('ai-new-conversation')?.addEventListener('click', function() {
+    window._aiConversationContext = [];
+    window._aiStructuredContext = null;
+    const note = document.getElementById('ai-context-note');
+    if (note) { note.hidden = true; note.textContent = ''; }
+    const output = document.getElementById('ai-response');
+    if (output) output.replaceChildren();
+    document.getElementById('ai-query')?.focus();
+  });
+  document.getElementById('collection-ai-btn')?.addEventListener('click', runCollectionAiQuery);
 
   /* Helpers */
   function $(v) { return v != null ? '$' + Number(v).toFixed(2) : '\u2014'; }
@@ -4037,6 +4278,15 @@ Silver Libertad 1 oz Proof"></textarea>
     const usStats = d.ebay?.us?.stats || {};
     const glStats = d.ebay?.global?.stats || {};
     let html = '';
+    window._structuredForAi = {
+      query: d.query?.input || '',
+      coinData: d.coinData || null,
+      weight: d.query?.weight || null,
+      options: d.query?.options || {},
+      askingPrice: d.query?.askingPrice ?? null,
+      saleContext: d.query?.saleContext || null,
+      appealMultiplier: d.query?.appealMultiplier ?? null,
+    };
 
     // ── Pass series to Live eBay Tracker FIRST (before HTML build) ──
     // Done early so that even if the HTML templating below throws,
@@ -4374,7 +4624,7 @@ Silver Libertad 1 oz Proof"></textarea>
     }
     // Low-data warning (#40) — mirror of bar section
     if (v.lowData) {
-      html += '<div style="margin-top:6px;padding:6px 10px;background:rgba(220,38,38,0.08);border:1px solid rgba(220,38,38,0.35);border-radius:6px;font-size:0.78rem;color:var(--accent-red)">';
+      html += '<div style="margin-top:6px;padding:6px 10px;background:rgba(220,38,38,0.08);border:1px solid rgba(220,38,38,0.35);border-radius:6px;font-size:0.78rem;color:var(--red)">';
       html += '&#9888;&#65039; <strong>Low confidence</strong> -- only ' + (v.compCount || 0) + ' sold comp' + (v.compCount === 1 ? '' : 's') + '. Cross-reference with dealer prices before buying or selling.';
       html += '</div>';
     }
@@ -6421,6 +6671,7 @@ Silver Libertad 1 oz Proof"></textarea>
       resultsWrap.style.display = 'none';
       progressWrap.style.display = 'none';
       progressBar.style.width = '0%';
+      progressBar.setAttribute('aria-valuenow', '0');
       pageNav.style.display = 'none';
       pageNav.innerHTML = '';
       statusEl.textContent = '';
@@ -6457,6 +6708,7 @@ Silver Libertad 1 oz Proof"></textarea>
           _renderRow(coin, coin.index);
           const pct = Math.round((completed / coinCount) * 100);
           progressBar.style.width = pct + '%';
+          progressBar.setAttribute('aria-valuenow', String(pct));
           progressText.textContent = completed + ' / ' + coinCount;
           statusEl.textContent = 'Evaluating... ' + completed + '/' + coinCount;
         });
@@ -6514,8 +6766,9 @@ Silver Libertad 1 oz Proof"></textarea>
 
     function _buildRowHtml(coin, idx) {
       if (coin.error) {
-        return '<td>' + (idx + 1) + '</td><td colspan="9" style="color:var(--red, #f44336)">' + _esc(coin.query) + ' -- ' + _esc(coin.error) + '</td>';
+        return '<td>' + (idx + 1) + '</td><td colspan="10" style="color:var(--red, #f44336)">' + _esc(coin.query) + ' -- ' + _esc(coin.error) + '</td>';
       }
+      const warningLabel = coin.lowData && coin.compCount === 1 ? 'Single comp' : '--';
       return '<td>' + (idx + 1) + '</td>' +
         '<td>' + _esc(coin.query || '') + '</td>' +
         '<td>' + (coin.qty || 1) + '</td>' +
@@ -6524,7 +6777,8 @@ Silver Libertad 1 oz Proof"></textarea>
         '<td>' + _fmt(coin.totalFmv) + '</td>' +
         '<td>' + _fmt(coin.meltValue) + '</td>' +
         '<td>' + (coin.compCount || 0) + '</td>' +
-        '<td style="color:' + _confColor(coin.confidence) + '">' + (coin.confidence || '--') + '</td>' +
+        '<td style="color:' + _confColor(coin.confidence) + '">' + (coin.confidence != null ? coin.confidence : '--') + '</td>' +
+        '<td style="color:' + (warningLabel === '--' ? 'inherit' : 'var(--red)') + ';font-weight:' + (warningLabel === '--' ? '400' : '700') + '">' + warningLabel + '</td>' +
         '<td class="muted">' + _esc(coin.method || '--') + '</td>';
     }
 
@@ -6629,10 +6883,11 @@ Silver Libertad 1 oz Proof"></textarea>
 
     exportCsvBtn.addEventListener('click', function() {
       if (!_results.length) return;
-      const headers = ['#','Coin','Qty','Grade','FMV','Total FMV','Melt','Comps','Confidence','Method'];
+      const headers = ['#','Coin','Qty','Grade','FMV','Total FMV','Melt','Comps','Confidence','Warning','Method'];
       const rows = _results.map(function(r, i) {
+        const warning = r.lowData && r.compCount === 1 ? 'Single-comp estimate; cross-reference dealer prices' : '';
         return [i+1, '"' + (r.query||'').replace(/"/g,'""') + '"', r.qty||1, r.grade||'',
-                r.fmv||'', r.totalFmv||'', r.meltValue||'', r.compCount||0, r.confidence||'', r.method||''].join(',');
+                r.fmv||'', r.totalFmv||'', r.meltValue||'', r.compCount||0, r.confidence != null ? r.confidence : '', '"' + warning + '"', r.method||''].join(',');
       });
       const csv = headers.join(',') + '\n' + rows.join('\n');
       const blob = new Blob([csv], { type: 'text/csv' });

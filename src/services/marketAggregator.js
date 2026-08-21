@@ -135,8 +135,8 @@ function matchesGrade(title, gradeFilter) {
   if (!m) return true; // unparseable filter → pass all
   const prefix = m[1];
   const num = m[2];
-  const re = new RegExp(`\\b${prefix}\\s*[-]?\\s*${num.replace('+', '\\+')}\\b`, 'i');
-  return re.test(title);
+  const normalizedTitle = String(title || '').toUpperCase().replace(/[\\s-]+/g, '');
+  return normalizedTitle.includes(prefix.toUpperCase() + num);
 }
 
 /**

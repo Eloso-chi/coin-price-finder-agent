@@ -2,6 +2,37 @@
 
 Reference for critical data stores, schemas, and privacy classifications used by the coin-price-finder-agent service.
 
+## AI Response and Privacy Contracts
+
+The internal `/api/ai/*` routes use these classifications. External OpenAPI/MCP
+exposure is disabled.
+
+| Response area | Classification | Public behavior | Notes |
+|---|---|---|---|
+| `/api/ai/price` valuation and explanation | Public-safe derived data | Deterministic numerical results plus an LLM explanation when the provider is enabled; provider-disabled responses identify deterministic fallback | FMV, confidence, comp counts, and guide values originate from deterministic services |
+| `/api/ai/price` comp provenance | Restricted licensed provenance | Public comp source labels and identifiers are redacted before model/UI exposure | Uses the same public redaction boundary as `/api/price` |
+| `/api/ai/price` handoff | Caller input, allowlisted | Contains only query, coin fields, pricing options, asking price, sale context, weight, and appeal multiplier | Trusted audience/admin context is server-derived and never accepted from the body |
+| `/api/ai/collection` summary | Private user data | JWT-authenticated response is restricted to the verified `req.user.userId` collection | Caller/model-supplied user IDs are ignored; notes and cost basis remain private |
+| `/api/ai/market` analytics | Derived market intelligence | Bounded observed/derived/missing classifications | Collection, administrative, history, bulk, and mutation tools are not exposed to the Phase 1 LLM registry |
+| `conversationContext` | Bounded transient context | Last eight sanitized turns only | No trusted identity, audience, admin state, secrets, or provider configuration |
+
+## Pricing Response Contracts
+
+| Response area | Fields | Public behavior | Notes |
+|---|---|---|---|
+| `/api/price` valuation | `confidence`, `lowData`, `compCount`, `method`, `explanation` | Public-safe derived valuation context | `confidence: 0` is meaningful and must not be treated as missing data |
+| `/api/pricing-batch` result | `confidence`, `lowData`, `compCount`, `method`, `explanation` | Preserves the shared valuation contract for each item | A one-sold-comp result includes a `SINGLE-COMP ESTIMATE` explanation |
+| `/api/bulk-evaluate` per-coin result | `confidence`, `lowData`, `compCount`, `method`, `explanation` | Public jobs preserve the shared contract; anonymous poll, replay, and live access to admin-origin jobs redacts `explanation` to `[]` | Bulk caches are audience-isolated because explanations differ for public and admin callers |
+| `/api/ai/price` provenance valuation | `confidence`, `lowData`, `compCount`, `warning` | Deterministic and LLM-backed responses expose structured low-data disclosure | `warning` is non-null for a one-sold-comp estimate |
+
+### Phase 1 LLM tool result shapes
+
+The initial LLM registry exposes only `identify_coin`, `price_coin`, and
+`evaluate_purchase`. Each result includes deterministic provenance. Tool
+arguments are validated against the exact contracts in [docs/api-reference.md](../api-reference.md)
+and unknown root/nested fields are rejected. Numerical explanations without
+financial evidence from valuation or buy/sell decision fields are rejected.
+
 ## Local Filesystem Stores
 
 ### cache/pcgs_quota.json
