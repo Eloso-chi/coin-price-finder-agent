@@ -24,9 +24,9 @@ let _activeJobs = 0;
 const _cache = new Map();
 const CACHE_TTL = 60 * 60 * 1000;
 
-function _hashInput(coins) {
+function _hashInput(coins, audience = 'public') {
   const h = crypto.createHash('sha256');
-  h.update(JSON.stringify(coins));
+  h.update(JSON.stringify({ audience, coins }));
   return h.digest('hex').slice(0, 16);
 }
 
@@ -278,14 +278,16 @@ async function evaluateOneCoin(coin, opts = {}) {
       perCoinFmv: isRoll && fmv ? (() => { const rq = getRollQuantity(series || query); return rq ? +(fmv / rq).toFixed(2) : null; })() : undefined,
       rangeLow:   val.rangeLow || null,
       rangeHigh:  val.rangeHigh || null,
-      confidence: val.confidence || null,
+      confidence: val.confidence ?? null,
+      lowData:    !!val.lowData,
+      explanation: Array.isArray(val.explanation) ? val.explanation : [],
       method:     val.method || val.dataSource?.label || null,
       algorithmVersion: val.algorithmVersion,
       configVersion: val.configVersion,
       computedAt: val.computedAt,
       meltValue:  (meltPerOz && weight) ? +(meltPerOz * weight * qty).toFixed(2) : null,
       avgEbay:    ebay?.us?.stats?.median || ebay?.us?.stats?.mean || null,
-      compCount:  ebay?.us?.stats?.count || 0,
+      compCount:  val.compCount ?? ebay?.us?.stats?.count ?? 0,
       greysheet:  greysheet ? (greysheet.greyVal || greysheet.cpgVal || null) : null,
     };
   } catch (err) {
@@ -314,7 +316,8 @@ async function runBulkEvaluation(coins, onProgress, opts = {}) {
   }
 
   // Check cache
-  const cacheKey = _hashInput(coins);
+  const audience = opts.audience === 'admin' ? 'admin' : 'public';
+  const cacheKey = _hashInput(coins, audience);
   _pruneCache();
   const cached = _cache.get(cacheKey);
   if (cached) {

@@ -363,7 +363,7 @@ POST { text | items | file(.xlsx) }
   │
   ├── 2. Create Job ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   │   ├─ Validate: 50-500 coins, max 3 concurrent jobs server-wide
-  │   ├─ Check result cache (SHA-256 of input array, 1hr TTL)
+  │   ├─ Check result cache (SHA-256 of audience + input array, 1hr TTL)
   │   └─ Return { jobId, coinCount } with 202 status
   │
   ├── 3. SSE Stream (GET /api/bulk-evaluate/:jobId/stream) ━━━━━━━━━
@@ -377,7 +377,7 @@ POST { text | items | file(.xlsx) }
   │   ├─ getMetalsSpotPrice → live spot for melt calculation
   │   ├─ ebayService.fetchSoldComps (1 page, 90 days)
   │   ├─ greysheetService (PCGS number or type fallback)
-  │   ├─ computeValuation → FMV, range, confidence, method
+  │   ├─ computeValuation → FMV, range, confidence, lowData, compCount, method, explanation
   │   └─ Emit SSE "coin" event with result
   │
   ├── 5. Lot Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -623,7 +623,7 @@ Three independent caches serve different data characteristics:
 | **Class** | In-memory `Map` (bulkEvaluateService.js) |
 | **Default TTL** | 1 hour (3,600,000 ms) |
 | **Persistence** | None (in-memory only) |
-| **Key pattern** | SHA-256 hash of the JSON-serialized input coin array |
+| **Key pattern** | SHA-256 hash of the JSON-serialized audience and input coin array |
 | **Why 1h TTL** | Lot evaluations are expensive (many API calls); caching avoids re-pricing identical submissions |
 | **Eviction** | Lazy prune on new job submission |
 
@@ -999,6 +999,12 @@ The eBay component uses `computeWeightedMedian(comps)` instead of a simple media
 - **Match weight**: `matchScore / 100` — higher-relevance comps count more
 - **Combined**: `recencyWeight × matchWeight`
 - Falls back to `stats.weightedMedian(prices, weights)`
+
+### Bullion Melt-Sanity Ceiling
+
+Before valuation, `applyFilters()` rejects a comp whose title omits weight when its total price exceeds `max(meltPerOz * expected.weight * 5, $50)`. The same proportional ceiling applies to fractional, 1 oz, and multi-ounce bullion. Explicitly stated weights continue through the weight-mismatch filter instead. This prevents a single mismatched denomination, lot, or exceptional sale from silently setting FMV while retaining a generous collector-premium allowance.
+
+When exactly one sold comp remains, `computeValuation()` sets `lowData: true` and adds an explicit `SINGLE-COMP ESTIMATE` explanation. `/api/price`, `/api/pricing-batch`, and `/api/bulk-evaluate` preserve the same confidence, comp count, method, and explanation semantics. Deterministic and LLM-backed `/api/ai/price` responses expose `lowData`, `compCount`, and a derived warning in `provenance.valuation`.
 
 ### Confidence Scoring
 

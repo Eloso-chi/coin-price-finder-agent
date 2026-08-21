@@ -45,6 +45,32 @@ describe('LLM-enabled POST /api/ai/price', () => {
     expect(priceCoin).not.toHaveBeenCalled();
   });
 
+  test('preserves a structured single-comp warning from deterministic tool results', async () => {
+    orchestrate.mockResolvedValueOnce({
+      answer: 'The deterministic tool returned a thin-data estimate.',
+      toolResults: [{
+        name: 'price_coin',
+        result: {
+          result: { valuation: { fmvCore: 700, confidence: 0, compCount: 1, lowData: true } },
+          provenance: { source: 'deterministic-pricing-service', observed: true },
+        },
+      }],
+      context: [],
+      provider: 'azure-openai',
+    });
+
+    const res = await request(createApp()).post('/api/ai/price').send({
+      query: '2016 Mexican Silver Libertad Proof 5 oz',
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body.provenance.valuation).toEqual({
+      lowData: true,
+      compCount: 1,
+      warning: expect.stringMatching(/single-comp estimate/i),
+    });
+  });
+
   test('falls back to deterministic pricing when orchestration fails', async () => {
     orchestrate.mockRejectedValueOnce(new Error('provider unavailable'));
 

@@ -999,7 +999,9 @@ Verified:
 
 ---
 
-### #299H. Lot evaluator: single/thin-comp large-denomination coins produce unreliable outlier FMVs [P2 -- CORRECTNESS / PRICING-ACCURACY] -- PROPOSED 2026-08-20
+### #299H. Lot evaluator: single/thin-comp large-denomination coins produce unreliable outlier FMVs [P2 -- CORRECTNESS / PRICING-ACCURACY] -- DONE 2026-08-21
+
+**Resolution:** Generalized the five-times-expected-melt ceiling from fractional-only to all positive bullion weights; added an explicit shared `SINGLE-COMP ESTIMATE` explanation; preserved `confidence: 0`, `lowData`, valuation comp count, method, and explanation through pricing-batch and bulk results; and added a visible Lot Evaluator single-comp warning plus zero-safe screen/CSV rendering. Regression coverage includes 1 oz and 5 oz ceiling cases, valuation warning semantics, Price/Batch/Bulk parity, and UI source contracts.
 
 **Origin:** User ran the Bulk/Lot Evaluator against the full 2016 Mexican Silver Libertad Proof weight run (1/20 oz through 5 oz). Six of seven rows tracked a smooth, expected FMV-to-melt premium curve; the 5 oz row returned $2,206.48 against $334.25 melt (6.6x), breaking the trend the other six sizes established (~2.0-7.6x, trending down as weight increases). Expected FMV based on the established curve was roughly $600-750, consistent with the user's real-market expectation ($500-600).
 
@@ -1019,13 +1021,22 @@ Verified:
 - Change `public/index.html` L6770 from `(coin.confidence || '--')` to a null/undefined-safe check (e.g. `(coin.confidence != null ? coin.confidence : '--')`) so a genuine `confidence: 0` renders as `0`, not `--`.
 - Audit for the same falsy-check pattern elsewhere in `public/index.html` (the `_fmt` epsilon check at L6655 and similar `|| '--'` renders) in case the same bug exists for other zero-valued numeric fields.
 
+**Universal shared-engine scope:**
+- Implement the large-weight plausibility guard and single/thin-comp disclosure in the shared `ebayService` / `valuationService` path, not as Lot Evaluator-only behavior.
+- Apply identical FMV, confidence, `lowData`, comp-count, method-label, and explanation semantics to `POST /api/price`, `POST /api/pricing-batch`, and `POST /api/bulk-evaluate` for equivalent deterministic inputs. `POST /api/ai/price` must preserve the same semantics whenever it delegates to deterministic pricing; it must not calculate or present a conflicting value.
+- Render the warning and a genuine `confidence: 0` consistently in both the Price Discovery result and Lot Evaluator result. Any other UI surface that consumes the shared deterministic response must preserve, rather than suppress, the warning.
+- Preserve strict raw / graded / proof pool isolation on every route. No route-specific fallback may bypass the guard or substitute a different strike pool.
+
 **Acceptance criteria:**
 - Re-running the same 7-size Libertad Proof lot no longer returns an FMV for the 5 oz coin that breaks the melt-premium trend of the other six sizes by more than a documented tolerance, OR the response explicitly flags the result as low-confidence/single-comp instead of presenting a bare high number.
 - New unit test(s) in `__tests__/computeValuation.test.js` (or `__tests__/ebayFetchSoldComps.test.js`) covering: a single, high-priced comp for a >= 1 oz bullion coin does not silently produce an unguarded FMV.
 - New unit test in a `public/index.html`-adjacent front-end test (or manual QA note, if no existing FE test harness covers this file) confirming `confidence: 0` renders as `0`.
+- A cross-route regression sends the same 5 oz Proof Libertad fixture through `/api/price`, `/api/pricing-batch`, and `/api/bulk-evaluate` and verifies equivalent FMV/null outcome, confidence, `lowData`, comp count, method label, and warning semantics. AI-price coverage verifies deterministic provenance and no conflicting value when that route delegates to the same result.
+- Price Discovery and Lot Evaluator visibly distinguish a guarded single/thin-comp result; neither surface renders `confidence: 0` as missing data.
+- API reference, architecture/data-flow documentation, decision-engine documentation, and relevant UI/workflow documentation are updated in the implementation PR. Onboard documentation acceptance must PASS against the implementation commit.
 - No regression to existing sub-1oz ceiling behavior or existing bullion valuation tests.
 
-**Files (anticipated):** `src/services/ebayService.js` (ceiling generalization), `src/services/valuationService.js` (single-comp warning), `public/index.html` (confidence display fix), `__tests__/computeValuation.test.js`, `__tests__/ebayFetchSoldComps.test.js`.
+**Files (anticipated):** `src/services/ebayService.js` (ceiling generalization), `src/services/valuationService.js` (single-comp warning), `public/index.html` (confidence display fix and shared warning rendering), `__tests__/computeValuation.test.js`, `__tests__/ebayFetchSoldComps.test.js`, cross-route integration tests, and mapped API/architecture/valuation/UI documentation.
 
 **Out of scope:** Re-tuning the general confidence-scoring formula (`computeConfidence()`) beyond what's needed to surface the single-comp case; broader bulk-evaluator UX changes.
 
@@ -1057,15 +1068,23 @@ Verified:
 - Confidence hard cap (e.g. max ~35-40), same pattern as the existing `browseOnly` penalty -- this is a proxy estimate, never a directly-observed price.
 - Visible UI badge (not just buried explanation text) on both the Pricing tab result card and the Lot Evaluator results table (e.g. `raw-blend (composite)` in the Method column) -- the Lot Evaluator gets this for free once implemented in the shared `computeValuation()` path (`bulkEvaluateService.js` calls the same valuation service), but still needs its own badge rendering.
 
+**Universal shared-engine scope:**
+- Implement cohort selection, blending, confidence capping, provenance, and disclosure once in the shared deterministic pricing path. Do not add a Lot Evaluator-only composite calculation.
+- Apply the same composite decision and response contract to `POST /api/price`, `POST /api/pricing-batch`, and `POST /api/bulk-evaluate` for equivalent inputs. `POST /api/ai/price` must preserve the deterministic result, provenance, confidence cap, and warning whenever it delegates to this path.
+- Price Discovery and Lot Evaluator must both display the composite badge and warning. Other consumers must retain the structured `dataSource.label`, `compositeBasis`, explanation, and capped confidence.
+- Route parity does not relax pool isolation: cohort expansion may widen year only, never weight, finish, designation, or raw / graded / proof pool.
+
 **Acceptance criteria:**
 - Composite fallback only activates when the direct-year pool (post-lookback-widening) is below the minimum threshold; never overrides a pool that already has adequate direct data.
 - Cohort comps never cross the raw/graded/proof pool-isolation boundary.
 - Every composite-derived response includes the new `dataSource.label`, `compositeBasis` field, explicit explanation text, and a confidence value at or below the documented cap.
 - Both UI surfaces (Pricing tab, Lot Evaluator) visibly distinguish composite estimates from direct sold-comp results.
 - New unit tests in `__tests__/computeValuation.test.js` and/or `__tests__/ebayFetchSoldComps.test.js` covering: cohort trigger conditions, minimum cohort size enforcement, pool-isolation preservation in the cohort search, confidence cap enforcement, and the population-gate branch (both when population data is present and when it is unavailable).
+- A cross-route regression sends the same thin-pool 5 oz Proof Libertad fixture through `/api/price`, `/api/pricing-batch`, and `/api/bulk-evaluate` and verifies equivalent FMV, provenance, cohort basis, confidence cap, and warning semantics. AI-price coverage verifies deterministic provenance and no conflicting value when it delegates to the shared result.
+- API reference, architecture/data-flow documentation, decision-engine documentation, and relevant UI/workflow documentation are updated in the implementation PR. Onboard documentation acceptance must PASS against the implementation commit.
 - No regression to existing lookback-widening (#270W Option #1) or direct-year valuation behavior when direct data is already sufficient.
 
-**Files (anticipated):** `src/services/ebayService.js` (cohort/year-window search), `src/services/valuationService.js` (composite blend, confidence cap, disclosure fields), `public/index.html` (composite badge on both surfaces), `src/services/bulkEvaluateService.js` (badge/label passthrough if needed), `__tests__/computeValuation.test.js`, `__tests__/ebayFetchSoldComps.test.js`.
+**Files (anticipated):** `src/services/ebayService.js` (cohort/year-window search), `src/services/valuationService.js` (composite blend, confidence cap, disclosure fields), `public/index.html` (composite badge on both surfaces), `src/services/bulkEvaluateService.js` (badge/label passthrough if needed), `__tests__/computeValuation.test.js`, `__tests__/ebayFetchSoldComps.test.js`, cross-route integration tests, and mapped API/architecture/valuation/UI documentation.
 
 **Out of scope:** A hand-curated key-date/mintage table (explicitly rejected per the numismatic review above); historical spot-price normalization of cohort comps (not required for v1 since cohort comps are bounded to sales that are still reasonably recent); automatic detection of key dates without a verifiable data source.
 

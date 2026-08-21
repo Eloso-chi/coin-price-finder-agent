@@ -57,6 +57,13 @@ Proof / reverse-proof intent skips this ladder entirely (`skipSpotMath`). When p
 - **Combined**: `recencyWeight * matchWeight`
 - Uses `stats.weightedMedian(values, weights)`
 
+## Bullion Melt-Sanity Guard
+
+- When expected `meltPerOz` and `weight` are known, a comp with no detectable title weight is rejected above `max(meltPerOz * weight * 5, $50)`.
+- The guard applies to all positive bullion weights, including 1 oz and multi-ounce coins; it is not limited to fractionals.
+- Comps with an explicit title weight are handled by the strict weight-mismatch filter rather than this ambiguity guard.
+- If exactly one sold comp remains, valuation sets `lowData: true` and appends a `SINGLE-COMP ESTIMATE` warning. Confidence may legitimately be `0` and consumers must preserve that value.
+
 ## Grade Pool Split
 
 Before valuation, comps are separated into four mutually exclusive pools:
