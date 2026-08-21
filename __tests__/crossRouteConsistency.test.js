@@ -139,6 +139,7 @@ const request = require('supertest');
 const express = require('express');
 const priceRoute = require('../src/routes/priceRoute');
 const pricingBatchRoute = require('../src/routes/pricingBatchRoute');
+const { evaluateOneCoin } = require('../src/services/bulkEvaluateService');
 const { seedRandom, pickRandom, selectCoins, ALL_COINS } = require('./helpers/coinTestConstants');
 
 const app = express();
@@ -366,5 +367,41 @@ describe('cross-route consistency — /api/price vs /api/pricing-batch', () => {
 
     // Both derive from the same mock, so should match
     expect(singleMedian).toBe(batchAvg);
+  });
+
+  test('#299H: single-comp warning semantics match across price, batch, and bulk consumers', async () => {
+    const query = '2016 Mexican Silver Libertad Proof 5 oz';
+    const valuation = {
+      fmvCore: 700,
+      rangeLow: 630,
+      rangeHigh: 770,
+      confidence: 0,
+      lowData: true,
+      compCount: 1,
+      method: 'raw-blend',
+      explanation: ['WARNING: SINGLE-COMP ESTIMATE'],
+      dataSource: { label: 'sold-data' },
+      gradePool: { wantsGraded: false, usedPool: 'raw', poolCount: 1, totalCount: 1 },
+    };
+    const valuationService = require('../src/services/valuationService');
+    valuationService.computeValuation
+      .mockReturnValueOnce({ valuation, decisions: { buy: {}, sell: {} } })
+      .mockReturnValueOnce({ valuation, decisions: { buy: {}, sell: {} } })
+      .mockReturnValueOnce({ valuation, decisions: { buy: {}, sell: {} } });
+
+    const single = await request(app).post('/api/price').send({ query });
+    const batch = await request(app).post('/api/pricing-batch').send({ items: [{ query }] });
+    const bulk = await evaluateOneCoin({ query });
+
+    const expected = {
+      confidence: 0,
+      lowData: true,
+      compCount: 1,
+      method: 'raw-blend',
+      explanation: ['WARNING: SINGLE-COMP ESTIMATE'],
+    };
+    expect(single.body.valuation).toMatchObject(expected);
+    expect(batch.body.results[0]).toMatchObject(expected);
+    expect(bulk).toMatchObject(expected);
   });
 });

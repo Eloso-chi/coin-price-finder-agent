@@ -377,7 +377,7 @@ POST { text | items | file(.xlsx) }
   │   ├─ getMetalsSpotPrice → live spot for melt calculation
   │   ├─ ebayService.fetchSoldComps (1 page, 90 days)
   │   ├─ greysheetService (PCGS number or type fallback)
-  │   ├─ computeValuation → FMV, range, confidence, method
+  │   ├─ computeValuation → FMV, range, confidence, lowData, compCount, method, explanation
   │   └─ Emit SSE "coin" event with result
   │
   ├── 5. Lot Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -999,6 +999,12 @@ The eBay component uses `computeWeightedMedian(comps)` instead of a simple media
 - **Match weight**: `matchScore / 100` — higher-relevance comps count more
 - **Combined**: `recencyWeight × matchWeight`
 - Falls back to `stats.weightedMedian(prices, weights)`
+
+### Bullion Melt-Sanity Ceiling
+
+Before valuation, `applyFilters()` rejects a comp whose title omits weight when its total price exceeds five times expected melt (`meltPerOz * expected.weight`). The same proportional ceiling applies to fractional, 1 oz, and multi-ounce bullion. Explicitly stated weights continue through the weight-mismatch filter instead. This prevents a single mismatched denomination, lot, or exceptional sale from silently setting FMV while retaining a generous collector-premium allowance.
+
+When exactly one sold comp remains, `computeValuation()` sets `lowData: true` and adds an explicit `SINGLE-COMP ESTIMATE` explanation. `/api/price`, `/api/pricing-batch`, `/api/bulk-evaluate`, and delegated deterministic AI pricing preserve the same confidence, comp count, method, and explanation semantics.
 
 ### Confidence Scoring
 

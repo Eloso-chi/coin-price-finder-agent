@@ -578,6 +578,9 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
   } else if (soldCount > 0 && terapeakCount === 0) {
     explanation.push(`${soldCount} sold comps used for valuation.`);
   }
+  if (soldCount === 1) {
+    explanation.push('\u26a0 SINGLE-COMP ESTIMATE: FMV is based on one sold comp and could reflect an outlier. Cross-reference with dealer prices before buying or selling.');
+  }
 
   // ── Confidence ──
   const isBar = !!(pcgs?._isBar);

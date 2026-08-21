@@ -1174,9 +1174,9 @@ function applyFilters(comps, options, expected) {
     });
   }
 
-  // Precious metal content sanity check: for fractional bullion coins,
-  // if no weight is detected in the title and the price is well above
-  // the expected weight's melt, the listing is almost certainly a larger coin.
+  // Precious metal content sanity check: when no weight is detected in the
+  // title and the price is well above the expected weight's melt, the listing
+  // is likely a mismatched denomination, lot, or exceptional outlier.
   // #261W: Ceiling is `expected.meltPerOz * expected.weight * 5` -- five times
   // the EXPECTED-WEIGHT melt, not 1.8x of full-oz melt. The old `meltPerOz * 1.8`
   // computed to ~$9k for 1/20 oz queries at $5k/oz gold spot, which let 1-oz
@@ -1184,7 +1184,7 @@ function applyFilters(comps, options, expected) {
   // bug). 5x still allows fractional premiums up to 400% over melt (typical
   // 1/20 oz Gold Maples carry 100-300% premium). Floor at $50 keeps the filter
   // tolerant for cheap silver fractionals where spot * weight is tiny.
-  if (expected.meltPerOz && expected.weight && expected.weight < 1) {
+  if (expected.meltPerOz && expected.weight) {
     removed.meltSanity = 0;
     const meltCeiling = Math.max(expected.meltPerOz * expected.weight * 5, 50);
     kept = kept.filter(c => {

@@ -226,6 +226,33 @@ describe('bulkEvaluateService', () => {
       expect(result).toHaveProperty('compCount', 3);
     });
 
+    it('preserves zero confidence and single-comp warning fields from valuation', async () => {
+      const valuationService = require('../src/services/valuationService');
+      valuationService.computeValuation.mockReturnValueOnce({
+        valuation: {
+          fmvCore: 2206.48,
+          rangeLow: 1985.83,
+          rangeHigh: 2427.13,
+          confidence: 0,
+          lowData: true,
+          compCount: 1,
+          method: 'raw-blend',
+          explanation: ['WARNING: SINGLE-COMP ESTIMATE'],
+        },
+        decisions: { buy: {}, sell: {} },
+      });
+
+      const result = await evaluateOneCoin({ query: '2016 Mexican Silver Libertad Proof 5 oz' });
+
+      expect(result).toMatchObject({
+        confidence: 0,
+        lowData: true,
+        compCount: 1,
+        method: 'raw-blend',
+        explanation: ['WARNING: SINGLE-COMP ESTIMATE'],
+      });
+    });
+
     it('defaults qty to 1', async () => {
       const result = await evaluateOneCoin({ query: '1921 Morgan Dollar MS-65' });
       expect(result.qty).toBe(1);

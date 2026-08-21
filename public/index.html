@@ -6759,6 +6759,9 @@ Silver Libertad 1 oz Proof"></textarea>
       if (coin.error) {
         return '<td>' + (idx + 1) + '</td><td colspan="9" style="color:var(--red, #f44336)">' + _esc(coin.query) + ' -- ' + _esc(coin.error) + '</td>';
       }
+      const methodLabel = coin.lowData && coin.compCount === 1
+        ? (coin.method || '--') + ' (WARNING: single comp)'
+        : (coin.method || '--');
       return '<td>' + (idx + 1) + '</td>' +
         '<td>' + _esc(coin.query || '') + '</td>' +
         '<td>' + (coin.qty || 1) + '</td>' +
@@ -6767,8 +6770,8 @@ Silver Libertad 1 oz Proof"></textarea>
         '<td>' + _fmt(coin.totalFmv) + '</td>' +
         '<td>' + _fmt(coin.meltValue) + '</td>' +
         '<td>' + (coin.compCount || 0) + '</td>' +
-        '<td style="color:' + _confColor(coin.confidence) + '">' + (coin.confidence || '--') + '</td>' +
-        '<td class="muted">' + _esc(coin.method || '--') + '</td>';
+        '<td style="color:' + _confColor(coin.confidence) + '">' + (coin.confidence != null ? coin.confidence : '--') + '</td>' +
+        '<td class="muted">' + _esc(methodLabel) + '</td>';
     }
 
     function _renderBulkPage() {
@@ -6875,7 +6878,7 @@ Silver Libertad 1 oz Proof"></textarea>
       const headers = ['#','Coin','Qty','Grade','FMV','Total FMV','Melt','Comps','Confidence','Method'];
       const rows = _results.map(function(r, i) {
         return [i+1, '"' + (r.query||'').replace(/"/g,'""') + '"', r.qty||1, r.grade||'',
-                r.fmv||'', r.totalFmv||'', r.meltValue||'', r.compCount||0, r.confidence||'', r.method||''].join(',');
+                r.fmv||'', r.totalFmv||'', r.meltValue||'', r.compCount||0, r.confidence != null ? r.confidence : '', r.method||''].join(',');
       });
       const csv = headers.join(',') + '\n' + rows.join('\n');
       const blob = new Blob([csv], { type: 'text/csv' });

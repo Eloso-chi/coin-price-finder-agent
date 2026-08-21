@@ -146,7 +146,7 @@ describe('applyFilters — weight mismatch', () => {
 //  Step 6 & 7: Melt ceiling and floor
 // ═══════════════════════════════════════════════════════════════
 
-describe('applyFilters — melt ceiling (fractional)', () => {
+describe('applyFilters — melt ceiling', () => {
   test('removes overpriced comp for fractional coin', () => {
     const comps = [
       makeComp({ title: '2024 Silver Eagle BU', totalUsd: 100, matchScore: 70 }),  // too expensive for 1/4 oz
@@ -156,6 +156,22 @@ describe('applyFilters — melt ceiling (fractional)', () => {
     const { kept, removed } = applyFilters(comps, {}, { meltPerOz: 30, weight: 0.25 });
     expect(removed.meltSanity).toBe(1);
     expect(kept.length).toBe(1);
+  });
+
+  test.each([
+    [1, 200],
+    [5, 1000],
+  ])('removes an unstated-weight outlier for a %s oz coin', (weight, ceiling) => {
+    const comps = [
+      makeComp({ title: '2016 Mexican Silver Libertad', totalUsd: ceiling + 1, matchScore: 70 }),
+      makeComp({ title: '2016 Mexican Silver Libertad', totalUsd: ceiling, matchScore: 70 }),
+    ];
+
+    const { kept, removed } = applyFilters(comps, {}, { meltPerOz: 40, weight });
+
+    expect(removed.meltSanity).toBe(1);
+    expect(kept).toHaveLength(1);
+    expect(kept[0].totalUsd).toBe(ceiling);
   });
 });
 

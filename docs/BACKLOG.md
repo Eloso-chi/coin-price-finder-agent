@@ -999,7 +999,9 @@ Verified:
 
 ---
 
-### #299H. Lot evaluator: single/thin-comp large-denomination coins produce unreliable outlier FMVs [P2 -- CORRECTNESS / PRICING-ACCURACY] -- PROPOSED 2026-08-20
+### #299H. Lot evaluator: single/thin-comp large-denomination coins produce unreliable outlier FMVs [P2 -- CORRECTNESS / PRICING-ACCURACY] -- DONE 2026-08-21
+
+**Resolution:** Generalized the five-times-expected-melt ceiling from fractional-only to all positive bullion weights; added an explicit shared `SINGLE-COMP ESTIMATE` explanation; preserved `confidence: 0`, `lowData`, valuation comp count, method, and explanation through pricing-batch and bulk results; and added a visible Lot Evaluator single-comp warning plus zero-safe screen/CSV rendering. Regression coverage includes 1 oz and 5 oz ceiling cases, valuation warning semantics, Price/Batch/Bulk parity, and UI source contracts.
 
 **Origin:** User ran the Bulk/Lot Evaluator against the full 2016 Mexican Silver Libertad Proof weight run (1/20 oz through 5 oz). Six of seven rows tracked a smooth, expected FMV-to-melt premium curve; the 5 oz row returned $2,206.48 against $334.25 melt (6.6x), breaking the trend the other six sizes established (~2.0-7.6x, trending down as weight increases). Expected FMV based on the established curve was roughly $600-750, consistent with the user's real-market expectation ($500-600).
 
