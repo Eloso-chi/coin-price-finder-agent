@@ -399,7 +399,7 @@ If an asking price is provided:
 | Fair Lot | 70--80% | Standard lot purchase |
 | Full Retail | 85--90% minus fees | Near-retail, minus platform/seller fees |
 
-**Limits:** 500 coins max per job, 10 coins evaluated in parallel, max 3 concurrent jobs server-wide, 1-hour result cache (keyed by SHA-256 of input).
+**Limits:** 500 coins max per job, 10 coins evaluated in parallel, max 3 concurrent jobs server-wide, 1-hour result cache (keyed by SHA-256 of audience and input).
 
 ### Authentication & Coin Collection
 

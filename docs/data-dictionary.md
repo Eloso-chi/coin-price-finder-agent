@@ -22,7 +22,7 @@ exposure is disabled.
 |---|---|---|---|
 | `/api/price` valuation | `confidence`, `lowData`, `compCount`, `method`, `explanation` | Public-safe derived valuation context | `confidence: 0` is meaningful and must not be treated as missing data |
 | `/api/pricing-batch` result | `confidence`, `lowData`, `compCount`, `method`, `explanation` | Preserves the shared valuation contract for each item | A one-sold-comp result includes a `SINGLE-COMP ESTIMATE` explanation |
-| `/api/bulk-evaluate` per-coin result | `confidence`, `lowData`, `compCount`, `method`, `explanation` | Stream, replay, and poll results preserve the shared valuation contract | Bulk caches are audience-isolated because explanations differ for public and admin callers |
+| `/api/bulk-evaluate` per-coin result | `confidence`, `lowData`, `compCount`, `method`, `explanation` | Public jobs preserve the shared contract; anonymous poll, replay, and live access to admin-origin jobs redacts `explanation` to `[]` | Bulk caches are audience-isolated because explanations differ for public and admin callers |
 | `/api/ai/price` provenance valuation | `confidence`, `lowData`, `compCount`, `warning` | Deterministic and LLM-backed responses expose structured low-data disclosure | `warning` is non-null for a one-sold-comp estimate |
 
 ### Phase 1 LLM tool result shapes

@@ -76,7 +76,7 @@ For each coin:
 }
 ```
 
-Confidence `0` is preserved in the API, on-screen table, and CSV export. A one-comp result is visibly labeled `WARNING: single comp` in the Lot Evaluator. The shared bullion filter rejects unstated-weight comps above `max(meltPerOz * weight * 5, $50)` for fractional and multi-ounce coins.
+Confidence `0` is preserved in the API, on-screen table, and CSV export. A one-comp result is visibly labeled `Single comp` in the Lot Evaluator. The shared bullion filter rejects unstated-weight comps above `max(meltPerOz * weight * 5, $50)` for fractional and multi-ounce coins.
 
 ## Lot Summary: Buy Tiers & Pricing Formula
 
@@ -167,7 +167,7 @@ Total Discount = Size Discount + Confidence Penalty + Concentration Penalty
 - Real-time row appends to results table
 
 **Results Table**:
-- Columns: #, Coin, Qty, Grade, FMV (ea), Total FMV, Melt, Comps, Confidence, Method, Warning
+- Columns: #, Coin, Qty, Grade, FMV (ea), Total FMV, Melt, Comps, Confidence, Warning, Method
 - Rows added as SSE events arrive
 - Color-coded confidence (green ≥70%, amber 50-69%, red <50%)
 - Pagination at 50 coins per page
