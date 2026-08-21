@@ -14,8 +14,17 @@ describe('Lot Evaluator confidence display', () => {
     expect(source).toContain("r.confidence != null ? r.confidence : ''");
   });
 
-  test('visibly labels a low-data single-comp result', () => {
+  test('visibly labels and exports a low-data single-comp result', () => {
     expect(source).toContain("coin.lowData && coin.compCount === 1");
-    expect(source).toContain("(WARNING: single comp)");
+    expect(source).toContain("<th>Warning</th>");
+    expect(source).toContain("'Single comp'");
+    expect(source).toContain("'Single-comp estimate; cross-reference dealer prices'");
+  });
+
+  test('announces progress and structured AI warnings accessibly', () => {
+    expect(source).toContain('id="bulk-status" class="muted" role="status" aria-live="polite"');
+    expect(source).toContain('role="progressbar" aria-label="Lot evaluation progress"');
+    expect(source).toContain("data.provenance?.valuation?.warning");
+    expect(source).toContain("warning.setAttribute('role', 'alert')");
   });
 });

@@ -373,6 +373,28 @@ describe('bulkEvaluateService', () => {
       expect(r1.results).toEqual(r2.results);
       expect(progress2).toHaveBeenCalledTimes(1); // replayed from cache
     });
+
+    it('isolates cached results by public and admin audience', async () => {
+      const valuationService = require('../src/services/valuationService');
+      const coins = [{ query: 'audience-isolated coin' }];
+      valuationService.computeValuation
+        .mockReturnValueOnce({
+          valuation: { fmvCore: 100, confidence: 50, explanation: ['Admin-only guide detail'] },
+          decisions: { buy: {}, sell: {} },
+        })
+        .mockReturnValueOnce({
+          valuation: { fmvCore: 100, confidence: 50, explanation: ['Public-safe guide reference'] },
+          decisions: { buy: {}, sell: {} },
+        });
+
+      const admin = await runBulkEvaluation(coins, jest.fn(), { audience: 'admin' });
+      const publicResult = await runBulkEvaluation(coins, jest.fn(), { audience: 'public' });
+
+      expect(admin.results[0].explanation).toEqual(['Admin-only guide detail']);
+      expect(publicResult.results[0].explanation).toEqual(['Public-safe guide reference']);
+      expect(valuationService.computeValuation).toHaveBeenCalledTimes(2);
+      expect(_cache.size).toBe(2);
+    });
   });
 });
 

@@ -86,6 +86,8 @@ describe('POST /api/ai/price', () => {
       computedAt: '2026-08-17T00:00:00.000Z',
       confidence: 'medium',
       compCount: 2,
+      lowData: false,
+      warning: null,
     });
     expect(res.body.provenance.reproducibility).toEqual({
       pcgsVerified: true,
@@ -189,6 +191,32 @@ describe('POST /api/ai/price', () => {
     expect(res.status).toBe(200);
     expect(res.body.answer).toMatch(/\$63\.95.*spot pricing only/i);
     expect(res.body.answer).toMatch(/no sold comparables/i);
+  });
+
+  test('discloses a deterministic single-comp estimate in answer and provenance', async () => {
+    priceCoin.mockResolvedValueOnce({
+      valuation: {
+        fmvCore: 700,
+        rangeLow: 630,
+        rangeHigh: 770,
+        compCount: 1,
+        confidence: 0,
+        lowData: true,
+      },
+    });
+
+    const res = await request(app)
+      .post('/api/ai/price')
+      .send({ query: '2016 Mexican Silver Libertad Proof 5 oz' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.answer).toMatch(/warning:.*single-comp estimate.*outlier/i);
+    expect(res.body.provenance.valuation).toMatchObject({
+      confidence: 0,
+      compCount: 1,
+      lowData: true,
+      warning: expect.stringMatching(/single-comp estimate/i),
+    });
   });
 
   test('extracts the coin subject from a natural-language value question', async () => {

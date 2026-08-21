@@ -24,9 +24,9 @@ let _activeJobs = 0;
 const _cache = new Map();
 const CACHE_TTL = 60 * 60 * 1000;
 
-function _hashInput(coins) {
+function _hashInput(coins, audience = 'public') {
   const h = crypto.createHash('sha256');
-  h.update(JSON.stringify(coins));
+  h.update(JSON.stringify({ audience, coins }));
   return h.digest('hex').slice(0, 16);
 }
 
@@ -316,7 +316,8 @@ async function runBulkEvaluation(coins, onProgress, opts = {}) {
   }
 
   // Check cache
-  const cacheKey = _hashInput(coins);
+  const audience = opts.audience === 'admin' ? 'admin' : 'public';
+  const cacheKey = _hashInput(coins, audience);
   _pruneCache();
   const cached = _cache.get(cacheKey);
   if (cached) {

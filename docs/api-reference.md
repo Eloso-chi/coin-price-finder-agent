@@ -20,7 +20,7 @@ Comprehensive reference of all HTTP endpoints exposed by the coin-price-finder-a
 
 Every valuation includes `algorithmVersion` (semantic version), `configVersion` (`sha256:` fingerprint), and `computedAt` (UTC ISO timestamp). Successful and null-FMV outcomes are audited asynchronously. Anonymous audits omit actor and IP; authenticated admin audits may include both. Audit persistence never delays the pricing response.
 
-For equivalent deterministic inputs, `/api/price`, `/api/pricing-batch`, and `/api/bulk-evaluate` preserve the same `confidence`, `lowData`, `compCount`, `method`, and `explanation` semantics. A valuation based on exactly one sold comp includes a `SINGLE-COMP ESTIMATE` warning. Bullion comps whose titles omit weight are rejected when price exceeds five times expected melt (`meltPerOz * weight`), for fractional and multi-ounce coins alike. `/api/ai/price` preserves these fields when it delegates to deterministic pricing.
+For equivalent deterministic inputs, `/api/price`, `/api/pricing-batch`, and `/api/bulk-evaluate` preserve the same `confidence`, `lowData`, `compCount`, `method`, and `explanation` semantics. A valuation based on exactly one sold comp includes a `SINGLE-COMP ESTIMATE` warning. Bullion comps whose titles omit weight are rejected when price exceeds five times expected melt (`meltPerOz * weight`), for fractional and multi-ounce coins alike. `/api/ai/price` preserves `lowData`, `compCount`, and a structured `warning` in `provenance.valuation` for deterministic and LLM-backed responses.
 
 ## Bulk Lot Evaluator
 

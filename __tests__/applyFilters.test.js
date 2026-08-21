@@ -163,14 +163,15 @@ describe('applyFilters — melt ceiling', () => {
     [5, 1000],
   ])('removes an unstated-weight outlier for a %s oz coin', (weight, ceiling) => {
     const comps = [
-      makeComp({ title: '2016 Mexican Silver Libertad', totalUsd: ceiling + 1, matchScore: 70 }),
-      makeComp({ title: '2016 Mexican Silver Libertad', totalUsd: ceiling, matchScore: 70 }),
+      makeComp({ title: '2016 Mexican Silver Libertad Proof', totalUsd: ceiling + 1, matchScore: 70 }),
+      makeComp({ title: '2016 Mexican Silver Libertad Proof', totalUsd: ceiling, matchScore: 70 }),
     ];
 
-    const { kept, removed } = applyFilters(comps, {}, { meltPerOz: 40, weight });
+    const { kept, removed } = applyFilters(comps, {}, { meltPerOz: 40, weight, isProof: true });
 
     expect(removed.meltSanity).toBe(1);
     expect(kept).toHaveLength(1);
+    expect(kept[0].title).toMatch(/Proof/);
     expect(kept[0].totalUsd).toBe(ceiling);
   });
 });

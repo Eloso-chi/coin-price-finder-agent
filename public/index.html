@@ -2085,13 +2085,13 @@ Silver Libertad 1 oz Proof"></textarea>
 
       <div style="margin-top:12px;display:flex;align-items:center;gap:12px">
         <button id="bulk-evaluate-btn" class="btn-accent" style="padding:10px 28px;font-size:1rem">Evaluate Lot</button>
-        <span id="bulk-status" class="muted"></span>
+        <span id="bulk-status" class="muted" role="status" aria-live="polite"></span>
       </div>
 
       <!-- Progress bar -->
       <div id="bulk-progress-wrap" style="display:none;margin-top:12px">
         <div style="background:var(--border);border-radius:4px;height:8px;overflow:hidden">
-          <div id="bulk-progress-bar" style="height:100%;background:var(--accent);width:0%;transition:width 0.3s"></div>
+          <div id="bulk-progress-bar" role="progressbar" aria-label="Lot evaluation progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" style="height:100%;background:var(--accent);width:0%;transition:width 0.3s"></div>
         </div>
         <div id="bulk-progress-text" class="muted" style="font-size:0.8rem;margin-top:4px">0 / 0</div>
       </div>
@@ -2117,7 +2117,7 @@ Silver Libertad 1 oz Proof"></textarea>
           <tr>
             <th>#</th><th>Coin</th><th>Qty</th><th>Grade</th>
             <th>FMV (ea)</th><th>Total FMV</th><th>Melt</th>
-            <th>Comps</th><th>Conf.</th><th>Method</th>
+            <th>Comps</th><th>Conf.</th><th>Warning</th><th>Method</th>
           </tr>
         </thead>
         <tbody id="bulk-results-tbody"></tbody>
@@ -3494,7 +3494,7 @@ Silver Libertad 1 oz Proof"></textarea>
       if (d.coinData?.label) html += '<span class="fmv-chip" title="Graded slab label">&#x1F3F7;&#xFE0F; ' + _esc(d.coinData.label) + '</span>';
       // Low-data warning badge (#40)
       if (v.lowData) {
-        html += '<div style="margin-top:6px;padding:6px 10px;background:rgba(220,38,38,0.08);border:1px solid rgba(220,38,38,0.35);border-radius:6px;font-size:0.78rem;color:var(--accent-red)">';
+        html += '<div style="margin-top:6px;padding:6px 10px;background:rgba(220,38,38,0.08);border:1px solid rgba(220,38,38,0.35);border-radius:6px;font-size:0.78rem;color:var(--red)">';
         html += '&#9888;&#65039; <strong>Low confidence</strong> -- only ' + (v.compCount || 0) + ' sold comp' + (v.compCount === 1 ? '' : 's') + '. Cross-reference with dealer prices before buying or selling.';
         html += '</div>';
       }
@@ -3909,6 +3909,13 @@ Silver Libertad 1 oz Proof"></textarea>
         ? 'AI provider unavailable; deterministic pricing used. '
         : 'LLM explanation grounded in deterministic tools. ')
         + 'Tools used: ' + (data.provenance?.tools || []).join(', ');
+    }
+    if (data.provenance?.valuation?.warning) {
+      const warning = document.createElement('p');
+      warning.className = 'ai-error';
+      warning.setAttribute('role', 'alert');
+      warning.textContent = 'Warning: ' + data.provenance.valuation.warning;
+      card.append(warning);
     }
     if (data.handoff?.query) {
       const handoff = document.createElement('button');
@@ -4617,7 +4624,7 @@ Silver Libertad 1 oz Proof"></textarea>
     }
     // Low-data warning (#40) — mirror of bar section
     if (v.lowData) {
-      html += '<div style="margin-top:6px;padding:6px 10px;background:rgba(220,38,38,0.08);border:1px solid rgba(220,38,38,0.35);border-radius:6px;font-size:0.78rem;color:var(--accent-red)">';
+      html += '<div style="margin-top:6px;padding:6px 10px;background:rgba(220,38,38,0.08);border:1px solid rgba(220,38,38,0.35);border-radius:6px;font-size:0.78rem;color:var(--red)">';
       html += '&#9888;&#65039; <strong>Low confidence</strong> -- only ' + (v.compCount || 0) + ' sold comp' + (v.compCount === 1 ? '' : 's') + '. Cross-reference with dealer prices before buying or selling.';
       html += '</div>';
     }
@@ -6664,6 +6671,7 @@ Silver Libertad 1 oz Proof"></textarea>
       resultsWrap.style.display = 'none';
       progressWrap.style.display = 'none';
       progressBar.style.width = '0%';
+      progressBar.setAttribute('aria-valuenow', '0');
       pageNav.style.display = 'none';
       pageNav.innerHTML = '';
       statusEl.textContent = '';
@@ -6700,6 +6708,7 @@ Silver Libertad 1 oz Proof"></textarea>
           _renderRow(coin, coin.index);
           const pct = Math.round((completed / coinCount) * 100);
           progressBar.style.width = pct + '%';
+          progressBar.setAttribute('aria-valuenow', String(pct));
           progressText.textContent = completed + ' / ' + coinCount;
           statusEl.textContent = 'Evaluating... ' + completed + '/' + coinCount;
         });
@@ -6757,11 +6766,9 @@ Silver Libertad 1 oz Proof"></textarea>
 
     function _buildRowHtml(coin, idx) {
       if (coin.error) {
-        return '<td>' + (idx + 1) + '</td><td colspan="9" style="color:var(--red, #f44336)">' + _esc(coin.query) + ' -- ' + _esc(coin.error) + '</td>';
+        return '<td>' + (idx + 1) + '</td><td colspan="10" style="color:var(--red, #f44336)">' + _esc(coin.query) + ' -- ' + _esc(coin.error) + '</td>';
       }
-      const methodLabel = coin.lowData && coin.compCount === 1
-        ? (coin.method || '--') + ' (WARNING: single comp)'
-        : (coin.method || '--');
+      const warningLabel = coin.lowData && coin.compCount === 1 ? 'Single comp' : '--';
       return '<td>' + (idx + 1) + '</td>' +
         '<td>' + _esc(coin.query || '') + '</td>' +
         '<td>' + (coin.qty || 1) + '</td>' +
@@ -6771,7 +6778,8 @@ Silver Libertad 1 oz Proof"></textarea>
         '<td>' + _fmt(coin.meltValue) + '</td>' +
         '<td>' + (coin.compCount || 0) + '</td>' +
         '<td style="color:' + _confColor(coin.confidence) + '">' + (coin.confidence != null ? coin.confidence : '--') + '</td>' +
-        '<td class="muted">' + _esc(methodLabel) + '</td>';
+        '<td style="color:' + (warningLabel === '--' ? 'inherit' : 'var(--red)') + ';font-weight:' + (warningLabel === '--' ? '400' : '700') + '">' + warningLabel + '</td>' +
+        '<td class="muted">' + _esc(coin.method || '--') + '</td>';
     }
 
     function _renderBulkPage() {
@@ -6875,10 +6883,11 @@ Silver Libertad 1 oz Proof"></textarea>
 
     exportCsvBtn.addEventListener('click', function() {
       if (!_results.length) return;
-      const headers = ['#','Coin','Qty','Grade','FMV','Total FMV','Melt','Comps','Confidence','Method'];
+      const headers = ['#','Coin','Qty','Grade','FMV','Total FMV','Melt','Comps','Confidence','Warning','Method'];
       const rows = _results.map(function(r, i) {
+        const warning = r.lowData && r.compCount === 1 ? 'Single-comp estimate; cross-reference dealer prices' : '';
         return [i+1, '"' + (r.query||'').replace(/"/g,'""') + '"', r.qty||1, r.grade||'',
-                r.fmv||'', r.totalFmv||'', r.meltValue||'', r.compCount||0, r.confidence != null ? r.confidence : '', r.method||''].join(',');
+                r.fmv||'', r.totalFmv||'', r.meltValue||'', r.compCount||0, r.confidence != null ? r.confidence : '', '"' + warning + '"', r.method||''].join(',');
       });
       const csv = headers.join(',') + '\n' + rows.join('\n');
       const blob = new Blob([csv], { type: 'text/csv' });

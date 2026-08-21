@@ -42,7 +42,16 @@ function buildDeterministicAnswer(query, valuation = {}) {
   if (comps === 0) {
     return `The deterministic estimate for ${query} is $${fmv.toFixed(2)} based on current metal spot pricing only; no sold comparables were available, so confidence is low.${range}`;
   }
-  return `Based on ${comps} deterministic sold comparables, the estimated fair market value for ${query} is $${fmv.toFixed(2)}.${range}`;
+  const warning = valuation.lowData && comps === 1
+    ? ' Warning: this is a single-comp estimate and could reflect an outlier; cross-reference dealer prices.'
+    : '';
+  return `Based on ${comps} deterministic sold comparables, the estimated fair market value for ${query} is $${fmv.toFixed(2)}.${range}${warning}`;
+}
+
+function singleCompWarning(valuation = {}) {
+  return valuation.lowData === true && valuation.compCount === 1
+    ? 'Single-comp estimate: this result could reflect an outlier. Cross-reference dealer prices.'
+    : null;
 }
 
 function normalizePricingQuery(query) {
@@ -103,6 +112,9 @@ router.post('/price', async (req, res) => {
           trustedContext,
           provider: llmProvider,
         });
+        const toolValuation = conversation.toolResults
+          .map(tool => tool?.result?.valuation)
+          .find(Boolean) || {};
         return res.json({
           ok: true,
           mode: 'ai',
@@ -114,6 +126,11 @@ router.post('/price', async (req, res) => {
             provider: conversation.provider,
             audience: trustedContext.audience,
             tools: conversation.toolResults.map(tool => tool.name),
+            valuation: {
+              lowData: toolValuation.lowData === true,
+              compCount: toolValuation.compCount ?? 0,
+              warning: singleCompWarning(toolValuation),
+            },
           },
           handoff: {
             query: cleanedQuery,
@@ -169,6 +186,8 @@ router.post('/price', async (req, res) => {
         computedAt: response?.valuation?.computedAt || null,
         confidence: response?.valuation?.confidence ?? 'unknown',
         compCount: response?.valuation?.compCount ?? 0,
+        lowData: response?.valuation?.lowData === true,
+        warning: singleCompWarning(response?.valuation),
       },
       sources: {
         market: response?.ebay?.usedFallback ? 'ebay-fallback' : 'ebay',

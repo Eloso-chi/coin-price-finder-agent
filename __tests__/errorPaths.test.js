@@ -184,12 +184,11 @@ describe('Error paths — grade pool edge cases', () => {
   test('single comp → FMV computed but low confidence', () => {
     const comps = makeComps([200]);
     const result = computeValuation(mockPcgs(), mockEbay({ usComps: comps }));
-    if (result.valuation.fmvCore !== null) {
-      expect(result.valuation.confidence).toBeLessThan(50);
-      expect(result.valuation.lowData).toBe(true);
-      expect(result.valuation.compCount).toBe(1);
-      expect(result.valuation.explanation).toContainEqual(expect.stringMatching(/SINGLE-COMP ESTIMATE/));
-    }
+    expect(result.valuation.fmvCore).not.toBeNull();
+    expect(result.valuation.confidence).toBeLessThan(50);
+    expect(result.valuation.lowData).toBe(true);
+    expect(result.valuation.compCount).toBe(1);
+    expect(result.valuation.explanation).toContainEqual(expect.stringMatching(/SINGLE-COMP ESTIMATE/));
   });
 
   test('all comps are browse-only → browseOnly flagged, confidence penalized', () => {
