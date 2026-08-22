@@ -1098,7 +1098,7 @@ Verified:
 
 **What already exists (confirmed via code read):**
 - `scripts/terapeak-export.py` `mixed_selection_targets(p01_fixed, extra_target, p01_available)` (~L1334) already implements the core rule: `selected_p01_target = min(p01_fixed, p01_available)`, and the full `total_target` (p01_fixed + extra_target) shifts entirely to the non-P0.1 pool when the P0.1 pool is empty. This already satisfies "if P0.1 backlog = 0, the run fills entirely from the next tiers" structurally.
-- `--mixed-page1` mode in `scripts/terapeak-operator.sh` / `scripts/terapeak-operator-codespace.sh` already exposes `--mixed-p01-fixed` (default 15), `--mixed-extra-min` (default 15), `--mixed-extra-max` (default 20) -- today's default mixed run caps at a 35-item total.
+- `scripts/run-surface-freshness-loop.sh` exposes `--mixed-page1`, `--mixed-p01-fixed` (default 15), `--mixed-extra-min` (default 15), and `--mixed-extra-max` (default 20); the operator scripts invoke this mixed-selection path internally. Today's default mixed run caps at a 35-item total.
 - `--priority-include` / `--priority-exclude` flags already exist on `terapeak-export.py` for restricting the backlog priority pool (e.g. `--priority-include "P0.1,P0,P1"`).
 
 **Gap to close:** Today's default `allowed_priorities = {"P0.1","P0","P1","P2"}` (~L1385) means the non-P0.1 backfill pool can include P2 datasets. The user's rule is P0/P1 only during backfill (no P2), so this needs the existing `--priority-include` flag applied at the term-loading stage before the mixed split runs, not new filtering logic.
@@ -1116,7 +1116,7 @@ Verified:
 - When the P0.1 pool is empty, 100% of the pass's selected terms come from P0/P1 only -- never P2 -- verified by a focused test.
 - No regression to the existing default (35-cap) mixed-mode behavior; the new preset is additive, not a replacement.
 
-**Files (anticipated):** `scripts/terapeak-operator.sh`, `scripts/terapeak-operator-codespace.sh`, `scripts/terapeak-export.py` (flag wiring only, `mixed_selection_targets` itself unchanged), `docs/runbooks/local-scraper-wsl2.md`, `docs/memory/terapeak-runbook.md`, new/extended focused test (e.g. alongside `__tests__/terapeakExportUploadMode.test.js`).
+**Files (anticipated):** `scripts/run-surface-freshness-loop.sh` (preset and `--priority-include` forwarding), operator wrapper scripts if needed for discoverability, `docs/runbooks/local-scraper-wsl2.md`, `docs/memory/terapeak-runbook.md`, and a new/extended focused test (e.g. alongside `__tests__/terapeakExportUploadMode.test.js`). `scripts/terapeak-export.py` already supports the required priority flag and should change only if implementation reveals a missing contract.
 
 **Open questions (deferred until pickup):**
 1. Hard 20 total, or a jittered range like 15-20 for bot-evasion consistency with `pick_batch_size`?
