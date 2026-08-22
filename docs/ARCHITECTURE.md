@@ -159,7 +159,7 @@ server.js                              Express entry point (port 3000)
 │   ├─ test_parse_terapeak_pass.py      Unit tests for `_parse-terapeak-pass.py` (synthetic fixture; `python3 scripts/test_parse_terapeak_pass.py` exits 0 on pass) (#200)
 │   ├─ terapeak-startup-preflight.sh    Startup preflight gate (runtime/env/tooling/cookie health) for operator flow (#168)
 │   ├─ run-surface-freshness-loop.sh   Orchestrator: meta sync (#259; merge commit reads #253) -> freshness report -> page-1 batch -> deep-paginate
-│   ├─ load-secrets.sh                 Pull 8 dev secrets from Azure Key Vault `coinpricefinder-kv` into `.env` (mode 600); modes dryrun/--print/--write (#137)
+│   ├─ load-secrets.sh                 Pull 9 dev secrets from Azure Key Vault `coinpricefinder-kv` into `.env` (mode 600); modes dryrun/--print/--write (#137)
 │   ├─ terapeak-export.py              Semi-automated Terapeak CSV exporter (Playwright + blob upload)
 │   ├─ sales-aggregator.py               Sales data aggregator (deep pagination) (extends CSVs beyond 50 rows)
 │   ├─ chain-aggregate.sh                 Chain multiple collect batches with anti-bot monitoring
@@ -209,8 +209,8 @@ server.js                              Express entry point (port 3000)
 │   │   └─ onboard.prompt.md                      /onboard slash command
 │   └─ copilot-instructions.md                    Workspace-wide Copilot rules
 │
-└─ __tests__/                          161 current `*.test.js` files recursively plus fixtures/helpers/setup
-                                        Latest verified run: 161 suites / 4,441 tests
+└─ __tests__/                          174 current `*.test.js` files recursively plus fixtures/helpers/setup
+                                        Verified at 715dda32: 174 suites / 4,539 tests
     ├─ fixtures/
     │   └─ golden_coins.json           Curated golden set (14 deterministic test coins)
     └─ helpers/
@@ -563,6 +563,23 @@ share one in-flight probe and reuse results for 10 seconds; a dedicated limiter
 caps probe pressure. Optional failures produce HTTP 200 with
 `overall: "degraded"`, while configured Cosmos failure produces HTTP 503.
 No raw errors, credentials, endpoints, or configuration values are returned.
+
+---
+
+## CI/CD and Azure Deployment
+
+The `Deploy to Azure` GitHub Actions workflow runs on pull requests to `main`,
+pushes to `main`, and manual dispatches. Its test job uses Node.js 22, installs
+with `npm ci`, runs a moderate production dependency audit, and executes Jest
+with coverage and a pinned deterministic coin-test seed.
+
+Deployment runs only for a push to `main` after the test job succeeds. GitHub
+uses OIDC to authenticate to Azure, installs production dependencies, and
+deploys the repository to the `coinpricefinder-h3a3b5g0dmdydna4` App Service.
+The workflow then requires a successful shallow health check and a bounded FMV
+smoke test for a 1921 Morgan Silver Dollar. Pull-request runs intentionally
+show the deploy job as skipped; the merge commit's push run is the production
+deployment evidence.
 
 ---
 

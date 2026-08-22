@@ -10,6 +10,7 @@ Operational scripts for data collection, migration, and maintenance. Most script
 | VNC desktop + browser session | `terapeak-export.py`, `sales-aggregator.py`, `vnc-login.py` |
 | Azure credentials (Key Vault) | `upload-csvs-to-blob.js`, `migrate-to-cosmos.js`, `greysheet-refresh.js`, `load-secrets.sh` |
 | Python 3 + playwright | `terapeak-export.py`, `sales-aggregator.py`, `vnc-login.py`, `create_placeholders.py` |
+| Python 3 only | `test_vnc_login_flow.py` |
 | `az` CLI logged into the right subscription | `load-secrets.sh` (see [../docs/runbooks/secret-bootstrap.md](../docs/runbooks/secret-bootstrap.md)) |
 | Bash + Git + Python + authenticated `gh` CLI | `commit-terapeak-progress.sh` |
 
@@ -36,6 +37,7 @@ Operational scripts for data collection, migration, and maintenance. Most script
 | `terapeak-startup-preflight.sh` | Startup gate for runtime/env/tooling/cookie health checks (login or loop mode) | `bash scripts/terapeak-startup-preflight.sh --mode login` |
 | `run-surface-freshness-loop.sh` | Surface/WSL wrapper: report -> page 1 backlog -> report -> deep backlog -> report | `bash scripts/run-surface-freshness-loop.sh --env-file ~/.env.surface` |
 | `vnc-login.py` | Opens browser, waits for eBay login, saves cookies | `python3 scripts/vnc-login.py` |
+| `test_vnc_login_flow.py` | Dependency-free smoke tests for VNC research-access decisions, including challenge handling | `python3 scripts/test_vnc_login_flow.py` |
 | `create_placeholders.py` | Create placeholder CSVs + meta files for export backlog | `python3 scripts/create_placeholders.py` |
 
 ### Data Generation
@@ -64,7 +66,7 @@ Operational scripts for data collection, migration, and maintenance. Most script
 | `clean-csvs.js` | One-time CSV cleaner (applies DENY_PATTERNS) | `node scripts/clean-csvs.js` |
 | `backfill-sale-dates.js` | Backfill newestSaleDate/oldestSaleDate/compCount into meta sidecar | `node scripts/backfill-sale-dates.js [--dry-run]` |
 | `reclassify-comps.js` | Batch comp reclassification (weight mismatch rerouting) | `node scripts/reclassify-comps.js [--apply]` |
-| `load-secrets.sh` | Pull 8 dev secrets from Azure Key Vault `coinpricefinder-kv` into `.env` (mode 600 via umask 077). Modes: dryrun (default, redacted) / `--print` (raw) / `--write` (literal-prefix merge). (#137) | `scripts/load-secrets.sh` (dry-run) then `scripts/load-secrets.sh --write` |
+| `load-secrets.sh` | Pull 9 dev secrets from Azure Key Vault `coinpricefinder-kv` into `.env` (mode 600 via umask 077). Modes: dryrun (default, redacted) / `--print` (raw) / `--write` (literal-prefix merge). (#137) | `scripts/load-secrets.sh` (dry-run) then `scripts/load-secrets.sh --write` |
 
 ### Utilities
 

@@ -83,16 +83,15 @@ Each occurrence was replaced with a reference to:
 
 The same key value is still committed in:
 
-1. `scripts/bar-pricing-health.js` line 14 -- hardcoded fallback (the
-   `process.env.ADMIN_API_KEY || '<literal>'` pattern), in git since commit
-   `d6e0f17`
+1. `scripts/bar-pricing-health.js` -- hardcoded fallback in the live tree
 2. Git history -- the key was added in PR-era commits before this migration;
    sanitizing the live tree does not retroactively remove history
 
 The machine-local `/memories/repo/` backups also still contain the value
 (intentional -- backups are not edited and are gitignored).
 
-Rotation + script-sanitization is tracked as **#265W** in `docs/BACKLOG.md`.
+Rotation, script sanitization, and history remediation remain tracked in
+`docs/BACKLOG.md`.
 
 ### PII / secret scan
 
