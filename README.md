@@ -29,7 +29,7 @@ This is an active project with clear contributor expectations:
 - **[CONTRIBUTING.md](CONTRIBUTING.md)** — Local setup, testing rules, branching strategy, per-machine backlog ID convention (W/H), PR process, required review gates
 - **[SECURITY.md](SECURITY.md)** — Vulnerability reporting policy, response SLAs, coordinated disclosure
 - **[LICENSE](LICENSE)** — Proprietary All Rights Reserved (aligns with `UNLICENSED` in package.json; public GitHub visibility does not grant reuse rights)
-- **[docs/api-reference.md](docs/api-reference.md)** — Complete HTTP endpoint reference across all 15 route modules
+- **[docs/api-reference.md](docs/api-reference.md)** -- Complete HTTP endpoint reference across all 18 route modules
 - **[docs/data-dictionary.md](docs/data-dictionary.md)** — Critical data stores, schemas, and privacy classifications
 
 See also [BACKLOG.md](docs/BACKLOG.md) (roadmap) and [.github/copilot-instructions.md](.github/copilot-instructions.md) (testing & code conventions).
@@ -51,11 +51,11 @@ The browser UI is a single-page app served from `public/index.html` with a dark 
 
 | Tab | Description |
 |-----|-------------|
-| **Price Discovery** | Main search -- two sub-modes: Coin (structured or quick-search entry) and Bar/Bullion. Coin mode shows a conditional "Silver" checkbox for post-1992 proof denominations (Kennedy, Washington, Roosevelt, etc.) to differentiate silver vs clad proofs. Bar mode has a dynamic series dropdown (populated from `GET /api/bar-price/options`) that filters by selected brand -- 7 brands with 40+ series (Geiger Edelmetalle, PAMP Fortuna, Coca-Cola, 12 Zodiac signs, Perth Lunar, Scottsdale, Valcambi, Heraeus, Credit Suisse). Submits to `/api/price` or `/api/bar-price`. Renders FMV hero card with image gallery, confidence score, buy/sell decisions, metadata chips, eBay stats, comp list, cross-tab quick links, and raw JSON. |
+| **Price Discovery** | Main search -- two sub-modes: Coin (structured or quick-search entry) and Bar/Bullion. Coin mode shows a conditional "Silver" checkbox for post-1992 proof denominations (Kennedy, Washington, Roosevelt, etc.) to differentiate silver vs clad proofs. Bar mode has a dynamic series dropdown (populated from `GET /api/bar-price/options`) that filters by selected brand -- 7 brands with 40+ series (Geiger Edelmetalle, PAMP Fortuna, Coca-Cola, 12 Zodiac signs, Perth Lunar, Scottsdale, Valcambi, Heraeus, Credit Suisse). Submits to `/api/price` or `/api/bar-price`. Renders FMV, confidence, decisions, metadata, comps, and explicit single-comp or nearby-year composite warnings. |
 | **AI Pricing** | Optional deterministic conversational pricing through `POST /api/ai/price`, with public-safe provenance, algorithm/config versions, ambiguity handling, structured-to-conversation handoff, and an explicit warning when an estimate rests on one sold comp. Authenticated My Coins users can request collection summaries through `POST /api/ai/collection`; bounded market coverage, comparison, and year-series analytics are available through `POST /api/ai/market`. |
 | **Melt Calculator** | Offline calculator for 80+ US coin types and 20 bar sizes. Auto-fetches spot prices from `/api/metals` and polls every 5 minutes. Shows per-coin, per-roll, and total melt values at spot and spot+premium. Quantity minimum enforced at 1. |
 | **Live eBay Tracker** | Market matrix from `/api/market/ebay`. Three display modes: Year × Mint (numismatic coins), Year × Grade (bullion), and Brand table (bars). Cells show median sold price, cheapest BIN link, key date badge, and Numista rarity. Color-coded legend. |
-| **Lot Evaluator** | Bulk collection pricing tool. Accepts a text list (one coin per line, pipe-delimited fields), JSON array, or Excel upload. Submits to `POST /api/bulk-evaluate`, then streams results via SSE. Shows per-coin FMV, confidence, warning, method, and comp count; confidence `0` remains visible, and one-comp estimates are explicitly labeled on screen and in CSV export. The lot summary includes total FMV, melt, avg confidence, bullion %, and three buy tiers (cherry-pick, fair lot, full retail). Applies lot-level discounts for size, low confidence, and concentration risk. Export results as CSV or JSON. |
+| **Lot Evaluator** | Bulk collection pricing tool. Accepts a text list (one coin per line, pipe-delimited fields), JSON array, or Excel upload. Submits to `POST /api/bulk-evaluate`, then streams results via SSE. Shows per-coin FMV, confidence, warning, method, and comp count; confidence `0` remains visible, and single-comp or nearby-year proxy estimates are explicitly labeled on screen and in CSV export. The lot summary includes total FMV, melt, avg confidence, bullion %, and three buy tiers (cherry-pick, fair lot, full retail). Applies lot-level discounts for size, low confidence, and concentration risk. Export results as CSV or JSON. |
 | **Sold Data** | Terapeak CSV import UI (drag-and-drop or file picker) with search term input. Datasets list with delete. Visual daily quota meter (250/day default) with manual logging and reset. Admin endpoints require `x-api-key`. |
 | **My Coins** 🔒 | Auth-gated. Server-side coin collection (persisted in `cache/user_coins.json` + Azure Cosmos DB write-through). Shows portfolio summary (total FMV, total cost, unrealized P/L, coin count) and full table with per-coin FMV, confidence, Troy Oz, cost basis, P/L, melt value, eBay average, range, notes, date added, and remove button. Checkbox column with select-all for multi-select bulk delete with 5-second undo toast. Keyboard-operable sortable column headers (Enter/Space). Focus and selection state preserved across re-renders. Empty filter state shows a helpful message. Notes column shows full text on hover via title attribute. Spot-price fetch failure shows a warning banner. Color-coded grade tags (Graded, Proof, BU, COA, Sealed, Raw). Responsive column hiding at narrow viewports. Collapsible column guide explains all 16 columns. Export/Import backup buttons (JSON and Excel .xlsx), Change Password. |
 | **Price History** 🔒 | Auth-gated. Canvas-drawn chart from `/api/coin-history`. Shows daily median prices with IQR band, outlier dots, and optional precious-metal spot overlay (dashed line). Supports 90/180/365-day ranges. |
@@ -64,7 +64,7 @@ The browser UI is a single-page app served from `public/index.html` with a dark 
 
 The AI endpoints are internal application routes. External OpenAPI/MCP exposure is deferred; see [docs/AI-EXTERNAL-EXPOSURE-EVALUATION.md](docs/AI-EXTERNAL-EXPOSURE-EVALUATION.md).
 
-Phase 1 delivery evidence is tracked in [docs/BACKLOG.md](docs/BACKLOG.md): the clean implementation tree at commit `6ba41a2a` passed 173 Jest suites and 4,506 tests, UX review approved the AI Pricing UI, and Onboard documentation acceptance passed for that implementation lineage. Later changes are documentation-only follow-ups.
+Phase 1 delivery evidence is tracked in [docs/BACKLOG.md](docs/BACKLOG.md): commit `6ba41a2a` passed 173 Jest suites and 4,506 tests, UX review approved the AI Pricing UI, and Onboard documentation acceptance passed for that implementation lineage. Subsequent pricing, security, thin-comp, and composite-cohort changes have their own commit-tied validation and PR evidence.
 
 ### Server-Side Auth (bcrypt + JWT)
 
@@ -163,11 +163,11 @@ cp .env.example .env
 # one-time per machine -- installs Azure CLI prereqs documented in the runbook
 # see docs/runbooks/secret-bootstrap.md
 
-# then pull all 8 dev secrets into .env (mode 600)
+# then pull all 9 dev secrets into .env (mode 600)
 scripts/load-secrets.sh --write
 ```
 
-This fetches `EBAY_APP_ID`, `EBAY_CLIENT_SECRET`, `EBAY_CERT_ID`, `PCGS_API_KEY`, `GREYSHEET_API_KEY`, `GREYSHEET_API_TOKEN`, `ADMIN_API_KEY`, and `JWT_SECRET` from Azure Key Vault `coinpricefinder-kv`. Run `scripts/load-secrets.sh` (no flag) first to dry-run. See [docs/runbooks/secret-bootstrap.md](docs/runbooks/secret-bootstrap.md) for new-machine setup including `az login --use-device-code` for callback-blocked environments. (#137, #138)
+This fetches `EBAY_APP_ID`, `EBAY_CLIENT_SECRET`, `EBAY_CERT_ID`, `PCGS_API_KEY`, `GREYSHEET_API_KEY`, `GREYSHEET_API_TOKEN`, `ADMIN_API_KEY`, `JWT_SECRET`, and `AZURE_OPENAI_API_KEY` from Azure Key Vault `coinpricefinder-kv`. Run `scripts/load-secrets.sh` (no flag) first to dry-run. See [docs/runbooks/secret-bootstrap.md](docs/runbooks/secret-bootstrap.md) for new-machine setup including `az login --use-device-code` for callback-blocked environments. (#137, #138)
 
 Required variables:
 
@@ -182,7 +182,9 @@ Optional variables:
 | Variable | Purpose | Default |
 |----------|---------|---------|
 | `GOLDAPI_KEY` | Gold API key for spot prices | *(none)* |
+| `GOLDAPI_BASE_URL` | Gold API base URL override | `https://www.goldapi.io/api` |
 | `METALS_API_KEY` | Metals API key (fallback provider) | *(none)* |
+| `METALS_API_BASE_URL` | Metals API base URL override | `https://metals-api.com/api` |
 | `NUMISTA_API_KEY` | Numista API key for rarity/mintage data | *(none)* |
 | `LLM_PROVIDER` | LLM provider for the Phase 1 conversational orchestrator; disabled unless set to `azure-openai` with complete Azure settings | *(disabled)* |
 | `AZURE_OPENAI_ENDPOINT` | Azure OpenAI endpoint for the server-side conversational provider | *(none)* |
@@ -193,6 +195,7 @@ Optional variables:
 | `GREYSHEET_API_KEY` | Greysheet CDN Public API V2 key | *(none)* |
 | `GREYSHEET_BASE_URL` | Greysheet API base URL override | `https://cpgpublicapiv2.greysheet.com/api` |
 | `ADMIN_API_KEY` | API key for admin/destructive endpoints. In local WSL/shell usage this must be the raw secret value (not App Service Key Vault reference syntax like `@Microsoft.KeyVault(...)`). | *(none -- endpoints locked)* |
+| `ADMIN_BOOTSTRAP_USERNAME` | Lowercase username to grant admin once at startup; explicit grant/revoke scripts remain the normal operator path | *(none)* |
 | `JWT_SECRET` | Secret key for signing JWTs (auth tokens). **Required in production** (`NODE_ENV=production`) -- server throws FATAL if unset. | *(random on startup -- sessions expire on restart)* |
 | `PORT` | Server port | `3000` |
 | `EBAY_CACHE_TTL_MS` | eBay cache lifetime | `3600000` (1 hour) |
@@ -202,6 +205,7 @@ Optional variables:
 | `CACHE_DIR` | Directory for persistent JSON caches (Azure Files mount point) | `./cache` |
 | `COSMOS_ENDPOINT` | Azure Cosmos DB endpoint (enables dual-mode write-through) | *(none -- file-only)* |
 | `COSMOS_KEY` | Azure Cosmos DB auth key | *(none)* |
+| `COSMOS_DB` | Azure Cosmos DB database name | `coinprice` |
 | `TERAPEAK_BLOB_ACCOUNT` | Azure Storage account name for Terapeak CSV blobs | *(none -- local only)* |
 | `TERAPEAK_BLOB_CONTAINER` | Blob container name for Terapeak CSVs | *(none)* |
 | `EBAY_THROTTLE_MS` | eBay API throttle delay | `1100` |
@@ -585,7 +589,7 @@ Stryker thresholds (from `stryker.conf.json`): high=80, low=60, break=null. The 
 
 > **Note on baseline comparability:** The 75.47% baseline was captured with `enableFindRelatedTests: true`. The config has since been switched to `false` for accuracy (see code-reviewer note in `stryker.conf.json`). Re-running may yield a slightly *lower* score because more tests will execute per mutant, exposing assertion gaps that `findRelatedTests` was skipping. Treat the next run's score as the new authoritative baseline.
 
-Runs **Jest** across a growing suite. The latest verified run completed **161 suites / 4,441 tests**; use `npm test` for the current count:
+Runs **Jest** across a growing suite. At merge commit `715dda32`, the canonical run completed **174 suites / 4,539 tests**; use `npm test` for the current count:
 
 | Suite | What it covers |
 |---|---|
@@ -658,17 +662,20 @@ Test helpers live in `__tests__/helpers/coinTestConstants.js` (shared token list
 server.js
 public/                 SPA assets and server-backed auth/collection clients
 src/routes/             adminRoute, authRoute, barPriceRoute, bulkEvaluateRoute,
+                        aiCollectionRoute, aiMarketRoute, aiPriceRoute,
                         coinHistoryRoute, coinRoute, coinVariantRoute,
                         excelImportRoute, healthRoute, imageProxyRoute,
                         marketRoute, metalsRoute, priceRoute, pricingBatchRoute,
                         terapeakRoute
 src/services/           adminService, alertService, auctionPriceService,
-                        auditService, authService, bulkEvaluateService,
-                        coinStorageService, ebayService, freshnessClassifier,
+                        aiOrchestratorService, aiToolRegistry, auditService,
+                        authService, bulkEvaluateService, coinStorageService,
+                        collectionContextService, ebayService, freshnessClassifier,
                         greysheetHistoryService, greysheetService,
-                        marketAggregator, metalsHistoryService, metalsSpotPrice,
-                        MetalsSpotPriceError, numistaService, pcgsQuotaService,
-                        pcgsService, prefetchScheduler, terapeakQuotaService,
+                        llmProviderAdapter, marketAggregator, marketAnalyticsService,
+                        metalsHistoryService, metalsSpotPrice, MetalsSpotPriceError,
+                        numistaService, pcgsQuotaService, pcgsService,
+                        prefetchScheduler, pricingService, terapeakQuotaService,
                         terapeakService, valuationService
 src/utils/              blobClient, cache, cachePath, coinIntent,
                         coinMetalProfile, cosmosClient, excelMapper, filters,
@@ -677,7 +684,7 @@ src/utils/              blobClient, cache, cachePath, coinIntent,
 src/middleware/         optionalAdminContext, requestId, requestLogger,
                         requireAdminOrKey
 src/data/               Static coin, PCGS, key-date, mintage, and series data
-src/schemas/            API response schemas
+src/schemas/            Price response and AI tool argument schemas
 cache/                  Local/Azure Files persistence and operator ledgers
 data/terapeak/          Repository sold-comp CSV exports
 __tests__/              Jest suites, fixtures, helpers, and setup
@@ -705,9 +712,9 @@ scripts/                Collection, audit, migration, maintenance, and test tool
 
 ### Secret bootstrap runbook + `load-secrets.sh` helper (#137, #138, June 15-16, 2026)
 
-- **[scripts/load-secrets.sh](scripts/load-secrets.sh)** -- Bash helper that fetches 8 dev secrets from Azure Key Vault `coinpricefinder-kv` (EBAY_APP_ID, EBAY_CLIENT_SECRET, EBAY_CERT_ID, PCGS_API_KEY, GREYSHEET_API_KEY, GREYSHEET_API_TOKEN, ADMIN_API_KEY, JWT_SECRET) and merges them into the local `.env` (mode 600 via `umask 077`). Modes: dryrun prints `KEY=<redacted>`; `--print` shows raw values; `--write` does the literal-prefix merge via awk `index()`. Works under Git Bash on Windows + native bash on Linux/WSL.
+- **[scripts/load-secrets.sh](scripts/load-secrets.sh)** -- Bash helper that fetches 9 dev secrets from Azure Key Vault `coinpricefinder-kv` (EBAY_APP_ID, EBAY_CLIENT_SECRET, EBAY_CERT_ID, PCGS_API_KEY, GREYSHEET_API_KEY, GREYSHEET_API_TOKEN, ADMIN_API_KEY, JWT_SECRET, AZURE_OPENAI_API_KEY) and merges them into the local `.env` (mode 600 via `umask 077`). Modes: dryrun prints `KEY=<redacted>`; `--print` shows raw values; `--write` does the literal-prefix merge via awk `index()`. Works under Git Bash on Windows + native bash on Linux/WSL.
 - **[docs/runbooks/secret-bootstrap.md](docs/runbooks/secret-bootstrap.md)** -- New-machine bootstrap runbook. Covers az CLI install, device-code login (`az login --use-device-code` for callback-blocked machines), `az account set --subscription 3d54cfba-df7b-4e1d-975f-bafc838033ea`, and the `load-secrets.sh --write` flow. Includes copy-paste agent prompt + troubleshooting table.
-- **Why this exists:** App Service reads secrets via `@Microsoft.KeyVault(...)` references, but local dev shells need raw values in `.env`. Before this, fresh checkouts had to manually copy 8 secrets out of the Azure portal -- error-prone and discouraged use of fresh machines.
+- **Why this exists:** App Service reads secrets via `@Microsoft.KeyVault(...)` references, but local dev shells need raw values in `.env`. Before this, fresh checkouts had to manually copy the mapped secrets out of the Azure portal -- error-prone and discouraging on fresh machines.
 
 ### Test-only PR review threshold (#136, June 14, 2026)
 

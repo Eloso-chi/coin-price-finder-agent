@@ -6,13 +6,19 @@
 > The root [`AGENTS.md`](../../AGENTS.md) provides a concise discoverability
 > index for contributors and tools that expect that convention.
 >
-> Migrated 2026-06-17 and inventory-verified 2026-08-13
+> Migrated 2026-06-17 and inventory-verified 2026-08-22
 > (`docs/memory-corpus-migration` branch). A non-authoritative copy lives at
 > `/memories/repo/agents-and-prompts.md` on the W (Codespace) machine; that
 > copy may drift and should not be edited directly.
 
 All files live in `.github/agents/`, `.github/prompts/`, and `.github/skills/`.
 The `.github` directory is hidden -- use explicit paths.
+
+The 2026-08-22 alignment refreshed Onboard for the current 28 services,
+18 routes, 14 utilities, four middleware modules, and two schemas, including
+the AI pricing/collection/market surfaces and external-exposure decision.
+Test Monitor, Test Coverage, and the testing plan now require querying Jest
+for current counts instead of carrying volatile suite totals.
 
 ## Agents
 

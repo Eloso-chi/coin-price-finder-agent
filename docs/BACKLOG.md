@@ -2680,7 +2680,7 @@ Ops can override to any value (e.g., `BROWSER_RECYCLE_EVERY=40 python scripts/te
   - ✅ System policy, bounded follow-up context, provider-disabled/failure/no-data fallbacks, redaction, token/concurrency limits, and prompt-injection rejection are covered.
   - ✅ Focused provider, registry, orchestration, route, security, context, and end-to-end invocation tests pass.
 - **Delivery evidence**:
-  - ✅ Clean worktree validation at commit `6ba41a2a`: 173 Jest suites and 4,506 tests passed; subsequent commits are documentation-only follow-ups.
+  - ✅ Clean worktree validation at commit `6ba41a2a`: 173 Jest suites and 4,506 tests passed. This evidence is scoped to that AI implementation lineage; later pricing and security changes have separate validation.
   - ✅ Focused AI tests: 8 suites and 38 tests passed; targeted ESLint clean.
   - ✅ UX Reviewer approved the AI Pricing UI with no remaining S2/S3 blockers.
   - ✅ Onboard documentation acceptance passed for the AI implementation lineage at commit `6ba41a2a`.

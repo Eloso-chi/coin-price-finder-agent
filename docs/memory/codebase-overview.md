@@ -12,22 +12,23 @@
 - **Azure Services:** Key Vault (`coinpricefinder-kv`), Cosmos DB (`coinpricefinder-cosmos`, serverless), Blob Storage (`coinpricecache01/terapeak-csvs`), Azure Files (`appcache` at `/mnt/cache`)
 - **CI/CD:** GitHub Actions with OIDC -> Azure (`main_coinpricefinder-h3a3b5g0dmdydna4.yml`)
 - **Observability:** X-Request-ID async context, redacted Pino JSON logs, shallow/deep health checks, versioned valuation audits
-- **Tests:** Jest 30; latest verified run 173 suites / 4,506 tests. Run `npm test` for the current count.
+- **Tests:** Jest 30; merge commit `715dda32` passed 174 suites / 4,539 tests. Run `npm test` for the current count.
 
 ## Project Structure
 ```
 server.js                   Express entry, port 3000, helmet, rate limiting, background timers
 public/
-  index.html               SPA (all HTML/CSS/JS inline except 3 JS modules)
+  index.html               SPA (all HTML/CSS/JS inline except 3 app modules)
   js/auth.js               CoinAuth: server-backed login/signup (JWT in memory)
   js/storage.js            CoinStorage: server-backed coin CRUD via /api/coins/*
   js/my-coins.js           MyCoins: portfolio render with batch pricing
+  js/test-my-coins.js      Browser-only My Coins regression helper
 src/
   routes/                  18 Express route modules
   services/                28 service modules
   utils/                   14 shared utility modules
   middleware/              4 request/auth/logging middleware modules
-  schemas/                 JSON schema for /api/price responses
+  schemas/                 Price response and AI tool argument schemas
   data/                    Static reference data (PCGS numbers, key dates, mintages, greysheetTypeMap, etc.)
   utils/                   Cache, stats, filters, coinMetalProfile, responseValidator, excelMapper, cachePath, cosmosClient, blobClient
 data/terapeak/             CSV import folder; count local CSV/meta files as needed (production truth is via admin endpoints)
@@ -40,7 +41,7 @@ docs/testing/test-monitor.md  Test Monitor usage guide & command reference
 .github/agents/            14 Copilot agents (see root AGENTS.md)
 .github/prompts/           6 slash-command prompts (/review-deep, /apply-approved, /pre-commit, /test-coverage, /onboard, /pricing-health)
 .github/skills/            7 shared workflow/domain skill directories
-__tests__/                 161 current *.test.js files recursively plus fixtures/helpers/setup
+__tests__/                 174 current *.test.js files recursively plus fixtures/helpers/setup
 ```
 
 ## 10 Tabs

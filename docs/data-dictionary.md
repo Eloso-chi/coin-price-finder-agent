@@ -31,7 +31,7 @@ exposure is disabled.
 
 The initial LLM registry exposes only `identify_coin`, `price_coin`, and
 `evaluate_purchase`. Each result includes deterministic provenance. Tool
-arguments are validated against the exact contracts in [docs/api-reference.md](../api-reference.md)
+arguments are validated against the exact contracts in [docs/api-reference.md](api-reference.md)
 and unknown root/nested fields are rejected. Numerical explanations without
 financial evidence from valuation or buy/sell decision fields are rejected.
 

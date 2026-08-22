@@ -136,12 +136,13 @@ Read these project docs:
 29. `.github/pull_request_template.md` -- required backlog, testing, review, and documentation fields
 30. `docs/adrs/ADR-001-fmv-pool-isolation.md` through `ADR-005-terapeak-anti-bot-state-machine.md` -- accepted load-bearing decisions
 31. `PR-168-ALIGNMENT-REPORT.md` -- historical operator alignment evidence; verify its banner points readers to current canonical runbooks/workflow
+32. `docs/AI-EXTERNAL-EXPOSURE-EVALUATION.md` -- decision to keep AI tools behind existing Express route trust boundaries and defer external OpenAPI/MCP exposure
 
 ### Phase 3: Key Source Files (scan exports/structure only)
 
 Read the first 50 lines of each to understand the module interface (80 lines for priceRoute):
 
-**Services (all 22):**
+**Services (all 28):**
 1. `src/services/ebayService.js` -- 3-tier comp cascade, scoring, filtering
 2. `src/services/valuationService.js` -- FMV blend, confidence, buy/sell decisions
 3. `src/services/terapeakService.js` -- CSV import, fuzzy lookup, eviction
@@ -164,8 +165,14 @@ Read the first 50 lines of each to understand the module interface (80 lines for
 20. `src/services/MetalsSpotPriceError.js` -- custom metals provider error type
 21. `src/services/auditService.js` -- audit log writer (action + actor + resource triples)
 22. `src/services/freshnessClassifier.js` -- shared refresh-skip logic (thresholds + shouldSkipRefresh) used by adminService and generate-freshness-report.js (#229)
+23. `src/services/pricingService.js` -- shared deterministic pricing boundary used by structured, batch, bulk, and AI consumers
+24. `src/services/aiOrchestratorService.js` -- bounded conversational orchestration over allowlisted tools
+25. `src/services/aiToolRegistry.js` -- allowlisted deterministic AI tool implementations
+26. `src/services/llmProviderAdapter.js` -- disabled-by-default Azure OpenAI provider adapter
+27. `src/services/collectionContextService.js` -- authenticated collection context for AI summaries
+28. `src/services/marketAnalyticsService.js` -- bounded market analytics for AI responses
 
-**Routes (all 15):**
+**Routes (all 18):**
 1. `src/routes/priceRoute.js` -- main pricing endpoint (first 80 lines)
 2. `src/routes/pricingBatchRoute.js` -- batch pricing (up to 25 coins)
 3. `src/routes/bulkEvaluateRoute.js` -- lot evaluator + SSE streaming
@@ -181,6 +188,9 @@ Read the first 50 lines of each to understand the module interface (80 lines for
 13. `src/routes/imageProxyRoute.js` -- proxied coin image fetching
 14. `src/routes/coinHistoryRoute.js` -- per-coin price history
 15. `src/routes/healthRoute.js` -- shallow load-balancer health + admin-gated deep dependency checks
+16. `src/routes/aiPriceRoute.js` -- public-safe conversational pricing and deterministic provenance
+17. `src/routes/aiCollectionRoute.js` -- JWT-scoped collection summaries
+18. `src/routes/aiMarketRoute.js` -- bounded market coverage and comparison analytics
 
 **Data:**
 1. `src/data/greysheetTypeMap.js` -- series-to-GSID mapping + finish detection
@@ -215,6 +225,7 @@ Read the first 50 lines of each to understand the module interface (80 lines for
 3. `src/middleware/requestId.js` -- X-Request-ID validation/generation + async request context
 4. `src/middleware/requestLogger.js` -- structured API completion logging
 5. `src/schemas/priceResponse.schema.js` -- JSON schema for /api/price response validation
+6. `src/schemas/aiToolSchemas.js` -- exact argument schemas for allowlisted AI tools
 
 **Entry point + scripts:**
 1. `server.js` -- Express entry, middleware, route mounting, background timers
@@ -236,19 +247,21 @@ Read the first 50 lines of each to understand the module interface (80 lines for
 17. `scripts/terapeak-export.py` -- Playwright-based Terapeak data export (first 20 lines)
 18. `scripts/sales-aggregator.py` -- batch Terapeak sales aggregation via Playwright (first 20 lines)
 19. `scripts/sync-terapeak-meta.js` -- standalone workstation HTTP sync from `/api/admin/terapeak-meta`; the loop uses its own `sync_meta_from_app()` helper (first 20 lines)
-20. `scripts/load-secrets.sh` -- fetches 8 dev secrets from Azure Key Vault into .env (#137) (first 20 lines)
+20. `scripts/load-secrets.sh` -- fetches 9 dev secrets from Azure Key Vault into .env (#137) (first 20 lines)
 21. `scripts/terapeak-operator-codespace.sh` -- W-machine (codespace) operator sibling of `terapeak-operator.sh` (#200): no venv, unlimited loop by default, single-instance `flock` lock (first 30 lines)
 22. `scripts/_parse-terapeak-pass.py` -- best-effort parser; appends per-pass + per-coin records to `cache/terapeak-runs/{passes,coins}.jsonl` (#200) (first 20 lines)
 23. `scripts/show-terapeak-runs.sh` -- jq-backed viewer for the run ledger (#200); subcommands `recent`, `runs`, `run <RUN_ID>`, `coin <pattern>`, `totals`, `stop-conditions` (first 20 lines)
 24. `scripts/commit-terapeak-progress.sh` -- fail-closed post-run branch/commit/PR helper (#293W) (first 30 lines)
 25. `scripts/analyze-pacing-pilot.py` -- scoped #280H A/B crossover analyzer (first 30 lines)
 26. `scripts/validate-pass-telemetry.py` -- validates risk/pacing pass telemetry contracts (first 30 lines)
+27. `scripts/test_vnc_login_flow.py` -- dependency-free smoke tests for the VNC research-access decision layer
 
 **Test infrastructure:**
 1. `__tests__/helpers/coinTestConstants.js` -- shared test helpers, golden set loader, selectCoins()
 2. `__tests__/fixtures/golden_coins.json` -- 14 curated deterministic test coins
 3. `scripts/test_parse_terapeak_pass.py` -- unit tests for `_parse-terapeak-pass.py` (synthetic fixture; `python3 scripts/test_parse_terapeak_pass.py` exits 0 on pass) (#200)
 4. `__tests__/terapeakPacingPilot.test.js` -- #280H pacing authorization, telemetry, crossover, and analyzer regressions
+5. `scripts/test_vnc_login_flow.py` -- VNC research-access decision-layer smoke tests (`python3 scripts/test_vnc_login_flow.py`)
 
 ### Phase 4: Verification
 
