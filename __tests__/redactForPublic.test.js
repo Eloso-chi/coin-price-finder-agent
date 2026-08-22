@@ -51,6 +51,13 @@ describe('redactCompsForPublic (#243 -- Terapeak source label)', () => {
     expect(c.itemId).toBe('v1|1234|0');
   });
 
+  test('strips internal composite cohort markers for non-admin callers', () => {
+    const resp = { ebay: { us: { comps: [mkComp({ _compositeCohort: true })] } } };
+    redactCompsForPublic(resp, false);
+    expect(resp.ebay.us.comps[0]).not.toHaveProperty('_compositeCohort');
+    expect(resp.ebay.us.comps[0]._source).toBe('ebay-sold');
+  });
+
   test('no-op when isAdmin === true (admins keep seeing the real label)', () => {
     const resp = { ebay: { us: { comps: [mkComp()] } } };
     redactCompsForPublic(resp, true);

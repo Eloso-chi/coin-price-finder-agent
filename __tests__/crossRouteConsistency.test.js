@@ -404,4 +404,53 @@ describe('cross-route consistency — /api/price vs /api/pricing-batch', () => {
     expect(batch.body.results[0]).toMatchObject(expected);
     expect(bulk).toMatchObject(expected);
   });
+
+  test('#300H: composite provenance and confidence cap match across price, batch, and bulk consumers', async () => {
+    const query = '2020 Mexican Silver Libertad Proof 5 oz';
+    const compositeBasis = {
+      usedCohort: true,
+      cohortYears: [2017, 2018, 2019, 2021],
+      cohortCompCount: 4,
+      exactYearCompCount: 1,
+      populationGateApplied: false,
+    };
+    const valuation = {
+      fmvCore: 700,
+      rangeLow: 630,
+      rangeHigh: 770,
+      confidence: 30,
+      lowData: false,
+      compCount: 5,
+      method: 'raw-blend (composite)',
+      explanation: ['WARNING: COMPOSITE ESTIMATE'],
+      dataSource: { label: 'cross-year-composite' },
+      gradePool: {
+        wantsGraded: false,
+        usedPool: 'raw',
+        poolCount: 5,
+        totalCount: 5,
+        compositeBasis,
+      },
+    };
+    const valuationService = require('../src/services/valuationService');
+    valuationService.computeValuation
+      .mockReturnValueOnce({ valuation, decisions: { buy: {}, sell: {} } })
+      .mockReturnValueOnce({ valuation, decisions: { buy: {}, sell: {} } })
+      .mockReturnValueOnce({ valuation, decisions: { buy: {}, sell: {} } });
+
+    const single = await request(app).post('/api/price').send({ query });
+    const batch = await request(app).post('/api/pricing-batch').send({ items: [{ query }] });
+    const bulk = await evaluateOneCoin({ query });
+
+    const expected = {
+      confidence: 30,
+      method: 'raw-blend (composite)',
+      explanation: ['WARNING: COMPOSITE ESTIMATE'],
+      dataSource: { label: 'cross-year-composite' },
+      gradePool: expect.objectContaining({ compositeBasis }),
+    };
+    expect(single.body.valuation).toMatchObject({ fmvCore: 700, ...expected });
+    expect(batch.body.results[0]).toMatchObject({ fmv: 700, ...expected });
+    expect(bulk).toMatchObject({ fmv: 700, ...expected });
+  });
 });

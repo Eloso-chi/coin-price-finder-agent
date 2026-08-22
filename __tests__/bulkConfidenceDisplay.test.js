@@ -21,6 +21,14 @@ describe('Lot Evaluator confidence display', () => {
     expect(source).toContain("'Single-comp estimate; cross-reference dealer prices'");
   });
 
+  test('visibly labels composite estimates in pricing, lot rows, and CSV', () => {
+    expect(source).toContain("v.dataSource?.label === 'cross-year-composite'");
+    expect(source).toContain("coin.dataSource?.label === 'cross-year-composite'");
+    expect(source).toContain("r.dataSource?.label === 'cross-year-composite'");
+    expect(source).toContain("isComposite ? 'Nearby-year proxy'");
+    expect(source).toContain('Composite estimate; nearby-year sales used as a proxy');
+  });
+
   test('announces progress and structured AI warnings accessibly', () => {
     expect(source).toContain('id="bulk-status" class="muted" role="status" aria-live="polite"');
     expect(source).toContain('role="progressbar" aria-label="Lot evaluation progress"');

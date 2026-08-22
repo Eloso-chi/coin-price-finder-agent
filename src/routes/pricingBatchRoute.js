@@ -330,6 +330,7 @@ async function _priceOne(item, opts = {}) {
       configVersion: val.configVersion,
       computedAt: val.computedAt,
       dataSource: val.dataSource ?? null,
+      gradePool: val.gradePool ?? null,
       spotStale: spotStale || undefined,
       spotAsOf: spotAsOf || undefined,
       rollQty: rollQty || undefined,

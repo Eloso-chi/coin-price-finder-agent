@@ -72,8 +72,10 @@ function _cloneEbay(ebay) {
 
 function _redactComp(c) {
   if (!c || typeof c !== 'object') return c;
-  if (c._source !== 'terapeak') return c;
-  return { ...c, _source: 'ebay-sold' };
+  if (c._source !== 'terapeak' && !Object.hasOwn(c, '_compositeCohort')) return c;
+  const { _compositeCohort, ...publicComp } = c;
+  if (publicComp._source === 'terapeak') publicComp._source = 'ebay-sold';
+  return publicComp;
 }
 
 module.exports = { redactCompsForPublic };

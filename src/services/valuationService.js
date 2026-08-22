@@ -67,9 +67,26 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
   const isAdmin = audience === 'admin';
 
   // ── Gather eBay comps and separate graded vs raw pools ──
-  const usCompsAll = ebay?.us?.comps || [];
+  const requestedComposite = ebay?.compositeBasis?.usedCohort === true;
+  const targetPopulation = pcgs?.population?.thisGrade ?? null;
+  const compositeBlockedByPopulation = requestedComposite
+    && targetPopulation != null
+    && targetPopulation < 50;
+  const compositeBasis = requestedComposite && !compositeBlockedByPopulation
+    ? {
+      ...ebay.compositeBasis,
+      populationGateApplied: targetPopulation != null,
+    }
+    : null;
+  const usCompsAll = (ebay?.us?.comps || []).filter(comp => (
+    !compositeBlockedByPopulation || comp._compositeCohort !== true
+  ));
   const glCompsAll = ebay?.global?.comps || [];
   const usedFallback = ebay?.usedFallback || false;
+
+  if (compositeBlockedByPopulation) {
+    explanation.push('\u26a0 COMPOSITE ESTIMATE SKIPPED: target population is below 50; other-year sales were not substituted for this scarce date.');
+  }
 
   // Determine if user wants graded or raw comps
   // Use the explicit user-supplied grade, NOT the PCGS-resolved grade.
@@ -581,13 +598,24 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
   if (soldCount === 1) {
     explanation.push('\u26a0 SINGLE-COMP ESTIMATE: FMV is based on one sold comp and could reflect an outlier. Cross-reference with dealer prices before buying or selling.');
   }
+  if (compositeBasis) {
+    const years = compositeBasis.cohortYears.join(', ');
+    explanation.push(
+      `\u26a0 COMPOSITE ESTIMATE: only ${compositeBasis.exactYearCompCount} direct sale${compositeBasis.exactYearCompCount === 1 ? '' : 's'} `
+      + `of this exact year found. FMV uses ${compositeBasis.cohortCompCount} other-year sales `
+      + `(years: ${years}) as a substitute -- treat as an approximation, not a confirmed price for this exact date.`
+    );
+    if (targetPopulation == null) {
+      explanation.push('\u26a0 Year-specific rarity could not be verified from population data; the composite uses a conservative confidence cap.');
+    }
+  }
 
   // ── Confidence ──
   const isBar = !!(pcgs?._isBar);
   const pcgsFound = !!(pcgs?.pcgsNo || pcgs?.verified || pcgsGuide != null);
   // #159: Extract filter attrition from eBay tier results
   const usAttritionPct = ebay?.us?.attritionPct ?? null;
-  const confidence = computeConfidence({
+  let confidence = computeConfidence({
     verified: isCertified,
     usCompCount: usPrices.length,
     glCompCount: glPrices.length,
@@ -606,6 +634,9 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
     filterAttritionPct: usAttritionPct,
     poolFallback,
   });
+  if (compositeBasis) {
+    confidence = Math.min(confidence, targetPopulation == null ? 30 : 35);
+  }
   explanation.push(`Confidence ${confidence}/100.`);
 
   // #159: High attrition explanation
@@ -709,7 +740,8 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
         totalComps,
         soldRatio: +soldRatio.toFixed(2),
         browseOnly,
-        label: metalOnly ? 'metal-only'
+        label: compositeBasis ? 'cross-year-composite'
+          : metalOnly ? 'metal-only'
           : guideOnly ? 'guide-only'
           : browseOnly ? 'asking-prices-only'
           : mostlyBrowse ? 'mostly-asking'
@@ -736,8 +768,9 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
         poolCount: usComps.length,
         totalCount: usCompsAll.length,
         poolFallback,
+        ...(compositeBasis ? { compositeBasis } : {}),
       },
-      method,
+      method: compositeBasis ? `${method} (composite)` : method,
       saleContext: ctxAdj.label,
       appealMultiplier: appealMultiplier > 1.0 ? appealMultiplier : null,
       greysheetSpread: gsSpreadPct != null ? {

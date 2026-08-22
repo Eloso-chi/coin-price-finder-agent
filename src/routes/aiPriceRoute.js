@@ -42,6 +42,9 @@ function buildDeterministicAnswer(query, valuation = {}) {
   if (comps === 0) {
     return `The deterministic estimate for ${query} is $${fmv.toFixed(2)} based on current metal spot pricing only; no sold comparables were available, so confidence is low.${range}`;
   }
+  if (valuation.dataSource?.label === 'cross-year-composite') {
+    return `Based on ${comps} deterministic sold comparables, the composite estimate for ${query} is $${fmv.toFixed(2)}.${range} Nearby-year sales were used as a proxy because the exact-year market was thin.`;
+  }
   const warning = valuation.lowData && comps === 1
     ? ' Warning: this is a single-comp estimate and could reflect an outlier; cross-reference dealer prices.'
     : '';
@@ -52,6 +55,13 @@ function singleCompWarning(valuation = {}) {
   return valuation.lowData === true && valuation.compCount === 1
     ? 'Single-comp estimate: this result could reflect an outlier. Cross-reference dealer prices.'
     : null;
+}
+
+function valuationWarning(valuation = {}) {
+  if (valuation.dataSource?.label === 'cross-year-composite') {
+    return 'Composite estimate: other-year sales were used as a proxy for a thin exact-year market.';
+  }
+  return singleCompWarning(valuation);
 }
 
 function normalizePricingQuery(query) {
@@ -127,9 +137,13 @@ router.post('/price', async (req, res) => {
             audience: trustedContext.audience,
             tools: conversation.toolResults.map(tool => tool.name),
             valuation: {
+              method: toolValuation.method || null,
+              confidence: toolValuation.confidence ?? null,
               lowData: toolValuation.lowData === true,
               compCount: toolValuation.compCount ?? 0,
-              warning: singleCompWarning(toolValuation),
+              dataSource: toolValuation.dataSource || null,
+              compositeBasis: toolValuation.gradePool?.compositeBasis || null,
+              warning: valuationWarning(toolValuation),
             },
           },
           handoff: {
@@ -187,7 +201,9 @@ router.post('/price', async (req, res) => {
         confidence: response?.valuation?.confidence ?? 'unknown',
         compCount: response?.valuation?.compCount ?? 0,
         lowData: response?.valuation?.lowData === true,
-        warning: singleCompWarning(response?.valuation),
+        dataSource: response?.valuation?.dataSource || null,
+        compositeBasis: response?.valuation?.gradePool?.compositeBasis || null,
+        warning: valuationWarning(response?.valuation),
       },
       sources: {
         market: response?.ebay?.usedFallback ? 'ebay-fallback' : 'ebay',

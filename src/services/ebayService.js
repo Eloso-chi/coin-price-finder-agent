@@ -1479,6 +1479,94 @@ async function fetchFindingTier(keywords, timeWindowDays, maxPages, locatedIn) {
   return allItems;
 }
 
+const COMPOSITE_YEAR_WINDOW = 3;
+const COMPOSITE_MIN_COMPS = 5;
+
+function _cohortKeywords(keywords, year) {
+  return String(keywords || '')
+    .replace(new RegExp(`\\b${year}\\b`, 'g'), ' ')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
+function _compositeTargetYear(year) {
+  const value = Number(year);
+  return Number.isInteger(value) && value >= 1800 && value <= 2099 ? value : null;
+}
+
+function _targetCompPool(expected) {
+  const wantsProof = !!expected.isProof;
+  if (requestedVariantFamily(expected)) return 'raw';
+  if (wantsProof && isReverseProofFinish(expected.finish)) return 'reverse-proof';
+  if (wantsProof) return 'proof';
+  return expected.grade ? 'graded' : 'raw';
+}
+
+function _titleYears(title) {
+  return [...String(title || '').matchAll(/\b(18\d{2}|19\d{2}|20\d{2})\b/g)]
+    .map(match => Number(match[1]));
+}
+
+function _matchesDesignation(comp, designation) {
+  if (!designation) return true;
+  const escaped = String(designation).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`\\b${escaped}\\b`, 'i').test(comp.title || '');
+}
+
+function _buildTerapeakComposite(keywords, expected, opts, directComps, targetPool, tpOpts) {
+  const targetYear = _compositeTargetYear(expected.year);
+  if (targetYear == null || !(Number(expected.weight) > 0) || directComps.length >= 3) return null;
+
+  const cohortKeywords = _cohortKeywords(keywords, targetYear);
+  if (!cohortKeywords || cohortKeywords === keywords) return null;
+
+  const cohortData = terapeakService.lookupComps(cohortKeywords, tpOpts);
+  if (!cohortData?.comps?.length) return null;
+
+  const bounded = cohortData.comps.filter(comp => {
+    const years = _titleYears(comp.title);
+    return years.some(year => year !== targetYear
+      && Math.abs(year - targetYear) <= COMPOSITE_YEAR_WINDOW);
+  }).filter(comp => {
+    const gradeType = classifyGradeType(comp);
+    comp.gradeType = gradeType;
+    return gradeType === targetPool && _matchesDesignation(comp, expected.designation);
+  });
+
+  let kept;
+  expected._fromGenericDataset = true;
+  try {
+    const scored = bounded.map(comp => scoreMatch(comp, expected));
+    ({ kept } = applyFilters(scored, opts, expected));
+  } finally {
+    delete expected._fromGenericDataset;
+  }
+
+  const merged = dedup([
+    ...directComps,
+    ...kept.map(comp => ({ ...comp, _compositeCohort: true })),
+  ]);
+  if (merged.length < COMPOSITE_MIN_COMPS) return null;
+
+  const cohortIds = new Set(kept.map(comp => comp.itemId).filter(Boolean));
+  const cohortComps = merged.filter(comp => comp._compositeCohort
+    || (comp.itemId && cohortIds.has(comp.itemId)));
+  const cohortYears = [...new Set(cohortComps.flatMap(comp => _titleYears(comp.title)))]
+    .filter(year => year !== targetYear)
+    .sort((a, b) => a - b);
+
+  return {
+    comps: merged,
+    basis: {
+      usedCohort: true,
+      cohortYears,
+      cohortCompCount: cohortComps.length,
+      exactYearCompCount: directComps.length,
+      populationGateApplied: false,
+    },
+  };
+}
+
 // ── MAIN: fetchSoldComps ────────────────────────────────────
 /**
  * Fetch eBay comps. Priority chain:
@@ -1569,6 +1657,7 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
 
   // ── Attempt 0: Terapeak imported sold data (highest priority — real sold comps) ──
   const tpOpts = { metal: expected.metal || null, grade: expected.grade || null };
+  const targetPool = _targetCompPool(expected);
   let terapeakData = terapeakService.lookupComps(keywords, tpOpts);
 
   // Also try the raw user query for Terapeak when keywords differ significantly.
@@ -1641,15 +1730,6 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
     // upholds that contract. For sparse-raw-comp problems, see BACKLOG
     // #270W (the right fixes are wider lookback, better seeding, or
     // two-pool FMV surfacing -- NEVER pool merging).
-    const wantsProof = !!expected.isProof;
-    const wantsReverseProof = wantsProof && isReverseProofFinish(expected.finish);
-    const specialtyFamily = requestedVariantFamily(expected);
-    const wantsGraded = !!expected.grade;
-    const targetPool = specialtyFamily
-      ? 'raw'
-      : (wantsReverseProof
-        ? 'reverse-proof'
-        : (wantsProof ? 'proof' : (wantsGraded ? 'graded' : 'raw')));
     const beforeSplit = tpComps.length;
     tpComps = tpComps.filter(c => {
       const gt = classifyGradeType(c);
@@ -1735,7 +1815,25 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
     // Apply scoring and filters
     const scored = pool.map(c => scoreMatch(c, expected));
     const { kept, removed: filterRemoved } = applyFilters(scored, opts, expected);
-    const prices = kept.map(c => c.totalUsd);
+    const targetYear = _compositeTargetYear(expected.year);
+    const directComps = isGenericDataset && targetYear != null
+      ? kept.filter(comp => _titleYears(comp.title).includes(targetYear))
+      : kept;
+    let selectedComps = directComps;
+    let compositeBasis = null;
+    const composite = _buildTerapeakComposite(
+      keywords,
+      expected,
+      opts,
+      directComps,
+      targetPool,
+      tpOpts,
+    );
+    if (composite) {
+      selectedComps = composite.comps;
+      compositeBasis = composite.basis;
+    }
+    const prices = selectedComps.map(c => c.totalUsd);
 
     // Merge pre-filter buckets so callers see the full attrition picture.
     const removed = { ...preFilterRemoved, ...filterRemoved };
@@ -1757,8 +1855,8 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
     // Clean up transient flag
     delete expected._fromGenericDataset;
 
-    if (kept.length >= opts.usMinComps) {
-      usResult = { stats: stats.summarize(prices), comps: kept, removed, error: null };
+    if (selectedComps.length >= opts.usMinComps || compositeBasis) {
+      usResult = { stats: stats.summarize(prices), comps: selectedComps, removed, error: null };
       apiUsed = 'terapeak';
       console.log(`[ebay] Terapeak sold data: ${kept.length} comps (from "${terapeakData.searchTerm}", imported ${terapeakData.lastImport})`);
 
@@ -1779,14 +1877,39 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
         candidatesPerTier: tpCandidatesPerTier,
         reason: tpLookbackExtended ? 'raw-pool-thin' : null,
       };
-      const result = { keywords, us: usResult, global: globalResult, usedFallback: false, apiUsed, lookback };
+      const result = {
+        keywords,
+        us: usResult,
+        global: globalResult,
+        usedFallback: false,
+        apiUsed,
+        lookback,
+        ...(compositeBasis ? { compositeBasis } : {}),
+      };
       cache.set(cacheKey, result);
       return result;
-    } else if (kept.length > 0) {
+    } else if (directComps.length > 0) {
       // Some terapeak comps but not enough — seed usResult, continue to APIs for more
-      usResult = { stats: stats.summarize(prices), comps: kept, removed, error: null };
+      usResult = { stats: stats.summarize(prices), comps: directComps, removed, error: null };
       apiUsed = 'terapeak';
-      console.log(`[ebay] Terapeak partial: ${kept.length} comps (need ${opts.usMinComps}), supplementing with APIs…`);
+      console.log(`[ebay] Terapeak partial: ${directComps.length} comps (need ${opts.usMinComps}), supplementing with APIs…`);
+    }
+  }
+
+  if (!usResult) {
+    const composite = _buildTerapeakComposite(keywords, expected, opts, [], targetPool, tpOpts);
+    if (composite) {
+      const result = {
+        keywords,
+        us: { stats: stats.summarize(composite.comps.map(comp => comp.totalUsd)), comps: composite.comps, removed: {}, error: null },
+        global: { stats: null, comps: [], removed: {}, error: null },
+        usedFallback: false,
+        apiUsed: 'terapeak',
+        lookback: { requested: requestedDays, used: null, extended: true, tier: 'all', source: 'terapeak', candidatesPerTier: [], reason: 'raw-pool-thin' },
+        compositeBasis: composite.basis,
+      };
+      cache.set(cacheKey, result);
+      return result;
     }
   }
 

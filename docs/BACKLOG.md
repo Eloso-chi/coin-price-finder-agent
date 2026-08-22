@@ -1044,7 +1044,7 @@ Verified:
 
 ---
 
-### #300H. Type-cohort composite FMV fallback for thin same-year comp pools (large/rare denominations) [P3 -- PRICING-ACCURACY / DATA-QUALITY] -- PROPOSED 2026-08-20
+### #300H. Type-cohort composite FMV fallback for thin same-year comp pools (large/rare denominations) [P3 -- PRICING-ACCURACY / DATA-QUALITY] -- DONE 2026-08-20
 
 **Origin:** Follow-on from #299H. Once #299H's guardrails prevent a single unrepresentative comp from producing an unguarded FMV, the residual gap is that genuinely thin-market coins (e.g. 5 oz Proof Libertad) may still have no usable direct-year FMV at all. This item proposes an explicitly-labeled composite estimate as a last-resort fallback, discussed and scoped across two chat sessions (2026-08-20) covering both the technical approach and a numismatic key-date/rarity risk review.
 
@@ -1087,6 +1087,8 @@ Verified:
 **Files (anticipated):** `src/services/ebayService.js` (cohort/year-window search), `src/services/valuationService.js` (composite blend, confidence cap, disclosure fields), `public/index.html` (composite badge on both surfaces), `src/services/bulkEvaluateService.js` (badge/label passthrough if needed), `__tests__/computeValuation.test.js`, `__tests__/ebayFetchSoldComps.test.js`, cross-route integration tests, and mapped API/architecture/valuation/UI documentation.
 
 **Out of scope:** A hand-curated key-date/mintage table (explicitly rejected per the numismatic review above); historical spot-price normalization of cohort comps (not required for v1 since cohort comps are bounded to sales that are still reasonably recent); automatic detection of key dates without a verifiable data source.
+
+**Implemented:** Terapeak-backed cohorts widen year only to +/-3 years, require five merged comps, preserve pool isolation, and expose structured provenance. Confidence is capped at 30 without population data or 35 with it; a known target population below 50 blocks substitution. Price Discovery, Lot Evaluator, CSV, deterministic/LLM AI provenance, and all deterministic pricing routes disclose the composite.
 
 **Related:** #299H (guards against the unguarded single-comp FMV this item builds on top of), #270W (existing lookback-widening pattern this reuses/extends into a new axis), #50 (existing low-population confidence penalty, reused here as an optional gate).
 

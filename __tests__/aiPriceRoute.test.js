@@ -87,6 +87,8 @@ describe('POST /api/ai/price', () => {
       confidence: 'medium',
       compCount: 2,
       lowData: false,
+      dataSource: null,
+      compositeBasis: null,
       warning: null,
     });
     expect(res.body.provenance.reproducibility).toEqual({
@@ -113,6 +115,43 @@ describe('POST /api/ai/price', () => {
       configVersion: 'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
       requestId: 'request-phase2',
     }));
+  });
+
+  test('preserves composite provenance and warning from deterministic pricing', async () => {
+    const compositeBasis = {
+      usedCohort: true,
+      cohortYears: [2018, 2019, 2021, 2022],
+      cohortCompCount: 4,
+      exactYearCompCount: 1,
+      populationGateApplied: false,
+    };
+    priceCoin.mockResolvedValueOnce({
+      valuation: {
+        fmvCore: 500,
+        method: 'raw-blend (composite)',
+        confidence: 30,
+        compCount: 5,
+        lowData: false,
+        dataSource: { label: 'cross-year-composite' },
+        gradePool: { compositeBasis },
+      },
+      ebay: { usedFallback: false, us: { comps: [] } },
+      pcgs: { verified: false },
+    });
+
+    const res = await request(app).post('/api/ai/price').send({
+      query: '2020 Mexican Silver Libertad Proof 5 oz',
+    });
+
+    expect(res.body.provenance.valuation).toEqual(expect.objectContaining({
+      method: 'raw-blend (composite)',
+      confidence: 30,
+      dataSource: { label: 'cross-year-composite' },
+      compositeBasis,
+      warning: expect.stringMatching(/composite estimate/i),
+    }));
+    expect(res.body.answer).toMatch(/composite estimate/i);
+    expect(res.body.answer).toMatch(/nearby-year sales were used as a proxy/i);
   });
 
   test('accepts only allowlisted structured context for a conversation handoff', async () => {
