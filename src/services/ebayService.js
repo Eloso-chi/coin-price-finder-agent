@@ -1507,6 +1507,12 @@ function _titleYears(title) {
     .map(match => Number(match[1]));
 }
 
+function _matchesDesignation(comp, designation) {
+  if (!designation) return true;
+  const escaped = String(designation).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`\\b${escaped}\\b`, 'i').test(comp.title || '');
+}
+
 function _buildTerapeakComposite(keywords, expected, opts, directComps, targetPool, tpOpts) {
   const targetYear = _compositeTargetYear(expected.year);
   if (targetYear == null || !(Number(expected.weight) > 0) || directComps.length >= 3) return null;
@@ -1524,7 +1530,7 @@ function _buildTerapeakComposite(keywords, expected, opts, directComps, targetPo
   }).filter(comp => {
     const gradeType = classifyGradeType(comp);
     comp.gradeType = gradeType;
-    return gradeType === targetPool;
+    return gradeType === targetPool && _matchesDesignation(comp, expected.designation);
   });
 
   let kept;
