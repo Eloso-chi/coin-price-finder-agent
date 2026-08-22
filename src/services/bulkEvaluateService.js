@@ -282,6 +282,8 @@ async function evaluateOneCoin(coin, opts = {}) {
       lowData:    !!val.lowData,
       explanation: Array.isArray(val.explanation) ? val.explanation : [],
       method:     val.method || val.dataSource?.label || null,
+      dataSource: val.dataSource ?? null,
+      gradePool:  val.gradePool ?? null,
       algorithmVersion: val.algorithmVersion,
       configVersion: val.configVersion,
       computedAt: val.computedAt,

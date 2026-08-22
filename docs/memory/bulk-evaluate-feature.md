@@ -68,6 +68,8 @@ For each coin:
   lowData: false,                // true when fewer than 3 sold comps support the result
   explanation: [],               // includes SINGLE-COMP ESTIMATE when compCount is 1
   method: "ebay-weighted",       // How FMV was computed
+  dataSource: null,               // cross-year-composite when cohort pricing is used
+  gradePool: null,                // includes compositeBasis for cohort pricing
   meltValue: null,               // Metal intrinsic value * qty
   avgEbay: 45.25,                // Median eBay comp price
   compCount: 8,                  // Number of comps found
@@ -76,7 +78,7 @@ For each coin:
 }
 ```
 
-Confidence `0` is preserved in the API, on-screen table, and CSV export. A one-comp result is visibly labeled `Single comp` in the Lot Evaluator. The shared bullion filter rejects unstated-weight comps above `max(meltPerOz * weight * 5, $50)` for fractional and multi-ounce coins.
+Confidence `0` is preserved in the API, on-screen table, and CSV export. A one-comp result is visibly labeled `Single comp` in the Lot Evaluator. A cross-year cohort result is labeled `Composite`, retains `dataSource` and `gradePool.compositeBasis`, uses a `(composite)` method suffix, and exports a proxy warning to CSV. The shared bullion filter rejects unstated-weight comps above `max(meltPerOz * weight * 5, $50)` for fractional and multi-ounce coins.
 
 ## Lot Summary: Buy Tiers & Pricing Formula
 
@@ -171,6 +173,7 @@ Total Discount = Size Discount + Confidence Penalty + Concentration Penalty
 - Rows added as SSE events arrive
 - Color-coded confidence (green ≥70%, amber 50-69%, red <50%)
 - Pagination at 50 coins per page
+- Composite rows show a visible warning and `(composite)` method suffix
 
 **Lot Summary Card**:
 - Key stats: Coins priced, Total FMV, Total Melt, Avg Confidence, Bullion %
@@ -182,7 +185,7 @@ Total Discount = Size Discount + Confidence Penalty + Concentration Penalty
 - Concentration risk flags: coins over 25% of lot value
 
 **Export**:
-- CSV: Tabular format, downloadable
+- CSV: Tabular format, downloadable; Warning identifies single-comp and composite estimates
 - JSON: Full results + lotSummary + timestamp
 
 ## Concurrency & Caching

@@ -20,7 +20,7 @@ Comprehensive reference of all HTTP endpoints exposed by the coin-price-finder-a
 
 Every valuation includes `algorithmVersion` (semantic version), `configVersion` (`sha256:` fingerprint), and `computedAt` (UTC ISO timestamp). Successful and null-FMV outcomes are audited asynchronously. Anonymous audits omit actor and IP; authenticated admin audits may include both. Audit persistence never delays the pricing response.
 
-For equivalent deterministic inputs, `/api/price`, `/api/pricing-batch`, and `/api/bulk-evaluate` preserve the same `confidence`, `lowData`, `compCount`, `method`, and `explanation` semantics. A valuation based on exactly one sold comp includes a `SINGLE-COMP ESTIMATE` warning. Bullion comps whose titles omit weight are rejected when price exceeds `max(meltPerOz * weight * 5, $50)`, for fractional and multi-ounce coins alike. `/api/ai/price` preserves `lowData`, `compCount`, and a structured `warning` in `provenance.valuation` for deterministic and LLM-backed responses.
+For equivalent deterministic inputs, `/api/price`, `/api/pricing-batch`, and `/api/bulk-evaluate` preserve the same `confidence`, `lowData`, `compCount`, `method`, `explanation`, `dataSource`, and `gradePool` semantics. A valuation based on exactly one sold comp includes a `SINGLE-COMP ESTIMATE` warning. A thin exact-year Terapeak pool may use a bounded cross-year cohort and returns `dataSource.label: "cross-year-composite"`, `gradePool.compositeBasis`, a `(composite)` method suffix, explicit warnings, and confidence capped at 30 without population data or 35 with it. Bullion comps whose titles omit weight are rejected when price exceeds `max(meltPerOz * weight * 5, $50)`, for fractional and multi-ounce coins alike. `/api/ai/price` preserves these fields and a structured `warning` in `provenance.valuation` for deterministic and LLM-backed responses.
 
 ## Bulk Lot Evaluator
 
@@ -32,7 +32,7 @@ For equivalent deterministic inputs, `/api/price`, `/api/pricing-batch`, and `/a
 
 **Input formats:** text (one coin per line, pipe-delimited), JSON array, or Excel .xlsx upload.
 
-Per-coin bulk results include `lowData` and `explanation` in addition to FMV, confidence, method, and comp count. A genuine confidence score of `0` is returned as `0`, not `null`.
+Per-coin bulk results include `lowData`, `explanation`, `dataSource`, and `gradePool` in addition to FMV, confidence, method, and comp count. A genuine confidence score of `0` is returned as `0`, not `null`.
 
 ## Authentication & My Coins
 

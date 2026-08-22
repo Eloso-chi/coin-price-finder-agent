@@ -43,6 +43,7 @@ function mockEbay(overrides = {}) {
     },
     usedFallback: overrides.usedFallback || false,
     ...(overrides.lookback ? { lookback: overrides.lookback } : {}),
+    ...(overrides.compositeBasis ? { compositeBasis: overrides.compositeBasis } : {}),
   };
 }
 
@@ -61,6 +62,75 @@ function makeComp(price, opts = {}) {
 function makeComps(prices, opts = {}) {
   return prices.map(p => makeComp(p, opts));
 }
+
+describe('computeValuation -- type-cohort composite (#300H)', () => {
+  const basis = {
+    usedCohort: true,
+    cohortYears: [2018, 2019, 2021, 2022],
+    cohortCompCount: 4,
+    exactYearCompCount: 1,
+    populationGateApplied: false,
+  };
+
+  function compositeComps() {
+    return [
+      makeComp(500, { itemId: 'exact', gradeType: 'proof' }),
+      ...[450, 475, 525, 550].map((price, index) => ({
+        ...makeComp(price, { itemId: `cohort-${index}`, gradeType: 'proof' }),
+        _compositeCohort: true,
+      })),
+    ];
+  }
+
+  test('labels, discloses, and caps a composite when population is unavailable', () => {
+    const result = computeValuation(
+      mockPcgs({ series: 'Mexico Libertad', year: 2020 }),
+      mockEbay({ usComps: compositeComps(), compositeBasis: basis }),
+      null,
+      'Proof',
+      { isBullion: true, isProof: true, finish: 'Proof' },
+    );
+
+    expect(result.valuation.dataSource.label).toBe('cross-year-composite');
+    expect(result.valuation.gradePool.compositeBasis).toEqual(basis);
+    expect(result.valuation.confidence).toBeLessThanOrEqual(30);
+    expect(result.valuation.method).toMatch(/\(composite\)$/);
+    expect(result.valuation.explanation).toEqual(expect.arrayContaining([
+      expect.stringMatching(/COMPOSITE ESTIMATE.*4 other-year sales/i),
+      expect.stringMatching(/rarity could not be verified/i),
+    ]));
+  });
+
+  test('applies the population gate and uses the documented 35 cap', () => {
+    const result = computeValuation(
+      mockPcgs({ population: { thisGrade: 500 } }),
+      mockEbay({ usComps: compositeComps(), compositeBasis: basis }),
+      null,
+      'Proof',
+      { isBullion: true, isProof: true, finish: 'Proof' },
+    );
+
+    expect(result.valuation.confidence).toBeLessThanOrEqual(35);
+    expect(result.valuation.gradePool.compositeBasis.populationGateApplied).toBe(true);
+  });
+
+  test('skips cohort comps for a known population below 50', () => {
+    const result = computeValuation(
+      mockPcgs({ population: { thisGrade: 30 } }),
+      mockEbay({ usComps: compositeComps(), compositeBasis: basis }),
+      null,
+      'Proof',
+      { isBullion: true, isProof: true, finish: 'Proof' },
+    );
+
+    expect(result.valuation.compCount).toBe(1);
+    expect(result.valuation.dataSource.label).toBe('sold-data');
+    expect(result.valuation.gradePool.compositeBasis).toBeUndefined();
+    expect(result.valuation.explanation).toEqual(expect.arrayContaining([
+      expect.stringMatching(/COMPOSITE ESTIMATE SKIPPED/i),
+    ]));
+  });
+});
 
 // ═══════════════════════════════════════════════════════════════
 //  Basic FMV computation

@@ -1006,6 +1006,8 @@ Before valuation, `applyFilters()` rejects a comp whose title omits weight when 
 
 When exactly one sold comp remains, `computeValuation()` sets `lowData: true` and adds an explicit `SINGLE-COMP ESTIMATE` explanation. `/api/price`, `/api/pricing-batch`, and `/api/bulk-evaluate` preserve the same confidence, comp count, method, and explanation semantics. Deterministic and LLM-backed `/api/ai/price` responses expose `lowData`, `compCount`, and a derived warning in `provenance.valuation`.
 
+When a year-specific Terapeak pool remains below three comps, `fetchSoldComps()` may search the same type, weight, finish, designation, and grade pool across +/-3 years. It uses the cohort only when the deduplicated pool reaches five comps. `computeValuation()` labels this `cross-year-composite`, records cohort years and counts in `gradePool.compositeBasis`, and caps confidence at 30 when target population is unavailable or 35 when available. A known target population below 50 removes cohort comps and keeps the direct-year result. Batch, bulk, AI, UI, and CSV consumers preserve and disclose this provenance.
+
 ### Confidence Scoring
 
 `computeConfidence(params)` produces a 0–100 score:

@@ -20,10 +20,12 @@ exposure is disabled.
 
 | Response area | Fields | Public behavior | Notes |
 |---|---|---|---|
-| `/api/price` valuation | `confidence`, `lowData`, `compCount`, `method`, `explanation` | Public-safe derived valuation context | `confidence: 0` is meaningful and must not be treated as missing data |
-| `/api/pricing-batch` result | `confidence`, `lowData`, `compCount`, `method`, `explanation` | Preserves the shared valuation contract for each item | A one-sold-comp result includes a `SINGLE-COMP ESTIMATE` explanation |
-| `/api/bulk-evaluate` per-coin result | `confidence`, `lowData`, `compCount`, `method`, `explanation` | Public jobs preserve the shared contract; anonymous poll, replay, and live access to admin-origin jobs redacts `explanation` to `[]` | Bulk caches are audience-isolated because explanations differ for public and admin callers |
-| `/api/ai/price` provenance valuation | `confidence`, `lowData`, `compCount`, `warning` | Deterministic and LLM-backed responses expose structured low-data disclosure | `warning` is non-null for a one-sold-comp estimate |
+| `/api/price` valuation | `confidence`, `lowData`, `compCount`, `method`, `explanation`, `dataSource`, `gradePool` | Public-safe derived valuation context | `confidence: 0` is meaningful; composite estimates use `dataSource.label: cross-year-composite` and `gradePool.compositeBasis` |
+| `/api/pricing-batch` result | `confidence`, `lowData`, `compCount`, `method`, `explanation`, `dataSource`, `gradePool` | Preserves the shared valuation contract for each item | A one-sold-comp result includes a `SINGLE-COMP ESTIMATE` explanation |
+| `/api/bulk-evaluate` per-coin result | `confidence`, `lowData`, `compCount`, `method`, `explanation`, `dataSource`, `gradePool` | Public jobs preserve the shared contract; anonymous poll, replay, and live access to admin-origin jobs redacts `explanation` to `[]` | Bulk caches are audience-isolated because explanations differ for public and admin callers |
+| `/api/ai/price` provenance valuation | `confidence`, `lowData`, `compCount`, `method`, `dataSource`, `compositeBasis`, `warning` | Deterministic and LLM-backed responses expose structured low-data and composite disclosure | `warning` is non-null for one-sold-comp and cross-year-composite estimates |
+
+`gradePool.compositeBasis` contains `usedCohort`, `cohortYears`, `cohortCompCount`, `exactYearCompCount`, and `populationGateApplied`. It is present only when cohort comps contribute to FMV.
 
 ### Phase 1 LLM tool result shapes
 

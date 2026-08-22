@@ -4599,6 +4599,7 @@ Silver Libertad 1 oz Proof"></textarea>
     }
     if (pop?.thisGrade) html += '<span class="fmv-chip" title="PCGS population this grade / higher">\uD83D\uDCCA Pop: ' + pop.thisGrade + (pop.higher ? ' / ' + pop.higher + ' higher' : '') + '</span>';
     if (d.keyDate?.isKeyDate) html += '<span class="fmv-chip fmv-chip-key" title="Key date coin">\uD83D\uDD11 Key Date</span>';
+    if (v.dataSource?.label === 'cross-year-composite') html += '<span class="fmv-chip" style="color:var(--warning);font-weight:700" title="Other-year sales were used as a proxy">Composite estimate</span>';
     // Numista rarity chip
     if (d.numista?.rarity) {
       const nr = d.numista.rarity;
@@ -4613,7 +4614,13 @@ Silver Libertad 1 oz Proof"></textarea>
     html += '</div>';
     // Data source warning (browseOnly / mostly-asking)
     var ds = v.dataSource;
-    if (ds && ds.browseOnly) {
+    if (ds && ds.label === 'cross-year-composite') {
+      var compositeBasis = v.gradePool?.compositeBasis || {};
+      var compositeYears = (compositeBasis.cohortYears || []).join(', ');
+      html += '<div role="alert" style="margin-top:6px;padding:6px 10px;background:rgba(246,106,10,0.08);border:1px solid rgba(246,106,10,0.3);border-radius:6px;font-size:0.78rem;color:var(--warning)">';
+      html += '\u26a0\ufe0f <strong>Composite estimate</strong> -- this exact year had too few direct sales, so nearby-year comps' + (compositeYears ? ' (' + _esc(compositeYears) + ')' : '') + ' were used as a proxy.';
+      html += '</div>';
+    } else if (ds && ds.browseOnly) {
       html += '<div style="margin-top:6px;padding:6px 10px;background:rgba(246,106,10,0.08);border:1px solid rgba(246,106,10,0.3);border-radius:6px;font-size:0.78rem;color:var(--warning)">';
       html += '\u26a0\ufe0f <strong>No sold data available</strong> \u2014 FMV is based entirely on asking prices (active listings). Actual market value may be lower.';
       html += '</div>';
@@ -6768,7 +6775,9 @@ Silver Libertad 1 oz Proof"></textarea>
       if (coin.error) {
         return '<td>' + (idx + 1) + '</td><td colspan="10" style="color:var(--red, #f44336)">' + _esc(coin.query) + ' -- ' + _esc(coin.error) + '</td>';
       }
-      const warningLabel = coin.lowData && coin.compCount === 1 ? 'Single comp' : '--';
+      const isComposite = coin.dataSource?.label === 'cross-year-composite';
+      const warningLabel = isComposite ? 'Nearby-year proxy' : (coin.lowData && coin.compCount === 1 ? 'Single comp' : '--');
+      const warningColor = isComposite ? 'var(--warning)' : (warningLabel === '--' ? 'inherit' : 'var(--red)');
       return '<td>' + (idx + 1) + '</td>' +
         '<td>' + _esc(coin.query || '') + '</td>' +
         '<td>' + (coin.qty || 1) + '</td>' +
@@ -6778,7 +6787,7 @@ Silver Libertad 1 oz Proof"></textarea>
         '<td>' + _fmt(coin.meltValue) + '</td>' +
         '<td>' + (coin.compCount || 0) + '</td>' +
         '<td style="color:' + _confColor(coin.confidence) + '">' + (coin.confidence != null ? coin.confidence : '--') + '</td>' +
-        '<td style="color:' + (warningLabel === '--' ? 'inherit' : 'var(--red)') + ';font-weight:' + (warningLabel === '--' ? '400' : '700') + '">' + warningLabel + '</td>' +
+        '<td style="color:' + warningColor + ';font-weight:' + (warningLabel === '--' ? '400' : '700') + '">' + warningLabel + '</td>' +
         '<td class="muted">' + _esc(coin.method || '--') + '</td>';
     }
 
@@ -6885,7 +6894,9 @@ Silver Libertad 1 oz Proof"></textarea>
       if (!_results.length) return;
       const headers = ['#','Coin','Qty','Grade','FMV','Total FMV','Melt','Comps','Confidence','Warning','Method'];
       const rows = _results.map(function(r, i) {
-        const warning = r.lowData && r.compCount === 1 ? 'Single-comp estimate; cross-reference dealer prices' : '';
+        const warning = r.dataSource?.label === 'cross-year-composite'
+          ? 'Composite estimate; nearby-year sales used as a proxy'
+          : (r.lowData && r.compCount === 1 ? 'Single-comp estimate; cross-reference dealer prices' : '');
         return [i+1, '"' + (r.query||'').replace(/"/g,'""') + '"', r.qty||1, r.grade||'',
                 r.fmv||'', r.totalFmv||'', r.meltValue||'', r.compCount||0, r.confidence != null ? r.confidence : '', '"' + warning + '"', r.method||''].join(',');
       });

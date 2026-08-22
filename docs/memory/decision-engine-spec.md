@@ -64,6 +64,13 @@ Proof / reverse-proof intent skips this ladder entirely (`skipSpotMath`). When p
 - Comps with an explicit title weight are handled by the strict weight-mismatch filter rather than this ambiguity guard.
 - If exactly one sold comp remains, valuation sets `lowData: true` and appends a `SINGLE-COMP ESTIMATE` warning. Confidence may legitimately be `0` and consumers must preserve that value.
 
+## Type-Cohort Composite Fallback
+
+- If a year-specific Terapeak pool remains below three comps, acquisition may drop only the target year and search the same type within +/-3 years.
+- Weight, finish, designation, and raw/graded/proof/reverse-proof isolation remain strict. At least five deduplicated direct-plus-cohort comps are required.
+- Composite responses use `dataSource.label = 'cross-year-composite'`, `gradePool.compositeBasis`, explicit explanation warnings, and a `(composite)` method suffix.
+- Confidence is capped at 30 when target population is unavailable and 35 when it is available. A known target population below 50 blocks cohort substitution.
+
 ## Grade Pool Split
 
 Before valuation, comps are separated into four mutually exclusive pools:

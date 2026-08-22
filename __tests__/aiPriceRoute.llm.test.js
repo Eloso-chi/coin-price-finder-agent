@@ -65,9 +65,58 @@ describe('LLM-enabled POST /api/ai/price', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.provenance.valuation).toEqual({
+      method: null,
+      confidence: 0,
       lowData: true,
       compCount: 1,
+      dataSource: null,
+      compositeBasis: null,
       warning: expect.stringMatching(/single-comp estimate/i),
+    });
+  });
+
+  test('preserves composite provenance from deterministic tool results', async () => {
+    const compositeBasis = {
+      usedCohort: true,
+      cohortYears: [2018, 2019, 2021, 2022],
+      cohortCompCount: 4,
+      exactYearCompCount: 1,
+      populationGateApplied: false,
+    };
+    orchestrate.mockResolvedValueOnce({
+      answer: 'The deterministic tool returned a composite estimate.',
+      toolResults: [{
+        name: 'price_coin',
+        result: {
+          result: {
+            valuation: {
+              fmvCore: 500,
+              method: 'raw-blend (composite)',
+              confidence: 30,
+              compCount: 5,
+              lowData: false,
+              dataSource: { label: 'cross-year-composite' },
+              gradePool: { compositeBasis },
+            },
+          },
+        },
+      }],
+      context: [],
+      provider: 'azure-openai',
+    });
+
+    const res = await request(createApp()).post('/api/ai/price').send({
+      query: '2020 Mexican Silver Libertad Proof 5 oz',
+    });
+
+    expect(res.body.provenance.valuation).toEqual({
+      method: 'raw-blend (composite)',
+      confidence: 30,
+      lowData: false,
+      compCount: 5,
+      dataSource: { label: 'cross-year-composite' },
+      compositeBasis,
+      warning: expect.stringMatching(/composite estimate/i),
     });
   });
 
