@@ -84,6 +84,10 @@ server.js                              Express entry point (port 3000)
 │   ├─ optionalAdminContext.js         Non-blocking admin context for audience gating
 │   └─ requireAdminOrKey.js            Admin JWT or ADMIN_API_KEY authorization gate
 │
+├─ src/schemas/
+│   ├─ priceResponse.schema.js         Draft-07 schema for deterministic price responses
+│   └─ aiToolSchemas.js                Exact argument schemas for allowlisted AI tools
+│
 ├─ src/data/
 │   ├─ pcgsNumbers.js                  Static PCGS coin number lookup (10 US series + 7 world bullion: Kookaburra, Krugerrand, Kangaroo, Maple Leaf, Britannia, China Panda, China Lunar)
 │   ├─ keyDates.js                     Key date / semi-key detection tables
