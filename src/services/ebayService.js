@@ -34,7 +34,7 @@ const stats = require('../utils/stats');
 const { isDenied, detectDenomination, hasSeriesConflict, isCompositionMismatch, BULLION_DENY_DENOM_RE, BULLION_OK_RE, ROLL_PATTERN } = require('../utils/filters');
 const terapeakService = require('./terapeakService');
 const { getSpotOnDate, METAL_SYMBOLS } = require('./metalsHistoryService');
-const { detectWeightFromTitle } = require('../utils/coinMetalProfile');
+const { detectWeightFromTitle, detectWeightsFromTitle } = require('../utils/coinMetalProfile');
 const { isReverseProofFinish } = require('../utils/coinIntent');
 const { detectBarBrands, detectSeriesFromTitle } = require('../data/barSeries');
 
@@ -1513,6 +1513,13 @@ function _matchesDesignation(comp, designation) {
   return new RegExp(`\\b${escaped}\\b`, 'i').test(comp.title || '');
 }
 
+function _matchesCompositeWeight(comp, expectedWeight) {
+  return detectWeightsFromTitle(comp.title).every(weight => {
+    const ratio = Math.abs(weight - expectedWeight) / Math.max(weight, expectedWeight);
+    return ratio < 0.05;
+  });
+}
+
 function _buildTerapeakComposite(keywords, expected, opts, directComps, targetPool, tpOpts) {
   const targetYear = _compositeTargetYear(expected.year);
   if (targetYear == null || !(Number(expected.weight) > 0) || directComps.length >= 3) return null;
@@ -1523,10 +1530,11 @@ function _buildTerapeakComposite(keywords, expected, opts, directComps, targetPo
   const cohortData = terapeakService.lookupComps(cohortKeywords, tpOpts);
   if (!cohortData?.comps?.length) return null;
 
-  const bounded = cohortData.comps.filter(comp => {
-    const years = _titleYears(comp.title);
-    return years.some(year => year !== targetYear
-      && Math.abs(year - targetYear) <= COMPOSITE_YEAR_WINDOW);
+  const bounded = cohortData.comps.flatMap(comp => {
+    const qualifyingYears = [...new Set(_titleYears(comp.title).filter(year => year !== targetYear
+      && Math.abs(year - targetYear) <= COMPOSITE_YEAR_WINDOW))];
+    if (qualifyingYears.length !== 1 || !_matchesCompositeWeight(comp, expected.weight)) return [];
+    return [{ ...comp, _compositeCohortYear: qualifyingYears[0] }];
   }).filter(comp => {
     const gradeType = classifyGradeType(comp);
     comp.gradeType = gradeType;
@@ -1551,9 +1559,10 @@ function _buildTerapeakComposite(keywords, expected, opts, directComps, targetPo
   const cohortIds = new Set(kept.map(comp => comp.itemId).filter(Boolean));
   const cohortComps = merged.filter(comp => comp._compositeCohort
     || (comp.itemId && cohortIds.has(comp.itemId)));
-  const cohortYears = [...new Set(cohortComps.flatMap(comp => _titleYears(comp.title)))]
-    .filter(year => year !== targetYear)
+  const cohortYears = [...new Set(cohortComps.map(comp => comp._compositeCohortYear))]
+    .filter(Number.isInteger)
     .sort((a, b) => a - b);
+  for (const comp of cohortComps) delete comp._compositeCohortYear;
 
   return {
     comps: merged,

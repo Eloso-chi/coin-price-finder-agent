@@ -17,7 +17,23 @@
  * are parsed identically to their oz equivalents.
  */
 
-const { detectWeightFromTitle } = require('../src/utils/coinMetalProfile');
+const { detectWeightFromTitle, detectWeightsFromTitle } = require('../src/utils/coinMetalProfile');
+
+describe('detectWeightsFromTitle -- composite weight evidence', () => {
+  test.each([
+    ['5 oz Proof with 1 oz bonus', [5, 1]],
+    ['1 oz and 5 oz Proof set', [1, 5]],
+    ['1/20 Proof and 1/10 UNC set', [0.05, 0.1]],
+    ['1/10 UNC and 1/20 Proof set', [0.1, 0.05]],
+    ['5 oz Proof with 1/5 oz bonus', [5, 0.2]],
+    ['1/25 oz bonus with 5 oz Proof', [0.04, 5]],
+    ['5 oz Proof - 1/2 of two-coin set', [5]],
+    ['1/2 oz PCGS PR 69/70 Proof', [0.5]],
+    ['5 oz NGC PF 69/70 Proof', [5]],
+  ])('%s -> %j', (title, weights) => {
+    expect(detectWeightsFromTitle(title)).toEqual(weights);
+  });
+});
 
 describe('detectWeightFromTitle -- #283W onza / onzas synonym', () => {
   // Fractional onza forms (Casa de Moneda mint packaging)

@@ -258,6 +258,36 @@ function detectWeightFromTitle(title) {
   return null;
 }
 
+function detectWeightsFromTitle(title) {
+  if (!title) return [];
+  const text = String(title).toLowerCase();
+  const weights = [];
+  const addWeight = weight => {
+    if (!Number.isFinite(weight) || weight <= 0 || weight > MAX_PLAUSIBLE_WEIGHT_OZ) return;
+    if (!weights.some(existing => Math.abs(existing - weight) < 0.000001)) weights.push(weight);
+  };
+  const ounceUnit = '(?:troy\\s+)?(?:ounces?(?:\\s+oz)?|ozt?|oz|onzas?)\\b';
+
+  for (const match of text.matchAll(new RegExp(`(?<![/\\d.])\\b(?:(\\d+)\\/(\\d+)|(\\d+(?:\\.\\d+)?))\\s*${ounceUnit}`, 'gi'))) {
+    addWeight(match[1] ? Number(match[1]) / Number(match[2]) : Number(match[3]));
+  }
+  for (const match of text.matchAll(/\b1\/(\d+)\s+(?=(?:proof|unc|bu|silver|gold|platinum|palladium|libertad|eagle|maple|coin|round|bar)\b)/gi)) {
+    addWeight(1 / Number(match[1]));
+  }
+  for (const match of text.matchAll(/\b(\d+(?:\.\d+)?)\s*(?:grams?|g)\b/gi)) {
+    addWeight(Number(match[1]) / 31.1035);
+  }
+  for (const match of text.matchAll(/(?:^|\s)\.(\d+)\s*(?:grams?|g)\b/gi)) {
+    addWeight(Number(`0.${match[1]}`) / 31.1035);
+  }
+  if (/\bhalf\s+gram\b/i.test(text)) addWeight(0.5 / 31.1035);
+  if (/\bquarter\s*(?:troy\s+)?(?:ounce|ozt?|oz|onzas?)\b/i.test(text)) addWeight(0.25);
+  if (/\bhalf\s*(?:troy\s+)?(?:ounce|ozt?|oz|onzas?)\b/i.test(text)) addWeight(0.5);
+  if (/\b(?:1\s*)?kilo(?:gram)?\b/i.test(text)) addWeight(32.1507);
+
+  return weights;
+}
+
 /**
  * Map a numeric weight (troy oz) to the word-form token used in dataset keys.
  * @param {number} weight
@@ -286,6 +316,7 @@ module.exports = {
   classifyComposition,
   classifyGradeCategory,
   detectWeightFromTitle,
+  detectWeightsFromTitle,
   weightToKeyToken,
   BULLION_SERIES,
   SILVER_US_COIN_SERIES,
