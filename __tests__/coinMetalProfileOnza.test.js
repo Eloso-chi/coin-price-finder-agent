@@ -30,6 +30,8 @@ describe('detectWeightsFromTitle -- composite weight evidence', () => {
     ['5 oz Proof - 1/2 of two-coin set', [5]],
     ['1/2 oz PCGS PR 69/70 Proof', [0.5]],
     ['5 oz NGC PF 69/70 Proof', [5]],
+    ['0.5g gold coin', [0.5 / 31.1035]],
+    ['.5g gold coin', [0.5 / 31.1035]],
   ])('%s -> %j', (title, weights) => {
     expect(detectWeightsFromTitle(title)).toEqual(weights);
   });

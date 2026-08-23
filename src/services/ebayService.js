@@ -1514,7 +1514,8 @@ function _matchesDesignation(comp, designation) {
 }
 
 function _matchesCompositeWeight(comp, expectedWeight) {
-  return detectWeightsFromTitle(comp.title).every(weight => {
+  const weights = detectWeightsFromTitle(comp.title);
+  return weights.length > 0 && weights.every(weight => {
     const ratio = Math.abs(weight - expectedWeight) / Math.max(weight, expectedWeight);
     return ratio < 0.05;
   });
@@ -1522,7 +1523,14 @@ function _matchesCompositeWeight(comp, expectedWeight) {
 
 function _buildTerapeakComposite(keywords, expected, opts, directComps, targetPool, tpOpts) {
   const targetYear = _compositeTargetYear(expected.year);
-  if (targetYear == null || !(Number(expected.weight) > 0) || directComps.length >= 3) return null;
+  if (targetYear == null || !(Number(expected.weight) > 0)) return null;
+
+  const eligibleDirectComps = directComps.filter(comp => {
+    const years = [...new Set(_titleYears(comp.title))];
+    return years.length === 1 && years[0] === targetYear
+      && _matchesCompositeWeight(comp, expected.weight);
+  });
+  if (eligibleDirectComps.length >= 3) return null;
 
   const cohortKeywords = _cohortKeywords(keywords, targetYear);
   if (!cohortKeywords || cohortKeywords === keywords) return null;
@@ -1531,10 +1539,12 @@ function _buildTerapeakComposite(keywords, expected, opts, directComps, targetPo
   if (!cohortData?.comps?.length) return null;
 
   const bounded = cohortData.comps.flatMap(comp => {
-    const qualifyingYears = [...new Set(_titleYears(comp.title).filter(year => year !== targetYear
-      && Math.abs(year - targetYear) <= COMPOSITE_YEAR_WINDOW))];
-    if (qualifyingYears.length !== 1 || !_matchesCompositeWeight(comp, expected.weight)) return [];
-    return [{ ...comp, _compositeCohortYear: qualifyingYears[0] }];
+    const years = [...new Set(_titleYears(comp.title))];
+    const cohortYear = years[0];
+    if (years.length !== 1 || cohortYear === targetYear
+      || Math.abs(cohortYear - targetYear) > COMPOSITE_YEAR_WINDOW
+      || !_matchesCompositeWeight(comp, expected.weight)) return [];
+    return [{ ...comp, _compositeCohortYear: cohortYear }];
   }).filter(comp => {
     const gradeType = classifyGradeType(comp);
     comp.gradeType = gradeType;
@@ -1551,7 +1561,7 @@ function _buildTerapeakComposite(keywords, expected, opts, directComps, targetPo
   }
 
   const merged = dedup([
-    ...directComps,
+    ...eligibleDirectComps,
     ...kept.map(comp => ({ ...comp, _compositeCohort: true })),
   ]);
   if (merged.length < COMPOSITE_MIN_COMPS) return null;
@@ -1570,7 +1580,7 @@ function _buildTerapeakComposite(keywords, expected, opts, directComps, targetPo
       usedCohort: true,
       cohortYears,
       cohortCompCount: cohortComps.length,
-      exactYearCompCount: directComps.length,
+      exactYearCompCount: eligibleDirectComps.length,
       populationGateApplied: false,
     },
   };
