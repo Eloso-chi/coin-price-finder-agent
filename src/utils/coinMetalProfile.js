@@ -274,7 +274,10 @@ function detectWeightsFromTitle(title) {
   for (const match of text.matchAll(/\b1\/(\d+)\s+(?=(?:proof|unc|bu|silver|gold|platinum|palladium|libertad|eagle|maple|coin|round|bar)\b)/gi)) {
     addWeight(1 / Number(match[1]));
   }
-  for (const match of text.matchAll(/(?<!\.)\b(\d+(?:\.\d+)?)\s*(?:grams?|g)\b/gi)) {
+  for (const match of text.matchAll(/\b(\d+)\/(\d+)\s*(?:grams?|g)\b/gi)) {
+    addWeight(Number(match[1]) / Number(match[2]) / 31.1035);
+  }
+  for (const match of text.matchAll(/(?<![./])\b(\d+(?:\.\d+)?)\s*(?:grams?|g)\b/gi)) {
     addWeight(Number(match[1]) / 31.1035);
   }
   for (const match of text.matchAll(/(?:^|\s)\.(\d+)\s*(?:grams?|g)\b/gi)) {

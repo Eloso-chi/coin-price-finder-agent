@@ -1528,7 +1528,8 @@ function _buildTerapeakComposite(keywords, expected, opts, directComps, targetPo
   const eligibleDirectComps = directComps.filter(comp => {
     const years = [...new Set(_titleYears(comp.title))];
     return years.length === 1 && years[0] === targetYear
-      && _matchesCompositeWeight(comp, expected.weight);
+      && _matchesCompositeWeight(comp, expected.weight)
+      && _matchesDesignation(comp, expected.designation);
   });
   if (eligibleDirectComps.length >= 3) return null;
 

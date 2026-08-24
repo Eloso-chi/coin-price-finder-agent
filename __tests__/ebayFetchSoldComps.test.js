@@ -1087,6 +1087,36 @@ describe('fetchSoldComps -- type-cohort composite (#300H)', () => {
     expect(result.us.comps).toHaveLength(1);
     expect(result.us.comps[0].title).toMatch(/DCAM/);
   });
+
+  test('excludes direct-year comps with the wrong designation from a composite', async () => {
+    terapeakService.lookupComps.mockImplementation(query => query.includes('2020')
+      ? { searchTerm: '2020 Mexico Libertad 5 oz Proof DCAM', comps: [
+        { ...exact, title: '2020 Mexico Libertad 5 oz Proof DCAM' },
+        { ...exact, itemId: 'wrong-designation', title: '2020 Mexico Libertad 5 oz Proof' },
+      ] }
+      : {
+        searchTerm: 'Mexico Libertad 5 oz Proof DCAM',
+        comps: [
+          cohortComp(2017, 'c1', { title: '2017 Mexico Libertad 5 oz Proof DCAM' }),
+          cohortComp(2018, 'c2', { title: '2018 Mexico Libertad 5 oz Proof DCAM' }),
+          cohortComp(2019, 'c3', { title: '2019 Mexico Libertad 5 oz Proof DCAM' }),
+          cohortComp(2021, 'c4', { title: '2021 Mexico Libertad 5 oz Proof DCAM' }),
+        ],
+      });
+
+    const result = await ebayService.fetchSoldComps('2020 Mexico Libertad 5 oz Proof DCAM', {
+      usMinComps: 3,
+    }, {
+      year: 2020, series: 'Mexico Libertad', weight: 5, metal: 'silver',
+      isProof: true, finish: 'Proof', designation: 'DCAM',
+      _rawQuery: '2020 Mexico Libertad 5 oz Proof DCAM',
+    });
+
+    expect(result.us.comps).toHaveLength(5);
+    expect(result.us.comps.map(comp => comp.itemId)).not.toContain('wrong-designation');
+    expect(result.us.comps.every(comp => /\bDCAM\b/i.test(comp.title))).toBe(true);
+    expect(result.compositeBasis).toMatchObject({ exactYearCompCount: 1, cohortCompCount: 4 });
+  });
 });
 
 // ═════════════════════════════════════════════════════════════

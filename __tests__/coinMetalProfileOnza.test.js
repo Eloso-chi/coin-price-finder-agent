@@ -32,6 +32,8 @@ describe('detectWeightsFromTitle -- composite weight evidence', () => {
     ['5 oz NGC PF 69/70 Proof', [5]],
     ['0.5g gold coin', [0.5 / 31.1035]],
     ['.5g gold coin', [0.5 / 31.1035]],
+    ['1/2 gram gold coin', [0.5 / 31.1035]],
+    ['1/4g gold coin', [0.25 / 31.1035]],
   ])('%s -> %j', (title, weights) => {
     expect(detectWeightsFromTitle(title)).toEqual(weights);
   });
