@@ -34,7 +34,7 @@ const stats = require('../utils/stats');
 const { isDenied, detectDenomination, hasSeriesConflict, isCompositionMismatch, BULLION_DENY_DENOM_RE, BULLION_OK_RE, ROLL_PATTERN } = require('../utils/filters');
 const terapeakService = require('./terapeakService');
 const { getSpotOnDate, METAL_SYMBOLS } = require('./metalsHistoryService');
-const { detectWeightFromTitle } = require('../utils/coinMetalProfile');
+const { detectWeightFromTitle, detectWeightsFromTitle } = require('../utils/coinMetalProfile');
 const { isReverseProofFinish } = require('../utils/coinIntent');
 const { detectBarBrands, detectSeriesFromTitle } = require('../data/barSeries');
 
@@ -1513,9 +1513,25 @@ function _matchesDesignation(comp, designation) {
   return new RegExp(`\\b${escaped}\\b`, 'i').test(comp.title || '');
 }
 
+function _matchesCompositeWeight(comp, expectedWeight) {
+  const weights = detectWeightsFromTitle(comp.title);
+  return weights.length > 0 && weights.every(weight => {
+    const ratio = Math.abs(weight - expectedWeight) / Math.max(weight, expectedWeight);
+    return ratio < 0.05;
+  });
+}
+
 function _buildTerapeakComposite(keywords, expected, opts, directComps, targetPool, tpOpts) {
   const targetYear = _compositeTargetYear(expected.year);
-  if (targetYear == null || !(Number(expected.weight) > 0) || directComps.length >= 3) return null;
+  if (targetYear == null || !(Number(expected.weight) > 0)) return null;
+
+  const eligibleDirectComps = directComps.filter(comp => {
+    const years = [...new Set(_titleYears(comp.title))];
+    return years.length === 1 && years[0] === targetYear
+      && _matchesCompositeWeight(comp, expected.weight)
+      && _matchesDesignation(comp, expected.designation);
+  });
+  if (eligibleDirectComps.length >= 3) return null;
 
   const cohortKeywords = _cohortKeywords(keywords, targetYear);
   if (!cohortKeywords || cohortKeywords === keywords) return null;
@@ -1523,10 +1539,13 @@ function _buildTerapeakComposite(keywords, expected, opts, directComps, targetPo
   const cohortData = terapeakService.lookupComps(cohortKeywords, tpOpts);
   if (!cohortData?.comps?.length) return null;
 
-  const bounded = cohortData.comps.filter(comp => {
-    const years = _titleYears(comp.title);
-    return years.some(year => year !== targetYear
-      && Math.abs(year - targetYear) <= COMPOSITE_YEAR_WINDOW);
+  const bounded = cohortData.comps.flatMap(comp => {
+    const years = [...new Set(_titleYears(comp.title))];
+    const cohortYear = years[0];
+    if (years.length !== 1 || cohortYear === targetYear
+      || Math.abs(cohortYear - targetYear) > COMPOSITE_YEAR_WINDOW
+      || !_matchesCompositeWeight(comp, expected.weight)) return [];
+    return [{ ...comp, _compositeCohortYear: cohortYear }];
   }).filter(comp => {
     const gradeType = classifyGradeType(comp);
     comp.gradeType = gradeType;
@@ -1543,7 +1562,7 @@ function _buildTerapeakComposite(keywords, expected, opts, directComps, targetPo
   }
 
   const merged = dedup([
-    ...directComps,
+    ...eligibleDirectComps,
     ...kept.map(comp => ({ ...comp, _compositeCohort: true })),
   ]);
   if (merged.length < COMPOSITE_MIN_COMPS) return null;
@@ -1551,9 +1570,10 @@ function _buildTerapeakComposite(keywords, expected, opts, directComps, targetPo
   const cohortIds = new Set(kept.map(comp => comp.itemId).filter(Boolean));
   const cohortComps = merged.filter(comp => comp._compositeCohort
     || (comp.itemId && cohortIds.has(comp.itemId)));
-  const cohortYears = [...new Set(cohortComps.flatMap(comp => _titleYears(comp.title)))]
-    .filter(year => year !== targetYear)
+  const cohortYears = [...new Set(cohortComps.map(comp => comp._compositeCohortYear))]
+    .filter(Number.isInteger)
     .sort((a, b) => a - b);
+  for (const comp of cohortComps) delete comp._compositeCohortYear;
 
   return {
     comps: merged,
@@ -1561,7 +1581,7 @@ function _buildTerapeakComposite(keywords, expected, opts, directComps, targetPo
       usedCohort: true,
       cohortYears,
       cohortCompCount: cohortComps.length,
-      exactYearCompCount: directComps.length,
+      exactYearCompCount: eligibleDirectComps.length,
       populationGateApplied: false,
     },
   };

@@ -877,10 +877,17 @@ describe('fetchSoldComps -- type-cohort composite (#300H)', () => {
         searchTerm: 'Mexico Libertad 5 oz Proof',
         comps: [
           cohortComp(2017, 'c1'), cohortComp(2018, 'c2'),
-          cohortComp(2019, 'c3'), cohortComp(2021, 'c4'),
+          cohortComp(2019, 'c3'),
+          cohortComp(2021, 'c4'),
+          cohortComp(2021, 'outside-plus-cohort', { title: '2011 2021 Mexico Libertad 5 oz Proof' }),
+          cohortComp(2021, 'target-plus-cohort', { title: '2020 2021 Mexico Libertad 5 oz Proof set' }),
           cohortComp(2024, 'outside'),
           cohortComp(2022, 'raw', { title: '2022 Mexico Libertad 5 oz BU' }),
           cohortComp(2023, 'wrong-weight', { title: '2023 Mexico Libertad 1 oz Proof' }),
+          cohortComp(2021, 'mixed-weight-first', { title: '2021 Mexico Libertad 5 oz Proof with 1 oz bonus' }),
+          cohortComp(2021, 'mixed-weight-last', { title: '2021 Mexico Libertad 1 oz and 5 oz Proof set' }),
+          cohortComp(2021, 'bare-fractions-first', { title: '2021 Mexico Libertad 1/20 Proof and 1/10 UNC set' }),
+          cohortComp(2021, 'bare-fractions-last', { title: '2021 Mexico Libertad 1/10 UNC and 1/20 Proof set' }),
         ],
       });
 
@@ -898,13 +905,51 @@ describe('fetchSoldComps -- type-cohort composite (#300H)', () => {
 
     expect(result.us.comps).toHaveLength(5);
     expect(result.us.comps.every(comp => comp.gradeType === 'proof')).toBe(true);
+    expect(result.us.comps.every(comp => !Object.hasOwn(comp, '_compositeCohortYear'))).toBe(true);
     expect(result.us.comps.some(comp => /1 oz/.test(comp.title))).toBe(false);
+    expect(result.us.comps.some(comp => /1\/20|1\/10/.test(comp.title))).toBe(false);
     expect(result.compositeBasis).toEqual({
       usedCohort: true,
       cohortYears: [2017, 2018, 2019, 2021],
       cohortCompCount: 4,
       exactYearCompCount: 1,
       populationGateApplied: false,
+    });
+  });
+
+  test('excludes ineligible direct-year rows before building a composite', async () => {
+    terapeakService.lookupComps.mockImplementation(query => query.includes('2020')
+      ? {
+        searchTerm: '2020 Mexico Libertad 5 oz Proof',
+        comps: [
+          exact,
+          { ...exact, itemId: 'mixed-weight', title: '2020 Mexico Libertad 5 oz Proof with 1 oz bonus' },
+          { ...exact, itemId: 'mixed-year', title: '2019 2020 Mexico Libertad 5 oz Proof set' },
+          { ...exact, itemId: 'unknown-weight', title: '2020 Mexico Libertad Proof' },
+        ],
+      }
+      : {
+        searchTerm: 'Mexico Libertad 5 oz Proof',
+        comps: [
+          cohortComp(2017, 'c1'), cohortComp(2018, 'c2'),
+          cohortComp(2019, 'c3'), cohortComp(2021, 'c4'),
+        ],
+      });
+
+    const result = await ebayService.fetchSoldComps('2020 Mexico Libertad 5 oz Proof', {
+      usMinComps: 3,
+    }, {
+      year: 2020, series: 'Mexico Libertad', weight: 5, metal: 'silver',
+      isProof: true, finish: 'Proof', _rawQuery: '2020 Mexico Libertad 5 oz Proof',
+    });
+
+    expect(result.us.comps).toHaveLength(5);
+    expect(result.us.comps.map(comp => comp.itemId)).not.toEqual(
+      expect.arrayContaining(['mixed-weight', 'mixed-year', 'unknown-weight'])
+    );
+    expect(result.compositeBasis).toMatchObject({
+      exactYearCompCount: 1,
+      cohortCompCount: 4,
     });
   });
 
@@ -926,6 +971,32 @@ describe('fetchSoldComps -- type-cohort composite (#300H)', () => {
       isProof: true,
       finish: 'Proof',
       _rawQuery: '2020 Mexico Libertad 5 oz Proof',
+    });
+
+    expect(result.compositeBasis).toBeUndefined();
+    expect(result.us.comps).toHaveLength(1);
+  });
+
+  test('does not count mixed-weight listings toward the five-comp minimum', async () => {
+    terapeakService.lookupComps.mockImplementation(query => query.includes('2020')
+      ? { searchTerm: '2020 Mexico Libertad 5 oz Proof', comps: [exact] }
+      : {
+        searchTerm: 'Mexico Libertad 5 oz Proof',
+        comps: [
+          cohortComp(2018, 'c1'),
+          cohortComp(2019, 'c2'),
+          cohortComp(2021, 'c4'),
+          cohortComp(2021, 'outside-plus-cohort', { title: '2011 2021 Mexico Libertad 5 oz Proof' }),
+          cohortComp(2021, 'target-plus-cohort', { title: '2020 2021 Mexico Libertad 5 oz Proof set' }),
+          cohortComp(2022, 'mixed-fractions', { title: '2022 Mexico Libertad 1/20 Proof and 1/10 UNC set' }),
+        ],
+      });
+
+    const result = await ebayService.fetchSoldComps('2020 Mexico Libertad 5 oz Proof', {
+      usMinComps: 3,
+    }, {
+      year: 2020, series: 'Mexico Libertad', weight: 5, metal: 'silver',
+      isProof: true, finish: 'Proof', _rawQuery: '2020 Mexico Libertad 5 oz Proof',
     });
 
     expect(result.compositeBasis).toBeUndefined();
@@ -1015,6 +1086,36 @@ describe('fetchSoldComps -- type-cohort composite (#300H)', () => {
     expect(result).not.toHaveProperty('compositeBasis');
     expect(result.us.comps).toHaveLength(1);
     expect(result.us.comps[0].title).toMatch(/DCAM/);
+  });
+
+  test('excludes direct-year comps with the wrong designation from a composite', async () => {
+    terapeakService.lookupComps.mockImplementation(query => query.includes('2020')
+      ? { searchTerm: '2020 Mexico Libertad 5 oz Proof DCAM', comps: [
+        { ...exact, title: '2020 Mexico Libertad 5 oz Proof DCAM' },
+        { ...exact, itemId: 'wrong-designation', title: '2020 Mexico Libertad 5 oz Proof' },
+      ] }
+      : {
+        searchTerm: 'Mexico Libertad 5 oz Proof DCAM',
+        comps: [
+          cohortComp(2017, 'c1', { title: '2017 Mexico Libertad 5 oz Proof DCAM' }),
+          cohortComp(2018, 'c2', { title: '2018 Mexico Libertad 5 oz Proof DCAM' }),
+          cohortComp(2019, 'c3', { title: '2019 Mexico Libertad 5 oz Proof DCAM' }),
+          cohortComp(2021, 'c4', { title: '2021 Mexico Libertad 5 oz Proof DCAM' }),
+        ],
+      });
+
+    const result = await ebayService.fetchSoldComps('2020 Mexico Libertad 5 oz Proof DCAM', {
+      usMinComps: 3,
+    }, {
+      year: 2020, series: 'Mexico Libertad', weight: 5, metal: 'silver',
+      isProof: true, finish: 'Proof', designation: 'DCAM',
+      _rawQuery: '2020 Mexico Libertad 5 oz Proof DCAM',
+    });
+
+    expect(result.us.comps).toHaveLength(5);
+    expect(result.us.comps.map(comp => comp.itemId)).not.toContain('wrong-designation');
+    expect(result.us.comps.every(comp => /\bDCAM\b/i.test(comp.title))).toBe(true);
+    expect(result.compositeBasis).toMatchObject({ exactYearCompCount: 1, cohortCompCount: 4 });
   });
 });
 
