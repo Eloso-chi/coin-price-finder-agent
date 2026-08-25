@@ -1094,6 +1094,52 @@ Verified:
 
 ---
 
+### #302H. Canonical, versioned product identity across pricing and Terapeak pipelines [P2 -- CORRECTNESS / PRICING-ARCHITECTURE] -- PROPOSED 2026-08-23
+
+**Origin:** Follow-up to the expanded Pricing Health audit of #300H on 2026-08-22. Thin-market 5 oz Proof Libertad cohorts exposed mixed-weight titles whose first detectable weight could be treated as the listing's single product identity. A subsequent read-only architecture and numismatic review found the same scalar-first parsing assumption at import, lookup, scoring, filtering, cohort, and route boundaries.
+
+**Problem:** Product identity is currently reconstructed independently from lossy text in multiple parts of the pipeline. `detectWeightFromTitle()` and `detectWeightFromQuery()` return one scalar, generally the first matching weight, so a multi-product or mixed-weight title such as `1/20 oz Proof and 1/10 oz UNC` can acquire a false single-weight identity. Route-specific parsing and expected-object construction can also drift before requests reach the shared pricing service. A composite-only weight regex would contain the known #300H symptom but leave direct comps, Terapeak import rerouting, fuzzy lookup, future recovery paths, and cross-route parity exposed to the same defect class.
+
+**Proposed approach -- canonical product identity:**
+1. Introduce one shared, versioned identity resolver for query intent and comp evidence. Its structured result should cover at least series, year, mint, metal, nominal weight, weight evidence/provenance, finish, designation, and target raw/graded/proof/reverse-proof pool, plus `parserVersion` and an explicit ambiguity state.
+2. Replace scalar-only internal weight parsing with evidence such as `{ status: 'none' | 'single' | 'ambiguous', valuesOz, mentions }`. Preserve `detectWeightFromTitle()` temporarily as a compatibility wrapper that returns a scalar only for unambiguous evidence, allowing a staged migration without a flag-day rewrite.
+3. Resolve expected identity once at the shared deterministic pricing boundary and pass it unchanged through Price Discovery, pricing batch, bulk evaluation, and deterministic AI delegation. Structured request fields outrank unambiguous query evidence; conflicting structured/text evidence must fail validation rather than silently selecting one value. The existing 1 oz default may apply only when evidence is absent, never when it is ambiguous.
+4. Treat product-identity dimensions as invariants during comp acquisition and recovery. Fuzzy dataset lookup may find candidates, but weight, metal, finish, designation, and pool must be verified before valuation. Type-cohort expansion may relax year only; it must not infer permission to relax any other identity dimension.
+5. Persist parsed comp identity, evidence provenance, and parser version at the Terapeak boundary. Import may reroute only a uniquely identified wrong-dataset row. Ambiguous multi-product rows must be quarantined or excluded, never routed according to the first match or duplicated into every mentioned weight.
+6. Make composite provenance derive from the qualifying structured year attached to each accepted comp, not every year token in its title. Include target identity, parser version, source dataset keys, eligible counts, and identity-rejection counts in internal/admin observability while preserving the existing public redaction contract.
+7. Keep the mandatory pool-isolation gate unchanged throughout rollout. Canonical identity must consume the governing classification decisions; it must not merge or weaken raw, graded, standard-proof, reverse-proof, specialty-finish, or designation boundaries.
+
+**Weight-evidence policy:**
+- One explicit compatible weight: eligible, subject to the other identity filters.
+- Multiple distinct explicit weights: ambiguous; reject from FMV and quarantine at import.
+- No explicit weight: retain the existing benefit-of-doubt and melt-sanity behavior with lower evidence confidence; do not require SEO-style weight text from every legitimate listing.
+- Nominal equivalents such as 30 g Silver Panda versus 1 oz intent must continue using the documented tolerance/equivalence rules rather than exact floating-point equality.
+
+**Migration / rollout:**
+1. Add the versioned resolver and contract/property tests while compatibility wrappers preserve existing callers.
+2. Instrument shadow comparison between legacy scalar parsing and canonical evidence; publish counts for `weightMismatch`, `weightAmbiguous`, `weightMissing`, and structured/text conflicts before changing valuation behavior broadly.
+3. Move shared comp filtering and composite construction to canonical evidence, retaining a defense-in-depth ambiguity rejection at the cohort boundary.
+4. Move Terapeak import/reclassification and fuzzy candidate verification to the same resolver.
+5. Extend `scripts/reclassify-comps.js` with an idempotent dry-run that classifies stored rows as `valid`, `wrong_dataset`, `ambiguous`, or `unknown`; emit a before/after manifest and rollback export. Apply migration only after explicit operational approval, then recompute dataset metadata and invalidate affected pricing caches.
+6. Remove compatibility parsers only after route parity, stored-data migration, Pricing Health, and rollback acceptance pass.
+
+**Acceptance criteria:**
+- One shared resolver produces the same canonical expected identity for equivalent Price Discovery, pricing-batch, bulk-evaluate, and deterministic AI inputs; route handlers no longer independently reinterpret identity fields.
+- Order-independent mixed-title tests prove `1/20 + 1/10`, reversed `1/10 + 1/20`, `1 oz + 5 oz`, and reversed `5 oz + 1 oz` are ambiguous and cannot survive direct, yearless-merge, live-eBay, or composite valuation paths.
+- Import tests prove ambiguous rows are quarantined rather than rerouted or duplicated; uniquely identified wrong-dataset rows still reroute correctly.
+- Composite tests prove year is the only relaxed dimension and `cohortYears` contains only the qualifying structured years within the configured window.
+- Existing 30 g Panda tolerance, gram/kilo bars, Spanish `onza` forms, raw/graded/proof/reverse-proof isolation, specialty-finish isolation, designation filtering, and no-explicit-weight benefit-of-doubt behavior remain covered and unchanged unless separately approved.
+- The migration supports dry-run, is idempotent, reports deterministic before/after counts without exposing seller PII, and has a tested rollback artifact before any local, Cosmos, or Blob-backed store is changed.
+- Focused tests, full `npm test`, cross-route consistency tests, Pricing Health with thin/deep and mixed-weight controls, and `@numismatic-audit` pass. Mapped architecture, API/data-contract, decision-engine, data-dictionary, and operations documentation is updated; Onboard acceptance reports no delta-scoped actionable gaps.
+
+**Files (anticipated):** new shared identity/evidence module under `src/utils/` or `src/services/`; `src/utils/coinMetalProfile.js`; `src/services/pricingService.js`; `src/services/ebayService.js`; `src/services/terapeakService.js`; pricing route/bulk consumers only as needed to remove duplicate parsing; `scripts/reclassify-comps.js`; focused parser/import/filter/composite/cross-route tests; mapped architecture, API, data-contract, decision-engine, data-dictionary, and migration/runbook documentation.
+
+**Out of scope:** Immediate containment for the currently observed #300H mixed-weight cohort defect; changing FMV blend math or confidence formulas; requiring explicit weight text on every listing; weakening pool isolation; applying a production data migration in the implementation PR without a reviewed dry-run and explicit operational approval.
+
+**Related:** #300H (composite path that exposed the defect class), #261W (fractional-weight collision and melt-sanity precedent), #283W (shared title-weight parsing and import-rerouting precedent), #284W (production reclassification precedent), #287W (valuation/config versioning), #292H (shared deterministic pricing boundary).
+
+---
+
 ### #301H. New operator run type: max batch size 20, same P0.1 rules, P0/P1-only backfill when P0.1 backlog is empty [P3 -- OPERATIONS / TOOLING] -- PROPOSED 2026-08-20
 
 **Origin:** User request 2026-08-20 for a smaller, discoverable operator run preset (max batch 20) that reuses the existing P0.1 fixed-slice + non-P0.1 backfill pattern already used by the larger default mixed-mode runs.
