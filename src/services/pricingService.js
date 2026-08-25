@@ -19,11 +19,24 @@ const { lookupMintage } = require('../data/mintages');
 const { buildLunarComparison } = require('../data/lunarReference');
 const { resolveCoinVariant } = require('../data/halfDollarSeries');
 const { zodiacForYear, perthLunarSeries, getRollQuantity, ALLOWED_LABELS, BULLION_1OZ_DEFAULT } = require('../data/constants');
-const { validateSeriesIntegrity, validateNumericSanity } = require('../utils/responseValidator');
 const { hasSeriesConflict, detectDenomination } = require('../utils/filters');
 const { getCoinMetalProfile } = require('../utils/coinMetalProfile');
 const { extractCoinIntent } = require('../utils/coinIntent');
 const stats = require('../utils/stats');
+
+const SEMI250_DENOM_MAP = {
+  'semiquincentennial half dollar': 'Kennedy Half Dollar',
+  'semiquincentennial clad half': 'Kennedy Half Dollar',
+  'semiquincentennial quarter': 'Washington Quarter',
+  'semiquincentennial dime': 'Roosevelt Dime',
+  'semiquincentennial nickel': 'Jefferson Nickel',
+  'semiquincentennial cent': 'Lincoln Cent',
+};
+
+function resolveSemi250Series(series) {
+  if (!series) return null;
+  return SEMI250_DENOM_MAP[String(series).toLowerCase().trim()] || null;
+}
 
 /**
  * Deterministic shared pricing boundary.
@@ -177,6 +190,17 @@ async function priceCoin(input, trustedContext = {}) {
     ebayKeywords = ebayService.buildKeywords(pcgs, String(query), resolvedWeight, validLabel);
   }
 
+  const parsedSeries = identification.parsed?.series || pcgs.series || '';
+  const semi250Canonical = resolveSemi250Series(parsedSeries);
+  const isSemi250 = !!(semi250Canonical || /semiquincentennial|250th\s*anniversary/i.test(String(query)));
+  if (semi250Canonical) {
+    const year = pcgs.year || identification.parsed?.year || 2026;
+    const mint = pcgs.mint || identification.parsed?.mint || '';
+    ebayKeywords = `${year}${mint ? '-' + mint : ''} ${semi250Canonical} Semiquincentennial`.trim();
+  } else if (isSemi250 && !ebayKeywords.toLowerCase().includes('semiquincentennial')) {
+    ebayKeywords += ' Semiquincentennial';
+  }
+
   // Append variant suffix if applicable
   if (variantSuffix && !ebayKeywords.toLowerCase().includes(variantSuffix)) {
     ebayKeywords += ' ' + variantSuffix;
@@ -187,7 +211,8 @@ async function priceCoin(input, trustedContext = {}) {
   const rawQueryLower = String(query).toLowerCase();
   const coinYear = coinData?.year || pcgs.year || identification.parsed?.year;
   const hasLunarKeyword = /\blunar\b/i.test(coinName) || /\blunar\b/i.test(rawQueryLower);
-  const hasZodiacPattern = /\byear\s+of\s+the\s+(rat|ox|tiger|rabbit|dragon|snake|horse|goat|monkey|rooster|dog|pig)\b/i.test(rawQueryLower);
+  const hasZodiacPattern = /\byear\s+of\s+the\s+(rat|ox|tiger|rabbit|dragon|snake|horse|goat|monkey|rooster|dog|pig)\b/i.test(coinName)
+    || /\byear\s+of\s+the\s+(rat|ox|tiger|rabbit|dragon|snake|horse|goat|monkey|rooster|dog|pig)\b/i.test(rawQueryLower);
   const isLunarCoin = hasLunarKeyword || hasZodiacPattern;
   const hasPerthContext = /\bperth\b/i.test(coinName) || /\bperth\b/i.test(rawQueryLower);
   const hasAustralianContext = /\baustralian?\b/i.test(coinName) || /\baustralian?\b/i.test(rawQueryLower);
@@ -293,16 +318,27 @@ async function priceCoin(input, trustedContext = {}) {
   const ebay = await ebayService.fetchSoldComps(ebayKeywords, opts, expected);
 
   // ── 8. Key date detection ──
-  let keyDateInfo = lookupKeyDate(
-    coinData?.name || pcgs.series || identification.parsed?.series || '',
-    coinData?.year || pcgs.year || identification.parsed?.year,
-    coinData?.mintMark || pcgs.mint || identification.parsed?.mint || ''
-  );
+  const rawKeyDateSeries = coinData?.name || pcgs.series || identification.parsed?.series || '';
+  const keyDateSeries = semi250Canonical || rawKeyDateSeries;
+  const keyDateYear = coinData?.year || pcgs.year || identification.parsed?.year;
+  const keyDateMint = coinData?.mintMark || pcgs.mint || identification.parsed?.mint || '';
+  let keyDateInfo = lookupKeyDate(keyDateSeries, keyDateYear, keyDateMint);
+  if (!keyDateInfo.isKeyDate && rawKeyDateSeries !== keyDateSeries) {
+    keyDateInfo = lookupKeyDate(rawKeyDateSeries, keyDateYear, keyDateMint);
+  }
+  if (!keyDateInfo.isKeyDate && isSemi250) {
+    keyDateInfo = {
+      isKeyDate: true,
+      tier: 'semi-key',
+      note: '2026 Semiquincentennial (250th Anniversary) — one-year-only special design'
+    };
+  }
 
   // ── 9. Valuation ──
   let userGrade = (isSet || isRoll) ? null : (coinData?.grade || identification.parsed?.grade || null);
 
-  const isBullion = BULLION_1OZ_DEFAULT.some(b => seriesForBullionCheck.includes(b));
+  const valuationBullionSeries = (identification.parsed?.series || pcgs.series || '').toLowerCase();
+  const isBullion = BULLION_1OZ_DEFAULT.some(b => valuationBullionSeries.includes(b));
   if (isBullion && userGrade && identification.parsed?._gradeSource === 'bu-term') {
     userGrade = null;
   }
@@ -372,11 +408,17 @@ async function priceCoin(input, trustedContext = {}) {
     pcgs._seriesConflictOverride = true;
     valuation.explanation.push(`⚠ PCGS series conflict detected (resolved "${pcgsSeries}" vs query "${querySeries}") — PCGS data excluded.`);
   }
+  const queryDenom = detectDenomination(querySeries);
+  const pcgsDenom = detectDenomination(pcgsSeries);
+  if (queryDenom && pcgsDenom && queryDenom !== pcgsDenom) {
+    console.warn(`[guardrail] Denomination conflict: query="${queryDenom}" vs pcgs="${pcgsDenom}"`);
+    valuation.explanation.push(`⚠ Denomination mismatch detected (query="${queryDenom}" vs pcgs="${pcgsDenom}").`);
+  }
 
   // ── 11. Numista lookup (non-blocking) ──
-  let numista = null;
+  let numista;
   if (isSet) {
-    numista = { accessible: true, type: null, issue: null, rarity: null, numistaUrl: null, prices: null, composition: null, references: null, limitations: ['Numista lookup skipped for mint/proof sets'] };
+    numista = { accessible: true, type: null, issue: null, rarity: null, numistaUrl: null, prices: null, composition: null, references: null, limitations: ['Numista lookup skipped for mint/proof sets (sets are not individual coin types)'] };
   } else if (isRoll) {
     numista = { accessible: true, type: null, issue: null, rarity: null, numistaUrl: null, prices: null, composition: null, references: null, limitations: ['Numista lookup skipped for roll searches'] };
   } else {
@@ -400,7 +442,7 @@ async function priceCoin(input, trustedContext = {}) {
   }
 
   // ── 12. Mintage lookup ──
-  let mintSeries = coinData?.name || pcgs.series || identification.parsed?.series || '';
+  let mintSeries = semi250Canonical || coinData?.name || pcgs.series || identification.parsed?.series || '';
   const mintYear = coinData?.year || pcgs.year || identification.parsed?.year;
   let mintMark = coinData?.mintMark || pcgs.mint || identification.parsed?.mint || '';
 
@@ -482,7 +524,7 @@ async function priceCoin(input, trustedContext = {}) {
   // ── 16. Coin variant (Half Dollar, etc.) ──
   let coinVariant = null;
   {
-    const denomName = coinData?.name || pcgs.series || identification.parsed?.series || '';
+    const denomName = semi250Canonical || coinData?.name || pcgs.series || identification.parsed?.series || '';
     const denomYear = coinData?.year || pcgs.year || identification.parsed?.year;
     if (/half\s*dollar|kennedy|franklin|walking\s*liberty|barber\s*half|seated.*half|capped.*half|draped.*half|flowing.*half/i.test(denomName)) {
       coinVariant = resolveCoinVariant('Half Dollar', denomYear);

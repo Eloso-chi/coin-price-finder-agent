@@ -25,7 +25,7 @@ public/
   js/test-my-coins.js      Browser-only My Coins regression helper
 src/
   routes/                  18 Express route modules
-  services/                28 service modules
+  services/                28 service modules, including `pricingService.priceCoin()` as the shared deterministic pricing boundary
   utils/                   14 shared utility modules
   middleware/              4 request/auth/logging middleware modules
   schemas/                 Price response and AI tool argument schemas
@@ -59,7 +59,7 @@ __tests__/                 174 current *.test.js files recursively plus fixtures
 ## API Routes
 | Route | Method | Auth | Purpose |
 |-------|--------|------|---------|
-| /api/price | POST | -- | Full coin pricing (PCGS + eBay + valuation) |
+| /api/price | POST | -- | HTTP validation/audit/redaction adapter over `pricingService.priceCoin()` |
 | /api/bar-price | POST | -- | Bullion bar pricing |
 | /api/pricing-batch | POST | -- | Batch pricing (<=25 coins, lightweight) |
 | /api/bulk-evaluate | POST+GET+SSE | -- | Lot evaluator (50-500 coins, SSE streaming) |

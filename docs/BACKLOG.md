@@ -2682,23 +2682,22 @@ Ops can override to any value (e.g., `BROWSER_RECYCLE_EVERY=40 python scripts/te
 
 ---
 
-### #292H. Phase 0: Extract a shared deterministic pricing boundary [P2 -- AI FOUNDATION] -- PARTIAL 2026-08-17
+### #292H. Phase 0: Extract a shared deterministic pricing boundary [P2 -- AI FOUNDATION] -- IMPLEMENTED 2026-08-25
 
 - **Purpose**: Create a stable `priceCoin(input, trustedContext)` application boundary that preserves the existing structured pricing behavior and can be called by both the current routes and a future conversational interface.
 - **Completed**:
   - ✅ `src/services/pricingService.js` exported with `priceCoin(input, trustedContext)` function (commit 7db2da5d)
-  - ✅ Parity tests in `__tests__/pricingService.parity.test.js` (14 tests passing)
-  - ✅ Zero behavior change verified: full suite 165/165 suites, 4468/4468 tests passing
+  - ✅ `priceRoute.js` delegates deterministic calculation to `priceCoin()` while retaining HTTP validation, trusted-context derivation, auditing, redaction, safe error handling, and its legacy response contract.
+  - ✅ Semiquincentennial search, key-date, mintage, and coin-variant canonicalization moved into the shared service so structured and AI callers cannot diverge.
+  - ✅ Parity tests in `__tests__/pricingService.parity.test.js` (19 tests passing), including semiquincentennial, bullion precedence, denomination guard, lunar intent, and exact limitation-text behavior.
+  - ✅ Focused `priceRoute`, `priceRouteValidation`, and `pricingService.parity` coverage passes: 3 suites, 71 tests.
+  - ✅ Zero behavior change verified: full suite 174/174 suites, 4562/4562 tests passing.
   - ✅ Trust boundary: `trustedContext.isAdmin` and `trustedContext.audience` gate sensitive data
-- **Remaining**:
-  - Refactor priceRoute.js to call priceCoin() instead of inline logic (preserves contract-compatibility)
-  - Update docs/ARCHITECTURE.md with pricingService export and usage
-  - Merge PR #298H for review
 - **Requirements**:
   - Preserve behavioral parity for existing `/api/price`, batch, bulk, bar, history, and collection workflows.
   - Keep caller-controlled coin input separate from server-derived trusted context, including audience, identity, authorization, and redaction state.
   - Keep deterministic domain services independent of any AI provider or orchestration code.
-- **Files**: `src/services/pricingService.js` (new boundary), `__tests__/pricingService.parity.test.js`, priceRoute.js refactor (pending), docs/ARCHITECTURE.md update (pending).
+- **Files**: `src/services/pricingService.js` (new boundary), `src/routes/priceRoute.js` (HTTP adapter), `__tests__/pricingService.parity.test.js`, `__tests__/priceRoute.test.js`, `docs/ARCHITECTURE.md`.
 - **Acceptance**: Existing route outputs remain contract-compatible; parity tests cover representative coin, bullion, proof, no-data, and authorization paths; no LLM dependency is required; priceRoute behavior is unchanged after refactor.
 - **Depends on**: None. This is the prerequisite for #293H.
 

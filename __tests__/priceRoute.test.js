@@ -3,7 +3,7 @@
 
 // ── Mock heavy dependencies ──
 jest.mock('../src/services/pcgsService', () => ({
-  parseDescription: jest.fn((q) => ({
+  parseDescription: jest.fn((_q) => ({
     series: 'Morgan Dollar',
     year: 1881,
     mint: 'CC',
@@ -67,7 +67,7 @@ jest.mock('../src/services/ebayService', () => ({
   fetchSoldComps: jest.fn(async () => ({
     us: {
       comps: [
-        { itemId: 'u1', title: '1881-CC Morgan MS64', totalUsd: 835, matchScore: 90, gradeType: 'certified', soldDate: new Date().toISOString(), _source: 'finding' },
+        { itemId: 'u1', title: '1881-CC Morgan MS64', totalUsd: 835, matchScore: 90, gradeType: 'certified', soldDate: new Date().toISOString(), _source: 'terapeak', _compositeCohort: 'matched' },
         { itemId: 'u2', title: '1881-CC Morgan MS64 PCGS', totalUsd: 850, matchScore: 88, gradeType: 'certified', soldDate: new Date().toISOString(), _source: 'finding' },
       ],
       stats: { count: 2, median: 842, mean: 842 },
@@ -133,16 +133,29 @@ jest.mock('../src/utils/filters', () => ({
   detectDenomination: jest.fn(() => null),
 }));
 
+jest.mock('../src/utils/redactForPublic', () => ({
+  redactCompsForPublic: jest.fn((...args) => (
+    jest.requireActual('../src/utils/redactForPublic').redactCompsForPublic(...args)
+  )),
+}));
+
 const express = require('express');
 const request = require('supertest');
 const priceRoute = require('../src/routes/priceRoute');
 const ebayService = require('../src/services/ebayService');
 const pcgsService = require('../src/services/pcgsService');
 const { writeValuationAudit } = require('../src/services/auditService');
+const { redactCompsForPublic } = require('../src/utils/redactForPublic');
 
-function createApp() {
+function createApp({ isAdmin = false } = {}) {
   const app = express();
   app.use(express.json());
+  app.use((req, _res, next) => {
+    req.isAdmin = isAdmin;
+    req.id = 'request-292h';
+    if (isAdmin) req.adminActor = { userId: 'admin-292h' };
+    next();
+  });
   app.use('/api/price', priceRoute);
   return app;
 }
@@ -202,6 +215,41 @@ describe('POST /api/price', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.query.askingPrice).toBe(650);
+  });
+
+  test('keeps public redaction and audit identity boundaries at the route', async () => {
+    const res = await request(app)
+      .post('/api/price')
+      .send({ query: '1881-CC Morgan Dollar MS 64' });
+
+    expect(res.status).toBe(200);
+    expect(redactCompsForPublic).toHaveBeenCalledWith(expect.any(Object), false);
+    expect(res.body.ebay.us.comps[0]).toEqual(expect.objectContaining({ _source: 'ebay-sold' }));
+    expect(res.body.ebay.us.comps[0]).not.toHaveProperty('_compositeCohort');
+    expect(writeValuationAudit).toHaveBeenCalledWith(expect.objectContaining({
+      requestId: 'request-292h',
+      actorId: undefined,
+      ip: undefined,
+    }));
+  });
+
+  test('preserves admin redaction context and gated audit identity', async () => {
+    const adminApp = createApp({ isAdmin: true });
+    const res = await request(adminApp)
+      .post('/api/price')
+      .send({ query: '1881-CC Morgan Dollar MS 64' });
+
+    expect(res.status).toBe(200);
+    expect(redactCompsForPublic).toHaveBeenCalledWith(expect.any(Object), true);
+    expect(res.body.ebay.us.comps[0]).toEqual(expect.objectContaining({
+      _source: 'terapeak',
+      _compositeCohort: 'matched',
+    }));
+    expect(writeValuationAudit).toHaveBeenCalledWith(expect.objectContaining({
+      requestId: 'request-292h',
+      actorId: 'admin-292h',
+      ip: expect.any(String),
+    }));
   });
 
   test('passes options through', async () => {
