@@ -8,7 +8,7 @@ Comprehensive reference of all HTTP endpoints exposed by the coin-price-finder-a
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| `POST` | `/api/price` | None | Price a single coin — main entry point for pricing |
+| `POST` | `/api/price` | None | Price a single coin through the shared deterministic pricing service |
 | `POST` | `/api/ai/price` | None | Conversational pricing projection with public-safe provenance and structured handoff |
 | `POST` | `/api/ai/collection` | JWT | Authenticated deterministic collection summary or metadata-gap analysis |
 | `POST` | `/api/ai/market` | None | Bounded market coverage, comparison, and year-series analytics |
@@ -19,6 +19,8 @@ Comprehensive reference of all HTTP endpoints exposed by the coin-price-finder-a
 | `GET` | `/api/coin-history` | None | Sold-price time-series with optional spot-price overlay |
 
 Every valuation includes `algorithmVersion` (semantic version), `configVersion` (`sha256:` fingerprint), and `computedAt` (UTC ISO timestamp). Successful and null-FMV outcomes are audited asynchronously. Anonymous audits omit actor and IP; authenticated admin audits may include both. Audit persistence never delays the pricing response.
+
+`POST /api/price` validates HTTP input and derives trusted admin context before calling `pricingService.priceCoin(input, trustedContext)`. The route then adapts the deterministic result to the legacy response contract, writes the audit record, and redacts licensed comp provenance for public callers. Caller-supplied coin data cannot set audience, identity, authorization, or redaction state.
 
 For equivalent deterministic inputs, `/api/price`, `/api/pricing-batch`, and `/api/bulk-evaluate` preserve the same `confidence`, `lowData`, `compCount`, `method`, `explanation`, `dataSource`, and `gradePool` semantics. A valuation based on exactly one sold comp includes a `SINGLE-COMP ESTIMATE` warning. A thin exact-year Terapeak pool may use a bounded cross-year cohort and returns `dataSource.label: "cross-year-composite"`, `gradePool.compositeBasis`, a `(composite)` method suffix, explicit warnings, and confidence capped at 30 without population data or 35 with it. Bullion comps whose titles omit weight are rejected when price exceeds `max(meltPerOz * weight * 5, $50)`, for fractional and multi-ounce coins alike. `/api/ai/price` preserves these fields and a structured `warning` in `provenance.valuation` for deterministic and LLM-backed responses.
 

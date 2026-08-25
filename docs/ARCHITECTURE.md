@@ -27,7 +27,7 @@ Load-bearing design choices are recorded in [docs/adrs/](adrs/README.md):
 server.js                              Express entry point (port 3000)
 │
 ├─ src/routes/
-│   ├─ priceRoute.js                   POST /api/price  -- coin pricing orchestrator
+│   ├─ priceRoute.js                   POST /api/price  -- validation, audit, redaction, response adapter
 │   ├─ aiPriceRoute.js                 POST /api/ai/price -- public conversational pricing projection and handoff
 │   ├─ aiCollectionRoute.js            POST /api/ai/collection -- authenticated collection context tools
 │   ├─ aiMarketRoute.js                POST /api/ai/market -- bounded deterministic market analytics
@@ -227,8 +227,19 @@ server.js                              Express entry point (port 3000)
 
 ### Coin Pricing — `POST /api/price`
 
+`priceRoute.js` is the HTTP boundary: it validates caller input, derives trusted
+admin/audience context, calls `pricingService.priceCoin(input, trustedContext)`,
+writes the valuation audit, applies public redaction, and preserves the legacy
+response contract. `pricingService.js` owns the deterministic identification,
+comp acquisition, enrichment, and valuation flow shared by structured and AI
+callers. Provider and domain services do not read Express request state.
+
 ```
 Request
+  │
+  ├── HTTP validation + server-derived trusted context
+  │
+  ├── pricingService.priceCoin(input, trustedContext)
   │
   ├── 1. PCGS Identification ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   │   ├─ Cert number (7–9 digits)  → lookupByCert(certNum)

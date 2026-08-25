@@ -161,6 +161,14 @@ jest.mock('../src/utils/stats', () => ({
   median: jest.fn((arr) => arr.length > 0 ? arr.sort((a, b) => a - b)[Math.floor(arr.length / 2)] : 0),
 }));
 
+const pcgsService = require('../src/services/pcgsService');
+const ebayService = require('../src/services/ebayService');
+const { computeValuation } = require('../src/services/valuationService');
+const { lookupKeyDate } = require('../src/data/keyDates');
+const { lookupMintage } = require('../src/data/mintages');
+const { buildLunarComparison } = require('../src/data/lunarReference');
+const { resolveCoinVariant } = require('../src/data/halfDollarSeries');
+const { detectDenomination } = require('../src/utils/filters');
 const { priceCoin } = require('../src/services/pricingService');
 
 describe('pricingService.priceCoin() — Phase 0 Acceptance Tests', () => {
@@ -220,6 +228,104 @@ describe('pricingService.priceCoin() — Phase 0 Acceptance Tests', () => {
 
     // BULLION_1OZ_DEFAULT includes 'libertad', so should default to 1 oz
     expect(result.coin.weight).toBe(1);
+  });
+
+  test('canonicalizes semiquincentennial circulating coins across pricing lookups', async () => {
+    const parsed = { series: 'Semiquincentennial Half Dollar', year: 2026, mint: 'P' };
+    pcgsService.parseDescription.mockReturnValueOnce(parsed);
+    pcgsService.resolveFromDescription.mockReturnValueOnce({
+      verified: false,
+      series: 'Semiquincentennial Half Dollar',
+      year: 2026,
+      mint: 'P',
+      parsed,
+    });
+
+    const result = await priceCoin(
+      { query: '2026-P Semiquincentennial Half Dollar' },
+      { isAdmin: false, audience: 'public' }
+    );
+
+    expect(ebayService.fetchSoldComps).toHaveBeenCalledWith(
+      expect.stringMatching(/2026-P Kennedy Half Dollar Semiquincentennial/i),
+      expect.any(Object),
+      expect.any(Object)
+    );
+    expect(lookupKeyDate).toHaveBeenCalledWith('Kennedy Half Dollar', 2026, 'P');
+    expect(lookupMintage).toHaveBeenCalledWith('Kennedy Half Dollar', 2026, 'P', null, null);
+    expect(resolveCoinVariant).toHaveBeenCalledWith('Half Dollar', 2026);
+    expect(result.keyDate).toEqual(expect.objectContaining({ isKeyDate: true, tier: 'semi-key' }));
+  });
+
+  test('preserves parsed-series precedence when selecting bullion valuation mode', async () => {
+    const parsed = { series: 'Mexican Silver Libertad', year: 2024, metal: 'silver' };
+    pcgsService.parseDescription.mockReturnValueOnce(parsed);
+    pcgsService.resolveFromDescription.mockReturnValueOnce({
+      verified: false,
+      series: 'Morgan Dollar',
+      year: 2024,
+      parsed,
+    });
+
+    await priceCoin({ query: '2024 silver libertad' }, { isAdmin: false, audience: 'public' });
+
+    expect(computeValuation).toHaveBeenCalledWith(
+      expect.any(Object),
+      expect.any(Object),
+      null,
+      null,
+      expect.objectContaining({ isBullion: true })
+    );
+  });
+
+  test('preserves denomination mismatch warnings', async () => {
+    const parsed = { series: 'Kennedy Half Dollar', year: 2024 };
+    pcgsService.parseDescription.mockReturnValueOnce(parsed);
+    pcgsService.resolveFromDescription.mockReturnValueOnce({
+      verified: false,
+      series: 'Washington Quarter',
+      year: 2024,
+      parsed,
+    });
+    detectDenomination
+      .mockReturnValueOnce('half dollar')
+      .mockReturnValueOnce('quarter');
+
+    const result = await priceCoin({ query: '2024 Kennedy Half Dollar' });
+
+    expect(result.valuation.explanation).toContain(
+      '⚠ Denomination mismatch detected (query="half dollar" vs pcgs="quarter").'
+    );
+  });
+
+  test('detects structured zodiac names as lunar intent', async () => {
+    const parsed = { series: 'Australian Silver Coin', year: 2024, metal: 'silver' };
+    pcgsService.parseDescription.mockReturnValueOnce(parsed);
+    pcgsService.resolveFromDescription.mockReturnValueOnce({
+      verified: false,
+      series: 'Australian Silver Coin',
+      year: 2024,
+      parsed,
+    });
+
+    const result = await priceCoin({
+      query: '2024 Australian silver coin',
+      coinData: { name: 'Year of the Dragon', year: 2024 },
+    });
+
+    expect(result.coin.isLunarCoin).toBe(true);
+    expect(buildLunarComparison).toHaveBeenCalled();
+  });
+
+  test('preserves the mint-set Numista limitation text', async () => {
+    const result = await priceCoin({
+      query: '2024 US Mint Set',
+      coinData: { setType: 'mint-uncirculated' },
+    });
+
+    expect(result.numista.limitations).toEqual([
+      'Numista lookup skipped for mint/proof sets (sets are not individual coin types)'
+    ]);
   });
 
   // ── Test 4: Admin audience (gated data access)
