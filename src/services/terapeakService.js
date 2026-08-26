@@ -11,7 +11,11 @@ const fs = require('fs');
 const path = require('path');
 const { parse } = require('csv-parse/sync');
 const { isDenied } = require('../utils/filters');
-const { weightToKeyToken } = require('../utils/coinMetalProfile');
+const {
+  normalizeWeightDatasetKey,
+  stripFractionalWeightPhrase,
+  buildWeightDatasetKey,
+} = require('../utils/coinMetalProfile');
 const pcgsService = require('./pcgsService');
 const {
   PRODUCT_IDENTITY_PARSER_VERSION,
@@ -920,8 +924,8 @@ function importComps(searchTerm, comps, meta = {}, context = {}) {
   let identityExcluded = 0;
   if (!isReclassifying) {
     const expectedIdentity = resolveProductIdentity({
-      text: searchTerm,
-      parsed: pcgsService.parseDescription(searchTerm),
+      text: normalizeWeightDatasetKey(searchTerm),
+      parsed: pcgsService.parseDescription(stripFractionalWeightPhrase(searchTerm)),
     });
     if (expectedIdentity.ambiguous) {
       return {
@@ -940,7 +944,7 @@ function importComps(searchTerm, comps, meta = {}, context = {}) {
           ? comp._productIdentity
           : resolveProductIdentity({
           text: comp.title,
-          parsed: pcgsService.parseDescription(comp.title),
+          parsed: pcgsService.parseDescription(stripFractionalWeightPhrase(comp.title)),
         });
         if (compIdentity.ambiguous) {
           ambiguousExcluded++;
@@ -953,17 +957,16 @@ function importComps(searchTerm, comps, meta = {}, context = {}) {
         }
         const actualWeight = compIdentity.nominalWeightOz;
         if (mismatches.includes('weight') && expectedIdentity.nominalWeightOz != null) {
-          const targetToken = weightToKeyToken(actualWeight);
-          if (targetToken) {
-            const currentToken = weightToKeyToken(expectedIdentity.nominalWeightOz);
-            if (currentToken) {
-              const targetKey = normalizedKey.replace(currentToken, targetToken);
-              if (targetKey !== normalizedKey) {
-                if (!reroute[targetKey]) reroute[targetKey] = [];
-                  reroute[targetKey].push({ ...comp, _productIdentity: serializeProductIdentity(compIdentity) });
-                continue;
-              }
-            }
+          const targetKey = buildWeightDatasetKey(
+            searchTerm,
+            expectedIdentity.nominalWeightOz,
+            actualWeight,
+            normalizeSearchKey
+          );
+          if (targetKey && targetKey !== normalizedKey) {
+            if (!reroute[targetKey]) reroute[targetKey] = [];
+            reroute[targetKey].push({ ...comp, _productIdentity: serializeProductIdentity(compIdentity) });
+            continue;
           }
         }
         keep.push({ ...comp, _productIdentity: serializeProductIdentity(compIdentity) });

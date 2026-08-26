@@ -9,6 +9,7 @@ const {
   canonicalizeStore,
   sourceFingerprint,
   assertSourceUnchanged,
+  assertDistinctPaths,
   main,
 } = require('../scripts/reclassify-comps');
 const { normalizeSearchKey } = require('../src/services/terapeakService');
@@ -63,6 +64,31 @@ describe('canonical comp reclassification migration', () => {
     const result = classifyComp('2025 silver panda 1oz', comp('panda', '2025 Silver Panda 30 g BU'));
 
     expect(result.status).toBe('valid');
+  });
+
+  test.each([
+    ['quarter oz', 0.25],
+    ['tenth oz', 0.1],
+    ['twentieth oz', 0.05],
+  ])('keeps valid %s rows in a sorted canonical dataset key', (weightPhrase) => {
+    const datasetKey = normalizeSearchKey(`2025 American Silver Eagle ${weightPhrase}`);
+    const result = classifyComp(datasetKey, comp('fractional', `2025 American Silver Eagle ${weightPhrase} BU`));
+
+    expect(result.status).toBe('valid');
+  });
+
+  test.each([
+    ['quarter oz', 0.25],
+    ['tenth oz', 0.1],
+    ['twentieth oz', 0.05],
+  ])('reroutes bidirectionally between %s and 1oz canonical keys', (weightPhrase) => {
+    const fractionalKey = normalizeSearchKey(`2025 American Silver Eagle ${weightPhrase}`);
+    const oneOzKey = normalizeSearchKey('2025 American Silver Eagle 1oz');
+
+    expect(classifyComp(fractionalKey, comp('to-one', '2025 American Silver Eagle 1 oz BU')).targetKey)
+      .toBe(oneOzKey);
+    expect(classifyComp(oneOzKey, comp('to-fractional', `2025 American Silver Eagle ${weightPhrase} BU`)).targetKey)
+      .toBe(fractionalKey);
   });
 
   test.each([
@@ -343,6 +369,30 @@ describe('canonical comp reclassification migration', () => {
       expect(JSON.parse(fs.readFileSync(storePath, 'utf8'))).toEqual(fixture());
     } finally {
       logSpy.mockRestore();
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test('does not treat unavailable zero inode values as filesystem aliases', () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'identity-reclassify-zero-inode-'));
+    const storePath = path.join(tempDir, 'store.json');
+    const paths = {
+      manifestPath: path.join(tempDir, 'manifest.json'),
+      rollbackPath: path.join(tempDir, 'rollback.json'),
+      transactionPath: path.join(tempDir, 'transaction.json'),
+    };
+    for (const filePath of [storePath, ...Object.values(paths)]) fs.writeFileSync(filePath, '{}');
+    const originalStatSync = fs.statSync.bind(fs);
+    const statSpy = jest.spyOn(fs, 'statSync').mockImplementation(filePath => ({
+      ...originalStatSync(filePath),
+      dev: 0,
+      ino: 0,
+    }));
+
+    try {
+      expect(() => assertDistinctPaths(storePath, paths)).not.toThrow();
+    } finally {
+      statSpy.mockRestore();
       fs.rmSync(tempDir, { recursive: true, force: true });
     }
   });

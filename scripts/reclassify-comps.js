@@ -5,7 +5,11 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const CACHE_DIR = require('../src/utils/cachePath').CACHE_DIR;
-const { weightToKeyToken } = require('../src/utils/coinMetalProfile');
+const {
+  normalizeWeightDatasetKey,
+  stripFractionalWeightPhrase,
+  buildWeightDatasetKey,
+} = require('../src/utils/coinMetalProfile');
 const pcgsService = require('../src/services/pcgsService');
 const { normalizeSearchKey, _mergeStoreEntries } = require('../src/services/terapeakService');
 const {
@@ -31,13 +35,20 @@ function parseArgs(argv) {
 }
 
 function classifyComp(datasetKey, comp) {
-  const expected = resolveProductIdentity({ text: datasetKey, parsed: pcgsService.parseDescription(datasetKey) });
+  const identityText = normalizeWeightDatasetKey(datasetKey);
+  const expected = resolveProductIdentity({
+    text: identityText,
+    parsed: pcgsService.parseDescription(stripFractionalWeightPhrase(identityText)),
+  });
   return classifyCompAgainstIdentity(datasetKey, expected, comp);
 }
 
 function classifyCompAgainstIdentity(datasetKey, expected, comp) {
   if (expected.ambiguous) return { status: 'ambiguous', expected, actual: null, targetKey: null };
-  const actual = resolveProductIdentity({ text: comp.title, parsed: pcgsService.parseDescription(comp.title) });
+  const actual = resolveProductIdentity({
+    text: comp.title,
+    parsed: pcgsService.parseDescription(stripFractionalWeightPhrase(comp.title)),
+  });
   if (actual.ambiguous) return { status: 'ambiguous', expected, actual, targetKey: null };
   const mismatches = findIdentityMismatches(expected, actual);
   if (mismatches.some(field => field !== 'weight')) {
@@ -48,11 +59,12 @@ function classifyCompAgainstIdentity(datasetKey, expected, comp) {
   }
   if (!mismatches.includes('weight')) return { status: 'valid', expected, actual, targetKey: null };
 
-  const currentToken = weightToKeyToken(expected.nominalWeightOz);
-  const targetToken = weightToKeyToken(actual.nominalWeightOz);
-  const targetKey = currentToken && targetToken
-    ? normalizeSearchKey(datasetKey.replace(currentToken, targetToken))
-    : null;
+  const targetKey = buildWeightDatasetKey(
+    datasetKey,
+    expected.nominalWeightOz,
+    actual.nominalWeightOz,
+    normalizeSearchKey
+  );
   return { status: 'wrong_dataset', expected, actual, mismatches, targetKey: targetKey !== datasetKey ? targetKey : null };
 }
 
@@ -66,7 +78,11 @@ function analyzeStore(inputStore) {
 
   for (const [datasetKey, dataset] of Object.entries(store)) {
     if (!Array.isArray(dataset?.comps)) continue;
-    const expected = resolveProductIdentity({ text: datasetKey, parsed: pcgsService.parseDescription(datasetKey) });
+    const identityText = normalizeWeightDatasetKey(datasetKey);
+    const expected = resolveProductIdentity({
+      text: identityText,
+      parsed: pcgsService.parseDescription(stripFractionalWeightPhrase(identityText)),
+    });
     const keep = [];
     dataset.comps.forEach((comp, index) => {
       const classification = classifyCompAgainstIdentity(datasetKey, expected, comp);
@@ -198,8 +214,8 @@ function assertDistinctPaths(storePath, paths) {
   }
   const existingIdentities = candidates.filter(fs.existsSync).map(candidate => {
     const stat = fs.statSync(candidate);
-    return `${stat.dev}:${stat.ino}`;
-  });
+    return stat.ino ? `${stat.dev}:${stat.ino}` : null;
+  }).filter(Boolean);
   if (new Set(existingIdentities).size !== existingIdentities.length) {
     throw new Error('Store and reclassification artifact paths must be distinct');
   }

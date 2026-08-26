@@ -80,6 +80,7 @@ The low comp count was caused by **stale eBay disk cache** (`cache/ebay_cache.js
 - Stored identity includes series, year, mint, metal, nominal weight, grade, finish, designation, pool, pool constraint, weight evidence, and parser version.
 - Import validation carries the resolved identity through weight-only reroutes instead of reparsing the title before persistence.
 - Ambiguous identities and non-weight identity mismatches are excluded. Pure weight mismatches may be rerouted to the matching dataset.
+- Canonical key sorting can separate fractional weight tokens (for example, `oz silver tenth`). Dataset-key parsing reconstructs the unambiguous `tenth oz` phrase before identity comparison; comp-title parsing still requires adjacent weight language.
 - Generic Terapeak datasets may retain raw, graded, proof, and reverse-proof source records. This does not merge valuation pools: FMV selection still enforces the requested pool strictly.
 - Public responses remove `_productIdentity`; admin responses may retain it for diagnostics and reproducibility.
 - `scripts/reclassify-comps.js` dry-runs by default and requires `--apply` to replace the store. Apply mode writes versioned manifest and rollback artifacts before an atomic store replacement.

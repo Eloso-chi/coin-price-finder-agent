@@ -10,6 +10,8 @@ node scripts/reclassify-comps.js
 
 The dry run classifies rows as `valid`, `wrong_dataset`, `ambiguous`, or `unknown`. Only a pure weight mismatch may be rerouted; conflicting series, year, mint, metal, grade, finish, designation, or pool is excluded and recorded for rollback. The command writes ignored artifacts under `.local/reclassification/`:
 
+Fractional canonical keys are normalized before classification even when token sorting separates `oz` from `twentieth`, `tenth`, `quarter`, or `half`. Review reroute totals for those weights in the manifest; no manual key rewrite is required.
+
 - `identity-reclassification-manifest.json` -- parser version, before/after counts, classification totals, and reroute counts.
 - `identity-reclassification-rollback.json` -- original rows removed or moved, including source dataset and index.
 

@@ -130,6 +130,39 @@ describe('importComps reclassification', () => {
     expect(result.reclassified).toBe(0);
   });
 
+  test.each(['quarter oz', 'tenth oz', 'twentieth oz'])(
+    'live import keeps matching %s rows and reroutes 1oz rows', (weightPhrase) => {
+      const fractionalTitle = `2025 American Silver Eagle ${weightPhrase} BU`;
+      const result = terapeakService.importComps(fractionalTitle, [
+        { title: fractionalTitle, totalUsd: 100, soldDate: '2026-08-01', itemId: `keep-${weightPhrase}` },
+        { title: '2025 American Silver Eagle 1 oz BU', totalUsd: 200, soldDate: '2026-08-02', itemId: `move-${weightPhrase}` },
+      ]);
+
+      expect(result).toEqual(expect.objectContaining({ newComps: 1, reclassified: 1 }));
+      expect(terapeakService.lookupComps(fractionalTitle).comps.map(row => row.itemId))
+        .toContain(`keep-${weightPhrase}`);
+      expect(terapeakService.lookupComps('2025 American Silver Eagle 1oz').comps.map(row => row.itemId))
+        .toContain(`move-${weightPhrase}`);
+    }
+  );
+
+  test.each(['quarter oz', 'tenth oz', 'twentieth oz'])(
+    'live import reroutes %s rows out of a 1oz dataset', (weightPhrase) => {
+      const result = terapeakService.importComps('2025 American Silver Eagle 1oz', [
+        {
+          title: `2025 American Silver Eagle ${weightPhrase} BU`,
+          totalUsd: 100,
+          soldDate: '2026-08-03',
+          itemId: `fractional-${weightPhrase}`,
+        },
+      ]);
+
+      expect(result).toEqual(expect.objectContaining({ newComps: 0, reclassified: 1 }));
+      expect(terapeakService.lookupComps(`2025 American Silver Eagle ${weightPhrase}`).comps.map(row => row.itemId))
+        .toContain(`fractional-${weightPhrase}`);
+    }
+  );
+
   test.each([
     '2024 2025 American Silver Eagle 1oz',
     '2025-S 2025-W American Silver Eagle 1oz',

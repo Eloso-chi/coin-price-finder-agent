@@ -857,6 +857,8 @@ Extends CSVs from 50 rows (page 1 limit) to up to 250 rows by collecting pages 2
 
 **Store writer/migration exclusion:** live local-store writes and `reclassify-comps.js --apply` acquire the same exclusive `.reclassify.lock`. Migration leaves a `restart-required` marker after atomic replacement so stale in-memory state cannot overwrite migrated data; startup loads the migrated store before clearing that marker. Dead-process `writer-active` locks are recovered by PID liveness, while migration locks fail closed for operator recovery. Migration groups canonical aliases, stable-sorts source datasets, and preserves complete metadata and comp payloads independent of input order.
 
+**Fractional canonical keys:** canonical token sorting may separate `oz` from `twentieth`, `tenth`, `quarter`, or `half`. Dataset-key identity resolution recombines one unambiguous fractional token with one `oz` token before weight validation and rerouting. Free-form comp titles retain phrase-based parsing so unrelated denomination words are not treated as weight evidence.
+
 **Per-dataset metadata fields:**
 
 | Field | Type | Description |
