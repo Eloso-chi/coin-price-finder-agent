@@ -11,6 +11,9 @@ const {
   MAX_ACTIVE_JOBS,
   _cache,
 } = require('../src/services/bulkEvaluateService');
+const ebayService = require('../src/services/ebayService');
+const pcgsService = require('../src/services/pcgsService');
+const greysheetService = require('../src/services/greysheetService');
 
 // ── Lot formula unit tests ───────────────────────────────────
 
@@ -150,4 +153,42 @@ describe('computeLotSummary', () => {
 describe('constants', () => {
   it('MAX_COINS is 500', () => expect(MAX_COINS).toBe(500));
   it('MAX_ACTIVE_JOBS is 3', () => expect(MAX_ACTIVE_JOBS).toBe(3));
+});
+
+describe('canonical product identity', () => {
+  it('rejects ambiguous multi-weight rows before market lookup', async () => {
+    const result = await evaluateOneCoin({
+      query: '2025 American Silver Eagle 5 oz with 1 oz bonus',
+    });
+
+    expect(result).toEqual(expect.objectContaining({
+      query: '2025 American Silver Eagle 5 oz with 1 oz bonus',
+      error: expect.stringContaining('Product identity is ambiguous'),
+    }));
+  });
+
+  it('propagates composition-only metal into market filtering', async () => {
+    const ebaySpy = jest.spyOn(ebayService, 'fetchSoldComps').mockResolvedValue({
+      us: { comps: [], stats: { count: 0 } },
+      international: { comps: [], stats: { count: 0 } },
+    });
+    const pcgsSpy = jest.spyOn(pcgsService, 'resolveFromDescription').mockResolvedValue({ verified: false });
+    const sheetPcgsSpy = jest.spyOn(greysheetService, 'fetchPriceByPcgsNumber').mockResolvedValue(null);
+    const sheetTypeSpy = jest.spyOn(greysheetService, 'fetchTypePrice').mockResolvedValue(null);
+
+    try {
+      await evaluateOneCoin({ query: '2025 Commemorative Coin', composition: 'gold' });
+
+      expect(ebaySpy).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.any(Object),
+        expect.objectContaining({ metal: 'gold' })
+      );
+    } finally {
+      ebaySpy.mockRestore();
+      pcgsSpy.mockRestore();
+      sheetPcgsSpy.mockRestore();
+      sheetTypeSpy.mockRestore();
+    }
+  });
 });

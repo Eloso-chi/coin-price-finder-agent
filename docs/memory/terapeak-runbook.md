@@ -1,5 +1,26 @@
 # Terapeak Export -- Startup Runbook
 
+## Canonical Identity Reclassification
+
+Preview stored-row classification without mutating the store:
+
+```bash
+node scripts/reclassify-comps.js
+```
+
+The dry run classifies rows as `valid`, `wrong_dataset`, `ambiguous`, or `unknown`. Only a pure weight mismatch may be rerouted; conflicting series, year, mint, metal, grade, finish, designation, or pool is excluded and recorded for rollback. The command writes ignored artifacts under `.local/reclassification/`:
+
+- `identity-reclassification-manifest.json` -- parser version, before/after counts, classification totals, and reroute counts.
+- `identity-reclassification-rollback.json` -- original rows removed or moved, including source dataset and index.
+
+Review both artifacts before applying. Apply mode is an operational data mutation and requires explicit approval:
+
+```bash
+node scripts/reclassify-comps.js --apply
+```
+
+Use `--store <path>` and `--output-dir <path>` for isolated validation. Apply only on the authoritative environment, then invalidate pricing caches or restart the application. Re-running after apply must report `changed: 0`.
+
 ## Quick Start (run these in order)
 
 ### 1. VNC Server

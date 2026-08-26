@@ -82,6 +82,9 @@ router.post('/', async (req, res) => {
 
     return res.json(redactCompsForPublic(toLegacyResponse(result, input), trustedContext.isAdmin));
   } catch (err) {
+    if (err?.code === 'AMBIGUOUS_PRODUCT_IDENTITY') {
+      return res.status(400).json({ error: err.message, code: err.code });
+    }
     console.error('[/api/price] Unhandled error:', err.message);
     return res.status(500).json({ error: 'Internal server error' });
   }

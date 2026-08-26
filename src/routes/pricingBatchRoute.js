@@ -14,11 +14,10 @@ const { computeValuation } = require('../services/valuationService');
 const { writeValuationAudit } = require('../services/auditService');
 const { getMetalsSpotPrice } = require('../services/metalsSpotPrice');
 const { getCoinMetalProfile } = require('../utils/coinMetalProfile');
-const { lookupKeyDate } = require('../data/keyDates');
 const { zodiacForYear, perthLunarSeries, getRollQuantity, BULLION_1OZ_DEFAULT, ALLOWED_LABELS } = require('../data/constants');
-const { detectDenomination } = require('../utils/filters');
 const { redactCompsForPublic } = require('../utils/redactForPublic');
 const { extractCoinIntent, isValidFinishInput, MAX_FINISH_LENGTH } = require('../utils/coinIntent');
+const { resolveProductIdentity, assertUnambiguousProductIdentity } = require('../utils/productIdentityResolver');
 
 const MAX_ITEMS = 25;
 
@@ -70,9 +69,6 @@ async function _priceOne(item, opts = {}) {
 
     // Parse description
     const parsed = pcgsService.parseDescription(query);
-    const series = coinData.name || parsed.series || '';
-    const year   = coinData.year || parsed.year;
-    const mint   = coinData.mintMark || parsed.mint || '';  // user-specified only (drives filtering)
 
     // Detect roll / set first -- intent extraction is gated on isSet
     const isRoll = !!(coinData.isRoll || parsed.isRoll);
@@ -88,12 +84,28 @@ async function _priceOne(item, opts = {}) {
       pcgs: {},  // batch route doesn't do a PCGS lookup
       isSet,
     });
-    const grade   = intent.grade || '';
-    const isProof = intent.isProof;
-    let gradeNum  = parsed.gradeNum || parseInt((grade.match(/\d+/) || [])[0]) || null;
+    const productIdentity = assertUnambiguousProductIdentity(resolveProductIdentity({
+      text: query,
+      structured: {
+        ...coinData,
+        series: coinData.name,
+        mint: coinData.mintMark || coinData.mint,
+        grade: intent.grade,
+        finish: coinData.finish,
+      },
+      parsed,
+    }));
+    const series = productIdentity.series || '';
+    const year = productIdentity.year;
+    const mint = productIdentity.mint || '';
+    const grade = productIdentity.grade || '';
+    const isProof = productIdentity.pool === 'proof' || productIdentity.pool === 'reverse-proof';
+    let gradeNum = productIdentity.pool === 'raw'
+      ? null
+      : parseInt((grade.match(/\d+/) || [])[0]) || null;
 
     // Weight defaulting for bullion
-    let weight = coinData.weight || parsed.weight || null;
+    let weight = productIdentity.nominalWeightOz;
     if (!weight && series) {
       const sl = series.toLowerCase();
       if (BULLION_1OZ_DEFAULT.some(b => sl.includes(b))) weight = 1;
@@ -103,14 +115,10 @@ async function _priceOne(item, opts = {}) {
     const isBullion = BULLION_1OZ_DEFAULT.some(b => (series || '').toLowerCase().includes(b));
     const { metal: detectedMetal } = getCoinMetalProfile(query);
     const METAL_SYM = { silver: 'XAG', gold: 'XAU', platinum: 'XPT', palladium: 'XPD' };
-    const metalKey = parsed.metal || detectedMetal || coinData.metal || null;
+    const metalKey = productIdentity.metal || parsed.metal || detectedMetal || coinData.metal || null;
 
     // #162: World bullion BU fix — null out BU-expanded grade for bullion coins.
     // "BU" expands to gradeNum 60 (MS60) but for bullion it means raw mint-sealed.
-    if (isBullion && gradeNum && parsed._gradeSource === 'bu-term') {
-      gradeNum = null;
-    }
-
     // Spot price for metal-based coins -- fetch before eBay so meltPerOz is
     // available for comp filtering.  Gate on metalKey + weight (not isBullion)
     // to match priceRoute parity: any coin with a detected metal and weight
@@ -161,6 +169,7 @@ async function _priceOne(item, opts = {}) {
       barSeries: intent.barSeries,
       _exclusions: parsed._exclusions || null,
       _rawQuery: String(query),
+      _productIdentity: productIdentity,
     };
     if (meltPerOz) expected.meltPerOz = meltPerOz;
     // #162: Null grade in expected for BU bullion to prevent gradeNumMismatch filter

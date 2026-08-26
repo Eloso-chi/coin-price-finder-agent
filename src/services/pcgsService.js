@@ -8,7 +8,6 @@ const { detectBarBrand, detectSeriesFromQuery } = require('../data/barSeries');
 const pcgsQuota = require('./pcgsQuotaService');
 
 const path = require('path');
-const fs = require('fs');
 
 const PCGS_API_KEY = process.env.PCGS_API_KEY || '';
 const PCGS_BASE   = (process.env.PCGS_BASE_URL || 'https://api.pcgs.com/publicapi').replace(/\/+$/, '');
@@ -295,6 +294,7 @@ function parseDescription(text) {
     if (prefix === 'EF') prefix = 'XF';  // normalize EF → XF (PCGS standard)
     result.grade = `${prefix}${gradeMatch[2]}${gradeMatch[3] || ''}`;
     result.gradeNum = parseInt(gradeMatch[2], 10);
+    if (prefix === 'PR') result.finish = 'Proof';
   }
 
   // BU / UNC grade terms (no numeric suffix) — map to approximate MS grades

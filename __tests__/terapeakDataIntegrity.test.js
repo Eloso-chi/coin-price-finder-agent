@@ -26,34 +26,10 @@ const path = require('path');
 // ── External API mocks (return nothing -- force Terapeak-only pipeline) ──
 
 jest.mock('../src/services/pcgsService', () => {
-  // Shared parser so parseDescription() and resolveFromDescription().parsed
-  // return IDENTICAL shape -- matches production where
-  // resolveFromDescription returns `parsed = parseDescription(text)`
-  // (`src/services/pcgsService.js` L207). Mock divergence here previously
-  // caused the test to surface a fake cross-route weight bug (#276W).
-  const mockParse = (q) => {
-    const yearMatch = q.match(/\b(1[6-9]\d{2}|20[0-2]\d)\b/);
-    const year = yearMatch ? parseInt(yearMatch[1], 10) : null;
-    const gradeMatch = q.match(/\b(MS|PR|PF|AU|XF|VF|SP)\s*[-]?\s*(\d{1,2})\b/i);
-    const grade = gradeMatch ? gradeMatch[0].replace(/\s+/g, '-') : null;
-    const gradeNum = gradeMatch ? parseInt(gradeMatch[2], 10) : null;
-    const weightMatch = q.match(/(\d+(?:\/\d+)?)\s*oz/i);
-    let weight = null;
-    if (weightMatch) {
-      const w = weightMatch[1];
-      weight = w.includes('/') ? eval(w) : parseFloat(w);
-    }
-    const metalMatch = q.match(/\b(silver|gold|platinum|palladium)\b/i);
-    const metal = metalMatch ? metalMatch[1].toLowerCase() : null;
-    const series = q
-      .replace(/\b\d{4}\b/, '')
-      .replace(/\b(MS|PR|PF|AU|XF|VF|SP)\s*[-]?\s*\d{1,2}\b/gi, '')
-      .replace(/\d+(?:\/\d+)?\s*oz\b/gi, '')
-      .replace(/\s+/g, ' ')
-      .trim() || 'Unknown';
-    return { series, year, mint: null, grade, gradeNum, weight, finish: null, metal };
-  };
+  const actual = jest.requireActual('../src/services/pcgsService');
+  const mockParse = actual.parseDescription;
   return {
+    ...actual,
     parseDescription: jest.fn(mockParse),
     resolveFromDescription: jest.fn(async (q) => {
       const parsed = mockParse(q);
@@ -81,7 +57,10 @@ jest.mock('../src/services/greysheetHistoryService', () => ({
   recordSnapshot: jest.fn(),
 }));
 jest.mock('../src/services/metalsSpotPrice', () => ({
-  getMetalsSpotPrice: jest.fn(async () => ({ price: 30.50, source: 'mock' })),
+  getMetalsSpotPrice: jest.fn(async (symbol) => ({
+    price: { XAU: 2500, XAG: 30.50, XPT: 950, XPD: 1000 }[symbol] || 30.50,
+    source: 'mock',
+  })),
 }));
 jest.mock('../src/services/numistaService', () => ({
   lookupCoin: jest.fn(async () => null),
@@ -119,7 +98,7 @@ const { computeValuation } = require('../src/services/valuationService');
 const stats = require('../src/utils/stats');
 
 // ── Seed infrastructure ──
-const SEED = process.env.COIN_TEST_SEED || `integrity-${Date.now()}`;
+const SEED = process.env.COIN_TEST_SEED || 'integrity-default';
 function seededRng(seed) {
   let h = 0;
   for (let i = 0; i < seed.length; i++) {

@@ -3,6 +3,10 @@
 Core file: `src/services/valuationService.js`
 Consumed by: priceRoute, barPriceRoute, pricingBatchRoute, bulkEvaluateService
 
+## Canonical Product Identity Gate
+
+Before comp acquisition or valuation, `productIdentityResolver.js` resolves the requested series, year, mint, metal, nominal weight, grade, finish, designation, and raw/graded/proof/reverse-proof pool. Multiple distinct weights and structured/text conflicts fail closed; a 5% relative tolerance recognizes nominal/metric equivalents such as 30 g Panda versus 1 oz. PR/PF/SP grades route to proof, Proof-Like remains graded, and BU parser expansion remains raw. Direct and composite comp filters reject `weightAmbiguous` rows before scalar weight matching. Missing weight evidence remains eligible for the existing benefit-of-doubt and melt-sanity rules. This gate does not relax or merge valuation pools.
+
 ## FMV Computation -- Three Modes
 
 ### 1. Bullion Spot+Premium (method: `bullion-spot-premium`)

@@ -104,6 +104,7 @@ server.js                              Express entry point (port 3000)
 │   ├─ filters.js                      Deny-list filtering, denomination & series checks, two-way composition mismatch (silver/clad)
 │   ├─ coinMetalProfile.js             Metal detection + weight detection (detectWeightFromTitle, weightToKeyToken) for bullion
 │   ├─ coinIntent.js                   Route-layer extractor: canonicalizes {grade, finish, isProof, designation} across coinData / options / pcgs / parsed (#254)
+│   ├─ productIdentityResolver.js       Versioned canonical identity boundary; validates precedence/conflicts and resolves pricing pools
 │   ├─ responseValidator.js            /api/price response schema & sanity validation
 │   ├─ versionHash.js                  Cached valuation configuration SHA-256 fingerprint
 │   ├─ logger.js                       Redacted Pino JSON logger with request-ID injection
@@ -175,7 +176,7 @@ server.js                              Express entry point (port 3000)
 │   ├─ upload-csvs-to-blob.js          Upload Terapeak CSVs to Azure Blob Storage
 │   ├─ vnc-login.py                    VNC + eBay login helper for Playwright sessions
 │   ├─ pricing-health-full.js          Pricing health check runner (--full, --filter, --limit, --concurrency, --out)
-│   ├─ reclassify-comps.js             Batch comp reclassification (weight mismatch detection + reroute)
+│   ├─ reclassify-comps.js             Dry-run-first canonical identity migration with manifests and rollback export
 │   ├─ build-evidence-index.js         Historical evidence index builder
 │   ├─ generate-freshness-report.js    Freshness triage report (5-state decision tree: Fresh/Stale/LowSignal/Missing/Dormant + recently-confirmed-stale split)
 │   ├─ scan-parallel-key-drift.js      Silent-drift detector for the #267H class -- flags datasets whose normalized key collides with an empty sibling (#272H). `npm run scan:parallel-key-drift`
@@ -906,7 +907,9 @@ When the pricing engine calls `lookupComps(keywords, expected)`:
 
 **Per-dataset metadata:** Each dataset stores `aggregationMeta: { page1At, deepAt, maxPageReached, lastRefreshAt, newestSaleDate, oldestSaleDate, compCount, noDataCount, noDataAt }` to track aggregation provenance, data freshness, and dormant status. `importComps()` merges aggregationMeta intelligently (never overwrites earlier timestamps, maxPageReached only increases, sale date bounds expand monotonically, noDataCount resets on successful import).
 
-**Import-time reclassification:** `importComps()` detects weight mismatches at import time. For each comp, `detectWeightFromTitle()` (from `coinMetalProfile.js`) extracts the actual weight from the listing title and compares it to the dataset's expected weight (from `detectWeightFromQuery()`). Mismatched comps are automatically rerouted to the correct dataset key using `weightToKeyToken()` mapping (e.g. a 1/4 oz comp imported into a 1oz dataset is rerouted to the "quarter oz" dataset). Metal mismatches are left in place for the meltFloor filter. The `reclassified` count is included in the import result.
+**Canonical product identity:** `productIdentityResolver.js` emits a versioned identity containing series, year, mint, metal, nominal weight, weight evidence, grade, finish, designation, and target pool. Price Discovery, pricing batch, bulk evaluation, deterministic AI, direct comp filtering, composite filtering, and Terapeak import consume this contract. Structured request fields outrank compatible text evidence; conflicting or multi-weight evidence returns `AMBIGUOUS_PRODUCT_IDENTITY` before provider calls. Nominal and metric weight evidence within 5% is equivalent (for example, 30 g Panda and nominal 1 oz), while distinct fractional products remain separate. PR/PF/SP grades route to proof, Proof-Like business strikes remain graded, and parser-expanded BU remains raw. Missing weight evidence may still use the documented bullion default or benefit-of-doubt behavior.
+
+**Import-time reclassification:** `importComps()` persists `_productIdentity` on accepted rows, reroutes only pure, uniquely identified weight mismatches, and excludes ambiguous rows or conflicts in series, year, mint, metal, grade, finish, designation, or pool. Results report `reclassified`, `ambiguousExcluded`, and `identityExcluded`. Public response redaction removes `_productIdentity`; admins retain it for diagnostics. `scripts/reclassify-comps.js` applies the same resolver to stored rows and defaults to dry-run mode.
 
 **Admin endpoints:**
 - `GET /api/terapeak/aggregation-status` -- summary + filtered dataset lists (`needs=deep`, `needs=page1`, `needs=refresh&maxAge=N`, `minComps=N`)

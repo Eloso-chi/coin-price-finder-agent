@@ -1,7 +1,6 @@
 // __tests__/reclassification.test.js — Tests for comp reclassification feature
 'use strict';
 
-const path = require('path');
 const { detectWeightFromTitle, weightToKeyToken } = require('../src/utils/coinMetalProfile');
 
 // ── detectWeightFromTitle ───────────────────────────────────
@@ -108,6 +107,14 @@ describe('importComps reclassification', () => {
     expect(quarterDs).not.toBeNull();
     expect(quarterDs.comps.length).toBe(1);
     expect(quarterDs.comps[0].itemId).toBe('test-reclass-1');
+    expect(quarterDs.comps[0]._productIdentity).toEqual(expect.objectContaining({
+      series: 'Gold Libertad',
+      year: '2024',
+      metal: 'gold',
+      nominalWeightOz: 0.25,
+      pool: 'raw',
+      parserVersion: '1.0.0',
+    }));
   });
 
   test('does not reclassify when weight matches', () => {
@@ -130,14 +137,68 @@ describe('importComps reclassification', () => {
     expect(result.reclassified).toBe(0);
   });
 
-  test('leaves metal-mismatched comps in place', () => {
-    // Silver comp in gold dataset -- should NOT be reclassified (meltFloor handles it)
+  test('excludes metal-mismatched comps from the dataset', () => {
     const comps = [
       { title: '2024 Mexico 1/4 oz Silver Libertad', totalUsd: 30, soldDate: '2024-06-01', itemId: 'test-metal-1' },
     ];
 
     const result = terapeakService.importComps('2024 Mexican Gold Libertad 1oz', comps);
-    expect(result.newComps).toBe(1);
+    expect(result.newComps).toBe(0);
     expect(result.reclassified).toBe(0);
+    expect(result.identityExcluded).toBe(1);
+  });
+
+  test('excludes wrong-year comps instead of treating them as valid', () => {
+    const comps = [
+      { title: '2023 Mexico 1 oz Gold Libertad BU', totalUsd: 2500, soldDate: '2024-06-01', itemId: 'test-year-1' },
+    ];
+
+    const result = terapeakService.importComps('2024 Mexican Gold Libertad 1oz', comps);
+    expect(result.newComps).toBe(0);
+    expect(result.reclassified).toBe(0);
+    expect(result.identityExcluded).toBe(1);
+  });
+
+  test('checks identity conflicts for datasets without weight evidence', () => {
+    const comps = [
+      { title: '2023 Morgan Dollar MS65', totalUsd: 100, soldDate: '2024-06-01', itemId: 'test-weightless-year-1' },
+    ];
+
+    const result = terapeakService.importComps('2024 Morgan Dollar', comps);
+    expect(result.newComps).toBe(0);
+    expect(result.identityExcluded).toBe(1);
+  });
+
+  test('preserves raw, graded, proof, and reverse-proof rows in a generic dataset', () => {
+    const comps = [
+      { title: '2025 American Silver Eagle 1 oz BU', totalUsd: 40, soldDate: '2026-01-01', itemId: 'generic-raw' },
+      { title: '2025 American Silver Eagle 1 oz PCGS MS70', totalUsd: 80, soldDate: '2026-01-02', itemId: 'generic-graded' },
+      { title: '2025 American Silver Eagle 1 oz NGC PF70', totalUsd: 90, soldDate: '2026-01-03', itemId: 'generic-proof' },
+      { title: '2025 American Silver Eagle 1 oz Reverse Proof PR70', totalUsd: 120, soldDate: '2026-01-04', itemId: 'generic-reverse-proof' },
+    ];
+
+    const result = terapeakService.importComps('2025 American Silver Eagle 1oz', comps);
+    const stored = terapeakService.lookupComps('2025 American Silver Eagle 1oz');
+
+    expect(result).toEqual(expect.objectContaining({ newComps: 4, identityExcluded: 0 }));
+    expect(stored.comps.map(comp => comp._productIdentity.pool).sort())
+      .toEqual(['graded', 'proof', 'raw', 'reverse-proof']);
+  });
+
+  test('excludes ambiguous multi-product rows instead of rerouting by first weight', () => {
+    const comps = [
+      { title: '2024 Mexico 1/20 oz Proof and 1/10 oz UNC Libertad', totalUsd: 500, soldDate: '2024-06-01', itemId: 'test-ambiguous-1' },
+      { title: '2024 Mexico 1 oz Gold Libertad BU', totalUsd: 2500, soldDate: '2024-06-02', itemId: 'test-unambiguous-1' },
+    ];
+
+    const result = terapeakService.importComps('2024 Mexican Gold Libertad 1oz', comps);
+
+    expect(result).toEqual(expect.objectContaining({
+      newComps: 1,
+      reclassified: 0,
+      ambiguousExcluded: 1,
+    }));
+    expect(terapeakService.lookupComps('2024 Mexican Gold Libertad twentieth oz')).toBeNull();
+    expect(terapeakService.lookupComps('2024 Mexican Gold Libertad tenth oz')).toBeNull();
   });
 });

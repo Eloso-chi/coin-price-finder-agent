@@ -22,6 +22,7 @@ const { zodiacForYear, perthLunarSeries, getRollQuantity, ALLOWED_LABELS, BULLIO
 const { hasSeriesConflict, detectDenomination } = require('../utils/filters');
 const { getCoinMetalProfile } = require('../utils/coinMetalProfile');
 const { extractCoinIntent } = require('../utils/coinIntent');
+const { resolveProductIdentity, assertUnambiguousProductIdentity } = require('../utils/productIdentityResolver');
 const stats = require('../utils/stats');
 
 const SEMI250_DENOM_MAP = {
@@ -91,6 +92,13 @@ async function priceCoin(input, trustedContext = {}) {
     throw new Error('query must be 300 characters or fewer');
   }
 
+  const parsedQuery = pcgsService.parseDescription(String(query));
+  const inputIdentity = assertUnambiguousProductIdentity(resolveProductIdentity({
+    text: String(query),
+    structured: { ...coinData, weight: coinData?.weight ?? bodyWeight },
+    parsed: parsedQuery,
+  }));
+
   const trustedIsAdmin = trustedContext.isAdmin === true;
   const trustedAudience = trustedContext.audience || (trustedIsAdmin ? 'admin' : 'public');
 
@@ -122,8 +130,20 @@ async function priceCoin(input, trustedContext = {}) {
   };
 
   // ── 2. Normalize weight ──
-  let resolvedWeight = coinData?.weight || bodyWeight || identification.parsed?.weight
-    || pcgsService.parseDescription(String(query))?.weight || null;
+  const productIdentity = assertUnambiguousProductIdentity(resolveProductIdentity({
+    structured: {
+      series: inputIdentity.series || pcgs.series,
+      year: inputIdentity.year || pcgs.year,
+      mint: inputIdentity.mint || pcgs.mint,
+      metal: inputIdentity.metal || pcgs.metal,
+      weight: inputIdentity.nominalWeightOz || coinData?.weight || bodyWeight,
+      grade: parsedQuery?._gradeSource === 'bu-term' ? null : (inputIdentity.grade || pcgs.grade),
+      finish: inputIdentity.finish || pcgs.finish,
+      designation: inputIdentity.designation || pcgs.designation,
+    },
+  }));
+  let resolvedWeight = productIdentity.nominalWeightOz || inputIdentity.nominalWeightOz
+    || identification.parsed?.weight || parsedQuery?.weight || null;
 
   // Default bullion coins to 1 oz
   if (!resolvedWeight) {
@@ -139,7 +159,7 @@ async function priceCoin(input, trustedContext = {}) {
   const isRoll = !!(coinData?.isRoll || identification.parsed?.isRoll);
 
   // ── 4. Build eBay keywords ──
-  const peekParsed = pcgsService.parseDescription(String(query));
+  const peekParsed = parsedQuery;
   const bullionHintText = `${coinData?.name || ''} ${peekParsed?.series || ''} ${String(query)}`.toLowerCase();
   const defaultLookbackDays = BULLION_1OZ_DEFAULT.some(b => bullionHintText.includes(b)) ? 120 : 180;
 
@@ -240,7 +260,7 @@ async function priceCoin(input, trustedContext = {}) {
     : pcgs.metalContent.toLowerCase().includes('platinum') ? 'platinum'
     : pcgs.metalContent.toLowerCase().includes('palladium') ? 'palladium' : null) : null;
   const profileMetal = getCoinMetalProfile(query).metal || null;
-  const expectedMetal = parsedMetal || pcgsMetal || profileMetal || null;
+  const expectedMetal = productIdentity.metal || parsedMetal || pcgsMetal || profileMetal || null;
 
   const intent = extractCoinIntent({
     coinData,
@@ -254,10 +274,10 @@ async function priceCoin(input, trustedContext = {}) {
     year: pcgs.year || identification.parsed?.year,
     mint: identification.parsed?.mint || '',
     series: pcgs.series || identification.parsed?.series,
-    grade: intent.grade,
-    designation: intent.designation,
-    finish: intent.finish,
-    isProof: intent.isProof,
+    grade: productIdentity.grade,
+    designation: productIdentity.designation,
+    finish: productIdentity.finish,
+    isProof: productIdentity.pool === 'proof' || productIdentity.pool === 'reverse-proof',
     metal: expectedMetal,
     weight: resolvedWeight || null,
     zodiacAnimal: zodiacAnimal,
@@ -272,6 +292,7 @@ async function priceCoin(input, trustedContext = {}) {
     _gradeSource: identification.parsed?._gradeSource || null,
     _exclusions: identification.parsed?._exclusions || null,
     _rawQuery: String(query),
+    _productIdentity: productIdentity,
   };
 
   // BU bullion grade fix
@@ -335,14 +356,10 @@ async function priceCoin(input, trustedContext = {}) {
   }
 
   // ── 9. Valuation ──
-  let userGrade = (isSet || isRoll) ? null : (coinData?.grade || identification.parsed?.grade || null);
+  let userGrade = (isSet || isRoll || productIdentity.pool === 'raw') ? null : productIdentity.grade;
 
   const valuationBullionSeries = (identification.parsed?.series || pcgs.series || '').toLowerCase();
   const isBullion = BULLION_1OZ_DEFAULT.some(b => valuationBullionSeries.includes(b));
-  if (isBullion && userGrade && identification.parsed?._gradeSource === 'bu-term') {
-    userGrade = null;
-  }
-
   // Greysheet lookup
   const pcgsNo = pcgs?.pcgsCoinNumber || pcgs?.pcgsNo || coinData?.pcgsNumber || null;
   const gradeNum = userGrade ? parseInt(String(userGrade).replace(/[^\d]/g, ''), 10) || null : null;
@@ -352,7 +369,7 @@ async function priceCoin(input, trustedContext = {}) {
       series: identification.parsed?.series || pcgs.series || '',
       metal: parsedMetal,
       weight: resolvedWeight,
-      finish: coinData?.finish || identification.parsed?.finish || (expected.isProof ? 'Proof' : null),
+      finish: productIdentity.finish || (expected.isProof ? 'Proof' : null),
     });
   }
 
@@ -470,6 +487,18 @@ async function priceCoin(input, trustedContext = {}) {
 
   // ── 13. Reproducibility ──
   const reproducibility = {
+    productIdentity: {
+      series: productIdentity.series,
+      year: productIdentity.year,
+      mint: productIdentity.mint,
+      metal: productIdentity.metal,
+      nominalWeightOz: resolvedWeight,
+      finish: productIdentity.finish,
+      designation: productIdentity.designation,
+      pool: productIdentity.pool,
+      weightEvidence: productIdentity.weightEvidence,
+      parserVersion: productIdentity.parserVersion,
+    },
     pcgs: {
       certNumber: certMatch ? query : null,
       barcode: null,

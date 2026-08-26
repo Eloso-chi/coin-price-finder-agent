@@ -4,7 +4,7 @@
 // ── Mock dependencies ────────────────────────────────────────
 
 jest.mock('../src/services/pcgsService', () => ({
-  parseDescription: jest.fn((q) => ({
+  parseDescription: jest.fn((_q) => ({
     series: 'Morgan Dollar',
     year: 1921,
     mint: null,
@@ -51,6 +51,7 @@ jest.mock('../src/services/metalsSpotPrice', () => ({
 }));
 
 jest.mock('../src/utils/coinMetalProfile', () => ({
+  ...jest.requireActual('../src/utils/coinMetalProfile'),
   getCoinMetalProfile: jest.fn(() => ({ isMetalBased: true, metal: 'silver' })),
 }));
 
@@ -79,7 +80,6 @@ const {
   concentrationPenalty,
   _cache,
   MAX_COINS,
-  MAX_ACTIVE_JOBS,
 } = require('../src/services/bulkEvaluateService');
 
 const greysheetService = require('../src/services/greysheetService');
@@ -637,7 +637,7 @@ describe('GET /api/bulk-evaluate/:jobId (poll)', () => {
 describe('GET /api/bulk-evaluate/:jobId/stream (SSE)', () => {
 
   test('returns 404 for unknown jobId', async () => {
-    const { status, body } = await get('/api/bulk-evaluate/no-such-job/stream');
+    const { status } = await get('/api/bulk-evaluate/no-such-job/stream');
     expect(status).toBe(404);
   });
 

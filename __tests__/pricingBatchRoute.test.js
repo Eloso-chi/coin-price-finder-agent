@@ -5,7 +5,7 @@
 
 // Mock heavy dependencies so tests are fast and isolated
 jest.mock('../src/services/pcgsService', () => ({
-  parseDescription: jest.fn((q) => ({
+  parseDescription: jest.fn((_q) => ({
     series: 'Morgan Dollar',
     year: 1921,
     mint: null,
@@ -65,6 +65,7 @@ jest.mock('../src/utils/filters', () => ({
 const http = require('http');
 const express = require('express');
 const pricingBatchRoute = require('../src/routes/pricingBatchRoute');
+const pcgsService = require('../src/services/pcgsService');
 const { computeValuation } = require('../src/services/valuationService');
 const { fetchSoldComps } = require('../src/services/ebayService');
 const { writeValuationAudit } = require('../src/services/auditService');
@@ -184,6 +185,9 @@ describe('POST /api/pricing-batch', () => {
 
   test('forwards label-only specialty intent to valuation', async () => {
     computeValuation.mockClear();
+    pcgsService.parseDescription.mockReturnValueOnce({
+      series: 'Libertad', year: 2018, mint: null, grade: 'MS70', gradeNum: 70, weight: null,
+    });
     const { status } = await post('/api/pricing-batch', {
       items: [{
         query: '2018 Libertad MS70',
@@ -284,6 +288,20 @@ describe('POST /api/pricing-batch', () => {
     });
     expect(status).toBe(200);
     expect(body.results[0]).toHaveProperty('error', 'missing query');
+  });
+
+  test('rejects ambiguous multi-weight identity without fetching comps', async () => {
+    fetchSoldComps.mockClear();
+    const { status, body } = await post('/api/pricing-batch', {
+      items: [{ query: '2025 American Silver Eagle 1 oz and 5 oz set' }],
+    });
+
+    expect(status).toBe(200);
+    expect(body.results[0]).toEqual(expect.objectContaining({
+      query: '2025 American Silver Eagle 1 oz and 5 oz set',
+      error: expect.stringContaining('Product identity is ambiguous'),
+    }));
+    expect(fetchSoldComps).not.toHaveBeenCalled();
   });
 
   test('returns exactly 25 results for maximum batch', async () => {

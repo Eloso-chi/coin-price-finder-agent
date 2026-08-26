@@ -165,6 +165,15 @@ describe('POST /api/price', () => {
   beforeEach(() => {
     app = createApp();
     jest.clearAllMocks();
+    pcgsService.parseDescription.mockReset().mockImplementation((_q) => ({
+      series: 'Morgan Dollar',
+      year: 1881,
+      mint: 'CC',
+      grade: 'MS-64',
+      gradeNum: 64,
+      weight: null,
+      finish: null,
+    }));
   });
 
   // ── Basic validation ──

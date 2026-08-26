@@ -10,8 +10,14 @@
 const fs = require('fs');
 const path = require('path');
 const { parse } = require('csv-parse/sync');
-const { isDenied, ROLL_PATTERN } = require('../utils/filters');
-const { detectWeightFromTitle, weightToKeyToken } = require('../utils/coinMetalProfile');
+const { isDenied } = require('../utils/filters');
+const { weightToKeyToken } = require('../utils/coinMetalProfile');
+const pcgsService = require('./pcgsService');
+const {
+  PRODUCT_IDENTITY_PARSER_VERSION,
+  resolveProductIdentity,
+  findIdentityMismatches,
+} = require('../utils/productIdentityResolver');
 
 const CACHE_DIR = require('../utils/cachePath').CACHE_DIR;
 const cosmos = require('../utils/cosmosClient');
@@ -606,16 +612,17 @@ const PROOF_RE = /\bproof\b(?![\s-]*like)/i;
 function classifyGradeType(comp) {
   const cond = (comp.condition || '').toLowerCase();
   const title = comp.title || '';
+  const isProofGrade = /\b(?:PR|PF|SP)\s*-?\s*\d{1,2}\+?\b/i.test(title);
   if (cond.includes('certified') || cond === '2000') {
     // Certified — check if it's a slabbed proof or slabbed BU
-    if (PROOF_RE.test(title)) return 'proof';
+    if (PROOF_RE.test(title) || isProofGrade) return 'proof';
     return 'graded';
   }
   if (cond.includes('uncirculated') || cond.includes('circulated')) {
-    if (PROOF_RE.test(title)) return 'proof';
+    if (PROOF_RE.test(title) || isProofGrade) return 'proof';
     return 'raw';
   }
-  if (PROOF_RE.test(title)) return 'proof';
+  if (PROOF_RE.test(title) || isProofGrade) return 'proof';
   if (TPG_RE.test(title) || GRADE_RE.test(title)) return 'graded';
   return 'raw';
 }
@@ -623,7 +630,7 @@ function classifyGradeType(comp) {
 // ── isDenied imported from ../utils/filters ──
 
 // ── Parse a single CSV row into a comp ──────────────────────
-function rowToComp(mappedRow, searchTerm) {
+function rowToComp(mappedRow, _searchTerm) {
   const title = mappedRow.title || '';
   if (!title) return null;
 
@@ -831,51 +838,61 @@ function importComps(searchTerm, comps, meta = {}, context = {}) {
   // actual weight from its title. If they differ, reroute the comp to the
   // correct dataset instead of discarding it.
   let reclassified = 0;
+  let ambiguousExcluded = 0;
+  let identityExcluded = 0;
   if (!isReclassifying) {
-    const expectedWeight = detectWeightFromQuery(normalizedKey);
-    const expectedMetal  = _detectMetalFromText(normalizedKey);
-    if (expectedWeight != null) {
-      const reroute = {};   // targetKey -> comp[]
-      const keep = [];
-      for (const comp of comps) {
-        const actualWeight = detectWeightFromTitle(comp.title);
-        const actualMetal  = _detectMetalFromText(comp.title);
-        // Metal mismatch (e.g. silver comp in gold dataset) -- skip reclassification
-        // unless both are null (can't determine)
-        if (expectedMetal && actualMetal && actualMetal !== expectedMetal) {
-          keep.push(comp);  // leave in place; meltFloor filter will catch it
+    const expectedIdentity = resolveProductIdentity({
+      text: normalizedKey,
+      parsed: pcgsService.parseDescription(normalizedKey),
+    });
+    const reroute = {};   // targetKey -> comp[]
+    const keep = [];
+    for (const comp of comps) {
+        const compIdentity = comp._productIdentity?.parserVersion === PRODUCT_IDENTITY_PARSER_VERSION
+          ? comp._productIdentity
+          : resolveProductIdentity({
+          text: comp.title,
+          parsed: pcgsService.parseDescription(comp.title),
+        });
+        if (compIdentity.ambiguous) {
+          ambiguousExcluded++;
           continue;
         }
-        if (actualWeight != null && Math.abs(actualWeight - expectedWeight) >= 0.01) {
+        const mismatches = findIdentityMismatches(expectedIdentity, compIdentity);
+        if (mismatches.some(field => field !== 'weight')) {
+          identityExcluded++;
+          continue;
+        }
+        const actualWeight = compIdentity.nominalWeightOz;
+        if (mismatches.includes('weight') && expectedIdentity.nominalWeightOz != null) {
           const targetToken = weightToKeyToken(actualWeight);
           if (targetToken) {
-            const currentToken = weightToKeyToken(expectedWeight);
+            const currentToken = weightToKeyToken(expectedIdentity.nominalWeightOz);
             if (currentToken) {
               const targetKey = normalizedKey.replace(currentToken, targetToken);
               if (targetKey !== normalizedKey) {
                 if (!reroute[targetKey]) reroute[targetKey] = [];
-                reroute[targetKey].push(comp);
+                  reroute[targetKey].push({ ...comp, _productIdentity: persistedProductIdentity(compIdentity) });
                 continue;
               }
             }
           }
         }
-        keep.push(comp);
-      }
-      // Recursively import rerouted comps into their correct datasets
-      for (const [targetKey, reroutedComps] of Object.entries(reroute)) {
-        importComps(targetKey, reroutedComps, {}, { source: 'reroute' });
-        reclassified += reroutedComps.length;
-      }
-      comps = keep;
+        keep.push({ ...comp, _productIdentity: persistedProductIdentity(compIdentity) });
     }
+    // Recursively import rerouted comps into their correct datasets
+    for (const [targetKey, reroutedComps] of Object.entries(reroute)) {
+      importComps(targetKey, reroutedComps, {}, { source: 'reroute' });
+      reclassified += reroutedComps.length;
+    }
+    comps = keep;
   }
 
   // Dedup against existing comps for this key
   const existing = store[normalizedKey]?.comps || [];
   const existingIds = new Set(existing.map(c => c.itemId).filter(Boolean));
   const existingTitles = new Set(existing.map(c =>
-    (c.title || '').toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 80) + '|' + Math.round(c.totalUsd || 0) + '|' + (c.soldDate || '')
+    compFallbackDedupKey(c)
   ));
 
   let newCount = 0;
@@ -884,10 +901,16 @@ function importComps(searchTerm, comps, meta = {}, context = {}) {
     // Check by itemId
     if (comp.itemId && existingIds.has(comp.itemId)) { dupCount++; continue; }
     // Check by title+price+date (date included so same listing sold on different dates isn't deduped)
-    const key = (comp.title || '').toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 80) + '|' + Math.round(comp.totalUsd || 0) + '|' + (comp.soldDate || '');
+    const key = compFallbackDedupKey(comp);
     if (existingTitles.has(key)) { dupCount++; continue; }
 
-    existing.push(comp);
+    const compIdentity = comp._productIdentity?.parserVersion === PRODUCT_IDENTITY_PARSER_VERSION
+      ? comp._productIdentity
+      : resolveProductIdentity({ text: comp.title, parsed: pcgsService.parseDescription(comp.title) });
+    existing.push({
+      ...comp,
+      _productIdentity: persistedProductIdentity(compIdentity),
+    });
     if (comp.itemId) existingIds.add(comp.itemId);
     existingTitles.add(key);
     newCount++;
@@ -1023,7 +1046,7 @@ function importComps(searchTerm, comps, meta = {}, context = {}) {
   // the old Terapeak dataset and are now stale.  Lazy require to avoid
   // circular dependency (ebayService requires terapeakService).
   if (newCount > 0) {
-    try { require('./ebayService').clearCache(); } catch (_) { /* ok */ }
+    try { require('./ebayService').clearCache(); } catch { /* ok */ }
   }
 
   return {
@@ -1031,8 +1054,33 @@ function importComps(searchTerm, comps, meta = {}, context = {}) {
     newComps: newCount,
     duplicatesSkipped: dupCount,
     reclassified,
+    ambiguousExcluded,
+    identityExcluded,
     totalStored: existing.length,
     lastImport: store[normalizedKey].lastImport
+  };
+}
+
+function compFallbackDedupKey(comp) {
+  const title = (comp.title || '').toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 80);
+  const cents = Math.round(Number(comp.totalUsd || 0) * 100);
+  return `${title}|${cents}|${comp.soldDate || ''}`;
+}
+
+function persistedProductIdentity(identity) {
+  return {
+    series: identity.series,
+    year: identity.year == null ? null : String(identity.year),
+    mint: identity.mint,
+    metal: identity.metal,
+    nominalWeightOz: identity.nominalWeightOz,
+    grade: identity.grade,
+    finish: identity.finish,
+    designation: identity.designation,
+    pool: identity.pool,
+    poolConstrained: identity.poolConstrained,
+    weightEvidence: identity.weightEvidence,
+    parserVersion: identity.parserVersion,
   };
 }
 

@@ -179,6 +179,7 @@ jest.mock('../src/services/metalsSpotPrice', () => ({
 }));
 
 jest.mock('../src/utils/coinMetalProfile', () => ({
+  ...jest.requireActual('../src/utils/coinMetalProfile'),
   getCoinMetalProfile: jest.fn((query) => {
     const q = String(query || '').toLowerCase();
     let metal = null;

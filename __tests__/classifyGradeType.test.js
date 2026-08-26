@@ -33,6 +33,13 @@ describe('ebayService.classifyGradeType', () => {
       })).toBe('proof');
     });
 
+    it.each(['PR69', 'PF70', 'SP70'])('classifies bare certified %s grade as proof', (grade) => {
+      expect(classifyGradeType({
+        conditionId: 2000,
+        title: `2023 Silver Eagle PCGS ${grade}`
+      })).toBe('proof');
+    });
+
     it('does NOT classify prooflike as proof', () => {
       expect(classifyGradeType({
         conditionId: 2000,
@@ -44,6 +51,13 @@ describe('ebayService.classifyGradeType', () => {
       expect(classifyGradeType({
         conditionId: 2000,
         title: '1880-S Morgan PCGS MS63 Proof-Like'
+      })).toBe('graded');
+    });
+
+    it('classifies DMPL as graded rather than proof', () => {
+      expect(classifyGradeType({
+        conditionId: 2000,
+        title: '1881-S Morgan Dollar PCGS MS65 DMPL'
       })).toBe('graded');
     });
   });
@@ -63,6 +77,20 @@ describe('ebayService.classifyGradeType', () => {
         conditionId: 3000,
         title: '2023 American Silver Eagle Proof'
       })).toBe('proof');
+    });
+
+    it.each(['Burnished', 'Satin'])('keeps raw %s finishes in the raw pool', (finish) => {
+      expect(classifyGradeType({
+        conditionId: 3000,
+        title: `2023 American Silver Eagle ${finish}`
+      })).toBe('raw');
+    });
+
+    it('classifies reverse proof separately', () => {
+      expect(classifyGradeType({
+        conditionId: 3000,
+        title: '2023 American Silver Eagle Reverse Proof'
+      })).toBe('reverse-proof');
     });
   });
 
@@ -105,6 +133,10 @@ describe('ebayService.classifyGradeType', () => {
       })).toBe('proof');
     });
 
+    it.each(['PR69', 'PF70', 'SP70'])('classifies bare fallback %s grade as proof', (grade) => {
+      expect(classifyGradeType({ title: `2023 Silver Eagle NGC ${grade}` })).toBe('proof');
+    });
+
     it('classifies plain title as raw', () => {
       expect(classifyGradeType({
         title: '2023 American Silver Eagle 1oz'
@@ -139,6 +171,13 @@ describe('terapeakService.classifyGradeType', () => {
       })).toBe('proof');
     });
 
+    it.each(['PR69', 'PF70', 'SP70'])('classifies bare certified %s grade as proof', (grade) => {
+      expect(terapeak.classifyGradeType({
+        condition: 'Certified',
+        title: `2023 Silver Eagle PCGS ${grade}`
+      })).toBe('proof');
+    });
+
     it('does NOT classify prooflike as proof', () => {
       expect(terapeak.classifyGradeType({
         condition: 'Certified',
@@ -168,6 +207,13 @@ describe('terapeakService.classifyGradeType', () => {
       expect(terapeak.classifyGradeType({
         condition: '',
         title: 'PCGS PR69 DCAM 2023 Silver Eagle Proof'
+      })).toBe('proof');
+    });
+
+    it.each(['PR69', 'PF70', 'SP70'])('classifies bare fallback %s grade as proof', (grade) => {
+      expect(terapeak.classifyGradeType({
+        condition: '',
+        title: `2023 Silver Eagle NGC ${grade}`
       })).toBe('proof');
     });
   });

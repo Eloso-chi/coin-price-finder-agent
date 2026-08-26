@@ -68,11 +68,13 @@ describe('parseDescription — EF/PF normalisation', () => {
     const p = parseDescription('1956 Franklin Half PF65');
     expect(p.grade).toBe('PR65');
     expect(p.gradeNum).toBe(65);
+    expect(p.finish).toBe('Proof');
   });
 
   test('PF-69 normalises to PR69', () => {
     const p = parseDescription('2023 Silver Eagle PF-69');
     expect(p.grade).toBe('PR69');
+    expect(p.finish).toBe('Proof');
   });
 
   test('XF40 stays XF40 (no double conversion)', () => {
@@ -83,6 +85,7 @@ describe('parseDescription — EF/PF normalisation', () => {
   test('PR70 stays PR70', () => {
     const p = parseDescription('2024 Gold Eagle PR70');
     expect(p.grade).toBe('PR70');
+    expect(p.finish).toBe('Proof');
   });
 });
 
