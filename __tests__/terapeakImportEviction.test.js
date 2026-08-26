@@ -94,12 +94,12 @@ describe('importComps', () => {
       // detectWeightFromTitle and stayed in the 1 oz dataset; after
       // #283W it must reroute out.
       { title: '2011 MO SILVER PROOF MEXICO 1/20 ONZA LIBERTAD NGC PF 69 UC', soldDate: '2026-04-02', totalUsd: 15, itemId: 'onza-reroute-twentieth' },
-      // 1/4 Onza -- same shape as the coin the user saw on the tracker.
+      // Wrong-year 1/4 Onza is excluded rather than rerouted into a 2011 key.
       { title: '2023 Mexico Libertad 1/4 Onza Proof Silver Coin', soldDate: '2026-04-03', totalUsd: 45, itemId: 'onza-reroute-quarter' },
     ];
     const result = importComps('1oz 2011 libertad mexican proof silver', comps);
-    // Two of three rerouted -> only one stays in the target key.
-    expect(result.reclassified).toBe(2);
+    expect(result.reclassified).toBe(1);
+    expect(result.identityExcluded).toBe(1);
     expect(result.totalStored).toBe(1);
     // The kept comp is the actual 1 oz Onza.
     const lookup = lookupComps('1oz 2011 libertad mexican proof silver');

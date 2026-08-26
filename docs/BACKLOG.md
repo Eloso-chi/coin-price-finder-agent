@@ -1094,7 +1094,9 @@ Verified:
 
 ---
 
-### #302H. Canonical, versioned product identity across pricing and Terapeak pipelines [P2 -- CORRECTNESS / PRICING-ARCHITECTURE] -- PROPOSED 2026-08-23
+### #302H. Canonical, versioned product identity across pricing and Terapeak pipelines [P2 -- CORRECTNESS / PRICING-ARCHITECTURE] -- IMPLEMENTED 2026-08-25
+
+**Implemented:** Shared parser version `1.0.0` resolves structured query and comp identity across single-price, pricing-batch, bulk evaluation, deterministic AI, direct/composite filtering, and Terapeak import. Multi-weight or conflicting identity fails closed; accepted comps persist internal identity evidence; public responses redact internal comp evidence. The migration script is dry-run-first, idempotent, and emits before/after plus rollback artifacts. Production migration remains separately approval-gated and was not applied by this implementation.
 
 **Origin:** Follow-up to the expanded Pricing Health audit of #300H on 2026-08-22. Thin-market 5 oz Proof Libertad cohorts exposed mixed-weight titles whose first detectable weight could be treated as the listing's single product identity. A subsequent read-only architecture and numismatic review found the same scalar-first parsing assumption at import, lookup, scoring, filtering, cohort, and route boundaries.
 

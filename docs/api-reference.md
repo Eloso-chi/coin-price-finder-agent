@@ -22,6 +22,8 @@ Every valuation includes `algorithmVersion` (semantic version), `configVersion` 
 
 `POST /api/price` validates HTTP input and derives trusted admin context before calling `pricingService.priceCoin(input, trustedContext)`. The route then adapts the deterministic result to the legacy response contract, writes the audit record, and redacts licensed comp provenance for public callers. Caller-supplied coin data cannot set audience, identity, authorization, or redaction state.
 
+Equivalent single, batch, bulk, and deterministic AI requests resolve through canonical product identity parser version `1.0.0`. Multiple distinct explicit weights or conflicts between structured fields and parsed series, year, mint, metal, weight, grade, finish, or designation return `400` with `code: "AMBIGUOUS_PRODUCT_IDENTITY"` for single-price and AI routes; batch and bulk results carry the same per-item error. Weight evidence within 5% is treated as the same nominal product. Successful single-price results include `reproducibility.productIdentity` with the resolved target and weight evidence. Internal `_productIdentity` fields attached to sold comps are removed from public responses.
+
 For equivalent deterministic inputs, `/api/price`, `/api/pricing-batch`, and `/api/bulk-evaluate` preserve the same `confidence`, `lowData`, `compCount`, `method`, `explanation`, `dataSource`, and `gradePool` semantics. A valuation based on exactly one sold comp includes a `SINGLE-COMP ESTIMATE` warning. A thin exact-year Terapeak pool may use a bounded cross-year cohort and returns `dataSource.label: "cross-year-composite"`, `gradePool.compositeBasis`, a `(composite)` method suffix, explicit warnings, and confidence capped at 30 without population data or 35 with it. Bullion comps whose titles omit weight are rejected when price exceeds `max(meltPerOz * weight * 5, $50)`, for fractional and multi-ounce coins alike. `/api/ai/price` preserves these fields and a structured `warning` in `provenance.valuation` for deterministic and LLM-backed responses.
 
 ## Bulk Lot Evaluator
@@ -95,7 +97,7 @@ External OpenAPI/MCP exposure is not enabled. See [docs/AI-EXTERNAL-EXPOSURE-EVA
 | `POST` | `/api/terapeak/import` | 🔒 | Upload a Terapeak CSV (multipart form) |
 | `POST` | `/api/terapeak/import-text` | 🔒 | Paste Terapeak CSV as plain text |
 | `GET` | `/api/terapeak/datasets` | 🔒 | List all imported Terapeak datasets with metadata |
-| `GET` | `/api/terapeak/lookup` | None | Look up sold comps by keyword search |
+| `GET` | `/api/terapeak/lookup` | None | Look up sold comps by keyword search; public rows redact internal identity and cohort metadata |
 | `DELETE` | `/api/terapeak/datasets/:key` | 🔒 | Delete specific Terapeak dataset |
 | `DELETE` | `/api/terapeak/datasets` | 🔒 | Clear all Terapeak data |
 

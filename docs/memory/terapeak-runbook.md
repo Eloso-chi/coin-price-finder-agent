@@ -1,5 +1,32 @@
 # Terapeak Export -- Startup Runbook
 
+## Canonical Identity Reclassification
+
+Preview stored-row classification without mutating the store:
+
+```bash
+node scripts/reclassify-comps.js
+```
+
+The dry run classifies rows as `valid`, `wrong_dataset`, `ambiguous`, or `unknown`. Only a pure weight mismatch may be rerouted; conflicting series, year, mint, metal, grade, finish, designation, or pool is excluded and recorded for rollback. The command writes ignored artifacts under `.local/reclassification/`:
+
+Fractional canonical keys are normalized before classification even when token sorting separates `oz` from `twentieth`, `tenth`, `quarter`, or `half`. Review reroute totals for those weights in the manifest; no manual key rewrite is required.
+
+- `identity-reclassification-manifest.json` -- parser version, before/after counts, classification totals, and reroute counts.
+- `identity-reclassification-rollback.json` -- original rows removed or moved, including source dataset and index.
+
+Review both artifacts before applying. Apply mode is an operational data mutation and requires explicit approval:
+
+```bash
+node scripts/reclassify-comps.js --apply
+```
+
+Use `--store <path>` and `--output-dir <path>` for isolated validation. Apply only on the authoritative environment while the application server and all import processes are stopped. The script creates an exclusive `.reclassify.lock`, and live Terapeak persistence defers writes while that lock exists, but an offline apply remains mandatory to eliminate in-flight write races.
+
+The migration holds the source, transformed store, rollback rows, and serialized artifacts in memory. Before applying a production-scale store, ensure free memory comfortably exceeds several times the store size; use an explicit Node heap limit when needed, for example `node --max-old-space-size=4096 scripts/reclassify-comps.js --apply`. The script aborts if the source fingerprint changes after reading and before replacement.
+
+After apply, restart the application to invalidate pricing caches. Re-running after apply must report `storeChanged: false`, `identityUpdated: 0`, and `changed: 0`.
+
 ## Quick Start (run these in order)
 
 ### 1. VNC Server

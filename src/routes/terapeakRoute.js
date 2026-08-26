@@ -9,6 +9,7 @@ const terapeakService = require('../services/terapeakService');
 const quotaService = require('../services/terapeakQuotaService');
 const { isPlausibleRefreshTimestamp, latestRefreshAt } = require('../services/freshnessClassifier');
 const requireAdmin = require('../middleware/requireAdminOrKey');
+const { redactCompsForPublic } = require('../utils/redactForPublic');
 
 // ── Multer: accept CSV uploads up to 10 MB ──────────────────
 const upload = multer({
@@ -183,13 +184,13 @@ router.get('/lookup', (req, res) => {
   const metal = req.query.metal || terapeakService.detectMetal(q) || undefined;
   const data = terapeakService.lookupComps(q, { metal });
   if (!data) return res.json({ found: false, comps: [] });
-  res.json({
+  res.json(redactCompsForPublic({
     found: true,
     searchTerm: data.searchTerm,
     compCount: data.comps.length,
     lastImport: data.lastImport,
     comps: data.comps
-  });
+  }, req.isAdmin));
 });
 
 /**

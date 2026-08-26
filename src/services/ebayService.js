@@ -35,6 +35,7 @@ const { isDenied, detectDenomination, hasSeriesConflict, isCompositionMismatch, 
 const terapeakService = require('./terapeakService');
 const { getSpotOnDate, METAL_SYMBOLS } = require('./metalsHistoryService');
 const { detectWeightFromTitle, detectWeightsFromTitle } = require('../utils/coinMetalProfile');
+const { resolveProductIdentity } = require('../utils/productIdentityResolver');
 const { isReverseProofFinish } = require('../utils/coinIntent');
 const { detectBarBrands, detectSeriesFromTitle } = require('../data/barSeries');
 
@@ -66,7 +67,6 @@ function tripCircuit(apiName) {
 
 // Long-lived cache: sold data doesn't change, so cache aggressively
 const path = require('path');
-const fs = require('fs');
 const CACHE_DIR = require('../utils/cachePath').CACHE_DIR;
 const cache = new TTLCache({ defaultTTL: CACHE_TTL, filePath: path.join(CACHE_DIR, 'ebay_cache.json') });
 
@@ -316,18 +316,19 @@ function classifyGradeType(comp) {
   const cid = comp.conditionId ? String(comp.conditionId) : null;
   const title = comp.title || '';
   const isRP = isReverseProofTitle(title);
+  const isProofGrade = /\b(?:PR|PF|SP)\s*-?\s*\d{1,2}\+?\b/i.test(title);
 
   // 1. Authoritative: eBay conditionId
   if (cid === '2000') {
     // #182: Certified coin — check if it's a slabbed proof or slabbed BU
     if (isRP) return 'reverse-proof';
-    if (PROOF_RE.test(title)) return 'proof';
+    if (PROOF_RE.test(title) || isProofGrade) return 'proof';
     return 'graded';
   }
   if (cid === '3000' || cid === '4000') {
     // Uncirculated/Circulated condition but may still be proof
     if (isRP) return 'reverse-proof';
-    if (PROOF_RE.test(title)) return 'proof';
+    if (PROOF_RE.test(title) || isProofGrade) return 'proof';
     return 'raw';
   }
   // 1000 (New), 1500 (New Other) — not standard for coins but treat as raw
@@ -337,13 +338,13 @@ function classifyGradeType(comp) {
   if (comp._certificationAspect) {
     // #182: Certified via aspect — still check for proof
     if (isRP) return 'reverse-proof';
-    if (PROOF_RE.test(title)) return 'proof';
+    if (PROOF_RE.test(title) || isProofGrade) return 'proof';
     return 'graded';
   }
 
   // 3. Title fallback (least reliable — eBay policy says don't rely on title)
   if (isRP) return 'reverse-proof';
-  if (PROOF_RE.test(title)) return 'proof';
+  if (PROOF_RE.test(title) || isProofGrade) return 'proof';
   if (TPG_RE.test(title) || FORMAL_GRADE_RE.test(title)) return 'graded';
 
   return 'raw';
@@ -840,8 +841,11 @@ function scoreMatch(comp, expected) {
   // weight-mismatch (-35) instead of weight-match (+25) -- a 60-point swing that
   // could demote them out of the top-K window.
   if (expected.weight) {
-    const detectedWeight = detectWeightFromTitle(tLow);
-    if (detectedWeight !== null) {
+    const weightIdentity = resolveProductIdentity({ text: tLow });
+    const detectedWeight = weightIdentity.nominalWeightOz;
+    if (weightIdentity.ambiguous) {
+      score -= 35; notes.push('weight-ambiguous');
+    } else if (detectedWeight !== null) {
       const wtRatio = Math.abs(detectedWeight - expected.weight) / Math.max(detectedWeight, expected.weight);
       if (wtRatio < 0.05) {
         score += 25; notes.push('weight-match');
@@ -1163,9 +1167,15 @@ function applyFilters(comps, options, expected) {
   // different weight than what the user searched for (e.g. "1 oz" in results
   // when user wants "1/4 oz").
   if (expected.weight) {
+    removed.weightAmbiguous = 0;
     removed.weightMismatch = 0;
     kept = kept.filter(c => {
-      const detW = detectWeightFromTitle(c.title);
+      const identity = resolveProductIdentity({ text: c.title });
+      if (identity.ambiguous) {
+        removed.weightAmbiguous++;
+        return false;
+      }
+      const detW = identity.nominalWeightOz;
       if (detW === null) return true; // no weight stated — benefit of doubt
       const wtRatio = Math.abs(detW - expected.weight) / Math.max(detW, expected.weight);
       if (wtRatio < 0.05) return true; // within 5% relative tolerance (handles 30g≈1oz)
@@ -1188,7 +1198,7 @@ function applyFilters(comps, options, expected) {
     removed.meltSanity = 0;
     const meltCeiling = Math.max(expected.meltPerOz * expected.weight * 5, 50);
     kept = kept.filter(c => {
-      const detW = detectWeightFromTitle(c.title);
+      const detW = resolveProductIdentity({ text: c.title }).nominalWeightOz;
       if (detW !== null) return true; // already handled by weight-mismatch filter
       if (c.totalUsd > meltCeiling) {
         removed.meltSanity++;
@@ -2117,7 +2127,6 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
       if (expected.weight) expected._fromGenericDataset = true;
       const { kept, removed } = applyFilters(scoredBrowse, opts, expected);
       delete expected._fromGenericDataset;
-      const prices = kept.map(c => c.totalUsd);
       usedFallback = true;
 
       // Merge with whatever we already have

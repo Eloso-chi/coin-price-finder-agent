@@ -26,7 +26,7 @@ public/
 src/
   routes/                  18 Express route modules
   services/                28 service modules, including `pricingService.priceCoin()` as the shared deterministic pricing boundary
-  utils/                   14 shared utility modules
+  utils/                   Shared utilities, including versioned canonical product identity resolution
   middleware/              4 request/auth/logging middleware modules
   schemas/                 Price response and AI tool argument schemas
   data/                    Static reference data (PCGS numbers, key dates, mintages, greysheetTypeMap, etc.)

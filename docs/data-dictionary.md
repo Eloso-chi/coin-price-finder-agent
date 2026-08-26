@@ -24,6 +24,7 @@ exposure is disabled.
 | `/api/pricing-batch` result | `confidence`, `lowData`, `compCount`, `method`, `explanation`, `dataSource`, `gradePool` | Preserves the shared valuation contract for each item | A one-sold-comp result includes a `SINGLE-COMP ESTIMATE` explanation |
 | `/api/bulk-evaluate` per-coin result | `confidence`, `lowData`, `compCount`, `method`, `explanation`, `dataSource`, `gradePool` | Public jobs preserve the shared contract; anonymous poll, replay, and live access to admin-origin jobs redacts `explanation` to `[]` | Bulk caches are audience-isolated because explanations differ for public and admin callers |
 | `/api/ai/price` provenance valuation | `confidence`, `lowData`, `compCount`, `method`, `dataSource`, `compositeBasis`, `warning` | Deterministic and LLM-backed responses expose structured low-data and composite disclosure | `warning` is non-null for one-sold-comp and cross-year-composite estimates |
+| `/api/price` reproducibility identity | `series`, `year`, `mint`, `metal`, `nominalWeightOz`, `finish`, `designation`, `pool`, `weightEvidence`, `parserVersion` | Public-safe canonical target used for deterministic pricing | `weightEvidence.status` is `none`, `single`, or `ambiguous`; successful valuations never contain ambiguous identity |
 
 `gradePool.compositeBasis` contains `usedCohort`, `cohortYears`, `cohortCompCount`, `exactYearCompCount`, and `populationGateApplied`. It is present only when cohort comps contribute to FMV.
 
@@ -271,6 +272,10 @@ Terapeak comps and aggregation metadata keyed by normalized search term.
 - Item id: normalized/search-derived identifier
 - Partition key: `/searchTerm`
 - Writer/reader: `src/services/terapeakService.js`
+
+Accepted comp rows may include internal `_productIdentity` evidence with the same canonical fields and parser version. It is persisted in the local/Cosmos sold-data record for reclassification and diagnostics, but stripped from public API comp payloads. Ambiguous multi-product rows and non-weight identity conflicts are excluded during import and migration rather than assigned to the first detected weight or retained in the wrong dataset.
+
+Local store replacement and live persistence share `<store>.reclassify.lock`. Lock states are `writer-active`, `migration-active`, and `restart-required`. Startup removes completed restart markers and dead-process writer locks; it never removes active migration locks. Canonical key collisions preserve the complete dataset shape, merge aggregation metadata, deduplicate comps by item ID or exact-cents fallback key, and reduce aliases in a stable order.
 
 ---
 

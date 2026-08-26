@@ -118,6 +118,7 @@ jest.mock('../src/utils/filters', () => ({
 }));
 
 jest.mock('../src/utils/coinMetalProfile', () => ({
+  ...jest.requireActual('../src/utils/coinMetalProfile'),
   getCoinMetalProfile: jest.fn(() => ({ metal: null })),
 }));
 
@@ -317,6 +318,63 @@ describe('pricingService.priceCoin() — Phase 0 Acceptance Tests', () => {
     expect(buildLunarComparison).toHaveBeenCalled();
   });
 
+  test('routes SP grades through the canonical proof pool', async () => {
+    const parsed = { series: 'Specimen Coin', year: 2024, grade: 'SP70', gradeNum: 70 };
+    pcgsService.parseDescription.mockReturnValueOnce(parsed);
+    pcgsService.resolveFromDescription.mockReturnValueOnce({
+      verified: false, series: 'Specimen Coin', year: 2024, grade: 'SP70', parsed,
+    });
+
+    await priceCoin({ query: '2024 Specimen Coin SP70' });
+
+    expect(ebayService.fetchSoldComps.mock.calls[0][2]).toEqual(expect.objectContaining({
+      grade: 'SP70',
+      isProof: true,
+    }));
+  });
+
+  test('keeps parser-expanded BU input in the canonical raw pool', async () => {
+    const parsed = {
+      series: 'Commemorative Silver Coin', year: 2024, grade: 'MS60', gradeNum: 60, _gradeSource: 'bu-term',
+    };
+    pcgsService.parseDescription.mockReturnValueOnce(parsed);
+    pcgsService.resolveFromDescription.mockReturnValueOnce({
+      verified: false, series: 'Commemorative Silver Coin', year: 2024, grade: 'MS60', parsed,
+    });
+
+    await priceCoin({ query: '2024 Commemorative Silver Coin BU' });
+
+    expect(ebayService.fetchSoldComps.mock.calls[0][2]).toEqual(expect.objectContaining({
+      grade: null,
+      isProof: false,
+    }));
+    expect(computeValuation.mock.calls[0][3]).toBeNull();
+  });
+
+  test.each([
+    ['MS64', false],
+    ['PR69', true],
+  ])('routes cert-only %s identity to its canonical pool', async (grade, isProof) => {
+    pcgsService.lookupByCert.mockResolvedValueOnce({
+      verified: true,
+      pcgsCoinNumber: 1234,
+      series: 'Certified Coin',
+      year: 2024,
+      grade,
+      finish: isProof ? 'Proof' : null,
+      parsed: {},
+    });
+
+    await priceCoin({ query: '12345678' });
+
+    expect(ebayService.fetchSoldComps.mock.calls[0][2]).toEqual(expect.objectContaining({
+      grade,
+      isProof,
+    }));
+    expect(computeValuation.mock.calls[0][3]).toBe(grade);
+    expect(computeValuation.mock.calls[0][4]).toEqual(expect.objectContaining({ isProof }));
+  });
+
   test('preserves the mint-set Numista limitation text', async () => {
     const result = await priceCoin({
       query: '2024 US Mint Set',
@@ -446,6 +504,11 @@ describe('pricingService.priceCoin() — Phase 0 Acceptance Tests', () => {
     expect(result.reproducibility.ebay).toBeDefined();
     expect(result.reproducibility.ebay.usItemIds).toBeDefined();
     expect(Array.isArray(result.reproducibility.ebay.usItemIds)).toBe(true);
+    expect(result.reproducibility.productIdentity).toEqual(expect.objectContaining({
+      parserVersion: '1.0.0',
+      pool: expect.any(String),
+      weightEvidence: expect.objectContaining({ status: expect.any(String) }),
+    }));
   });
 
   // ── Test 12: No AI dependencies in result

@@ -85,6 +85,10 @@ model arbitrary application access:
 - Public response redaction runs before restricted comp provenance reaches the
    model or browser. Provider credentials remain server-side and Azure OpenAI
    is disabled unless explicitly configured.
+- Public Terapeak lookup responses strip internal product identity and cohort
+   metadata. Live Terapeak writers and offline identity migration share an
+   ownership-aware lock; dead writer locks are PID-recovered, active migration
+   locks fail closed, and successful apply requires restart before writes resume.
 - Provider calls and tools have bounded turns, timeouts, input/context limits,
    concurrency limits, request IDs, and deterministic fallback behavior when
    the provider is disabled or unavailable.

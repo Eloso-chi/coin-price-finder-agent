@@ -84,7 +84,10 @@ jest.mock('../src/utils/coinIntent', () => ({
   ...jest.requireActual('../src/utils/coinIntent'),
   extractCoinIntent: jest.fn(() => ({ grade: null, designation: null, finish: null, isProof: false })),
 }));
-jest.mock('../src/utils/coinMetalProfile', () => ({ getCoinMetalProfile: jest.fn(() => ({ metal: null })) }));
+jest.mock('../src/utils/coinMetalProfile', () => ({
+  ...jest.requireActual('../src/utils/coinMetalProfile'),
+  getCoinMetalProfile: jest.fn(() => ({ metal: null })),
+}));
 
 const express = require('express');
 const request = require('supertest');
@@ -113,6 +116,18 @@ function isSafeErrorBody(body) {
 }
 
 describe('POST /api/price -- input validation', () => {
+  test('returns 400 for ambiguous multi-product weight identity', async () => {
+    const res = await request(createApp())
+      .post('/api/price')
+      .send({ query: '2025 American Silver Eagle 1 oz and 5 oz set' });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual(expect.objectContaining({
+      code: 'AMBIGUOUS_PRODUCT_IDENTITY',
+      error: expect.stringContaining('Product identity is ambiguous'),
+    }));
+    expect(pcgsService.resolveFromDescription).not.toHaveBeenCalled();
+  });
   let app;
   beforeAll(() => { app = createApp(); });
 

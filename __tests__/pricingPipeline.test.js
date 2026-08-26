@@ -19,14 +19,12 @@ const { applyFilters, scoreMatch, classifyGradeType } = require('../src/services
 const { computeValuation } = require('../src/services/valuationService');
 const {
   makeComp,
-  makeComps,
   seedRandom,
   pickRandom,
   selectCoins,
   US_COINS,
   US_BULLION,
   WORLD_BULLION,
-  ALL_COINS,
 } = require('./helpers/coinTestConstants');
 
 // ═══════════════════════════════════════════════════════════════
@@ -298,7 +296,7 @@ describe('priceRoute response — cross-tab propagation fields', () => {
 
   // Mock all heavy deps to test only the route's response shape
   jest.mock('../src/services/pcgsService', () => ({
-    parseDescription: jest.fn((q) => ({
+    parseDescription: jest.fn((_q) => ({
       series: 'American Silver Eagle', year: 2024, mint: null,
       grade: null, gradeNum: null, weight: 1, finish: null, metal: 'silver',
     })),
@@ -505,9 +503,12 @@ describe('grade pool isolation — end-to-end pipeline', () => {
   test('classifyGradeType correctly labels comps fed into the pipeline', () => {
     const graded = [
       { conditionId: '2000', title: 'PCGS MS-65' },
-      { conditionId: '2000', title: 'NGC PF-69' },
       { title: '1881-S Morgan PCGS MS-65' },
       { title: '2024 ASE NGC MS-70 First Strike' },
+    ];
+    const proof = [
+      { conditionId: '2000', title: 'NGC PF-69' },
+      { title: '2024 ASE PCGS PR70 DCAM' },
     ];
     const raw = [
       { conditionId: '3000', title: 'BU' },
@@ -516,6 +517,7 @@ describe('grade pool isolation — end-to-end pipeline', () => {
       { title: '2024 Silver Eagle BU' },
     ];
     graded.forEach(c => expect(real.classifyGradeType(c)).toBe('graded'));
+    proof.forEach(c => expect(real.classifyGradeType(c)).toBe('proof'));
     raw.forEach(c => expect(real.classifyGradeType(c)).toBe('raw'));
   });
 

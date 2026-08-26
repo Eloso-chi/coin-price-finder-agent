@@ -140,6 +140,19 @@ describe('applyFilters — weight mismatch', () => {
     expect(removed.weightMismatch).toBe(1);
     expect(kept.length).toBe(2);
   });
+
+  test('rejects ambiguous multi-weight comps before scalar weight matching', () => {
+    const comps = [
+      makeComp({ title: '2025 American Silver Eagle 1 oz BU', matchScore: 70 }),
+      makeComp({ title: '2025 American Silver Eagle 1 oz with 5 oz bonus', matchScore: 70 }),
+      makeComp({ title: '2025 American Silver Eagle 5 oz with 1 oz bonus', matchScore: 70 }),
+    ];
+
+    const { kept, removed } = applyFilters(comps, {}, { weight: 1 });
+
+    expect(kept.map(item => item.title)).toEqual(['2025 American Silver Eagle 1 oz BU']);
+    expect(removed.weightAmbiguous).toBe(2);
+  });
 });
 
 // ═══════════════════════════════════════════════════════════════

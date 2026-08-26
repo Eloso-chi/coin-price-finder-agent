@@ -245,6 +245,9 @@ router.post('/price', async (req, res) => {
       response,
     });
   } catch (err) {
+    if (err?.code === 'AMBIGUOUS_PRODUCT_IDENTITY') {
+      return res.status(400).json({ ok: false, error: err.message, code: err.code });
+    }
     return res.status(502).json({
       ok: false,
       error: err && err.message ? err.message : 'pricing service unavailable',

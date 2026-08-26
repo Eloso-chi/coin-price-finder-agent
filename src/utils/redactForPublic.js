@@ -45,6 +45,10 @@ function redactCompsForPublic(response, isAdmin) {
     response.ebay = _cloneEbay(response.ebay);
   }
 
+  if (Array.isArray(response.comps)) {
+    response.comps = response.comps.map(_redactComp);
+  }
+
   // Batch route shape: response.results[].ebay.{us,global}.comps[]
   if (Array.isArray(response.results)) {
     for (const r of response.results) {
@@ -72,8 +76,8 @@ function _cloneEbay(ebay) {
 
 function _redactComp(c) {
   if (!c || typeof c !== 'object') return c;
-  if (c._source !== 'terapeak' && !Object.hasOwn(c, '_compositeCohort')) return c;
-  const { _compositeCohort, ...publicComp } = c;
+  if (c._source !== 'terapeak' && !Object.hasOwn(c, '_compositeCohort') && !Object.hasOwn(c, '_productIdentity')) return c;
+  const { _compositeCohort, _productIdentity, ...publicComp } = c;
   if (publicComp._source === 'terapeak') publicComp._source = 'ebay-sold';
   return publicComp;
 }

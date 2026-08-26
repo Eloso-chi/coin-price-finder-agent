@@ -64,12 +64,25 @@ The low comp count was caused by **stale eBay disk cache** (`cache/ebay_cache.js
 - All fixes committed in `92c80eb`
 
 ### 7. Dedup Key Reference
-- **Node `importComps()`**: `title|price|soldDate` (was `title|price`)
+- **Node `importComps()`**: normalized `title|priceInCents|soldDate` (was `title|price`)
 - **Python `append_to_csv()`**: `title|itemId|soldDate|soldPrice` (was `id|date|price`)
 - Old keys were too aggressive -- collapsed different listings with same price or blank IDs
+- Node fallback keys preserve distinct no-ID sales at nearby prices, such as `$100.10` and `$100.40`.
 
 ### 8. Targeted Folder Import
 - `autoImportFolder(folder, { includeFiles })` accepts an array of exact child filenames.
 - Entries are matched against files returned by the target directory, so unknown and traversal-like names are ignored.
 - Omitting `includeFiles` preserves the full-folder startup import.
 - Seeded integrity tests use this option for their sampled and pinned cohort, with a strict-majority resolution assertion to prevent reduced setup from becoming soft-skipped coverage.
+
+### 9. Canonical Product Identity
+- Imported comps persist an internal `_productIdentity` resolved by the versioned canonical parser.
+- Stored identity includes series, year, mint, metal, nominal weight, grade, finish, designation, pool, pool constraint, weight evidence, and parser version.
+- Import validation carries the resolved identity through weight-only reroutes instead of reparsing the title before persistence.
+- Ambiguous identities and non-weight identity mismatches are excluded. Pure weight mismatches may be rerouted to the matching dataset.
+- Canonical key sorting can separate fractional weight tokens (for example, `oz silver tenth`). Dataset-key parsing reconstructs the unambiguous `tenth oz` phrase before identity comparison; comp-title parsing still requires adjacent weight language.
+- Generic Terapeak datasets may retain raw, graded, proof, and reverse-proof source records. This does not merge valuation pools: FMV selection still enforces the requested pool strictly.
+- Public responses remove `_productIdentity`; admin responses may retain it for diagnostics and reproducibility.
+- `scripts/reclassify-comps.js` dry-runs by default and requires `--apply` to replace the store. Apply mode writes versioned manifest and rollback artifacts before an atomic store replacement.
+- Live writers and migration share an ownership-aware lock. Successful apply leaves a restart-required marker; startup loads migrated state before clearing it. Dead writer locks are recovered by PID, while active migration locks are retained.
+- Canonical collisions group every alias before mutation, stable-sort source entries, preserve known and unknown dataset/aggregation fields, and deterministically resolve duplicate comp payloads independent of alias insertion order.

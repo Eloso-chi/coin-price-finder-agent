@@ -58,6 +58,18 @@ describe('redactCompsForPublic (#243 -- Terapeak source label)', () => {
     expect(resp.ebay.us.comps[0]._source).toBe('ebay-sold');
   });
 
+  test('strips internal product identity publicly but retains it for admins', () => {
+    const identity = { nominalWeightOz: 1, parserVersion: '1.0.0' };
+    const publicResp = { ebay: { us: { comps: [mkComp({ _productIdentity: identity })] } } };
+    const adminResp = { ebay: { us: { comps: [mkComp({ _productIdentity: identity })] } } };
+
+    redactCompsForPublic(publicResp, false);
+    redactCompsForPublic(adminResp, true);
+
+    expect(publicResp.ebay.us.comps[0]).not.toHaveProperty('_productIdentity');
+    expect(adminResp.ebay.us.comps[0]._productIdentity).toEqual(identity);
+  });
+
   test('no-op when isAdmin === true (admins keep seeing the real label)', () => {
     const resp = { ebay: { us: { comps: [mkComp()] } } };
     redactCompsForPublic(resp, true);

@@ -10,12 +10,24 @@
 const fs = require('fs');
 const path = require('path');
 const { parse } = require('csv-parse/sync');
-const { isDenied, ROLL_PATTERN } = require('../utils/filters');
-const { detectWeightFromTitle, weightToKeyToken } = require('../utils/coinMetalProfile');
+const { isDenied } = require('../utils/filters');
+const {
+  normalizeWeightDatasetKey,
+  stripFractionalWeightPhrase,
+  buildWeightDatasetKey,
+} = require('../utils/coinMetalProfile');
+const pcgsService = require('./pcgsService');
+const {
+  PRODUCT_IDENTITY_PARSER_VERSION,
+  resolveProductIdentity,
+  findIdentityMismatches,
+  serializeProductIdentity,
+} = require('../utils/productIdentityResolver');
 
 const CACHE_DIR = require('../utils/cachePath').CACHE_DIR;
 const cosmos = require('../utils/cosmosClient');
 const STORE_PATH = path.join(CACHE_DIR, 'terapeak_sold.json');
+const STORE_LOCK_PATH = `${STORE_PATH}.reclassify.lock`;
 
 // Git-tracked sidecar: lightweight aggregationMeta that survives codespace rebuilds.
 // Resolved at call time so tests can redirect writes to a tmpdir via process.env.META_PATH
@@ -46,7 +58,34 @@ function loadStore() {
   // aggregationMeta instead of last-write-wins so no comps are lost. Safe
   // to call on every load: idempotent once all keys are canonical.
   _store = _rekeyStoreInPlace(_store);
+  try {
+    const lock = JSON.parse(fs.readFileSync(STORE_LOCK_PATH, 'utf8'));
+    if (lock.state === 'restart-required' || (lock.state === 'writer-active' && !isProcessAlive(lock.pid))) {
+      fs.rmSync(STORE_LOCK_PATH, { force: true });
+    }
+  } catch { /* no completed migration marker */ }
   return _store;
+}
+
+function isProcessAlive(pid) {
+  if (!Number.isInteger(pid) || pid <= 0) return false;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return error.code === 'EPERM';
+  }
+}
+
+function clearStaleWriterLock(lockPath) {
+  try {
+    const lock = JSON.parse(fs.readFileSync(lockPath, 'utf8'));
+    if (lock.state !== 'writer-active' || isProcessAlive(lock.pid)) return false;
+    fs.rmSync(lockPath, { force: true });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function saveStore() {
@@ -58,13 +97,41 @@ function saveStore() {
   _savePending = setTimeout(() => {
     _savePending = null;
     if (!_store) return; // guard: never persist null/empty store
+    let lockDescriptor = null;
+    try {
+      lockDescriptor = acquireStoreWriteLock(STORE_LOCK_PATH);
+    } catch (error) {
+      if (error.code !== 'EEXIST' && process.env.NODE_ENV !== 'test') {
+        console.error('[terapeak] Failed to acquire store lock:', error.message);
+      }
+      saveStore();
+      return;
+    }
     const data = JSON.stringify(_store, null, 2);
     fs.writeFile(STORE_PATH, data, (err) => {
+      fs.closeSync(lockDescriptor);
+      fs.rmSync(STORE_LOCK_PATH, { force: true });
       if (err && process.env.NODE_ENV !== 'test') {
         console.error('[terapeak] Failed to save store:', err.message);
       }
     });
   }, 500);
+}
+
+function acquireStoreWriteLock(lockPath) {
+  let descriptor = null;
+  try {
+    descriptor = fs.openSync(lockPath, 'wx', 0o600);
+    fs.writeFileSync(descriptor, JSON.stringify({ state: 'writer-active', pid: process.pid }), 'utf8');
+    fs.fsyncSync(descriptor);
+    return descriptor;
+  } catch (error) {
+    if (descriptor != null) {
+      fs.closeSync(descriptor);
+      fs.rmSync(lockPath, { force: true });
+    }
+    throw error;
+  }
 }
 
 // ── Meta sidecar (git-tracked) ──────────────────────────────────
@@ -268,7 +335,16 @@ function _mergeStoreEntries(a, b) {
   if (!a) return b;
   if (!b) return a;
   const latest = (x, y) => (!x ? (y || null) : !y ? x : (x > y ? x : y));
+  const aOrder = `${a.lastImport || ''}|${_stableSerialize(a)}`;
+  const bOrder = `${b.lastImport || ''}|${_stableSerialize(b)}`;
+  const aIsNewer = aOrder >= bOrder;
+  const older = aIsNewer ? b : a;
+  const newer = aIsNewer ? a : b;
+  const olderMeta = older.aggregationMeta || older.scrapeMeta || {};
+  const newerMeta = newer.aggregationMeta || newer.scrapeMeta || {};
   const merged = {
+    ...older,
+    ...newer,
     searchTerm: a.searchTerm || b.searchTerm || null,
     comps: [],
     lastImport: latest(a.lastImport, b.lastImport),
@@ -276,36 +352,48 @@ function _mergeStoreEntries(a, b) {
     // same upstream import event (pre-existing semantics; acceptable for
     // current callers). Revisit if importCount becomes load-bearing.
     importCount: (a.importCount || 0) + (b.importCount || 0),
-    aggregationMeta: _mergeAggregationMeta(a.aggregationMeta || a.scrapeMeta || {}, b.aggregationMeta || b.scrapeMeta || {}),
+    aggregationMeta: {
+      ...olderMeta,
+      ...newerMeta,
+      ..._mergeAggregationMeta(newerMeta, olderMeta),
+    },
   };
   if (a.identifiers || b.identifiers) {
-    // Prefer whichever side has identifiers (stamped by build-evidence-index.js).
-    // TODO: when both sides have identifiers, pick by identifier_confidence
-    // (High > Medium > Low) instead of arbitrary `a` wins via truthy fallthrough.
-    merged.identifiers = a.identifiers || b.identifiers;
+    const confidenceRank = { high: 3, medium: 2, low: 1 };
+    const rank = identifiers => confidenceRank[String(identifiers?.identifier_confidence || '').toLowerCase()] || 0;
+    if (rank(a.identifiers) === rank(b.identifiers)) {
+      merged.identifiers = newer.identifiers || older.identifiers;
+    } else {
+      merged.identifiers = rank(a.identifiers) > rank(b.identifiers) ? a.identifiers : b.identifiers;
+    }
   }
-  const seen = new Set();
+  const compKey = c => c.itemId
+    ? `id:${c.itemId}`
+    : `t:${(c.title || '').toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 80)}|${Math.round(Number(c.totalUsd || 0) * 100)}|${c.soldDate || ''}`;
+  const compsByKey = new Map();
   // Defensive: a malformed legacy store entry could carry a non-array `comps`
   // (e.g. a string). Falling through to `for ... of (string)` would iterate
   // characters and corrupt the merged output with phantom string-char comps.
-  const aComps = Array.isArray(a.comps) ? a.comps : [];
-  const bComps = Array.isArray(b.comps) ? b.comps : [];
-  for (const list of [aComps, bComps]) {
+  const olderComps = Array.isArray(older.comps) ? older.comps : [];
+  const newerComps = Array.isArray(newer.comps) ? newer.comps : [];
+  for (const list of [olderComps, newerComps]) {
     for (const c of list) {
-      const key = c.itemId
-        ? `id:${c.itemId}`
-        : `t:${(c.title || '').toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 80)}|${Math.round(c.totalUsd || 0)}|${c.soldDate || ''}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      merged.comps.push(c);
+      compsByKey.set(compKey(c), c);
     }
   }
+  merged.comps = [...compsByKey.values()].sort((left, right) => compKey(left).localeCompare(compKey(right)));
   // Refresh compCount from the deduped union so downstream consumers see
   // the true post-merge size, not a stale value carried from either side.
   if (merged.aggregationMeta) {
     merged.aggregationMeta.compCount = merged.comps.length || merged.aggregationMeta.compCount || null;
   }
   return merged;
+}
+
+function _stableSerialize(value) {
+  if (Array.isArray(value)) return `[${value.map(_stableSerialize).join(',')}]`;
+  if (!value || typeof value !== 'object') return JSON.stringify(value);
+  return `{${Object.keys(value).sort().map(key => `${JSON.stringify(key)}:${_stableSerialize(value[key])}`).join(',')}}`;
 }
 
 /**
@@ -606,16 +694,17 @@ const PROOF_RE = /\bproof\b(?![\s-]*like)/i;
 function classifyGradeType(comp) {
   const cond = (comp.condition || '').toLowerCase();
   const title = comp.title || '';
+  const isProofGrade = /\b(?:PR|PF|SP)\s*-?\s*\d{1,2}\+?\b/i.test(title);
   if (cond.includes('certified') || cond === '2000') {
     // Certified — check if it's a slabbed proof or slabbed BU
-    if (PROOF_RE.test(title)) return 'proof';
+    if (PROOF_RE.test(title) || isProofGrade) return 'proof';
     return 'graded';
   }
   if (cond.includes('uncirculated') || cond.includes('circulated')) {
-    if (PROOF_RE.test(title)) return 'proof';
+    if (PROOF_RE.test(title) || isProofGrade) return 'proof';
     return 'raw';
   }
-  if (PROOF_RE.test(title)) return 'proof';
+  if (PROOF_RE.test(title) || isProofGrade) return 'proof';
   if (TPG_RE.test(title) || GRADE_RE.test(title)) return 'graded';
   return 'raw';
 }
@@ -623,7 +712,7 @@ function classifyGradeType(comp) {
 // ── isDenied imported from ../utils/filters ──
 
 // ── Parse a single CSV row into a comp ──────────────────────
-function rowToComp(mappedRow, searchTerm) {
+function rowToComp(mappedRow, _searchTerm) {
   const title = mappedRow.title || '';
   if (!title) return null;
 
@@ -831,51 +920,70 @@ function importComps(searchTerm, comps, meta = {}, context = {}) {
   // actual weight from its title. If they differ, reroute the comp to the
   // correct dataset instead of discarding it.
   let reclassified = 0;
+  let ambiguousExcluded = 0;
+  let identityExcluded = 0;
   if (!isReclassifying) {
-    const expectedWeight = detectWeightFromQuery(normalizedKey);
-    const expectedMetal  = _detectMetalFromText(normalizedKey);
-    if (expectedWeight != null) {
-      const reroute = {};   // targetKey -> comp[]
-      const keep = [];
-      for (const comp of comps) {
-        const actualWeight = detectWeightFromTitle(comp.title);
-        const actualMetal  = _detectMetalFromText(comp.title);
-        // Metal mismatch (e.g. silver comp in gold dataset) -- skip reclassification
-        // unless both are null (can't determine)
-        if (expectedMetal && actualMetal && actualMetal !== expectedMetal) {
-          keep.push(comp);  // leave in place; meltFloor filter will catch it
+    const expectedIdentity = resolveProductIdentity({
+      text: normalizeWeightDatasetKey(searchTerm),
+      parsed: pcgsService.parseDescription(stripFractionalWeightPhrase(searchTerm)),
+    });
+    if (expectedIdentity.ambiguous) {
+      return {
+        newComps: 0,
+        duplicates: 0,
+        totalStored: store[normalizedKey]?.comps?.length || 0,
+        reclassified: 0,
+        ambiguousExcluded: comps.length,
+        identityExcluded: 0,
+      };
+    }
+    const reroute = {};   // targetKey -> comp[]
+    const keep = [];
+    for (const comp of comps) {
+        const compIdentity = comp._productIdentity?.parserVersion === PRODUCT_IDENTITY_PARSER_VERSION
+          ? comp._productIdentity
+          : resolveProductIdentity({
+          text: comp.title,
+          parsed: pcgsService.parseDescription(stripFractionalWeightPhrase(comp.title)),
+        });
+        if (compIdentity.ambiguous) {
+          ambiguousExcluded++;
           continue;
         }
-        if (actualWeight != null && Math.abs(actualWeight - expectedWeight) >= 0.01) {
-          const targetToken = weightToKeyToken(actualWeight);
-          if (targetToken) {
-            const currentToken = weightToKeyToken(expectedWeight);
-            if (currentToken) {
-              const targetKey = normalizedKey.replace(currentToken, targetToken);
-              if (targetKey !== normalizedKey) {
-                if (!reroute[targetKey]) reroute[targetKey] = [];
-                reroute[targetKey].push(comp);
-                continue;
-              }
-            }
+        const mismatches = findIdentityMismatches(expectedIdentity, compIdentity);
+        if (mismatches.some(field => field !== 'weight')) {
+          identityExcluded++;
+          continue;
+        }
+        const actualWeight = compIdentity.nominalWeightOz;
+        if (mismatches.includes('weight') && expectedIdentity.nominalWeightOz != null) {
+          const targetKey = buildWeightDatasetKey(
+            searchTerm,
+            expectedIdentity.nominalWeightOz,
+            actualWeight,
+            normalizeSearchKey
+          );
+          if (targetKey && targetKey !== normalizedKey) {
+            if (!reroute[targetKey]) reroute[targetKey] = [];
+            reroute[targetKey].push({ ...comp, _productIdentity: serializeProductIdentity(compIdentity) });
+            continue;
           }
         }
-        keep.push(comp);
-      }
-      // Recursively import rerouted comps into their correct datasets
-      for (const [targetKey, reroutedComps] of Object.entries(reroute)) {
-        importComps(targetKey, reroutedComps, {}, { source: 'reroute' });
-        reclassified += reroutedComps.length;
-      }
-      comps = keep;
+        keep.push({ ...comp, _productIdentity: serializeProductIdentity(compIdentity) });
     }
+    // Recursively import rerouted comps into their correct datasets
+    for (const [targetKey, reroutedComps] of Object.entries(reroute)) {
+      importComps(targetKey, reroutedComps, {}, { source: 'reroute' });
+      reclassified += reroutedComps.length;
+    }
+    comps = keep;
   }
 
   // Dedup against existing comps for this key
   const existing = store[normalizedKey]?.comps || [];
   const existingIds = new Set(existing.map(c => c.itemId).filter(Boolean));
   const existingTitles = new Set(existing.map(c =>
-    (c.title || '').toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 80) + '|' + Math.round(c.totalUsd || 0) + '|' + (c.soldDate || '')
+    compFallbackDedupKey(c)
   ));
 
   let newCount = 0;
@@ -884,10 +992,16 @@ function importComps(searchTerm, comps, meta = {}, context = {}) {
     // Check by itemId
     if (comp.itemId && existingIds.has(comp.itemId)) { dupCount++; continue; }
     // Check by title+price+date (date included so same listing sold on different dates isn't deduped)
-    const key = (comp.title || '').toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 80) + '|' + Math.round(comp.totalUsd || 0) + '|' + (comp.soldDate || '');
+    const key = compFallbackDedupKey(comp);
     if (existingTitles.has(key)) { dupCount++; continue; }
 
-    existing.push(comp);
+    const compIdentity = comp._productIdentity?.parserVersion === PRODUCT_IDENTITY_PARSER_VERSION
+      ? comp._productIdentity
+      : resolveProductIdentity({ text: comp.title, parsed: pcgsService.parseDescription(comp.title) });
+    existing.push({
+      ...comp,
+      _productIdentity: serializeProductIdentity(compIdentity),
+    });
     if (comp.itemId) existingIds.add(comp.itemId);
     existingTitles.add(key);
     newCount++;
@@ -1023,7 +1137,7 @@ function importComps(searchTerm, comps, meta = {}, context = {}) {
   // the old Terapeak dataset and are now stale.  Lazy require to avoid
   // circular dependency (ebayService requires terapeakService).
   if (newCount > 0) {
-    try { require('./ebayService').clearCache(); } catch (_) { /* ok */ }
+    try { require('./ebayService').clearCache(); } catch { /* ok */ }
   }
 
   return {
@@ -1031,9 +1145,17 @@ function importComps(searchTerm, comps, meta = {}, context = {}) {
     newComps: newCount,
     duplicatesSkipped: dupCount,
     reclassified,
+    ambiguousExcluded,
+    identityExcluded,
     totalStored: existing.length,
     lastImport: store[normalizedKey].lastImport
   };
+}
+
+function compFallbackDedupKey(comp) {
+  const title = (comp.title || '').toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 80);
+  const cents = Math.round(Number(comp.totalUsd || 0) * 100);
+  return `${title}|${cents}|${comp.soldDate || ''}`;
 }
 
 /**
@@ -1974,6 +2096,9 @@ module.exports = {
   _mergeAggregationMeta,
   _mergeMetaSidecarSnapshot,
   _mergeStoreEntries,
+  acquireStoreWriteLock,
+  isProcessAlive,
+  clearStaleWriterLock,
   _rekeyStoreInPlace,
   rowToComp,
   _resetStoreCache() { _store = null; },

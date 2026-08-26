@@ -10,7 +10,8 @@ const greysheetService = require('./greysheetService');
 const { computeValuation } = require('./valuationService');
 const { getMetalsSpotPrice } = require('./metalsSpotPrice');
 const { getCoinMetalProfile } = require('../utils/coinMetalProfile');
-const { zodiacForYear, perthLunarSeries, getRollQuantity, ALLOWED_LABELS, BULLION_1OZ_DEFAULT } = require('../data/constants');
+const { resolveProductIdentity, assertUnambiguousProductIdentity } = require('../utils/productIdentityResolver');
+const { zodiacForYear, getRollQuantity, ALLOWED_LABELS, BULLION_1OZ_DEFAULT } = require('../data/constants');
 
 const BULLION_SERIES = BULLION_1OZ_DEFAULT;
 
@@ -132,21 +133,32 @@ async function evaluateOneCoin(coin, opts = {}) {
 
     // Identify
     const parsed = pcgsService.parseDescription(query);
-    const series = coin.series || coin.name || parsed.series || '';
-    const year   = coin.year || parsed.year;
-    const mint   = coin.mintMark || parsed.mint || '';  // user-specified only (drives filtering)
-    const grade  = coin.grade || parsed.grade || '';
-    const gradeNum = parsed.gradeNum || parseInt((grade.match(/\d+/) || [])[0]) || null;
+    const productIdentity = assertUnambiguousProductIdentity(resolveProductIdentity({
+      text: query,
+      structured: {
+        ...coin,
+        series: coin.series || coin.name,
+        mint: coin.mintMark || coin.mint,
+      },
+      parsed,
+    }));
+    const series = productIdentity.series || '';
+    const year = productIdentity.year;
+    const mint = productIdentity.mint || '';
+    const grade = productIdentity.grade || '';
+    const gradeNum = productIdentity.pool === 'raw'
+      ? null
+      : parseInt((grade.match(/\d+/) || [])[0]) || null;
 
     // Weight
-    let weight = coin.weight ? parseFloat(coin.weight) : (parsed.weight || null);
+    let weight = productIdentity.nominalWeightOz;
     if (!weight && series) {
       const sl = series.toLowerCase();
       if (BULLION_SERIES.some(b => sl.includes(b))) weight = 1;
     }
 
     // Detect proof / roll
-    const isProof = parsed.finish === 'Proof' || /^(PF|PR)[-\s]?\d/i.test(grade) || /\bproof\b/i.test(query);
+    const isProof = productIdentity.pool === 'proof' || productIdentity.pool === 'reverse-proof';
     const isRoll  = !!(parsed.isRoll || /\brolls?\b|\btubes?\b/i.test(query));
 
     // Metal / bullion
@@ -160,7 +172,7 @@ async function evaluateOneCoin(coin, opts = {}) {
     // raw pool and gradeNumMismatch filter doesn't kill valid comps.
     let effectiveGradeNum = gradeNum;
     let effectiveGrade = grade;
-    if (isBullion && parsed._gradeSource === 'bu-term') {
+    if (productIdentity.pool === 'raw') {
       effectiveGradeNum = null;
       effectiveGrade = '';
     }
@@ -168,10 +180,11 @@ async function evaluateOneCoin(coin, opts = {}) {
     // Expected context for eBay filtering
     const expected = {
       year, mint, series, grade: effectiveGrade || null, weight,
-      finish: parsed.finish || null,
+      finish: productIdentity.finish || null,
       isProof, isRoll, isSet: false,
       _exclusions: parsed._exclusions || null,
       _rawQuery: query,
+      _productIdentity: productIdentity,
     };
     if (year && /lunar/i.test(series)) {
       expected.zodiacAnimal = zodiacForYear(Number(year));
@@ -180,7 +193,7 @@ async function evaluateOneCoin(coin, opts = {}) {
 
     // Spot price for bullion
     const METAL_SYM = { silver: 'XAG', gold: 'XAU', platinum: 'XPT', palladium: 'XPD' };
-    const metalKey = parsed.metal || detectedMetal || null;
+    const metalKey = productIdentity.metal || parsed.metal || detectedMetal || null;
     if (metalKey) {
       expected.metal = metalKey;
     }
@@ -204,7 +217,7 @@ async function evaluateOneCoin(coin, opts = {}) {
       year,
       mint,
       series,
-      finish: parsed.finish || null,
+      finish: productIdentity.finish || null,
       grade: effectiveGrade || null,
       designation: parsed.designation || null,
     };
@@ -240,7 +253,7 @@ async function evaluateOneCoin(coin, opts = {}) {
     if (!greysheet) {
       greysheet = await greysheetService.fetchTypePrice(query, gradeNum, {
         series, metal: metalKey, weight,
-        finish: isProof ? 'Proof' : (parsed.finish || null),
+        finish: isProof ? 'Proof' : (productIdentity.finish || null),
       });
     }
 
@@ -338,7 +351,7 @@ async function runBulkEvaluation(coins, onProgress, opts = {}) {
     // Process in batches of COIN_CONCURRENCY
     for (let i = 0; i < total; i += COIN_CONCURRENCY) {
       const batch = coins.slice(i, i + COIN_CONCURRENCY);
-      const batchResults = await Promise.all(
+      await Promise.all(
         batch.map((coin, j) => evaluateOneCoin(coin, opts).then(result => {
           const idx = i + j;
           results[idx] = result;

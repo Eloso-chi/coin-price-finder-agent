@@ -34,6 +34,7 @@ const express = require('express');
 const aiPriceRoute = require('../src/routes/aiPriceRoute');
 const { priceCoin } = require('../src/services/pricingService');
 const { writeValuationAudit } = require('../src/services/auditService');
+const { ProductIdentityError, resolveProductIdentity } = require('../src/utils/productIdentityResolver');
 
 function createApp(isAdmin = false) {
   const app = express();
@@ -63,6 +64,21 @@ describe('POST /api/ai/price', () => {
 
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/query/i);
+  });
+
+  test('returns 400 for typed ambiguous product identity failures', async () => {
+    const identity = resolveProductIdentity({ text: '1 oz and 5 oz Silver set' });
+    priceCoin.mockRejectedValueOnce(new ProductIdentityError('Product identity is ambiguous (weight).', identity));
+
+    const res = await request(app)
+      .post('/api/ai/price')
+      .send({ query: '2025 American Silver Eagle 1 oz and 5 oz set' });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual(expect.objectContaining({
+      ok: false,
+      code: 'AMBIGUOUS_PRODUCT_IDENTITY',
+    }));
   });
 
   test('calls the shared deterministic pricing boundary and returns AI mode payload', async () => {

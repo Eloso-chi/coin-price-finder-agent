@@ -241,6 +241,8 @@ function detectWeightFromTitle(title) {
     const frac = { '1/20': 0.05, '1/10': 0.1, '1/4': 0.25, '1/2': 0.5 };
     return frac[fracMatch[1]] || null;
   }
+  if (/\btwentieth\s*(?:troy\s+)?(?:ounce|ozt?|oz|onzas?)\b/i.test(t)) return 0.05;
+  if (/\btenth\s*(?:troy\s+)?(?:ounce|ozt?|oz|onzas?)\b/i.test(t)) return 0.1;
   if (/\bquarter\s*(?:troy\s+)?(?:ounce|ozt?|oz|onzas?)\b/i.test(t)) return 0.25;
   if (/\bhalf\s*(?:troy\s+)?(?:ounce|ozt?|oz|onzas?)\b/i.test(t))    return 0.5;
   const m = t.match(new RegExp('\\b(\\d+(?:\\.\\d+)?)\\s*' + OZ, 'i'));
@@ -284,6 +286,8 @@ function detectWeightsFromTitle(title) {
     addWeight(Number(`0.${match[1]}`) / 31.1035);
   }
   if (/\bhalf\s+gram\b/i.test(text)) addWeight(0.5 / 31.1035);
+  if (/\btwentieth\s*(?:troy\s+)?(?:ounce|ozt?|oz|onzas?)\b/i.test(text)) addWeight(0.05);
+  if (/\btenth\s*(?:troy\s+)?(?:ounce|ozt?|oz|onzas?)\b/i.test(text)) addWeight(0.1);
   if (/\bquarter\s*(?:troy\s+)?(?:ounce|ozt?|oz|onzas?)\b/i.test(text)) addWeight(0.25);
   if (/\bhalf\s*(?:troy\s+)?(?:ounce|ozt?|oz|onzas?)\b/i.test(text)) addWeight(0.5);
   if (/\b(?:1\s*)?kilo(?:gram)?\b/i.test(text)) addWeight(32.1507);
@@ -314,6 +318,51 @@ function weightToKeyToken(weight) {
   return null;
 }
 
+function normalizeWeightPhrase(text) {
+  return String(text || '').replace(
+    /\boz\s+(twentieth|tenth|quarter|half)\b/gi,
+    (_match, fraction) => `${fraction} oz`
+  );
+}
+
+function normalizeWeightDatasetKey(text) {
+  const normalized = normalizeWeightPhrase(text);
+  if (/\b(?:twentieth|tenth|quarter|half)\s+oz\b/i.test(normalized)) return normalized;
+
+  const fractions = normalized.match(/\b(?:twentieth|tenth|quarter|half)\b/gi) || [];
+  const ounces = normalized.match(/\boz\b/gi) || [];
+  if (fractions.length !== 1 || ounces.length !== 1) return normalized;
+
+  return normalized
+    .replace(new RegExp(`\\b${fractions[0]}\\b`, 'i'), ' ')
+    .replace(/\boz\b/i, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .concat(` ${fractions[0].toLowerCase()} oz`);
+}
+
+function stripFractionalWeightPhrase(text) {
+  return normalizeWeightPhrase(text)
+    .replace(/\b(?:twentieth|tenth|quarter|half)\s+oz\b/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function buildWeightDatasetKey(datasetKey, currentWeight, targetWeight, normalizeKey) {
+  const currentToken = weightToKeyToken(currentWeight);
+  const targetToken = weightToKeyToken(targetWeight);
+  if (!currentToken || !targetToken) return null;
+  const escaped = currentToken.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const reverseToken = currentToken.replace(/^(twentieth|tenth|quarter|half)\s+oz$/i, 'oz $1');
+  const escapedReverse = reverseToken.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const withoutWeight = normalizeWeightDatasetKey(datasetKey)
+    .replace(new RegExp(`\\b(?:${escaped}|${escapedReverse})\\b`, 'i'), ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!withoutWeight) return null;
+  return normalizeKey(`${withoutWeight} ${targetToken}`);
+}
+
 module.exports = {
   getCoinMetalProfile,
   classifyComposition,
@@ -321,6 +370,10 @@ module.exports = {
   detectWeightFromTitle,
   detectWeightsFromTitle,
   weightToKeyToken,
+  normalizeWeightPhrase,
+  normalizeWeightDatasetKey,
+  stripFractionalWeightPhrase,
+  buildWeightDatasetKey,
   BULLION_SERIES,
   SILVER_US_COIN_SERIES,
   GOLD_US_COIN_SERIES,
