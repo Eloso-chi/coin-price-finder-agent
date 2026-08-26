@@ -117,7 +117,9 @@ const rawPricesByFile = new Map();
 
 function discoverDatasets() {
   if (!fs.existsSync(DATA_DIR)) return [];
-  const files = fs.readdirSync(DATA_DIR).filter(f => f.endsWith('.csv'));
+  const files = fs.readdirSync(DATA_DIR)
+    .filter(f => f.endsWith('.csv'))
+    .sort();
   return files.map(f => {
     const metaPath = path.join(DATA_DIR, f.replace('.csv', '.meta'));
     let searchTerm;
@@ -131,7 +133,11 @@ function discoverDatasets() {
 }
 
 function pickRandomDatasets(datasets, n) {
-  const shuffled = [...datasets].sort(() => rng() - 0.5);
+  const shuffled = [...datasets];
+  for (let index = shuffled.length - 1; index > 0; index--) {
+    const swapIndex = Math.floor(rng() * (index + 1));
+    [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
+  }
   return shuffled.slice(0, n);
 }
 
