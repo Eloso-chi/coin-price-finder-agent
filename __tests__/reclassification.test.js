@@ -1,6 +1,9 @@
 // __tests__/reclassification.test.js — Tests for comp reclassification feature
 'use strict';
 
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
 const { detectWeightFromTitle, weightToKeyToken } = require('../src/utils/coinMetalProfile');
 
 // ── detectWeightFromTitle ───────────────────────────────────
@@ -127,6 +130,24 @@ describe('importComps reclassification', () => {
     expect(result.reclassified).toBe(0);
   });
 
+  test.each([
+    '2024 2025 American Silver Eagle 1oz',
+    '2025-S 2025-W American Silver Eagle 1oz',
+    '2025 gold silver Eagle 1oz',
+    '2025 American Silver Eagle PR69 MS70 1oz',
+  ])('excludes all rows when the dataset identity is ambiguous: %s', (datasetKey) => {
+    const result = terapeakService.importComps(datasetKey, [
+      { title: '2025 American Silver Eagle 1 oz BU', totalUsd: 50, soldDate: '2026-08-01' },
+    ]);
+
+    expect(result).toEqual(expect.objectContaining({
+      newComps: 0,
+      totalStored: 0,
+      ambiguousExcluded: 1,
+      identityExcluded: 0,
+    }));
+  });
+
   test('does not reclassify when weight is undetectable', () => {
     const comps = [
       { title: '2024 Mexico Gold Libertad BU Sealed', totalUsd: 2500, soldDate: '2024-06-01', itemId: 'test-noweight-1' },
@@ -200,5 +221,54 @@ describe('importComps reclassification', () => {
     }));
     expect(terapeakService.lookupComps('2024 Mexican Gold Libertad twentieth oz')).toBeNull();
     expect(terapeakService.lookupComps('2024 Mexican Gold Libertad tenth oz')).toBeNull();
+  });
+});
+
+describe('Terapeak store writer lock', () => {
+  const terapeakService = require('../src/services/terapeakService');
+
+  test.each(['write', 'fsync'])('removes its owned lock when %s initialization fails', (failure) => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'terapeak-writer-lock-'));
+    const lockPath = path.join(tempDir, 'store.json.reclassify.lock');
+    const spy = jest.spyOn(fs, failure === 'write' ? 'writeFileSync' : 'fsyncSync')
+      .mockImplementation(() => { throw new Error(`${failure} failed`); });
+
+    try {
+      expect(() => terapeakService.acquireStoreWriteLock(lockPath)).toThrow(`${failure} failed`);
+      expect(fs.existsSync(lockPath)).toBe(false);
+    } finally {
+      spy.mockRestore();
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test('removes a writer lock owned by a dead process', () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'terapeak-stale-lock-'));
+    const lockPath = path.join(tempDir, 'store.json.reclassify.lock');
+    fs.writeFileSync(lockPath, JSON.stringify({ state: 'writer-active', pid: 2147483647 }));
+
+    try {
+      expect(terapeakService.clearStaleWriterLock(lockPath)).toBe(true);
+      expect(fs.existsSync(lockPath)).toBe(false);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test.each([
+    { state: 'writer-active', pid: process.pid },
+    { state: 'migration-active', pid: 2147483647 },
+    { state: 'restart-required', pid: 2147483647 },
+  ])('retains non-stale-writer lock $state', (lock) => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'terapeak-retained-lock-'));
+    const lockPath = path.join(tempDir, 'store.json.reclassify.lock');
+    fs.writeFileSync(lockPath, JSON.stringify(lock));
+
+    try {
+      expect(terapeakService.clearStaleWriterLock(lockPath)).toBe(false);
+      expect(fs.existsSync(lockPath)).toBe(true);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
   });
 });

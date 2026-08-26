@@ -275,6 +275,8 @@ Terapeak comps and aggregation metadata keyed by normalized search term.
 
 Accepted comp rows may include internal `_productIdentity` evidence with the same canonical fields and parser version. It is persisted in the local/Cosmos sold-data record for reclassification and diagnostics, but stripped from public API comp payloads. Ambiguous multi-product rows and non-weight identity conflicts are excluded during import and migration rather than assigned to the first detected weight or retained in the wrong dataset.
 
+Local store replacement and live persistence share `<store>.reclassify.lock`. Lock states are `writer-active`, `migration-active`, and `restart-required`. Startup removes completed restart markers and dead-process writer locks; it never removes active migration locks. Canonical key collisions preserve the complete dataset shape, merge aggregation metadata, deduplicate comps by item ID or exact-cents fallback key, and reduce aliases in a stable order.
+
 ---
 
 ### Containers: `greysheet-history`, `metals-history`

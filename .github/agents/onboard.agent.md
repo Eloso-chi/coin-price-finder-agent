@@ -203,7 +203,7 @@ Read the first 50 lines of each to understand the module interface (80 lines for
 8. `src/data/barSeries.js` -- bar brand/series data (7 brands, 40+ series) + detection helpers
 9. `src/data/lunarReference.js` -- Perth / Royal / RAMint lunar comparison
 
-**Utils (all 14):**
+**Utils (all 15):**
 1. `src/utils/filters.js` -- deny lists, denomination detection, series conflicts, two-way composition mismatch (silver/clad)
 2. `src/utils/cosmosClient.js` -- Cosmos DB client singleton
 3. `src/utils/blobClient.js` -- Blob Storage client
@@ -218,6 +218,7 @@ Read the first 50 lines of each to understand the module interface (80 lines for
 12. `src/utils/versionHash.js` -- cached valuation configuration fingerprint
 13. `src/utils/logger.js` -- redacted Pino JSON logger with request-ID context
 14. `src/utils/gracefulShutdown.js` -- bounded shutdown task registration/draining
+15. `src/utils/productIdentityResolver.js` -- versioned canonical product identity, ambiguity detection, pool isolation, and persisted identity serialization
 
 **Middleware (all 4) + Schemas:**
 1. `src/middleware/requireAdminOrKey.js` -- guards admin routes (JWT or ADMIN_API_KEY)

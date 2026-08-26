@@ -83,3 +83,5 @@ The low comp count was caused by **stale eBay disk cache** (`cache/ebay_cache.js
 - Generic Terapeak datasets may retain raw, graded, proof, and reverse-proof source records. This does not merge valuation pools: FMV selection still enforces the requested pool strictly.
 - Public responses remove `_productIdentity`; admin responses may retain it for diagnostics and reproducibility.
 - `scripts/reclassify-comps.js` dry-runs by default and requires `--apply` to replace the store. Apply mode writes versioned manifest and rollback artifacts before an atomic store replacement.
+- Live writers and migration share an ownership-aware lock. Successful apply leaves a restart-required marker; startup loads migrated state before clearing it. Dead writer locks are recovered by PID, while active migration locks are retained.
+- Canonical collisions group every alias before mutation, stable-sort source entries, preserve known and unknown dataset/aggregation fields, and deterministically resolve duplicate comp payloads independent of alias insertion order.

@@ -21,7 +21,11 @@ jest.mock('../src/services/terapeakService', () => ({
     { key: 'morgan-1881', compCount: 25, lastImported: '2024-01-01' },
   ]),
   lookupComps: jest.fn((q) => {
-    if (q === 'morgan 1881') return { searchTerm: 'morgan 1881', comps: [{ title: 'Morgan', totalUsd: 200 }], lastImport: '2024-01-01' };
+    if (q === 'morgan 1881') return {
+      searchTerm: 'morgan 1881',
+      comps: [{ title: 'Morgan', totalUsd: 200, _productIdentity: { parserVersion: '1.0.0' } }],
+      lastImport: '2024-01-01',
+    };
     return null;
   }),
   detectMetal: jest.fn(() => 'silver'),
@@ -34,7 +38,7 @@ jest.mock('../src/services/terapeakQuotaService', () => ({
   getStatus: jest.fn(() => ({
     used: 5, remaining: 95, limit: 100, ok: true
   })),
-  recordQueries: jest.fn((count, label) => ({
+  recordQueries: jest.fn((_count, _label) => ({
     ok: true, used: 6, remaining: 94, limit: 100, warning: null,
   })),
 }));
@@ -155,6 +159,7 @@ describe('/api/terapeak — public endpoints', () => {
     expect(status).toBe(200);
     expect(body.found).toBe(true);
     expect(body).toHaveProperty('comps');
+    expect(body.comps[0]).not.toHaveProperty('_productIdentity');
   });
 
   test('GET /lookup returns empty for unknown query', async () => {

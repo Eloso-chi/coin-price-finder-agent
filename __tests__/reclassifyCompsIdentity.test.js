@@ -3,7 +3,15 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { analyzeStore, classifyComp, main } = require('../scripts/reclassify-comps');
+const {
+  analyzeStore,
+  classifyComp,
+  canonicalizeStore,
+  sourceFingerprint,
+  assertSourceUnchanged,
+  main,
+} = require('../scripts/reclassify-comps');
+const { normalizeSearchKey } = require('../src/services/terapeakService');
 
 function comp(itemId, title) {
   return { itemId, title, totalUsd: 100, soldDate: '2026-08-01' };
@@ -57,6 +65,16 @@ describe('canonical comp reclassification migration', () => {
     expect(result.status).toBe('valid');
   });
 
+  test.each([
+    '2024 2025 American Silver Eagle 1oz',
+    '2025-S 2025-W American Silver Eagle 1oz',
+    '2025 gold silver Eagle 1oz',
+    '2025 American Silver Eagle PR69 MS70 1oz',
+  ])('quarantines comps when dataset identity is ambiguous: %s', (datasetKey) => {
+    expect(classifyComp(datasetKey, comp('x', '2025 American Silver Eagle 1 oz BU')).status)
+      .toBe('ambiguous');
+  });
+
   test('produces deterministic before/after manifests and rollback rows', () => {
     const result = analyzeStore(fixture());
 
@@ -65,11 +83,15 @@ describe('canonical comp reclassification migration', () => {
       before: { datasets: 1, comps: 4 },
       after: { datasets: 2, comps: 3 },
       counts: { valid: 1, wrong_dataset: 1, ambiguous: 1, unknown: 1 },
-      changed: 2,
+      identityUpdated: 2,
+      changed: 4,
+      storeChanged: true,
     }));
     expect(result.rollback.rows).toHaveLength(2);
-    expect(result.store['2025 american silver eagle 1oz'].comps.map(row => row.itemId)).toEqual(['valid', 'unknown']);
-    expect(result.store['2025 american silver eagle 5oz'].comps.map(row => row.itemId)).toEqual(['wrong']);
+    expect(result.store[normalizeSearchKey('2025 american silver eagle 1oz')].comps.map(row => row.itemId))
+      .toEqual(['valid', 'unknown']);
+    expect(result.store[normalizeSearchKey('2025 american silver eagle 5oz')].comps.map(row => row.itemId))
+      .toEqual(['wrong']);
   });
 
   test('is idempotent after the projected migration is applied', () => {
@@ -88,7 +110,8 @@ describe('canonical comp reclassification migration', () => {
       '2025 american silver eagle 5oz': { comps: [duplicate], aggregationMeta: {} },
     });
 
-    expect(result.store['2025 american silver eagle 5oz'].comps).toHaveLength(1);
+    const targetKey = normalizeSearchKey('2025 american silver eagle 5oz');
+    expect(result.store[targetKey].comps).toHaveLength(1);
   });
 
   test('preserves distinct no-ID sales that differ by less than one dollar', () => {
@@ -100,8 +123,192 @@ describe('canonical comp reclassification migration', () => {
       },
     });
 
-    expect(result.store['2025 american silver eagle 5oz'].comps.map(row => row.totalUsd))
+    const targetKey = normalizeSearchKey('2025 american silver eagle 5oz');
+    expect(result.store[targetKey].comps.map(row => row.totalUsd))
       .toEqual([100.10, 100.40]);
+  });
+
+  test('merges reroutes into one canonical destination key', () => {
+    const result = analyzeStore({
+      '2025 Mexican Silver Libertad 1oz': {
+        comps: [comp('reroute', '2025 Mexican Silver Libertad 5 oz BU')],
+        aggregationMeta: {},
+      },
+      '2025 5oz libertad mexican silver': {
+        comps: [comp('existing', '2025 Mexican Silver Libertad 5 oz BU')],
+        aggregationMeta: {},
+      },
+    });
+    const targetKey = normalizeSearchKey('2025 Mexican Silver Libertad 5oz');
+
+    expect(Object.keys(result.store).filter(key => key.includes('libertad') && key.includes('5oz')))
+      .toEqual([targetKey]);
+    expect(result.store[targetKey].comps.map(row => row.itemId).sort())
+      .toEqual(['existing', 'reroute']);
+  });
+
+  test('preserves collision metadata deterministically in either insertion order', () => {
+    const entries = [
+      ['2025 Mexican Silver Libertad 5oz', {
+        searchTerm: 'legacy-a',
+        comps: [
+          comp('a', '2025 Mexican Silver Libertad 5 oz BU'),
+          { ...comp('duplicate', 'Duplicate payload'), sourceMarker: 'a-side' },
+        ],
+        lastImport: '2026-08-01T00:00:00.000Z',
+        importCount: 2,
+        identifiers: { pcgs: '123', identifier_confidence: 'High' },
+        fileName: 'older.csv',
+        fileSize: 100,
+        customLegacyField: 'preserved',
+        aggregationMeta: {
+          page1At: '2026-08-01T00:00:00.000Z',
+          refreshCount: 2,
+          lastRefreshNewComps: 2,
+          customMetaA: 'preserved-a',
+        },
+      }],
+      ['2025 5oz libertad mexican silver', {
+        searchTerm: 'legacy-b',
+        comps: [
+          comp('b', '2025 Mexican Silver Libertad 5 oz Proof'),
+          { ...comp('duplicate', 'Duplicate payload'), sourceMarker: 'b-side' },
+        ],
+        lastImport: '2026-08-01T00:00:00.000Z',
+        importCount: 3,
+        identifiers: { pcgs: '999', identifier_confidence: 'High' },
+        fileName: 'newer.csv',
+        fileSize: 200,
+        autoImported: true,
+        lastImportFileSize: 200,
+        aggregationMeta: {
+          deepAt: '2026-08-02T00:00:00.000Z',
+          refreshCount: 4,
+          lastRefreshNewComps: 4,
+          customMetaB: 'preserved-b',
+        },
+      }],
+      ['libertad silver mexican 2025 5oz', {
+        searchTerm: 'legacy-c',
+        comps: [comp('c', '2025 Mexican Silver Libertad 5 oz Satin')],
+        lastImport: '2026-08-01T00:00:00.000Z',
+        importCount: 1,
+        identifiers: { pcgs: '555', identifier_confidence: 'High' },
+        fileName: 'third.csv',
+        fileSize: 150,
+        aggregationMeta: { refreshCount: 3, lastRefreshNewComps: 3, customMetaC: 'preserved-c' },
+      }],
+    ];
+    const targetKey = normalizeSearchKey('2025 Mexican Silver Libertad 5oz');
+    const permutations = [
+      [entries[0], entries[1], entries[2]],
+      [entries[0], entries[2], entries[1]],
+      [entries[1], entries[0], entries[2]],
+      [entries[1], entries[2], entries[0]],
+      [entries[2], entries[0], entries[1]],
+      [entries[2], entries[1], entries[0]],
+    ];
+    const mergedStores = permutations.map(items => canonicalizeStore(Object.fromEntries(items))[targetKey]);
+    const forward = mergedStores[0];
+
+    expect(mergedStores).toEqual(Array(6).fill(forward));
+    expect(forward).toEqual(expect.objectContaining({
+      searchTerm: targetKey,
+      lastImport: '2026-08-01T00:00:00.000Z',
+      importCount: 6,
+      identifiers: { pcgs: '555', identifier_confidence: 'High' },
+      fileName: 'third.csv',
+      fileSize: 150,
+      autoImported: true,
+      lastImportFileSize: 200,
+      customLegacyField: 'preserved',
+    }));
+    expect(forward.comps.map(row => row.itemId)).toEqual(['a', 'b', 'c', 'duplicate']);
+    expect(forward.comps.find(row => row.itemId === 'duplicate').sourceMarker).toBe('b-side');
+    expect(forward.aggregationMeta).toEqual(expect.objectContaining({
+      page1At: '2026-08-01T00:00:00.000Z',
+      deepAt: '2026-08-02T00:00:00.000Z',
+      refreshCount: 4,
+      compCount: 4,
+      lastRefreshNewComps: 3,
+      customMetaA: 'preserved-a',
+      customMetaB: 'preserved-b',
+      customMetaC: 'preserved-c',
+    }));
+  });
+
+  test('detects source changes before replacement', () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'identity-reclassify-source-'));
+    const storePath = path.join(tempDir, 'store.json');
+    fs.writeFileSync(storePath, JSON.stringify(fixture()));
+    const fingerprint = sourceFingerprint(storePath);
+    fs.appendFileSync(storePath, ' ');
+
+    try {
+      expect(() => assertSourceUnchanged(storePath, fingerprint))
+        .toThrow('Source store changed during reclassification; apply aborted');
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test('apply writes identity-only changes with the complete persisted schema', () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'identity-reclassify-schema-'));
+    const storePath = path.join(tempDir, 'store.json');
+    const outputDir = path.join(tempDir, 'output');
+    const store = {
+      '2025 American Silver Eagle 1oz': {
+        comps: [comp('valid-only', '2025 American Silver Eagle 1 oz PCGS MS70')],
+        aggregationMeta: { compCount: 1 },
+      },
+    };
+    fs.writeFileSync(storePath, JSON.stringify(store));
+    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+
+    try {
+      const first = main(['--apply', '--store', storePath, '--output-dir', outputDir]);
+      const written = JSON.parse(fs.readFileSync(storePath, 'utf8'));
+      const identity = Object.values(written)[0].comps[0]._productIdentity;
+
+      expect(first.manifest).toEqual(expect.objectContaining({
+        identityUpdated: 1,
+        storeChanged: true,
+      }));
+      expect(identity).toEqual(expect.objectContaining({
+        grade: 'MS70',
+        pool: 'graded',
+        poolConstrained: true,
+        parserVersion: '1.0.0',
+      }));
+      const lockPath = `${storePath}.reclassify.lock`;
+      expect(JSON.parse(fs.readFileSync(lockPath, 'utf8'))).toEqual(expect.objectContaining({
+        state: 'restart-required',
+      }));
+      fs.rmSync(lockPath);
+      const second = main(['--apply', '--store', storePath, '--output-dir', outputDir]);
+      expect(second.manifest.storeChanged).toBe(false);
+      expect(second.manifest.identityUpdated).toBe(0);
+    } finally {
+      logSpy.mockRestore();
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test('does not remove a migration lock owned by another process', () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'identity-reclassify-lock-'));
+    const storePath = path.join(tempDir, 'store.json');
+    const outputDir = path.join(tempDir, 'output');
+    const lockPath = `${storePath}.reclassify.lock`;
+    fs.writeFileSync(storePath, JSON.stringify(fixture()));
+    fs.writeFileSync(lockPath, JSON.stringify({ state: 'migration-active', pid: 999 }));
+
+    try {
+      expect(() => main(['--apply', '--store', storePath, '--output-dir', outputDir]))
+        .toThrow(expect.objectContaining({ code: 'EEXIST' }));
+      expect(JSON.parse(fs.readFileSync(lockPath, 'utf8'))).toEqual({ state: 'migration-active', pid: 999 });
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
   });
 
   test('rejects collisions between the source store and artifact paths', () => {

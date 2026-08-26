@@ -194,6 +194,18 @@ describe('canonical product identity weight evidence', () => {
     expect(identity.ambiguities).toContainEqual(expect.objectContaining({ field: 'metal' }));
   });
 
+  test.each([
+    ['2024 2025 American Silver Eagle', 'year'],
+    ['2025-S 2025-W American Silver Eagle', 'mint'],
+    ['gold silver commemorative coin', 'metal'],
+    ['Morgan Dollar PR69 MS70', 'grade'],
+  ])('rejects contradictory %s text evidence', (text, field) => {
+    const identity = resolveProductIdentity({ text });
+
+    expect(identity.ambiguous).toBe(true);
+    expect(identity.ambiguities).toContainEqual(expect.objectContaining({ field }));
+  });
+
   test('accepts a zodiac product name as a refinement of a generic Australian series', () => {
     const identity = resolveProductIdentity({
       structured: { name: 'Year of the Dragon' },

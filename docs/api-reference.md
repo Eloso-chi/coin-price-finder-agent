@@ -97,7 +97,7 @@ External OpenAPI/MCP exposure is not enabled. See [docs/AI-EXTERNAL-EXPOSURE-EVA
 | `POST` | `/api/terapeak/import` | 🔒 | Upload a Terapeak CSV (multipart form) |
 | `POST` | `/api/terapeak/import-text` | 🔒 | Paste Terapeak CSV as plain text |
 | `GET` | `/api/terapeak/datasets` | 🔒 | List all imported Terapeak datasets with metadata |
-| `GET` | `/api/terapeak/lookup` | None | Look up sold comps by keyword search |
+| `GET` | `/api/terapeak/lookup` | None | Look up sold comps by keyword search; public rows redact internal identity and cohort metadata |
 | `DELETE` | `/api/terapeak/datasets/:key` | 🔒 | Delete specific Terapeak dataset |
 | `DELETE` | `/api/terapeak/datasets` | 🔒 | Clear all Terapeak data |
 

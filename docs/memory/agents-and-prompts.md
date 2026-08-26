@@ -14,9 +14,11 @@
 All files live in `.github/agents/`, `.github/prompts/`, and `.github/skills/`.
 The `.github` directory is hidden -- use explicit paths.
 
-The 2026-08-22 alignment refreshed Onboard for the current 28 services,
-18 routes, 14 utilities, four middleware modules, and two schemas, including
+The 2026-08-26 alignment refreshed Onboard for the current 28 services,
+18 routes, 15 utilities, four middleware modules, and two schemas, including
 the AI pricing/collection/market surfaces and external-exposure decision.
+The utility inventory includes `productIdentityResolver.js` as the versioned
+identity, ambiguity, pool-isolation, and persisted-serialization boundary.
 Test Monitor, Test Coverage, and the testing plan now require querying Jest
 for current counts instead of carrying volatile suite totals.
 

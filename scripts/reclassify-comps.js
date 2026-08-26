@@ -3,12 +3,15 @@
 
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const CACHE_DIR = require('../src/utils/cachePath').CACHE_DIR;
 const { weightToKeyToken } = require('../src/utils/coinMetalProfile');
 const pcgsService = require('../src/services/pcgsService');
+const { normalizeSearchKey, _mergeStoreEntries } = require('../src/services/terapeakService');
 const {
   resolveProductIdentity,
   findIdentityMismatches,
+  serializeProductIdentity,
   PRODUCT_IDENTITY_PARSER_VERSION,
 } = require('../src/utils/productIdentityResolver');
 
@@ -33,6 +36,7 @@ function classifyComp(datasetKey, comp) {
 }
 
 function classifyCompAgainstIdentity(datasetKey, expected, comp) {
+  if (expected.ambiguous) return { status: 'ambiguous', expected, actual: null, targetKey: null };
   const actual = resolveProductIdentity({ text: comp.title, parsed: pcgsService.parseDescription(comp.title) });
   if (actual.ambiguous) return { status: 'ambiguous', expected, actual, targetKey: null };
   const mismatches = findIdentityMismatches(expected, actual);
@@ -47,14 +51,15 @@ function classifyCompAgainstIdentity(datasetKey, expected, comp) {
   const currentToken = weightToKeyToken(expected.nominalWeightOz);
   const targetToken = weightToKeyToken(actual.nominalWeightOz);
   const targetKey = currentToken && targetToken
-    ? datasetKey.replace(currentToken, targetToken)
+    ? normalizeSearchKey(datasetKey.replace(currentToken, targetToken))
     : null;
   return { status: 'wrong_dataset', expected, actual, mismatches, targetKey: targetKey !== datasetKey ? targetKey : null };
 }
 
 function analyzeStore(inputStore) {
-  const store = JSON.parse(JSON.stringify(inputStore));
+  const store = canonicalizeStore(inputStore);
   const counts = { valid: 0, wrong_dataset: 0, ambiguous: 0, unknown: 0 };
+  let identityUpdated = 0;
   const routes = {};
   const rollback = [];
   const reroutes = {};
@@ -67,9 +72,11 @@ function analyzeStore(inputStore) {
       const classification = classifyCompAgainstIdentity(datasetKey, expected, comp);
       counts[classification.status]++;
       if (classification.status === 'valid' || classification.status === 'unknown') {
+        const identity = serializeProductIdentity(classification.actual);
+        if (JSON.stringify(comp._productIdentity) !== JSON.stringify(identity)) identityUpdated++;
         keep.push({
           ...comp,
-          _productIdentity: publicIdentity(classification.actual),
+          _productIdentity: identity,
         });
         return;
       }
@@ -77,7 +84,10 @@ function analyzeStore(inputStore) {
       rollback.push({ datasetKey, index, classification: classification.status, comp });
       if (classification.status === 'wrong_dataset' && classification.targetKey) {
         if (!reroutes[classification.targetKey]) reroutes[classification.targetKey] = [];
-        reroutes[classification.targetKey].push({ ...comp, _productIdentity: publicIdentity(classification.actual) });
+        reroutes[classification.targetKey].push({
+          ...comp,
+          _productIdentity: serializeProductIdentity(classification.actual),
+        });
         const route = `${datasetKey} -> ${classification.targetKey}`;
         routes[route] = (routes[route] || 0) + 1;
       }
@@ -114,8 +124,10 @@ function analyzeStore(inputStore) {
       before,
       after,
       counts,
+      identityUpdated,
       routes,
-      changed: counts.wrong_dataset + counts.ambiguous,
+      changed: counts.wrong_dataset + counts.ambiguous + identityUpdated,
+      storeChanged: JSON.stringify(store) !== JSON.stringify(inputStore),
     },
     rollback: {
       parserVersion: PRODUCT_IDENTITY_PARSER_VERSION,
@@ -125,26 +137,36 @@ function analyzeStore(inputStore) {
   };
 }
 
+function canonicalizeStore(inputStore) {
+  const groups = new Map();
+  for (const [rawKey, value] of Object.entries(inputStore)) {
+    const key = normalizeSearchKey(rawKey);
+    if (!key) continue;
+    const dataset = JSON.parse(JSON.stringify(value));
+    if (dataset && typeof dataset === 'object') dataset.searchTerm = key;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(dataset);
+  }
+  const store = {};
+  for (const [key, datasets] of groups) {
+    datasets.sort((left, right) => stableSerialize(left).localeCompare(stableSerialize(right)));
+    store[key] = datasets.reduce((merged, dataset) => _mergeStoreEntries(merged, dataset), null);
+    if (store[key] && typeof store[key] === 'object') store[key].searchTerm = key;
+  }
+  return store;
+}
+
+function stableSerialize(value) {
+  if (Array.isArray(value)) return `[${value.map(stableSerialize).join(',')}]`;
+  if (!value || typeof value !== 'object') return JSON.stringify(value);
+  return `{${Object.keys(value).sort().map(key => `${JSON.stringify(key)}:${stableSerialize(value[key])}`).join(',')}}`;
+}
+
 function compDedupKey(comp) {
   if (comp.itemId) return `id:${comp.itemId}`;
   const title = (comp.title || '').toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 80);
   const cents = Math.round(Number(comp.totalUsd || 0) * 100);
   return `t:${title}|${cents}|${comp.soldDate || ''}`;
-}
-
-function publicIdentity(identity) {
-  return {
-    series: identity.series,
-    year: identity.year,
-    mint: identity.mint,
-    metal: identity.metal,
-    nominalWeightOz: identity.nominalWeightOz,
-    finish: identity.finish,
-    designation: identity.designation,
-    pool: identity.pool,
-    weightEvidence: identity.weightEvidence,
-    parserVersion: identity.parserVersion,
-  };
 }
 
 function syncCompCount(dataset) {
@@ -254,36 +276,78 @@ function atomicWriteJson(filePath, value, defaultMode = 0o600) {
   }
 }
 
+function sourceFingerprint(filePath) {
+  const stat = fs.statSync(filePath);
+  const digest = crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
+  return `${stat.dev}:${stat.ino}:${stat.size}:${stat.mtimeMs}:${digest}`;
+}
+
+function assertSourceUnchanged(filePath, expectedFingerprint) {
+  if (sourceFingerprint(filePath) !== expectedFingerprint) {
+    throw new Error('Source store changed during reclassification; apply aborted');
+  }
+}
+
 function main(argv = process.argv.slice(2)) {
   const options = parseArgs(argv);
-  const inputStore = JSON.parse(fs.readFileSync(options.storePath, 'utf8'));
-  const result = analyzeStore(inputStore);
-  const artifacts = writeArtifacts(options.outputDir, result.manifest, result.rollback, options.storePath);
-  if (options.apply && result.manifest.changed > 0) {
-    atomicWriteJson(artifacts.transactionPath, {
-      state: 'pending',
-      sourceStore: options.storePath,
-      parserVersion: PRODUCT_IDENTITY_PARSER_VERSION,
-      manifestPath: artifacts.manifestPath,
-      rollbackPath: artifacts.rollbackPath,
-    }, 0o600);
-    try {
-      atomicWriteJson(options.storePath, result.store);
-      fs.rmSync(artifacts.transactionPath, { force: true });
-      syncDirectory(path.dirname(artifacts.transactionPath));
-    } catch (error) {
-      throw new Error(
-        `Apply failed; transaction marker retained at ${artifacts.transactionPath}: ${error.message}`,
-        { cause: error }
-      );
+  const lockPath = `${options.storePath}.reclassify.lock`;
+  let lockDescriptor = null;
+  let lockAcquired = false;
+  let retainLock = false;
+  try {
+    if (options.apply) {
+      lockDescriptor = fs.openSync(lockPath, 'wx', 0o600);
+      lockAcquired = true;
+      fs.fchmodSync(lockDescriptor, 0o600);
+      fs.writeFileSync(lockDescriptor, JSON.stringify({ state: 'migration-active', pid: process.pid }), 'utf8');
+      fs.fsyncSync(lockDescriptor);
+    }
+    const initialFingerprint = sourceFingerprint(options.storePath);
+    const inputStore = JSON.parse(fs.readFileSync(options.storePath, 'utf8'));
+    const result = analyzeStore(inputStore);
+    const artifacts = writeArtifacts(options.outputDir, result.manifest, result.rollback, options.storePath);
+    if (options.apply && result.manifest.storeChanged) {
+      atomicWriteJson(artifacts.transactionPath, {
+        state: 'pending',
+        sourceStore: options.storePath,
+        parserVersion: PRODUCT_IDENTITY_PARSER_VERSION,
+        manifestPath: artifacts.manifestPath,
+        rollbackPath: artifacts.rollbackPath,
+      }, 0o600);
+      try {
+        assertSourceUnchanged(options.storePath, initialFingerprint);
+        atomicWriteJson(options.storePath, result.store);
+        fs.ftruncateSync(lockDescriptor, 0);
+        fs.writeSync(
+          lockDescriptor,
+          JSON.stringify({ state: 'restart-required', pid: process.pid }),
+          0,
+          'utf8'
+        );
+        fs.fsyncSync(lockDescriptor);
+        retainLock = true;
+        fs.rmSync(artifacts.transactionPath, { force: true });
+        syncDirectory(path.dirname(artifacts.transactionPath));
+      } catch (error) {
+        throw new Error(
+          `Apply failed; transaction marker retained at ${artifacts.transactionPath}: ${error.message}`,
+          { cause: error }
+        );
+      }
+    }
+    console.log(JSON.stringify({
+      mode: options.apply ? 'apply' : 'dry-run',
+      ...result.manifest,
+      ...artifacts,
+    }, null, 2));
+    return result;
+  } finally {
+    if (lockDescriptor != null) fs.closeSync(lockDescriptor);
+    if (lockAcquired && !retainLock) {
+      fs.rmSync(lockPath, { force: true });
+      syncDirectory(path.dirname(lockPath));
     }
   }
-  console.log(JSON.stringify({
-    mode: options.apply ? 'apply' : 'dry-run',
-    ...result.manifest,
-    ...artifacts,
-  }, null, 2));
-  return result;
 }
 
 if (require.main === module) {
@@ -299,11 +363,14 @@ module.exports = {
   parseArgs,
   classifyComp,
   analyzeStore,
+  canonicalizeStore,
   artifactPaths,
   assertDistinctPaths,
   canonicalPath,
   syncDirectory,
   ensureDurableDirectory,
   atomicWriteJson,
+  sourceFingerprint,
+  assertSourceUnchanged,
   main,
 };

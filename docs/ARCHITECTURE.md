@@ -176,7 +176,7 @@ server.js                              Express entry point (port 3000)
 │   ├─ upload-csvs-to-blob.js          Upload Terapeak CSVs to Azure Blob Storage
 │   ├─ vnc-login.py                    VNC + eBay login helper for Playwright sessions
 │   ├─ pricing-health-full.js          Pricing health check runner (--full, --filter, --limit, --concurrency, --out)
-│   ├─ reclassify-comps.js             Dry-run-first canonical identity migration with manifests and rollback export
+│   ├─ reclassify-comps.js             Canonical identity migration with stable collision merge, rollback artifacts, and ownership-aware atomic apply
 │   ├─ build-evidence-index.js         Historical evidence index builder
 │   ├─ generate-freshness-report.js    Freshness triage report (5-state decision tree: Fresh/Stale/LowSignal/Missing/Dormant + recently-confirmed-stale split)
 │   ├─ scan-parallel-key-drift.js      Silent-drift detector for the #267H class -- flags datasets whose normalized key collides with an empty sibling (#272H). `npm run scan:parallel-key-drift`
@@ -854,6 +854,8 @@ Extends CSVs from 50 rows (page 1 limit) to up to 250 rows by collecting pages 2
 4. **Remote-scraper HTTP pull (#259)** -- machines running `scripts/run-surface-freshness-loop.sh` (WSL/Surface, Codespaces) call `sync_meta_from_app()` before every freshness pass, which `curl`s `GET /api/admin/terapeak-meta` and atomically replaces their local `data/terapeak-meta.json`. Without this step the local sidecar is git-frozen and the classifier re-targets already-scraped coins forever, making the scraper loop appear to make zero progress. Failures degrade to `[warn]` and the loop continues with whatever is on disk.
 
 **Targeted folder imports:** `autoImportFolder(folder, { includeFiles })` can restrict an import to exact child filenames already discovered in `folder`. Normal server startup omits this option and imports the full eligible folder. Seeded real-data tests use it to load only their exercised cohort without changing parsing, reclassification, or lookup behavior.
+
+**Store writer/migration exclusion:** live local-store writes and `reclassify-comps.js --apply` acquire the same exclusive `.reclassify.lock`. Migration leaves a `restart-required` marker after atomic replacement so stale in-memory state cannot overwrite migrated data; startup loads the migrated store before clearing that marker. Dead-process `writer-active` locks are recovered by PID liveness, while migration locks fail closed for operator recovery. Migration groups canonical aliases, stable-sorts source datasets, and preserves complete metadata and comp payloads independent of input order.
 
 **Per-dataset metadata fields:**
 

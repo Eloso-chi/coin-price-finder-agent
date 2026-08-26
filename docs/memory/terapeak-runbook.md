@@ -19,7 +19,11 @@ Review both artifacts before applying. Apply mode is an operational data mutatio
 node scripts/reclassify-comps.js --apply
 ```
 
-Use `--store <path>` and `--output-dir <path>` for isolated validation. Apply only on the authoritative environment, then invalidate pricing caches or restart the application. Re-running after apply must report `changed: 0`.
+Use `--store <path>` and `--output-dir <path>` for isolated validation. Apply only on the authoritative environment while the application server and all import processes are stopped. The script creates an exclusive `.reclassify.lock`, and live Terapeak persistence defers writes while that lock exists, but an offline apply remains mandatory to eliminate in-flight write races.
+
+The migration holds the source, transformed store, rollback rows, and serialized artifacts in memory. Before applying a production-scale store, ensure free memory comfortably exceeds several times the store size; use an explicit Node heap limit when needed, for example `node --max-old-space-size=4096 scripts/reclassify-comps.js --apply`. The script aborts if the source fingerprint changes after reading and before replacement.
+
+After apply, restart the application to invalidate pricing caches. Re-running after apply must report `storeChanged: false`, `identityUpdated: 0`, and `changed: 0`.
 
 ## Quick Start (run these in order)
 

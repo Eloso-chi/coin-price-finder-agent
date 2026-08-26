@@ -45,6 +45,10 @@ function redactCompsForPublic(response, isAdmin) {
     response.ebay = _cloneEbay(response.ebay);
   }
 
+  if (Array.isArray(response.comps)) {
+    response.comps = response.comps.map(_redactComp);
+  }
+
   // Batch route shape: response.results[].ebay.{us,global}.comps[]
   if (Array.isArray(response.results)) {
     for (const r of response.results) {

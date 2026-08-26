@@ -151,18 +151,37 @@ function findIdentityMismatches(expected, actual) {
 
 function inferTextIdentity(text) {
   const value = String(text || '');
-  const year = value.match(/\b(1[7-9]\d{2}|20\d{2})\b/)?.[1] || null;
-  const mint = value.match(/\b(?:1[7-9]|20)\d{2}[-\s]+(CC|[CDOPSW])\b/i)?.[1]?.toUpperCase() || null;
-  const metal = value.match(/\b(silver|gold|platinum|palladium)\b/i)?.[1]?.toLowerCase() || null;
-  const gradeMatch = value.match(/\b(MS|PR|PF|SP|AU|XF|EF|VF|VG|AG|FR|PO)\s*-?\s*(\d{1,2}\+?)\b/i);
-  const grade = gradeMatch ? `${gradeMatch[1]}${gradeMatch[2]}`.toUpperCase() : null;
+  const years = distinctMatches(value, /\b(1[7-9]\d{2}|20\d{2})\b/gi, match => match[1]);
+  const mints = distinctMatches(value, /\b(?:1[7-9]|20)\d{2}[-\s]+(CC|[CDOPSW])\b/gi, match => match[1].toUpperCase());
+  const metals = distinctMatches(value, /\b(silver|gold|platinum|palladium)\b/gi, match => match[1].toLowerCase());
+  const grades = distinctMatches(
+    value,
+    /\b(MS|PR|PF|SP|AU|XF|EF|VF|VG|AG|FR|PO)\s*-?\s*(\d{1,2}\+?)\b/gi,
+    match => `${match[1].toUpperCase() === 'PF' ? 'PR' : match[1].toUpperCase()}${match[2]}`
+  );
   const designationMatch = value.match(/\b(DMPL|DPL|DCAM|UCAM|CAM|PL|FDOI|FIRST STRIKE|EARLY RELEASES)\b/i);
   const designation = designationMatch?.[1]?.toUpperCase() || null;
   const finish = /\breverse\s+proof\b/i.test(value)
     ? 'Reverse Proof'
     : /\bproof[\s-]*like\b/i.test(value) ? 'Proof-Like'
     : /\bproof\b(?![\s-]*like)|\b(?:PR|PF|SP)\s*-?\s*\d{1,2}\b/i.test(value) ? 'Proof' : null;
-  return { year, mint, metal, grade, designation, finish };
+  const ambiguities = [];
+  for (const [field, values] of Object.entries({ year: years, mint: mints, metal: metals, grade: grades })) {
+    if (values.length > 1) ambiguities.push({ field, values });
+  }
+  return {
+    year: years[0] || null,
+    mint: mints[0] || null,
+    metal: metals[0] || null,
+    grade: grades[0] || null,
+    designation,
+    finish,
+    ambiguities,
+  };
+}
+
+function distinctMatches(text, pattern, normalize) {
+  return [...new Set(Array.from(text.matchAll(pattern), normalize))];
 }
 
 function resolveProductIdentity({ text = '', structured = {}, parsed = {} } = {}) {
@@ -176,7 +195,7 @@ function resolveProductIdentity({ text = '', structured = {}, parsed = {} } = {}
   const nominalWeightOz = weightEvidence.status === 'single'
     ? (hasStructuredWeight ? Number(structured.weight) : (evidence.weight ?? weightEvidence.valuesOz[0]))
     : null;
-  const ambiguities = [];
+  const ambiguities = [...textIdentity.ambiguities];
   const structuredMetal = structured.metal ?? structured.composition;
   addConflict(ambiguities, 'year', structured.year, evidence.year);
   addConflict(ambiguities, 'mint', structured.mint || structured.mintMark, evidence.mint);
@@ -210,6 +229,23 @@ function resolveProductIdentity({ text = '', structured = {}, parsed = {} } = {}
   });
 }
 
+function serializeProductIdentity(identity) {
+  return {
+    series: identity.series,
+    year: identity.year == null ? null : String(identity.year),
+    mint: identity.mint,
+    metal: identity.metal,
+    nominalWeightOz: identity.nominalWeightOz,
+    grade: identity.grade,
+    finish: identity.finish,
+    designation: identity.designation,
+    pool: identity.pool,
+    poolConstrained: identity.poolConstrained,
+    weightEvidence: identity.weightEvidence,
+    parserVersion: identity.parserVersion,
+  };
+}
+
 function detectUnambiguousWeight(text) {
   return resolveProductIdentity({ text }).nominalWeightOz;
 }
@@ -232,6 +268,7 @@ module.exports = {
   seriesEquivalent,
   gradeEquivalent,
   findIdentityMismatches,
+  serializeProductIdentity,
   detectUnambiguousWeight,
   assertUnambiguousProductIdentity,
 };
