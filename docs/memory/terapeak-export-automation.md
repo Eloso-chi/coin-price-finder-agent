@@ -5,6 +5,8 @@
 ### 1. scripts/terapeak-export.py (Page 1)
 Semi-automated Playwright script that exports page 1 of sold data from eBay Seller Hub Research (Terapeak). Gets up to 50 results per coin.
 
+Each CSV upload runs in a single background thread while the next coin is scraped. The prior upload is drained before starting another, and the final upload is drained on normal, session-expired, and handled crash exits. After two consecutive 10-second drain timeouts, the remainder of the run uses synchronous uploads. An upload still active after the 35-second maximum wait stops the loop rather than permitting concurrent uploads.
+
 ### 2. scripts/sales-aggregator.py (Pages 2-5 + Dashboard)
 Deep pagination script that enriches existing CSVs with additional pages. Imports `get_search_terms` from terapeak-export.py. Non-gold bullion gets pages 2-5 (max 250 results); gold bullion and non-bullion get page 2 only (max 100).
 
@@ -66,7 +68,7 @@ Both scripts click the "Date last sold" column header before scraping to ensure 
 ## Flow: CSV → App
 1. Results collected from Terapeak DOM table (JS executed in page)
 2. Appended to `data/terapeak/{filename}.csv` (deduped by key)
-3. POSTed to `POST /api/terapeak/import` (requires ADMIN_API_KEY header)
+3. Uploaded asynchronously according to `UPLOAD_MODE`; API mode POSTs to `POST /api/terapeak/import` (requires ADMIN_API_KEY header)
 4. Parsed by `terapeakService.parseCSV()` → `terapeakService.importComps()`
 5. `importComps()` calls `ebayService.clearCache()` when new data added (fixes stale cache)
 6. Available immediately for pricing via `fetchSoldComps()` Terapeak tier
@@ -79,7 +81,7 @@ Both scripts click the "Date last sold" column header before scraping to ensure 
 
 ## Environment Variables
 - `APP_URL` -- app endpoint (default: http://localhost:3000)
-- `ADMIN_API_KEY` -- required for upload. Stored in local `.env` (gitignored) and Azure Key Vault secret `ADMIN-API-KEY` (prod). Bootstrap a fresh machine with `bash scripts/load-secrets.sh`. Never commit the value.
+- `ADMIN_API_KEY` -- required for `api` mode and the API fallback in `auto` mode; not required for `blob` mode. Stored in local `.env` (gitignored) and Azure Key Vault secret `ADMIN-API-KEY` (prod). Bootstrap a fresh machine with `bash scripts/load-secrets.sh`. Never commit the value.
 - `DISPLAY` -- must be set to `:1` for VNC-based collection
 
 ## Dependencies

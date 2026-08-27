@@ -97,6 +97,7 @@ get_search_terms = _mod.get_search_terms
 upload_csv = _mod.upload_csv
 upload_csv_async = _mod.upload_csv_async
 drain_upload = _mod.drain_upload
+UploadPipelineStalled = _mod.UploadPipelineStalled
 wait_for_results_render = _mod.wait_for_results_render  # #198
 wait_for_research_page = _mod.wait_for_research_page    # #198
 
@@ -1176,6 +1177,9 @@ def do_page2_run(args):
             err_str = str(e)
             print(f"ERROR: {err_str}")
             failed += 1
+            if isinstance(e, UploadPipelineStalled):
+                print("\n  UPLOAD PIPELINE STALLED. Stopping to avoid concurrent uploads.")
+                break
             if "crash" in err_str.lower() or "target closed" in err_str.lower():
                 consecutive_crashes += 1
                 if consecutive_crashes >= 5:
@@ -1214,7 +1218,10 @@ def do_page2_run(args):
                 break
 
     # Cleanup
-    drain_upload()  # wait for last async upload to finish
+    try:
+        drain_upload()  # wait for last async upload to finish
+    except UploadPipelineStalled as e:
+        print(f"  WARNING: {e}; process will wait for the active non-daemon upload")
     try:
         save_cookies(context)
         browser.close()
