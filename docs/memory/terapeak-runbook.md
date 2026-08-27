@@ -274,7 +274,9 @@ Both scripts:
 - Sort by "Date last sold" (descending) before collecting
 - Include "Quantity Sold" column in CSV output
 - Use human-like actions (typing with typos, scrolling, clicking with offset)
-- Upload each CSV to localhost:3000 via POST /api/terapeak/import
+- Upload each CSV through the configured `UPLOAD_MODE`: `api` POSTs to `/api/terapeak/import`, `blob` writes Azure Blob Storage, and `auto` tries Blob before API fallback
+
+The page-1 exporter overlaps one upload with the next scrape, drains every upload before replacing it and before handled exits, and falls back to synchronous uploads after two consecutive drain timeouts. An upload still active after the 35-second maximum wait stops collection rather than allowing concurrent uploads. Deep pagination retains its existing overlap behavior and uses the same fail-closed timeout rule.
 
 ## Useful Commands
 

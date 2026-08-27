@@ -576,7 +576,13 @@ def upload_to_blob(csv_path):
         blob_name = os.path.basename(csv_path)
         url = f"https://{BLOB_ACCOUNT}.blob.core.windows.net"
         credential = DefaultAzureCredential()
-        service = BlobServiceClient(url, credential=credential)
+        service = BlobServiceClient(
+            url,
+            credential=credential,
+            connection_timeout=10,
+            read_timeout=30,
+            retry_total=0,
+        )
         container = service.get_container_client(BLOB_CONTAINER)
         with open(csv_path, "rb") as f:
             container.upload_blob(blob_name, f, overwrite=True,
@@ -664,14 +670,35 @@ import threading
 
 # Last async upload result -- checked before starting the next coin
 _last_upload_result = {"ok": None, "msg": None, "term": None, "thread": None}
+_async_upload_timeouts = 0
+_async_upload_disabled = False
+ASYNC_UPLOAD_TIMEOUT_LIMIT = 2
+ASYNC_UPLOAD_MAX_WAIT = 35
+
+
+class UploadPipelineStalled(RuntimeError):
+    pass
+
 
 def upload_csv_async(csv_path, search_term, aggregation_meta=None, cleanup=False):
-    """Fire-and-forget wrapper around upload_csv. Runs the upload in a
-    background thread so the next coin's navigation can start immediately.
-    Call drain_upload() before the next upload to log the previous result.
-    If cleanup=True, deletes csv_path after upload finishes."""
-    # Drain any pending upload first
+    """Start one background upload so it can overlap the next coin scrape."""
     drain_upload()
+    if _async_upload_disabled:
+        try:
+            ok, msg = upload_csv(csv_path, search_term, aggregation_meta)
+        finally:
+            if cleanup:
+                try:
+                    Path(csv_path).unlink(missing_ok=True)
+                except Exception:
+                    pass
+        if not ok:
+            print(f"  [sync upload] {search_term}: failed -- {msg}")
+        return {"term": search_term, "ok": ok, "msg": msg}
+
+    active = _last_upload_result.get("thread")
+    if active is not None and active.is_alive():
+        raise RuntimeError("previous async upload must be drained first")
 
     def _worker():
         try:
@@ -690,24 +717,66 @@ def upload_csv_async(csv_path, search_term, aggregation_meta=None, cleanup=False
 
     _last_upload_result["term"] = search_term
     _last_upload_result["ok"] = None
-    t = threading.Thread(target=_worker, daemon=True)
+    _last_upload_result["msg"] = None
+    t = threading.Thread(target=_worker, daemon=False)
     _last_upload_result["thread"] = t
     t.start()
+    return None
 
 
-def drain_upload(timeout=10):
-    """Wait for the last async upload to finish and log the result."""
+def drain_upload(timeout=10, log_result=True):
+    """Finish and return the pending upload, enabling sync fallback if slow."""
+    global _async_upload_timeouts, _async_upload_disabled
+
     t = _last_upload_result.get("thread")
-    if t is None or not t.is_alive():
-        return
+    if t is None:
+        return None
+
     t.join(timeout=timeout)
+    timed_out = t.is_alive()
     term = _last_upload_result.get("term", "?")
-    ok = _last_upload_result.get("ok")
-    msg = _last_upload_result.get("msg", "?")
-    if ok is None:
+    if timed_out:
+        _async_upload_timeouts += 1
         print(f"  [async upload] {term}: timed out after {timeout}s")
-    elif not ok:
-        print(f"  [async upload] {term}: failed -- {msg}")
+        remaining_wait = max(0, ASYNC_UPLOAD_MAX_WAIT - timeout)
+        t.join(timeout=remaining_wait)
+        if t.is_alive():
+            _async_upload_disabled = True
+            raise UploadPipelineStalled(
+                f"async upload for {term} still active after {ASYNC_UPLOAD_MAX_WAIT}s"
+            )
+        if _async_upload_timeouts >= ASYNC_UPLOAD_TIMEOUT_LIMIT:
+            _async_upload_disabled = True
+            print("  [async upload] repeated timeouts; using synchronous uploads for remainder of run")
+    else:
+        _async_upload_timeouts = 0
+
+    result = {
+        "term": term,
+        "ok": _last_upload_result.get("ok"),
+        "msg": _last_upload_result.get("msg", "?"),
+    }
+    _last_upload_result.update({"ok": None, "msg": None, "term": None, "thread": None})
+    if log_result and not result["ok"]:
+        print(f"  [async upload] {term}: failed -- {result['msg']}")
+    return result
+
+
+def _record_upload_result(result, progress):
+    """Apply one completed async upload to counters and resume state."""
+    if result is None:
+        return 0, 0, 0
+    term = result["term"]
+    if result["ok"]:
+        print(f"  [async upload] {term}: OK ({result['msg']})")
+        progress.setdefault("completed", []).append(term)
+        return 1, 1, 0
+
+    print(f"  [async upload] {term}: failed -- {result['msg']}")
+    if _is_no_valid_comps_error(result["msg"]):
+        _report_no_data(term)
+    progress.setdefault("failed", []).append(term)
+    return 0, 0, 1
 
 
 def _report_no_data(search_term):
@@ -1745,20 +1814,33 @@ def do_export_run(args):
                 meta = {"page1At": now}
                 if args.refresh:
                     meta["lastRefreshAt"] = now
-                ok, msg = upload_csv(dest, term, aggregation_meta=meta)
-                if ok:
-                    print(f"OK ({msg})")
-                    uploaded += 1
-                    success += 1
-                    progress.setdefault("completed", []).append(term)
+
+                prior_result = drain_upload(log_result=False)
+                success_delta, upload_delta, failed_delta = _record_upload_result(
+                    prior_result, progress
+                )
+                success += success_delta
+                uploaded += upload_delta
+                failed += failed_delta
+
+                if not _async_upload_disabled:
+                    upload_csv_async(dest, term, aggregation_meta=meta)
+                    print("SAVED (upload pending)")
                 else:
-                    print(f"SAVED but upload failed: {msg}")
-                    # Treat 422/no-valid-comps as an empty scrape signal so
-                    # dormant tracking can converge instead of retrying forever.
-                    if _is_no_valid_comps_error(msg):
-                        _report_no_data(term)
-                    failed += 1
-                    progress.setdefault("failed", []).append(term)
+                    ok, msg = upload_csv(dest, term, aggregation_meta=meta)
+                    if ok:
+                        print(f"OK ({msg})")
+                        uploaded += 1
+                        success += 1
+                        progress.setdefault("completed", []).append(term)
+                    else:
+                        print(f"SAVED but upload failed: {msg}")
+                        # Treat 422/no-valid-comps as an empty scrape signal so
+                        # dormant tracking can converge instead of retrying forever.
+                        if _is_no_valid_comps_error(msg):
+                            _report_no_data(term)
+                        failed += 1
+                        progress.setdefault("failed", []).append(term)
             else:
                 print("NO EXPORT (no results or button not found)")
                 _report_no_data(term)
@@ -1774,6 +1856,11 @@ def do_export_run(args):
             print(f"ERROR: {err_str}")
             failed += 1
             progress.setdefault("failed", []).append(term)
+
+            if isinstance(e, UploadPipelineStalled):
+                print("\n  UPLOAD PIPELINE STALLED. Stopping to avoid concurrent uploads.")
+                save_progress(progress)
+                break
 
             # Auto-recover from page/browser crashes
             if "crash" in err_str.lower() or "target closed" in err_str.lower():
@@ -1813,6 +1900,17 @@ def do_export_run(args):
                 save_progress(progress)
                 print(f"  Run --login to refresh, then --run --resume to continue.")
                 break
+
+    try:
+        final_result = drain_upload(log_result=False)
+    except UploadPipelineStalled as e:
+        print(f"  WARNING: {e}; process will wait for the active non-daemon upload")
+        final_result = None
+    success_delta, upload_delta, failed_delta = _record_upload_result(final_result, progress)
+    success += success_delta
+    uploaded += upload_delta
+    failed += failed_delta
+    save_progress(progress)
 
     # Cleanup
     try:

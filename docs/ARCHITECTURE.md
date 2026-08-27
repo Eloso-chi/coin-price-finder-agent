@@ -785,8 +785,10 @@ Automates Terapeak CSV downloads from eBay Seller Hub Research:
 │    3. Wait for results table to render                    │
 │    4. Click "Download CSV" button                         │
 │    5. Write .meta file (search_term, collected_at)          │
-│    6. Upload CSV to Azure Blob Storage (upload_to_blob)   │
-│       Falls back to POST /api/terapeak/import if no creds │
+│    6. Start one async upload using configured UPLOAD_MODE │
+│       while the browser begins the next coin              │
+│    7. Drain before replacement and at every handled stop  │
+│       Repeated upload timeouts switch the run to sync     │
 │  Browser recycled every 80 (export) / 120 (deep) coins    │
 │  Auto-recovery on crash (up to 5 retries)                 │
 │  Bot-detection abort: stops batch on CAPTCHA/block        │
