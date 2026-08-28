@@ -55,9 +55,14 @@ COINS_PATH = os.path.join(OUT_DIR, "coins.jsonl")
 # Matches:  "  [ NN%] <Coin Name>...<rest>"
 COIN_LINE_RE = re.compile(r"^\s*\[\s*(\d+)%\]\s+(.+?)\.\.\.(.*)$")
 OK_RE = re.compile(r"OK\s*\((\d+)\s+new,\s*(\d+)\s+dups\)")
+ASYNC_RESULT_RE = re.compile(
+    r"\[async upload\]\s+(.+?):\s+(OK\s*\((\d+)\s+new,\s*(\d+)\s+dups\)|failed\s+--\s+(.+))",
+    re.IGNORECASE,
+)
 WARN_EMPTY_RE = re.compile(r"WARNING:\s*No data rows found", re.IGNORECASE)
 NO_EXPORT_RE = re.compile(r"^NO EXPORT", re.IGNORECASE)
 DORMANT_RE = re.compile(r"\(dormant:", re.IGNORECASE)
+BOT_BLOCKED_RE = re.compile(r"\bBOT BLOCKED\b", re.IGNORECASE)
 # Only treat 4xx/5xx HTTP statuses as failures. A bare HTTP 2xx/3xx anywhere
 # in a coin's continuation lines (e.g. an upstream "HTTP 200 OK" trace) must
 # NOT flip the coin to status=failed. See PR #200 review finding #1.
@@ -85,6 +90,22 @@ def parse_pass_log(path):
         coins.append(current)
         current = None
 
+    def apply_async_result(match):
+        term = match.group(1).strip()
+        target = current if current and current["coin"] == term else None
+        if target is None:
+            target = next((coin for coin in reversed(coins) if coin["coin"] == term), None)
+        if target is None:
+            return
+        if match.group(3) is not None:
+            target["status"] = "ok"
+            target["new"] = int(match.group(3))
+            target["dups"] = int(match.group(4))
+            target["error"] = None
+        else:
+            target["status"] = "failed"
+            target["error"] = match.group(5).strip()
+
     try:
         with open(path, "r", encoding="utf-8", errors="replace") as f:
             for raw in f:
@@ -96,6 +117,9 @@ def parse_pass_log(path):
                 line_signals = classify_log_lines((line,))
                 challenge_signal_count += line_signals["challenge_signal_count"]
                 soft_risk_signal_count += line_signals["soft_risk_signal_count"]
+                async_result = ASYNC_RESULT_RE.search(line)
+                if async_result:
+                    apply_async_result(async_result)
                 m = COIN_LINE_RE.match(line)
                 if m:
                     # New coin starts; close out previous
@@ -111,25 +135,28 @@ def parse_pass_log(path):
                         "error": None,
                     }
                     # Try to resolve outcome on the same line
-                    ok = OK_RE.search(rest)
+                    ok = None if async_result else OK_RE.search(rest)
                     if ok:
                         current["status"] = "ok"
                         current["new"] = int(ok.group(1))
                         current["dups"] = int(ok.group(2))
                     elif WARN_EMPTY_RE.search(rest):
                         current["status"] = "empty"
+                    elif BOT_BLOCKED_RE.search(rest):
+                        current["status"] = "failed"
+                        current["error"] = "BOT BLOCKED"
+                    continue
+
+                sm = SUCCEEDED_TAIL_RE.match(line)
+                if sm:
+                    succeeded = int(sm.group(1))
+                    continue
+                fm = FAILED_TAIL_RE.match(line)
+                if fm:
+                    failed = int(fm.group(1))
                     continue
 
                 if current is None:
-                    # Capture pass-level totals
-                    sm = SUCCEEDED_TAIL_RE.match(line)
-                    if sm:
-                        succeeded = int(sm.group(1))
-                        continue
-                    fm = FAILED_TAIL_RE.match(line)
-                    if fm:
-                        failed = int(fm.group(1))
-                        continue
                     continue
 
                 # Continuation lines for the current coin
@@ -143,13 +170,17 @@ def parse_pass_log(path):
                 if DORMANT_RE.search(line):
                     current["dormant"] = True
                     continue
+                if BOT_BLOCKED_RE.search(line):
+                    current["status"] = "failed"
+                    current["error"] = "BOT BLOCKED"
+                    continue
                 http = HTTP_FAIL_RE.search(line)
                 if http:
                     current["status"] = "failed"
                     current["error"] = f"HTTP {http.group(1)}"
                     continue
                 # Late OK on a continuation line (rare)
-                ok = OK_RE.search(line)
+                ok = None if async_result else OK_RE.search(line)
                 if ok and current.get("status") in (None,):
                     current["status"] = "ok"
                     current["new"] = int(ok.group(1))

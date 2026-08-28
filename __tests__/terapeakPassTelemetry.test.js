@@ -65,6 +65,28 @@ with tempfile.TemporaryDirectory() as temp_dir:
         "--transition-output", str(blocked_transition),
         ])
 
+    async_log = pathlib.Path(temp_dir) / "async.log"
+    async_summary = pathlib.Path(temp_dir) / "async-summary.json"
+    async_log.write_text("\\n".join([
+        "Exporting 4 coins...",
+        "  [ 25%] Coin A... SAVED (upload pending)",
+        "  [ 50%] Coin B...   [async upload] Coin A: OK (3 new, 2 dups)",
+        "SAVED (upload pending)",
+        "  [ 75%] Coin C...   [async upload] Coin B: failed -- Cannot connect",
+        "WARNING: No data rows found",
+        "NO EXPORT (no results or button not found)",
+        "  [100%] Coin D... BOT BLOCKED",
+        "BOT BLOCKED",
+        "  Succeeded: 1",
+        "  Failed: 3",
+    ]), encoding="utf-8")
+    with contextlib.redirect_stdout(io.StringIO()):
+        async_status = pass_parser.main([
+            "--pass-log", str(async_log), "--run-id", "async-run",
+            "--pass-num", "1", "--batch-size", "4",
+            "--summary-output", str(async_summary),
+        ])
+
     records = [json.loads(line) for line in pathlib.Path(pass_parser.PASSES_PATH).read_text(encoding="utf-8").splitlines()]
     valid_record = {
         "run_id": "run-1", "pass_id": 1,
@@ -87,6 +109,8 @@ with tempfile.TemporaryDirectory() as temp_dir:
         "first_summary": json.loads(first_summary.read_text(encoding="utf-8")),
         "blocked_status": blocked_status,
         "blocked_transition": blocked_transition.read_text(encoding="utf-8").strip().split("\t"),
+        "async_status": async_status,
+        "async_summary": json.loads(async_summary.read_text(encoding="utf-8")),
         "records": records,
         "valid_failures": valid_failures,
         "invalid_failures": invalid_failures,
@@ -153,6 +177,27 @@ describe('#284H pass telemetry contract', () => {
     expect(record.transition_reason).toBe('hard_challenge_signal');
     expect(harness.blocked_transition).toEqual([
       'Normal', 'Cooldown', 'hard_challenge_signal', '2', '0',
+    ]);
+  });
+
+  test('attributes interleaved async results and hard challenges to the correct coins', () => {
+    expect(harness.async_status).toBe(0);
+    expect(harness.async_summary.pass).toEqual(expect.objectContaining({
+      attempted: 4,
+      succeeded: 1,
+      empty: 1,
+      failed: 2,
+      unknown: 0,
+      new_rows: 3,
+      dup_rows: 2,
+      succeeded_reported: 1,
+      failed_reported: 3,
+    }));
+    expect(harness.async_summary.coins).toEqual([
+      expect.objectContaining({ coin: 'Coin A', status: 'ok', new: 3, dups: 2 }),
+      expect.objectContaining({ coin: 'Coin B', status: 'failed', error: 'Cannot connect' }),
+      expect.objectContaining({ coin: 'Coin C', status: 'empty' }),
+      expect.objectContaining({ coin: 'Coin D', status: 'failed', error: 'BOT BLOCKED' }),
     ]);
   });
 
