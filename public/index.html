@@ -700,11 +700,11 @@
       border-radius: var(--radius-lg);
       padding: 24px;
       text-align: center;
-      cursor: pointer;
+      cursor: default;
       transition: border-color 0.2s, background 0.2s;
       margin-bottom: 16px;
     }
-    .tp-upload-area:hover, .tp-upload-area.tp-drag-over {
+    .tp-upload-area.tp-drag-over {
       border-color: var(--accent);
       background: rgba(52, 152, 219, 0.05);
     }
@@ -914,9 +914,14 @@
     }
     .mycoins-filter-input:focus { border-color: var(--accent); }
     .mycoins-filter-count { font-size: 0.78rem; color: var(--text-muted); }
-    .mycoins-sortable { cursor: pointer; user-select: none; }
-    .mycoins-sortable:hover { color: var(--accent); }
-    .mycoins-sortable:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 2px; }
+    .mycoins-sortable { padding: 0; }
+    .mycoins-sort-button {
+      width: 100%; padding: 8px 10px; border: 0; background: transparent;
+      color: inherit; cursor: pointer; font: inherit; font-weight: inherit;
+      text-align: left; white-space: nowrap;
+    }
+    .mycoins-sort-button:hover { color: var(--accent); }
+    .mycoins-sort-button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 2px; }
     .mycoins-qty-col { min-width: 80px; }
     .mycoins-qty-cell { white-space: nowrap; }
     .mycoins-qty-btn {
@@ -1007,13 +1012,13 @@
     .backup-prompt .btn-backup-now { background: var(--green); color: #000; border-color: var(--green); }
 
     /* ── Locked tab styling ─────────────────────────────── */
-    .tab-btn.tab-locked { color: var(--text-muted); cursor: default; }
-    .tab-btn.tab-locked:hover { color: var(--text-muted); }
+    .tab-btn.tab-locked { color: var(--text-muted); cursor: pointer; }
+    .tab-btn.tab-locked:hover { color: var(--text); background: var(--surface); }
     .tab-btn.tab-locked .lock-icon { font-size: 0.7rem; margin-left: 4px; }
     .session-chip { display:inline-block; font-size:0.7rem; color:var(--text-muted); background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:1px 8px; margin-left:6px; vertical-align:middle; }
     .cross-tab-links { display:flex; gap:10px; flex-wrap:wrap; margin:10px 0 4px; font-size:0.82rem; }
-    .cross-tab-links a { color:var(--accent); text-decoration:none; cursor:pointer; padding:4px 10px; border:1px solid var(--border); border-radius:var(--radius); background:var(--surface); }
-    .cross-tab-links a:hover { background:var(--card); }
+    .cross-tab-links .cross-tab-link { color:var(--accent); font:inherit; text-decoration:none; cursor:pointer; padding:4px 10px; border:1px solid var(--border); border-radius:var(--radius); background:var(--surface); }
+    .cross-tab-links .cross-tab-link:hover { background:var(--card); }
     .bulk-page-nav { display:flex; gap:6px; align-items:center; justify-content:center; margin:10px 0; font-size:0.82rem; }
     .bulk-page-nav button { background:var(--surface); color:var(--text); border:1px solid var(--border); border-radius:var(--radius); padding:4px 10px; cursor:pointer; font-size:0.8rem; }
     .bulk-page-nav button:hover { background:var(--card); }
@@ -1858,7 +1863,8 @@
       <!-- Upload Form -->
       <div class="tp-upload-area" id="tp-upload-area">
         <div class="tp-upload-icon" aria-hidden="true">&#x1F4E4;</div>
-        <p>Drag &amp; drop a Terapeak CSV here, or click to browse</p>
+        <p>Drag &amp; drop a Terapeak CSV here, or choose a file</p>
+        <button type="button" id="tp-file-browse-btn" class="btn-file">Choose CSV File</button>
         <input type="file" id="tp-file-input" accept=".csv,.tsv,.txt" style="display:none">
         <div class="tp-search-term-row">
           <label for="tp-search-term">Search Term Used</label>
@@ -2079,10 +2085,8 @@ Gold Krugerrand 1 oz | qty=2
 Silver Libertad 1 oz Proof"></textarea>
         </div>
         <div style="display:flex;flex-direction:column;gap:8px;padding-top:24px">
-          <label class="btn-file" style="cursor:pointer;background:var(--card);border:1px solid var(--border);padding:8px 16px;border-radius:6px;text-align:center">
-            Upload Excel
-            <input type="file" id="bulk-excel-input" accept=".xlsx" style="display:none">
-          </label>
+          <button type="button" id="bulk-excel-browse-btn" class="btn-file">Upload Excel</button>
+          <input type="file" id="bulk-excel-input" accept=".xlsx" style="display:none">
           <button id="bulk-json-btn" class="btn-secondary" style="padding:8px 16px;border-radius:6px">Paste JSON</button>
         </div>
       </div>
@@ -2648,13 +2652,16 @@ Silver Libertad 1 oz Proof"></textarea>
       if (loggedIn) {
         btn.classList.remove('tab-locked');
         btn.removeAttribute('aria-description');
-        btn.removeAttribute('aria-disabled');
+        btn.removeAttribute('aria-label');
+        btn.removeAttribute('title');
         const lock = btn.querySelector('.lock-icon');
         if (lock) lock.remove();
       } else {
         btn.classList.add('tab-locked');
-        btn.setAttribute('aria-description', 'Sign in required');
-        btn.setAttribute('aria-disabled', 'true');
+        const destination = id === 'tab-mycoins' ? 'My Coins' : 'Price History';
+        btn.setAttribute('aria-description', 'Sign in to open ' + destination);
+        btn.setAttribute('aria-label', destination + '. Sign in to open.');
+        btn.setAttribute('title', 'Sign in to open ' + destination);
         if (!btn.querySelector('.lock-icon')) {
           btn.insertAdjacentHTML('beforeend', ' <span class="lock-icon" aria-hidden="true">&#x1F512;</span>');
         }
@@ -3726,9 +3733,9 @@ Silver Libertad 1 oz Proof"></textarea>
       // ── Cross-tab Quick Links ──
       html += '<div class="cross-tab-links">';
       html += '<span style="color:var(--text-muted);align-self:center">View on:</span>';
-      html += '<a data-tab="tab-melt" title="Open in Melt Calculator">Melt Calculator</a>';
-      html += '<a data-tab="tab-tracker" title="Open in Live eBay Tracker">eBay Tracker</a>';
-      html += '<a data-tab="tab-history" title="Open in Price History">Price History</a>';
+      html += '<button type="button" class="cross-tab-link" data-tab="tab-melt" title="Open in Melt Calculator">Melt Calculator</button>';
+      html += '<button type="button" class="cross-tab-link" data-tab="tab-tracker" title="Open in Live eBay Tracker">eBay Tracker</button>';
+      html += '<button type="button" class="cross-tab-link" data-tab="tab-history" title="Open in Price History">Price History</button>';
       html += '<button type="button" class="btn ai-handoff" id="structured-to-ai">Continue in AI Pricing</button>';
       html += '</div>';
 
@@ -3738,11 +3745,14 @@ Silver Libertad 1 oz Proof"></textarea>
       container.innerHTML = html;
 
       // Wire cross-tab quick links
-      container.querySelectorAll('.cross-tab-links a[data-tab]').forEach(function(a) {
-        a.addEventListener('click', function(e) {
-          e.preventDefault();
-          var tabBtn = document.getElementById(a.dataset.tab);
-          if (tabBtn) tabBtn.click();
+      container.querySelectorAll('.cross-tab-links button[data-tab]').forEach(function(button) {
+        button.addEventListener('click', function() {
+          var tabBtn = document.getElementById(button.dataset.tab);
+          if (tabBtn) {
+            tabBtn.click();
+            var authDialog = document.getElementById('auth-dialog');
+            if (!authDialog || !authDialog.open) tabBtn.focus();
+          }
         });
       });
       var structuredToAi = document.getElementById('structured-to-ai');
@@ -4886,9 +4896,9 @@ Silver Libertad 1 oz Proof"></textarea>
     // ── Cross-tab Quick Links ─────────────────────────────
     html += '<div class="cross-tab-links">';
     html += '<span style="color:var(--text-muted);align-self:center">View on:</span>';
-    html += '<a data-tab="tab-melt" title="Open in Melt Calculator">Melt Calculator</a>';
-    html += '<a data-tab="tab-tracker" title="Open in Live eBay Tracker">eBay Tracker</a>';
-    html += '<a data-tab="tab-history" title="Open in Price History">Price History</a>';
+    html += '<button type="button" class="cross-tab-link" data-tab="tab-melt" title="Open in Melt Calculator">Melt Calculator</button>';
+    html += '<button type="button" class="cross-tab-link" data-tab="tab-tracker" title="Open in Live eBay Tracker">eBay Tracker</button>';
+    html += '<button type="button" class="cross-tab-link" data-tab="tab-history" title="Open in Price History">Price History</button>';
     html += '</div>';
 
     // ── Raw JSON ──────────────────────────────────────────
@@ -4898,11 +4908,14 @@ Silver Libertad 1 oz Proof"></textarea>
     r.innerHTML = html;
 
     // Wire cross-tab quick links
-    r.querySelectorAll('.cross-tab-links a[data-tab]').forEach(function(a) {
-      a.addEventListener('click', function(e) {
-        e.preventDefault();
-        var tabBtn = document.getElementById(a.dataset.tab);
-        if (tabBtn) tabBtn.click();
+    r.querySelectorAll('.cross-tab-links button[data-tab]').forEach(function(button) {
+      button.addEventListener('click', function() {
+        var tabBtn = document.getElementById(button.dataset.tab);
+        if (tabBtn) {
+          tabBtn.click();
+          var authDialog = document.getElementById('auth-dialog');
+          if (!authDialog || !authDialog.open) tabBtn.focus();
+        }
       });
     });
 
@@ -5787,6 +5800,7 @@ Silver Libertad 1 oz Proof"></textarea>
     init() {
       this.els = {
         area:       document.getElementById('tp-upload-area'),
+        browseBtn:  document.getElementById('tp-file-browse-btn'),
         fileInput:  document.getElementById('tp-file-input'),
         searchTerm: document.getElementById('tp-search-term'),
         uploadBtn:  document.getElementById('tp-upload-btn'),
@@ -5795,11 +5809,8 @@ Silver Libertad 1 oz Proof"></textarea>
         list:       document.getElementById('tp-datasets-list'),
       };
 
-      // Click to browse
-      this.els.area.addEventListener('click', (e) => {
-        if (e.target === this.els.searchTerm || e.target === this.els.uploadBtn || e.target.tagName === 'LABEL') return;
-        this.els.fileInput.click();
-      });
+      // Native button provides a keyboard-operable alternative to drag/drop.
+      this.els.browseBtn.addEventListener('click', () => this.els.fileInput.click());
 
       // File selected
       this.els.fileInput.addEventListener('change', () => {
@@ -6752,6 +6763,7 @@ Silver Libertad 1 oz Proof"></textarea>
   (function initLotEvaluator() {
     const textInput   = document.getElementById('bulk-text-input');
     const excelInput  = document.getElementById('bulk-excel-input');
+    const excelBrowse = document.getElementById('bulk-excel-browse-btn');
     const jsonBtn     = document.getElementById('bulk-json-btn');
     const evalBtn     = document.getElementById('bulk-evaluate-btn');
     const statusEl    = document.getElementById('bulk-status');
@@ -6973,6 +6985,7 @@ Silver Libertad 1 oz Proof"></textarea>
       _evaluate({ text: text });
     });
 
+    excelBrowse.addEventListener('click', function() { excelInput.click(); });
     excelInput.addEventListener('change', function() {
       const file = excelInput.files[0];
       if (!file) return;

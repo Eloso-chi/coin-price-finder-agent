@@ -4403,7 +4403,7 @@ Gated on data: run pricing-health across a Reverse-Proof slate (2023 RP Morgan, 
 
 ---
 
-### #304H. Native keyboard semantics for uploads, cross-tab shortcuts, sorting, and locked tabs [P1 -- ACCESSIBILITY / INTERACTION] -- PROPOSED 2026-08-31
+### #304H. Native keyboard semantics for uploads, cross-tab shortcuts, sorting, and locked tabs [P1 -- ACCESSIBILITY / INTERACTION] -- DONE 2026-08-31
 
 **Origin:** Comprehensive UX Reviewer audit at commit `557095966cb1580f330322beff4cd83042de9cb4` (2026-08-30), S2 keyboard and component-semantics findings.
 
@@ -4425,6 +4425,8 @@ Gated on data: run pricing-health across a Reverse-Proof slate (2023 RP Morgan, 
 - Automated keyboard and semantics regressions pass; focused `@ux-reviewer` follow-up and `npm test` pass.
 
 **Tier:** M. Multiple user-flow semantics change; focused UX review required.
+
+**Resolution:** Implemented visible native browse buttons for Terapeak CSV and Lot Evaluator Excel uploads while retaining Terapeak drag-and-drop. Price Discovery result shortcuts now use native buttons and transfer focus to the activated destination tab unless the authentication dialog owns focus. Authentication-gated tabs remain actionable login gateways without false `aria-disabled` state and disclose the sign-in transition. My Coins sortable headers now use semantic `<th aria-sort>` elements containing native sort buttons, with decorative arrows hidden from assistive technology and focus restored after rerendering. Regression coverage is in `__tests__/keyboardSemantics.test.js` and `__tests__/frontend/myCoinsDelegation.test.js`. Verification: focused tests 2 suites / 11 tests passed; final canonical Jest 179 suites / 4,725 tests passed; targeted ESLint and diff hygiene passed; focused UX Reviewer returned PASS with no S1/S2 findings, and its actionable-tab affordance feedback was applied.
 
 ---
 

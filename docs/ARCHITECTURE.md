@@ -1496,7 +1496,10 @@ The SPA uses CSS custom properties for theming. The dark theme defines 36+ token
 - `aria-modal="true"` + `aria-labelledby` on all `<dialog>` elements
 - Authentication mode switches use native buttons with visible focus and native keyboard activation.
 - Authentication and admin credential fields have persistent labels or associated labels, stable error descriptions, field-specific `aria-invalid` state, and first-invalid focus. Ambiguous server credential failures focus a form-level alert without falsely marking either credential field invalid.
-- Sortable headers: `tabindex="0"`, `role="columnheader button"`, `aria-sort`
+- File uploads expose visible native browse buttons as keyboard alternatives while retaining drag-and-drop where supported.
+- Result cross-tab shortcuts use native buttons and focus the destination tab after activation unless an authentication dialog takes focus.
+- Authentication-gated tabs remain actionable login gateways, omit disabled semantics, and describe the sign-in transition in their accessible name and description.
+- Collection sortable headers retain native `<th>` columnheader semantics and `aria-sort`; nested native buttons provide activation, hide decorative direction arrows from assistive technology, and regain focus after rerendering.
 - `<canvas>` has `aria-label` for screen readers
 - Tab bar uses `mask-image` gradient to indicate scroll overflow on mobile
 

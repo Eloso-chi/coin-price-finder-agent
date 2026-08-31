@@ -71,8 +71,9 @@ const MyCoins = (() => {
     _container.addEventListener('click', async (e) => {
       const target = e.target;
 
-      // Sortable headers
-      const th = target.closest('.mycoins-sortable');
+      // Sortable headers use native buttons inside semantic column headers.
+      const sortButton = target.closest('.mycoins-sort-button');
+      const th = sortButton ? sortButton.closest('.mycoins-sortable') : null;
       if (th) {
         const col = th.getAttribute('data-col');
         if (_sortCol === col) { _sortAsc = !_sortAsc; }
@@ -207,16 +208,12 @@ const MyCoins = (() => {
       }
     }, true); // useCapture for blur (doesn't bubble)
 
-    // Keydown delegation: inline cost & qty editing (Enter/Escape) + sortable headers
+    // Keydown delegation: inline cost & qty editing (Enter/Escape).
+    // Sort buttons use native keyboard activation.
     _container.addEventListener('keydown', (e) => {
       if (e.target.classList.contains('mycoins-cost-input') || e.target.classList.contains('mycoins-qty-input')) {
         if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); }
         if (e.key === 'Escape') { e.target.blur(); }
-      }
-      // Sortable column headers: Enter/Space triggers sort
-      if ((e.key === 'Enter' || e.key === ' ') && e.target.closest('.mycoins-sortable')) {
-        e.preventDefault();
-        e.target.closest('.mycoins-sortable').click();
       }
     });
   }
@@ -547,9 +544,15 @@ const MyCoins = (() => {
   }
 
   function _ariaSortAttr(col) {
-    const base = ' tabindex="0" role="columnheader button"';
-    if (_sortCol !== col) return base + ' aria-sort="none"';
-    return base + (_sortAsc ? ' aria-sort="ascending"' : ' aria-sort="descending"');
+    if (_sortCol !== col) return ' aria-sort="none"';
+    return _sortAsc ? ' aria-sort="ascending"' : ' aria-sort="descending"';
+  }
+
+  function _sortHeader(label, col, classNames) {
+    const classes = 'mycoins-sortable' + (classNames ? ' ' + classNames : '');
+    return '<th class="' + classes + '" data-col="' + col + '"' + _ariaSortAttr(col) + '>'
+      + '<button type="button" class="mycoins-sort-button" data-col="' + col + '" aria-label="Sort by ' + label + '">'
+      + label + '<span aria-hidden="true">' + _sortArrow(col) + '</span></button></th>';
   }
 
   function _renderTable(items) {
@@ -637,20 +640,20 @@ const MyCoins = (() => {
     html += '<div class="mycoins-table-wrap"><table class="mycoins-table" aria-label="My coin collection">';
     html += '<thead><tr>';
     html += '<th class="mycoins-select-col"><input type="checkbox" class="mycoins-select-all" title="Select all" aria-label="Select all coins"></th>';
-    html += '<th class="mycoins-sortable" data-col="coin"' + _ariaSortAttr('coin') + '>Coin' + _sortArrow('coin') + '</th>';
-    html += '<th class="mycoins-sortable" data-col="grade"' + _ariaSortAttr('grade') + '>Grade' + _sortArrow('grade') + '</th>';
-    html += '<th class="mycoins-sortable" data-col="label"' + _ariaSortAttr('label') + '>Label' + _sortArrow('label') + '</th>';
-    html += '<th class="mycoins-sortable mycoins-qty-col" data-col="qty"' + _ariaSortAttr('qty') + '>Qty' + _sortArrow('qty') + '</th>';
-    html += '<th class="mycoins-sortable mycoins-col-hide" data-col="toz"' + _ariaSortAttr('toz') + '>Troy Oz' + _sortArrow('toz') + '</th>';
-    html += '<th class="mycoins-sortable" data-col="fmv"' + _ariaSortAttr('fmv') + '>FMV (ea)' + _sortArrow('fmv') + '</th>';
-    html += '<th class="mycoins-sortable" data-col="total"' + _ariaSortAttr('total') + '>Total' + _sortArrow('total') + '</th>';
-    html += '<th class="mycoins-sortable" data-col="cost"' + _ariaSortAttr('cost') + '>Cost (ea)' + _sortArrow('cost') + '</th>';
-    html += '<th class="mycoins-sortable" data-col="pl"' + _ariaSortAttr('pl') + '>P/L' + _sortArrow('pl') + '</th>';
-    html += '<th class="mycoins-sortable mycoins-col-hide" data-col="melt"' + _ariaSortAttr('melt') + '>Melt' + _sortArrow('melt') + '</th>';
-    html += '<th class="mycoins-sortable mycoins-col-hide" data-col="ebay"' + _ariaSortAttr('ebay') + '>Avg eBay' + _sortArrow('ebay') + '</th>';
+    html += _sortHeader('Coin', 'coin');
+    html += _sortHeader('Grade', 'grade');
+    html += _sortHeader('Label', 'label');
+    html += _sortHeader('Qty', 'qty', 'mycoins-qty-col');
+    html += _sortHeader('Troy Oz', 'toz', 'mycoins-col-hide');
+    html += _sortHeader('FMV (ea)', 'fmv');
+    html += _sortHeader('Total', 'total');
+    html += _sortHeader('Cost (ea)', 'cost');
+    html += _sortHeader('P/L', 'pl');
+    html += _sortHeader('Melt', 'melt', 'mycoins-col-hide');
+    html += _sortHeader('Avg eBay', 'ebay', 'mycoins-col-hide');
     html += '<th class="mycoins-col-hide">Range</th>';
-    html += '<th class="mycoins-sortable mycoins-col-hide" data-col="notes"' + _ariaSortAttr('notes') + '>Notes' + _sortArrow('notes') + '</th>';
-    html += '<th class="mycoins-sortable mycoins-col-hide" data-col="added"' + _ariaSortAttr('added') + '>Added' + _sortArrow('added') + '</th>';
+    html += _sortHeader('Notes', 'notes', 'mycoins-col-hide');
+    html += _sortHeader('Added', 'added', 'mycoins-col-hide');
     html += '<th></th>';
     html += '</tr></thead><tbody>';
 
@@ -736,12 +739,14 @@ const MyCoins = (() => {
     }
 
     // Save focus state before re-render
-    var _focusHash = null, _focusClass = null, _focusSelStart = null, _focusSelEnd = null;
+    var _focusHash = null, _focusClass = null, _focusSortCol = null, _focusSelStart = null, _focusSelEnd = null;
     var ae = document.activeElement;
     if (ae && _container.contains(ae)) {
       _focusClass = ae.classList.contains('mycoins-cost-input') ? 'mycoins-cost-input'
         : ae.classList.contains('mycoins-qty-input') ? 'mycoins-qty-input'
-        : ae.classList.contains('mycoins-filter-input') ? 'mycoins-filter-input' : null;
+        : ae.classList.contains('mycoins-filter-input') ? 'mycoins-filter-input'
+        : ae.classList.contains('mycoins-sort-button') ? 'mycoins-sort-button' : null;
+      if (_focusClass === 'mycoins-sort-button') _focusSortCol = ae.getAttribute('data-col');
       if (_focusClass && _focusClass !== 'mycoins-filter-input') {
         var fc = ae.closest('[data-hash]');
         _focusHash = fc ? fc.getAttribute('data-hash') : null;
@@ -756,6 +761,8 @@ const MyCoins = (() => {
     var toFocus = null;
     if (_focusClass === 'mycoins-filter-input') {
       toFocus = _container.querySelector('.mycoins-filter-input');
+    } else if (_focusClass === 'mycoins-sort-button' && _focusSortCol) {
+      toFocus = _container.querySelector('.mycoins-sort-button[data-col="' + _focusSortCol + '"]');
     } else if (_focusClass && _focusHash) {
       var cell = _container.querySelector('[data-hash="' + _focusHash + '"]');
       if (cell) toFocus = cell.querySelector('.' + _focusClass);
@@ -785,6 +792,7 @@ const MyCoins = (() => {
       SPOT_CACHE_TTL,
       RENDER_CACHE_TTL,
       PAGE_SIZE,
+      _renderTable,
       _fetchPricing,
       _fetchSpotPrices,
       _resetSpotCache() {
@@ -794,6 +802,16 @@ const MyCoins = (() => {
       },
       _setContainer(c) { _container = c; },
       _getDelegated() { return _delegated; },
+      _resetUiState() {
+        _container = null;
+        _delegated = false;
+        _lastPriced = null;
+        _sortCol = 'coin';
+        _sortAsc = true;
+        _page = 0;
+        _filterText = '';
+      },
+      _setLastPriced(items) { _lastPriced = items; },
     },
   };
 })();
