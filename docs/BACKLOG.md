@@ -4373,6 +4373,187 @@ Gated on data: run pricing-health across a Reverse-Proof slate (2023 RP Morgan, 
 
 ---
 
+## UX, Accessibility, and Interaction
+
+### #303H. Critical authentication accessibility: keyboard mode controls, admin labels, and field errors [P0 -- ACCESSIBILITY / WCAG] -- DONE 2026-08-31
+
+**Origin:** Comprehensive UX Reviewer audit at commit `557095966cb1580f330322beff4cd83042de9cb4` (2026-08-30). This item contains the two S1 release blockers and their directly related form-error semantics.
+
+**Problem:** Signup and account-recovery mode controls are pointer-only anchors without `href`, button semantics, or keyboard focusability. Administrator username and password fields rely on placeholders and have no programmatic labels. Authentication and structured-form errors are not consistently associated with affected inputs or announced to assistive technology.
+
+**Fix / approach:**
+1. Replace authentication pseudo-links with native link-styled `<button>` controls and preserve visible focus and native Enter/Space behavior.
+2. Add persistent `<label for>` elements to administrator credential fields.
+3. Add stable error IDs, `aria-describedby`, and `aria-invalid` during validation across the affected critical forms.
+4. Use an appropriate alert region and move focus to the first invalid field after submission.
+5. Verify dialog focus entry, keyboard traversal, mode switching, submission, and focus restoration.
+
+**Files (anticipated):** `public/index.html`; focused frontend accessibility contract tests under `__tests__/`.
+
+**Acceptance criteria:**
+- Login, signup, recovery, and administrator login are fully operable without a pointer.
+- Every credential field has a persistent accessible name.
+- Assistive technology receives the field-specific error and users are focused on the first invalid field.
+- Automated tests cover keyboard semantics, label association, and error-state attributes for the critical flows.
+- Focused `@ux-reviewer` follow-up reports no S1 finding for these flows; `npm test` passes.
+
+**Tier:** M. Critical account-flow behavior changes; focused UX review required.
+
+**Resolution:** Implemented in `public/index.html` with DOM interaction and markup-contract coverage in `__tests__/authAccessibility.test.js`. Authentication mode controls now use native buttons; admin credentials have persistent labels; missing-field errors set and focus only the affected field; ambiguous credential failures use a focused form-level alert without disclosing which credential failed; and login/signup mode switching updates password autocomplete semantics. Verification at implementation commit: focused accessibility tests 20/20 passed, canonical Jest 178 suites / 4,717 tests passed, targeted ESLint and diff hygiene passed, focused UX Reviewer returned PASS with both original S1 blockers resolved, and Pre-commit Reviewer returned PASS.
+
+---
+
+### #304H. Native keyboard semantics for uploads, cross-tab shortcuts, sorting, and locked tabs [P1 -- ACCESSIBILITY / INTERACTION] -- DONE 2026-08-31
+
+**Origin:** Comprehensive UX Reviewer audit at commit `557095966cb1580f330322beff4cd83042de9cb4` (2026-08-30), S2 keyboard and component-semantics findings.
+
+**Problem:** Terapeak and Lot Evaluator file controls are not reliably keyboard reachable; Price Discovery cross-tab shortcuts are click-only pseudo-links; sortable collection headers use the invalid compound role `columnheader button`; and auth-gated tabs advertise `aria-disabled=true` even though activation intentionally opens login.
+
+**Fix / approach:**
+1. Use visible native file inputs or focusable buttons with accessible names while retaining drag-and-drop as an enhancement.
+2. Replace cross-tab pseudo-links with native buttons or valid links and focus the destination tab or heading after activation.
+3. Place a real button inside each sortable `<th>`, retain `aria-sort` on the header, and preserve visible direction indicators.
+4. Remove disabled semantics from actionable login gateways; add an accessible description such as "Sign in to open Price History" and announce the login transition.
+
+**Files (anticipated):** `public/index.html`, `public/js/my-coins.js`; focused frontend accessibility contract tests under `__tests__/`.
+
+**Acceptance criteria:**
+- All affected controls are reachable and operable with Tab, Enter, and Space as appropriate.
+- Each control exposes one valid role and an accessible name.
+- Collection sorting exposes and updates `aria-sort` correctly.
+- Locked destinations accurately communicate that activation opens login.
+- Automated keyboard and semantics regressions pass; focused `@ux-reviewer` follow-up and `npm test` pass.
+
+**Tier:** M. Multiple user-flow semantics change; focused UX review required.
+
+**Resolution:** Implemented visible native browse buttons for Terapeak CSV and Lot Evaluator Excel uploads while retaining Terapeak drag-and-drop. Price Discovery result shortcuts now use native buttons and transfer focus to the activated destination tab unless the authentication dialog owns focus. Authentication-gated tabs remain actionable login gateways without false `aria-disabled` state and disclose the sign-in transition. My Coins sortable headers now use semantic `<th aria-sort>` elements containing native sort buttons, with decorative arrows hidden from assistive technology and focus restored after rerendering. Regression coverage is in `__tests__/keyboardSemantics.test.js` and `__tests__/frontend/myCoinsDelegation.test.js`. Verification: focused tests 2 suites / 11 tests passed; final canonical Jest 179 suites / 4,725 tests passed; targeted ESLint and diff hygiene passed; focused UX Reviewer returned PASS with no S1/S2 findings, and its actionable-tab affordance feedback was applied.
+
+---
+
+### #305H. WCAG contrast remediation and accessible price-history data equivalent [P1 -- ACCESSIBILITY / VISUALIZATION] -- PROPOSED 2026-08-31
+
+**Origin:** Comprehensive UX Reviewer audit at commit `557095966cb1580f330322beff4cd83042de9cb4` (2026-08-30), S2 contrast and canvas-alternative findings.
+
+**Problem:** Declared muted and metadata colors produce normal-text contrast as low as 3.14:1 on current dark-theme backgrounds, below WCAG 1.4.3's 4.5:1 threshold. The price-history canvas exposes only a generic label; dates, medians, ranges, sample counts, outliers, Greysheet references, and metal overlays have no equivalent accessible representation.
+
+**Fix / approach:**
+1. Raise the luminance of failing semantic foreground tokens and replace affected hardcoded metadata colors with compliant tokens.
+2. Add a concise dynamic chart summary plus an expandable accessible data table generated from the same plotted dataset.
+3. Include every rendered series and point needed to understand the visualization and associate the alternative with the canvas through `aria-describedby`.
+
+**Files (anticipated):** `public/index.html`; chart/contrast regression tests under `__tests__/`.
+
+**Acceptance criteria:**
+- Normal-sized text reaches at least 4.5:1 against every background on which the token is used.
+- All meaningful chart values and series are available without seeing the canvas.
+- Summary and table update when the chart query, range, or overlay changes and cannot drift from plotted data.
+- Automated token-contrast and chart-alternative tests pass; focused `@ux-reviewer` follow-up and `npm test` pass.
+
+**Tier:** M. User-visible theme and chart output change; focused UX review required.
+
+---
+
+### #306H. Honest collection loading failures and recoverable inline mutation states [P1 -- RELIABILITY-UX / ERROR-RECOVERY] -- PROPOSED 2026-08-31
+
+**Origin:** Comprehensive UX Reviewer audit at commit `557095966cb1580f330322beff4cd83042de9cb4` (2026-08-30), S2 collection-state and mutation-feedback findings.
+
+**Problem:** `getAllDecrypted()` converts non-success HTTP responses into an empty array, so expired authentication, authorization failures, and server errors are presented as a genuinely empty collection and can falsely imply data loss. Invalid or failed quantity/cost edits use only a temporary border, and failed single-item deletion has no reliable user-facing recovery path.
+
+**Fix / approach:**
+1. Return or throw categorized collection errors for expired authentication, forbidden access, rate limiting, server failure, timeout, and malformed responses.
+2. Render distinct true-empty, expired-session, unavailable-service, and retry states.
+3. Add saving, saved, validation-error, and server-error states to inline editors with adjacent live text.
+4. Restore the prior value after a failed save; preserve the row after failed deletion and provide retry guidance.
+
+**Files (anticipated):** `public/js/storage.js`, `public/js/my-coins.js`; collection UI failure-path tests under `__tests__/`.
+
+**Acceptance criteria:**
+- No HTTP or parse failure can render the true-empty collection message.
+- Expired sessions lead to a login recovery action without implying data loss.
+- Every failed edit or deletion provides persistent actionable text and preserves or restores prior UI state.
+- Tests cover 401, 403, 429, 500, timeout, malformed response, edit failure, and delete failure.
+- Focused `@ux-reviewer` follow-up and `npm test` pass.
+
+**Tier:** M. Collection error contracts and visible mutation states change; focused UX review required.
+
+---
+
+### #307H. Lot Evaluator mobile layout, cancellation, and bounded streaming DOM [P2 -- RESPONSIVE / PERFORMANCE-UX] -- PROPOSED 2026-08-31
+
+**Origin:** Comprehensive UX Reviewer audit at commit `557095966cb1580f330322beff4cd83042de9cb4` (2026-08-30), S2 responsive and long-running-operation findings.
+
+**Problem:** The Lot Evaluator input column can force page-level overflow at 360px, and three buy-tier cards do not collapse for narrow screens. Users cannot cancel a mistaken or expensive run. During streaming, all results are appended before pagination is applied, allowing a 500-item job to create an unnecessarily large DOM.
+
+**Fix / approach:**
+1. Remove the narrow-screen minimum-width constraint and collapse buy-tier cards to one column at an appropriate breakpoint.
+2. Add explicit starting, running, cancelling, cancelled, failed, and completed states with a visible Cancel action.
+3. Close the SSE connection immediately on cancellation and add bounded server-side job cancellation if the shared bulk-job contract can support it safely.
+4. Retain complete result data for export while rendering only the current page or a bounded row window throughout streaming.
+
+**Files (anticipated):** `public/index.html`; if true server cancellation is adopted, `src/routes/bulkEvaluateRoute.js`, `src/services/bulkEvaluateService.js`, API documentation, and focused route/service/UI tests.
+
+**Acceptance criteria:**
+- No page-level horizontal scroll at 360px, 768px, or 1200px.
+- Cancellation stops client streaming and, where supported, server work without corrupting job state.
+- A 500-item run never places all 500 rows in the DOM simultaneously, while CSV/JSON exports remain complete.
+- Cancellation, SSE disconnect, late events, retry, and full-size result cases are tested.
+- Focused `@ux-reviewer`, performance review, mapped documentation acceptance, and `npm test` pass.
+
+**Tier:** M. Crosses UI and potentially route/service contracts; design the cancellation contract before implementation.
+
+---
+
+### #308H. Separate collector and operator navigation; expose propagated context and guard cache clearing [P2 -- INFORMATION-ARCHITECTURE / USER-CONTROL] -- PROPOSED 2026-08-31
+
+**Origin:** Comprehensive UX Reviewer audit at commit `557095966cb1580f330322beff4cd83042de9cb4` (2026-08-30), S2 information-architecture, cross-tab, and destructive-action findings.
+
+**Problem:** Ten possible destinations share one horizontally scrolling primary tab bar, mixing frequent collector workflows with operator-only Sold Data and Admin surfaces. `My Coins` is less prominent than several lower-frequency tools. Price Discovery silently primes destination tabs that may immediately start network work. Cache clearing is exposed beside the public pricing form and executes without confirmation.
+
+**Fix / approach:**
+1. Produce and approve a navigation design that keeps Price Discovery and My Coins immediately discoverable, groups research/collection tools, and moves Sold Data, Admin, and cache management into operator-only secondary navigation.
+2. Preserve stable direct access and keyboard navigation to every destination.
+3. Add pending indicators and a visible "From Price Discovery: [coin]" context banner; allow users to edit or clear propagated context before expensive requests begin.
+4. Move cache clearing to Admin or require an authorization-aware confirmation dialog with live success/error feedback.
+
+**Files (anticipated):** `public/index.html`; navigation/interaction tests; `README.md`, `docs/ARCHITECTURE.md`, and other mapped user-workflow documentation identified during implementation.
+
+**Acceptance criteria:**
+- Collector and operator destinations are clearly separated without reducing discoverability or keyboard access.
+- Price Discovery and My Coins remain immediately visible in the primary workflow.
+- Propagated context is visible, editable, and clearable before destination network work starts.
+- Cache clearing is operator-restricted, confirmed, and announced.
+- Direct destination access, auth/admin visibility rules, mobile navigation, and cross-tab behavior have regression coverage.
+- Focused `@ux-reviewer`, mapped documentation updates, commit-tied Onboard acceptance, and `npm test` pass.
+
+**Risk / decision gate:** Higher-risk IA change. Approve a concrete sitemap and interaction design before implementation. Related to #278W (Admin-hosted Terapeak operator invocation) but not a duplicate; coordinate the operator navigation surface.
+
+**Tier:** M. Material navigation and user-workflow change; deep review and documentation acceptance required.
+
+---
+
+### #309H. Complete semantic theme tokens and contextual numismatic terminology help [P3 -- THEME / CONTENT] -- PROPOSED 2026-08-31
+
+**Origin:** Comprehensive UX Reviewer audit at commit `557095966cb1580f330322beff4cd83042de9cb4` (2026-08-30), S3 theme-consistency and specialist-content findings.
+
+**Problem:** Components and canvas rendering still use hardcoded foreground, background, and status colors outside the design-token contract, allowing contrast drift. Recurring terms such as PCGS, NGC, BU, COA, CPG, slab, TPG-style grade, and comp are not consistently explained at first use.
+
+**Fix / approach:**
+1. Add semantic tokens for chart series, data-source tags, rarity, warning levels, and administrator states; replace component-level hardcoded colors.
+2. Add a consistent glossary entry point and define specialist terms at first use, for example "comparable sold listings (comps)."
+3. Preserve concise expert-facing labels while making definitions available contextually rather than adding permanent visual clutter.
+
+**Files (anticipated):** `public/index.html`, `public/js/my-coins.js`; theme/content contract tests and mapped user documentation if terminology changes affect documented workflows.
+
+**Acceptance criteria:**
+- User-facing semantic colors come from CSS custom properties and meet applicable WCAG contrast requirements.
+- Chart and DOM components use the same semantic color vocabulary.
+- Specialist terms are defined at first use or consistently link to a keyboard-accessible glossary.
+- Focused `@ux-reviewer` follow-up and `npm test` pass.
+
+**Tier:** S unless the implementation changes navigation or workflow; focused UX review required.
+
+---
+
 ## Completed (reference)
 
 | # | Item | Commit |

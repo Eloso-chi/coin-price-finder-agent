@@ -57,6 +57,13 @@ In scope:
 - Input validation, injection risks, SSRF, XSS, CSRF, auth bypass, and sensitive data exposure
 - Dependency and supply chain issues with practical exploitability
 
+Authentication forms perform client-side missing-field and password-length
+checks for accessible error recovery, including field-specific invalid state
+and focus. These checks are usability safeguards only: server-side auth routes
+remain authoritative for credential validation, authorization, normalization,
+rate limiting, and error responses. Ambiguous credential failures are exposed
+as form-level errors so the client does not disclose which credential failed.
+
 Out of scope (unless a maintainers-approved exception exists):
 
 - Social engineering, phishing, or physical attacks

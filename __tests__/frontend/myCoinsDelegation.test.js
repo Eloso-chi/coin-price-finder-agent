@@ -27,6 +27,7 @@ describe('MyCoins delegation wiring (#22)', () => {
   let listenerCounts;
 
   beforeEach(() => {
+    MyCoins.__testing._resetUiState();
     document.body.innerHTML = '<div id="mycoins-content"></div>';
     container = document.getElementById('mycoins-content');
 
@@ -58,11 +59,43 @@ describe('MyCoins delegation wiring (#22)', () => {
     expect(MyCoins.__testing._getDelegated()).toBe(true);
   });
 
-  test('clicking a sortable header inside the container is dispatched without throwing', () => {
+  test('clicking a native sort button inside a semantic header is dispatched without throwing', () => {
     MyCoins.init();
-    container.innerHTML = '<table><thead><tr><th class="mycoins-sortable" data-col="fmv"></th></tr></thead></table>';
-    const th = container.querySelector('.mycoins-sortable');
+    container.innerHTML = '<table><thead><tr><th class="mycoins-sortable" data-col="fmv" aria-sort="none"><button type="button" class="mycoins-sort-button" data-col="fmv">FMV</button></th></tr></thead></table>';
+    const button = container.querySelector('.mycoins-sort-button');
     // A no-op event flow when there is no cached pricing; should not throw.
-    expect(() => th.click()).not.toThrow();
+    expect(() => button.click()).not.toThrow();
+  });
+
+  test('rendered sortable columns keep columnheader semantics and use native buttons', () => {
+    MyCoins.__testing._setContainer(container);
+    MyCoins.__testing._renderTable([]);
+
+    const header = container.querySelector('.mycoins-sortable[data-col="coin"]');
+    const button = header.querySelector('.mycoins-sort-button');
+    expect(header.tagName).toBe('TH');
+    expect(header.getAttribute('aria-sort')).toBe('ascending');
+    expect(header.hasAttribute('role')).toBe(false);
+    expect(header.hasAttribute('tabindex')).toBe(false);
+    expect(button.tagName).toBe('BUTTON');
+    expect(button.type).toBe('button');
+    expect(button.getAttribute('aria-label')).toBe('Sort by Coin');
+    expect(button.querySelector('[aria-hidden="true"]').textContent).toBe(' ' + String.fromCharCode(0x25B2));
+  });
+
+  test('sorting updates aria-sort and restores focus to the activated button', () => {
+    MyCoins.init();
+    MyCoins.__testing._setLastPriced([]);
+    MyCoins.__testing._renderTable([]);
+
+    const button = container.querySelector('.mycoins-sort-button[data-col="coin"]');
+    button.focus();
+    button.click();
+
+    const updatedHeader = container.querySelector('.mycoins-sortable[data-col="coin"]');
+    const updatedButton = updatedHeader.querySelector('.mycoins-sort-button');
+    expect(updatedHeader.getAttribute('aria-sort')).toBe('descending');
+    expect(document.activeElement).toBe(updatedButton);
+    expect(updatedButton.querySelector('[aria-hidden="true"]').textContent).toBe(' ' + String.fromCharCode(0x25BC));
   });
 });
