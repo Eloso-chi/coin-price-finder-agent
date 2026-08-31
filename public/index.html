@@ -860,7 +860,11 @@
     .auth-dialog .btn-secondary { background: transparent; color: var(--text-secondary); }
     .auth-dialog .auth-error { color: var(--red); font-size: 0.8rem; margin-top: 8px; display: none; }
     .auth-dialog .auth-toggle { font-size: 0.78rem; color: var(--text-muted); margin-top: 12px; text-align: center; }
-    .auth-dialog .auth-toggle a { color: var(--accent); cursor: pointer; text-decoration: underline; }
+    .auth-dialog .auth-link-button {
+      appearance: none; background: transparent; border: 0; color: var(--accent);
+      cursor: pointer; font: inherit; padding: 2px; text-decoration: underline;
+    }
+    .auth-dialog .auth-link-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     .recovery-phrase-box { background: var(--surface); border: 2px dashed var(--accent); border-radius: var(--radius); padding: 16px; margin: 12px 0; font-family: 'Courier New', monospace; font-size: 1.05rem; line-height: 1.8; text-align: center; color: var(--text); word-spacing: 6px; user-select: all; letter-spacing: 0.5px; }
     .recovery-warning { font-size: 0.8rem; color: var(--text-secondary); line-height: 1.5; margin: 10px 0; }
     .recovery-warning strong { color: var(--red); }
@@ -1216,7 +1220,7 @@
         <div class="field-grid field-grid-2" style="margin-bottom:14px">
           <div class="field">
             <label for="coinName">Coin Name <span class="required" aria-hidden="true">*</span></label>
-            <input id="coinName" type="text" placeholder="e.g. Morgan Dollar" required list="coin-names-list" autocomplete="off">
+            <input id="coinName" type="text" placeholder="e.g. Morgan Dollar" required list="coin-names-list" autocomplete="off" aria-describedby="coinName-error">
             <datalist id="coin-names-list">
               <option value="Morgan Dollar"><option value="Peace Dollar">
               <option value="Half Dollar">
@@ -1274,15 +1278,15 @@
                 <option value="mint-uncirculated">Mint (Uncirculated) Set</option>
               </select>
             </div>
-            <div class="field-error-msg" role="alert">Coin name is required</div>
+            <div class="field-error-msg" id="coinName-error" role="alert">Coin name is required</div>
           </div>
           <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px">
             <div class="field">
               <label for="coinYear">Year <span class="required" aria-hidden="true">*</span></label>
-              <input id="coinYear" type="number" min="1792" max="2040" placeholder="e.g. 1921" required inputmode="numeric">
+              <input id="coinYear" type="number" min="1792" max="2040" placeholder="e.g. 1921" required inputmode="numeric" aria-describedby="coinYear-error">
               <span class="hint" id="coinZodiacHint" style="display:none"></span>
               <span class="hint" id="coinDesignHint" style="display:none;color:var(--chip-hint);font-weight:600"></span>
-              <div class="field-error-msg" role="alert">Enter a valid 4-digit year</div>
+              <div class="field-error-msg" id="coinYear-error" role="alert">Enter a valid 4-digit year</div>
             </div>
             <div class="field">
               <label for="coinMint">Mint Mark</label>
@@ -2296,13 +2300,15 @@ Silver Libertad 1 oz Proof"></textarea>
           Sign in with your admin credentials to unlock this panel.
         </p>
         <div style="display:flex;flex-direction:column;gap:8px;max-width:320px">
-          <input type="text" id="admin-user-input" placeholder="Username" autocomplete="username"
+          <label for="admin-user-input" style="font-size:0.82rem;color:var(--text-secondary)">Username</label>
+          <input type="text" id="admin-user-input" placeholder="Username" autocomplete="username" aria-describedby="admin-key-error"
             style="padding:6px 10px;border-radius:var(--radius);border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:0.88rem">
-          <input type="password" id="admin-key-input" placeholder="Password" autocomplete="current-password"
+          <label for="admin-key-input" style="font-size:0.82rem;color:var(--text-secondary)">Password</label>
+          <input type="password" id="admin-key-input" placeholder="Password" autocomplete="current-password" aria-describedby="admin-key-error"
             style="padding:6px 10px;border-radius:var(--radius);border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:0.88rem">
           <button class="btn-primary" id="admin-key-submit" style="align-self:flex-start">Sign In</button>
         </div>
-        <p id="admin-key-error" style="color:var(--red);font-size:0.82rem;margin:6px 0 0;display:none"></p>
+        <p id="admin-key-error" role="alert" aria-live="assertive" aria-atomic="true" tabindex="-1" style="color:var(--red);font-size:0.82rem;margin:6px 0 0;display:none"></p>
       </div>
 
       <!-- Admin content (shown when authenticated) -->
@@ -2387,18 +2393,18 @@ Silver Libertad 1 oz Proof"></textarea>
     <h2 id="changepw-dialog-title">Change Password</h2>
     <div class="field">
       <label for="changepw-current">Current Password</label>
-      <input type="password" id="changepw-current" autocomplete="current-password" placeholder="Enter current password">
+      <input type="password" id="changepw-current" autocomplete="current-password" placeholder="Enter current password" aria-describedby="changepw-error">
     </div>
     <div class="field">
       <label for="changepw-new">New Password</label>
-      <input type="password" id="changepw-new" autocomplete="new-password" placeholder="At least 6 characters">
+      <input type="password" id="changepw-new" autocomplete="new-password" placeholder="At least 6 characters" aria-describedby="changepw-error">
       <span class="hint">Minimum 6 characters</span>
     </div>
     <div class="field">
       <label for="changepw-confirm">Confirm New Password</label>
-      <input type="password" id="changepw-confirm" autocomplete="new-password" placeholder="Re-enter new password">
+      <input type="password" id="changepw-confirm" autocomplete="new-password" placeholder="Re-enter new password" aria-describedby="changepw-error">
     </div>
-    <div class="auth-error" id="changepw-error"></div>
+    <div class="auth-error" id="changepw-error" role="alert" aria-live="assertive" aria-atomic="true" tabindex="-1"></div>
     <div id="changepw-success" style="color:var(--green);font-size:0.8rem;margin-top:8px;display:none"></div>
     <div class="auth-actions">
       <button class="btn-primary" id="changepw-submit">Change Password</button>
@@ -2413,22 +2419,23 @@ Silver Libertad 1 oz Proof"></textarea>
     <h2 id="auth-dialog-title">Log In</h2>
     <div class="field">
       <label for="auth-username">Username</label>
-      <input type="text" id="auth-username" autocomplete="username" placeholder="Your local username">
+      <input type="text" id="auth-username" autocomplete="username" placeholder="Your local username" aria-describedby="auth-error">
     </div>
     <div class="field">
       <label for="auth-password">Password</label>
-      <input type="password" id="auth-password" autocomplete="current-password" placeholder="Your password">
+      <input type="password" id="auth-password" autocomplete="current-password" placeholder="Your password" aria-describedby="auth-error">
     </div>
-    <div class="auth-error" id="auth-error"></div>
+    <div class="auth-error" id="auth-error" role="alert" aria-live="assertive" aria-atomic="true" tabindex="-1"></div>
     <div class="auth-actions">
       <button class="btn-primary" id="auth-submit">Log In</button>
       <button class="btn-secondary" id="auth-cancel">Cancel</button>
     </div>
     <div class="auth-toggle" id="auth-toggle">
-      Don't have an account? <a id="auth-switch">Sign Up</a>
+      <span id="auth-toggle-prompt">Don't have an account?</span>
+      <button type="button" class="auth-link-button" id="auth-switch">Sign Up</button>
     </div>
     <div class="auth-toggle" id="auth-recovery-link" style="display:none">
-      Forgot password? <a id="auth-use-recovery">Use Recovery Key</a>
+      Forgot password? <button type="button" class="auth-link-button" id="auth-use-recovery">Use Recovery Key</button>
     </div>
   </dialog>
 
@@ -2455,19 +2462,19 @@ Silver Libertad 1 oz Proof"></textarea>
     <h2 id="recovery-login-dialog-title">&#x1F511; Recover Account</h2>
     <div class="field">
       <label for="recovery-username">Username</label>
-      <input type="text" id="recovery-username" autocomplete="username" placeholder="Your username">
+      <input type="text" id="recovery-username" autocomplete="username" placeholder="Your username" aria-describedby="recovery-error">
     </div>
     <div class="field">
       <label for="recovery-phrase-input">Recovery Phrase (8 words)</label>
-      <input type="text" id="recovery-phrase-input" autocomplete="off" placeholder="word1 word2 word3 ... word8">
+      <input type="text" id="recovery-phrase-input" autocomplete="off" placeholder="word1 word2 word3 ... word8" aria-describedby="recovery-error">
     </div>
-    <div class="auth-error" id="recovery-error"></div>
+    <div class="auth-error" id="recovery-error" role="alert" aria-live="assertive" aria-atomic="true" tabindex="-1"></div>
     <div class="auth-actions">
       <button class="btn-primary" id="recovery-submit">Recover</button>
       <button class="btn-secondary" id="recovery-cancel">Cancel</button>
     </div>
     <div class="auth-toggle">
-      <a id="recovery-back-to-login">Back to Log In</a>
+      <button type="button" class="auth-link-button" id="recovery-back-to-login">Back to Log In</button>
     </div>
   </dialog>
 
@@ -2479,14 +2486,14 @@ Silver Libertad 1 oz Proof"></textarea>
     </p>
     <div class="field">
       <label for="recovery-new-pw">New Password</label>
-      <input type="password" id="recovery-new-pw" autocomplete="new-password" placeholder="At least 6 characters">
+      <input type="password" id="recovery-new-pw" autocomplete="new-password" placeholder="At least 6 characters" aria-describedby="recovery-newpw-error">
       <span class="hint">Minimum 6 characters</span>
     </div>
     <div class="field">
       <label for="recovery-confirm-pw">Confirm Password</label>
-      <input type="password" id="recovery-confirm-pw" autocomplete="new-password" placeholder="Re-enter new password">
+      <input type="password" id="recovery-confirm-pw" autocomplete="new-password" placeholder="Re-enter new password" aria-describedby="recovery-newpw-error">
     </div>
-    <div class="auth-error" id="recovery-newpw-error"></div>
+    <div class="auth-error" id="recovery-newpw-error" role="alert" aria-live="assertive" aria-atomic="true" tabindex="-1"></div>
     <div class="auth-actions">
       <button class="btn-primary" id="recovery-newpw-submit">Set Password</button>
     </div>
@@ -3044,28 +3051,37 @@ Silver Libertad 1 oz Proof"></textarea>
     /* ── Validation ───────────────────────────────────────── */
     validate() {
       let valid = true;
+      let firstInvalid = null;
       // Coin Name
       const nameField = this.els.coinName.closest('.field');
       if (!this.els.coinName.value.trim()) {
         nameField.classList.add('has-error');
+        this.els.coinName.setAttribute('aria-invalid', 'true');
+        firstInvalid = this.els.coinName;
         valid = false;
       } else {
         nameField.classList.remove('has-error');
+        this.els.coinName.removeAttribute('aria-invalid');
       }
       // Year
       const yearField = this.els.coinYear.closest('.field');
       const yr = parseInt(this.els.coinYear.value, 10);
       if (!yr || yr < 1792 || yr > 2040 || String(yr).length !== 4) {
         yearField.classList.add('has-error');
+        this.els.coinYear.setAttribute('aria-invalid', 'true');
+        if (!firstInvalid) firstInvalid = this.els.coinYear;
         valid = false;
       } else {
         yearField.classList.remove('has-error');
+        this.els.coinYear.removeAttribute('aria-invalid');
       }
+      if (firstInvalid) firstInvalid.focus();
       return valid;
     },
 
     clearErrors() {
       document.querySelectorAll('.field.has-error').forEach(f => f.classList.remove('has-error'));
+      [this.els.coinName, this.els.coinYear].forEach(el => el.removeAttribute('aria-invalid'));
     },
 
     /* ── Submit binding ───────────────────────────────────── */
@@ -6105,12 +6121,22 @@ Silver Libertad 1 oz Proof"></textarea>
     const submit    = document.getElementById('auth-submit');
     const cancel    = document.getElementById('auth-cancel');
     const errorEl   = document.getElementById('auth-error');
-    const toggleEl  = document.getElementById('auth-toggle');
+    const togglePrompt = document.getElementById('auth-toggle-prompt');
     const switchEl  = document.getElementById('auth-switch');
     let isSignup = false;
 
-    function showError(msg) { errorEl.textContent = msg; errorEl.style.display = 'block'; }
-    function hideError() { errorEl.style.display = 'none'; }
+    function showError(msg, invalidFields, focusTarget) {
+      errorEl.textContent = msg;
+      errorEl.style.display = 'block';
+      (invalidFields || []).forEach((field) => field.setAttribute('aria-invalid', 'true'));
+      (focusTarget || errorEl).focus();
+    }
+    function hideError() {
+      errorEl.style.display = 'none';
+      errorEl.textContent = '';
+      username.removeAttribute('aria-invalid');
+      password.removeAttribute('aria-invalid');
+    }
 
     function updateBadge() {
       const user = CoinAuth.currentUser();
@@ -6133,10 +6159,8 @@ Silver Libertad 1 oz Proof"></textarea>
       title.textContent = signup ? 'Sign Up' : 'Log In';
       submit.textContent = signup ? 'Create Account' : 'Log In';
       switchEl.textContent = signup ? 'Log In' : 'Sign Up';
-      toggleEl.innerHTML = signup
-        ? 'Already have an account? <a id="auth-switch">Log In</a>'
-        : 'Don\'t have an account? <a id="auth-switch">Sign Up</a>';
-      document.getElementById('auth-switch').addEventListener('click', () => setMode(!isSignup));
+      togglePrompt.textContent = signup ? 'Already have an account?' : 'Don\'t have an account?';
+      password.autocomplete = signup ? 'new-password' : 'current-password';
       hideError();
     }
 
@@ -6155,18 +6179,35 @@ Silver Libertad 1 oz Proof"></textarea>
     window._openAuthDialog = openDialog;
 
     trigger.addEventListener('click', openDialog);
+    switchEl.addEventListener('click', () => setMode(!isSignup));
     cancel.addEventListener('click', () => dialog.close());
     dialog.addEventListener('close', hideError);
+    username.addEventListener('input', hideError);
+    password.addEventListener('input', hideError);
 
     submit.addEventListener('click', async () => {
       hideError();
+      const userValue = username.value.trim();
+      const passwordValue = password.value;
+      if (!userValue) {
+        showError('Enter your username.', [username], username);
+        return;
+      }
+      if (!passwordValue) {
+        showError('Enter your password.', [password], password);
+        return;
+      }
+      if (isSignup && passwordValue.length < 6) {
+        showError('Password must be at least 6 characters.', [password], password);
+        return;
+      }
       try {
         if (isSignup) {
-          await CoinAuth.signup(username.value, password.value);
+          await CoinAuth.signup(userValue, passwordValue);
           dialog.close();
           updateBadge();
         } else {
-          await CoinAuth.login(username.value, password.value);
+          await CoinAuth.login(userValue, passwordValue);
           dialog.close();
           updateBadge();
         }
@@ -6225,8 +6266,18 @@ Silver Libertad 1 oz Proof"></textarea>
     const recoveryBackToLogin = document.getElementById('recovery-back-to-login');
     const useRecoveryLink     = document.getElementById('auth-use-recovery');
 
-    function showRecoveryError(msg) { recoveryError.textContent = msg; recoveryError.style.display = 'block'; }
-    function hideRecoveryError() { recoveryError.style.display = 'none'; }
+    function showRecoveryError(msg, invalidFields, focusTarget) {
+      recoveryError.textContent = msg;
+      recoveryError.style.display = 'block';
+      (invalidFields || []).forEach((field) => field.setAttribute('aria-invalid', 'true'));
+      (focusTarget || recoveryError).focus();
+    }
+    function hideRecoveryError() {
+      recoveryError.style.display = 'none';
+      recoveryError.textContent = '';
+      recoveryUsername.removeAttribute('aria-invalid');
+      recoveryPhraseInput.removeAttribute('aria-invalid');
+    }
 
     useRecoveryLink.addEventListener('click', () => {
       dialog.close();
@@ -6238,6 +6289,8 @@ Silver Libertad 1 oz Proof"></textarea>
     });
 
     recoveryCancel.addEventListener('click', () => recoveryLoginDlg.close());
+    recoveryUsername.addEventListener('input', hideRecoveryError);
+    recoveryPhraseInput.addEventListener('input', hideRecoveryError);
     recoveryBackToLogin.addEventListener('click', () => {
       recoveryLoginDlg.close();
       openDialog();
@@ -6245,6 +6298,14 @@ Silver Libertad 1 oz Proof"></textarea>
 
     recoverySubmit.addEventListener('click', async () => {
       hideRecoveryError();
+      if (!recoveryUsername.value.trim()) {
+        showRecoveryError('Enter your username.', [recoveryUsername], recoveryUsername);
+        return;
+      }
+      if (!recoveryPhraseInput.value.trim()) {
+        showRecoveryError('Enter your recovery phrase.', [recoveryPhraseInput], recoveryPhraseInput);
+        return;
+      }
       try {
         await CoinAuth.loginWithRecovery(recoveryUsername.value, recoveryPhraseInput.value);
         recoveryLoginDlg.close();
@@ -6270,6 +6331,9 @@ Silver Libertad 1 oz Proof"></textarea>
       newPwInput.value = '';
       newPwConfirm.value = '';
       newPwError.style.display = 'none';
+      newPwError.textContent = '';
+      newPwInput.removeAttribute('aria-invalid');
+      newPwConfirm.removeAttribute('aria-invalid');
       newPwDlg.showModal();
       newPwInput.focus();
     }
@@ -6283,9 +6347,25 @@ Silver Libertad 1 oz Proof"></textarea>
       newPwError.style.display = 'none';
       const pw = newPwInput.value;
       const confirm = newPwConfirm.value;
+      if (!pw) {
+        newPwError.textContent = 'Enter a new password';
+        newPwError.style.display = 'block';
+        newPwInput.setAttribute('aria-invalid', 'true');
+        newPwInput.focus();
+        return;
+      }
+      if (!confirm) {
+        newPwError.textContent = 'Confirm your new password';
+        newPwError.style.display = 'block';
+        newPwConfirm.setAttribute('aria-invalid', 'true');
+        newPwConfirm.focus();
+        return;
+      }
       if (pw !== confirm) {
         newPwError.textContent = 'Passwords do not match';
         newPwError.style.display = 'block';
+        newPwConfirm.setAttribute('aria-invalid', 'true');
+        newPwConfirm.focus();
         return;
       }
       try {
@@ -6295,8 +6375,16 @@ Silver Libertad 1 oz Proof"></textarea>
       } catch (err) {
         newPwError.textContent = err.message;
         newPwError.style.display = 'block';
+        newPwError.focus();
       }
     });
+
+    [newPwInput, newPwConfirm].forEach((el) => el.addEventListener('input', () => {
+      newPwError.style.display = 'none';
+      newPwError.textContent = '';
+      newPwInput.removeAttribute('aria-invalid');
+      newPwConfirm.removeAttribute('aria-invalid');
+    }));
 
     newPwConfirm.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') newPwSubmit.click();
@@ -6577,6 +6665,8 @@ Silver Libertad 1 oz Proof"></textarea>
       cpNew.value = '';
       cpConfirm.value = '';
       cpError.style.display = 'none';
+      cpError.textContent = '';
+      [cpCurrent, cpNew, cpConfirm].forEach(el => el.removeAttribute('aria-invalid'));
       cpSuccess.style.display = 'none';
       cpSubmit.disabled = false;
       cpDialog.showModal();
@@ -6587,24 +6677,33 @@ Silver Libertad 1 oz Proof"></textarea>
 
     cpSubmit.addEventListener('click', async () => {
       cpError.style.display = 'none';
+      cpError.textContent = '';
+      [cpCurrent, cpNew, cpConfirm].forEach(el => el.removeAttribute('aria-invalid'));
       cpSuccess.style.display = 'none';
       const cur = cpCurrent.value;
       const np  = cpNew.value;
       const nc  = cpConfirm.value;
 
-      if (!cur || !np) {
+      if (!cur || !np || !nc) {
         cpError.textContent = 'All fields are required.';
         cpError.style.display = 'block';
+        const firstMissing = !cur ? cpCurrent : (!np ? cpNew : cpConfirm);
+        firstMissing.setAttribute('aria-invalid', 'true');
+        firstMissing.focus();
         return;
       }
       if (np.length < 6) {
         cpError.textContent = 'New password must be at least 6 characters.';
         cpError.style.display = 'block';
+        cpNew.setAttribute('aria-invalid', 'true');
+        cpNew.focus();
         return;
       }
       if (np !== nc) {
         cpError.textContent = 'New passwords do not match.';
         cpError.style.display = 'block';
+        cpConfirm.setAttribute('aria-invalid', 'true');
+        cpConfirm.focus();
         return;
       }
 
@@ -6618,6 +6717,7 @@ Silver Libertad 1 oz Proof"></textarea>
       } catch (err) {
         cpError.textContent = err.message;
         cpError.style.display = 'block';
+        cpError.focus();
       } finally {
         _btnReset(cpSubmit);
       }
@@ -6626,6 +6726,12 @@ Silver Libertad 1 oz Proof"></textarea>
     cpConfirm.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') cpSubmit.click();
     });
+
+    [cpCurrent, cpNew, cpConfirm].forEach((el) => el.addEventListener('input', () => {
+      cpError.style.display = 'none';
+      cpError.textContent = '';
+      [cpCurrent, cpNew, cpConfirm].forEach(input => input.removeAttribute('aria-invalid'));
+    }));
 
   })();
 
@@ -7417,6 +7523,24 @@ Silver Libertad 1 oz Proof"></textarea>
       return h;
     }
 
+    function _clearCredentialError() {
+      keyError.style.display = 'none';
+      keyError.textContent = '';
+      userInput.removeAttribute('aria-invalid');
+      keyInput.removeAttribute('aria-invalid');
+    }
+
+    function _showCredentialError(message, focusTarget) {
+      keyError.textContent = message;
+      keyError.style.display = 'block';
+      if (focusTarget) {
+        focusTarget.setAttribute('aria-invalid', 'true');
+        focusTarget.focus();
+      } else {
+        keyError.focus();
+      }
+    }
+
     function _esc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
     // Show / hide the admin + sold-data tab buttons based on whether the user
@@ -7496,9 +7620,9 @@ Silver Libertad 1 oz Proof"></textarea>
     keySubmit.addEventListener('click', async function() {
       var user = (userInput.value || '').trim().toLowerCase();
       var key = keyInput.value.trim();
-      if (!user || !key) { keyError.textContent = 'Enter both username and password.'; keyError.style.display = 'block'; return; }
-      if (user !== 'admin') { keyError.textContent = 'Invalid credentials.'; keyError.style.display = 'block'; return; }
-      keyError.style.display = 'none';
+      _clearCredentialError();
+      if (!user || !key) { _showCredentialError('Enter both username and password.', !user ? userInput : keyInput); return; }
+      if (user !== 'admin') { _showCredentialError('Invalid credentials.'); return; }
       _btnLoading(keySubmit, 'Signing in...');
       try {
         var res = await fetch('/api/admin/dashboard', { headers: { 'x-api-key': key } });
@@ -7512,12 +7636,13 @@ Silver Libertad 1 oz Proof"></textarea>
         if (typeof TerapeakImporter !== 'undefined') TerapeakImporter._loadDatasets();
         if (typeof TerapeakQuota !== 'undefined') TerapeakQuota.refresh();
       } catch (err) {
-        keyError.textContent = 'Invalid credentials.';
-        keyError.style.display = 'block';
+        _showCredentialError('Invalid credentials.');
       } finally {
         _btnReset(keySubmit);
       }
     });
+    userInput.addEventListener('input', _clearCredentialError);
+    keyInput.addEventListener('input', _clearCredentialError);
     userInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') keyInput.focus(); });
     keyInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') keySubmit.click(); });
 

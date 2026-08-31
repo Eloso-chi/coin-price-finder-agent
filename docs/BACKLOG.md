@@ -4375,7 +4375,7 @@ Gated on data: run pricing-health across a Reverse-Proof slate (2023 RP Morgan, 
 
 ## UX, Accessibility, and Interaction
 
-### #303H. Critical authentication accessibility: keyboard mode controls, admin labels, and field errors [P0 -- ACCESSIBILITY / WCAG] -- PROPOSED 2026-08-31
+### #303H. Critical authentication accessibility: keyboard mode controls, admin labels, and field errors [P0 -- ACCESSIBILITY / WCAG] -- DONE 2026-08-31
 
 **Origin:** Comprehensive UX Reviewer audit at commit `557095966cb1580f330322beff4cd83042de9cb4` (2026-08-30). This item contains the two S1 release blockers and their directly related form-error semantics.
 
@@ -4398,6 +4398,8 @@ Gated on data: run pricing-health across a Reverse-Proof slate (2023 RP Morgan, 
 - Focused `@ux-reviewer` follow-up reports no S1 finding for these flows; `npm test` passes.
 
 **Tier:** M. Critical account-flow behavior changes; focused UX review required.
+
+**Resolution:** Implemented in `public/index.html` with DOM interaction and markup-contract coverage in `__tests__/authAccessibility.test.js`. Authentication mode controls now use native buttons; admin credentials have persistent labels; missing-field errors set and focus only the affected field; ambiguous credential failures use a focused form-level alert without disclosing which credential failed; and login/signup mode switching updates password autocomplete semantics. Verification at implementation commit: focused accessibility tests 20/20 passed, canonical Jest 178 suites / 4,717 tests passed, targeted ESLint and diff hygiene passed, focused UX Reviewer returned PASS with both original S1 blockers resolved, and Pre-commit Reviewer returned PASS.
 
 ---
 
