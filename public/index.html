@@ -13,8 +13,8 @@
       --border:  #30363d;
       --border-subtle: #21262d;
       --text:    #e6edf3;
-      --text-secondary: #8b949e;
-      --text-muted: #6e7681;
+      --text-secondary: #aeb8c4;
+      --text-muted: #9aa5b1;
       --accent:  #58a6ff;
       --accent-subtle: rgba(88,166,255,0.15);
       --green:   #3fb950;
@@ -24,6 +24,16 @@
       --accent-red: #c0392b;
       --yellow:  #d29922;
       --yellow-subtle: rgba(210,153,34,0.15);
+      --chart-gs-wholesale: #ff7b72;
+      --chart-gs-retail: #bc8cff;
+      --chart-grid: rgba(48,54,61,0.6);
+      --chart-metal-fill-strong: rgba(210,153,34,0.15);
+      --chart-metal-fill-light: rgba(210,153,34,0.02);
+      --chart-range-fill: rgba(88,166,255,0.08);
+      --chart-iqr-fill: rgba(88,166,255,0.10);
+      --chart-coin-fill-strong: rgba(88,166,255,0.25);
+      --chart-coin-fill-light: rgba(88,166,255,0.02);
+      --chart-outlier-halo: rgba(248,81,73,0.5);
       --radius:  8px;
       --radius-lg: 12px;
       --shadow:  0 1px 3px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.15);
@@ -344,7 +354,7 @@
       padding: 3px 12px; border-radius: 12px; font-size: 0.75rem;
       font-weight: 700; white-space: nowrap; text-transform: uppercase; letter-spacing: 0.05em;
     }
-    .melt-badge-silver { background: rgba(139,148,158,0.15); color: #8b949e; }
+    .melt-badge-silver { background: rgba(174,184,196,0.15); color: var(--text-secondary); }
     .melt-badge-gold   { background: var(--yellow-subtle); color: var(--yellow); }
 
     .melt-input-grid {
@@ -1019,6 +1029,25 @@
     .cross-tab-links { display:flex; gap:10px; flex-wrap:wrap; margin:10px 0 4px; font-size:0.82rem; }
     .cross-tab-links .cross-tab-link { color:var(--accent); font:inherit; text-decoration:none; cursor:pointer; padding:4px 10px; border:1px solid var(--border); border-radius:var(--radius); background:var(--surface); }
     .cross-tab-links .cross-tab-link:hover { background:var(--card); }
+    .history-summary { margin: 12px 0; padding: 10px 14px; color: var(--text-secondary); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); font-size: 0.85rem; }
+    .history-data-details { margin-top: 12px; color: var(--text-secondary); }
+    .history-data-details summary { cursor: pointer; color: var(--accent); font-weight: 600; }
+    .history-data-table-wrap { overflow-x: auto; margin-top: 8px; }
+    .history-data-table-wrap:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .history-data-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; white-space: nowrap; }
+    .history-data-table th, .history-data-table td { padding: 7px 9px; border: 1px solid var(--border); text-align: right; }
+    .history-data-table thead th { background: var(--surface); color: var(--text); }
+    .history-data-table tbody th { color: var(--text); text-align: left; font-weight: 600; }
+    .history-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 8px 0; padding: 0; color: var(--text-secondary); font-size: 0.78rem; list-style: none; }
+    .history-legend li { min-width: 0; overflow-wrap: anywhere; }
+    .history-legend li::before { content: ''; display: inline-block; width: 14px; height: 3px; margin-right: 6px; vertical-align: middle; background: var(--accent); }
+    .history-legend-median::before { height: 2px !important; border-top: 2px dashed var(--green); background: transparent !important; }
+    .history-legend-iqr::before { height: 8px !important; border: 1px dashed var(--accent); background: var(--chart-iqr-fill) !important; }
+    .history-legend-minmax::before { height: 8px !important; border: 1px solid var(--accent); background: var(--chart-range-fill) !important; }
+    .history-legend-outlier::before { width: 8px !important; height: 8px !important; border-radius: 50%; background: var(--red) !important; }
+    .history-legend-metal::before { height: 2px !important; border-top: 2px dashed var(--yellow); background: transparent !important; }
+    .history-legend-wholesale::before { height: 2px !important; border-top: 2px dashed var(--chart-gs-wholesale); background: transparent !important; }
+    .history-legend-retail::before { height: 2px !important; border-top: 2px dotted var(--chart-gs-retail); background: transparent !important; }
     .bulk-page-nav { display:flex; gap:6px; align-items:center; justify-content:center; margin:10px 0; font-size:0.82rem; }
     .bulk-page-nav button { background:var(--surface); color:var(--text); border:1px solid var(--border); border-radius:var(--radius); padding:4px 10px; cursor:pointer; font-size:0.8rem; }
     .bulk-page-nav button:hover { background:var(--card); }
@@ -2053,16 +2082,34 @@
       </div>
 
       <!-- Status & loading -->
-      <div id="history-status" style="color:var(--text-muted);font-size:0.85rem;margin-bottom:8px"></div>
+      <div id="history-status" role="status" aria-live="polite" aria-atomic="true" style="color:var(--text-muted);font-size:0.85rem;margin-bottom:8px"></div>
 
       <!-- Metal overlay explanation note -->
       <div id="history-metal-note" style="display:none;font-size:0.8rem;color:var(--text-muted);background:var(--surface);border:1px solid var(--border-subtle);border-radius:var(--radius);padding:10px 14px;margin-bottom:12px;line-height:1.6">
       </div>
 
       <!-- Chart -->
-      <div id="history-chart-wrap" style="position:relative;width:100%;height:360px;display:none">
-        <canvas id="history-canvas" style="width:100%;height:100%" role="img" aria-label="Price history chart showing FMV, eBay median, and melt value trends over time"></canvas>
+      <ul id="history-legend" class="history-legend" aria-label="Chart legend" hidden></ul>
+      <div id="history-chart-wrap" style="position:relative;width:100%;height:360px;display:none" aria-busy="false">
+        <canvas id="history-canvas" style="width:100%;height:100%" role="img" aria-label="Price history chart showing daily sold-price medians, ranges, outliers, metal spot, and Greysheet reference trends" aria-describedby="history-summary history-table-label"></canvas>
       </div>
+
+      <div id="history-summary" class="history-summary" role="region" aria-label="Price history data summary" aria-live="polite" hidden></div>
+      <details id="history-table-details" class="history-data-details" hidden>
+        <summary id="history-table-label">View accessible price history data table</summary>
+        <div class="history-data-table-wrap" tabindex="0" role="region" aria-label="Scrollable price history data table">
+          <table class="history-data-table">
+            <caption class="sr-only">Price history chart data, including every rendered series and reference point</caption>
+            <thead><tr>
+              <th scope="col">Date</th><th scope="col">Median</th><th scope="col">Average</th>
+              <th scope="col">Low</th><th scope="col">High</th><th scope="col">Sales</th>
+              <th scope="col">Outlier</th><th scope="col">Metal spot</th>
+              <th scope="col">GS wholesale</th><th scope="col">GS retail</th>
+            </tr></thead>
+            <tbody id="history-table-body"></tbody>
+          </table>
+        </div>
+      </details>
     </div>
   </section>
 
@@ -2507,6 +2554,7 @@ Silver Libertad 1 oz Proof"></textarea>
   <script src="js/auth.js"></script>
   <script src="js/storage.js"></script>
   <script src="js/my-coins.js"></script>
+  <script src="js/history-accessibility.js"></script>
 
   <script>
   /* ═══════════════════════════════════════════════════════════
@@ -7058,6 +7106,12 @@ Silver Libertad 1 oz Proof"></textarea>
     const coinName   = document.getElementById('history-coin-name');
     const rangeLabel = document.getElementById('history-range-label');
     const metalNote  = document.getElementById('history-metal-note');
+    const accessible = {
+      summary: document.getElementById('history-summary'),
+      details: document.getElementById('history-table-details'),
+      tbody: document.getElementById('history-table-body'),
+      legend: document.getElementById('history-legend'),
+    };
     if (!queryEl || !canvas) return;
 
     btn.addEventListener('click', fetchAndRender);
@@ -7066,24 +7120,43 @@ Silver Libertad 1 oz Proof"></textarea>
     rangeEl.addEventListener('change', () => { if (queryEl.value.trim()) fetchAndRender(); });
     // Hide empty state as soon as user starts typing
     queryEl.addEventListener('input', () => {
+      requestSequence++;
+      wrap.setAttribute('aria-busy', 'false');
+      _btnReset(btn);
+      status.textContent = '';
+      HistoryAccessibility.clear(accessible);
+      wrap.style.display = 'none';
+      coinHeader.style.display = 'none';
+      metalNote.style.display = 'none';
       if (queryEl.value.trim()) emptyEl.style.display = 'none';
+      else emptyEl.style.display = 'block';
     });
 
     const RANGE_LABELS = { '90': 'Last 90 days', '180': 'Last 180 days', '365': 'Last 365 days' };
+    let requestSequence = 0;
 
     async function fetchAndRender() {
       const query = queryEl.value.trim();
-      if (!query) { status.textContent = 'Enter a coin or bullion name.'; return; }
-      emptyEl.style.display = 'none';
+      const requestId = ++requestSequence;
+      HistoryAccessibility.clear(accessible);
+      wrap.style.display = 'none';
       coinHeader.style.display = 'none';
       metalNote.style.display = 'none';
-      wrap.style.display = 'none';
+      if (!query) {
+        status.removeAttribute('aria-busy');
+        status.textContent = 'Enter a coin or bullion name.';
+        _btnReset(btn);
+        return;
+      }
+      emptyEl.style.display = 'none';
       status.innerHTML = '<div class="spinner" style="display:inline-block;width:14px;height:14px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle;margin-right:8px"></div> Loading price history\u2026';
+      wrap.setAttribute('aria-busy', 'true');
       _btnLoading(btn, 'Loading\u2026');
       try {
         const url = '/api/coin-history?query=' + encodeURIComponent(query) + '&rangeDays=' + rangeEl.value;
         const res = await fetch(url);
         const data = await res.json();
+        if (requestId !== requestSequence) return;
         if (!res.ok) {
           status.textContent = data.error || 'We couldn\u2019t load history for this coin.';
           return;
@@ -7135,22 +7208,57 @@ Silver Libertad 1 oz Proof"></textarea>
           metalNote.style.display = 'none';
         }
 
+        const model = HistoryAccessibility.createModel(data, RANGE_LABELS[rangeEl.value] || rangeEl.value + ' days');
+        HistoryAccessibility.render(model, accessible);
+        const shownSeries = ['daily sold-price medians, ranges, and outliers'];
+        if (model.metalSeries.points.length) shownSeries.push(model.metalName + ' spot');
+        if (model.wholesaleSeries.points.length) shownSeries.push('Greysheet wholesale');
+        if (model.retailSeries.points.length) shownSeries.push('Greysheet retail');
+        canvas.setAttribute('aria-label', model.name + ', ' + model.rangeText + ': ' + shownSeries.join(', '));
         wrap.style.display = 'block';
-        drawChart(canvas, data.displayName, data.prices, data.metalOverlay, data.greysheetOverlay);
+        drawChart(canvas, data.prices, model);
       } catch (err) {
+        if (requestId !== requestSequence) return;
         status.textContent = 'We couldn\u2019t load history for this coin.';
       } finally {
-        _btnReset(btn);
+        if (requestId === requestSequence) {
+          wrap.setAttribute('aria-busy', 'false');
+          _btnReset(btn);
+        }
       }
     }
 
-    function drawChart(cvs, displayName, prices, metalOverlay, gsOverlay) {
+    function drawChart(cvs, prices, accessibleModel) {
+      const metalOverlay = { metal: accessibleModel.metalName, prices: accessibleModel.metalSeries.points };
+      const gsOverlay = {
+        wholesale: accessibleModel.wholesaleSeries.points,
+        retail: accessibleModel.retailSeries.points,
+        current: { wholesale: accessibleModel.currentWholesale, retail: accessibleModel.currentRetail },
+      };
       const dpr = window.devicePixelRatio || 1;
       const rect = cvs.parentElement.getBoundingClientRect();
       cvs.width = rect.width * dpr;
       cvs.height = rect.height * dpr;
       const W = rect.width, H = rect.height;
       const ctx = cvs.getContext('2d');
+      const chartStyles = getComputedStyle(document.documentElement);
+      const CHART_COLORS = {
+        text: chartStyles.getPropertyValue('--text-secondary').trim(),
+        coin: chartStyles.getPropertyValue('--accent').trim(),
+        median: chartStyles.getPropertyValue('--green').trim(),
+        outlier: chartStyles.getPropertyValue('--red').trim(),
+        metal: chartStyles.getPropertyValue('--yellow').trim(),
+        wholesale: chartStyles.getPropertyValue('--chart-gs-wholesale').trim(),
+        retail: chartStyles.getPropertyValue('--chart-gs-retail').trim(),
+        grid: chartStyles.getPropertyValue('--chart-grid').trim(),
+        metalFillStrong: chartStyles.getPropertyValue('--chart-metal-fill-strong').trim(),
+        metalFillLight: chartStyles.getPropertyValue('--chart-metal-fill-light').trim(),
+        rangeFill: chartStyles.getPropertyValue('--chart-range-fill').trim(),
+        iqrFill: chartStyles.getPropertyValue('--chart-iqr-fill').trim(),
+        coinFillStrong: chartStyles.getPropertyValue('--chart-coin-fill-strong').trim(),
+        coinFillLight: chartStyles.getPropertyValue('--chart-coin-fill-light').trim(),
+        outlierHalo: chartStyles.getPropertyValue('--chart-outlier-halo').trim(),
+      };
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, W, H);
 
@@ -7166,9 +7274,9 @@ Silver Libertad 1 oz Proof"></textarea>
       const maxs = hasStats ? prices.map(p => p[4]) : vals;
       // Include Greysheet values in Y range so reference lines aren't clipped
       var gsValsForRange = [];
-      if (gsOverlay && gsOverlay.current) {
-        if (gsOverlay.current.wholesale) gsValsForRange.push(gsOverlay.current.wholesale);
-        if (gsOverlay.current.retail)    gsValsForRange.push(gsOverlay.current.retail);
+      if (gsOverlay) {
+        gsOverlay.wholesale.forEach(function(point) { gsValsForRange.push(point[1]); });
+        gsOverlay.retail.forEach(function(point) { gsValsForRange.push(point[1]); });
       }
       let minV = Math.min(...vals, ...mins, ...gsValsForRange), maxV = Math.max(...vals, ...maxs, ...gsValsForRange);
       if (minV === maxV) { minV -= 10; maxV += 10; }
@@ -7177,21 +7285,13 @@ Silver Libertad 1 oz Proof"></textarea>
 
       // Parse all dates to establish shared X axis
       const dates = prices.map(p => new Date(p[0] + 'T00:00:00'));
-      let allDates = dates.map(d => d.getTime());
+      let allDates = accessibleModel.allDates.map(date => new Date(date + 'T00:00:00').getTime());
       let metalDates = [], metalVals = [];
       let minM, maxM;
 
       if (hasOverlay) {
         metalDates = metalOverlay.prices.map(p => new Date(p[0] + 'T00:00:00'));
         metalVals  = metalOverlay.prices.map(p => p[1]);
-        // If only 1-2 metal data points, extend as a flat reference line
-        // across the full coin date range so the overlay is always visible
-        if (metalDates.length < 3 && dates.length >= 2) {
-          const flatPrice = metalVals[metalVals.length - 1];
-          metalDates = [dates[0], dates[dates.length - 1]];
-          metalVals  = [flatPrice, flatPrice];
-        }
-        allDates = allDates.concat(metalDates.map(d => d.getTime()));
         minM = Math.min(...metalVals); maxM = Math.max(...metalVals);
         if (minM === maxM) { minM -= 5; maxM += 5; }
         const padM = (maxM - minM) * 0.08;
@@ -7206,9 +7306,9 @@ Silver Libertad 1 oz Proof"></textarea>
       function yPosM(v) { return PAD_T + (1 - (v - minM) / (maxM - minM)) * ch; }
 
       // ── Grid + left Y labels (coin prices) ──
-      ctx.strokeStyle = 'rgba(48,54,61,0.6)';
+      ctx.strokeStyle = CHART_COLORS.grid;
       ctx.lineWidth = 1;
-      ctx.fillStyle = '#8b949e';
+      ctx.fillStyle = CHART_COLORS.text;
       ctx.font = '11px -apple-system, sans-serif';
       ctx.textAlign = 'right';
       const yTicks = 5;
@@ -7221,7 +7321,7 @@ Silver Libertad 1 oz Proof"></textarea>
 
       // ── Right Y labels (metal spot) ──
       if (hasOverlay) {
-        ctx.fillStyle = '#d29922';
+        ctx.fillStyle = CHART_COLORS.metal;
         ctx.textAlign = 'left';
         for (let i = 0; i <= yTicks; i++) {
           const v = minM + (maxM - minM) * (i / yTicks);
@@ -7231,7 +7331,7 @@ Silver Libertad 1 oz Proof"></textarea>
       }
 
       // ── X labels ──
-      ctx.fillStyle = '#8b949e';
+      ctx.fillStyle = CHART_COLORS.text;
       ctx.textAlign = 'center';
       const xLabelCount = Math.min(prices.length, 6);
       const step = Math.max(1, Math.floor(prices.length / xLabelCount));
@@ -7239,7 +7339,7 @@ Silver Libertad 1 oz Proof"></textarea>
         const x = xPos(dates[i]);
         const lbl = (dates[i].getMonth() + 1) + '/' + dates[i].getDate();
         ctx.fillText(lbl, x, H - PAD_B + 18);
-        ctx.strokeStyle = 'rgba(48,54,61,0.6)'; ctx.lineWidth = 1;
+        ctx.strokeStyle = CHART_COLORS.grid; ctx.lineWidth = 1;
         ctx.beginPath(); ctx.moveTo(x, PAD_T); ctx.lineTo(x, H - PAD_B); ctx.stroke();
       }
 
@@ -7253,8 +7353,8 @@ Silver Libertad 1 oz Proof"></textarea>
         ctx.lineTo(xPos(metalDates[0]), H - PAD_B);
         ctx.closePath();
         const mGrad = ctx.createLinearGradient(0, PAD_T, 0, H - PAD_B);
-        mGrad.addColorStop(0, 'rgba(210,153,34,0.15)');
-        mGrad.addColorStop(1, 'rgba(210,153,34,0.02)');
+        mGrad.addColorStop(0, CHART_COLORS.metalFillStrong);
+        mGrad.addColorStop(1, CHART_COLORS.metalFillLight);
         ctx.fillStyle = mGrad;
         ctx.fill();
 
@@ -7262,7 +7362,7 @@ Silver Libertad 1 oz Proof"></textarea>
         ctx.beginPath();
         ctx.moveTo(xPos(metalDates[0]), yPosM(metalVals[0]));
         for (let i = 1; i < metalVals.length; i++) ctx.lineTo(xPos(metalDates[i]), yPosM(metalVals[i]));
-        ctx.strokeStyle = '#d29922';
+        ctx.strokeStyle = CHART_COLORS.metal;
         ctx.lineWidth = 1.5;
         ctx.lineJoin = 'round';
         ctx.setLineDash([4, 3]);
@@ -7271,18 +7371,11 @@ Silver Libertad 1 oz Proof"></textarea>
       }
 
       // ── Coin statistics: median, Q1, Q3, IQR outlier thresholds ──
-      const sorted = vals.slice().sort((a, b) => a - b);
-      function percentile(arr, p) {
-        const idx = (arr.length - 1) * p;
-        const lo = Math.floor(idx), hi = Math.ceil(idx);
-        return lo === hi ? arr[lo] : arr[lo] + (arr[hi] - arr[lo]) * (idx - lo);
-      }
-      const median = percentile(sorted, 0.5);
-      const q1     = percentile(sorted, 0.25);
-      const q3     = percentile(sorted, 0.75);
-      const iqr    = q3 - q1;
-      const outlierLo = q1 - 1.5 * iqr;
-      const outlierHi = q3 + 1.5 * iqr;
+      const median = accessibleModel.overallMedian;
+      const q1 = accessibleModel.thresholds.q1;
+      const q3 = accessibleModel.thresholds.q3;
+      const outlierLo = accessibleModel.thresholds.outlierLow;
+      const outlierHi = accessibleModel.thresholds.outlierHigh;
 
       // ── Daily min/max band (when enriched stats available) ──
       if (hasStats && prices.length >= 2) {
@@ -7291,17 +7384,20 @@ Silver Libertad 1 oz Proof"></textarea>
         for (let i = 1; i < prices.length; i++) ctx.lineTo(xPos(dates[i]), yPos(maxs[i]));
         for (let i = prices.length - 1; i >= 0; i--) ctx.lineTo(xPos(dates[i]), yPos(mins[i]));
         ctx.closePath();
-        ctx.fillStyle = 'rgba(88,166,255,0.08)';
+        ctx.fillStyle = CHART_COLORS.rangeFill;
         ctx.fill();
+        ctx.strokeStyle = CHART_COLORS.coin;
+        ctx.lineWidth = 1;
+        ctx.stroke();
       }
 
       // ── IQR band (Q1--Q3 shaded region) ──
       const bandY1 = yPos(q3), bandY2 = yPos(q1);
-      ctx.fillStyle = 'rgba(88,166,255,0.10)';
+      ctx.fillStyle = CHART_COLORS.iqrFill;
       ctx.fillRect(PAD_L, bandY1, cw, bandY2 - bandY1);
       // Q1 / Q3 border lines
       ctx.setLineDash([3, 4]);
-      ctx.strokeStyle = 'rgba(88,166,255,0.30)';
+      ctx.strokeStyle = CHART_COLORS.coin;
       ctx.lineWidth = 1;
       ctx.beginPath(); ctx.moveTo(PAD_L, bandY1); ctx.lineTo(W - PAD_R, bandY1); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(PAD_L, bandY2); ctx.lineTo(W - PAD_R, bandY2); ctx.stroke();
@@ -7310,13 +7406,13 @@ Silver Libertad 1 oz Proof"></textarea>
       // ── Median line ──
       const medY = yPos(median);
       ctx.setLineDash([6, 3]);
-      ctx.strokeStyle = '#3fb950';
+      ctx.strokeStyle = CHART_COLORS.median;
       ctx.lineWidth = 1.5;
       ctx.beginPath(); ctx.moveTo(PAD_L, medY); ctx.lineTo(W - PAD_R, medY); ctx.stroke();
       ctx.setLineDash([]);
       // Median label (right side of chart area)
       ctx.font = '10px -apple-system, sans-serif';
-      ctx.fillStyle = '#3fb950';
+      ctx.fillStyle = CHART_COLORS.median;
       ctx.textAlign = 'right';
       ctx.fillText('Median $' + median.toFixed(median >= 100 ? 0 : 2), W - PAD_R - 4, medY - 5);
 
@@ -7328,8 +7424,8 @@ Silver Libertad 1 oz Proof"></textarea>
       ctx.lineTo(xPos(dates[0]), H - PAD_B);
       ctx.closePath();
       const grad = ctx.createLinearGradient(0, PAD_T, 0, H - PAD_B);
-      grad.addColorStop(0, 'rgba(88,166,255,0.25)');
-      grad.addColorStop(1, 'rgba(88,166,255,0.02)');
+      grad.addColorStop(0, CHART_COLORS.coinFillStrong);
+      grad.addColorStop(1, CHART_COLORS.coinFillLight);
       ctx.fillStyle = grad;
       ctx.fill();
 
@@ -7337,7 +7433,7 @@ Silver Libertad 1 oz Proof"></textarea>
       ctx.beginPath();
       ctx.moveTo(xPos(dates[0]), yPos(vals[0]));
       for (let i = 1; i < prices.length; i++) ctx.lineTo(xPos(dates[i]), yPos(vals[i]));
-      ctx.strokeStyle = '#58a6ff';
+      ctx.strokeStyle = CHART_COLORS.coin;
       ctx.lineWidth = 2;
       ctx.lineJoin = 'round';
       ctx.stroke();
@@ -7348,17 +7444,17 @@ Silver Libertad 1 oz Proof"></textarea>
         const v = vals[i];
         const isOutlier = v < outlierLo || v > outlierHi;
         const r = prices.length > 60 ? 1.5 : 3;
-        ctx.fillStyle = isOutlier ? '#f85149' : '#58a6ff';
+        ctx.fillStyle = isOutlier ? CHART_COLORS.outlier : CHART_COLORS.coin;
         ctx.beginPath(); ctx.arc(xPos(dates[i]), yPos(v), isOutlier ? r + 1 : r, 0, Math.PI * 2); ctx.fill();
         if (isOutlier) {
-          ctx.strokeStyle = 'rgba(248,81,73,0.5)';
+          ctx.strokeStyle = CHART_COLORS.outlierHalo;
           ctx.lineWidth = 1;
           ctx.beginPath(); ctx.arc(xPos(dates[i]), yPos(v), r + 3, 0, Math.PI * 2); ctx.stroke();
         }
         // Daily count badge for days with 2+ sales
         if (hasStats && prices[i][5] >= 2 && prices.length <= 120) {
           ctx.font = '9px -apple-system, sans-serif';
-          ctx.fillStyle = 'rgba(139,148,158,0.8)';
+          ctx.fillStyle = CHART_COLORS.text;
           ctx.textAlign = 'center';
           ctx.fillText(prices[i][5] + '\u00D7', xPos(dates[i]), yPos(v) - (r + 5));
         }
@@ -7367,117 +7463,27 @@ Silver Libertad 1 oz Proof"></textarea>
       // ── Greysheet dealer reference lines ──
       // Uses left Y axis (same scale as eBay sold prices).
       // If we have multiple snapshots: draw trend line. Otherwise: horizontal reference line.
-      const hasGs = gsOverlay && gsOverlay.current && (gsOverlay.current.wholesale || gsOverlay.current.retail);
-      const GS_COLORS = { wholesale: '#e5534b', retail: '#bc8cff' };
-      const GS_LABELS = { wholesale: 'GS Wholesale', retail: 'GS Retail' };
+      const hasGs = gsOverlay && (gsOverlay.wholesale.length || gsOverlay.retail.length);
+      const GS_COLORS = {
+        wholesale: CHART_COLORS.wholesale,
+        retail: CHART_COLORS.retail,
+      };
+      const GS_DASHES = { wholesale: [7, 3], retail: [2, 4] };
 
       if (hasGs) {
         ['wholesale', 'retail'].forEach(function(type) {
-          const currentVal = gsOverlay.current[type];
-          if (!currentVal) return;
-          const trendData = gsOverlay[type]; // array of [date, val] or null
+          const trendData = gsOverlay[type];
+          if (!trendData.length) return;
           const color = GS_COLORS[type];
-
-          if (trendData && trendData.length >= 2) {
-            // Trend line (multiple snapshots)
-            ctx.beginPath();
-            var td = trendData.map(function(p) { return [new Date(p[0] + 'T00:00:00'), p[1]]; });
-            ctx.moveTo(xPos(td[0][0]), yPos(td[0][1]));
-            for (var ti = 1; ti < td.length; ti++) ctx.lineTo(xPos(td[ti][0]), yPos(td[ti][1]));
-            ctx.strokeStyle = color;
-            ctx.lineWidth = 1.5;
-            ctx.setLineDash([6, 4]);
-            ctx.stroke();
-            ctx.setLineDash([]);
-          } else {
-            // Single point or no history -- draw flat reference line
-            var gY = yPos(currentVal);
-            if (gY >= PAD_T && gY <= H - PAD_B) {
-              ctx.beginPath();
-              ctx.moveTo(PAD_L, gY);
-              ctx.lineTo(W - PAD_R, gY);
-              ctx.strokeStyle = color;
-              ctx.lineWidth = 1.5;
-              ctx.setLineDash([6, 4]);
-              ctx.stroke();
-              ctx.setLineDash([]);
-              // Label on right side
-              ctx.font = '10px -apple-system, sans-serif';
-              ctx.fillStyle = color;
-              ctx.textAlign = 'left';
-              ctx.fillText(GS_LABELS[type] + ' $' + currentVal.toFixed(currentVal >= 100 ? 0 : 2), PAD_L + 4, gY - 5);
-            }
-          }
-        });
-      }
-
-      // ── Legend (top-left, always visible) ──
-      const lx = PAD_L + 8, ly = PAD_T - 26;
-      ctx.font = '11px -apple-system, sans-serif';
-      ctx.textAlign = 'left';
-      let legendX = lx;
-      // Coin line swatch
-      ctx.fillStyle = '#58a6ff';
-      ctx.fillRect(legendX, ly, 14, 3);
-      ctx.fillStyle = '#c9d1d9';
-      const coinLabel = displayName.length > 40 ? displayName.substring(0, 37) + '\u2026' : displayName;
-      ctx.fillText(coinLabel, legendX + 20, ly + 5);
-      legendX += 24 + ctx.measureText(coinLabel).width;
-      // Median swatch
-      ctx.setLineDash([4, 2]);
-      ctx.strokeStyle = '#3fb950'; ctx.lineWidth = 1.5;
-      ctx.beginPath(); ctx.moveTo(legendX, ly + 1.5); ctx.lineTo(legendX + 14, ly + 1.5); ctx.stroke();
-      ctx.setLineDash([]);
-      ctx.fillStyle = '#8b949e';
-      ctx.fillText('Median', legendX + 20, ly + 5);
-      legendX += 20 + ctx.measureText('Median').width + 8;
-      // IQR swatch
-      ctx.fillStyle = 'rgba(88,166,255,0.25)';
-      ctx.fillRect(legendX, ly - 4, 14, 10);
-      ctx.fillStyle = '#8b949e';
-      ctx.fillText('Q1\u2013Q3', legendX + 20, ly + 5);
-      legendX += 20 + ctx.measureText('Q1\u2013Q3').width + 8;
-      // Min/Max swatch (when enriched stats)
-      if (hasStats) {
-        ctx.fillStyle = 'rgba(88,166,255,0.12)';
-        ctx.fillRect(legendX, ly - 4, 14, 10);
-        ctx.strokeStyle = 'rgba(88,166,255,0.25)';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(legendX, ly - 4, 14, 10);
-        ctx.fillStyle = '#8b949e';
-        ctx.fillText('Min\u2013Max', legendX + 20, ly + 5);
-        legendX += 20 + ctx.measureText('Min\u2013Max').width + 8;
-      }
-      // Outlier swatch
-      ctx.fillStyle = '#f85149';
-      ctx.beginPath(); ctx.arc(legendX + 4, ly + 1.5, 3, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#8b949e';
-      ctx.fillText('Outlier', legendX + 14, ly + 5);
-      legendX += 14 + ctx.measureText('Outlier').width + 8;
-      // Metal line swatch (if overlay)
-      if (hasOverlay) {
-        ctx.fillStyle = '#d29922';
-        ctx.fillRect(legendX, ly, 14, 3);
-        ctx.setLineDash([3, 2]);
-        ctx.strokeStyle = '#d29922'; ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.moveTo(legendX, ly + 1.5); ctx.lineTo(legendX + 14, ly + 1.5); ctx.stroke();
-        ctx.setLineDash([]);
-        ctx.fillStyle = '#c9d1d9';
-        const metalLabel = metalOverlay.metal.charAt(0).toUpperCase() + metalOverlay.metal.slice(1) + ' spot';
-        ctx.fillText(metalLabel, legendX + 20, ly + 5);
-        legendX += 24 + ctx.measureText(metalLabel).width;
-      }
-      // Greysheet swatches (if overlay)
-      if (hasGs) {
-        ['wholesale', 'retail'].forEach(function(type) {
-          if (!gsOverlay.current[type]) return;
-          ctx.setLineDash([4, 3]);
-          ctx.strokeStyle = GS_COLORS[type]; ctx.lineWidth = 1.5;
-          ctx.beginPath(); ctx.moveTo(legendX, ly + 1.5); ctx.lineTo(legendX + 14, ly + 1.5); ctx.stroke();
+          ctx.beginPath();
+          var td = trendData.map(function(p) { return [new Date(p[0] + 'T00:00:00'), p[1]]; });
+          ctx.moveTo(xPos(td[0][0]), yPos(td[0][1]));
+          for (var ti = 1; ti < td.length; ti++) ctx.lineTo(xPos(td[ti][0]), yPos(td[ti][1]));
+          ctx.strokeStyle = color;
+          ctx.lineWidth = 1.5;
+          ctx.setLineDash(GS_DASHES[type]);
+          ctx.stroke();
           ctx.setLineDash([]);
-          ctx.fillStyle = '#c9d1d9';
-          ctx.fillText(GS_LABELS[type], legendX + 20, ly + 5);
-          legendX += 24 + ctx.measureText(GS_LABELS[type]).width;
         });
       }
     }

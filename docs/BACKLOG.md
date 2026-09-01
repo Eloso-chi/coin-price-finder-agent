@@ -4430,7 +4430,7 @@ Gated on data: run pricing-health across a Reverse-Proof slate (2023 RP Morgan, 
 
 ---
 
-### #305H. WCAG contrast remediation and accessible price-history data equivalent [P1 -- ACCESSIBILITY / VISUALIZATION] -- PROPOSED 2026-08-31
+### #305H. WCAG contrast remediation and accessible price-history data equivalent [P1 -- ACCESSIBILITY / VISUALIZATION] -- DONE 2026-08-31
 
 **Origin:** Comprehensive UX Reviewer audit at commit `557095966cb1580f330322beff4cd83042de9cb4` (2026-08-30), S2 contrast and canvas-alternative findings.
 
@@ -4450,6 +4450,8 @@ Gated on data: run pricing-health across a Reverse-Proof slate (2023 RP Morgan, 
 - Automated token-contrast and chart-alternative tests pass; focused `@ux-reviewer` follow-up and `npm test` pass.
 
 **Tier:** M. User-visible theme and chart output change; focused UX review required.
+
+**Resolution:** Raised secondary and muted dark-theme text tokens to WCAG-compliant contrast and moved every price-history canvas color, fill, grid, and halo behind semantic CSS tokens. Added a responsive HTML legend with non-color series patterns, a query-specific canvas name, a live statistical summary, and an expandable semantic table containing the union of every rendered daily price, range, sample count, outlier, metal spot, and Greysheet point. The canvas, legend, summary, and table share one normalized model, including flat short-series behavior, to prevent representation drift. Loading/errors are announced, query edits invalidate stale requests and restore controls, and the wide table has a labeled keyboard-scroll region. Regression coverage is in `__tests__/historyAccessibility.test.js` and `__tests__/chartContrastCompliance.test.js`. Focused validation passed 3 suites / 45 tests; final canonical Jest passed 181 suites / 4,748 tests; targeted ESLint and diff hygiene passed; and the final focused UX Reviewer returned PASS with no findings.
 
 ---
 

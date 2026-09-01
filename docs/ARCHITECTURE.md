@@ -1500,7 +1500,9 @@ The SPA uses CSS custom properties for theming. The dark theme defines 36+ token
 - Result cross-tab shortcuts use native buttons and focus the destination tab after activation unless an authentication dialog takes focus.
 - Authentication-gated tabs remain actionable login gateways, omit disabled semantics, and describe the sign-in transition in their accessible name and description.
 - Collection sortable headers retain native `<th>` columnheader semantics and `aria-sort`; nested native buttons provide activation, hide decorative direction arrows from assistive technology, and regain focus after rerendering.
-- `<canvas>` has `aria-label` for screen readers
+- Price-history text tokens meet WCAG 1.4.3 contrast across the dark backgrounds. Canvas colors resolve from semantic CSS tokens, and series use matching non-color legend patterns.
+- The price-history canvas has a query-specific accessible name and references a live summary plus expandable semantic table. A single normalized model supplies the canvas, responsive HTML legend, summary, and table so daily prices, ranges, samples, outliers, metal spot, and Greysheet series cannot drift.
+- Price-history loading and failures use a live status, obsolete requests cannot replace edited queries, and the wide data table exposes a labeled keyboard-scroll region.
 - Tab bar uses `mask-image` gradient to indicate scroll overflow on mobile
 
 ---
