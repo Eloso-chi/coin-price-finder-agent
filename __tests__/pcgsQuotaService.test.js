@@ -1,7 +1,6 @@
 'use strict';
 
 let fs = require('fs');
-const path = require('path');
 
 // Mock fs to avoid touching real quota files
 jest.mock('fs');
@@ -192,6 +191,19 @@ describe('pcgsQuotaService', () => {
       quota.syncFromHeaders(42, 100);
 
       expect(quota.getStatus().upstreamAvailability).toBe('probe-in-flight');
+    });
+
+    it('counts an invalid response but leaves recovery in probe-required state', () => {
+      quota.tripBreaker({ retryAfter: '0' });
+      expect(quota.acquireRequestPermit()).toBe(true);
+
+      const result = quota.recordCall('apr', 'invalid-response', { recoverySucceeded: false });
+
+      expect(result.used).toBe(1);
+      expect(quota.getStatus()).toEqual(expect.objectContaining({
+        upstreamAvailability: 'probe-required',
+        lastProbeOutcome: 'failed'
+      }));
     });
 
     it('reloads an unexpired cooldown from persisted state after restart', () => {

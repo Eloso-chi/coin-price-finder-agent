@@ -127,7 +127,7 @@ External OpenAPI/MCP exposure is not enabled. See [docs/AI-EXTERNAL-EXPOSURE-EVA
 | `GET` | `/api/admin/dashboard` | 🔒 | System overview: user count, dataset count, quota, uptime |
 | `GET` | `/api/admin/stale-datasets` | 🔒 | Datasets older than N days (filters dormant/thin via freshness classifier) |
 | `GET` | `/api/admin/data-health` | 🔒 | Total files, empty files, date ranges |
-| `GET` | `/api/admin/prefetch-status` | 🔒 | PCGS nightly prefetch status, including `perCategory`, `lastAttempt*`, and separate local-quota/upstream-availability fields |
+| `GET` | `/api/admin/prefetch-status` | 🔒 | PCGS nightly prefetch status, including `perCategory`, `lastAttempt*`, invalid-response summaries, and separate local-quota/upstream-availability fields |
 | `POST` | `/api/admin/prefetch-trigger` | 🔒 | Trigger manual PCGS prefetch run; rejected while an upstream cooldown is active |
 | `GET` | `/api/admin/pcgs-quota` | 🔒 | PCGS local quota and upstream cooldown status |
 | `GET` | `/api/admin/auction-history` | 🔒 | Retrieve cached auction history |
@@ -140,7 +140,10 @@ prefetch response includes `quota.localQuotaRemaining`,
 `quota.rateLimitedAt`, `quota.rateLimitReason`, `quota.upstreamReportedLimit`,
 `quota.upstreamReportedRemaining`, `quota.prefetchObservedLimit`, and
 `quota.prefetchBudgetRemaining`, plus the top-level `upstreamAvailability`,
-with `lastProbeAt` and `lastProbeOutcome` under `quota`. Upstream availability
+with `lastProbeAt` and `lastProbeOutcome` under `quota`. `lastInvalidResponses`
+counts rejected payloads in the last real run, and `lastRejectedTargets` is a
+capped list of `{ pcgsNo, grade, reason, quarantinePersisted }` objects
+containing sanitized PCGS rejection details and quarantine-write state. Upstream availability
 is `available`, `cooldown`, `probe-required`,
 or `probe-in-flight`. After cooldown expiry, the scheduler permits one recovery
 probe before continuing the queue. When a 429 response has no usable reset

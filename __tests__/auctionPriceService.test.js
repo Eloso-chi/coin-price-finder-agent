@@ -1,7 +1,6 @@
 'use strict';
 
 const fs = require('fs');
-const path = require('path');
 
 // Mock all I/O dependencies
 jest.mock('fs');
@@ -164,6 +163,63 @@ describe('auctionPriceService', () => {
       });
       const fresh = require('../src/services/auctionPriceService');
       expect(fresh.needsRefresh('1234', 65)).toBe(false);
+    });
+
+    it('returns false while a rejected target is in backoff', () => {
+      const retryAfter = new Date(Date.now() + 86400000 * 30).toISOString();
+      jest.resetModules();
+      const fsMock = require('fs');
+      fsMock.readFileSync.mockImplementation((fp) => {
+        if (String(fp).includes('manifest')) {
+          return JSON.stringify({ entries: { '1234:65': { retryAfter } } });
+        }
+        return JSON.stringify({ pcgsNo: '1234', name: null, grades: {} });
+      });
+
+      const fresh = require('../src/services/auctionPriceService');
+      expect(fresh.needsRefresh('1234', 65)).toBe(false);
+    });
+
+    it('retries a rejected target after its backoff expires', () => {
+      const retryAfter = new Date(Date.now() - 86400000).toISOString();
+      jest.resetModules();
+      const fsMock = require('fs');
+      fsMock.readFileSync.mockImplementation((fp) => {
+        if (String(fp).includes('manifest')) {
+          return JSON.stringify({ entries: { '1234:65': { retryAfter } } });
+        }
+        return JSON.stringify({ pcgsNo: '1234', name: null, grades: {} });
+      });
+
+      const fresh = require('../src/services/auctionPriceService');
+      expect(fresh.needsRefresh('1234', 65)).toBe(true);
+    });
+
+    it('excludes actively quarantined targets from stale enumeration', () => {
+      const retryAfter = new Date(Date.now() + 86400000 * 30).toISOString();
+      jest.resetModules();
+      const fsMock = require('fs');
+      fsMock.readFileSync.mockImplementation((fp) => {
+        if (String(fp).includes('manifest')) {
+          return JSON.stringify({
+            entries: {
+              '1234:65': {
+                lastFetched: '2026-01-01T00:00:00.000Z',
+                freshUntil: '2026-01-31',
+                retryAfter
+              },
+              '5678:65': {
+                lastFetched: '2026-01-02T00:00:00.000Z',
+                freshUntil: '2026-02-01'
+              }
+            }
+          });
+        }
+        return JSON.stringify({ pcgsNo: '1234', name: null, grades: {} });
+      });
+
+      const fresh = require('../src/services/auctionPriceService');
+      expect(fresh.getStaleEntries().map(entry => entry.key)).toEqual(['5678:65']);
     });
   });
 

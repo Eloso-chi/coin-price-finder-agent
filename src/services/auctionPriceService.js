@@ -35,6 +35,19 @@ const MANIFEST_PATH = path.join(CACHE_DIR, 'apr_manifest.json');
 const DATE_WINDOW_YEARS = parseInt(process.env.APR_DATE_WINDOW_YEARS, 10) || 3;
 const FRESHNESS_DAYS = parseInt(process.env.APR_FRESHNESS_DAYS, 10) || 30;
 const MAX_RECORDS = 100;
+const REJECTION_BACKOFF_DAYS = 30;
+const REJECTION_DETAIL_MAX_LENGTH = 200;
+const ANSI_ESCAPE_RE = new RegExp(`${String.fromCharCode(27)}\\[[0-?]*[ -/]*[@-~]`, 'g');
+
+class PcgsInvalidResponseError extends Error {
+  constructor(reason, quarantinePersisted) {
+    super(`PCGS rejected APR request: ${reason}`);
+    this.name = 'PcgsInvalidResponseError';
+    this.code = 'PCGS_INVALID_RESPONSE';
+    this.rejectionReason = reason;
+    this.quarantinePersisted = quarantinePersisted;
+  }
+}
 
 // ── Manifest management ─────────────────────────────────────
 let _manifest = null;
@@ -50,10 +63,15 @@ function loadManifest() {
 }
 
 function saveManifest() {
+  const temporaryPath = `${MANIFEST_PATH}.${process.pid}.tmp`;
   try {
-    fs.writeFileSync(MANIFEST_PATH, JSON.stringify(_manifest, null, 2));
+    fs.writeFileSync(temporaryPath, JSON.stringify(_manifest, null, 2));
+    fs.renameSync(temporaryPath, MANIFEST_PATH);
+    return true;
   } catch (err) {
+    try { fs.unlinkSync(temporaryPath); } catch { /* best effort */ }
     console.error('[apr] Failed to save manifest:', err.message);
+    return false;
   }
 }
 
@@ -70,7 +88,52 @@ function setManifestEntry(pcgsNo, grade, recordCount) {
     records: recordCount,
     freshUntil: new Date(Date.now() + FRESHNESS_DAYS * 86400000).toISOString().slice(0, 10)
   };
-  saveManifest();
+  return saveManifest();
+}
+
+function sanitizeRejectionDetail(value) {
+  if (value === null || value === undefined) return null;
+  let detail = String(value)
+    .replace(ANSI_ESCAPE_RE, '')
+    .replace(/bearer\s+[a-z0-9._~+/=-]+/gi, 'Bearer [REDACTED]')
+    .replace(/\bbasic\s+[a-z0-9+/=]+/gi, 'Basic [REDACTED]')
+    .replace(/\b(api[-_ ]?key|access[-_ ]?token|token|secret|password|cookie|session)\s*[:=]\s*(?:"[^"]*"|'[^']*'|[^\s,;]+)/gi, '$1=[REDACTED]')
+    .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, '[REDACTED_EMAIL]')
+    .replace(/([?&](?:key|token|access_token|secret|password|api_key|session)=)[^&#\s]+/gi, '$1[REDACTED]')
+    .replace(/[^\x20-\x7E]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (PCGS_API_KEY) detail = detail.split(PCGS_API_KEY).join('[REDACTED]');
+  return detail ? detail.slice(0, REJECTION_DETAIL_MAX_LENGTH) : null;
+}
+
+function getRejectionReason(data) {
+  if (!data || typeof data !== 'object') return 'missing response body';
+
+  const code = sanitizeRejectionDetail(data.ErrorCode ?? data.Code);
+  const message = sanitizeRejectionDetail(
+    data.ErrorMessage ?? data.Message ?? data.Error ?? data.StatusMessage
+  );
+  const reason = code && message ? `${code}: ${message}` : message || code || 'IsValidRequest=false';
+  return sanitizeRejectionDetail(reason);
+}
+
+function recordRejectedRequest(pcgsNo, grade, reason) {
+  const manifest = loadManifest();
+  const key = `${pcgsNo}:${grade}`;
+  const previous = manifest.entries[key] || {};
+  const now = new Date();
+  const sameReason = previous.rejectionReason === reason;
+
+  manifest.entries[key] = {
+    ...previous,
+    lastRejected: now.toISOString(),
+    rejectionReason: reason,
+    consecutiveRejections: sameReason ? (previous.consecutiveRejections || 0) + 1 : 1,
+    retryAfter: new Date(now.getTime() + REJECTION_BACKOFF_DAYS * 86400000).toISOString()
+  };
+  return saveManifest();
 }
 
 /**
@@ -79,6 +142,8 @@ function setManifestEntry(pcgsNo, grade, recordCount) {
 function needsRefresh(pcgsNo, grade) {
   const entry = getManifestEntry(pcgsNo, grade);
   if (!entry) return true;
+  if (entry.retryAfter && new Date(entry.retryAfter) > new Date()) return false;
+  if (!entry.freshUntil) return true;
   return new Date(entry.freshUntil) <= new Date();
 }
 
@@ -107,8 +172,6 @@ async function aprGet(urlPath) {
     if (remaining !== null) {
       pcgsQuota.syncFromHeaders(remaining, limit ?? undefined);
     }
-    pcgsQuota.recordCall('apr');
-
     return resp.data;
   } catch (err) {
     const status = err.response?.status;
@@ -254,9 +317,13 @@ async function fetchByGrade(pcgsNo, grade, opts = {}) {
     `/coindetail/GetAPRByGrade?PCGSNo=${pcgsNo}&GradeNo=${gradeInt}&PlusGrade=${plusGrade}&StartDate=${startDate}&EndDate=${endDate}&NumberOfRecords=${MAX_RECORDS}`
   );
 
-  if (!data || !data.IsValidRequest) {
-    return { records: [], stats: { count: 0 }, fromCache: false };
+  if (!data || data.IsValidRequest !== true) {
+    const rejectionReason = getRejectionReason(data);
+    pcgsQuota.recordCall('apr', 'invalid-response', { recoverySucceeded: false });
+    const quarantinePersisted = recordRejectedRequest(pcgsNo, gradeInt, rejectionReason);
+    throw new PcgsInvalidResponseError(rejectionReason, quarantinePersisted);
   }
+  pcgsQuota.recordCall('apr');
 
   const auctions = data.Auctions || [];
 
@@ -291,8 +358,10 @@ async function fetchByCertNo(certNo) {
 
   const data = await aprGet(`/coindetail/GetAPRByCertNo/${certNo}`);
   if (!data || !data.IsValidRequest) {
+    pcgsQuota.recordCall('apr', 'invalid-response', { recoverySucceeded: false });
     return { records: [], stats: { count: 0 } };
   }
+  pcgsQuota.recordCall('apr');
 
   const auctions = data.Auctions || [];
   const pcgsNo = data.PCGSNo;
@@ -371,7 +440,8 @@ function getStaleEntries() {
   const manifest = loadManifest();
   const stale = [];
   for (const [key, entry] of Object.entries(manifest.entries)) {
-    if (new Date(entry.freshUntil) <= new Date()) {
+    const quarantineActive = entry.retryAfter && new Date(entry.retryAfter) > new Date();
+    if (!quarantineActive && (!entry.freshUntil || new Date(entry.freshUntil) <= new Date())) {
       stale.push({ key, ...entry });
     }
   }

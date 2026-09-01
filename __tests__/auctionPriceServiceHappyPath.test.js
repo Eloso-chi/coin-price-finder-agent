@@ -19,7 +19,7 @@
  *   - fetchByGrade force=true (bypasses freshness check)
  *   - fetchByGrade 429 response (trips breaker)
  *   - fetchByGrade breaker tripped (throws before axios call)
- *   - fetchByGrade IsValidRequest=false (returns empty stats)
+ *   - fetchByGrade IsValidRequest=false (throws a classified rejection)
  *   - fetchByCertNo happy path (uses returned PCGSNo + Grade to update store)
  *   - fetchByCertNo IsValidRequest=false (empty stats, no store write)
  *   - saveManifest write failure (catch branch)
@@ -236,16 +236,116 @@ describe('fetchByGrade -- happy path', () => {
     expect(result.records[2].Date).toBe('03-2022');
   });
 
-  it('returns empty results when IsValidRequest=false', async () => {
-    const { svc, axios } = setupFresh();
+  it('throws a classified error and persists sanitized backoff when IsValidRequest=false', async () => {
+    const { svc, axios, fs, pcgsQuota } = setupFresh();
     axios.get.mockResolvedValue({
-      data: { IsValidRequest: false },
+      data: {
+        IsValidRequest: false,
+        ErrorCode: 'INVALID_TARGET',
+        Message: '  Coin and grade\ncombination is not supported  '
+      },
       headers: {},
     });
-    const result = await svc.fetchByGrade(7296, 65);
-    expect(result.records).toEqual([]);
-    expect(result.stats.count).toBe(0);
-    expect(result.fromCache).toBe(false);
+
+    await expect(svc.fetchByGrade(7296, 65)).rejects.toMatchObject({
+      code: 'PCGS_INVALID_RESPONSE',
+      rejectionReason: 'INVALID_TARGET: Coin and grade combination is not supported',
+      quarantinePersisted: true
+    });
+    expect(pcgsQuota.recordCall).toHaveBeenCalledWith(
+      'apr',
+      'invalid-response',
+      { recoverySucceeded: false }
+    );
+
+    const manifestWrites = fs.writeFileSync.mock.calls
+      .filter(([fp]) => String(fp).includes('apr_manifest'));
+    const manifest = JSON.parse(manifestWrites.at(-1)[1]);
+    expect(manifest.entries['7296:65']).toEqual(expect.objectContaining({
+      rejectionReason: 'INVALID_TARGET: Coin and grade combination is not supported',
+      consecutiveRejections: 1,
+      lastRejected: expect.any(String),
+      retryAfter: expect.any(String)
+    }));
+    expect(new Date(manifest.entries['7296:65'].retryAfter).getTime()).toBeGreaterThan(Date.now());
+  });
+
+  it('reports when invalid-target quarantine cannot be persisted', async () => {
+    const { svc, axios, fs } = setupFresh();
+    fs.renameSync.mockImplementation(() => { throw new Error('disk unavailable'); });
+    axios.get.mockResolvedValue({
+      data: { IsValidRequest: false, Message: 'Invalid target' },
+      headers: {}
+    });
+
+    await expect(svc.fetchByGrade(7296, 65)).rejects.toMatchObject({
+      code: 'PCGS_INVALID_RESPONSE',
+      quarantinePersisted: false
+    });
+    expect(fs.unlinkSync).toHaveBeenCalledWith(expect.stringContaining('apr_manifest.json'));
+  });
+
+  it('uses a bounded fallback reason when an invalid response has no details', async () => {
+    const { svc, axios } = setupFresh();
+    axios.get.mockResolvedValue({ data: { IsValidRequest: false }, headers: {} });
+
+    await expect(svc.fetchByGrade(7296, 65)).rejects.toMatchObject({
+      code: 'PCGS_INVALID_RESPONSE',
+      rejectionReason: 'IsValidRequest=false'
+    });
+  });
+
+  it('redacts credentials, email addresses, URL secrets, and control characters', async () => {
+    const { svc, axios } = setupFresh();
+    axios.get.mockResolvedValue({
+      data: {
+        IsValidRequest: false,
+        Message: 'test-key Basic dXNlcjpwYXNz Bearer abc.def token="top secret" access_token=access user@example.com https://pcgs.test/?api_key=hidden\u001b[31m'
+      },
+      headers: {}
+    });
+
+    let rejection;
+    try {
+      await svc.fetchByGrade(7296, 65);
+    } catch (error) {
+      rejection = error;
+    }
+
+    expect(rejection).toMatchObject({
+      code: 'PCGS_INVALID_RESPONSE',
+      rejectionReason: expect.stringContaining('Bearer [REDACTED]')
+    });
+    expect(rejection.rejectionReason).toContain('token=[REDACTED]');
+    expect(rejection.rejectionReason).toContain('Basic [REDACTED]');
+    expect(rejection.rejectionReason).toContain('access_token=[REDACTED]');
+    expect(rejection.rejectionReason).toContain('[REDACTED_EMAIL]');
+    expect(rejection.rejectionReason).toContain('api_key=[REDACTED]');
+    expect(rejection.rejectionReason).not.toMatch(/test-key|dXNlcjpwYXNz|abc\.def|top secret|access user|user@example\.com|hidden/);
+    expect(rejection.rejectionReason).not.toContain(String.fromCharCode(27));
+    expect(rejection.rejectionReason.length).toBeLessThanOrEqual(200);
+  });
+
+  it('caps the combined rejection code and message at 200 characters', async () => {
+    const { svc, axios } = setupFresh();
+    axios.get.mockResolvedValue({
+      data: {
+        IsValidRequest: false,
+        ErrorCode: `CODE-${'C'.repeat(240)}`,
+        Message: `MESSAGE-${'M'.repeat(240)}`
+      },
+      headers: {}
+    });
+
+    let rejection;
+    try {
+      await svc.fetchByGrade(7296, 65);
+    } catch (error) {
+      rejection = error;
+    }
+
+    expect(rejection.code).toBe('PCGS_INVALID_RESPONSE');
+    expect(rejection.rejectionReason.length).toBe(200);
   });
 });
 

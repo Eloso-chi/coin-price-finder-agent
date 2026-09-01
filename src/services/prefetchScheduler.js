@@ -39,6 +39,7 @@ const OBSERVED_UPSTREAM_LIMIT = parseBoundedInteger(
 );
 const STATUS_PATH = path.join(CACHE_DIR, 'prefetch_status.json');
 const ALERT_FAILURE_THRESHOLD = 2;
+const INVALID_RESPONSE_ABORT_THRESHOLD = 5;
 
 // Grades worth fetching APR data for (collectible grades)
 const TARGET_GRADES = [60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70];
@@ -345,6 +346,9 @@ async function executePrefetchRun() {
     unknown:       { attempted: 0, newRecords: 0 }
   };
   const errors = [];
+  const rejectedTargets = [];
+  let invalidResponses = 0;
+  let consecutiveInvalidResponses = 0;
 
   logger.info({ event: 'run_started' }, 'Starting nightly APR prefetch run');
 
@@ -420,6 +424,7 @@ async function executePrefetchRun() {
         const gained = result.newRecords || 0;
         newRecords += gained;
         bucket.newRecords += gained;
+        consecutiveInvalidResponses = 0;
         if (recoveryProbePending) {
           recoveryProbePending = false;
           available = pcgsQuota.getAvailableForPrefetch(RESERVE_CALLS);
@@ -429,19 +434,55 @@ async function executePrefetchRun() {
       } catch (err) {
         callsMade++;
         bucket.attempted++;
-        const errMsg = `${pcgsNo}:${grade} — ${err.message}`;
+        const errMsg = `${pcgsNo}:${grade} - ${err.message}`;
         errors.push(errMsg);
-        // On 429, stop immediately (breaker already tripped by auctionPriceService)
-        if (err.message.includes('429') || err.message.includes('breaker')) {
-          logger.warn({ event: 'rate_limited', callsMade, pcgsNo, grade }, 'Prefetch rate limited');
-          break;
+        if (err.code === 'PCGS_INVALID_RESPONSE') {
+          invalidResponses++;
+          consecutiveInvalidResponses++;
+          rejectedTargets.push({
+            pcgsNo,
+            grade,
+            reason: err.rejectionReason || 'IsValidRequest=false',
+            quarantinePersisted: err.quarantinePersisted !== false
+          });
+          logger.warn({
+            event: 'invalid_response',
+            pcgsNo,
+            grade,
+            reason: err.rejectionReason,
+            consecutiveInvalidResponses
+          }, 'PCGS rejected prefetch target');
+          if (recoveryProbePending) {
+            recoveryProbePending = false;
+            logger.warn({
+              event: 'recovery_probe_failed',
+              pcgsNo,
+              grade,
+              reason: err.rejectionReason
+            }, 'Prefetch recovery probe returned an invalid response');
+            break;
+          }
+          if (invalidResponses >= INVALID_RESPONSE_ABORT_THRESHOLD) {
+            logger.warn({
+              event: 'invalid_response_threshold',
+              invalidResponses,
+              threshold: INVALID_RESPONSE_ABORT_THRESHOLD
+            }, 'Stopping prefetch after excessive invalid PCGS responses');
+            break;
+          }
+        } else {
+          // On 429, stop immediately (breaker already tripped by auctionPriceService)
+          if (err.message.includes('429') || err.message.includes('breaker')) {
+            logger.warn({ event: 'rate_limited', callsMade, pcgsNo, grade }, 'Prefetch rate limited');
+            break;
+          }
+          if (recoveryProbePending) {
+            logger.warn({ err, event: 'recovery_probe_failed', callsMade, pcgsNo, grade }, 'Prefetch recovery probe failed');
+            break;
+          }
+          // On other errors, continue but log
+          logger.warn({ err, event: 'fetch_failed', pcgsNo, grade }, 'Prefetch item failed');
         }
-        if (recoveryProbePending) {
-          logger.warn({ err, event: 'recovery_probe_failed', callsMade, pcgsNo, grade }, 'Prefetch recovery probe failed');
-          break;
-        }
-        // On other errors, continue but log
-        logger.warn({ err, event: 'fetch_failed', pcgsNo, grade }, 'Prefetch item failed');
       }
 
       // Throttle between calls
@@ -474,6 +515,8 @@ async function executePrefetchRun() {
       newRecords,
       perCategory,
       errors: errors.slice(0, 20), // cap stored errors
+      invalidResponses,
+      rejectedTargets: rejectedTargets.slice(0, 20),
       consecutiveFailures,
       nextScheduled: getNextRunTime().toISOString(),
       queueRemaining: Math.max(0, queue.length - callsMade)
@@ -649,6 +692,8 @@ function getSchedulerStatus() {
     lastAttemptStatus: status.lastAttemptStatus || null,
     lastAttemptReason: status.lastAttemptReason || null,
     lastErrors: status.errors || [],
+    lastInvalidResponses: status.invalidResponses || 0,
+    lastRejectedTargets: status.rejectedTargets || [],
     consecutiveFailures: status.consecutiveFailures || 0,
     queueRemaining: status.queueRemaining || 0,
     quota: {
