@@ -1,4 +1,4 @@
-# Background Processes & Automation Status (refreshed 2026-08-12 for #282W/#285H)
+# Background Processes & Automation Status (refreshed 2026-09-01 for #310H)
 
 ## Working Processes ✓
 
@@ -17,6 +17,7 @@
   - Production validation remains open for three consecutive nightly runs without the prior one-call-then-429 pattern.
 - **Observed-limit safety follow-up (#285H, 2026-08-13):** Numeric `X-RateLimit-Limit` and `X-RateLimit-Remaining` values from 429 responses are persisted and exposed in status. Nightly prefetch is temporarily bounded by `PCGS_PREFETCH_OBSERVED_LIMIT=100` minus the 10-call reserve, for a fresh-run maximum of 90 calls; the shared published entitlement remains 1,000.
 - **Alerting (#282W/#285H, 2026-08-13):** Partial and fatal runs share a two-run alert gate and neutral "degraded" wording. Completed runs reset the streak; ACS delivery and fallback logs share one-hour per-topic burst limiting.
+- **Invalid-response protection (#310H, 2026-09-01):** HTTP-success APR payloads with `IsValidRequest !== true` are classified as failures with bounded rejection details. A rejected `pcgsNo:grade` target is quarantined from automatic queueing for 30 days, five invalid responses anywhere in one run stop it, and an invalid recovery probe stops after its one bounded call. `/api/admin/prefetch-status` exposes `lastInvalidResponses` and capped `lastRejectedTargets`; production validation remains pending.
 - **Code:** src/services/prefetchScheduler.js, .github/workflows/nightly-prefetch.yml
 
 ### 2. Metals Spot Price Polling

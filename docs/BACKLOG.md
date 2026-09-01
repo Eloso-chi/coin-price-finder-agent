@@ -4373,6 +4373,31 @@ Gated on data: run pricing-health across a Reverse-Proof slate (2023 RP Morgan, 
 
 ---
 
+### #310H. PCGS APR invalid-response quarantine and nightly fail-fast observability [P1 -- DATA-AVAILABILITY / OPERATIONS] -- IMPLEMENTED / PRODUCTION VALIDATION PENDING 2026-09-01
+
+**Origin:** Read-only production audit on 2026-09-01. The latest nightly run consumed all 90 available calls but stored zero records, added zero records, and updated no manifest entries. Production held 18,135 valid cached auction records, but its newest auction month was May 2026; only five targets were refreshed in August, all with zero records. This is distinct from #285H: HTTP 429 cooldown recovery is working, while HTTP-success payloads with `IsValidRequest !== true` were silently treated as successful empty results.
+
+**Problem:** `auctionPriceService.fetchByGrade()` returned an empty result for invalid PCGS payloads without preserving a rejection reason or refreshing the manifest. The scheduler consequently reported `completed`, left the same target stale, and could spend the next nightly budget retrying the same unusable request. A broad upstream contract or authorization problem could consume the entire observed budget without becoming an error.
+
+**Implemented approach:**
+1. Convert missing or `IsValidRequest !== true` APR payloads into classified `PCGS_INVALID_RESPONSE` errors carrying only bounded, whitespace-normalized `ErrorCode`/`Code` and `ErrorMessage`/`Message`/`Error`/`StatusMessage` details.
+2. Persist `lastRejected`, `rejectionReason`, `consecutiveRejections`, and `retryAfter` on the affected `pcgsNo:grade` manifest entry. The 30-day quarantine prevents queue reconstruction from immediately selecting the same rejected target; an explicit forced fetch can still probe it, and a later valid response replaces the rejection metadata.
+3. Count invalid responses as run errors, expose `lastInvalidResponses` and capped `lastRejectedTargets` through `/api/admin/prefetch-status`, and stop after five invalid responses in one run so intermittent successes or transport failures cannot hide a predominantly invalid run. An invalid recovery probe stops after its single bounded call.
+
+**Acceptance criteria:**
+- Invalid PCGS payloads cannot produce a successful empty result or a `completed` nightly run.
+- Rejection details are bounded and contain no raw payload, authorization header, or API key.
+- A rejected target is excluded from automatic queueing until its retry time, while forced operator fetches remain possible.
+- Five invalid responses in one run stop the current run, and an invalid recovery probe stops after one call.
+- Focused auction-service and scheduler tests, canonical `npm test`, ESLint, deep review, and commit-tied Onboard acceptance pass.
+- Production validation confirms the next invalid-payload incident consumes no more than five rejected calls and exposes actionable rejection details.
+
+**Files:** `src/services/auctionPriceService.js`, `src/services/prefetchScheduler.js`, focused Jest tests, `docs/ARCHITECTURE.md`, `docs/api-reference.md`, `docs/data-dictionary.md`, and `docs/memory/background-processes-status.md`.
+
+**Tier:** M. Changes a persisted manifest schema, service error contract, public admin response shape, and nightly operational behavior.
+
+---
+
 ## UX, Accessibility, and Interaction
 
 ### #303H. Critical authentication accessibility: keyboard mode controls, admin labels, and field errors [P0 -- ACCESSIBILITY / WCAG] -- DONE 2026-08-31

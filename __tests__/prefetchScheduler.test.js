@@ -192,6 +192,70 @@ describe('prefetchScheduler — executePrefetchRun', () => {
     expect(mockStatusStore.errors.length).toBeGreaterThan(0);
   });
 
+  test('stops after five consecutive invalid responses and reports rejected targets', async () => {
+    pcgsQuota.getAvailableForPrefetch.mockReturnValue(20);
+    auctionPrice.fetchByGrade.mockImplementation(async () => {
+      const error = new Error('PCGS rejected APR request: INVALID_TARGET');
+      error.code = 'PCGS_INVALID_RESPONSE';
+      error.rejectionReason = 'INVALID_TARGET';
+      throw error;
+    });
+
+    await scheduler.executePrefetchRun();
+
+    expect(auctionPrice.fetchByGrade).toHaveBeenCalledTimes(5);
+    expect(mockStatusStore.status).toBe('partial');
+    expect(mockStatusStore.invalidResponses).toBe(5);
+    expect(mockStatusStore.rejectedTargets).toHaveLength(5);
+    expect(mockStatusStore.rejectedTargets[0]).toEqual(expect.objectContaining({
+      pcgsNo: expect.any(Number),
+      grade: expect.any(Number),
+      reason: 'INVALID_TARGET'
+    }));
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.objectContaining({ event: 'invalid_response_threshold', threshold: 5 }),
+      expect.stringContaining('Stopping prefetch')
+    );
+  });
+
+  test('stops after five total invalid responses even when a valid response intervenes', async () => {
+    pcgsQuota.getAvailableForPrefetch.mockReturnValue(7);
+    let call = 0;
+    auctionPrice.fetchByGrade.mockImplementation(async () => {
+      call++;
+      if (call === 5) return { records: [{ price: 50 }], newRecords: 1 };
+      const error = new Error('PCGS rejected APR request: INVALID_TARGET');
+      error.code = 'PCGS_INVALID_RESPONSE';
+      error.rejectionReason = 'INVALID_TARGET';
+      throw error;
+    });
+
+    await scheduler.executePrefetchRun();
+
+    expect(auctionPrice.fetchByGrade).toHaveBeenCalledTimes(6);
+    expect(mockStatusStore.invalidResponses).toBe(5);
+    expect(mockStatusStore.status).toBe('partial');
+  });
+
+  test('preserves invalid-response fail-fast across an ordinary timeout', async () => {
+    pcgsQuota.getAvailableForPrefetch.mockReturnValue(10);
+    let call = 0;
+    auctionPrice.fetchByGrade.mockImplementation(async () => {
+      call++;
+      if (call === 5) throw new Error('upstream timeout');
+      const error = new Error('PCGS rejected APR request: INVALID_TARGET');
+      error.code = 'PCGS_INVALID_RESPONSE';
+      error.rejectionReason = 'INVALID_TARGET';
+      throw error;
+    });
+
+    await scheduler.executePrefetchRun();
+
+    expect(auctionPrice.fetchByGrade).toHaveBeenCalledTimes(6);
+    expect(mockStatusStore.invalidResponses).toBe(5);
+    expect(mockStatusStore.errors).toHaveLength(6);
+  });
+
   test('alerts when a partial run raises the failure streak to 2', async () => {
     mockStatusStore = { consecutiveFailures: 1 };
     pcgsQuota.getAvailableForPrefetch.mockReturnValue(3);
@@ -245,6 +309,26 @@ describe('prefetchScheduler — executePrefetchRun', () => {
     expect(auctionPrice.fetchByGrade).toHaveBeenCalledTimes(4);
     expect(mockStatusStore.status).toBe('completed');
     expect(mockStatusStore.callsMade).toBe(4);
+  });
+
+  test('stops after one invalid recovery probe response', async () => {
+    pcgsQuota.isRecoveryProbeRequired.mockReturnValue(true);
+    pcgsQuota.getAvailableForPrefetch.mockReturnValue(1);
+    const error = new Error('PCGS rejected APR request: INVALID_TARGET');
+    error.code = 'PCGS_INVALID_RESPONSE';
+    error.rejectionReason = 'INVALID_TARGET';
+    error.quarantinePersisted = true;
+    auctionPrice.fetchByGrade.mockRejectedValue(error);
+
+    await scheduler.executePrefetchRun();
+
+    expect(auctionPrice.fetchByGrade).toHaveBeenCalledTimes(1);
+    expect(mockStatusStore.status).toBe('partial');
+    expect(mockStatusStore.invalidResponses).toBe(1);
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.objectContaining({ event: 'recovery_probe_failed' }),
+      expect.stringContaining('invalid response')
+    );
   });
 
   test('does not expand past the observed budget after a recovery probe', async () => {
@@ -347,7 +431,25 @@ describe('prefetchScheduler — getSchedulerStatus', () => {
         prefetchBudgetRemaining: 80,
       }),
       upstreamAvailability: expect.any(String),
+      lastInvalidResponses: 0,
+      lastRejectedTargets: [],
     });
+  });
+
+  test('exposes invalid-response details from the last run', () => {
+    mockStatusStore = {
+      invalidResponses: 2,
+      rejectedTargets: [
+        { pcgsNo: 7296, grade: 65, reason: 'INVALID_TARGET' }
+      ]
+    };
+
+    const status = scheduler.getSchedulerStatus();
+
+    expect(status.lastInvalidResponses).toBe(2);
+    expect(status.lastRejectedTargets).toEqual([
+      { pcgsNo: 7296, grade: 65, reason: 'INVALID_TARGET' }
+    ]);
   });
 
   test('reflects quota breaker state', () => {

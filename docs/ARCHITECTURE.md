@@ -1245,6 +1245,27 @@ The safety-net "no quota available" skip write no longer overwrites
 in-process run at 23:00 PT keeps `lastStatus: 'completed'` even after the
 GH Actions safety-net races into the same day.
 
+**Invalid APR response handling (#310H, 2026-09-01)**
+
+An HTTP-success APR payload is usable only when `IsValidRequest === true`.
+Missing or explicitly invalid payloads raise a classified
+`PCGS_INVALID_RESPONSE` error rather than masquerading as an empty successful
+result. Only bounded, whitespace-normalized rejection code/message fields are
+retained; raw responses and request credentials are never persisted.
+
+The affected `apr_manifest.json` entry records `lastRejected`,
+`rejectionReason`, `consecutiveRejections`, and a 30-day `retryAfter` time.
+`needsRefresh()` excludes the target during that quarantine, while a forced
+admin fetch can still probe it. A valid response replaces the manifest entry
+and therefore clears its rejection state. The nightly scheduler treats each
+rejection as an error, records capped target details in `prefetch_status.json`,
+and aborts after five invalid responses in one run, even when valid responses
+or transport errors intervene. An invalid cooldown-recovery probe remains a
+failed probe and stops after that one call. Manifest replacements use an atomic
+temporary-file rename; status marks `quarantinePersisted: false` if that write
+fails. These boundaries protect the remaining nightly quota when PCGS has a
+systemic contract or authorization failure.
+
 ---
 
 ## Statistics Module

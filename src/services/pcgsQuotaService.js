@@ -165,16 +165,27 @@ function syncFromHeaders(remaining, limit) {
  * Record a PCGS API call (local tracking fallback).
  * @param {string} source - 'coinfacts' | 'apr' | 'prefetch'
  * @param {string} [note] - optional description
+ * @param {object} [options]
+ * @param {boolean} [options.recoverySucceeded=true] - false for semantically invalid probe responses
  */
-function recordCall(source = 'coinfacts', note = '') {
+function recordCall(source = 'coinfacts', note = '', options = {}) {
   const state = loadState();
-  if (state.upstreamCooldown?.lastProbeOutcome === 'in-flight') {
+  const recoverySucceeded = options.recoverySucceeded !== false;
+  if (state.upstreamCooldown?.lastProbeOutcome === 'in-flight' && recoverySucceeded) {
     state.lastRecoveryProbe = {
       at: state.upstreamCooldown.lastProbeAt,
       outcome: 'succeeded'
     };
   }
-  clearUpstreamCooldown(state);
+  if (state.upstreamCooldown?.lastProbeOutcome === 'in-flight' && !recoverySucceeded) {
+    state.upstreamCooldown.lastProbeOutcome = 'failed';
+    state.lastRecoveryProbe = {
+      at: state.upstreamCooldown.lastProbeAt,
+      outcome: 'failed'
+    };
+  } else if (recoverySucceeded) {
+    clearUpstreamCooldown(state);
+  }
   state.used += 1;
   state.remaining = Math.max(0, state.limit - state.used);
 

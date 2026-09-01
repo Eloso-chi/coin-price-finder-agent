@@ -62,6 +62,32 @@ load so they cannot expand the nightly prefetch budget.
 
 ---
 
+### cache/apr_manifest.json
+
+Tracks PCGS APR freshness and rejected-target quarantine state by
+`pcgsNo:grade`. A valid response writes `lastFetched`, `records`, and
+`freshUntil`. An invalid response preserves existing record metadata and adds
+the following public operational fields:
+
+| Field | Type | Privacy | Notes |
+|-------|------|---------|-------|
+| `lastRejected` | ISO 8601 | Public | Time PCGS last returned an unusable payload for this target |
+| `rejectionReason` | string, max 200 characters | Public | Whitespace-normalized allowlist of PCGS rejection code/message fields; never a raw payload |
+| `consecutiveRejections` | positive integer | Public | Same-reason rejection count, reset to 1 when the reason changes |
+| `retryAfter` | ISO 8601 | Public | Automatic queue exclusion boundary, 30 days after the latest rejection |
+
+A later valid forced or scheduled fetch replaces the entry with normal
+freshness metadata and clears these rejection fields.
+
+### cache/prefetch_status.json
+
+The last real nightly run includes `invalidResponses` and a maximum of 20
+`rejectedTargets` entries. Each rejected target contains only `pcgsNo`, `grade`,
+the bounded `reason`, and boolean `quarantinePersisted`. The admin status projection exposes these as
+`lastInvalidResponses` and `lastRejectedTargets`.
+
+---
+
 ### cache/users.json
 
 Keyed by username (lowercased, alphanumeric + `-_.`, max 50 chars). Structure:
