@@ -1359,6 +1359,22 @@
             </select>
             <span class="hint">Select when a series, such as Maple Leaf, is issued in multiple metals.</span>
           </div>
+          <div class="field" style="margin-top:14px">
+            <label for="coinSpecialMark">Special mark / privy</label>
+            <select id="coinSpecialMark" aria-describedby="coinSpecialMark-hint">
+              <option value="unspecified">Not specified</option>
+              <option value="standard">Standard issue (no special mark)</option>
+              <option value="unknown">My mark is not listed</option>
+            </select>
+            <span class="hint" id="coinSpecialMark-hint">Known marks are filtered by series, year, metal, weight, mint, and finish. Security devices and mintmarks are not privies.</span>
+            <span class="hint" id="coinSpecialMark-status" role="status" aria-live="polite"></span>
+            <div class="field" id="coinVariantDetailRow" style="display:none;margin-top:8px">
+              <label for="coinVariantDetail">Unlisted mark name or inscription</label>
+              <input id="coinVariantDetail" type="text" maxlength="50" autocomplete="off" aria-describedby="coinVariantDetail-hint coinVariantDetail-error">
+              <span class="hint" id="coinVariantDetail-hint">The mark remains unverified and will never inherit a known privy premium.</span>
+              <div class="field-error-msg" id="coinVariantDetail-error" role="alert">Enter the visible mark name or inscription</div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1396,7 +1412,6 @@
               <optgroup label="Specialty Variants">
                 <option value="Colorized">Colorized</option>
                 <option value="Gilded">Gilded</option>
-                <option value="Privy">Privy</option>
                 <option value="High Relief">High Relief</option>
                 <option value="Antiqued">Antiqued</option>
                 <option value="Burnished">Burnished</option>
@@ -1415,12 +1430,6 @@
               </optgroup>
             </select>
             <span class="hint">Specialty variant routes to a separate Terapeak dataset for that variant. Finishes (Proof, Reverse Proof, etc.) live in the Finish dropdown.</span>
-            <div class="field" id="coinVariantDetailRow" style="display:none;margin-top:8px">
-              <label for="coinVariantDetail">Privy name or mark</label>
-              <input id="coinVariantDetail" type="text" maxlength="50" placeholder="e.g. EMC2 or Titanic" autocomplete="off" aria-describedby="coinVariantDetail-hint coinVariantDetail-error">
-              <span class="hint" id="coinVariantDetail-hint">Required to isolate a specific privy from other privy-marked coins.</span>
-              <div class="field-error-msg" id="coinVariantDetail-error" role="alert">Enter the specific privy name or mark</div>
-            </div>
           </div>
           <div class="field">
             <label for="askingPrice">Asking Price</label>
@@ -2874,6 +2883,11 @@ Silver Libertad 1 oz Proof"></textarea>
    * ═══════════════════════════════════════════════════════════ */
   const CoinForm = {
     mode: 'structured',   // 'structured' | 'quick'
+    specialMarkRequestId: 0,
+    specialMarkSelectionRevision: 0,
+    specialMarksLoading: false,
+    specialMarkCache: new Map(),
+    specialMarkContextKey: null,
 
     els: {},
 
@@ -2892,6 +2906,8 @@ Silver Libertad 1 oz Proof"></textarea>
         grade:         document.getElementById('coinGrade'),
         coinFinish:    document.getElementById('coinFinish'),
         coinMetal:     document.getElementById('coinMetal'),
+        specialMark:   document.getElementById('coinSpecialMark'),
+        specialMarkStatus: document.getElementById('coinSpecialMark-status'),
         coinSilver:    document.getElementById('coinSilver'),
         silverLabel:   document.getElementById('silverCheckLabel'),
         coinLabel:     document.getElementById('coinLabel'),
@@ -2948,7 +2964,7 @@ Silver Libertad 1 oz Proof"></textarea>
 
     /* ── Live query preview ───────────────────────────────── */
     _bindPreview() {
-      const fields = ['coinName','coinYear','coinMint','grade','coinMetal','variantDetail','coinWeight','setType'];
+      const fields = ['coinName','coinYear','coinMint','grade','coinMetal','specialMark','variantDetail','coinWeight','setType'];
       fields.forEach(k => {
         const el = this.els[k];
         if (!el) return;
@@ -3041,30 +3057,121 @@ Silver Libertad 1 oz Proof"></textarea>
       // user-selected non-Proof finish like Reverse Proof.
       this.els.grade.addEventListener('input', () => {
         const g = this.els.grade.value.trim();
+        let finishChanged = false;
         if (/^(PF|PR)[-\s]?\d/i.test(g) && !this.els.coinFinish.value) {
           this.els.coinFinish.value = 'Proof';
+          finishChanged = true;
         }
         this._updateSilverVisibility();
+        if (finishChanged) this._updateSpecialMarkOptions();
         this._updatePreview();
       });
       this.els.coinFinish.addEventListener('change', () => {
         this._updateSilverVisibility();
+        this._updateSpecialMarkOptions();
         this._updatePreview();
       });
       this.els.coinLabel.addEventListener('change', () => {
-        const isPrivy = this.els.coinLabel.value === 'Privy';
-        this.els.variantDetailRow.style.display = isPrivy ? '' : 'none';
-        this.els.variantDetail.required = isPrivy;
-        this.els.variantDetail.setAttribute('aria-required', String(isPrivy));
-        if (!isPrivy) {
+        this._updatePreview();
+      });
+      this.els.specialMark.addEventListener('change', () => {
+        this.specialMarkSelectionRevision++;
+        const unknown = this.els.specialMark.value === 'unknown';
+        this.els.variantDetailRow.style.display = unknown ? '' : 'none';
+        this.els.variantDetail.required = unknown;
+        this.els.variantDetail.setAttribute('aria-required', String(unknown));
+        if (!unknown) {
           this.els.variantDetail.value = '';
           this.els.variantDetail.removeAttribute('aria-invalid');
-          this.els.variantDetailRow.classList.remove('has-error');
+          this.els.variantDetail.closest('.field').classList.remove('has-error');
         }
         this._updatePreview();
       });
+      const refreshMarks = () => this._updateSpecialMarkOptions();
+      this.els.coinName.addEventListener('change', refreshMarks);
+      this.els.coinYear.addEventListener('change', refreshMarks);
+      this.els.coinMetal.addEventListener('change', refreshMarks);
+      this.els.coinMint.addEventListener('change', refreshMarks);
+      this.els.coinWeight.addEventListener('change', refreshMarks);
       this.els.coinYear.addEventListener('input', () => this._updateSilverVisibility());
       this.els.coinSilver.addEventListener('change', () => this._updatePreview());
+      this._updateSpecialMarkOptions();
+    },
+
+    async _updateSpecialMarkOptions() {
+      const select = this.els.specialMark;
+      if (!select) return;
+      const requestId = ++this.specialMarkRequestId;
+      const previous = select.value;
+      const selectionRevision = this.specialMarkSelectionRevision;
+      const params = new URLSearchParams({
+        program: this.els.coinName.value.trim(),
+        year: this.els.coinYear.value.trim(),
+        metal: this.els.coinMetal.value,
+        weight: this._structuredWeight(this.els.coinName.value.trim()) || '',
+        finish: this.els.coinFinish.value,
+        mint: this.els.coinMint.value.trim().toUpperCase(),
+      });
+      const cacheKey = params.toString();
+      this.specialMarksLoading = true;
+      select.setAttribute('aria-busy', 'true');
+      if (this.els.specialMarkStatus) this.els.specialMarkStatus.textContent = 'Loading applicable special marks';
+      try {
+        let data = this.specialMarkCache.get(cacheKey);
+        if (!data) {
+          const response = await fetch('/api/special-marks?' + cacheKey);
+          if (!response.ok) throw new Error('lookup failed');
+          data = await response.json();
+          this.specialMarkCache.set(cacheKey, data);
+        }
+        if (requestId !== this.specialMarkRequestId) return;
+        const currentSelection = select.value;
+        select.querySelectorAll('option[data-registry-mark]').forEach(option => option.remove());
+        (data.marks || []).forEach(mark => {
+          const option = document.createElement('option');
+          option.value = mark.markId;
+          option.textContent = mark.canonicalName + ' (' + mark.kind + ')';
+          option.dataset.registryMark = 'true';
+          option.dataset.canonicalName = mark.canonicalName;
+          select.insertBefore(option, select.querySelector('option[value="unknown"]'));
+        });
+        const preferredSelection = selectionRevision === this.specialMarkSelectionRevision
+          ? previous
+          : currentSelection;
+        const selectionStillApplies = [...select.options].some(option => option.value === preferredSelection);
+        select.value = selectionStillApplies ? preferredSelection : 'unspecified';
+        this.specialMarkContextKey = cacheKey;
+        if (this.els.specialMarkStatus) {
+          const count = (data.marks || []).length;
+          this.els.specialMarkStatus.textContent = count
+            ? `${count} applicable special mark${count === 1 ? '' : 's'} available`
+            : 'No registered special marks apply';
+          if (!selectionStillApplies && preferredSelection !== 'unspecified') {
+            this.els.specialMarkStatus.textContent += '; the previous selection no longer applies';
+          }
+        }
+        this._updatePreview();
+      } catch (_) {
+        if (requestId === this.specialMarkRequestId && this.els.specialMarkStatus) {
+          this.els.specialMarkStatus.textContent = 'Special marks could not be loaded. Try again.';
+        }
+      } finally {
+        if (requestId === this.specialMarkRequestId) {
+          this.specialMarksLoading = false;
+          select.removeAttribute('aria-busy');
+        }
+      }
+    },
+
+    _currentSpecialMarkContextKey() {
+      return new URLSearchParams({
+        program: this.els.coinName.value.trim(),
+        year: this.els.coinYear.value.trim(),
+        metal: this.els.coinMetal.value,
+        weight: this._structuredWeight(this.els.coinName.value.trim()) || '',
+        finish: this.els.coinFinish.value,
+        mint: this.els.coinMint.value.trim().toUpperCase(),
+      }).toString();
     },
 
     /* ── Silver checkbox show/hide logic ──────────────────── */
@@ -3100,6 +3207,9 @@ Silver Libertad 1 oz Proof"></textarea>
       const metal = this.els.coinMetal.value || '';
       const label = this.els.coinLabel.value || '';
       const variantDetail = this.els.variantDetail.value.trim();
+      const specialMarkValue = this.els.specialMark.value;
+      const selectedMark = this.els.specialMark.selectedOptions[0];
+      const specialMarkName = selectedMark?.dataset.canonicalName || '';
       const weight = this._structuredWeight(name);
       const isSet = this._isSetName(name);
 
@@ -3129,8 +3239,8 @@ Silver Libertad 1 oz Proof"></textarea>
             parts.push(finish);
           }
         }
-        if (label === 'Privy') {
-          if (variantDetail) parts.push(variantDetail);
+        if (specialMarkName || specialMarkValue === 'unknown') {
+          if (specialMarkName || variantDetail) parts.push(specialMarkName || variantDetail);
           parts.push('Privy');
         }
         if (weight) {
@@ -3158,6 +3268,13 @@ Silver Libertad 1 oz Proof"></textarea>
     validate() {
       let valid = true;
       let firstInvalid = null;
+      const currentMarkContextKey = this._currentSpecialMarkContextKey();
+      if (this.specialMarksLoading || this.specialMarkContextKey !== currentMarkContextKey) {
+        if (!this.specialMarksLoading) this._updateSpecialMarkOptions();
+        if (this.els.specialMarkStatus) this.els.specialMarkStatus.textContent = 'Wait for applicable special marks to finish loading';
+        firstInvalid = this.els.specialMark;
+        valid = false;
+      }
       // Coin Name
       const nameField = this.els.coinName.closest('.field');
       if (!this.els.coinName.value.trim()) {
@@ -3183,7 +3300,7 @@ Silver Libertad 1 oz Proof"></textarea>
       }
       // Specific privy detail
       const variantField = this.els.variantDetail.closest('.field');
-      if (this.els.coinLabel.value === 'Privy' && !this.els.variantDetail.value.trim()) {
+      if (this.els.specialMark.value === 'unknown' && !this.els.variantDetail.value.trim()) {
         variantField.classList.add('has-error');
         this.els.variantDetail.setAttribute('aria-invalid', 'true');
         if (!firstInvalid) firstInvalid = this.els.variantDetail;
@@ -3246,7 +3363,12 @@ Silver Libertad 1 oz Proof"></textarea>
           finish:         this.els.coinFinish.value || null,
           composition:    this.els.coinMetal.value || (this.els.coinSilver.checked ? 'silver' : null),
           label:          this.els.coinLabel.value || null,
-          variantDetail:  this.els.coinLabel.value === 'Privy' ? (this.els.variantDetail.value.trim() || null) : null,
+          specialMarkMode: this.els.specialMark.value === 'standard' ? 'standard'
+            : this.els.specialMark.value === 'unknown' ? 'unknown'
+            : this.els.specialMark.value === 'unspecified' ? 'unspecified' : 'exact',
+          specialMarks:   !['standard', 'unknown', 'unspecified'].includes(this.els.specialMark.value)
+            ? [{ markId: this.els.specialMark.value }] : [],
+          variantDetail:  this.els.specialMark.value === 'unknown' ? (this.els.variantDetail.value.trim() || null) : null,
           weight:         this._structuredWeight(this.els.coinName.value.trim()),
           setType:        this._isSetName(this.els.coinName.value.trim()) ? this.els.setType.value : null,
           pcgsNumber:     this.els.pcgsNumber.value.trim() || null

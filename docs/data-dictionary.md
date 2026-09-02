@@ -24,7 +24,11 @@ exposure is disabled.
 | `/api/pricing-batch` result | `confidence`, `lowData`, `compCount`, `method`, `explanation`, `dataSource`, `gradePool` | Preserves the shared valuation contract for each item | A one-sold-comp result includes a `SINGLE-COMP ESTIMATE` explanation |
 | `/api/bulk-evaluate` per-coin result | `confidence`, `lowData`, `compCount`, `method`, `explanation`, `dataSource`, `gradePool` | Public jobs preserve the shared contract; anonymous poll, replay, and live access to admin-origin jobs redacts `explanation` to `[]` | Bulk caches are audience-isolated because explanations differ for public and admin callers |
 | `/api/ai/price` provenance valuation | `confidence`, `lowData`, `compCount`, `method`, `dataSource`, `compositeBasis`, `warning` | Deterministic and LLM-backed responses expose structured low-data and composite disclosure | `warning` is non-null for one-sold-comp and cross-year-composite estimates |
-| `/api/price` reproducibility identity | `series`, `year`, `mint`, `metal`, `nominalWeightOz`, `finish`, `designation`, `pool`, `weightEvidence`, `parserVersion` | Public-safe canonical target used for deterministic pricing | `weightEvidence.status` is `none`, `single`, or `ambiguous`; successful valuations never contain ambiguous identity |
+| `/api/price` reproducibility identity | `series`, `year`, `mint`, `metal`, `nominalWeightOz`, `finish`, `designation`, `specialMarkMode`, `specialMarks`, `pool`, `weightEvidence`, `parserVersion` | Public-safe canonical target used for deterministic pricing | Each registered mark exposes stable `markId`, canonical name, kind, issuer, official status, source references, and registry version; successful valuations never contain ambiguous identity |
+
+## Special Marks Registry
+
+`src/data/specialMarksRegistry.js` is the versioned source of truth for supported official privies and commemorative marks. A record includes `markId`, canonical name, aliases, issuer, programs, kind, applicable years, metals, weights, denominations, finishes, optional mintmarks, official status, authoritative source references, and verification date. Public registry responses omit matching aliases but retain provenance. Mintmarks, annual designs, security devices, surface treatments, and aftermarket alterations are separate identity concepts and are not admitted as official special marks.
 
 `gradePool.compositeBasis` contains `usedCohort`, `cohortYears`, `cohortCompCount`, `exactYearCompCount`, and `populationGateApplied`. It is present only when cohort comps contribute to FMV.
 

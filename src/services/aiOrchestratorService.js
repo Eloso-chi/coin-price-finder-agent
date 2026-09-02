@@ -11,10 +11,13 @@ const COIN_DATA_SCHEMA = {
   additionalProperties: false,
   properties: {
     name: { type: 'string', maxLength: 200 }, year: { anyOf: [{ type: 'string', pattern: '^[1-9][0-9]{0,3}$' }, { type: 'integer', minimum: 1, maximum: 9999 }] },
-    mint: { type: 'string', maxLength: 10 }, grade: { type: 'string', maxLength: 30 },
+    mint: { type: 'string', maxLength: 10 }, mintMark: { type: 'string', maxLength: 10 }, grade: { type: 'string', maxLength: 30 },
     finish: { type: 'string', maxLength: 100 }, designation: { type: 'string', maxLength: 30 },
     composition: { type: 'string', maxLength: 50 }, isProof: { type: 'boolean' },
     coa: { type: 'boolean' }, originalBox: { type: 'boolean' },
+    specialMarkMode: { enum: ['unspecified', 'standard', 'exact', 'unknown'] },
+    specialMarks: { type: 'array', maxItems: 1, items: { type: 'object', additionalProperties: false, required: ['markId'], properties: { markId: { type: 'string', maxLength: 100, pattern: '^[a-z0-9]+(?:[.-][a-z0-9]+)*$' } } } },
+    variantDetail: { type: 'string', maxLength: 50 },
   },
 };
 const OPTIONS_SCHEMA = {
@@ -112,7 +115,7 @@ function explanationIsGrounded(text, toolResults) {
   return numbers.every(number => financialEvidence.includes(number));
 }
 
-async function orchestrate({ query, context = [], trustedContext = {}, provider, registry, userMessage }) {
+async function orchestrate({ query, context = [], trustedContext = {}, provider, registry, userMessage, structuredInput }) {
   const activeProvider = provider || createLlmProvider();
   const activeRegistry = registry || createToolRegistry();
   if (!activeProvider.enabled) throw new Error('LLM provider is disabled');
@@ -159,6 +162,17 @@ async function orchestrate({ query, context = [], trustedContext = {}, provider,
         args = JSON.parse(call?.function?.arguments || '{}');
       } catch {
         throw new Error('LLM returned malformed tool arguments');
+      }
+      if ((name === 'price_coin' || name === 'evaluate_purchase') && structuredInput) {
+        const suppliedStructuredInput = Object.fromEntries(
+          Object.entries(structuredInput).filter(([, value]) => value !== undefined)
+        );
+        args = {
+          ...args,
+          ...suppliedStructuredInput,
+          query: args.query || structuredInput.query,
+          coinData: structuredInput.coinData || args.coinData,
+        };
       }
       const rawResult = await activeRegistry.execute(name, args, trustedContext);
       const safeResult = publicToolResult(name, rawResult, trustedContext.isAdmin);

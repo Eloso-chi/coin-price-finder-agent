@@ -29,7 +29,7 @@ This is an active project with clear contributor expectations:
 - **[CONTRIBUTING.md](CONTRIBUTING.md)** — Local setup, testing rules, branching strategy, per-machine backlog ID convention (W/H), PR process, required review gates
 - **[SECURITY.md](SECURITY.md)** — Vulnerability reporting policy, response SLAs, coordinated disclosure
 - **[LICENSE](LICENSE)** — Proprietary All Rights Reserved (aligns with `UNLICENSED` in package.json; public GitHub visibility does not grant reuse rights)
-- **[docs/api-reference.md](docs/api-reference.md)** -- Complete HTTP endpoint reference across all 18 route modules
+- **[docs/api-reference.md](docs/api-reference.md)** -- Complete HTTP endpoint reference across all 19 route modules
 - **[docs/data-dictionary.md](docs/data-dictionary.md)** — Critical data stores, schemas, and privacy classifications
 
 See also [BACKLOG.md](docs/BACKLOG.md) (roadmap) and [.github/copilot-instructions.md](.github/copilot-instructions.md) (testing & code conventions).
@@ -51,7 +51,7 @@ The browser UI is a single-page app served from `public/index.html` with a dark 
 
 | Tab | Description |
 |-----|-------------|
-| **Price Discovery** | Main search -- two sub-modes: Coin (structured or quick-search entry) and Bar/Bullion. Structured Coin mode offers Auto/Silver/Gold/Platinum/Palladium metal selection for multi-metal world-bullion series and retains the conditional "Silver" checkbox for post-1992 US proof denominations (Kennedy, Washington, Roosevelt, etc.) to differentiate silver vs clad proofs. Selecting Privy requires the exact privy name or mark (for example, EMC2); `composition` and `variantDetail` are preserved through `/api/price`, and exact privy comps remain isolated within the requested Proof or Reverse Proof pool. Bar mode has a dynamic series dropdown (populated from `GET /api/bar-price/options`) that filters by selected brand -- 7 brands with 40+ series (Geiger Edelmetalle, PAMP Fortuna, Coca-Cola, 12 Zodiac signs, Perth Lunar, Scottsdale, Valcambi, Heraeus, Credit Suisse). Submits to `/api/price` or `/api/bar-price`. Renders FMV, confidence, decisions, metadata, comps, and explicit single-comp or nearby-year composite warnings. |
+| **Price Discovery** | Main search -- two sub-modes: Coin (structured or quick-search entry) and Bar/Bullion. Structured Coin mode offers Auto/Silver/Gold/Platinum/Palladium metal selection for multi-metal world-bullion series and retains the conditional "Silver" checkbox for post-1992 US proof denominations. The Special mark / privy selector loads registry-backed choices filtered by series, year, metal, weight, mint, and finish; users can explicitly select a standard issue or describe an unlisted mark, which remains unverified. Exact marked comps remain isolated within the requested Proof or Reverse Proof pool. Bar mode has a dynamic series dropdown populated from `GET /api/bar-price/options`. Submits to `/api/price` or `/api/bar-price` and renders FMV, confidence, decisions, metadata, comps, and explicit low-data warnings. |
 | **AI Pricing** | Optional deterministic conversational pricing through `POST /api/ai/price`, with public-safe provenance, algorithm/config versions, ambiguity handling, structured-to-conversation handoff, and an explicit warning when an estimate rests on one sold comp. Authenticated My Coins users can request collection summaries through `POST /api/ai/collection`; bounded market coverage, comparison, and year-series analytics are available through `POST /api/ai/market`. |
 | **Melt Calculator** | Offline calculator for 80+ US coin types and 20 bar sizes. Auto-fetches spot prices from `/api/metals` and polls every 5 minutes. Shows per-coin, per-roll, and total melt values at spot and spot+premium. Quantity minimum enforced at 1. |
 | **Live eBay Tracker** | Market matrix from `/api/market/ebay`. Three display modes: Year × Mint (numismatic coins), Year × Grade (bullion), and Brand table (bars). Cells show median sold price, cheapest BIN link, key date badge, and Numista rarity. Color-coded legend. |
@@ -364,11 +364,12 @@ If an asking price is provided:
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `POST` | `/api/price` | Price a coin; structured `coinData` supports explicit `composition` and exact `variantDetail`, with specific privy comps isolated inside the requested Proof or Reverse Proof pool |
+| `POST` | `/api/price` | Price a coin; structured `coinData` supports registry-backed `specialMarks`, `specialMarkMode`, and backward-compatible unlisted `variantDetail` |
 | `POST` | `/api/bar-price` | Price a bullion bar |
 | `POST` | `/api/pricing-batch` | Batch-price up to 25 coins in one request |
 | `POST` | `/api/import/excel` | Import a coin collection from .xlsx spreadsheet |
 | `GET` | `/api/coin-variant` | Design-series metadata for a denomination + year |
+| `GET` | `/api/special-marks` | List official special marks applicable to supplied product context |
 | `GET` | `/api/coin-history` | Sold-price time-series (daily medians) with optional spot overlay |
 
 ### Bulk Lot Evaluator
@@ -666,7 +667,7 @@ src/routes/             adminRoute, authRoute, barPriceRoute, bulkEvaluateRoute,
                         coinHistoryRoute, coinRoute, coinVariantRoute,
                         excelImportRoute, healthRoute, imageProxyRoute,
                         marketRoute, metalsRoute, priceRoute, pricingBatchRoute,
-                        terapeakRoute
+                        specialMarksRoute, terapeakRoute
 src/services/           adminService, alertService, auctionPriceService,
                         aiOrchestratorService, aiToolRegistry, auditService,
                         authService, bulkEvaluateService, coinStorageService,

@@ -4424,6 +4424,52 @@ Gated on data: run pricing-health across a Reverse-Proof slate (2023 RP Morgan, 
 
 ---
 
+### #312H. Registry-backed bullion privy and special-mark identity [P1 -- PRICING-ACCURACY / UX / DATA-GOVERNANCE] -- DONE 2026-09-02
+
+**Origin:** Follow-up to #311H and a read-only numismatic audit on 2026-09-02. The exact `variantDetail` field now lets a user enter a mark such as `EMC2`, but free text does not establish whether a mark is official, applicable to the selected issue, or distinct from a mintmark, security feature, finish, main design, or aftermarket alteration. Major bullion programs contain multiple marked issues with materially different mintages and premiums.
+
+**Problem:** `Privy` is currently represented beside finish-like variants in Label / Variant, while canonical product identity has no special-mark axis. Free-form normalized title matching can isolate an entered token but cannot reliably distinguish `E=mc2`, Titanic, V75, Star, Britannia zodiac marks, or other official issues from unrelated words, dealer-applied marks, grading-label graphics, mintmarks, and security devices. Generic or standard searches can also retain recognized privy comps, allowing scarce marked issues to distort an unmarked valuation. A global privy dropdown or global privy premium would still be incorrect because mark applicability and value are program-, year-, metal-, weight-, denomination-, and finish-specific.
+
+**Proposed approach:**
+1. Introduce a versioned, provenance-backed special-mark registry with stable `markId`, canonical name, aliases, issuer, program, mark kind, applicable years, metal, weight, denomination, finish, location, official status, source references, and verification date. Seed only issue-level records verified against sovereign-mint archives/certificates or official mintage publications, with PCGS/NGC and recognized catalogs used as secondary corroboration.
+2. Add `specialMarks[]` as an orthogonal canonical identity axis. Keep `finish`, `mintmark`, `securityFeatures[]`, `editionFeatures[]` (colorized, gilded, antiqued, high relief), main design, certification, and special marks separate. A 2015 Silver Maple may therefore be both `finish = reverse-proof` and `markId = rcm.maple.emc2`; a Perth Lunar Dragon remains a main design unless a separately cataloged privy is present.
+3. Replace the combined Label / Variant workflow, for supported bullion programs, with separate Finish and Special mark controls. Filter exact-mark options by resolved program, year, metal, weight, denomination, and finish; show a human-readable resolved identity before submission. Preserve a bounded `My mark is not listed` path, but mark it unknown/unverified rather than mapping it silently to a known premium issue.
+4. Resolve entered aliases to a program-scoped canonical `markId` before provider lookup. Reject unknown, conflicting, or multiply matching identities for exact-mark valuation. Require stronger contextual evidence for short or ordinary aliases such as `Star`, `Snake`, `Wolf`, letters, and numbers; never infer official status merely because a listing contains `privy`.
+5. Enforce exact issue cohorts: same program, metal, weight, design type, finish pool, and canonical mark, plus year/denomination where the registry declares them material. Explicit standard-edition requests exclude positively recognized marked issues. Unspecified requests must disclose mixed identity or present separate estimates instead of silently blending marked and unmarked comps.
+6. Never derive `gradePool.usedPool` from a special mark and never relax raw/graded/proof/reverse-proof isolation. Sparse exact-mark evidence may use a wider time window or an issue-specific guide, but must return low confidence/null rather than substitute another mark, finish, certification pool, or a generic privy premium.
+7. Add mark-specific matching/rejection telemetry and surface the resolved `markId`, canonical display name, official-status state, and evidence limitations in internal diagnostics and client-safe valuation explanations.
+
+**Initial registry scope:**
+- Canadian Maple Leaf: `E=mc2` and other high-value commemorative, zodiac, wildlife, event, or inscription marks verified issue by issue; explicitly classify the micro-engraved maple, radial lines, and Bullion DNA devices as security features rather than privies.
+- American Silver/Gold Eagle: V75 and verified Star-mark issues; keep W/S/P mintmarks, Type 1/Type 2, First Strike labels, burnished finish, and reverse-proof finish separate.
+- Britannia: verified Lunar/zodiac privy issues; exclude latent padlock/trident, surface animation, tincture lines, microtext, portrait changes, and fineness changes from privy identity.
+- Perth Mint Lunar/Kookaburra/Kangaroo: only separately cataloged official privies; do not treat the annual animal, P mintmark, series generation, security letters, colorization, gilding, or high relief as a privy.
+- Other high-impact seeds: verified Krugerrand anniversary marks and selected sovereign-mint commemorative marks where sufficient sold-comp evidence exists.
+
+**Acceptance criteria:**
+- `EMC2`, `E=mc2`, `E mc2`, and the equivalent superscript-two form resolve to one program-scoped `markId`; `Wolf` does not match `Wolfgang`.
+- A 2015 Canadian Silver Maple Leaf, 1 oz, Reverse Proof, E=mc2 request resolves one reproducible identity and cannot use generic, unmarked, other-privy, regular-proof, raw, or MS-graded comps.
+- A 2020-W Proof Eagle with V75 preserves mintmark W, special mark V75, and proof pool as three independent facts. V75 does not match `$75`, lot number 75, or a grading-label serial.
+- `Star` requires the registered Eagle context and applicable issue constraints; a generic star symbol does not match. A Britannia Snake privy cannot match a Perth Lunar Snake design.
+- RCM micro-engraving and modern Britannia security devices resolve as security features, not privies. Perth Lunar animals resolve as main designs unless a verified additional mark is selected.
+- Explicit standard-edition valuation excludes recognized marked issues. Unknown/not-listed marks cannot silently fall back to standard, another privy, or a generic privy cohort.
+- Conflicting structured and textual marks return `AMBIGUOUS_PRODUCT_IDENTITY`; multiple candidate marks fail closed.
+- Every non-null valuation still identifies exactly one `gradePool.usedPool`; Proof and Reverse Proof remain isolated in both prefiltering and final valuation.
+- Registry records have authoritative provenance, schema validation, deterministic alias-collision checks, and tests preventing overlapping applicability from producing multiple identities.
+- Focused UX review, Numismatic Audit Step 5b, deep correctness/security/performance review, canonical `npm test`, ESLint, documentation updates, and commit-tied Onboard acceptance pass before merge.
+
+**Files (anticipated):** New versioned registry/schema under `src/data/` or `src/schemas/`; `src/utils/productIdentityResolver.js`; `src/utils/coinIntent.js`; `src/services/pricingService.js`; `src/services/ebayService.js`; public pricing routes and response schema; `public/index.html`; focused registry, resolver, route, filtering, pool-isolation, and JSDOM workflow tests under `__tests__/`; `README.md`; `docs/ARCHITECTURE.md`; `docs/api-reference.md`; `docs/data-dictionary.md`; and source/provenance documentation.
+
+**Out of scope:** Applying a universal privy premium; accepting dealer titles as proof that a mark is official; bulk-importing an unreviewed third-party catalog; weakening existing pool isolation; treating mintmarks, security devices, annual designs, grading labels, or aftermarket engraving as official privies; image-based mark recognition in the first implementation.
+
+**Dependencies / sequencing:** Build the registry and collision validator before replacing exact free text. Migrate #311H `variantDetail` as a backward-compatible alias input during a documented API transition. Expand beyond the seed programs only after authoritative issue-level verification and review.
+
+**Tier:** M. Changes canonical product identity, structured UX, public pricing request/response behavior, provider search/filter eligibility, and governed reference data.
+
+**Resolution:** Implemented a versioned, provenance-backed registry seeded with RCM E=mc2 and U.S. Mint V75 silver/gold issues; canonical `specialMarkMode` and `specialMarks` identity fields; bounded registry lookup and pricing/AI request validation; issue-level program, year, metal, weight, denomination, finish, and mint applicability; provider-independent strict raw/graded/proof/reverse-proof filtering; exact, standard, unspecified, and unverified workflows; and an accessible, race-safe structured-form selector. Updated architecture, API, data dictionary, security, README, and structural memory documentation. Verification before commit: canonical Jest 184 suites / 4,823 tests passed, changed-file ESLint and staged diff hygiene passed, and deep correctness, Security, Performance, focused UX, Numismatic Audit Step 5b, and Pre-commit reviews all returned PASS. Commit-tied Onboard acceptance remains the post-commit merge gate.
+
+---
+
 ## UX, Accessibility, and Interaction
 
 ### #303H. Critical authentication accessibility: keyboard mode controls, admin labels, and field errors [P0 -- ACCESSIBILITY / WCAG] -- DONE 2026-08-31

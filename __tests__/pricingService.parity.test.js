@@ -133,6 +133,7 @@ jest.mock('../src/utils/coinIntent', () => ({
   })),
   isValidFinishInput: jest.fn(() => true),
   isValidVariantDetailInput: jest.fn(() => true),
+  isValidSpecialMarkInput: jest.fn(() => true),
 }));
 
 jest.mock('../src/data/keyDates', () => ({
@@ -506,7 +507,7 @@ describe('pricingService.priceCoin() — Phase 0 Acceptance Tests', () => {
     expect(result.reproducibility.ebay.usItemIds).toBeDefined();
     expect(Array.isArray(result.reproducibility.ebay.usItemIds)).toBe(true);
     expect(result.reproducibility.productIdentity).toEqual(expect.objectContaining({
-      parserVersion: '1.0.0',
+      parserVersion: '2.0.0',
       pool: expect.any(String),
       weightEvidence: expect.objectContaining({ status: expect.any(String) }),
     }));

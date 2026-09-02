@@ -21,7 +21,7 @@ const { resolveCoinVariant } = require('../data/halfDollarSeries');
 const { zodiacForYear, perthLunarSeries, getRollQuantity, ALLOWED_LABELS, BULLION_1OZ_DEFAULT } = require('../data/constants');
 const { hasSeriesConflict, detectDenomination } = require('../utils/filters');
 const { getCoinMetalProfile } = require('../utils/coinMetalProfile');
-const { extractCoinIntent, isValidVariantDetailInput } = require('../utils/coinIntent');
+const { extractCoinIntent, isValidVariantDetailInput, isValidSpecialMarkInput } = require('../utils/coinIntent');
 const { resolveProductIdentity, assertUnambiguousProductIdentity } = require('../utils/productIdentityResolver');
 const stats = require('../utils/stats');
 
@@ -96,6 +96,11 @@ async function priceCoin(input, trustedContext = {}) {
     error.code = 'INVALID_VARIANT_DETAIL';
     throw error;
   }
+  if (!isValidSpecialMarkInput(coinData?.specialMarks, coinData?.specialMarkMode)) {
+    const error = new Error('coinData.specialMarks or coinData.specialMarkMode is invalid');
+    error.code = 'INVALID_SPECIAL_MARK';
+    throw error;
+  }
 
   const parsedQuery = pcgsService.parseDescription(String(query));
   const inputIdentity = assertUnambiguousProductIdentity(resolveProductIdentity({
@@ -103,6 +108,11 @@ async function priceCoin(input, trustedContext = {}) {
     structured: { ...coinData, weight: coinData?.weight ?? bodyWeight },
     parsed: parsedQuery,
   }));
+  if (inputIdentity.specialMarkMode === 'unknown') {
+    const error = new Error('The special mark is not verified in the registry and cannot be valued as an exact marked issue. Select a registered mark or standard issue.');
+    error.code = 'UNVERIFIED_SPECIAL_MARK';
+    throw error;
+  }
 
   const trustedIsAdmin = trustedContext.isAdmin === true;
   const trustedAudience = trustedContext.audience || (trustedIsAdmin ? 'admin' : 'public');
@@ -145,6 +155,8 @@ async function priceCoin(input, trustedContext = {}) {
       grade: parsedQuery?._gradeSource === 'bu-term' ? null : (inputIdentity.grade || pcgs.grade),
       finish: inputIdentity.finish || pcgs.finish,
       designation: inputIdentity.designation || pcgs.designation,
+      specialMarks: inputIdentity.specialMarks,
+      specialMarkMode: inputIdentity.specialMarkMode,
     },
   }));
   let resolvedWeight = productIdentity.nominalWeightOz || inputIdentity.nominalWeightOz
@@ -183,11 +195,13 @@ async function priceCoin(input, trustedContext = {}) {
 
   // Build keywords based on coin type
   let ebayKeywords;
-  const rawLabel = coinData?.label || identification.parsed?.label || null;
+  const rawLabel = coinData?.specialMarkMode === 'exact' || coinData?.specialMarkMode === 'unknown'
+    ? 'Privy'
+    : (coinData?.label || identification.parsed?.label || null);
   const validLabel = (rawLabel && ALLOWED_LABELS.has(rawLabel)) ? rawLabel : null;
-  const variantDetail = validLabel === 'Privy' && coinData?.variantDetail
-    ? String(coinData.variantDetail).trim()
-    : null;
+  const resolvedSpecialMark = productIdentity.specialMarks[0] || null;
+  const variantDetail = resolvedSpecialMark?.canonicalName
+    || (validLabel === 'Privy' && coinData?.variantDetail ? String(coinData.variantDetail).trim() : null);
 
   const VARIANT_LABEL_TOKENS = new Set([
     'Colorized', 'Gilded', 'Privy', 'High Relief', 'Antiqued', 'Burnished',
@@ -296,6 +310,8 @@ async function priceCoin(input, trustedContext = {}) {
     perthSeriesLabel: perthSeriesLabel,
     label: validLabel,
     variantDetail,
+    specialMarkMode: coinData?.specialMarkMode || productIdentity.specialMarkMode,
+    specialMarks: productIdentity.specialMarks,
     barBrand: intent.barBrand,
     barSeries: intent.barSeries,
     _gradeSource: identification.parsed?._gradeSource || null,
@@ -419,6 +435,12 @@ async function priceCoin(input, trustedContext = {}) {
       : null,
     audience: trustedAudience,
   });
+  const unspecifiedMarkExclusions = (ebay?.us?.removed?.unspecifiedRecognizedSpecialMark || 0)
+    + (ebay?.global?.removed?.unspecifiedRecognizedSpecialMark || 0);
+  if (expected.specialMarkMode === 'unspecified' && unspecifiedMarkExclusions > 0
+    && Array.isArray(valuation.explanation)) {
+    valuation.explanation.push('No special mark was specified; recognized marked issues were excluded from this estimate.');
+  }
 
   // ── 10. Series integrity guardrail ──
   const querySeries = identification.parsed?.series || '';
@@ -504,6 +526,8 @@ async function priceCoin(input, trustedContext = {}) {
       nominalWeightOz: resolvedWeight,
       finish: productIdentity.finish,
       designation: productIdentity.designation,
+      specialMarkMode: productIdentity.specialMarkMode,
+      specialMarks: productIdentity.specialMarks,
       pool: productIdentity.pool,
       weightEvidence: productIdentity.weightEvidence,
       parserVersion: productIdentity.parserVersion,

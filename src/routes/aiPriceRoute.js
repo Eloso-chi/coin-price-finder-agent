@@ -10,7 +10,7 @@ const { writeValuationAudit } = require('../services/auditService');
 const { redactCompsForPublic } = require('../utils/redactForPublic');
 const { orchestrate } = require('../services/aiOrchestratorService');
 const { createLlmProvider } = require('../services/llmProviderAdapter');
-const { isValidVariantDetailInput, MAX_VARIANT_DETAIL_LENGTH } = require('../utils/coinIntent');
+const { isValidVariantDetailInput, isValidSpecialMarkInput, MAX_VARIANT_DETAIL_LENGTH } = require('../utils/coinIntent');
 
 function getHandoffInput(body) {
   const structuredContext = body && body.structuredContext && typeof body.structuredContext === 'object'
@@ -94,6 +94,9 @@ router.post('/price', async (req, res) => {
         error: `coinData.variantDetail must contain only letters, numbers, spaces, ._+=-, no search-operator prefixes, and be ${MAX_VARIANT_DETAIL_LENGTH} characters or fewer`,
       });
     }
+    if (!isValidSpecialMarkInput(coinData?.specialMarks, coinData?.specialMarkMode)) {
+      return res.status(400).json({ ok: false, error: 'coinData.specialMarks or coinData.specialMarkMode is invalid', code: 'INVALID_SPECIAL_MARK' });
+    }
 
     const pricingQuery = normalizePricingQuery(cleanedQuery);
     const normalized = pricingQuery.toLowerCase();
@@ -128,6 +131,7 @@ router.post('/price', async (req, res) => {
           context: req.body?.conversationContext,
           trustedContext,
           provider: llmProvider,
+          structuredInput: { query: pricingQuery, coinData, weight, options, askingPrice, appealMultiplier },
         });
         const toolValuation = conversation.toolResults
           .map(tool => tool?.result?.result?.valuation)
@@ -252,8 +256,11 @@ router.post('/price', async (req, res) => {
       response,
     });
   } catch (err) {
-    if (err?.code === 'AMBIGUOUS_PRODUCT_IDENTITY' || err?.code === 'INVALID_VARIANT_DETAIL') {
+    if (err?.code === 'AMBIGUOUS_PRODUCT_IDENTITY' || err?.code === 'INVALID_VARIANT_DETAIL' || err?.code === 'INVALID_SPECIAL_MARK') {
       return res.status(400).json({ ok: false, error: err.message, code: err.code });
+    }
+    if (err?.code === 'UNVERIFIED_SPECIAL_MARK') {
+      return res.status(422).json({ ok: false, error: err.message, code: err.code });
     }
     return res.status(502).json({
       ok: false,

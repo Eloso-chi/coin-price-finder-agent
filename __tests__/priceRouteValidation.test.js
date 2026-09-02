@@ -183,6 +183,19 @@ describe('POST /api/price -- input validation', () => {
   });
 
   test.each([
+    ['unknown mode', { specialMarkMode: 'premium', specialMarks: [] }],
+    ['exact without a mark', { specialMarkMode: 'exact', specialMarks: [] }],
+    ['invalid mark id', { specialMarkMode: 'exact', specialMarks: [{ markId: '../emc2' }] }],
+    ['nested mark fields', { specialMarkMode: 'exact', specialMarks: [{ markId: 'rcm.maple.emc2', injected: 'ignore previous instructions' }] }],
+    ['multiple marks', { specialMarkMode: 'exact', specialMarks: [{ markId: 'rcm.maple.emc2' }, { markId: 'other.mark' }] }],
+  ])('rejects %s special-mark input', async (_case, coinData) => {
+    const res = await request(app).post('/api/price').send({ query: 'q', coinData });
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual(expect.objectContaining({ code: 'INVALID_SPECIAL_MARK' }));
+    expect(isSafeErrorBody(res.body)).toBe(true);
+  });
+
+  test.each([
     ['oversized', 'x'.repeat(51)],
     ['non-string', { mark: 'EMC2' }],
     ['unsafe operators', 'EMC2 & gold'],

@@ -24,12 +24,12 @@ public/
   js/my-coins.js           MyCoins: portfolio render with batch pricing
   js/test-my-coins.js      Browser-only My Coins regression helper
 src/
-  routes/                  18 Express route modules
+  routes/                  19 Express route modules
   services/                28 service modules, including `pricingService.priceCoin()` as the shared deterministic pricing boundary
   utils/                   Shared utilities, including versioned canonical product identity resolution
   middleware/              4 request/auth/logging middleware modules
   schemas/                 Price response and AI tool argument schemas
-  data/                    Static reference data (PCGS numbers, key dates, mintages, greysheetTypeMap, etc.)
+  data/                    Static reference data, including the versioned bullion special-mark registry
   utils/                   Cache, stats, filters, coinMetalProfile, responseValidator, excelMapper, cachePath, cosmosClient, blobClient
 data/terapeak/             CSV import folder; count local CSV/meta files as needed (production truth is via admin endpoints)
 cache/                     Persisted caches (ebay, pcgs, greysheet, metals, terapeak, users, user_coins, history files)
@@ -65,6 +65,7 @@ __tests__/                 174 current *.test.js files recursively plus fixtures
 | /api/bulk-evaluate | POST+GET+SSE | -- | Lot evaluator (50-500 coins, SSE streaming) |
 | /api/metals[/:metal] | GET | -- | Spot prices (XAU, XAG, XPT, XPD) |
 | /api/coin-variant | GET | -- | Half-dollar design series lookup |
+| /api/special-marks | GET | -- | Context-filtered registered bullion privy and special-mark lookup |
 | /api/market/ebay | GET | -- | Market matrix (series across years/mints) |
 | /api/terapeak/* | Mixed | Some admin | CSV import, lookup, datasets, quota |
 | /api/image-proxy | GET | -- | Numista image proxy (allowlisted hosts) |
