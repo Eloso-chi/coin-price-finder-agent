@@ -39,6 +39,23 @@ describe('buildKeywords — with resolved series', () => {
   });
 });
 
+describe('buildKeywords — exact privy detail', () => {
+  test('preserves the specific privy mark in search keywords', () => {
+    const kw = buildKeywords(
+      { year: 2015, series: 'Canadian Silver Maple Leaf', finish: 'Reverse Proof' },
+      '2015 Canadian Maple Leaf Reverse Proof',
+      1,
+      'Privy',
+      'EMC2'
+    );
+
+    expect(kw).toMatch(/2015 Canada Silver Maple Leaf/i);
+    expect(kw).toMatch(/Reverse Proof/i);
+    expect(kw).toMatch(/1 oz/i);
+    expect(kw).toMatch(/Privy EMC2/i);
+  });
+});
+
 /* ═══════════════════════════════════════════════════════════════
  *  2. buildKeywords — fallback when series is missing
  * ═══════════════════════════════════════════════════════════════ */

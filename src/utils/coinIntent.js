@@ -12,6 +12,7 @@
 const { canonicalizeBarIntent } = require('../data/barSeries');
 
 const MAX_FINISH_LENGTH = 100;
+const MAX_VARIANT_DETAIL_LENGTH = 50;
 const SPECIALTY_FINISHES = new Set(['Colorized', 'Antiqued', 'Gilded', 'Burnished', 'High Relief']);
 const SPECIALTY_FINISH_FAMILIES = {
   Colorized: 'colorized',
@@ -52,6 +53,13 @@ function ownString(object, property) {
 
 function isValidFinishInput(value) {
   return value == null || (typeof value === 'string' && value.length <= MAX_FINISH_LENGTH);
+}
+
+function isValidVariantDetailInput(value) {
+  return value == null || (typeof value === 'string'
+    && value.length <= MAX_VARIANT_DETAIL_LENGTH
+    && !/(?:^|\s)[+-]/.test(value)
+    && (value === '' || /^[A-Za-z0-9][A-Za-z0-9 ._+=-]*$/.test(value)));
 }
 
 function isSpecialtyFinish(value) {
@@ -180,5 +188,7 @@ module.exports = {
   specialtyFinishFamily,
   detectSpecialtyFinishFamilies,
   isValidFinishInput,
+  isValidVariantDetailInput,
   MAX_FINISH_LENGTH,
+  MAX_VARIANT_DETAIL_LENGTH,
 };

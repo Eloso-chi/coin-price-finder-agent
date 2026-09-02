@@ -7,7 +7,12 @@ const express = require('express');
 const { priceCoin } = require('../services/pricingService');
 const { writeValuationAudit } = require('../services/auditService');
 const { redactCompsForPublic } = require('../utils/redactForPublic');
-const { isValidFinishInput, MAX_FINISH_LENGTH } = require('../utils/coinIntent');
+const {
+  isValidFinishInput,
+  isValidVariantDetailInput,
+  MAX_FINISH_LENGTH,
+  MAX_VARIANT_DETAIL_LENGTH,
+} = require('../utils/coinIntent');
 
 const router = express.Router();
 
@@ -59,6 +64,9 @@ router.post('/', async (req, res) => {
     }
     if (!isValidFinishInput(coinData?.finish)) {
       return res.status(400).json({ error: `coinData.finish must be a string of ${MAX_FINISH_LENGTH} characters or fewer` });
+    }
+    if (!isValidVariantDetailInput(coinData?.variantDetail)) {
+      return res.status(400).json({ error: `coinData.variantDetail must contain only letters, numbers, spaces, ._+=-, and be ${MAX_VARIANT_DETAIL_LENGTH} characters or fewer` });
     }
 
     const trustedContext = {

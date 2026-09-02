@@ -228,6 +228,44 @@ describe('canonical product identity weight evidence', () => {
     )).toEqual([]);
   });
 
+  test('accepts a full generic Maple Leaf description with parsed silver-series shorthand', () => {
+    const identity = resolveProductIdentity({
+      text: '2015 Canadian Maple Leaf Silver 1 oz Reverse Proof EMC2 Privy',
+      structured: {
+        name: 'Canadian Maple Leaf Reverse Proof',
+        year: 2015,
+        composition: 'silver',
+        weight: 1,
+        finish: 'Reverse Proof',
+      },
+      parsed: {
+        series: 'Canadian Silver Maple Leaf',
+        year: 2015,
+        metal: 'silver',
+        weight: 1,
+        finish: 'Reverse Proof',
+      },
+    });
+
+    expect(identity).toEqual(expect.objectContaining({
+      series: 'Canadian Maple Leaf Reverse Proof',
+      metal: 'silver',
+      nominalWeightOz: 1,
+      finish: 'Reverse Proof',
+      pool: 'reverse-proof',
+      ambiguous: false,
+    }));
+  });
+
+  test('does not equate explicitly silver and gold Maple Leaf series', () => {
+    const identity = resolveProductIdentity({
+      structured: { series: 'Canadian Silver Maple Leaf' },
+      parsed: { series: 'Canadian Gold Maple Leaf' },
+    });
+
+    expect(identity.ambiguities).toContainEqual(expect.objectContaining({ field: 'series' }));
+  });
+
   test('treats a generic proof dataset as compatible with a numeric proof grade', () => {
     const { findIdentityMismatches } = require('../src/utils/productIdentityResolver');
 

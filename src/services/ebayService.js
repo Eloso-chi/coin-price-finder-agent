@@ -263,7 +263,7 @@ function hasConflictingVariantFamily(families, requestedFamily) {
     family !== requestedFamily && families.has(family));
 }
 
-const REQUESTABLE_VARIANT_FAMILIES = ['colorized', 'antiqued', 'gilded', 'burnished', 'highRelief'];
+const REQUESTABLE_VARIANT_FAMILIES = ['colorized', 'antiqued', 'gilded', 'burnished', 'highRelief', 'privy'];
 const AMBIGUOUS_VARIANT_FAMILY = 'ambiguous';
 const requestedVariantFamilyCache = new WeakMap();
 
@@ -280,6 +280,40 @@ function requestedVariantFamily(expected) {
   const family = matched.length > 1 ? AMBIGUOUS_VARIANT_FAMILY : (matched[0] || null);
   requestedVariantFamilyCache.set(expected, family);
   return family;
+}
+
+function normalizeVariantDetail(value) {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/\u00b2/g, '2')
+    .match(/[a-z0-9]+/g) || [];
+}
+
+function titleMatchesVariantDetail(title, variantDetail) {
+  const wantedTokens = normalizeVariantDetail(variantDetail);
+  if (!wantedTokens.length) return true;
+  const titleTokens = normalizeVariantDetail(title);
+  const wanted = wantedTokens.join('');
+  const maxWindow = wantedTokens.length + 2;
+  for (let start = 0; start < titleTokens.length; start++) {
+    let candidate = '';
+    for (let offset = 0; offset < maxWindow && start + offset < titleTokens.length; offset++) {
+      candidate += titleTokens[start + offset];
+      if (candidate === wanted) return true;
+      if (candidate.length >= wanted.length) break;
+    }
+  }
+  return false;
+}
+
+const variantDetailMatchCache = new WeakMap();
+
+function compMatchesVariantDetail(comp, variantDetail) {
+  const cached = variantDetailMatchCache.get(comp);
+  if (cached?.variantDetail === variantDetail) return cached.matches;
+  const matches = titleMatchesVariantDetail(comp.title, variantDetail);
+  variantDetailMatchCache.set(comp, { variantDetail, matches });
+  return matches;
 }
 
 function queryWantsProof(expected) {
@@ -832,6 +866,13 @@ function scoreMatch(comp, expected) {
   if (titleFamilies.has('privy')) {
     notes.push('privy-info');
   }
+  if (expected.variantDetail) {
+    if (compMatchesVariantDetail(comp, expected.variantDetail)) {
+      score += 10; notes.push('variant-detail-match');
+    } else {
+      score -= 30; notes.push('variant-detail-mismatch');
+    }
+  }
 
   // ── Weight / size match for bullion coins (25 pts match, –35 mismatch) ──
   // #266W: Use 5% relative tolerance so coins whose actual metric weight differs
@@ -1299,7 +1340,14 @@ function applyFilters(comps, options, expected) {
       removed.variantWrongColor = 0;
       kept = kept.filter(c => {
         const titleFamiliesHF = detectVariantFamilies(c.title);
-        if (classifyGradeType(c) !== 'raw') {
+        const gradeType = classifyGradeType(c);
+        const requestedProofPool = expected.isProof
+          ? (isReverseProofFinish(expected.finish || expected._rawQuery) ? 'reverse-proof' : 'proof')
+          : null;
+        const matchingProofPrivy = requestedFamilyHF === 'privy'
+          && requestedProofPool
+          && gradeType === requestedProofPool;
+        if (gradeType !== 'raw' && !matchingProofPrivy) {
           removed.variantWrongColor++;
           return false;
         }
@@ -1313,6 +1361,15 @@ function applyFilters(comps, options, expected) {
         return false;
       });
     }
+  }
+
+  if (expected.variantDetail) {
+    removed.variantDetailMismatch = 0;
+    kept = kept.filter(c => {
+      if (compMatchesVariantDetail(c, expected.variantDetail)) return true;
+      removed.variantDetailMismatch++;
+      return false;
+    });
   }
 
   // Type 1 / Type 2 design variant hard filter (#180): when user specifies a Type,
@@ -1506,7 +1563,10 @@ function _compositeTargetYear(year) {
 
 function _targetCompPool(expected) {
   const wantsProof = !!expected.isProof;
-  if (requestedVariantFamily(expected)) return 'raw';
+  const requestedFamily = requestedVariantFamily(expected);
+  if (requestedFamily === 'privy' && wantsProof && isReverseProofFinish(expected.finish)) return 'reverse-proof';
+  if (requestedFamily === 'privy' && wantsProof) return 'proof';
+  if (requestedFamily) return 'raw';
   if (wantsProof && isReverseProofFinish(expected.finish)) return 'reverse-proof';
   if (wantsProof) return 'proof';
   return expected.grade ? 'graded' : 'raw';
@@ -2180,7 +2240,7 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
  * @param {number} [weight]  e.g. 0.5, 1.5, 2 --- omitted or 1 means standard 1 oz
  * @param {string} [label]   e.g. 'First Strike', 'Early Releases'
  */
-function buildKeywords(pcgsData, rawQuery, weight, label) {
+function buildKeywords(pcgsData, rawQuery, weight, label, variantDetail) {
   const parts = [];
   if (pcgsData?.year) parts.push(String(pcgsData.year));
   // Append mint mark with hyphen joining to year (e.g. "1892-S") so eBay
@@ -2220,6 +2280,7 @@ function buildKeywords(pcgsData, rawQuery, weight, label) {
   }
   // Append graded slab label (e.g. "First Strike", "Early Releases")
   if (label) parts.push(label);
+  if (variantDetail) parts.push(variantDetail);
 
   // #171/#184: Metal exclusion keywords — when the query is explicitly one metal,
   // add negations for other common metals so eBay doesn't return mixed-metal

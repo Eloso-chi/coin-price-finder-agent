@@ -51,7 +51,7 @@ The browser UI is a single-page app served from `public/index.html` with a dark 
 
 | Tab | Description |
 |-----|-------------|
-| **Price Discovery** | Main search -- two sub-modes: Coin (structured or quick-search entry) and Bar/Bullion. Coin mode shows a conditional "Silver" checkbox for post-1992 proof denominations (Kennedy, Washington, Roosevelt, etc.) to differentiate silver vs clad proofs. Bar mode has a dynamic series dropdown (populated from `GET /api/bar-price/options`) that filters by selected brand -- 7 brands with 40+ series (Geiger Edelmetalle, PAMP Fortuna, Coca-Cola, 12 Zodiac signs, Perth Lunar, Scottsdale, Valcambi, Heraeus, Credit Suisse). Submits to `/api/price` or `/api/bar-price`. Renders FMV, confidence, decisions, metadata, comps, and explicit single-comp or nearby-year composite warnings. |
+| **Price Discovery** | Main search -- two sub-modes: Coin (structured or quick-search entry) and Bar/Bullion. Structured Coin mode offers Auto/Silver/Gold/Platinum/Palladium metal selection for multi-metal world-bullion series and retains the conditional "Silver" checkbox for post-1992 US proof denominations (Kennedy, Washington, Roosevelt, etc.) to differentiate silver vs clad proofs. Selecting Privy requires the exact privy name or mark (for example, EMC2); `composition` and `variantDetail` are preserved through `/api/price`, and exact privy comps remain isolated within the requested Proof or Reverse Proof pool. Bar mode has a dynamic series dropdown (populated from `GET /api/bar-price/options`) that filters by selected brand -- 7 brands with 40+ series (Geiger Edelmetalle, PAMP Fortuna, Coca-Cola, 12 Zodiac signs, Perth Lunar, Scottsdale, Valcambi, Heraeus, Credit Suisse). Submits to `/api/price` or `/api/bar-price`. Renders FMV, confidence, decisions, metadata, comps, and explicit single-comp or nearby-year composite warnings. |
 | **AI Pricing** | Optional deterministic conversational pricing through `POST /api/ai/price`, with public-safe provenance, algorithm/config versions, ambiguity handling, structured-to-conversation handoff, and an explicit warning when an estimate rests on one sold comp. Authenticated My Coins users can request collection summaries through `POST /api/ai/collection`; bounded market coverage, comparison, and year-series analytics are available through `POST /api/ai/market`. |
 | **Melt Calculator** | Offline calculator for 80+ US coin types and 20 bar sizes. Auto-fetches spot prices from `/api/metals` and polls every 5 minutes. Shows per-coin, per-roll, and total melt values at spot and spot+premium. Quantity minimum enforced at 1. |
 | **Live eBay Tracker** | Market matrix from `/api/market/ebay`. Three display modes: Year × Mint (numismatic coins), Year × Grade (bullion), and Brand table (bars). Cells show median sold price, cheapest BIN link, key date badge, and Numista rarity. Color-coded legend. |
@@ -364,7 +364,7 @@ If an asking price is provided:
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `POST` | `/api/price` | Price a coin (main endpoint) |
+| `POST` | `/api/price` | Price a coin; structured `coinData` supports explicit `composition` and exact `variantDetail`, with specific privy comps isolated inside the requested Proof or Reverse Proof pool |
 | `POST` | `/api/bar-price` | Price a bullion bar |
 | `POST` | `/api/pricing-batch` | Batch-price up to 25 coins in one request |
 | `POST` | `/api/import/excel` | Import a coin collection from .xlsx spreadsheet |

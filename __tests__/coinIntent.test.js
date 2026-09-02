@@ -5,8 +5,26 @@ const {
   extractCoinIntent,
   FINISH_CANONICAL,
   isValidFinishInput,
+  isValidVariantDetailInput,
   MAX_FINISH_LENGTH,
+  MAX_VARIANT_DETAIL_LENGTH,
 } = require('../src/utils/coinIntent');
+
+describe('variant detail validation', () => {
+  test.each(['EMC2', 'E=mc2', 'Titanic 25th', 'Wolf_2020'])('accepts safe detail %s', (value) => {
+    expect(isValidVariantDetailInput(value)).toBe(true);
+  });
+
+  test.each([
+    ['non-string', { mark: 'EMC2' }],
+    ['search operator', 'EMC2 & gold'],
+    ['negative provider operator', 'EMC2 -gold'],
+    ['positive provider operator', 'EMC2 +gold'],
+    ['oversized', 'x'.repeat(MAX_VARIANT_DETAIL_LENGTH + 1)],
+  ])('rejects %s variant detail', (_case, value) => {
+    expect(isValidVariantDetailInput(value)).toBe(false);
+  });
+});
 
 describe('extractCoinIntent', () => {
   describe('grade', () => {

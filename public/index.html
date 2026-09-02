@@ -1348,6 +1348,17 @@
             </select>
             <span class="hint">Mint finish (PCGS taxonomy). Auto-set from PF/PR grade.</span>
           </div>
+          <div class="field" style="margin-top:14px">
+            <label for="coinMetal">Metal</label>
+            <select id="coinMetal">
+              <option value="">Auto-detect</option>
+              <option value="silver">Silver</option>
+              <option value="gold">Gold</option>
+              <option value="platinum">Platinum</option>
+              <option value="palladium">Palladium</option>
+            </select>
+            <span class="hint">Select when a series, such as Maple Leaf, is issued in multiple metals.</span>
+          </div>
         </div>
       </div>
 
@@ -1404,6 +1415,12 @@
               </optgroup>
             </select>
             <span class="hint">Specialty variant routes to a separate Terapeak dataset for that variant. Finishes (Proof, Reverse Proof, etc.) live in the Finish dropdown.</span>
+            <div class="field" id="coinVariantDetailRow" style="display:none;margin-top:8px">
+              <label for="coinVariantDetail">Privy name or mark</label>
+              <input id="coinVariantDetail" type="text" maxlength="50" placeholder="e.g. EMC2 or Titanic" autocomplete="off" aria-describedby="coinVariantDetail-hint coinVariantDetail-error">
+              <span class="hint" id="coinVariantDetail-hint">Required to isolate a specific privy from other privy-marked coins.</span>
+              <div class="field-error-msg" id="coinVariantDetail-error" role="alert">Enter the specific privy name or mark</div>
+            </div>
           </div>
           <div class="field">
             <label for="askingPrice">Asking Price</label>
@@ -1427,7 +1444,7 @@
           <div class="field">
             <label for="coinWeight">Weight</label>
             <select id="coinWeight">
-              <option value="">1 oz</option>
+              <option value="">1 oz (bullion default)</option>
               <option value="0.5">1/2 oz</option>
               <option value="0.25">1/4 oz</option>
               <option value="0.1">1/10 oz</option>
@@ -2874,9 +2891,12 @@ Silver Libertad 1 oz Proof"></textarea>
         coinMint:      document.getElementById('coinMint'),
         grade:         document.getElementById('coinGrade'),
         coinFinish:    document.getElementById('coinFinish'),
+        coinMetal:     document.getElementById('coinMetal'),
         coinSilver:    document.getElementById('coinSilver'),
         silverLabel:   document.getElementById('silverCheckLabel'),
         coinLabel:     document.getElementById('coinLabel'),
+        variantDetail: document.getElementById('coinVariantDetail'),
+        variantDetailRow: document.getElementById('coinVariantDetailRow'),
         coinWeight:    document.getElementById('coinWeight'),
         quickWeight:   document.getElementById('quickWeight'),
         setType:       document.getElementById('setType'),
@@ -2928,7 +2948,7 @@ Silver Libertad 1 oz Proof"></textarea>
 
     /* ── Live query preview ───────────────────────────────── */
     _bindPreview() {
-      const fields = ['coinName','coinYear','coinMint','grade','setType'];
+      const fields = ['coinName','coinYear','coinMint','grade','coinMetal','variantDetail','coinWeight','setType'];
       fields.forEach(k => {
         const el = this.els[k];
         if (!el) return;
@@ -3031,6 +3051,18 @@ Silver Libertad 1 oz Proof"></textarea>
         this._updateSilverVisibility();
         this._updatePreview();
       });
+      this.els.coinLabel.addEventListener('change', () => {
+        const isPrivy = this.els.coinLabel.value === 'Privy';
+        this.els.variantDetailRow.style.display = isPrivy ? '' : 'none';
+        this.els.variantDetail.required = isPrivy;
+        this.els.variantDetail.setAttribute('aria-required', String(isPrivy));
+        if (!isPrivy) {
+          this.els.variantDetail.value = '';
+          this.els.variantDetail.removeAttribute('aria-invalid');
+          this.els.variantDetailRow.classList.remove('has-error');
+        }
+        this._updatePreview();
+      });
       this.els.coinYear.addEventListener('input', () => this._updateSilverVisibility());
       this.els.coinSilver.addEventListener('change', () => this._updatePreview());
     },
@@ -3039,6 +3071,12 @@ Silver Libertad 1 oz Proof"></textarea>
     // Show when: Finish is a proof variant, year >= 1992, coin is a
     // denomination that has both silver and clad proof variants.
     _SILVER_PROOF_RE: /\b(kennedy|half\s*dollar|washington|quarter|roosevelt|dime|jefferson|nickel|lincoln|cent|penny)\b/i,
+    _BULLION_RE: /\b(libertad|silver\s+eagle|gold\s+eagle|maple\s+leaf|britannia|philharmonic|krugerrand|kangaroo|kookaburra|panda|gold\s+buffalo|platinum\s+eagle|palladium\s+eagle|lunar|polar\s+bear)\b/i,
+
+    _structuredWeight(name) {
+      const selected = parseFloat(this.els.coinWeight.value) || null;
+      return selected || (this._BULLION_RE.test(name) ? 1 : null);
+    },
 
     _updateSilverVisibility() {
       const proof = /\bproof\b/i.test(this.els.coinFinish.value || '');
@@ -3059,6 +3097,10 @@ Silver Libertad 1 oz Proof"></textarea>
       // Auto-correct zero → letter O (common typo for New Orleans mint mark)
       const mint  = mintRaw === '0' ? 'O' : mintRaw;
       const grade = this.els.grade.value.trim();
+      const metal = this.els.coinMetal.value || '';
+      const label = this.els.coinLabel.value || '';
+      const variantDetail = this.els.variantDetail.value.trim();
+      const weight = this._structuredWeight(name);
       const isSet = this._isSetName(name);
 
       const finish = this.els.coinFinish.value || '';
@@ -3073,8 +3115,9 @@ Silver Libertad 1 oz Proof"></textarea>
         parts.push('US ' + setLabel);
       } else {
         if (name) parts.push(name);
+        if (metal && !new RegExp('\\b' + metal + '\\b', 'i').test(name)) parts.push(metal[0].toUpperCase() + metal.slice(1));
         // Append "Silver" when silver proof checkbox is checked
-        if (this.els.coinSilver.checked && !/\bsilver\b/i.test(name)) parts.push('Silver');
+        if (!metal && this.els.coinSilver.checked && !/\bsilver\b/i.test(name)) parts.push('Silver');
         // Append finish word(s) before grade when not already in name/grade.
         // Covers Proof, Reverse Proof, Enhanced Reverse Proof, Matte Proof,
         // Burnished, Satin Finish, Antiqued.
@@ -3085,6 +3128,14 @@ Silver Libertad 1 oz Proof"></textarea>
           if (!nameHasFinish && !(isProofFinish && gradeHasProof)) {
             parts.push(finish);
           }
+        }
+        if (label === 'Privy') {
+          if (variantDetail) parts.push(variantDetail);
+          parts.push('Privy');
+        }
+        if (weight) {
+          const weightLabels = { 0.5: '1/2 oz', 0.25: '1/4 oz', 0.1: '1/10 oz', 0.05: '1/20 oz' };
+          parts.push(weightLabels[weight] || weight + ' oz');
         }
         if (grade) parts.push(grade);
       }
@@ -3130,13 +3181,24 @@ Silver Libertad 1 oz Proof"></textarea>
         yearField.classList.remove('has-error');
         this.els.coinYear.removeAttribute('aria-invalid');
       }
+      // Specific privy detail
+      const variantField = this.els.variantDetail.closest('.field');
+      if (this.els.coinLabel.value === 'Privy' && !this.els.variantDetail.value.trim()) {
+        variantField.classList.add('has-error');
+        this.els.variantDetail.setAttribute('aria-invalid', 'true');
+        if (!firstInvalid) firstInvalid = this.els.variantDetail;
+        valid = false;
+      } else {
+        variantField.classList.remove('has-error');
+        this.els.variantDetail.removeAttribute('aria-invalid');
+      }
       if (firstInvalid) firstInvalid.focus();
       return valid;
     },
 
     clearErrors() {
       document.querySelectorAll('.field.has-error').forEach(f => f.classList.remove('has-error'));
-      [this.els.coinName, this.els.coinYear].forEach(el => el.removeAttribute('aria-invalid'));
+      [this.els.coinName, this.els.coinYear, this.els.variantDetail].forEach(el => el.removeAttribute('aria-invalid'));
     },
 
     /* ── Submit binding ───────────────────────────────────── */
@@ -3145,7 +3207,7 @@ Silver Libertad 1 oz Proof"></textarea>
       this.els.quickSubmit.addEventListener('click', () => runQuery());
 
       // Enter key in structured fields
-      ['coinName','coinYear','coinMint','coinGrade'].forEach(id => {
+      ['coinName','coinYear','coinMint','coinGrade','coinVariantDetail'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.addEventListener('keydown', e => { if (e.key === 'Enter') runQuery(); });
       });
@@ -3182,9 +3244,10 @@ Silver Libertad 1 oz Proof"></textarea>
           mintMark:       (this.els.coinMint.value.trim().toUpperCase() === '0' ? 'O' : this.els.coinMint.value.trim().toUpperCase()) || null,
           grade:          this.els.grade.value.trim() || null,
           finish:         this.els.coinFinish.value || null,
-          composition:    this.els.coinSilver.checked ? 'silver' : null,
+          composition:    this.els.coinMetal.value || (this.els.coinSilver.checked ? 'silver' : null),
           label:          this.els.coinLabel.value || null,
-          weight:         parseFloat(this.els.coinWeight.value) || null,
+          variantDetail:  this.els.coinLabel.value === 'Privy' ? (this.els.variantDetail.value.trim() || null) : null,
+          weight:         this._structuredWeight(this.els.coinName.value.trim()),
           setType:        this._isSetName(this.els.coinName.value.trim()) ? this.els.setType.value : null,
           pcgsNumber:     this.els.pcgsNumber.value.trim() || null
         }

@@ -182,6 +182,16 @@ describe('POST /api/price -- input validation', () => {
     expect(res.body.error).toMatch(/coinData\.finish/);
   });
 
+  test.each([
+    ['oversized', 'x'.repeat(51)],
+    ['non-string', { mark: 'EMC2' }],
+    ['unsafe operators', 'EMC2 & gold'],
+  ])('coinData.variantDetail: %s value -> 400', async (_case, variantDetail) => {
+    const res = await request(app).post('/api/price').send({ query: 'q', coinData: { variantDetail } });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/coinData\.variantDetail/);
+  });
+
   test('forwards label-only specialty intent to valuation', async () => {
     const res = await request(app).post('/api/price').send({
       query: '2018 Libertad MS70',
