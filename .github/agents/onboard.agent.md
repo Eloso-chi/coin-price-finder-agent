@@ -172,7 +172,7 @@ Read the first 50 lines of each to understand the module interface (80 lines for
 27. `src/services/collectionContextService.js` -- authenticated collection context for AI summaries
 28. `src/services/marketAnalyticsService.js` -- bounded market analytics for AI responses
 
-**Routes (all 18):**
+**Routes (all 19):**
 1. `src/routes/priceRoute.js` -- main pricing endpoint (first 80 lines)
 2. `src/routes/pricingBatchRoute.js` -- batch pricing (up to 25 coins)
 3. `src/routes/bulkEvaluateRoute.js` -- lot evaluator + SSE streaming
@@ -191,6 +191,7 @@ Read the first 50 lines of each to understand the module interface (80 lines for
 16. `src/routes/aiPriceRoute.js` -- public-safe conversational pricing and deterministic provenance
 17. `src/routes/aiCollectionRoute.js` -- JWT-scoped collection summaries
 18. `src/routes/aiMarketRoute.js` -- bounded market coverage and comparison analytics
+19. `src/routes/specialMarksRoute.js` -- context-filtered registered bullion privy and special-mark lookup
 
 **Data:**
 1. `src/data/greysheetTypeMap.js` -- series-to-GSID mapping + finish detection

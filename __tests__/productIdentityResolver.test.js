@@ -257,6 +257,95 @@ describe('canonical product identity weight evidence', () => {
     }));
   });
 
+  test('preserves a registered special mark orthogonally to reverse-proof pool identity', () => {
+    const identity = resolveProductIdentity({
+      text: '2015 Canadian Silver Maple Leaf 1 oz Reverse Proof E=mc2 Privy',
+      structured: {
+        name: 'Canadian Maple Leaf', year: 2015, composition: 'silver', weight: 1,
+        finish: 'Reverse Proof', specialMarkMode: 'exact',
+        specialMarks: [{ markId: 'rcm.maple.emc2' }],
+      },
+      parsed: { series: 'Canadian Silver Maple Leaf', year: 2015, metal: 'silver', weight: 1, finish: 'Reverse Proof' },
+    });
+
+    expect(identity).toEqual(expect.objectContaining({
+      pool: 'reverse-proof',
+      specialMarkMode: 'exact',
+      specialMarks: [expect.objectContaining({ markId: 'rcm.maple.emc2', canonicalName: 'E=mc2' })],
+      ambiguous: false,
+    }));
+  });
+
+  test('fails closed when a registered mark is not applicable to the product context', () => {
+    const identity = resolveProductIdentity({
+      structured: {
+        name: 'Canadian Maple Leaf', year: 2016, composition: 'silver', weight: 1,
+        finish: 'Reverse Proof', specialMarkMode: 'exact',
+        specialMarks: [{ markId: 'rcm.maple.emc2' }],
+      },
+    });
+    expect(identity.ambiguities).toContainEqual(expect.objectContaining({
+      field: 'specialMark', markId: 'rcm.maple.emc2', reason: 'inapplicable',
+    }));
+    expect(() => assertUnambiguousProductIdentity(identity)).toThrow(/specialMark/);
+  });
+
+  test('rejects conflicting explicit denomination evidence for an exact mark', () => {
+    const identity = resolveProductIdentity({
+      text: '2015 Canadian Silver Maple Leaf $50 1 oz Reverse Proof E=mc2 Privy',
+      structured: {
+        name: 'Canadian Maple Leaf', year: 2015, composition: 'silver', weight: 1,
+        denomination: 5, finish: 'Reverse Proof', specialMarkMode: 'exact',
+        specialMarks: [{ markId: 'rcm.maple.emc2' }],
+      },
+    });
+    expect(identity.ambiguities).toContainEqual(expect.objectContaining({
+      field: 'denomination', structured: 5, text: 50,
+    }));
+  });
+
+  test('resolves an exact registered mark from complete quick-search text', () => {
+    const identity = resolveProductIdentity({
+      text: '2015 Canadian Silver Maple Leaf 1 oz Reverse Proof E=mc2 Privy',
+      parsed: { series: 'Canadian Silver Maple Leaf', year: 2015, metal: 'silver', weight: 1, finish: 'Reverse Proof' },
+    });
+    expect(identity.specialMarkMode).toBe('exact');
+    expect(identity.specialMarks).toEqual([
+      expect.objectContaining({ markId: 'rcm.maple.emc2', canonicalName: 'E=mc2' }),
+    ]);
+  });
+
+  test('keeps unknown-mode detail unverified even when it resembles a known alias', () => {
+    const identity = resolveProductIdentity({
+      text: '2015 Canadian Silver Maple Leaf 1 oz Reverse Proof EMC2 Privy',
+      structured: {
+        name: 'Canadian Maple Leaf', year: 2015, composition: 'silver', weight: 1,
+        finish: 'Reverse Proof', specialMarkMode: 'unknown', variantDetail: 'EMC2',
+      },
+      parsed: { series: 'Canadian Silver Maple Leaf', year: 2015, metal: 'silver', weight: 1, finish: 'Reverse Proof' },
+    });
+    expect(identity.specialMarkMode).toBe('unknown');
+    expect(identity.specialMarks).toEqual([
+      expect.objectContaining({ markId: null, canonicalName: 'EMC2', officialStatus: 'unknown' }),
+    ]);
+  });
+
+  test.each(['standard', 'unspecified'])(
+    'rejects %s mode when the product text names a registered mark', (specialMarkMode) => {
+      const identity = resolveProductIdentity({
+        text: '2015 Canadian Silver Maple Leaf 1 oz Reverse Proof E=mc2 Privy',
+        structured: {
+          name: 'Canadian Maple Leaf', year: 2015, composition: 'silver', weight: 1,
+          finish: 'Reverse Proof', specialMarkMode,
+        },
+        parsed: { series: 'Canadian Silver Maple Leaf', year: 2015, metal: 'silver', weight: 1, finish: 'Reverse Proof' },
+      });
+      expect(identity.ambiguities).toContainEqual(expect.objectContaining({
+        field: 'specialMark', structured: specialMarkMode, reason: 'mode-text-conflict',
+      }));
+    }
+  );
+
   test('does not equate explicitly silver and gold Maple Leaf series', () => {
     const identity = resolveProductIdentity({
       structured: { series: 'Canadian Silver Maple Leaf' },
@@ -309,7 +398,7 @@ describe('canonical product identity weight evidence', () => {
       finish: 'Reverse Proof',
       designation: null,
       pool: 'reverse-proof',
-      parserVersion: '1.0.0',
+      parserVersion: PRODUCT_IDENTITY_PARSER_VERSION,
     }));
   });
 

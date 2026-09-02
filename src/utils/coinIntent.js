@@ -13,6 +13,8 @@ const { canonicalizeBarIntent } = require('../data/barSeries');
 
 const MAX_FINISH_LENGTH = 100;
 const MAX_VARIANT_DETAIL_LENGTH = 50;
+const MAX_SPECIAL_MARKS = 1;
+const SPECIAL_MARK_MODES = new Set(['unspecified', 'standard', 'exact', 'unknown']);
 const SPECIALTY_FINISHES = new Set(['Colorized', 'Antiqued', 'Gilded', 'Burnished', 'High Relief']);
 const SPECIALTY_FINISH_FAMILIES = {
   Colorized: 'colorized',
@@ -60,6 +62,21 @@ function isValidVariantDetailInput(value) {
     && value.length <= MAX_VARIANT_DETAIL_LENGTH
     && !/(?:^|\s)[+-]/.test(value)
     && (value === '' || /^[A-Za-z0-9][A-Za-z0-9 ._+=-]*$/.test(value)));
+}
+
+function isValidSpecialMarkInput(specialMarks, mode) {
+  if (mode != null && !SPECIAL_MARK_MODES.has(mode)) return false;
+  if (specialMarks == null) return mode !== 'exact';
+  if (!Array.isArray(specialMarks) || specialMarks.length > MAX_SPECIAL_MARKS) return false;
+  if (mode === 'exact' && specialMarks.length !== 1) return false;
+  if (mode !== 'exact' && specialMarks.length !== 0) return false;
+  return specialMarks.every(mark => mark && typeof mark === 'object'
+    && !Array.isArray(mark)
+    && Object.keys(mark).length === 1
+    && Object.prototype.hasOwnProperty.call(mark, 'markId')
+    && typeof mark.markId === 'string'
+    && /^[a-z0-9]+(?:[.-][a-z0-9]+)*$/.test(mark.markId)
+    && mark.markId.length <= 100);
 }
 
 function isSpecialtyFinish(value) {
@@ -189,6 +206,8 @@ module.exports = {
   detectSpecialtyFinishFamilies,
   isValidFinishInput,
   isValidVariantDetailInput,
+  isValidSpecialMarkInput,
   MAX_FINISH_LENGTH,
   MAX_VARIANT_DETAIL_LENGTH,
+  MAX_SPECIAL_MARKS,
 };

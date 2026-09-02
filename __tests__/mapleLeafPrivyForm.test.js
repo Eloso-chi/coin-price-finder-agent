@@ -34,8 +34,9 @@ describe('structured Maple Leaf privy form workflow', () => {
       ${field('coinGrade', '<input id="coinGrade">')}
       ${field('coinFinish', '<select id="coinFinish"><option value=""></option><option value="Reverse Proof">Reverse Proof</option></select>')}
       ${field('coinMetal', '<select id="coinMetal"><option value=""></option><option value="silver">Silver</option><option value="gold">Gold</option></select>')}
+      ${field('coinSpecialMark', '<select id="coinSpecialMark"><option value="unspecified">Not specified</option><option value="standard">Standard</option><option value="unknown">Not listed</option><option value="rcm.maple.emc2" data-registry-mark="true" data-canonical-name="E=mc2">E=mc2</option></select>')}
       <label id="silverCheckLabel"><input id="coinSilver" type="checkbox">Silver</label>
-      ${field('coinLabel', '<select id="coinLabel"><option value=""></option><option value="Privy">Privy</option></select>')}
+      ${field('coinLabel', '<select id="coinLabel"><option value=""></option></select>')}
       <div class="field" id="coinVariantDetailRow" style="display:none">
         <label for="coinVariantDetail">Privy name or mark</label>
         <input id="coinVariantDetail" aria-describedby="coinVariantDetail-hint coinVariantDetail-error">
@@ -59,6 +60,7 @@ describe('structured Maple Leaf privy form workflow', () => {
       coinName: document.getElementById('coinName'), coinYear: document.getElementById('coinYear'),
       coinMint: document.getElementById('coinMint'), grade: document.getElementById('coinGrade'),
       coinFinish: document.getElementById('coinFinish'), coinMetal: document.getElementById('coinMetal'),
+      specialMark: document.getElementById('coinSpecialMark'),
       coinSilver: document.getElementById('coinSilver'), silverLabel: document.getElementById('silverCheckLabel'),
       coinLabel: document.getElementById('coinLabel'), variantDetail: document.getElementById('coinVariantDetail'),
       variantDetailRow: document.getElementById('coinVariantDetailRow'), coinWeight: document.getElementById('coinWeight'),
@@ -80,32 +82,38 @@ describe('structured Maple Leaf privy form workflow', () => {
     CoinForm.els.coinYear.value = '2015';
     CoinForm.els.coinFinish.value = 'Reverse Proof';
     CoinForm.els.coinMetal.value = 'silver';
-    CoinForm.els.coinLabel.value = 'Privy';
-    CoinForm.els.coinLabel.dispatchEvent(new Event('change'));
-    CoinForm.els.variantDetail.value = 'EMC2';
+    const markOption = document.createElement('option');
+    markOption.value = 'rcm.maple.emc2';
+    markOption.dataset.registryMark = 'true';
+    markOption.dataset.canonicalName = 'E=mc2';
+    markOption.textContent = 'E=mc2';
+    CoinForm.els.specialMark.add(markOption);
+    CoinForm.els.specialMark.value = 'rcm.maple.emc2';
+    CoinForm.els.specialMark.dispatchEvent(new Event('change'));
     CoinForm._updatePreview();
+    CoinForm.specialMarkContextKey = CoinForm._currentSpecialMarkContextKey();
 
-    expect(CoinForm.els.variantDetailRow.style.display).toBe('');
-    expect(CoinForm.els.variantDetail.required).toBe(true);
-    expect(CoinForm.els.variantDetail.getAttribute('aria-required')).toBe('true');
-    expect(CoinForm.els.previewText.textContent).toBe('2015 Canadian Maple Leaf Silver Reverse Proof EMC2 Privy 1 oz');
+    expect(CoinForm.els.variantDetailRow.style.display).toBe('none');
+    expect(CoinForm.els.previewText.textContent).toBe('2015 Canadian Maple Leaf Silver Reverse Proof E=mc2 Privy 1 oz');
     expect(CoinForm.getData()).toEqual(expect.objectContaining({
-      query: '2015 Canadian Maple Leaf Silver Reverse Proof EMC2 Privy 1 oz',
+      query: '2015 Canadian Maple Leaf Silver Reverse Proof E=mc2 Privy 1 oz',
       coinData: expect.objectContaining({
-        composition: 'silver', finish: 'Reverse Proof', label: 'Privy', variantDetail: 'EMC2', weight: 1,
+        composition: 'silver', finish: 'Reverse Proof', specialMarkMode: 'exact',
+        specialMarks: [{ markId: 'rcm.maple.emc2' }], variantDetail: null, weight: 1,
       }),
     }));
 
     CoinForm.els.coinWeight.value = '0.5';
     CoinForm.els.coinWeight.dispatchEvent(new Event('input'));
-    expect(CoinForm.els.previewText.textContent).toBe('2015 Canadian Maple Leaf Silver Reverse Proof EMC2 Privy 1/2 oz');
+    expect(CoinForm.els.previewText.textContent).toBe('2015 Canadian Maple Leaf Silver Reverse Proof E=mc2 Privy 1/2 oz');
   });
 
   test('blocks a blank Privy detail and focuses its accessible error', () => {
     CoinForm.els.coinName.value = 'Canadian Maple Leaf';
     CoinForm.els.coinYear.value = '2015';
-    CoinForm.els.coinLabel.value = 'Privy';
-    CoinForm.els.coinLabel.dispatchEvent(new Event('change'));
+    CoinForm.els.specialMark.value = 'unknown';
+    CoinForm.els.specialMark.dispatchEvent(new Event('change'));
+    CoinForm.specialMarkContextKey = CoinForm._currentSpecialMarkContextKey();
 
     expect(CoinForm.validate()).toBe(false);
     expect(CoinForm.els.variantDetail.getAttribute('aria-invalid')).toBe('true');
@@ -115,14 +123,14 @@ describe('structured Maple Leaf privy form workflow', () => {
 
   test('clears hidden detail and supports Enter submission from the detail field', () => {
     CoinForm._bindSubmit();
-    CoinForm.els.coinLabel.value = 'Privy';
-    CoinForm.els.coinLabel.dispatchEvent(new Event('change'));
+    CoinForm.els.specialMark.value = 'unknown';
+    CoinForm.els.specialMark.dispatchEvent(new Event('change'));
     CoinForm.els.variantDetail.value = 'EMC2';
     CoinForm.els.variantDetail.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
     expect(global.runQuery).toHaveBeenCalledTimes(1);
 
-    CoinForm.els.coinLabel.value = '';
-    CoinForm.els.coinLabel.dispatchEvent(new Event('change'));
+    CoinForm.els.specialMark.value = 'standard';
+    CoinForm.els.specialMark.dispatchEvent(new Event('change'));
     expect(CoinForm.els.variantDetailRow.style.display).toBe('none');
     expect(CoinForm.els.variantDetail.value).toBe('');
     expect(CoinForm.els.variantDetail.required).toBe(false);
@@ -133,6 +141,7 @@ describe('structured Maple Leaf privy form workflow', () => {
     CoinForm.els.coinName.value = 'Morgan Dollar';
     CoinForm.els.coinYear.value = '1921';
     CoinForm._updatePreview();
+    CoinForm.specialMarkContextKey = CoinForm._currentSpecialMarkContextKey();
 
     expect(CoinForm.els.previewText.textContent).toBe('1921 Morgan Dollar');
     expect(CoinForm.getData().coinData.weight).toBeNull();

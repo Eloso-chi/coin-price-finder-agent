@@ -38,6 +38,9 @@ const { detectWeightFromTitle, detectWeightsFromTitle } = require('../utils/coin
 const { resolveProductIdentity } = require('../utils/productIdentityResolver');
 const { isReverseProofFinish } = require('../utils/coinIntent');
 const { detectBarBrands, detectSeriesFromTitle } = require('../data/barSeries');
+const {
+  getMarkById, aliasesMatchTitle, detectMarksInTitle, markApplies, inferProgramDenomination,
+} = require('../data/specialMarksRegistry');
 
 const BAR_SERIES_CLASSIFICATION = Symbol('barSeriesClassification');
 
@@ -314,6 +317,41 @@ function compMatchesVariantDetail(comp, variantDetail) {
   const matches = titleMatchesVariantDetail(comp.title, variantDetail);
   variantDetailMatchCache.set(comp, { variantDetail, matches });
   return matches;
+}
+
+function compSpecialMarkContext(comp) {
+  const title = String(comp?.title || '');
+  const year = title.match(/\b(18\d{2}|19\d{2}|20\d{2})\b/)?.[1];
+  const denomination = title.match(/(?:C?\$|USD\s*)(\d+(?:\.\d+)?)\b|\b(\d+(?:\.\d+)?)\s+dollars?\b/i);
+  const metal = detectMetalFromTitle(title);
+  const gradeType = classifyGradeType(comp);
+  const finish = gradeType === 'reverse-proof' ? 'reverse proof'
+    : gradeType === 'proof' ? 'proof'
+    : null;
+  return {
+    program: title,
+    year: year ? Number(year) : null,
+    metal,
+    weight: detectWeightFromTitle(title),
+    denomination: denomination
+      ? Number(denomination[1] || denomination[2])
+      : inferProgramDenomination(title, metal),
+    finish,
+    mint: title.match(/(?:^|[\s(-])([PDSW])(?:$|[\s),-])/i)?.[1] || null,
+  };
+}
+
+function compMatchesSpecialMark(comp, specialMark) {
+  const registered = specialMark?.markId ? getMarkById(specialMark.markId) : null;
+  return registered
+    ? aliasesMatchTitle(registered, comp?.title)
+      && markApplies(registered, compSpecialMarkContext(comp), true)
+    : compMatchesVariantDetail(comp, specialMark?.canonicalName);
+}
+
+function compHasRecognizedSpecialMark(comp) {
+  const context = compSpecialMarkContext(comp);
+  return detectMarksInTitle(comp?.title).some(mark => markApplies(mark, context, true));
 }
 
 function queryWantsProof(expected) {
@@ -866,8 +904,11 @@ function scoreMatch(comp, expected) {
   if (titleFamilies.has('privy')) {
     notes.push('privy-info');
   }
-  if (expected.variantDetail) {
-    if (compMatchesVariantDetail(comp, expected.variantDetail)) {
+  if (expected.specialMarks?.length || expected.variantDetail) {
+    const matches = expected.specialMarks?.length
+      ? compMatchesSpecialMark(comp, expected.specialMarks[0])
+      : compMatchesVariantDetail(comp, expected.variantDetail);
+    if (matches) {
       score += 10; notes.push('variant-detail-match');
     } else {
       score -= 30; notes.push('variant-detail-mismatch');
@@ -1339,6 +1380,8 @@ function applyFilters(comps, options, expected) {
     } else {
       removed.variantWrongColor = 0;
       kept = kept.filter(c => {
+        const exactMarkMatch = expected.specialMarks?.length
+          && compMatchesSpecialMark(c, expected.specialMarks[0]);
         const titleFamiliesHF = detectVariantFamilies(c.title);
         const gradeType = classifyGradeType(c);
         const requestedProofPool = expected.isProof
@@ -1355,6 +1398,7 @@ function applyFilters(comps, options, expected) {
           removed.variantWrongColor++;
           return false;
         }
+        if (exactMarkMatch && !hasConflictingVariantFamily(titleFamiliesHF, requestedFamilyHF)) return true;
         if (titleFamiliesHF.has(requestedFamilyHF)
           && !hasConflictingVariantFamily(titleFamiliesHF, requestedFamilyHF)) return true;
         removed.variantWrongColor++;
@@ -1363,11 +1407,26 @@ function applyFilters(comps, options, expected) {
     }
   }
 
-  if (expected.variantDetail) {
+  if (expected.specialMarks?.length || expected.variantDetail) {
     removed.variantDetailMismatch = 0;
     kept = kept.filter(c => {
-      if (compMatchesVariantDetail(c, expected.variantDetail)) return true;
+      const matches = expected.specialMarks?.length
+        ? compMatchesSpecialMark(c, expected.specialMarks[0])
+        : compMatchesVariantDetail(c, expected.variantDetail);
+      if (matches) return true;
       removed.variantDetailMismatch++;
+      return false;
+    });
+  }
+
+  if (expected.specialMarkMode === 'standard' || expected.specialMarkMode === 'unspecified') {
+    const removalKey = expected.specialMarkMode === 'unspecified'
+      ? 'unspecifiedRecognizedSpecialMark'
+      : 'recognizedSpecialMark';
+    removed[removalKey] = 0;
+    kept = kept.filter(c => {
+      if (!compHasRecognizedSpecialMark(c)) return true;
+      removed[removalKey]++;
       return false;
     });
   }
@@ -1570,6 +1629,15 @@ function _targetCompPool(expected) {
   if (wantsProof && isReverseProofFinish(expected.finish)) return 'reverse-proof';
   if (wantsProof) return 'proof';
   return expected.grade ? 'graded' : 'raw';
+}
+
+function _strictPoolFilter(comps, targetPool) {
+  const kept = comps.filter(comp => {
+    const gradeType = classifyGradeType(comp);
+    comp.gradeType = gradeType;
+    return gradeType === targetPool;
+  });
+  return { kept, removed: comps.length - kept.length };
 }
 
 function _titleYears(title) {
@@ -1821,12 +1889,9 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
     // #270W (the right fixes are wider lookback, better seeding, or
     // two-pool FMV surfacing -- NEVER pool merging).
     const beforeSplit = tpComps.length;
-    tpComps = tpComps.filter(c => {
-      const gt = classifyGradeType(c);
-      c.gradeType = gt; // update stored value for downstream consumers
-      return gt === targetPool;
-    });
-    preFilterRemoved.prefilterStrikeSplit = beforeSplit - tpComps.length;
+    const poolFiltered = _strictPoolFilter(tpComps, targetPool);
+    tpComps = poolFiltered.kept;
+    preFilterRemoved.prefilterStrikeSplit = poolFiltered.removed;
     if (tpComps.length !== beforeSplit) {
       console.log(`[ebay] Terapeak grade-split: ${beforeSplit} → ${tpComps.length} (${targetPool} only)`);
     }
@@ -2023,8 +2088,10 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
         if (insightComps.length > 0) {
           apiUsed = 'marketplace-insights';
           const deduped = dedup(insightComps);
-          const scored = deduped.map(c => scoreMatch(c, expected));
+          const poolFiltered = _strictPoolFilter(deduped, targetPool);
+          const scored = poolFiltered.kept.map(c => scoreMatch(c, expected));
           const { kept, removed } = applyFilters(scored, opts, expected);
+          removed.prefilterStrikeSplit = poolFiltered.removed;
           const prices = kept.map(c => c.totalUsd);
           usResult = { stats: stats.summarize(prices), comps: kept, removed, error: null };
           console.log(`[ebay] Marketplace Insights (${tierDays}d): ${kept.length} US comps`);
@@ -2059,11 +2126,13 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
         }
 
         const dedupedUS = dedup(rawUS);
-        const scoredUS = dedupedUS.map(c => scoreMatch(c, expected));
+        const poolFilteredUS = _strictPoolFilter(dedupedUS, targetPool);
+        const scoredUS = poolFilteredUS.kept.map(c => scoreMatch(c, expected));
         // #168: API-fetched comps are keyword-searched (inherently multi-year),
         // similar to generic Terapeak datasets. Relax year filter for bullion.
         if (expected.weight) expected._fromGenericDataset = true;
         const filterUS = applyFilters(scoredUS, opts, expected);
+        filterUS.removed.prefilterStrikeSplit = (preFilterRemoved.prefilterStrikeSplit || 0) + poolFilteredUS.removed;
         delete expected._fromGenericDataset;
 
         // Merge with any Insights comps
@@ -2103,9 +2172,11 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
             }
 
             const dedupedRetry = dedup(rawRetry);
-            const scoredRetry = dedupedRetry.map(c => scoreMatch(c, expected));
+            const poolFilteredRetry = _strictPoolFilter(dedupedRetry, targetPool);
+            const scoredRetry = poolFilteredRetry.kept.map(c => scoreMatch(c, expected));
             if (expected.weight) expected._fromGenericDataset = true;
             const filterRetry = applyFilters(scoredRetry, opts, expected);
+            filterRetry.removed.prefilterStrikeSplit = (preFilterRemoved.prefilterStrikeSplit || 0) + poolFilteredRetry.removed;
             delete expected._fromGenericDataset;
             const mergedRetry = usResult ? dedup([...usResult.comps, ...filterRetry.kept]) : filterRetry.kept;
             const mergedPrices = mergedRetry.map(c => c.totalUsd);
@@ -2157,8 +2228,10 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
       }
 
       const dedupedGlobal = dedup(rawGlobal);
-      const scoredGlobal = dedupedGlobal.map(c => scoreMatch(c, expected));
+      const poolFilteredGlobal = _strictPoolFilter(dedupedGlobal, targetPool);
+      const scoredGlobal = poolFilteredGlobal.kept.map(c => scoreMatch(c, expected));
       const filterGlobal = applyFilters(scoredGlobal, opts, expected);
+      filterGlobal.removed.prefilterStrikeSplit = poolFilteredGlobal.removed;
       const glPrices = filterGlobal.kept.map(c => c.totalUsd);
       globalResult = { stats: stats.summarize(glPrices), comps: filterGlobal.kept, removed: filterGlobal.removed, error: null };
       if (apiUsed === 'none') apiUsed = 'finding';
@@ -2183,9 +2256,11 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
     try {
       const browseComps = await browseSearch(keywords, PER_PAGE * opts.maxPages, expected._brandFilter || null);
       const dedupedBrowse = dedup(browseComps);
-      const scoredBrowse = dedupedBrowse.map(c => scoreMatch(c, expected));
+      const poolFilteredBrowse = _strictPoolFilter(dedupedBrowse, targetPool);
+      const scoredBrowse = poolFilteredBrowse.kept.map(c => scoreMatch(c, expected));
       if (expected.weight) expected._fromGenericDataset = true;
       const { kept, removed } = applyFilters(scoredBrowse, opts, expected);
+      removed.prefilterStrikeSplit = (preFilterRemoved.prefilterStrikeSplit || 0) + poolFilteredBrowse.removed;
       delete expected._fromGenericDataset;
       usedFallback = true;
 

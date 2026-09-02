@@ -105,7 +105,7 @@ describe('canonical comp reclassification migration', () => {
     const result = analyzeStore(fixture());
 
     expect(result.manifest).toEqual(expect.objectContaining({
-      parserVersion: '1.0.0',
+      parserVersion: '2.0.0',
       before: { datasets: 1, comps: 4 },
       after: { datasets: 2, comps: 3 },
       counts: { valid: 1, wrong_dataset: 1, ambiguous: 1, unknown: 1 },
@@ -304,7 +304,7 @@ describe('canonical comp reclassification migration', () => {
         grade: 'MS70',
         pool: 'graded',
         poolConstrained: true,
-        parserVersion: '1.0.0',
+        parserVersion: '2.0.0',
       }));
       const lockPath = `${storePath}.reclassify.lock`;
       expect(JSON.parse(fs.readFileSync(lockPath, 'utf8'))).toEqual(expect.objectContaining({

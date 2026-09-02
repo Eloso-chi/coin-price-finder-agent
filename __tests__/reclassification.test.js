@@ -116,7 +116,7 @@ describe('importComps reclassification', () => {
       metal: 'gold',
       nominalWeightOz: 0.25,
       pool: 'raw',
-      parserVersion: '1.0.0',
+      parserVersion: '2.0.0',
     }));
   });
 

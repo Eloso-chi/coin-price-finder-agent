@@ -14,8 +14,8 @@
 All files live in `.github/agents/`, `.github/prompts/`, and `.github/skills/`.
 The `.github` directory is hidden -- use explicit paths.
 
-The 2026-08-26 alignment refreshed Onboard for the current 28 services,
-18 routes, 15 utilities, four middleware modules, and two schemas, including
+The 2026-09-02 alignment refreshed Onboard for the current 28 services,
+19 routes, 15 utilities, four middleware modules, and two schemas, including
 the AI pricing/collection/market surfaces and external-exposure decision.
 The utility inventory includes `productIdentityResolver.js` as the versioned
 identity, ambiguity, pool-isolation, and persisted-serialization boundary.

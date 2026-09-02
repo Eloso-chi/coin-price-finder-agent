@@ -41,15 +41,23 @@ function pickObject(value, allowed) {
 
 function validateCoinData(value) {
   const projected = pickObject(value, [
-    'name', 'year', 'mint', 'grade', 'finish', 'designation', 'composition', 'isProof', 'coa', 'originalBox',
+    'name', 'year', 'mint', 'mintMark', 'grade', 'finish', 'designation', 'composition', 'isProof', 'coa', 'originalBox',
+    'specialMarkMode', 'specialMarks', 'variantDetail',
   ]);
   if (!projected) return undefined;
   const stringBounds = {
-    name: 200, mint: 10, grade: 30, finish: 100, designation: 30, composition: 50,
+    name: 200, mint: 10, mintMark: 10, grade: 30, finish: 100, designation: 30, composition: 50,
+    specialMarkMode: 20, variantDetail: 50,
   };
-  for (const key of ['name', 'mint', 'grade', 'finish', 'designation', 'composition']) {
+  for (const key of ['name', 'mint', 'mintMark', 'grade', 'finish', 'designation', 'composition', 'specialMarkMode', 'variantDetail']) {
     if (projected[key] != null && (typeof projected[key] !== 'string' || projected[key].length > stringBounds[key])) throw new Error(`coinData.${key} must be a bounded string`);
   }
+  const { isValidSpecialMarkInput, isValidVariantDetailInput } = require('../utils/coinIntent');
+  if (!isValidSpecialMarkInput(projected.specialMarks, projected.specialMarkMode)
+    || !isValidVariantDetailInput(projected.variantDetail)) {
+    throw new Error('coinData special-mark identity is invalid');
+  }
+  if (projected.specialMarks) projected.specialMarks = projected.specialMarks.map(mark => ({ markId: mark.markId }));
   if (projected.year != null && !((typeof projected.year === 'string' && /^[1-9]\d{0,3}$/.test(projected.year)) || (typeof projected.year === 'number' && Number.isInteger(projected.year) && projected.year >= 1 && projected.year <= 9999))) {
     throw new Error('coinData.year must be a bounded year');
   }

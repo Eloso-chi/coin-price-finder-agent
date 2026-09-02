@@ -1,8 +1,9 @@
 'use strict';
 
 const { detectWeightsFromTitle } = require('./coinMetalProfile');
+const { resolveSpecialMark, detectMarksInTitle, serializeMark } = require('../data/specialMarksRegistry');
 
-const PRODUCT_IDENTITY_PARSER_VERSION = '1.0.0';
+const PRODUCT_IDENTITY_PARSER_VERSION = '2.0.0';
 const WEIGHT_RELATIVE_TOLERANCE = 0.05;
 
 class ProductIdentityError extends Error {
@@ -191,6 +192,21 @@ function distinctMatches(text, pattern, normalize) {
   return [...new Set(Array.from(text.matchAll(pattern), normalize))];
 }
 
+function inferBullionDenomination(text, series, metal) {
+  const explicit = String(text || '').match(/(?:C?\$|USD\s*)(1|5|50)\b|\b(1|5|50)\s+dollars?\b/i);
+  if (explicit) return Number(explicit[1] || explicit[2]);
+  const canonical = canonicalSeries(series);
+  if (canonical === 'silver maple leaf' || (canonical === 'maple leaf' && normalizeToken(metal) === 'silver')) return 5;
+  if (canonical === 'american silver eagle') return 1;
+  if (canonical === 'american gold eagle') return 50;
+  return null;
+}
+
+function explicitDenomination(text) {
+  const match = String(text || '').match(/(?:C?\$|USD\s*)(1|5|50)\b|\b(1|5|50)\s+dollars?\b/i);
+  return match ? Number(match[1] || match[2]) : null;
+}
+
 function resolveProductIdentity({ text = '', structured = {}, parsed = {} } = {}) {
   const textIdentity = inferTextIdentity(text);
   const evidence = { ...textIdentity, ...parsed };
@@ -214,6 +230,64 @@ function resolveProductIdentity({ text = '', structured = {}, parsed = {} } = {}
   if (weightEvidence.status === 'ambiguous') {
     ambiguities.push({ field: 'weight', valuesOz: weightEvidence.valuesOz });
   }
+  const markRequest = Array.isArray(structured.specialMarks) ? structured.specialMarks[0] : null;
+  const legacyPrivyDetail = structured.label === 'Privy' && structured.specialMarkMode !== 'unknown'
+    ? structured.variantDetail
+    : null;
+  const structuredDenomination = structured.denomination ?? evidence.denomination ?? null;
+  const textDenomination = explicitDenomination(text);
+  if (structuredDenomination != null && textDenomination != null
+    && Number(structuredDenomination) !== textDenomination) {
+    ambiguities.push({
+      field: 'denomination', structured: structuredDenomination, text: textDenomination,
+    });
+  }
+  const markContext = {
+    program: structured.series || structured.name || evidence.series,
+    year: structured.year || evidence.year,
+    metal: structuredMetal || evidence.metal,
+    weight: nominalWeightOz,
+    finish: structured.finish || evidence.finish,
+    mint: structured.mint || structured.mintMark || evidence.mint,
+    denomination: structuredDenomination ?? textDenomination
+      ?? inferBullionDenomination(text, structured.series || structured.name || evidence.series, structuredMetal || evidence.metal),
+  };
+  const markResolution = structured.specialMarkMode === 'unknown'
+    ? { status: 'none', mark: null }
+    : resolveSpecialMark({
+    markId: markRequest?.markId,
+    detail: legacyPrivyDetail,
+    context: markContext,
+  });
+  const textMarks = structured.specialMarkMode === 'unknown' ? [] : detectMarksInTitle(text, markContext).filter(mark =>
+    resolveSpecialMark({ markId: mark.markId, context: markContext }).status === 'resolved');
+  if (textMarks.length > 1) ambiguities.push({ field: 'specialMark', reason: 'multiple-text-marks' });
+  if ((structured.specialMarkMode === 'standard' || structured.specialMarkMode === 'unspecified') && textMarks.length) {
+    ambiguities.push({
+      field: 'specialMark',
+      structured: structured.specialMarkMode,
+      text: textMarks[0].markId,
+      reason: 'mode-text-conflict',
+    });
+  }
+  if (markResolution.status === 'resolved' && textMarks.length === 1
+    && textMarks[0].markId !== markResolution.mark.markId) {
+    ambiguities.push({ field: 'specialMark', structured: markResolution.mark.markId, text: textMarks[0].markId });
+  }
+  if (markRequest && markResolution.status !== 'resolved') {
+    ambiguities.push({ field: 'specialMark', markId: markRequest.markId, reason: markResolution.status });
+  }
+  const resolvedMark = markResolution.status === 'resolved' ? markResolution.mark : textMarks[0];
+  const unknownDetail = structured.specialMarkMode === 'unknown' ? structured.variantDetail : legacyPrivyDetail;
+  const specialMarks = resolvedMark
+    ? [serializeMark(resolvedMark)]
+    : unknownDetail ? [{
+      markId: null,
+      canonicalName: String(unknownDetail).trim(),
+      kind: 'privy',
+      officialStatus: 'unknown',
+      registryVersion: null,
+    }] : [];
 
   return Object.freeze({
     series: structured.series || structured.name || evidence.series || null,
@@ -224,6 +298,8 @@ function resolveProductIdentity({ text = '', structured = {}, parsed = {} } = {}
     grade: structured.grade || evidence.grade || null,
     finish: structured.finish || evidence.finish || null,
     designation: structured.designation || evidence.designation || null,
+    specialMarkMode: structured.specialMarkMode || (resolvedMark ? 'exact' : specialMarks.length ? 'unknown' : 'unspecified'),
+    specialMarks: Object.freeze(specialMarks.map(mark => Object.freeze(mark))),
     pool: inferPool(structured, evidence),
     poolConstrained: Boolean(
       structured.isProof === true || structured.isReverseProof === true
@@ -246,6 +322,8 @@ function serializeProductIdentity(identity) {
     grade: identity.grade,
     finish: identity.finish,
     designation: identity.designation,
+    specialMarkMode: identity.specialMarkMode,
+    specialMarks: identity.specialMarks,
     pool: identity.pool,
     poolConstrained: identity.poolConstrained,
     weightEvidence: identity.weightEvidence,

@@ -83,6 +83,11 @@ model arbitrary application access:
    validated before deterministic services execute. Unknown fields, trusted
    context, user identity, admin status, provider settings, and explicit null
    optional fields are rejected.
+- Bullion special marks use registry-backed IDs with a one-mark request limit,
+   strict nested-object shape validation, and bounded context fields. Unlisted
+   mark text remains length- and character-restricted and cannot inherit a
+   registered issue premium. The public registry lookup is read-only and
+   protected by the global request limiter.
 - Collection context uses only the verified JWT user ID. Caller- or model-
    supplied user IDs cannot select another user's records.
 - Deterministic services calculate all numerical results. Numerical LLM
