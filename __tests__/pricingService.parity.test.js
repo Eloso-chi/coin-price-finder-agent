@@ -132,6 +132,7 @@ jest.mock('../src/utils/coinIntent', () => ({
     barSeries: null,
   })),
   isValidFinishInput: jest.fn(() => true),
+  isValidVariantDetailInput: jest.fn(() => true),
 }));
 
 jest.mock('../src/data/keyDates', () => ({

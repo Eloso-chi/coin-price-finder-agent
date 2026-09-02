@@ -751,6 +751,84 @@ describe('scoreMatch — colorized mint-signal scoring', () => {
     expect(removed.variantMismatch || 0).toBe(0);
   });
 
+  test('specific reverse-proof privy intent keeps only the requested mark', () => {
+    const expected = {
+      isProof: true,
+      finish: 'Reverse Proof',
+      label: 'Privy',
+      variantDetail: 'EMC2',
+      _rawQuery: '2015 Canadian Silver Maple Leaf Reverse Proof EMC2 Privy',
+    };
+    const comps = [
+      makeComp({ title: '2015 Canada Silver Maple Leaf E=mc2 Privy Reverse Proof', gradeType: 'reverse-proof' }),
+      makeComp({ title: '2015 Canada Silver Maple Leaf Einstein EMC2 Privy Reverse Proof', gradeType: 'reverse-proof' }),
+      makeComp({ title: '2015 Canada Silver Maple Leaf Panda Privy Reverse Proof', gradeType: 'reverse-proof' }),
+      makeComp({ title: '2015 Canada Silver Maple Leaf Reverse Proof', gradeType: 'reverse-proof' }),
+    ];
+
+    comps.forEach(comp => scoreMatch(comp, expected));
+    const { kept, removed } = applyFilters(comps, {}, expected);
+
+    expect(kept.map(comp => comp.title)).toEqual([
+      '2015 Canada Silver Maple Leaf E=mc2 Privy Reverse Proof',
+      '2015 Canada Silver Maple Leaf Einstein EMC2 Privy Reverse Proof',
+    ]);
+    expect(removed.lowRelevance).toBe(1);
+    expect(removed.variantDetailMismatch).toBe(1);
+    expect(kept.every(comp => comp.matchNotes.includes('variant-detail-match'))).toBe(true);
+  });
+
+  test('reverse-proof privy intent rejects a regular Proof comp with the same mark', () => {
+    const expected = {
+      isProof: true,
+      finish: 'Reverse Proof',
+      label: 'Privy',
+      variantDetail: 'EMC2',
+      _rawQuery: '2015 Maple Leaf Reverse Proof EMC2 Privy',
+    };
+    const comps = [
+      makeComp({ title: '2015 Maple Leaf E=mc2 Privy Reverse Proof PF69' }),
+      makeComp({ title: '2015 Maple Leaf EMC2 Privy Proof PF69' }),
+    ];
+
+    comps.forEach(comp => scoreMatch(comp, expected));
+    const { kept } = applyFilters(comps, {}, expected);
+
+    expect(kept.map(comp => comp.title)).toEqual(['2015 Maple Leaf E=mc2 Privy Reverse Proof PF69']);
+  });
+
+  test('regular Proof privy intent rejects a Reverse Proof comp with the same mark', () => {
+    const expected = {
+      isProof: true,
+      finish: 'Proof',
+      label: 'Privy',
+      variantDetail: 'EMC2',
+      _rawQuery: '2015 Maple Leaf Proof EMC2 Privy',
+    };
+    const comps = [
+      makeComp({ title: '2015 Maple Leaf EMC2 Privy Proof PF69' }),
+      makeComp({ title: '2015 Maple Leaf EMC2 Privy Reverse Proof PF69' }),
+    ];
+
+    comps.forEach(comp => scoreMatch(comp, expected));
+    const { kept } = applyFilters(comps, {}, expected);
+
+    expect(kept.map(comp => comp.title)).toEqual(['2015 Maple Leaf EMC2 Privy Proof PF69']);
+  });
+
+  test('specific privy detail uses bounded token matching', () => {
+    const expected = { label: 'Privy', variantDetail: 'Wolf', _rawQuery: 'Maple Leaf Wolf Privy' };
+    const comps = [
+      makeComp({ title: 'Maple Leaf Wolf Privy' }),
+      makeComp({ title: 'Maple Leaf Wolfgang Privy' }),
+    ];
+
+    comps.forEach(comp => scoreMatch(comp, expected));
+    const { kept } = applyFilters(comps, {}, expected);
+
+    expect(kept.map(comp => comp.title)).toEqual(['Maple Leaf Wolf Privy']);
+  });
+
   test('non-colorized query ignores mint-signal scoring', () => {
     const mintComp = makeComp({
       title: '2024 Silver Eagle Perth Mint with COA MS-70',

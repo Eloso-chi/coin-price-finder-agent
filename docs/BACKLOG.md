@@ -4398,6 +4398,32 @@ Gated on data: run pricing-health across a Reverse-Proof slate (2023 RP Morgan, 
 
 ---
 
+### #311H. Preserve Maple Leaf metal and exact privy identity through valuation [P1 -- PRICING-ACCURACY / UX] -- IMPLEMENTED 2026-09-01
+
+**Origin:** User repro: a 2015 Canadian Maple Leaf, 1 oz silver, Reverse Proof, EMC2 privy could not express its metal in Structured Entry and failed with `AMBIGUOUS_PRODUCT_IDENTITY (series)` after selecting the generic Privy label.
+
+**Problem:** The structured form exposed the Silver checkbox only for modern US proof denominations. A generic Canadian Maple Leaf name therefore supplied no structured metal, full descriptive names such as `Canadian Maple Leaf Reverse Proof` conflicted with the parser's metal-qualified Maple Leaf series, and the generic Privy label neither captured `EMC2` nor isolated that mark from unrelated privy comps.
+
+**Implemented approach:**
+1. Add an explicit Auto/Silver/Gold/Platinum/Palladium metal selector to Structured Entry while retaining the existing transitional US-proof Silver control. The selected metal is preserved in both query text and `coinData.composition`.
+2. Show a bounded privy-name/mark input when Label / Variant is Privy, clear it when Privy is deselected, and preserve the detail in query text and `coinData.variantDetail`.
+3. Treat a generic Maple Leaf series as compatible with a metal-qualified Silver or Gold Maple Leaf parser result, while continuing to reject explicit Silver-vs-Gold series conflicts and structured-vs-text metal conflicts.
+4. Make Privy a requestable variant family. For a specific detail such as `EMC2`, include it in provider keywords and hard-reject comps whose normalized titles do not contain that mark; Reverse Proof privy comps remain eligible for the Reverse Proof pool.
+
+**Acceptance criteria:**
+- The exact 2015 Canadian Silver Maple Leaf, 1 oz, Reverse Proof, EMC2 Privy input resolves without a false series ambiguity.
+- Structured Entry visibly supports metal selection for world bullion and does not leak stale hidden Silver or privy state.
+- Silver and Gold Maple Leaf products remain distinct.
+- An EMC2 request cannot derive sold-comp FMV from another privy or a generic Reverse Proof listing; insufficient exact comps use existing low-data/fallback semantics.
+- Unsafe or oversized `coinData.variantDetail` values return `400`.
+- Focused tests, canonical `npm test`, ESLint, focused UX review, deep review, pre-commit review, and commit-tied Onboard acceptance pass.
+
+**Files:** `public/index.html`, `src/utils/productIdentityResolver.js`, `src/utils/coinIntent.js`, `src/services/pricingService.js`, `src/services/ebayService.js`, `src/routes/priceRoute.js`, focused Jest tests, `docs/ARCHITECTURE.md`, `docs/api-reference.md`, and `docs/BACKLOG.md`.
+
+**Tier:** M. Changes structured input, the public pricing request contract, canonical identity reconciliation, provider keywords, and sold-comp eligibility.
+
+---
+
 ## UX, Accessibility, and Interaction
 
 ### #303H. Critical authentication accessibility: keyboard mode controls, admin labels, and field errors [P0 -- ACCESSIBILITY / WCAG] -- DONE 2026-08-31

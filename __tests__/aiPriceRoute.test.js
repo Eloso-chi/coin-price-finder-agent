@@ -66,6 +66,16 @@ describe('POST /api/ai/price', () => {
     expect(res.body.error).toMatch(/query/i);
   });
 
+  test('returns 400 for a provider-operator privy detail before deterministic pricing', async () => {
+    const res = await request(app)
+      .post('/api/ai/price')
+      .send({ query: '2015 Maple Leaf Privy', coinData: { variantDetail: 'EMC2 -gold' } });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/coinData\.variantDetail/);
+    expect(priceCoin).not.toHaveBeenCalled();
+  });
+
   test('returns 400 for typed ambiguous product identity failures', async () => {
     const identity = resolveProductIdentity({ text: '1 oz and 5 oz Silver set' });
     priceCoin.mockRejectedValueOnce(new ProductIdentityError('Product identity is ambiguous (weight).', identity));

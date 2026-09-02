@@ -21,7 +21,7 @@ const { resolveCoinVariant } = require('../data/halfDollarSeries');
 const { zodiacForYear, perthLunarSeries, getRollQuantity, ALLOWED_LABELS, BULLION_1OZ_DEFAULT } = require('../data/constants');
 const { hasSeriesConflict, detectDenomination } = require('../utils/filters');
 const { getCoinMetalProfile } = require('../utils/coinMetalProfile');
-const { extractCoinIntent } = require('../utils/coinIntent');
+const { extractCoinIntent, isValidVariantDetailInput } = require('../utils/coinIntent');
 const { resolveProductIdentity, assertUnambiguousProductIdentity } = require('../utils/productIdentityResolver');
 const stats = require('../utils/stats');
 
@@ -90,6 +90,11 @@ async function priceCoin(input, trustedContext = {}) {
   }
   if (String(query).length > 300) {
     throw new Error('query must be 300 characters or fewer');
+  }
+  if (!isValidVariantDetailInput(coinData?.variantDetail)) {
+    const error = new Error('coinData.variantDetail is invalid');
+    error.code = 'INVALID_VARIANT_DETAIL';
+    throw error;
   }
 
   const parsedQuery = pcgsService.parseDescription(String(query));
@@ -180,6 +185,9 @@ async function priceCoin(input, trustedContext = {}) {
   let ebayKeywords;
   const rawLabel = coinData?.label || identification.parsed?.label || null;
   const validLabel = (rawLabel && ALLOWED_LABELS.has(rawLabel)) ? rawLabel : null;
+  const variantDetail = validLabel === 'Privy' && coinData?.variantDetail
+    ? String(coinData.variantDetail).trim()
+    : null;
 
   const VARIANT_LABEL_TOKENS = new Set([
     'Colorized', 'Gilded', 'Privy', 'High Relief', 'Antiqued', 'Burnished',
@@ -207,7 +215,7 @@ async function priceCoin(input, trustedContext = {}) {
   } else {
     const parsedFinish = coinData?.finish || identification.parsed?.finish || null;
     if (parsedFinish && !pcgs.finish) pcgs.finish = parsedFinish;
-    ebayKeywords = ebayService.buildKeywords(pcgs, String(query), resolvedWeight, validLabel);
+    ebayKeywords = ebayService.buildKeywords(pcgs, String(query), resolvedWeight, validLabel, variantDetail);
   }
 
   const parsedSeries = identification.parsed?.series || pcgs.series || '';
@@ -287,6 +295,7 @@ async function priceCoin(input, trustedContext = {}) {
     setType: resolvedSetType || null,
     perthSeriesLabel: perthSeriesLabel,
     label: validLabel,
+    variantDetail,
     barBrand: intent.barBrand,
     barSeries: intent.barSeries,
     _gradeSource: identification.parsed?._gradeSource || null,

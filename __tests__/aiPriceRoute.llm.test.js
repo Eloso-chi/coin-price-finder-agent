@@ -45,6 +45,18 @@ describe('LLM-enabled POST /api/ai/price', () => {
     expect(priceCoin).not.toHaveBeenCalled();
   });
 
+  test('rejects malformed privy detail before LLM orchestration', async () => {
+    const res = await request(createApp()).post('/api/ai/price').send({
+      query: '2015 Maple Leaf Privy',
+      structuredContext: { coinData: { variantDetail: 'EMC2 +gold' } },
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/coinData\.variantDetail/);
+    expect(orchestrate).not.toHaveBeenCalled();
+    expect(priceCoin).not.toHaveBeenCalled();
+  });
+
   test('preserves a structured single-comp warning from deterministic tool results', async () => {
     orchestrate.mockResolvedValueOnce({
       answer: 'The deterministic tool returned a thin-data estimate.',

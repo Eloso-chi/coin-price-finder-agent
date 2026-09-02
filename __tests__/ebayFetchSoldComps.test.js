@@ -335,6 +335,60 @@ describe('fetchSoldComps — Terapeak tier', () => {
     expect(result.us.comps.every(c => /reverse[\s-]+proof/i.test(c.title))).toBe(true);
   });
 
+  test('routes an exact Reverse Proof privy request before Terapeak strike filtering', async () => {
+    terapeakService.lookupComps.mockReturnValue({
+      searchTerm: '2015 Canada Silver Maple Leaf Reverse Proof EMC2 Privy',
+      lastImport: '2026-05-26',
+      comps: [
+        { title: '2015 Canada Silver Maple Leaf E=mc2 Privy Reverse Proof', totalUsd: 120, soldDate: '2026-05-01', conditionId: '4000', _source: 'terapeak' },
+        { title: '2015 Canada Silver Maple Leaf EMC2 Privy Reverse Proof OGP', totalUsd: 125, soldDate: '2026-05-02', conditionId: '3000', _source: 'terapeak' },
+        { title: '2015 Canada Silver Maple Leaf E mc2 Privy Reverse Proof PF69', totalUsd: 130, soldDate: '2026-05-03', conditionId: '2000', _source: 'terapeak' },
+        { title: '2015 Canada Silver Maple Leaf EMC2 Privy Proof', totalUsd: 90, soldDate: '2026-05-04', conditionId: '4000', _source: 'terapeak' },
+        { title: '2015 Canada Silver Maple Leaf Panda Privy Reverse Proof', totalUsd: 100, soldDate: '2026-05-05', conditionId: '4000', _source: 'terapeak' },
+      ],
+    });
+
+    const result = await ebayService.fetchSoldComps(
+      '2015 Canada Silver Maple Leaf Reverse Proof EMC2 Privy', {},
+      { year: 2015, series: 'Canadian Silver Maple Leaf', isProof: true, finish: 'Reverse Proof', label: 'Privy', variantDetail: 'EMC2' }
+    );
+
+    expect(result.apiUsed).toBe('terapeak');
+    expect(result.us.comps.map(c => c.title)).toEqual([
+      '2015 Canada Silver Maple Leaf E=mc2 Privy Reverse Proof',
+      '2015 Canada Silver Maple Leaf EMC2 Privy Reverse Proof OGP',
+      '2015 Canada Silver Maple Leaf E mc2 Privy Reverse Proof PF69',
+    ]);
+    expect(result.us.removed.prefilterStrikeSplit).toBe(1);
+    expect(result.us.removed.variantDetailMismatch).toBe(1);
+  });
+
+  test('routes an exact regular Proof privy request before Terapeak strike filtering', async () => {
+    terapeakService.lookupComps.mockReturnValue({
+      searchTerm: '2015 Canada Silver Maple Leaf Proof EMC2 Privy',
+      lastImport: '2026-05-26',
+      comps: [
+        { title: '2015 Canada Silver Maple Leaf EMC2 Privy Proof', totalUsd: 90, soldDate: '2026-05-01', conditionId: '4000', _source: 'terapeak' },
+        { title: '2015 Canada Silver Maple Leaf E=mc2 Privy Proof OGP', totalUsd: 95, soldDate: '2026-05-02', conditionId: '3000', _source: 'terapeak' },
+        { title: '2015 Canada Silver Maple Leaf E mc2 Privy Proof PF69', totalUsd: 100, soldDate: '2026-05-03', conditionId: '2000', _source: 'terapeak' },
+        { title: '2015 Canada Silver Maple Leaf EMC2 Privy Reverse Proof', totalUsd: 120, soldDate: '2026-05-04', conditionId: '4000', _source: 'terapeak' },
+      ],
+    });
+
+    const result = await ebayService.fetchSoldComps(
+      '2015 Canada Silver Maple Leaf Proof EMC2 Privy', {},
+      { year: 2015, series: 'Canadian Silver Maple Leaf', isProof: true, finish: 'Proof', label: 'Privy', variantDetail: 'EMC2' }
+    );
+
+    expect(result.apiUsed).toBe('terapeak');
+    expect(result.us.comps.map(c => c.title)).toEqual([
+      '2015 Canada Silver Maple Leaf EMC2 Privy Proof',
+      '2015 Canada Silver Maple Leaf E=mc2 Privy Proof OGP',
+      '2015 Canada Silver Maple Leaf E mc2 Privy Proof PF69',
+    ]);
+    expect(result.us.removed.prefilterStrikeSplit).toBe(1);
+  });
+
   // ── #244: pre-filter telemetry ─────────────────────────────
   // Key names are intentionally provenance-neutral (`prefilter*`) because the
   // `removed` object is returned to non-admin callers via /api/price (see

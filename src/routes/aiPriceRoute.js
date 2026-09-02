@@ -10,6 +10,7 @@ const { writeValuationAudit } = require('../services/auditService');
 const { redactCompsForPublic } = require('../utils/redactForPublic');
 const { orchestrate } = require('../services/aiOrchestratorService');
 const { createLlmProvider } = require('../services/llmProviderAdapter');
+const { isValidVariantDetailInput, MAX_VARIANT_DETAIL_LENGTH } = require('../utils/coinIntent');
 
 function getHandoffInput(body) {
   const structuredContext = body && body.structuredContext && typeof body.structuredContext === 'object'
@@ -86,6 +87,12 @@ router.post('/price', async (req, res) => {
 
     if (!cleanedQuery) {
       return res.status(400).json({ ok: false, error: 'query field is required' });
+    }
+    if (!isValidVariantDetailInput(coinData?.variantDetail)) {
+      return res.status(400).json({
+        ok: false,
+        error: `coinData.variantDetail must contain only letters, numbers, spaces, ._+=-, no search-operator prefixes, and be ${MAX_VARIANT_DETAIL_LENGTH} characters or fewer`,
+      });
     }
 
     const pricingQuery = normalizePricingQuery(cleanedQuery);
@@ -245,7 +252,7 @@ router.post('/price', async (req, res) => {
       response,
     });
   } catch (err) {
-    if (err?.code === 'AMBIGUOUS_PRODUCT_IDENTITY') {
+    if (err?.code === 'AMBIGUOUS_PRODUCT_IDENTITY' || err?.code === 'INVALID_VARIANT_DETAIL') {
       return res.status(400).json({ ok: false, error: err.message, code: err.code });
     }
     return res.status(502).json({

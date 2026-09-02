@@ -83,6 +83,7 @@ function canonicalSeries(value) {
     [/\b(?:american\s+)?gold\s+eagle\b|\bage\b/, 'american gold eagle'],
     [/\b(?:canadian\s+)?silver\s+maple\s+leaf\b/, 'silver maple leaf'],
     [/\b(?:canadian\s+)?gold\s+maple\s+leaf\b/, 'gold maple leaf'],
+    [/\b(?:canadian\s+)?maple\s+leaf\b/, 'maple leaf'],
   ];
   return aliases.find(([pattern]) => pattern.test(normalized))?.[1] || normalized;
 }
@@ -91,7 +92,13 @@ function seriesEquivalent(left, right) {
   const normalizedLeft = normalizeToken(left);
   const normalizedRight = normalizeToken(right);
   if (normalizedLeft === normalizedRight) return true;
-  if (canonicalSeries(normalizedLeft) === canonicalSeries(normalizedRight)) return true;
+  const canonicalLeft = canonicalSeries(normalizedLeft);
+  const canonicalRight = canonicalSeries(normalizedRight);
+  if (canonicalLeft === canonicalRight) return true;
+  const mapleSeries = new Set(['maple leaf', 'silver maple leaf', 'gold maple leaf']);
+  if (mapleSeries.has(canonicalLeft) && mapleSeries.has(canonicalRight)) {
+    return canonicalLeft === 'maple leaf' || canonicalRight === 'maple leaf';
+  }
   const zodiacPattern = /\b(?:year of the )?(?:rat|mouse|ox|tiger|rabbit|dragon|snake|horse|goat|sheep|monkey|rooster|dog|pig)\b/;
   const lunarContextPattern = /^(?:australian|perth(?: mint)?)?\s*(?:silver|gold)?\s*lunar(?: coin| series)?$|^australian\s+(?:silver|gold)\s+coin$/;
   return (zodiacPattern.test(normalizedLeft) && lunarContextPattern.test(normalizedRight))
