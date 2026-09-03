@@ -476,6 +476,20 @@ describe('pricingService.priceCoin() — Phase 0 Acceptance Tests', () => {
     ).rejects.toThrow('query field is required');
   });
 
+  test('requires an exact privy choice for a 2018 Silver Maple Leaf Reverse Proof', async () => {
+    await expect(priceCoin({
+      query: '2018 Canadian Silver Maple Leaf Reverse Proof 1 oz',
+      coinData: {
+        name: 'Canadian Silver Maple Leaf',
+        year: 2018,
+        finish: 'Reverse Proof',
+        weight: 1,
+        specialMarkMode: 'unspecified',
+        specialMarks: [],
+      },
+    })).rejects.toMatchObject({ code: 'SPECIAL_MARK_CLARIFICATION_REQUIRED' });
+  });
+
   // ── Test 10: Sale context validation + fallback
   test('defaults invalid saleContext to ebay', async () => {
     const result = await priceCoin(

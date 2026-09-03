@@ -39,7 +39,8 @@ const { resolveProductIdentity } = require('../utils/productIdentityResolver');
 const { isReverseProofFinish } = require('../utils/coinIntent');
 const { detectBarBrands, detectSeriesFromTitle } = require('../data/barSeries');
 const {
-  getMarkById, aliasesMatchTitle, detectMarksInTitle, markApplies, inferProgramDenomination,
+  SPECIAL_MARKS_REGISTRY_VERSION, getMarkById, aliasesMatchTitle, detectMarksInTitle,
+  markApplies, inferProgramDenomination,
 } = require('../data/specialMarksRegistry');
 
 const BAR_SERIES_CLASSIFICATION = Symbol('barSeriesClassification');
@@ -350,6 +351,7 @@ function compMatchesSpecialMark(comp, specialMark) {
 }
 
 function compHasRecognizedSpecialMark(comp) {
+  if (/\bprivy\b/i.test(String(comp?.title || ''))) return true;
   const context = compSpecialMarkContext(comp);
   return detectMarksInTitle(comp?.title).some(mark => markApplies(mark, context, true));
 }
@@ -1620,6 +1622,14 @@ function _compositeTargetYear(year) {
   return Number.isInteger(value) && value >= 1800 && value <= 2099 ? value : null;
 }
 
+function _specialMarkCacheIdentity(expected) {
+  return JSON.stringify([
+    SPECIAL_MARKS_REGISTRY_VERSION,
+    expected.specialMarkMode || null,
+    expected.specialMarks?.[0]?.issueId || expected.specialMarks?.[0]?.markId || null,
+  ]);
+}
+
 function _targetCompPool(expected) {
   const wantsProof = !!expected.isProof;
   const requestedFamily = requestedVariantFamily(expected);
@@ -1633,9 +1643,9 @@ function _targetCompPool(expected) {
 
 function _strictPoolFilter(comps, targetPool) {
   const kept = comps.filter(comp => {
-    const gradeType = classifyGradeType(comp);
-    comp.gradeType = gradeType;
-    return gradeType === targetPool;
+    const gt = classifyGradeType(comp);
+    comp.gradeType = gt;
+    return gt === targetPool;
   });
   return { kept, removed: comps.length - kept.length };
 }
@@ -1660,6 +1670,7 @@ function _matchesCompositeWeight(comp, expectedWeight) {
 }
 
 function _buildTerapeakComposite(keywords, expected, opts, directComps, targetPool, tpOpts) {
+  if (expected.specialMarkMode === 'exact' || expected.specialMarks?.length) return null;
   const targetYear = _compositeTargetYear(expected.year);
   if (targetYear == null || !(Number(expected.weight) > 0)) return null;
 
@@ -1801,7 +1812,8 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
   }
 
   const barIdentity = JSON.stringify([expected.barBrand || null, expected.barSeries || null]);
-  const cacheKey = `ebay:${keywords}:${expected.metal || ''}:${expected._rawQuery || ''}:${barIdentity}:${JSON.stringify(opts)}`;
+  const specialMarkIdentity = _specialMarkCacheIdentity(expected);
+  const cacheKey = `ebay:${keywords}:${expected.metal || ''}:${expected._rawQuery || ''}:${barIdentity}:${specialMarkIdentity}:${JSON.stringify(opts)}`;
   if (cache.has(cacheKey)) return cache.get(cacheKey);
 
   let usResult, globalResult;
@@ -2399,5 +2411,6 @@ module.exports = {
   detectMetalFromTitle,
   applyFilters,
   classifyGradeType,
-  isReverseProofTitle
+  isReverseProofTitle,
+  _specialMarkCacheIdentity,
 };

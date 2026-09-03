@@ -23,6 +23,11 @@ const { hasSeriesConflict, detectDenomination } = require('../utils/filters');
 const { getCoinMetalProfile } = require('../utils/coinMetalProfile');
 const { extractCoinIntent, isValidVariantDetailInput, isValidSpecialMarkInput } = require('../utils/coinIntent');
 const { resolveProductIdentity, assertUnambiguousProductIdentity } = require('../utils/productIdentityResolver');
+const {
+  listApplicableMarks,
+  markApplies,
+  inferProgramDenomination,
+} = require('../data/specialMarksRegistry');
 const stats = require('../utils/stats');
 
 const SEMI250_DENOM_MAP = {
@@ -112,6 +117,25 @@ async function priceCoin(input, trustedContext = {}) {
     const error = new Error('The special mark is not verified in the registry and cannot be valued as an exact marked issue. Select a registered mark or standard issue.');
     error.code = 'UNVERIFIED_SPECIAL_MARK';
     throw error;
+  }
+  if (inputIdentity.specialMarkMode === 'unspecified') {
+    const markContext = {
+      program: inputIdentity.series,
+      year: inputIdentity.year,
+      metal: inputIdentity.metal,
+      weight: inputIdentity.nominalWeightOz,
+      finish: inputIdentity.finish,
+      mint: inputIdentity.mint,
+      denomination: inferProgramDenomination(inputIdentity.series, inputIdentity.metal),
+    };
+    const applicableMarks = listApplicableMarks(markContext)
+      .filter(mark => markApplies(mark, markContext, true));
+    if (applicableMarks.length > 1) {
+      const error = new Error('Multiple registered special marks match this issue. Select the exact privy, standard issue, or an unlisted mark before pricing.');
+      error.code = 'SPECIAL_MARK_CLARIFICATION_REQUIRED';
+      error.specialMarks = applicableMarks.map(mark => mark.markId);
+      throw error;
+    }
   }
 
   const trustedIsAdmin = trustedContext.isAdmin === true;

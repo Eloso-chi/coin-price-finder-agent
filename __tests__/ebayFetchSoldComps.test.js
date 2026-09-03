@@ -29,8 +29,20 @@ process.env.EBAY_CACHE_TTL_MS = '1000';
 process.env.EBAY_FINDING_ENABLED = 'true'; // enable Finding API for these tests
 
 const ebayService = require('../src/services/ebayService');
+const { SPECIAL_MARKS_REGISTRY_VERSION } = require('../src/data/specialMarksRegistry');
 
 // ── Helpers ─────────────────────────────────────────────────
+test('special-mark cache identity includes registry version and issue identity', () => {
+  expect(ebayService._specialMarkCacheIdentity({
+    specialMarkMode: 'exact',
+    specialMarks: [{ issueId: 'rcm.sml.2018.wood-bison.1oz.reverse-proof' }],
+  })).toBe(JSON.stringify([
+    SPECIAL_MARKS_REGISTRY_VERSION,
+    'exact',
+    'rcm.sml.2018.wood-bison.1oz.reverse-proof',
+  ]));
+});
+
 function makeOAuthResp() {
   return { data: { access_token: 'tok-123', expires_in: 3600 } };
 }
@@ -923,6 +935,38 @@ describe('fetchSoldComps -- type-cohort composite (#300H)', () => {
       ...overrides,
     };
   }
+
+  test('never builds a cross-year composite for an exact special mark', async () => {
+    terapeakService.lookupComps.mockReturnValue({
+      searchTerm: '2018 Canadian Silver Maple Leaf Wood Bison Privy Reverse Proof 1 oz',
+      comps: [{
+        itemId: 'bison-exact',
+        title: '2018 Canada Silver Maple Leaf Wood Bison Privy Reverse Proof 1 oz',
+        totalUsd: 80,
+        soldDate: '2026-08-01',
+        conditionId: '4000',
+        _source: 'terapeak',
+      }],
+    });
+
+    const result = await ebayService.fetchSoldComps(
+      '2018 Canadian Silver Maple Leaf Wood Bison Privy Reverse Proof 1 oz',
+      { usMinComps: 1 },
+      {
+        year: 2018, series: 'Canadian Silver Maple Leaf', weight: 1, metal: 'silver',
+        isProof: true, finish: 'Reverse Proof', specialMarkMode: 'exact',
+        specialMarks: [{
+          issueId: 'rcm.sml.2018.wood-bison.1oz.reverse-proof',
+          markId: 'rcm.maple.wood-bison.2018',
+          canonicalName: 'Wood Bison',
+        }],
+        _rawQuery: '2018 Canadian Silver Maple Leaf Wood Bison Privy Reverse Proof 1 oz',
+      }
+    );
+
+    expect(result.us.comps.map(comp => comp.itemId)).toEqual(['bison-exact']);
+    expect(result).not.toHaveProperty('compositeBasis');
+  });
 
   test('uses a bounded same-pool cohort when the exact-year pool is thin', async () => {
     terapeakService.lookupComps.mockImplementation(query => query.includes('2020')

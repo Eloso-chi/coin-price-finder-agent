@@ -17,15 +17,39 @@ describe('GET /api/special-marks', () => {
     });
     expect(res.status).toBe(200);
     expect(res.body).toEqual({
-      registryVersion: '1.0.0',
+      registryVersion: '1.1.0',
+      resolvedMetal: 'silver',
+      requiresSelection: false,
       marks: [expect.objectContaining({ markId: 'rcm.maple.emc2', canonicalName: 'E=mc2', location: 'reverse' })],
     });
     expect(res.body.marks[0]).not.toHaveProperty('aliases');
   });
 
+  test('infers silver from the metal-specific program name when Metal is Auto-detect', async () => {
+    const res = await request(createApp()).get('/api/special-marks').query({
+      program: 'Canadian Silver Maple Leaf', year: 2015, weight: 1, finish: 'Reverse Proof',
+    });
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual(expect.objectContaining({
+      resolvedMetal: 'silver',
+      requiresSelection: false,
+      marks: [expect.objectContaining({ markId: 'rcm.maple.emc2' })],
+    }));
+  });
+
+  test('requires an exact choice for 2018 Reverse Proof Wild Canada issues', async () => {
+    const res = await request(createApp()).get('/api/special-marks').query({
+      program: 'Canadian Silver Maple Leaf', year: 2018, weight: 1, finish: 'Reverse Proof',
+    });
+    expect(res.status).toBe(200);
+    expect(res.body.requiresSelection).toBe(true);
+    expect(res.body.marks.map(mark => mark.canonicalName)).toEqual(['Pronghorn Antelope', 'Wood Bison']);
+    expect(res.body.marks.every(mark => mark.issueId && mark.mintage.value === 50000)).toBe(true);
+  });
+
   test('does not offer an inapplicable mark', async () => {
     const res = await request(createApp()).get('/api/special-marks').query({
-      program: 'Canadian Maple Leaf', year: 2016, metal: 'silver', weight: 1, finish: 'Reverse Proof',
+      program: 'Canadian Maple Leaf', year: 2014, metal: 'silver', weight: 1, finish: 'Reverse Proof',
     });
     expect(res.status).toBe(200);
     expect(res.body.marks).toEqual([]);

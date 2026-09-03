@@ -27,6 +27,10 @@ describe('structured Maple Leaf privy form workflow', () => {
 
   beforeEach(() => {
     global.runQuery = jest.fn();
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ marks: [], requiresSelection: false }),
+    });
     document.body.innerHTML = `
       ${field('coinName', '<input id="coinName">')}
       ${field('coinYear', '<input id="coinYear">')}
@@ -34,7 +38,7 @@ describe('structured Maple Leaf privy form workflow', () => {
       ${field('coinGrade', '<input id="coinGrade">')}
       ${field('coinFinish', '<select id="coinFinish"><option value=""></option><option value="Reverse Proof">Reverse Proof</option></select>')}
       ${field('coinMetal', '<select id="coinMetal"><option value=""></option><option value="silver">Silver</option><option value="gold">Gold</option></select>')}
-      ${field('coinSpecialMark', '<select id="coinSpecialMark"><option value="unspecified">Not specified</option><option value="standard">Standard</option><option value="unknown">Not listed</option><option value="rcm.maple.emc2" data-registry-mark="true" data-canonical-name="E=mc2">E=mc2</option></select>')}
+      ${field('coinSpecialMark', '<select id="coinSpecialMark" aria-describedby="coinSpecialMark-hint coinSpecialMark-status"><option value="unspecified">Not specified</option><option value="standard">Standard</option><option value="unknown">Not listed</option><option value="rcm.maple.emc2" data-registry-mark="true" data-canonical-name="E=mc2">E=mc2</option></select><span id="coinSpecialMark-hint">Known marks</span><span id="coinSpecialMark-status" role="status" aria-live="polite"></span>')}
       <label id="silverCheckLabel"><input id="coinSilver" type="checkbox">Silver</label>
       ${field('coinLabel', '<select id="coinLabel"><option value=""></option></select>')}
       <div class="field" id="coinVariantDetailRow" style="display:none">
@@ -66,6 +70,7 @@ describe('structured Maple Leaf privy form workflow', () => {
       variantDetailRow: document.getElementById('coinVariantDetailRow'), coinWeight: document.getElementById('coinWeight'),
       quickWeight: document.getElementById('quickWeight'), setType: document.getElementById('setType'),
       setTypeRow: document.getElementById('setTypeRow'), pcgsNumber: document.getElementById('pcgsNumber'),
+      specialMarkStatus: document.getElementById('coinSpecialMark-status'),
       askingPrice: document.getElementById('askingPrice'), quickAsk: document.getElementById('quickAskingPrice'),
       query: document.getElementById('query'), previewWrap: document.getElementById('query-preview'),
       previewText: document.getElementById('preview-text'), submit: document.getElementById('submit'),
@@ -75,7 +80,11 @@ describe('structured Maple Leaf privy form workflow', () => {
     CoinForm._bindPreview();
   });
 
-  afterEach(() => { delete global.runQuery; });
+  afterEach(() => {
+    clearTimeout(CoinForm.specialMarkRefreshTimer);
+    delete global.fetch;
+    delete global.runQuery;
+  });
 
   test('preserves the exact 1 oz silver Reverse Proof EMC2 identity', () => {
     CoinForm.els.coinName.value = 'Canadian Maple Leaf';
@@ -145,5 +154,185 @@ describe('structured Maple Leaf privy form workflow', () => {
 
     expect(CoinForm.els.previewText.textContent).toBe('1921 Morgan Dollar');
     expect(CoinForm.getData().coinData.weight).toBeNull();
+  });
+
+  test.each([
+    ['Canadian Silver Maple Leaf', 'silver'],
+    ['Canadian Gold Maple Leaf', 'gold'],
+  ])('synchronizes %s to its deterministic metal', (name, metal) => {
+    CoinForm.els.coinName.value = name;
+    CoinForm.els.coinName.dispatchEvent(new Event('change'));
+    expect(CoinForm.els.coinMetal.value).toBe(metal);
+  });
+
+  test('corrects a manual metal contradiction for an explicitly named Maple Leaf program', () => {
+    CoinForm.els.coinName.value = 'Canadian Gold Maple Leaf';
+    CoinForm.els.coinName.dispatchEvent(new Event('change'));
+    CoinForm.els.coinMetal.value = 'silver';
+    CoinForm.els.coinMetal.dispatchEvent(new Event('change'));
+
+    expect(CoinForm.els.coinMetal.value).toBe('gold');
+    CoinForm.els.coinYear.value = '2024';
+    CoinForm.specialMarksLoading = false;
+    CoinForm.specialMarkContextKey = CoinForm._currentSpecialMarkContextKey();
+    expect(CoinForm.getData().coinData.composition).toBe('gold');
+  });
+
+  test('loads a single 2015 mark without requiring selection', async () => {
+    global.fetch.mockReset().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        marks: [{ markId: 'rcm.maple.emc2', canonicalName: 'E=mc2', kind: 'privy' }],
+        requiresSelection: false,
+      }),
+    });
+    CoinForm.specialMarkCache.clear();
+    CoinForm.els.coinName.value = 'Canadian Silver Maple Leaf';
+    CoinForm.els.coinYear.value = '2015';
+    CoinForm.els.coinFinish.value = 'Reverse Proof';
+    CoinForm.els.coinMetal.value = 'silver';
+
+    await CoinForm._updateSpecialMarkOptions();
+
+    expect(CoinForm.specialMarkSelectionRequired).toBe(false);
+    expect(CoinForm.els.specialMark.querySelector('option[value="rcm.maple.emc2"]')).not.toBeNull();
+    expect(CoinForm.els.specialMarkStatus.textContent).toBe('1 applicable special mark available');
+  });
+
+  test('loads both 2018 privies and blocks unspecified pricing with an associated error', async () => {
+    global.fetch.mockReset().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        marks: [
+          { markId: 'rcm.maple.pronghorn-antelope.2018', canonicalName: 'Pronghorn Antelope', kind: 'privy' },
+          { markId: 'rcm.maple.wood-bison.2018', canonicalName: 'Wood Bison', kind: 'privy' },
+        ],
+        requiresSelection: true,
+      }),
+    });
+    CoinForm.specialMarkCache.clear();
+    CoinForm.els.coinName.value = 'Canadian Silver Maple Leaf';
+    CoinForm.els.coinYear.value = '2018';
+    CoinForm.els.coinFinish.value = 'Reverse Proof';
+    CoinForm.els.coinMetal.value = 'silver';
+
+    await CoinForm._updateSpecialMarkOptions();
+
+    expect(CoinForm.validate()).toBe(false);
+    expect(CoinForm.els.specialMark.getAttribute('aria-invalid')).toBe('true');
+    expect(CoinForm.els.specialMark.closest('.field').classList.contains('has-error')).toBe(true);
+    expect(CoinForm.els.specialMark.getAttribute('aria-describedby')).toContain('coinSpecialMark-status');
+    expect(CoinForm.els.specialMarkStatus.textContent).toContain('My mark is not listed');
+    expect([...CoinForm.els.specialMark.options].map(option => option.textContent)).toEqual(expect.arrayContaining([
+      'Pronghorn Antelope (privy)', 'Wood Bison (privy)',
+    ]));
+    expect(document.activeElement).toBe(CoinForm.els.specialMark);
+
+    CoinForm.els.specialMark.value = 'standard';
+    expect(CoinForm.validate()).toBe(true);
+  });
+
+  test('ignores a stale response after the program changes from Silver to Gold', async () => {
+    let resolveSilver;
+    const silverResponse = new Promise(resolve => { resolveSilver = resolve; });
+    global.fetch.mockReset()
+      .mockReturnValueOnce(silverResponse)
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ marks: [], requiresSelection: false }) });
+    CoinForm.specialMarkCache.clear();
+    CoinForm.els.coinName.value = 'Canadian Silver Maple Leaf';
+    CoinForm.els.coinYear.value = '2018';
+    CoinForm.els.coinFinish.value = 'Reverse Proof';
+    CoinForm.els.coinMetal.value = 'silver';
+    const staleLookup = CoinForm._updateSpecialMarkOptions();
+    const staleSignal = global.fetch.mock.calls[0][1].signal;
+
+    CoinForm.els.coinName.value = 'Canadian Gold Maple Leaf';
+    CoinForm.els.coinName.dispatchEvent(new Event('input'));
+    const currentLookup = CoinForm._updateSpecialMarkOptions();
+    expect(staleSignal.aborted).toBe(true);
+    await currentLookup;
+    resolveSilver({
+      ok: true,
+      json: async () => ({
+        marks: [{ markId: 'rcm.maple.wood-bison.2018', canonicalName: 'Wood Bison', kind: 'privy' }],
+        requiresSelection: false,
+      }),
+    });
+    await staleLookup;
+
+    expect(CoinForm.els.coinMetal.value).toBe('gold');
+    expect(CoinForm.els.specialMark.querySelector('option[value="rcm.maple.wood-bison.2018"]')).toBeNull();
+    expect(CoinForm.els.specialMarkStatus.textContent).toBe('No registered special marks apply');
+  });
+
+  test('aborts a pending lookup when the replacement context is already cached', async () => {
+    let resolveSilver;
+    global.fetch.mockReset().mockReturnValue(new Promise(resolve => { resolveSilver = resolve; }));
+    CoinForm.specialMarkCache.clear();
+    CoinForm.specialMarkRequests.clear();
+    CoinForm.els.coinName.value = 'Canadian Silver Maple Leaf';
+    CoinForm.els.coinYear.value = '2018';
+    CoinForm.els.coinFinish.value = 'Reverse Proof';
+    CoinForm.els.coinMetal.value = 'silver';
+    const silverKey = CoinForm._currentSpecialMarkContextKey();
+    const pendingSilver = CoinForm._updateSpecialMarkOptions();
+    const silverSignal = global.fetch.mock.calls[0][1].signal;
+
+    CoinForm.els.coinName.value = 'Canadian Gold Maple Leaf';
+    CoinForm.els.coinMetal.value = 'gold';
+    const goldKey = CoinForm._currentSpecialMarkContextKey();
+    CoinForm.specialMarkCache.set(goldKey, { marks: [], requiresSelection: false });
+    await CoinForm._updateSpecialMarkOptions();
+
+    expect(silverSignal.aborted).toBe(true);
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    resolveSilver({ ok: true, json: async () => ({ marks: [], requiresSelection: false }) });
+    await pendingSilver;
+    expect(CoinForm.specialMarkRequests.size).toBe(0);
+    expect(CoinForm.specialMarkCache.has(goldKey)).toBe(true);
+    expect(CoinForm.specialMarkCache.has(silverKey)).toBe(false);
+  });
+
+  test('normalizes equivalent contexts and bounds the completed-response cache', async () => {
+    CoinForm.els.coinName.value = '  CANADIAN   SILVER MAPLE LEAF  ';
+    CoinForm.els.coinYear.value = '2018';
+    CoinForm.els.coinFinish.value = 'Reverse Proof';
+    CoinForm.els.coinMetal.value = 'silver';
+    const firstKey = CoinForm._currentSpecialMarkContextKey();
+    CoinForm.els.coinName.value = 'canadian silver maple leaf';
+    expect(CoinForm._currentSpecialMarkContextKey()).toBe(firstKey);
+
+    CoinForm.specialMarkCache.clear();
+    for (let index = 0; index < CoinForm.specialMarkCacheLimit; index++) {
+      CoinForm.specialMarkCache.set(`old-${index}`, { marks: [] });
+    }
+    global.fetch.mockReset().mockResolvedValue({
+      ok: true,
+      json: async () => ({ marks: [], requiresSelection: false }),
+    });
+    await CoinForm._updateSpecialMarkOptions();
+
+    expect(CoinForm.specialMarkCache.size).toBe(CoinForm.specialMarkCacheLimit);
+    expect(CoinForm.specialMarkCache.has('old-0')).toBe(false);
+    expect(CoinForm.specialMarkCache.has(firstKey)).toBe(true);
+  });
+
+  test('coalesces concurrent lookups for the same normalized context', async () => {
+    let resolveLookup;
+    global.fetch.mockReset().mockReturnValue(new Promise(resolve => { resolveLookup = resolve; }));
+    CoinForm.specialMarkCache.clear();
+    CoinForm.specialMarkRequests.clear();
+    CoinForm.els.coinName.value = 'Canadian Silver Maple Leaf';
+    CoinForm.els.coinYear.value = '2018';
+    CoinForm.els.coinFinish.value = 'Reverse Proof';
+    CoinForm.els.coinMetal.value = 'silver';
+
+    const first = CoinForm._updateSpecialMarkOptions();
+    const second = CoinForm._updateSpecialMarkOptions();
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    resolveLookup({ ok: true, json: async () => ({ marks: [], requiresSelection: false }) });
+    await Promise.all([first, second]);
+
+    expect(CoinForm.specialMarkRequests.size).toBe(0);
   });
 });

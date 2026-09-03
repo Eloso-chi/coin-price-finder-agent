@@ -830,6 +830,24 @@ describe('scoreMatch — colorized mint-signal scoring', () => {
     expect(kept).toEqual([]);
   });
 
+  test('exact 2018 Wood Bison does not admit another Wild Canada privy', () => {
+    const expected = {
+      year: 2018, series: 'Canadian Silver Maple Leaf', metal: 'silver', weight: 1,
+      isProof: true, finish: 'Reverse Proof', label: 'Privy', specialMarkMode: 'exact',
+      specialMarks: [{ markId: 'rcm.maple.wood-bison.2018', canonicalName: 'Wood Bison' }],
+      _rawQuery: '2018 Canadian Silver Maple Leaf Wood Bison Privy Reverse Proof 1 oz',
+    };
+    const comps = [
+      makeComp({ title: '2018 Canada Silver Maple Leaf Wood Bison Privy Reverse Proof 1 oz', gradeType: 'reverse-proof' }),
+      makeComp({ title: '2018 Canada Silver Maple Leaf Pronghorn Antelope Privy Reverse Proof 1 oz', gradeType: 'reverse-proof' }),
+    ];
+    comps.forEach(comp => scoreMatch(comp, expected));
+    const { kept } = applyFilters(comps, {}, expected);
+    expect(kept.map(comp => comp.title)).toEqual([
+      '2018 Canada Silver Maple Leaf Wood Bison Privy Reverse Proof 1 oz',
+    ]);
+  });
+
   test('explicit standard issue rejects recognized registered marks', () => {
     const expected = {
       year: 2015, series: 'Canadian Silver Maple Leaf', metal: 'silver', weight: 1,
@@ -863,18 +881,19 @@ describe('scoreMatch — colorized mint-signal scoring', () => {
     expect(removed).not.toHaveProperty('recognizedSpecialMark');
   });
 
-  test('standard issue does not classify a wrong-denomination V75 listing as a recognized cohort', () => {
+  test('standard issue rejects an explicit unregistered privy in the same issue context', () => {
     const expected = {
-      year: 2020, series: 'American Silver Eagle', metal: 'silver', weight: 1, mint: 'W',
-      isProof: true, finish: 'Proof', specialMarkMode: 'standard',
-      _rawQuery: '2020-W American Silver Eagle Proof $1 1 oz',
+      year: 2015, series: 'Canadian Silver Maple Leaf', metal: 'silver', weight: 1,
+      isProof: true, finish: 'Reverse Proof', specialMarkMode: 'standard',
+      _rawQuery: '2015 Canadian Silver Maple Leaf Reverse Proof 1 oz',
     };
-    const wrongCohort = makeComp({
-      title: '2020-W American Silver Eagle V75 Proof $50 1 oz', gradeType: 'proof',
+    const unregisteredPrivy = makeComp({
+      title: '2015 Canada Silver Maple Leaf Mystery Privy Reverse Proof 1 oz', gradeType: 'reverse-proof',
     });
-    scoreMatch(wrongCohort, expected);
-    const { removed } = applyFilters([wrongCohort], {}, expected);
-    expect(removed.recognizedSpecialMark).toBe(0);
+    scoreMatch(unregisteredPrivy, expected);
+    const { kept, removed } = applyFilters([unregisteredPrivy], {}, expected);
+    expect(kept).toEqual([]);
+    expect(removed.recognizedSpecialMark).toBe(1);
   });
 
   test('reverse-proof privy intent rejects a regular Proof comp with the same mark', () => {

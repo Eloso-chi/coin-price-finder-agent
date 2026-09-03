@@ -1,0 +1,63 @@
+{
+  "schemaVersion": "1.0.0",
+  "scope": "Royal Canadian Mint 1 troy oz .9999 silver Maple Leaf intentional privy marks",
+  "runtimePolicy": "research-only-do-not-import",
+  "reviewedAt": "2026-09-03",
+  "evidenceStates": {
+    "issuer-verified": "Current or archived issuing-mint source supports the issue",
+    "issuer-authored-secondary-host": "Issuer-authored material survives on a non-issuer host",
+    "secondary-corroborated": "At least two reputable independent catalogs or dealers support the issue",
+    "unverified-lead": "Useful research lead that must not enter runtime pricing",
+    "rejected-non-mark": "Related special issue, security device, finish, or mintmark rather than a privy"
+  },
+  "catalogSources": [
+    "https://en.numista.com/6735",
+    "https://en.numista.com/9164",
+    "https://en.numista.com/381290",
+    "https://en.numista.com/395194",
+    "https://www.pcgs.com/setregistry/canadian-maple-leaf-bullion/canadian-maple-leaf-bullion-specialty-sets/canadian-silver-maple-leaf-privy-set-1998-date/1110",
+    "https://www.pcgs.com/setregistry/canadian-maple-leaf-bullion-specialty-sets/canadian-maple-leaf-bullion-specialty-sets/canadian-silver-maple-leaf-privy-set-1998-date/composition/1110"
+  ],
+  "sourceDefinitions": {
+    "pcgs-specialty-set": "https://www.pcgs.com/setregistry/canadian-maple-leaf-bullion/canadian-maple-leaf-bullion-specialty-sets/canadian-silver-maple-leaf-privy-set-1998-date/1110",
+    "rcm-emc2": "https://www.mint.ca/en/shop/coins/2015/1-oz.-fine-silver-coin---maple-leaf-privy-mark---e-mc2---mintage-50000-2015",
+    "rcm-wild-canada-announcement": "https://coinweek.com/royal-canadian-mint-sells-out-first-coin-in-wild-canada-silver-maple-leaf-series/",
+    "wild-canada-issue-mapping": "https://www.jmbullion.com/the-final-wild-canada-privy-coins-arrive-exclusively-at-jm-bullion/"
+  },
+  "records": [
+    { "year": 1998, "marks": ["Tiger", "Titanic", "RCMP", "RCM 90th Anniversary"], "status": "secondary-corroborated", "sourceIds": ["pcgs-specialty-set"] },
+    { "year": 1999, "marks": ["Rabbit", "Fireworks/Millennium 1999-2000"], "status": "secondary-corroborated", "sourceIds": ["pcgs-specialty-set"] },
+    { "year": 2000, "marks": ["Dragon", "Expo Hannover", "Fireworks/Millennium 2000"], "status": "secondary-corroborated", "sourceIds": ["pcgs-specialty-set"] },
+    { "year": 2001, "marks": ["Snake", "Maple of Good Fortune"], "status": "secondary-corroborated", "sourceIds": ["pcgs-specialty-set"] },
+    { "year": 2002, "marks": ["Horse"], "status": "secondary-corroborated", "sourceIds": ["pcgs-specialty-set"] },
+    { "year": 2003, "marks": ["Sheep/Goat"], "status": "secondary-corroborated", "sourceIds": ["pcgs-specialty-set"] },
+    { "year": 2004, "marks": ["Monkey", "D-Day 6.6.44/Jour-J", "Desjardins", "Aquarius", "Aries", "Cancer", "Capricorn", "Gemini", "Leo", "Libra", "Pisces", "Sagittarius", "Scorpio", "Taurus", "Virgo"], "status": "secondary-corroborated", "sourceIds": ["pcgs-specialty-set"] },
+    { "year": 2005, "marks": ["Rooster", "Tank/VE", "Tulip/Liberation of the Netherlands", "USS Missouri/VJ"], "status": "secondary-corroborated", "sourceIds": ["pcgs-specialty-set"] },
+    { "year": 2006, "marks": ["Dog"], "status": "secondary-corroborated", "sourceIds": ["pcgs-specialty-set"] },
+    { "year": 2007, "marks": ["Pig/Boar", "Fabulous 12"], "status": "secondary-corroborated", "sourceIds": ["pcgs-specialty-set"] },
+    { "year": 2008, "marks": ["Rat/Mouse", "Fabulous 12"], "status": "secondary-corroborated", "sourceIds": ["pcgs-specialty-set"] },
+    { "year": 2009, "marks": ["Ox", "Tower Bridge", "Brandenburg Gate", "Fabulous 12"], "status": "secondary-corroborated", "sourceIds": ["pcgs-specialty-set"] },
+    { "year": 2010, "marks": ["Fabulous 15"], "status": "secondary-corroborated", "sourceIds": ["pcgs-specialty-set"] },
+    { "year": 2011, "marks": ["Fabulous 15"], "status": "secondary-corroborated", "sourceIds": ["pcgs-specialty-set"] },
+    { "year": 2012, "marks": ["Dragon", "Titanic Centennial", "Leaning Tower of Pisa", "Fabulous 15"], "status": "secondary-corroborated", "sourceIds": ["pcgs-specialty-set"] },
+    { "year": 2013, "marks": ["Snake", "Fabulous 15"], "status": "secondary-corroborated", "sourceIds": ["pcgs-specialty-set"] },
+    { "year": 2014, "marks": ["Horse", "World Money Fair/Berlin", "ANA Chicago Lamp of Knowledge", "Fabulous 15", "Hieroglyphic Horse double privy"], "status": "secondary-corroborated", "sourceIds": ["pcgs-specialty-set"] },
+    { "year": 2015, "marks": ["Goat/Sheep", "E=mc2", "Fisher House Heart", "ANA World's Fair of Money", "Fabulous 15"], "status": "mixed", "sourceIds": ["pcgs-specialty-set", "rcm-emc2"], "promotedIssueIds": ["rcm.sml.2015.emc2.1oz.reverse-proof"] },
+    { "year": 2016, "marks": ["Monkey", "Howling Wolf", "Roaring Grizzly Bear", "Four-Leaf Clover", "Bigfoot/Sasquatch", "Mark V Tank", "Panda", "Yin-Yang", "ANA Anaheim Poppy", "Fabulous 15"], "status": "mixed", "sourceIds": ["pcgs-specialty-set", "rcm-wild-canada-announcement", "wild-canada-issue-mapping"], "promotedIssueIds": ["rcm.sml.2016.howling-wolf.1oz.reverse-proof", "rcm.sml.2016.roaring-grizzly-bear.1oz.reverse-proof"] },
+    { "year": 2017, "marks": ["Rooster", "Canada 150 1867-2017", "Cougar", "Moose", "Panda", "ANA Denver", "Fabulous 15"], "status": "mixed", "sourceIds": ["pcgs-specialty-set", "rcm-wild-canada-announcement", "wild-canada-issue-mapping"], "promotedIssueIds": ["rcm.sml.2017.cougar.1oz.reverse-proof", "rcm.sml.2017.moose.1oz.reverse-proof"], "promotionEvidence": "RCM-authored six-issue Wild Canada program announcement plus secondary issue-level mapping" },
+    { "year": 2018, "marks": ["Dog", "Pronghorn Antelope", "Wood Bison", "Edison Light Bulb", "ANA", "Fabulous 15"], "status": "mixed", "sourceIds": ["pcgs-specialty-set", "rcm-wild-canada-announcement", "wild-canada-issue-mapping"], "promotedIssueIds": ["rcm.sml.2018.pronghorn-antelope.1oz.reverse-proof", "rcm.sml.2018.wood-bison.1oz.reverse-proof"], "promotionEvidence": "RCM-authored six-issue Wild Canada program announcement plus secondary issue-level mapping" },
+    { "year": 2019, "marks": ["Edison Phonograph", "Fabulous 15"], "status": "secondary-corroborated", "sourceIds": ["pcgs-specialty-set"] },
+    { "year": 2020, "marks": ["Fabulous 15"], "status": "secondary-corroborated", "sourceIds": ["pcgs-specialty-set"] },
+    { "year": 2021, "marks": ["Fabulous 15"], "status": "secondary-corroborated", "sourceIds": ["pcgs-specialty-set"] },
+    { "year": 2024, "marks": ["Polar Bear", "Congratulations", "Year of the Dragon"], "status": "secondary-corroborated", "sourceIds": ["pcgs-specialty-set"] },
+    { "year": 2025, "marks": ["Polar Bears", "Congratulations", "Year of the Snake"], "status": "secondary-corroborated", "sourceIds": ["pcgs-specialty-set"] },
+    { "year": 2026, "marks": ["Wolf", "Celebration", "Year of the Horse"], "status": "secondary-corroborated", "sourceIds": ["pcgs-specialty-set"] }
+  ],
+  "excludedRelatedIssues": [
+    { "year": 1989, "name": "10th Anniversary Silver Maple Leaf proof", "status": "rejected-non-mark", "reason": "No distinct privy confirmed" },
+    { "year": 2020, "name": "W burnished Silver Maple Leaf", "status": "rejected-non-mark", "reason": "Winnipeg facility mark" },
+    { "year": 2021, "name": "W tailored specimen Silver Maple Leaf", "status": "rejected-non-mark", "reason": "Winnipeg facility mark" },
+    { "year": 2022, "name": "Treasured Silver Maple Leaf", "status": "rejected-non-mark", "reason": "Presentation product; no thematic coin privy confirmed" },
+    { "year": 2023, "name": "Treasured Silver Maple Leaf", "status": "rejected-non-mark", "reason": "Presentation product; no thematic coin privy confirmed" }
+  ]
+}

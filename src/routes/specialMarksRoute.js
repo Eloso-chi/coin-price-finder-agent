@@ -6,6 +6,7 @@ const {
   listApplicableMarks,
   markApplies,
   inferProgramDenomination,
+  inferProgramMetal,
   serializeMark,
 } = require('../data/specialMarksRegistry');
 
@@ -26,19 +27,25 @@ router.get('/', (req, res) => {
   if (!req.query.program) {
     return res.json({ registryVersion: SPECIAL_MARKS_REGISTRY_VERSION, marks: [] });
   }
+  const resolvedMetal = req.query.metal || inferProgramMetal(req.query.program);
   const context = {
     program: req.query.program,
     year: req.query.year,
-    metal: req.query.metal,
+    metal: resolvedMetal,
     weight: req.query.weight,
     finish: req.query.finish,
     mint: req.query.mint,
-    denomination: req.query.denomination || inferProgramDenomination(req.query.program, req.query.metal),
+    denomination: req.query.denomination || inferProgramDenomination(req.query.program, resolvedMetal),
   };
   const marks = listApplicableMarks(context)
     .filter(mark => markApplies(mark, context, true))
     .map(serializeMark);
-  return res.json({ registryVersion: SPECIAL_MARKS_REGISTRY_VERSION, marks });
+  return res.json({
+    registryVersion: SPECIAL_MARKS_REGISTRY_VERSION,
+    resolvedMetal,
+    requiresSelection: marks.length > 1,
+    marks,
+  });
 });
 
 module.exports = router;
