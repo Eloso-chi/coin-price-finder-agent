@@ -355,6 +355,14 @@ describe('canonical product identity weight evidence', () => {
     expect(identity.ambiguities).toContainEqual(expect.objectContaining({ field: 'series' }));
   });
 
+  test.each([
+    ['Canadian Silver Maple Leaf', 'silver'],
+    ['Canadian Gold Maple Leaf', 'gold'],
+  ])('infers %s metal without overriding explicit contradictory evidence', (series, metal) => {
+    const identity = resolveProductIdentity({ structured: { series } });
+    expect(identity.metal).toBe(metal);
+  });
+
   test('treats a generic proof dataset as compatible with a numeric proof grade', () => {
     const { findIdentityMismatches } = require('../src/utils/productIdentityResolver');
 

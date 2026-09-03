@@ -99,8 +99,12 @@ router.post('/', async (req, res) => {
     if (err?.code === 'AMBIGUOUS_PRODUCT_IDENTITY' || err?.code === 'INVALID_SPECIAL_MARK') {
       return res.status(400).json({ error: err.message, code: err.code });
     }
-    if (err?.code === 'UNVERIFIED_SPECIAL_MARK') {
-      return res.status(422).json({ error: err.message, code: err.code });
+    if (err?.code === 'UNVERIFIED_SPECIAL_MARK' || err?.code === 'SPECIAL_MARK_CLARIFICATION_REQUIRED') {
+      return res.status(422).json({
+        error: err.message,
+        code: err.code,
+        ...(err.specialMarks ? { specialMarks: err.specialMarks } : {}),
+      });
     }
     console.error('[/api/price] Unhandled error:', err.message);
     return res.status(500).json({ error: 'Internal server error' });

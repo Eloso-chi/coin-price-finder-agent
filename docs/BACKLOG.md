@@ -4470,6 +4470,34 @@ Gated on data: run pricing-health across a Reverse-Proof slate (2023 RP Morgan, 
 
 ---
 
+### #313H. Canadian Silver Maple Leaf privy census and Wild Canada issue identity [P1 -- PRICING-ACCURACY / UX / DATA-GOVERNANCE] -- IN PROGRESS 2026-09-03
+
+**Origin:** Production repro following #312H: a 2015 Canadian Silver Maple Leaf Reverse Proof did not populate E=mc2 when Metal remained Auto, and a 2018 Reverse Proof exposed no applicable privy despite two Wild Canada issues for that year.
+
+**Problem:** The registry foundation contained only E=mc2 and V75 seed records. Structured Entry still used an ambiguous generic Maple Leaf name, did not infer metal from explicit Silver/Gold program names, and could not require an exact choice when multiple issue-level marks shared the same year, metal, weight, denomination, and finish. The project also lacked a governed research census separating catalog leads from runtime-authorized marks.
+
+**Approved approach:**
+1. Add explicit Canadian Silver Maple Leaf and Canadian Gold Maple Leaf names and deterministically synchronize their metal while preserving generic Maple Leaf as metal-ambiguous.
+2. Promote the six 2016-2018 Wild Canada Reverse Proof Silver Maple Leaf issues only with issuer-authored series evidence plus issue-level secondary corroboration. Keep `issueId`, stable `markId`, finish, metal, weight, denomination, and mintage as separate facts.
+3. Require clarification when more than one registered mark applies, return candidate mark IDs from public and AI pricing routes, and prevent exact marks from using cross-year composites.
+4. Reject recognized or explicitly described privies from standard cohorts. Unknown marks remain unverified and cannot silently map to standard or another registered issue.
+5. Store the broader year-by-year census under `data/research/` with an explicit non-runtime policy, evidence states, record-level source IDs, promotion evidence, and excluded non-mark issues.
+6. Version registry-sensitive sold-comp cache identity and keep the structured-form lookup normalized, bounded, cancellable, coalesced, accessible, and stale-response safe.
+
+**Acceptance criteria:**
+- 2015 Canadian Silver Maple Leaf, 1 oz, Reverse Proof resolves E=mc2 with Auto metal after the explicit Silver program name is selected.
+- 2018 Canadian Silver Maple Leaf, 1 oz, Reverse Proof offers Pronghorn Antelope and Wood Bison and blocks pricing until exact, Standard, or unlisted is selected.
+- Canadian Gold Maple Leaf never receives Silver Maple Leaf privies and cannot submit a contradictory Silver composition.
+- Exact issue identity is present in cache keys; exact marks cannot use cross-year composites; standard and unspecified cohorts reject explicit privies.
+- Runtime records have issuer-traceable verification, complete mintage provenance, deterministic aliases, and valid applicability. Secondary-only census leads remain non-runtime.
+- Focused Jest tests, canonical `npm test`, ESLint, diff hygiene, focused UX review, Numismatic Audit Step 5b, deep correctness/security/performance review, Pre-commit review, and commit-tied Onboard acceptance pass before merge.
+
+**Files:** `src/data/specialMarksRegistry.js`, `data/research/silver-maple-leaf-privy-census.json`, `src/routes/specialMarksRoute.js`, `src/routes/priceRoute.js`, `src/routes/aiPriceRoute.js`, `src/utils/productIdentityResolver.js`, `src/services/pricingService.js`, `src/services/ebayService.js`, `public/index.html`, focused Jest tests, `README.md`, `docs/ARCHITECTURE.md`, `docs/api-reference.md`, `docs/data-dictionary.md`, and `docs/BACKLOG.md`.
+
+**Tier:** M. Changes user-facing identity selection, pricing error contracts, runtime reference data, comp eligibility, cache identity, and governed research data.
+
+---
+
 ## UX, Accessibility, and Interaction
 
 ### #303H. Critical authentication accessibility: keyboard mode controls, admin labels, and field errors [P0 -- ACCESSIBILITY / WCAG] -- DONE 2026-08-31

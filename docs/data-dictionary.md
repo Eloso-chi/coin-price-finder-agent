@@ -28,7 +28,9 @@ exposure is disabled.
 
 ## Special Marks Registry
 
-`src/data/specialMarksRegistry.js` is the versioned source of truth for supported official privies and commemorative marks. A record includes `markId`, canonical name, aliases, issuer, programs, kind, applicable years, metals, weights, denominations, finishes, optional mintmarks, official status, authoritative source references, and verification date. Public registry responses omit matching aliases but retain provenance. Mintmarks, annual designs, security devices, surface treatments, and aftermarket alterations are separate identity concepts and are not admitted as official special marks.
+`src/data/specialMarksRegistry.js` is the versioned source of truth for supported official privies and commemorative marks. A record includes immutable issue-level `issueId`, stable `markId`, canonical name, aliases, issuer, programs, kind, applicable years, metals, weights, denominations, finishes, optional mintmarks, official and verification status, issue-scoped mintage evidence, source references, and verification date. Public registry responses omit matching aliases but retain safe provenance. Mintmarks, annual designs, security devices, surface treatments, and aftermarket alterations are separate identity concepts and are not admitted as official special marks.
+
+`data/research/silver-maple-leaf-privy-census.json` is a quarantined research inventory. It records candidate Silver Maple Leaf privies and explicit exclusions with evidence states, but runtime pricing code must not import it. A candidate becomes selectable or valuation-eligible only after issue-level review and promotion into `specialMarksRegistry.js`.
 
 `gradePool.compositeBasis` contains `usedCohort`, `cohortYears`, `cohortCompCount`, `exactYearCompCount`, and `populationGateApplied`. It is present only when cohort comps contribute to FMV.
 

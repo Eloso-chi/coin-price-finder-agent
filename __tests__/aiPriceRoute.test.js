@@ -91,6 +91,25 @@ describe('POST /api/ai/price', () => {
     }));
   });
 
+  test('returns candidate mark IDs with a pricing clarification response', async () => {
+    const error = new Error('Select the exact special mark before pricing.');
+    error.code = 'SPECIAL_MARK_CLARIFICATION_REQUIRED';
+    error.specialMarks = ['rcm.maple.pronghorn-antelope.2018', 'rcm.maple.wood-bison.2018'];
+    priceCoin.mockRejectedValueOnce(error);
+
+    const res = await request(app).post('/api/ai/price').send({
+      query: '2018 Canadian Silver Maple Leaf Reverse Proof 1 oz',
+    });
+
+    expect(res.status).toBe(422);
+    expect(res.body).toEqual({
+      ok: false,
+      error: 'Select the exact special mark before pricing.',
+      code: 'SPECIAL_MARK_CLARIFICATION_REQUIRED',
+      specialMarks: ['rcm.maple.pronghorn-antelope.2018', 'rcm.maple.wood-bison.2018'],
+    });
+  });
+
   test('calls the shared deterministic pricing boundary and returns AI mode payload', async () => {
     const res = await request(app)
       .post('/api/ai/price')

@@ -1,7 +1,12 @@
 'use strict';
 
 const { detectWeightsFromTitle } = require('./coinMetalProfile');
-const { resolveSpecialMark, detectMarksInTitle, serializeMark } = require('../data/specialMarksRegistry');
+const {
+  resolveSpecialMark,
+  detectMarksInTitle,
+  serializeMark,
+  inferProgramMetal,
+} = require('../data/specialMarksRegistry');
 
 const PRODUCT_IDENTITY_PARSER_VERSION = '2.0.0';
 const WEIGHT_RELATIVE_TOLERANCE = 0.05;
@@ -219,11 +224,13 @@ function resolveProductIdentity({ text = '', structured = {}, parsed = {} } = {}
     ? (hasStructuredWeight ? Number(structured.weight) : (evidence.weight ?? weightEvidence.valuesOz[0]))
     : null;
   const ambiguities = [...textIdentity.ambiguities];
-  const structuredMetal = structured.metal ?? structured.composition;
+  const structuredSeries = structured.series || structured.name;
+  const structuredMetal = structured.metal ?? structured.composition
+    ?? inferProgramMetal(structuredSeries);
   addConflict(ambiguities, 'year', structured.year, evidence.year);
   addConflict(ambiguities, 'mint', structured.mint || structured.mintMark, evidence.mint);
   addConflict(ambiguities, 'metal', structuredMetal, evidence.metal);
-  addConflict(ambiguities, 'series', structured.series || structured.name, evidence.series);
+  addConflict(ambiguities, 'series', structuredSeries, evidence.series);
   addConflict(ambiguities, 'grade', structured.grade, evidence.grade);
   addConflict(ambiguities, 'finish', structured.finish, evidence.finish);
   addConflict(ambiguities, 'designation', structured.designation, evidence.designation);
@@ -243,14 +250,14 @@ function resolveProductIdentity({ text = '', structured = {}, parsed = {} } = {}
     });
   }
   const markContext = {
-    program: structured.series || structured.name || evidence.series,
+    program: structuredSeries || evidence.series,
     year: structured.year || evidence.year,
     metal: structuredMetal || evidence.metal,
     weight: nominalWeightOz,
     finish: structured.finish || evidence.finish,
     mint: structured.mint || structured.mintMark || evidence.mint,
     denomination: structuredDenomination ?? textDenomination
-      ?? inferBullionDenomination(text, structured.series || structured.name || evidence.series, structuredMetal || evidence.metal),
+      ?? inferBullionDenomination(text, structuredSeries || evidence.series, structuredMetal || evidence.metal),
   };
   const markResolution = structured.specialMarkMode === 'unknown'
     ? { status: 'none', mark: null }
@@ -290,7 +297,7 @@ function resolveProductIdentity({ text = '', structured = {}, parsed = {} } = {}
     }] : [];
 
   return Object.freeze({
-    series: structured.series || structured.name || evidence.series || null,
+    series: structuredSeries || evidence.series || null,
     year: structured.year || evidence.year || null,
     mint: structured.mint || structured.mintMark || evidence.mint || null,
     metal: structuredMetal || evidence.metal || null,
