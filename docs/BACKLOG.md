@@ -4470,7 +4470,7 @@ Gated on data: run pricing-health across a Reverse-Proof slate (2023 RP Morgan, 
 
 ---
 
-### #313H. Canadian Silver Maple Leaf privy census and Wild Canada issue identity [P1 -- PRICING-ACCURACY / UX / DATA-GOVERNANCE] -- IN PROGRESS 2026-09-03
+### #313H. Canadian Silver Maple Leaf privy census and Wild Canada issue identity [P1 -- PRICING-ACCURACY / UX / DATA-GOVERNANCE] -- COMPLETED 2026-09-04
 
 **Origin:** Production repro following #312H: a 2015 Canadian Silver Maple Leaf Reverse Proof did not populate E=mc2 when Metal remained Auto, and a 2018 Reverse Proof exposed no applicable privy despite two Wild Canada issues for that year.
 
@@ -4491,6 +4491,8 @@ Gated on data: run pricing-health across a Reverse-Proof slate (2023 RP Morgan, 
 - Exact issue identity is present in cache keys; exact marks cannot use cross-year composites; standard and unspecified cohorts reject explicit privies.
 - Runtime records have issuer-traceable verification, complete mintage provenance, deterministic aliases, and valid applicability. Secondary-only census leads remain non-runtime.
 - Focused Jest tests, canonical `npm test`, ESLint, diff hygiene, focused UX review, Numismatic Audit Step 5b, deep correctness/security/performance review, Pre-commit review, and commit-tied Onboard acceptance pass before merge.
+
+**Production acceptance (2026-09-04):** PASS at merge commit `e361f72ec3291fcc9fddb5e7527c22edfe57b1c1`. Production registry `1.1.0` resolved the 2015 explicit Silver program with Auto metal to `rcm.maple.emc2`; returned both `rcm.maple.pronghorn-antelope.2018` and `rcm.maple.wood-bison.2018` with `requiresSelection=true` for the 2018 Silver Reverse Proof context; and returned no Silver privies for the equivalent Gold context. The pricing boundary returned HTTP 422 `SPECIAL_MARK_CLARIFICATION_REQUIRED` with both candidate IDs for an unspecified 2018 issue, returned HTTP 422 `UNVERIFIED_SPECIAL_MARK` for an unlisted Edison Light Bulb request, and returned HTTP 400 `AMBIGUOUS_PRODUCT_IDENTITY` for contradictory Gold/Silver input. These canaries confirm the deployed selection, Gold isolation, and fail-closed contracts; the merged focused tests and review record cover exact cache identity, cross-year comp isolation, provenance, accessibility, and stale-response safety.
 
 **Files:** `src/data/specialMarksRegistry.js`, `data/research/silver-maple-leaf-privy-census.json`, `src/routes/specialMarksRoute.js`, `src/routes/priceRoute.js`, `src/routes/aiPriceRoute.js`, `src/utils/productIdentityResolver.js`, `src/services/pricingService.js`, `src/services/ebayService.js`, `public/index.html`, focused Jest tests, `README.md`, `docs/ARCHITECTURE.md`, `docs/api-reference.md`, `docs/data-dictionary.md`, and `docs/BACKLOG.md`.
 
