@@ -4498,6 +4498,46 @@ Gated on data: run pricing-health across a Reverse-Proof slate (2023 RP Morgan, 
 
 ---
 
+### #314H. Distinguish systemic PCGS APR rejection from target errors and prevent duplicate nightly attempts [P1 -- DATA-AVAILABILITY / OPERATIONS] -- PROPOSED 2026-09-04
+
+**Origin:** Production alert at `2026-09-04T07:22:29.641Z` after #310H reached production: `Partial run: 5 errors in 5 calls. First error: 4965:67 - PCGS rejected APR request: IsValidRequest=false`. Workflow evidence showed five degraded scheduler attempts in roughly 2.5 days, not five separate nights.
+
+**Problem:** PCGS is returning HTTP-success payloads with only `IsValidRequest=false` across unrelated, valid-looking classic U.S. coin and grade targets. #310H correctly prevents those payloads from masquerading as successful empty results, but currently treats every generic rejection as target-specific: each attempt quarantines five more `pcgsNo:grade` entries for 30 days, then the scheduler retries a different set. The dual `6:05/7:05 UTC` daylight-saving safety-net cron can also trigger once near 11 PM Pacific and again after Pacific midnight, incrementing the failure streak twice per night. The workflow reports success when trigger/polling succeeds even if `lastStatus` is `partial`, and the alert wording describes scheduler attempts as consecutive times without clarifying the elapsed nights.
+
+**Production evidence:**
+- 2026-09-02: five generic rejections across Morgan dollar targets; zero new records.
+- 2026-09-03: five generic rejections across Franklin half dollar and Mercury dime targets; zero new records.
+- 2026-09-04: five generic rejections across Mercury dime and Buffalo nickel targets; zero new records.
+- Every captured reason was exactly `IsValidRequest=false`; upstream availability remained `available`, so the existing HTTP 429 cooldown path did not apply.
+
+**Proposed approach (requires implementation approval):**
+1. Temporarily contain the incident by disabling both automatic prefetch entry points while preserving the APR cache and manifest. Do not clear quarantines or increase the five-call fail-fast threshold before diagnosis.
+2. Add one sanitized known-good APR diagnostic probe that records only HTTP status, content type, top-level response field names, `IsValidRequest`, bounded PCGS error metadata, and a request/correlation ID when supplied. Never persist credentials or a raw payload. Use the result to distinguish an entitlement/contract failure from a temporary upstream outage.
+3. Separate explicit target-specific rejection from generic systemic rejection. Quarantine an individual target only when PCGS provides bounded target-specific evidence; otherwise trip a persistent upstream cooldown without poisoning additional manifest entries.
+4. Resume queue processing only after one bounded known-good recovery probe succeeds. Preserve the existing HTTP 429 breaker and quota reserve behavior.
+5. Make the dual UTC cron DST-safe by retaining both schedule entries but permitting a trigger only during the intended `23:00 America/Los_Angeles` hour. Preserve the existing in-process/manual idempotency guards.
+6. Report `completed`, `partial`, and `failed` distinctly in the workflow and alerts. Describe `consecutiveFailures` as scheduler attempts, and include bounded invalid-response counts without leaking response bodies.
+7. After the fix is validated, selectively remove only generic `IsValidRequest=false` quarantine metadata created since #310H. Preserve valid APR history, explicit target-specific rejections, and unrelated manifest fields.
+
+**Acceptance criteria:**
+- Generic `IsValidRequest=false` responses across unrelated targets stop after the bounded threshold, enter a persisted systemic cooldown, and do not quarantine additional individual targets.
+- An explicit, sanitized target-specific PCGS reason can still quarantine only that `pcgsNo:grade` entry for the configured backoff.
+- Exactly one bounded known-good probe runs when systemic cooldown expires; a failed probe re-enters cooldown and a successful probe permits normal queue execution.
+- During both PDT and PST, the GitHub Actions safety net can trigger at most one intended nightly run; the second UTC schedule exits without calling the admin trigger.
+- Workflow summaries and alerts accurately distinguish trigger success from scheduler completion, partial completion, and failure.
+- Selective repair removes only incident-created generic rejection metadata and does not delete APR records or explicit target rejections.
+- Focused scheduler, auction-service, workflow-contract, persistence, redaction, and migration tests pass, followed by canonical `npm test`, ESLint, deep review, and commit-tied Onboard acceptance.
+
+**Files (anticipated):** `src/services/auctionPriceService.js`, `src/services/prefetchScheduler.js`, `.github/workflows/nightly-prefetch.yml`, focused Jest tests, a bounded repair/diagnostic script if required, `docs/ARCHITECTURE.md`, `docs/api-reference.md`, `docs/data-dictionary.md`, `docs/memory/background-processes-status.md`, and `docs/BACKLOG.md`.
+
+**Out of scope:** Increasing PCGS call limits; clearing the full APR manifest or auction-history cache; treating bare `IsValidRequest=false` as a successful empty result; logging raw PCGS payloads or credentials; weakening the existing HTTP 429 breaker.
+
+**Dependencies / sequencing:** Containment and the single sanitized diagnostic probe precede implementation. The probe result determines whether PCGS account/endpoint remediation is also required. Production repair runs only after the systemic-rejection classifier is deployed and verified.
+
+**Tier:** M. Changes persistent APR failure state, automatic scheduling, operational alert semantics, and production manifest repair behavior.
+
+---
+
 ## UX, Accessibility, and Interaction
 
 ### #303H. Critical authentication accessibility: keyboard mode controls, admin labels, and field errors [P0 -- ACCESSIBILITY / WCAG] -- DONE 2026-08-31
