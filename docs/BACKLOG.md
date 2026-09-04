@@ -4498,6 +4498,93 @@ Gated on data: run pricing-health across a Reverse-Proof slate (2023 RP Morgan, 
 
 ---
 
+### #314H. Distinguish systemic PCGS APR rejection from target errors and prevent duplicate nightly attempts [P1 -- DATA-AVAILABILITY / OPERATIONS] -- PROPOSED 2026-09-04
+
+**Origin:** Production alert at `2026-09-04T07:22:29.641Z` after #310H reached production: `Partial run: 5 errors in 5 calls. First error: 4965:67 - PCGS rejected APR request: IsValidRequest=false`. Workflow evidence showed five degraded scheduler attempts in roughly 2.5 days, not five separate nights.
+
+**Problem:** PCGS is returning HTTP-success payloads with only `IsValidRequest=false` across unrelated, valid-looking classic U.S. coin and grade targets. #310H correctly prevents those payloads from masquerading as successful empty results, but currently treats every generic rejection as target-specific: each attempt quarantines five more `pcgsNo:grade` entries for 30 days, then the scheduler retries a different set. The dual `6:05/7:05 UTC` daylight-saving safety-net cron can also trigger once near 11 PM Pacific and again after Pacific midnight, incrementing the failure streak twice per night. The workflow reports success when trigger/polling succeeds even if `lastStatus` is `partial`, and the alert wording describes scheduler attempts as consecutive times without clarifying the elapsed nights.
+
+**Production evidence:**
+- 2026-09-02: five generic rejections across Morgan dollar targets; zero new records.
+- 2026-09-03: five generic rejections across Franklin half dollar and Mercury dime targets; zero new records.
+- 2026-09-04: five generic rejections across Mercury dime and Buffalo nickel targets; zero new records.
+- Every captured reason was exactly `IsValidRequest=false`; upstream availability remained `available`, so the existing HTTP 429 cooldown path did not apply.
+
+**Proposed approach (requires implementation approval):**
+1. Temporarily contain the incident by disabling both automatic prefetch entry points while preserving the APR cache and manifest. Do not clear quarantines or increase the five-call fail-fast threshold before diagnosis.
+2. Add one sanitized known-good APR diagnostic probe that records only HTTP status, content type, top-level response field names, `IsValidRequest`, bounded PCGS error metadata, and a request/correlation ID when supplied. Never persist credentials or a raw payload. Use the result to distinguish an entitlement/contract failure from a temporary upstream outage.
+3. Separate explicit target-specific rejection from generic systemic rejection. Quarantine an individual target only when PCGS provides bounded target-specific evidence; otherwise trip a persistent upstream cooldown without poisoning additional manifest entries.
+4. Resume queue processing only after one bounded known-good recovery probe succeeds. Preserve the existing HTTP 429 breaker and quota reserve behavior.
+5. Make the dual UTC cron DST-safe by retaining both schedule entries but permitting a trigger only during the intended `23:00 America/Los_Angeles` hour. Preserve the existing in-process/manual idempotency guards.
+6. Report `completed`, `partial`, and `failed` distinctly in the workflow and alerts. Describe `consecutiveFailures` as scheduler attempts, and include bounded invalid-response counts without leaking response bodies.
+7. After the fix is validated, selectively remove only generic `IsValidRequest=false` quarantine metadata created since #310H. Preserve valid APR history, explicit target-specific rejections, and unrelated manifest fields.
+
+**Acceptance criteria:**
+- Generic `IsValidRequest=false` responses across unrelated targets stop after the bounded threshold, enter a persisted systemic cooldown, and do not quarantine additional individual targets.
+- An explicit, sanitized target-specific PCGS reason can still quarantine only that `pcgsNo:grade` entry for the configured backoff.
+- Exactly one bounded known-good probe runs when systemic cooldown expires; a failed probe re-enters cooldown and a successful probe permits normal queue execution.
+- During both PDT and PST, the GitHub Actions safety net can trigger at most one intended nightly run; the second UTC schedule exits without calling the admin trigger.
+- Workflow summaries and alerts accurately distinguish trigger success from scheduler completion, partial completion, and failure.
+- Selective repair removes only incident-created generic rejection metadata and does not delete APR records or explicit target rejections.
+- Focused scheduler, auction-service, workflow-contract, persistence, redaction, and migration tests pass, followed by canonical `npm test`, ESLint, deep review, and commit-tied Onboard acceptance.
+
+**Files (anticipated):** `src/services/auctionPriceService.js`, `src/services/prefetchScheduler.js`, `.github/workflows/nightly-prefetch.yml`, focused Jest tests, a bounded repair/diagnostic script if required, `docs/ARCHITECTURE.md`, `docs/api-reference.md`, `docs/data-dictionary.md`, `docs/memory/background-processes-status.md`, and `docs/BACKLOG.md`.
+
+**Out of scope:** Increasing PCGS call limits; clearing the full APR manifest or auction-history cache; treating bare `IsValidRequest=false` as a successful empty result; logging raw PCGS payloads or credentials; weakening the existing HTTP 429 breaker.
+
+**Dependencies / sequencing:** Containment and the single sanitized diagnostic probe precede implementation. The probe result determines whether PCGS account/endpoint remediation is also required. Production repair runs only after the systemic-rejection classifier is deployed and verified.
+
+**Tier:** M. Changes persistent APR failure state, automatic scheduling, operational alert semantics, and production manifest repair behavior.
+
+---
+
+### #315H. Normalized Numista-backed Maple Leaf privy catalog and Edison promotion [P1 -- PRICING-ACCURACY / DATA-GOVERNANCE / UX] -- PROPOSED 2026-09-04
+
+**Origin:** Follow-up to #312H and #313H after the 2018 Edison Light Bulb privy appeared in the research census but remained unavailable in the production special-mark selector. Review of Numista N# 6735, N# 9164, N# 381290, and N# 395194 established a broader issue-level Silver Maple Leaf catalog. Numista N# 381290 and an independent PCGS catalog record agree that the Edison Light Bulb is a distinct 2018 Reverse Proof privy issue, while neither source establishes an issuer-published mintage.
+
+**Problem:** Runtime eligibility currently requires issuer-traceable evidence, so a mark can be known to research yet remain an unverified free-text selection that pricing correctly rejects with `UNVERIFIED_SPECIAL_MARK`. The research census groups some evidence at the year level, obscuring which source supports each issue and field. Maintaining a separate hand-authored runtime registry would duplicate facts and allow the research catalog, API options, alias detection, pricing eligibility, and cache identity to drift. Bulk-promoting every Numista row would create the opposite failure: a single secondary catalog could silently establish official status, normalize ambiguous finish language, or introduce alias collisions such as 2018 Edison Light Bulb versus 2019 Edison Phonograph.
+
+**Evidence assessment:**
+- Numista is a reputable catalog source, not the Royal Canadian Mint. A Numista row must never be labeled issuer verified solely because it exists in these tables.
+- PCGS and Numista independently corroborate the 2018 Edison Light Bulb issue's program, year, mark identity, one-ounce silver denomination, and Reverse Proof finish. This is sufficient for a controlled catalog-verified runtime tier, not issuer provenance.
+- Edison mintage remains unknown. A blank catalog cell must be represented as unknown, never zero and never inferred from another issue or a year-level total.
+- The four supplied Numista tables are source inputs for reviewed local data. They are not runtime dependencies and do not authorize automatic promotion of all rows.
+
+**Proposed approach (requires implementation approval):**
+1. Replace year-level research rows with a normalized, versioned issue catalog in which one record represents one physical issue. Define a validated schema with stable `issueId` and `markId`; canonical display name and bounded aliases; issuer, program, year, metal, fineness, weight, denomination, and finish; optional mintage with explicit known/unknown state; catalog identifiers; promotion state and rationale; and field-level source references, confidence, and verification dates.
+2. Add a deterministic, reviewable importer or curation workflow for Numista N# 6735, N# 9164, N# 381290, and N# 395194. Store only normalized issue facts and source metadata in the repository. Pin source page IDs and retrieval dates, emit a reviewable diff, reject malformed or duplicate records, and never scrape or call Numista during an application request.
+3. Extend the evidence policy with a narrowly defined catalog-verified state, represented internally by one canonical value such as `secondary-corroborated`. Require at least two independent reputable sources to agree on the identity fields needed for pricing. Preserve the existing issuer-verified and issuer-authored-secondary-host states as stronger provenance. Make promotion an explicit reviewed decision per issue; source count alone must not auto-promote a record.
+4. Generate or load the runtime special-mark projection from the validated local catalog so research and production share stable IDs and identity facts without duplicating records. Keep research-only rows queryable for disclosure but ineligible for exact pricing. Fail closed on unknown evidence states, source-reference failures, overlapping applicability, duplicate issue IDs, or aliases that become ambiguous in the same product context.
+5. Promote the 2018 Edison Light Bulb issue as catalog verified using its Numista and PCGS evidence. Keep its mintage unknown and its finish independent from mark identity. Give it aliases that require Silver Maple Leaf context and explicitly prevent `Edison` from resolving to the separate 2019 Edison Phonograph issue; ambiguous shorthand must require clarification rather than choosing by year or substring accident.
+6. Update `GET /api/special-marks` to return locally loaded applicable issues with stable identity, evidence label, pricing eligibility, and mintage-known state. Keep query normalization, bounds, cancellation/coalescing behavior, and deterministic ordering. The route must perform no outbound catalog request and must not expose internal review notes or unsafe source content.
+7. Update Structured Entry to group or label choices as Issuer verified, Catalog verified, and Research only. Permit exact pricing only for eligible records; keep research-only and unlisted marks visible as non-pricing paths with clear explanation. Continue requiring an explicit choice when multiple issues apply, including the 2018 Pronghorn Antelope, Wood Bison, and Edison Light Bulb options.
+8. Preserve strict issue isolation through canonical identity, provider keywords, comparable filtering, valuation, diagnostics, and every cache layer. Edison may use only its exact mark and issue cohort. It cannot fall back to standard, another privy, Edison Phonograph, another year, regular Proof, another finish, or a generic Reverse Proof cohort. Sparse evidence must produce existing low-data/null semantics rather than a substituted valuation.
+9. Document evidence-tier semantics, source review and promotion workflow, normalized field definitions, API behavior, and operator steps for refreshing the local catalog. Record the registry/catalog version in cache identity so a reviewed promotion or identity correction cannot reuse stale sold-comparable results.
+
+**Acceptance criteria:**
+- The normalized catalog has exactly one validated record per supplied Maple Leaf issue, with deterministic IDs and issue-specific source references; no source is inherited implicitly from a year-level row.
+- All four Numista table IDs are represented as pinned source metadata, and application requests succeed with outbound network access disabled.
+- Schema validation rejects duplicate `issueId` values, incompatible reuse of a `markId`, ambiguous aliases within overlapping applicability, invalid evidence states, dangling source references, malformed dimensions, and a numeric mintage without field-level provenance.
+- Issuer verified, catalog verified, research only, and unknown/unlisted states remain distinguishable in data, API output, diagnostics, and user-facing labels. Catalog verification is never serialized as issuer verification.
+- Catalog promotion requires two independent corroborating sources plus explicit review metadata. A single Numista row remains research only unless stronger evidence or an approved exception policy is recorded.
+- A 2018 Canadian Silver Maple Leaf, 1 oz, Reverse Proof lookup offers Pronghorn Antelope, Wood Bison, and Edison Light Bulb. Edison submits a stable exact `issueId`/`markId` and is no longer rejected as unverified.
+- Edison mintage is returned and displayed as unknown, not `0`, omitted-as-known, borrowed, or estimated.
+- Edison Light Bulb and Edison Phonograph cannot collide through `Edison`, token, prefix, substring, or title normalization. Ambiguous context fails closed and returns bounded candidates.
+- Exact Edison pricing and cache keys reject standard, other-mark, other-year, cross-finish, and generic Reverse Proof comparables. No fallback path or cache hit can bypass that isolation.
+- Research-only and unlisted selections cannot trigger exact pricing or silently map to an eligible record; the UI explains why and preserves a recoverable selection path.
+- Import/curation fixture tests, schema and collision tests, registry projection tests, special-mark route tests, identity/title-resolution tests, strict filtering and cache-key tests, pricing-route tests, and JSDOM selector tests cover success and failure paths without real network calls.
+- Focused UX review, Numismatic Audit Step 5b, deep correctness/security/performance review, canonical `npm test`, ESLint, diff hygiene, Pre-commit review, documentation updates, and commit-tied Onboard acceptance pass before merge. Because this work is expected to modify more than five test files, the test-only deep-review threshold also applies if production changes are split into another PR.
+
+**Files (anticipated):** `data/research/silver-maple-leaf-privy-census.json`; a new normalized catalog schema and curated source data under `src/schemas/` and `src/data/` or a documented generated equivalent; an offline import/validation script under `scripts/`; `src/data/specialMarksRegistry.js`; `src/routes/specialMarksRoute.js`; `src/routes/priceRoute.js`; `src/routes/aiPriceRoute.js`; `src/utils/productIdentityResolver.js`; `src/services/pricingService.js`; `src/services/ebayService.js`; cache identity helpers; `public/index.html`; focused fixtures and Jest tests under `__tests__/`; `README.md`; `docs/ARCHITECTURE.md`; `docs/api-reference.md`; `docs/data-dictionary.md`; source/provenance documentation; `CONTRIBUTING.md` documentation mapping if required; and `docs/BACKLOG.md`.
+
+**Out of scope:** Live Numista scraping; treating Numista as issuer evidence; bulk-promoting all catalog rows; inventing or estimating Edison mintage; a universal privy premium; cross-year or cross-mark substitution; weakening raw/graded/Proof/Reverse Proof pool isolation; image recognition; and automatic runtime ingestion of unreviewed third-party changes.
+
+**Dependencies / sequencing:** Complete #313H and preserve its stable IDs and exact-cohort guarantees. Land the schema, normalized catalog, validator, and offline curation workflow before switching runtime reads. Add the controlled evidence tier and explicit promotion gate before promoting Edison. Migrate API/UI consumers behind a catalog version boundary, invalidate registry-sensitive caches, then verify exact-cohort behavior before production rollout. Any material API, persistence, workflow, or user-facing change must update every documentation surface mapped by `CONTRIBUTING.md` and pass commit-tied Onboard acceptance.
+
+**Tier:** M. Changes governed reference data, runtime eligibility policy, public special-mark metadata, structured selection behavior, canonical identity, comparable eligibility, and cache identity.
+
+---
+
 ## UX, Accessibility, and Interaction
 
 ### #303H. Critical authentication accessibility: keyboard mode controls, admin labels, and field errors [P0 -- ACCESSIBILITY / WCAG] -- DONE 2026-08-31
