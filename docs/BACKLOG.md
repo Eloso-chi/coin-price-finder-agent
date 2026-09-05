@@ -4373,7 +4373,7 @@ Gated on data: run pricing-health across a Reverse-Proof slate (2023 RP Morgan, 
 
 ---
 
-### #310H. PCGS APR invalid-response quarantine and nightly fail-fast observability [P1 -- DATA-AVAILABILITY / OPERATIONS] -- IMPLEMENTED / PRODUCTION VALIDATION PENDING 2026-09-01
+### #310H. PCGS APR invalid-response quarantine and nightly fail-fast observability [P1 -- DATA-AVAILABILITY / OPERATIONS] -- COMPLETED 2026-09-04
 
 **Origin:** Read-only production audit on 2026-09-01. The latest nightly run consumed all 90 available calls but stored zero records, added zero records, and updated no manifest entries. Production held 18,135 valid cached auction records, but its newest auction month was May 2026; only five targets were refreshed in August, all with zero records. This is distinct from #285H: HTTP 429 cooldown recovery is working, while HTTP-success payloads with `IsValidRequest !== true` were silently treated as successful empty results.
 
@@ -4391,6 +4391,8 @@ Gated on data: run pricing-health across a Reverse-Proof slate (2023 RP Morgan, 
 - Five invalid responses in one run stop the current run, and an invalid recovery probe stops after one call.
 - Focused auction-service and scheduler tests, canonical `npm test`, ESLint, deep review, and commit-tied Onboard acceptance pass.
 - Production validation confirms the next invalid-payload incident consumes no more than five rejected calls and exposes actionable rejection details.
+
+**Production acceptance (2026-09-04):** PASS. PR #317 merged as `92bfc55fefddf820a5cb4d039eb5d0e65c886d2f` after 181 suites / 4,761 tests, focused PCGS tests, ESLint, deep review, pre-commit review, and commit-tied Onboard acceptance at `ebd7aa81dbd05c8f2e0f91b9a06168f854366b1d`. The next observed invalid-payload incident ended `partial` at `2026-09-04T07:22:29.471Z` after exactly five calls, reported `lastInvalidResponses=5`, added zero records, and exposed five bounded `IsValidRequest=false` target summaries through `/api/admin/prefetch-status`. The implementation therefore met its fail-fast and observability production gate. The newly demonstrated distinction between generic systemic rejection and target-specific rejection remains contained and tracked separately by #314H; it does not reopen #310H's completed invalid-response classification scope.
 
 **Files:** `src/services/auctionPriceService.js`, `src/services/prefetchScheduler.js`, focused Jest tests, `docs/ARCHITECTURE.md`, `docs/api-reference.md`, `docs/data-dictionary.md`, and `docs/memory/background-processes-status.md`.
 
