@@ -4373,7 +4373,7 @@ Gated on data: run pricing-health across a Reverse-Proof slate (2023 RP Morgan, 
 
 ---
 
-### #310H. PCGS APR invalid-response quarantine and nightly fail-fast observability [P1 -- DATA-AVAILABILITY / OPERATIONS] -- IMPLEMENTED / PRODUCTION VALIDATION PENDING 2026-09-01
+### #310H. PCGS APR invalid-response quarantine and nightly fail-fast observability [P1 -- DATA-AVAILABILITY / OPERATIONS] -- COMPLETED 2026-09-04
 
 **Origin:** Read-only production audit on 2026-09-01. The latest nightly run consumed all 90 available calls but stored zero records, added zero records, and updated no manifest entries. Production held 18,135 valid cached auction records, but its newest auction month was May 2026; only five targets were refreshed in August, all with zero records. This is distinct from #285H: HTTP 429 cooldown recovery is working, while HTTP-success payloads with `IsValidRequest !== true` were silently treated as successful empty results.
 
@@ -4391,6 +4391,8 @@ Gated on data: run pricing-health across a Reverse-Proof slate (2023 RP Morgan, 
 - Five invalid responses in one run stop the current run, and an invalid recovery probe stops after one call.
 - Focused auction-service and scheduler tests, canonical `npm test`, ESLint, deep review, and commit-tied Onboard acceptance pass.
 - Production validation confirms the next invalid-payload incident consumes no more than five rejected calls and exposes actionable rejection details.
+
+**Production acceptance (2026-09-04):** PASS. PR #317 merged as `92bfc55fefddf820a5cb4d039eb5d0e65c886d2f` after 181 suites / 4,761 tests, focused PCGS tests, ESLint, deep review, pre-commit review, and commit-tied Onboard acceptance at `ebd7aa81dbd05c8f2e0f91b9a06168f854366b1d`. The next observed invalid-payload incident ended `partial` at `2026-09-04T07:22:29.471Z` after exactly five calls, reported `lastInvalidResponses=5`, added zero records, and exposed five bounded `IsValidRequest=false` target summaries through `/api/admin/prefetch-status`. The implementation therefore met its fail-fast and observability production gate. The newly demonstrated distinction between generic systemic rejection and target-specific rejection remains contained and tracked separately by #314H; it does not reopen #310H's completed invalid-response classification scope.
 
 **Files:** `src/services/auctionPriceService.js`, `src/services/prefetchScheduler.js`, focused Jest tests, `docs/ARCHITECTURE.md`, `docs/api-reference.md`, `docs/data-dictionary.md`, and `docs/memory/background-processes-status.md`.
 
@@ -4470,7 +4472,7 @@ Gated on data: run pricing-health across a Reverse-Proof slate (2023 RP Morgan, 
 
 ---
 
-### #313H. Canadian Silver Maple Leaf privy census and Wild Canada issue identity [P1 -- PRICING-ACCURACY / UX / DATA-GOVERNANCE] -- IN PROGRESS 2026-09-03
+### #313H. Canadian Silver Maple Leaf privy census and Wild Canada issue identity [P1 -- PRICING-ACCURACY / UX / DATA-GOVERNANCE] -- COMPLETED 2026-09-04
 
 **Origin:** Production repro following #312H: a 2015 Canadian Silver Maple Leaf Reverse Proof did not populate E=mc2 when Metal remained Auto, and a 2018 Reverse Proof exposed no applicable privy despite two Wild Canada issues for that year.
 
@@ -4491,6 +4493,8 @@ Gated on data: run pricing-health across a Reverse-Proof slate (2023 RP Morgan, 
 - Exact issue identity is present in cache keys; exact marks cannot use cross-year composites; standard and unspecified cohorts reject explicit privies.
 - Runtime records have issuer-traceable verification, complete mintage provenance, deterministic aliases, and valid applicability. Secondary-only census leads remain non-runtime.
 - Focused Jest tests, canonical `npm test`, ESLint, diff hygiene, focused UX review, Numismatic Audit Step 5b, deep correctness/security/performance review, Pre-commit review, and commit-tied Onboard acceptance pass before merge.
+
+**Production acceptance (2026-09-04):** PASS at merge commit `e361f72ec3291fcc9fddb5e7527c22edfe57b1c1`. Production registry `1.1.0` resolved the 2015 explicit Silver program with Auto metal to `rcm.maple.emc2`; returned both `rcm.maple.pronghorn-antelope.2018` and `rcm.maple.wood-bison.2018` with `requiresSelection=true` for the 2018 Silver Reverse Proof context; and returned no Silver privies for the equivalent Gold context. The pricing boundary returned HTTP 422 `SPECIAL_MARK_CLARIFICATION_REQUIRED` with both candidate IDs for an unspecified 2018 issue, returned HTTP 422 `UNVERIFIED_SPECIAL_MARK` for an unlisted Edison Light Bulb request, and returned HTTP 400 `AMBIGUOUS_PRODUCT_IDENTITY` for contradictory Gold/Silver input. These canaries confirm the deployed selection, Gold isolation, and fail-closed contracts; the merged focused tests and review record cover exact cache identity, cross-year comp isolation, provenance, accessibility, and stale-response safety.
 
 **Files:** `src/data/specialMarksRegistry.js`, `data/research/silver-maple-leaf-privy-census.json`, `src/routes/specialMarksRoute.js`, `src/routes/priceRoute.js`, `src/routes/aiPriceRoute.js`, `src/utils/productIdentityResolver.js`, `src/services/pricingService.js`, `src/services/ebayService.js`, `public/index.html`, focused Jest tests, `README.md`, `docs/ARCHITECTURE.md`, `docs/api-reference.md`, `docs/data-dictionary.md`, and `docs/BACKLOG.md`.
 
