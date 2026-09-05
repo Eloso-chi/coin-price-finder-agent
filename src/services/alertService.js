@@ -144,7 +144,7 @@ function alertPrefetchFailure(consecutiveFailures, error) {
   return sendAlert(
     'prefetch-failed',
     `APR prefetch degraded ${consecutiveFailures}x`,
-    `The nightly APR prefetch scheduler has completed partially or failed ${consecutiveFailures} consecutive times.\n\nError: ${error}`
+    `The APR prefetch scheduler has completed partially or failed for ${consecutiveFailures} consecutive scheduler attempts.\n\nError: ${error}`
   );
 }
 

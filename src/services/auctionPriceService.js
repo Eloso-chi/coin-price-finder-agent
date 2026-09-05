@@ -37,14 +37,17 @@ const FRESHNESS_DAYS = parseInt(process.env.APR_FRESHNESS_DAYS, 10) || 30;
 const MAX_RECORDS = 100;
 const REJECTION_BACKOFF_DAYS = 30;
 const REJECTION_DETAIL_MAX_LENGTH = 200;
+const SYSTEMIC_RECOVERY_PCGS_NO = 7130;
+const SYSTEMIC_RECOVERY_GRADE = 65;
 const ANSI_ESCAPE_RE = new RegExp(`${String.fromCharCode(27)}\\[[0-?]*[ -/]*[@-~]`, 'g');
 
 class PcgsInvalidResponseError extends Error {
-  constructor(reason, quarantinePersisted) {
+  constructor(reason, rejectionScope, quarantinePersisted) {
     super(`PCGS rejected APR request: ${reason}`);
     this.name = 'PcgsInvalidResponseError';
     this.code = 'PCGS_INVALID_RESPONSE';
     this.rejectionReason = reason;
+    this.rejectionScope = rejectionScope;
     this.quarantinePersisted = quarantinePersisted;
   }
 }
@@ -119,6 +122,19 @@ function getRejectionReason(data) {
   return sanitizeRejectionDetail(reason);
 }
 
+function hasTargetSpecificRejectionDetail(data) {
+  if (!data || typeof data !== 'object') return false;
+  const code = sanitizeRejectionDetail(data.ErrorCode ?? data.Code)?.toUpperCase() || '';
+  const message = sanitizeRejectionDetail(
+    data.ErrorMessage ?? data.Message ?? data.Error ?? data.StatusMessage
+  )?.toLowerCase() || '';
+  return /(?:INVALID|UNSUPPORTED|UNKNOWN)[_-]?(?:TARGET|COIN|GRADE|PCGS)/.test(code)
+    || /(?:invalid|unsupported|unknown)\s+target/.test(message)
+    || /(?:pcgs\s*(?:no|number)|grade).{0,40}(?:invalid|unsupported|not supported|not found)/.test(message)
+    || /(?:invalid|unsupported|not supported|not found).{0,40}(?:pcgs\s*(?:no|number)|grade)/.test(message)
+    || /coin\s+and\s+grade\s+combination.{0,40}(?:invalid|unsupported|not supported|not found)/.test(message);
+}
+
 function recordRejectedRequest(pcgsNo, grade, reason) {
   const manifest = loadManifest();
   const key = `${pcgsNo}:${grade}`;
@@ -148,9 +164,9 @@ function needsRefresh(pcgsNo, grade) {
 }
 
 // ── HTTP helper ─────────────────────────────────────────────
-async function aprGet(urlPath) {
+async function aprGet(urlPath, options = {}) {
   const requestAllowed = typeof pcgsQuota.acquireRequestPermit === 'function'
-    ? pcgsQuota.acquireRequestPermit()
+    ? pcgsQuota.acquireRequestPermit(options)
     : !pcgsQuota.isBreakerTripped();
   if (!requestAllowed) {
     throw new Error('PCGS breaker tripped by upstream cooldown - no API calls until recovery is eligible');
@@ -312,16 +328,29 @@ async function fetchByGrade(pcgsNo, grade, opts = {}) {
 
   const startDate = rollingStartDate();
   const endDate = todayEndDate();
+  const recoveryProbe = Number(pcgsNo) === SYSTEMIC_RECOVERY_PCGS_NO
+    && gradeInt === SYSTEMIC_RECOVERY_GRADE
+    && pcgsQuota.isSystemicRecoveryProbeRequired?.();
 
   const data = await aprGet(
-    `/coindetail/GetAPRByGrade?PCGSNo=${pcgsNo}&GradeNo=${gradeInt}&PlusGrade=${plusGrade}&StartDate=${startDate}&EndDate=${endDate}&NumberOfRecords=${MAX_RECORDS}`
+    `/coindetail/GetAPRByGrade?PCGSNo=${pcgsNo}&GradeNo=${gradeInt}&PlusGrade=${plusGrade}&StartDate=${startDate}&EndDate=${endDate}&NumberOfRecords=${MAX_RECORDS}`,
+    {
+      allowSystemicRecovery: Number(pcgsNo) === SYSTEMIC_RECOVERY_PCGS_NO
+        && gradeInt === SYSTEMIC_RECOVERY_GRADE
+    }
   );
 
-  if (!data || data.IsValidRequest !== true) {
+  if (!data || data.IsValidRequest !== true || (recoveryProbe && !Array.isArray(data.Auctions))) {
     const rejectionReason = getRejectionReason(data);
+    const effectiveReason = recoveryProbe && data?.IsValidRequest === true
+      ? 'Malformed APR recovery response'
+      : rejectionReason;
+    const rejectionScope = hasTargetSpecificRejectionDetail(data) ? 'target-specific' : 'systemic';
     pcgsQuota.recordCall('apr', 'invalid-response', { recoverySucceeded: false });
-    const quarantinePersisted = recordRejectedRequest(pcgsNo, gradeInt, rejectionReason);
-    throw new PcgsInvalidResponseError(rejectionReason, quarantinePersisted);
+    const quarantinePersisted = rejectionScope === 'target-specific'
+      ? recordRejectedRequest(pcgsNo, gradeInt, effectiveReason)
+      : false;
+    throw new PcgsInvalidResponseError(effectiveReason, rejectionScope, quarantinePersisted);
   }
   pcgsQuota.recordCall('apr');
 

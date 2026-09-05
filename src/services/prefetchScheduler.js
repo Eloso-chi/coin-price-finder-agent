@@ -40,6 +40,14 @@ const OBSERVED_UPSTREAM_LIMIT = parseBoundedInteger(
 const STATUS_PATH = path.join(CACHE_DIR, 'prefetch_status.json');
 const ALERT_FAILURE_THRESHOLD = 2;
 const INVALID_RESPONSE_ABORT_THRESHOLD = 5;
+const SYSTEMIC_REJECTION_ABORT_THRESHOLD = 5;
+const SYSTEMIC_RECOVERY_PROBE = Object.freeze({
+  pcgsNo: 7130,
+  grade: 65,
+  category: 'us_classic',
+  priority: 0,
+  diagnostic: 'known-good-systemic-recovery'
+});
 
 // Grades worth fetching APR data for (collectible grades)
 const TARGET_GRADES = [60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70];
@@ -347,6 +355,7 @@ async function executePrefetchRun() {
   };
   const errors = [];
   const rejectedTargets = [];
+  const systemicRejectedTargets = new Set();
   let invalidResponses = 0;
   let consecutiveInvalidResponses = 0;
 
@@ -386,7 +395,15 @@ async function executePrefetchRun() {
       observedUpstreamLimit: OBSERVED_UPSTREAM_LIMIT,
       localQuotaLimit: quotaAtStart.limit,
     }, 'Prefetch quota available');
-    const queue = buildQueue();
+    let queue = buildQueue();
+    const systemicRecoveryProbePending = pcgsQuota.isSystemicRecoveryProbeRequired?.() || false;
+    if (systemicRecoveryProbePending) {
+      queue = [
+        SYSTEMIC_RECOVERY_PROBE,
+        ...queue.filter(({ pcgsNo, grade }) => pcgsNo !== SYSTEMIC_RECOVERY_PROBE.pcgsNo
+          || grade !== SYSTEMIC_RECOVERY_PROBE.grade)
+      ];
+    }
     logger.info({ event: 'queue_built', queueSize: queue.length }, 'Prefetch queue built');
 
     if (queue.length === 0) {
@@ -443,6 +460,7 @@ async function executePrefetchRun() {
             pcgsNo,
             grade,
             reason: err.rejectionReason || 'IsValidRequest=false',
+            scope: err.rejectionScope || 'target-specific',
             quarantinePersisted: err.quarantinePersisted !== false
           });
           logger.warn({
@@ -454,6 +472,9 @@ async function executePrefetchRun() {
           }, 'PCGS rejected prefetch target');
           if (recoveryProbePending) {
             recoveryProbePending = false;
+            if (systemicRecoveryProbePending) {
+              pcgsQuota.tripSystemicRejection?.({ reason: err.rejectionReason });
+            }
             logger.warn({
               event: 'recovery_probe_failed',
               pcgsNo,
@@ -461,6 +482,19 @@ async function executePrefetchRun() {
               reason: err.rejectionReason
             }, 'Prefetch recovery probe returned an invalid response');
             break;
+          }
+          if (err.rejectionScope === 'systemic') {
+            systemicRejectedTargets.add(`${pcgsNo}:${grade}`);
+            if (systemicRejectedTargets.size >= SYSTEMIC_REJECTION_ABORT_THRESHOLD) {
+              pcgsQuota.tripSystemicRejection?.({ reason: err.rejectionReason });
+              logger.warn({
+                event: 'systemic_invalid_response_threshold',
+                invalidResponses,
+                distinctTargets: systemicRejectedTargets.size,
+                threshold: SYSTEMIC_REJECTION_ABORT_THRESHOLD
+              }, 'Stopping prefetch after generic PCGS rejections across unrelated targets');
+              break;
+            }
           }
           if (invalidResponses >= INVALID_RESPONSE_ABORT_THRESHOLD) {
             logger.warn({
@@ -477,6 +511,9 @@ async function executePrefetchRun() {
             break;
           }
           if (recoveryProbePending) {
+            if (systemicRecoveryProbePending) {
+              pcgsQuota.tripSystemicRejection?.({ reason: 'Systemic APR recovery probe failed' });
+            }
             logger.warn({ err, event: 'recovery_probe_failed', callsMade, pcgsNo, grade }, 'Prefetch recovery probe failed');
             break;
           }
@@ -703,6 +740,7 @@ function getSchedulerStatus() {
       breakerTripped: quota.breakerTripped,
       localQuotaRemaining: quota.remaining,
       upstreamAvailability: quota.upstreamAvailability || 'available',
+      upstreamBlockType: quota.upstreamBlockType || null,
       nextEligibleProbeAt: quota.nextEligibleProbeAt || null,
       rateLimitedAt: quota.rateLimitedAt || null,
       rateLimitReason: quota.rateLimitReason || null,
@@ -803,5 +841,6 @@ module.exports = {
   logMissingKeyDateCategories,
   buildQueue,
   extractAllPcgsNumbers,
-  parseBoundedInteger
+  parseBoundedInteger,
+  SYSTEMIC_RECOVERY_PROBE
 };

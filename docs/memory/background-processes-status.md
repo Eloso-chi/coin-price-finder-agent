@@ -1,10 +1,10 @@
-# Background Processes & Automation Status (refreshed 2026-09-01 for #310H)
+# Background Processes & Automation Status (refreshed 2026-09-04 for #314H)
 
 ## Working Processes ✓
 
 ### 1. PCGS APR Prefetch Scheduler
-- **Status:** ACTIVE; #285H recovery implementation complete, production observation pending
-- **Schedule:** Nightly 11 PM PT (in-process) + 6:05 AM UTC (GH Actions safety net)
+- **Status:** CONTAINED; automatic triggers disabled during #314H production remediation
+- **Schedule:** In-process disabled with `PCGS_PREFETCH_ENABLED=false`; GitHub Actions remains manually disabled during containment. Its dual 6:05/7:05 UTC schedule is restored in code with a 23:00 `America/Los_Angeles` gate for post-validation re-enablement. Controlled manual diagnostics remain available.
 - **Production truth:** Use `/api/admin/prefetch-status` or the nightly workflow logs; local `cache/` files are not production evidence.
 - **Fixes (PR #50):** Fire-and-forget (202 response), idempotency guard, 30-min workflow polling, metrics reporting
 - **Fixes (#277W, 2026-07-03):**
@@ -18,6 +18,9 @@
 - **Observed-limit safety follow-up (#285H, 2026-08-13):** Numeric `X-RateLimit-Limit` and `X-RateLimit-Remaining` values from 429 responses are persisted and exposed in status. Nightly prefetch is temporarily bounded by `PCGS_PREFETCH_OBSERVED_LIMIT=100` minus the 10-call reserve, for a fresh-run maximum of 90 calls; the shared published entitlement remains 1,000.
 - **Alerting (#282W/#285H, 2026-08-13):** Partial and fatal runs share a two-run alert gate and neutral "degraded" wording. Completed runs reset the streak; ACS delivery and fallback logs share one-hour per-topic burst limiting.
 - **Invalid-response protection (#310H, 2026-09-01):** HTTP-success APR payloads with `IsValidRequest !== true` are classified as failures with bounded rejection details. A rejected `pcgsNo:grade` target is quarantined from automatic queueing for 30 days, five invalid responses anywhere in one run stop it, and an invalid recovery probe stops after its one bounded call. `/api/admin/prefetch-status` exposes `lastInvalidResponses` and capped `lastRejectedTargets`; production validation remains pending.
+- **Systemic rejection containment (#314H, 2026-09-04):** A one-call sanitized diagnostic against verified PCGS 7130 grade 65 returned HTTP 200 with `IsValidRequest=true`. Durable handling classifies bare/account/service rejection as systemic, persists a distinct 24-hour cooldown after five distinct targets, avoids per-target quarantine, and uses that verified target for exactly one recovery probe. Workflow completion now fails for scheduler `partial`, `failed`, or unverified timeout outcomes. Automatic triggers remain off until deployment and controlled production validation.
+- Recovery-probe coordination uses an exclusive shared lock and fails closed if that lock already exists. A lock left after abnormal process termination must be inspected and removed by an operator only after confirming no instance is probing; it is never reclaimed automatically.
+- **Selective #314H repair runbook:** Keep every application instance stopped so no process holds a stale in-memory manifest. Run `node scripts/repair-apr-generic-quarantines.js` first and review the exact key list and default `2026-09-01T00:00:00.000Z` cutoff. Apply only with `node scripts/repair-apr-generic-quarantines.js --apply --confirm-app-stopped`; use `--cutoff=<ISO timestamp>` only with incident evidence. Verify the reported exclusive backup exists, restart the app, confirm APR history counts remain intact, and confirm only exact generic incident quarantine fields disappeared. To roll back, stop every instance again and restore the reported `.pre-314H-repair-*.bak` file before restart. Never run this against a live writer or delete the full manifest/cache.
 - **Code:** src/services/prefetchScheduler.js, .github/workflows/nightly-prefetch.yml
 
 ### 2. Metals Spot Price Polling
@@ -98,6 +101,7 @@ All background processes have status endpoints:
 | Prefetch observed upstream limit | PCGS_PREFETCH_OBSERVED_LIMIT | 100 (90-call effective fresh budget) | ✓ Yes |
 | Prefetch enabled | PCGS_PREFETCH_ENABLED | true | ✓ Yes |
 | PCGS 429 fallback cooldown | PCGS_429_COOLDOWN_MS | 3600000 (1h) | ✓ Yes |
+| PCGS systemic rejection cooldown | PCGS_SYSTEMIC_COOLDOWN_MS | 86400000 (24h) | Yes |
 | ACS Email connection | COMMUNICATION_CONNECTION_STRING | (none) | ✓ Needs setup |
 | Alert email | ALERT_EMAIL_TO | (none) | ✓ Needs setup |
 | Alert sender | ALERT_FROM_EMAIL | (none) | ✓ Needs setup |

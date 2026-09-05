@@ -1,29 +1,42 @@
-# PCGS APR Prefetch -- Manual Containment Trigger
-# Automatic safety-net scheduling is disabled during the #314H incident.
-# Keep workflow_dispatch available for controlled operator diagnostics only.
+# PCGS APR Prefetch -- DST-safe safety net
+# The workflow remains manually disabled during #314H production containment.
 
 name: Nightly Prefetch Trigger
 
 on:
-  # #314H containment: automatic triggers remain disabled until systemic
-  # IsValidRequest=false handling is deployed and production-validated.
-  workflow_dispatch: # Preserve controlled manual diagnostics from GitHub UI
+  schedule:
+    - cron: '5 6,7 * * *'
+  workflow_dispatch:
 
 jobs:
   trigger-prefetch:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
-      - name: Wake up App Service (health check)
+      - name: Gate scheduled run to 23:00 Pacific
+        id: pacific_gate
+        env:
+          EVENT_NAME: ${{ github.event_name }}
         run: |
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+          PACIFIC_HOUR=$(TZ=America/Los_Angeles date +%H)
+          SHOULD_RUN=true
+          if [ "$EVENT_NAME" = "schedule" ] && [ "$PACIFIC_HOUR" != "23" ]; then
+            SHOULD_RUN=false
+          fi
+          echo "should_run=$SHOULD_RUN" >> "$GITHUB_OUTPUT"
+          echo "event=$EVENT_NAME pacific_hour=$PACIFIC_HOUR should_run=$SHOULD_RUN"
+
+      - name: Wake up App Service (health check)
+        if: steps.pacific_gate.outputs.should_run == 'true'
+        run: |
+          STATUS=$(curl --connect-timeout 10 --max-time 20 -sS -o /dev/null -w "%{http_code}" \
             "https://coinpricefinder-h3a3b5g0dmdydna4.azurewebsites.net/api/health")
           echo "Health check: HTTP $STATUS"
           if [ "$STATUS" != "200" ]; then
             echo "::warning::App Service health check returned $STATUS"
             # Retry once after 10s (cold start)
             sleep 10
-            STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            STATUS=$(curl --connect-timeout 10 --max-time 20 -sS -o /dev/null -w "%{http_code}" \
               "https://coinpricefinder-h3a3b5g0dmdydna4.azurewebsites.net/api/health")
             echo "Retry health check: HTTP $STATUS"
             if [ "$STATUS" != "200" ]; then
@@ -33,12 +46,13 @@ jobs:
           fi
 
       - name: Trigger prefetch run
+        if: steps.pacific_gate.outputs.should_run == 'true'
         env:
           ADMIN_API_KEY: ${{ secrets.ADMIN_API_KEY }}
         run: |
           TRIGGER_TIME=$(date -u +%s)
           echo "TRIGGER_TIME=$TRIGGER_TIME" >> "$GITHUB_ENV"
-          RESPONSE=$(curl -s -w "\n%{http_code}" \
+          RESPONSE=$(curl --connect-timeout 10 --max-time 30 -sS -w "\n%{http_code}" \
             -X POST \
             -H "x-api-key: ${ADMIN_API_KEY}" \
             "https://coinpricefinder-h3a3b5g0dmdydna4.azurewebsites.net/api/admin/prefetch-trigger")
@@ -57,6 +71,7 @@ jobs:
           echo "PREFETCH_STARTED=$STARTED" >> "$GITHUB_ENV"
 
       - name: Poll prefetch status until completion
+        if: steps.pacific_gate.outputs.should_run == 'true'
         env:
           ADMIN_API_KEY: ${{ secrets.ADMIN_API_KEY }}
         run: |
@@ -77,19 +92,33 @@ jobs:
           
           for i in $(seq 1 $MAX_POLLS); do
             sleep $POLL_INTERVAL
-            RESPONSE=$(curl -s \
+            RAW_RESPONSE=$(curl --connect-timeout 10 --max-time 20 -sS -w "\n%{http_code}" \
               -H "x-api-key: ${ADMIN_API_KEY}" \
-              "https://coinpricefinder-h3a3b5g0dmdydna4.azurewebsites.net/api/admin/prefetch-status")
+              "https://coinpricefinder-h3a3b5g0dmdydna4.azurewebsites.net/api/admin/prefetch-status" || printf '\n000')
+            HTTP_CODE=$(echo "$RAW_RESPONSE" | tail -1)
+            RESPONSE=$(echo "$RAW_RESPONSE" | head -n -1)
+            if [ "$HTTP_CODE" = "401" ] || [ "$HTTP_CODE" = "403" ]; then
+              echo "::error::Prefetch status authorization failed with HTTP $HTTP_CODE"
+              exit 1
+            fi
+            if [ "$HTTP_CODE" != "200" ]; then
+              echo "::warning::Prefetch status returned HTTP $HTTP_CODE on poll $i"
+              continue
+            fi
             
             # A prior run can leave todayCompleted=true. Correlate completion
             # to the run triggered by this workflow using its lastRun timestamp.
-            read -r COMPLETED LAST_RUN LAST_RUN_EPOCH < <(echo "$RESPONSE" | python3 -c 'import datetime,json,sys; data=json.load(sys.stdin); last_run=data.get("lastRun") or ""; epoch=int(datetime.datetime.fromisoformat(last_run.replace("Z", "+00:00")).timestamp()) if last_run else 0; print(data.get("todayCompleted", False), last_run or "none", epoch)' 2>/dev/null || echo "False none 0")
+            read -r COMPLETED LAST_RUN LAST_RUN_EPOCH RUN_STATUS < <(echo "$RESPONSE" | python3 -c 'import datetime,json,sys; data=json.load(sys.stdin); last_run=data.get("lastRun") or ""; epoch=int(datetime.datetime.fromisoformat(last_run.replace("Z", "+00:00")).timestamp()) if last_run else 0; print(data.get("todayCompleted", False), last_run or "none", epoch, data.get("lastStatus") or "unknown")' 2>/dev/null || echo "False none 0 unknown")
             
             if [ "$COMPLETED" = "True" ] && [ "$LAST_RUN_EPOCH" -ge "$MIN_COMPLETION_TIME" ]; then
-              echo "Prefetch completed successfully"
+              echo "Prefetch run finished with scheduler status: $RUN_STATUS"
               echo "Status:"
               echo "$RESPONSE" | python3 -m json.tool 2>/dev/null
               echo "$RESPONSE" > /tmp/prefetch_final_status.json
+              if [ "$RUN_STATUS" != "completed" ]; then
+                echo "::error::Prefetch scheduler finished with status $RUN_STATUS"
+                exit 1
+              fi
               exit 0
             fi
             
@@ -99,18 +128,18 @@ jobs:
             fi
           done
           
-          # Timeout: show last status and warn (don't fail)
-          echo "::warning::Prefetch polling timed out after 30 minutes"
+          # Timeout means the workflow could not verify scheduler completion.
+          echo "::error::Prefetch polling timed out after 30 minutes"
           echo "Last status:"
           echo "$RESPONSE" | python3 -m json.tool 2>/dev/null || echo "$RESPONSE"
-          # Don't exit with error — prefetch may still be running
-          exit 0
+          exit 1
 
       - name: Report prefetch results
         if: always()
         run: |
           if [ -f /tmp/prefetch_final_status.json ]; then
-            echo "## ✓ Nightly APR Prefetch Completed" >> $GITHUB_STEP_SUMMARY
+            STATUS=$(jq -r '.lastStatus // "unknown"' /tmp/prefetch_final_status.json)
+            echo "## APR Prefetch Finished: $STATUS" >> $GITHUB_STEP_SUMMARY
             {
               echo "| Metric | Value |"
               echo "|--------|-------|"

@@ -22,6 +22,10 @@ describe('pcgsQuotaService', () => {
     });
     fs.writeFileSync.mockImplementation(() => {});
     fs.mkdirSync.mockImplementation(() => {});
+    fs.openSync.mockReturnValue(123);
+    fs.closeSync.mockImplementation(() => {});
+    fs.unlinkSync.mockImplementation(() => {});
+    fs.statSync.mockReturnValue({ mtimeMs: Date.now() });
     quota = require('../src/services/pcgsQuotaService');
   });
 
@@ -122,6 +126,7 @@ describe('pcgsQuotaService', () => {
       expect(status.remaining).toBe(1000);
       expect(status.breakerTrippedAt).toBeTruthy();
       expect(status.upstreamAvailability).toBe('cooldown');
+      expect(status.upstreamBlockType).toBe('rate-limit');
       expect(status.upstreamReportedRemaining).toBe(0);
       expect(status.upstreamReportedLimit).toBe(100);
       expect(Date.parse(status.nextEligibleProbeAt)).toBeGreaterThan(Date.now());
@@ -184,6 +189,19 @@ describe('pcgsQuotaService', () => {
       }));
     });
 
+    it('does not issue a recovery permit while another process owns the probe lock', () => {
+      quota.tripBreaker({ retryAfter: '0' });
+      fs.openSync.mockImplementation(() => {
+        const error = new Error('EEXIST');
+        error.code = 'EEXIST';
+        throw error;
+      });
+      fs.statSync.mockReturnValue({ mtimeMs: Date.now() });
+
+      expect(quota.acquireRequestPermit()).toBe(false);
+      expect(quota.getStatus().upstreamAvailability).toBe('probe-required');
+    });
+
     it('does not clear a recovery probe when error headers are synchronized', () => {
       quota.tripBreaker({ retryAfter: '0' });
       expect(quota.acquireRequestPermit()).toBe(true);
@@ -243,6 +261,48 @@ describe('pcgsQuotaService', () => {
           nextEligibleProbeAt: '2026-08-01T07:10:00.000Z'
         }));
         expect(quota.getAvailableForPrefetch(10)).toBe(0);
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
+    it('persists a distinct systemic rejection cooldown and requires one probe', () => {
+      let persisted;
+      fs.writeFileSync.mockImplementation((_file, content) => { persisted = content; });
+      fs.renameSync.mockImplementation(() => {});
+      quota.tripSystemicRejection({ reason: 'IsValidRequest=false' });
+
+      expect(quota.getStatus()).toEqual(expect.objectContaining({
+        upstreamAvailability: 'cooldown',
+        upstreamBlockType: 'systemic-invalid-response',
+        rateLimitReason: 'IsValidRequest=false'
+      }));
+      expect(quota.isSystemicRecoveryProbeRequired()).toBe(false);
+
+      const raw = JSON.parse(persisted);
+      raw.upstreamCooldown.resetAt = new Date(Date.now() - 1).toISOString();
+      jest.resetModules();
+      fs = require('fs');
+      fs.readFileSync.mockReturnValue(JSON.stringify(raw));
+      quota = require('../src/services/pcgsQuotaService');
+
+      expect(quota.isSystemicRecoveryProbeRequired()).toBe(true);
+      expect(quota.getAvailableForPrefetch(10)).toBe(1);
+      expect(quota.acquireRequestPermit()).toBe(false);
+      expect(quota.acquireRequestPermit({ allowSystemicRecovery: true })).toBe(true);
+    });
+
+    it('preserves an expired cooldown across Pacific day rollover until recovery', () => {
+      jest.useFakeTimers({ now: new Date('2026-08-01T06:55:00.000Z') });
+      try {
+        quota.tripBreaker({ retryAfter: '0' });
+        jest.setSystemTime(new Date('2026-08-01T07:05:00.000Z'));
+
+        expect(quota.getStatus()).toEqual(expect.objectContaining({
+          date: '2026-08-01',
+          upstreamAvailability: 'probe-required'
+        }));
+        expect(quota.getAvailableForPrefetch(10)).toBe(1);
       } finally {
         jest.useRealTimers();
       }

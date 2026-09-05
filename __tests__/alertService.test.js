@@ -150,7 +150,7 @@ describe('alertService', () => {
 
       const message = mockBeginSend.mock.calls[0][0];
       expect(message.content.subject).toBe('[CoinPriceFinder] APR prefetch degraded 2x');
-      expect(message.content.plainText).toContain('completed partially or failed 2 consecutive times');
+      expect(message.content.plainText).toContain('completed partially or failed for 2 consecutive scheduler attempts');
     });
 
     test('alertServerCrash returns a result', async () => {
