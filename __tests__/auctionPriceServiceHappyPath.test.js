@@ -41,6 +41,8 @@ jest.mock('fs');
 jest.mock('axios');
 jest.mock('../src/utils/cachePath', () => ({ CACHE_DIR: '/tmp/test-cache' }));
 jest.mock('../src/services/pcgsQuotaService', () => ({
+  acquireRequestPermit: jest.fn(() => true),
+  isSystemicRecoveryProbeRequired: jest.fn(() => false),
   recordCall: jest.fn(() => ({ remaining: 999, used: 1 })),
   syncFromHeaders: jest.fn(),
   tripBreaker: jest.fn(),
@@ -83,6 +85,7 @@ function setupFresh(opts = {}) {
   const fs = require('fs');
   const pcgsQuota = require('../src/services/pcgsQuotaService');
   pcgsQuota.isBreakerTripped.mockReturnValue(!!opts.breakerTripped);
+  pcgsQuota.acquireRequestPermit.mockReturnValue(!opts.breakerTripped);
 
   if (opts.cleanFs !== false) {
     fs.existsSync.mockReturnValue(true);
@@ -250,6 +253,7 @@ describe('fetchByGrade -- happy path', () => {
     await expect(svc.fetchByGrade(7296, 65)).rejects.toMatchObject({
       code: 'PCGS_INVALID_RESPONSE',
       rejectionReason: 'INVALID_TARGET: Coin and grade combination is not supported',
+      rejectionScope: 'target-specific',
       quarantinePersisted: true
     });
     expect(pcgsQuota.recordCall).toHaveBeenCalledWith(
@@ -270,6 +274,42 @@ describe('fetchByGrade -- happy path', () => {
     expect(new Date(manifest.entries['7296:65'].retryAfter).getTime()).toBeGreaterThan(Date.now());
   });
 
+  it('grants systemic recovery permission only to the verified recovery target', async () => {
+    const { svc, axios, pcgsQuota } = setupFresh();
+    axios.get.mockResolvedValue({
+      data: { IsValidRequest: true, Auctions: [] },
+      headers: {}
+    });
+
+    await svc.fetchByGrade(7130, 65, { force: true });
+    expect(pcgsQuota.acquireRequestPermit).toHaveBeenLastCalledWith({
+      allowSystemicRecovery: true
+    });
+
+    await svc.fetchByGrade(7296, 65, { force: true });
+    expect(pcgsQuota.acquireRequestPermit).toHaveBeenLastCalledWith({
+      allowSystemicRecovery: false
+    });
+  });
+
+  it('rejects a malformed successful response during systemic recovery', async () => {
+    const { svc, axios, pcgsQuota } = setupFresh();
+    pcgsQuota.isSystemicRecoveryProbeRequired.mockReturnValue(true);
+    axios.get.mockResolvedValue({ data: { IsValidRequest: true }, headers: {} });
+
+    await expect(svc.fetchByGrade(7130, 65, { force: true })).rejects.toMatchObject({
+      code: 'PCGS_INVALID_RESPONSE',
+      rejectionReason: 'Malformed APR recovery response',
+      rejectionScope: 'systemic',
+      quarantinePersisted: false
+    });
+    expect(pcgsQuota.recordCall).toHaveBeenCalledWith(
+      'apr',
+      'invalid-response',
+      { recoverySucceeded: false }
+    );
+  });
+
   it('reports when invalid-target quarantine cannot be persisted', async () => {
     const { svc, axios, fs } = setupFresh();
     fs.renameSync.mockImplementation(() => { throw new Error('disk unavailable'); });
@@ -285,14 +325,34 @@ describe('fetchByGrade -- happy path', () => {
     expect(fs.unlinkSync).toHaveBeenCalledWith(expect.stringContaining('apr_manifest.json'));
   });
 
-  it('uses a bounded fallback reason when an invalid response has no details', async () => {
-    const { svc, axios } = setupFresh();
+  it('classifies an invalid response without details as systemic and does not quarantine the target', async () => {
+    const { svc, axios, fs } = setupFresh();
     axios.get.mockResolvedValue({ data: { IsValidRequest: false }, headers: {} });
 
     await expect(svc.fetchByGrade(7296, 65)).rejects.toMatchObject({
       code: 'PCGS_INVALID_RESPONSE',
-      rejectionReason: 'IsValidRequest=false'
+      rejectionReason: 'IsValidRequest=false',
+      rejectionScope: 'systemic',
+      quarantinePersisted: false
     });
+    expect(fs.writeFileSync.mock.calls
+      .filter(([fp]) => String(fp).includes('apr_manifest'))).toHaveLength(0);
+  });
+
+  it('does not treat an explicit account-level rejection as target-specific', async () => {
+    const { svc, axios, fs } = setupFresh();
+    axios.get.mockResolvedValue({
+      data: { IsValidRequest: false, Message: 'Account subscription is not authorized' },
+      headers: {}
+    });
+
+    await expect(svc.fetchByGrade(7296, 65)).rejects.toMatchObject({
+      code: 'PCGS_INVALID_RESPONSE',
+      rejectionScope: 'systemic',
+      quarantinePersisted: false
+    });
+    expect(fs.writeFileSync.mock.calls
+      .filter(([fp]) => String(fp).includes('apr_manifest'))).toHaveLength(0);
   });
 
   it('redacts credentials, email addresses, URL secrets, and control characters', async () => {

@@ -20,6 +20,8 @@ jest.mock('../src/services/pcgsQuotaService', () => ({
   getAvailableForPrefetch: jest.fn(() => 50),
   isBreakerTripped: jest.fn(() => false),
   isRecoveryProbeRequired: jest.fn(() => false),
+  isSystemicRecoveryProbeRequired: jest.fn(() => false),
+  tripSystemicRejection: jest.fn(),
   getStatus: jest.fn(() => ({ used: 10, remaining: 90, limit: 100, breakerTripped: false, upstreamAvailability: 'available' })),
 }));
 
@@ -86,6 +88,8 @@ beforeEach(() => {
   pcgsQuota.getAvailableForPrefetch.mockClear().mockReturnValue(50);
   pcgsQuota.isBreakerTripped.mockClear().mockReturnValue(false);
   pcgsQuota.isRecoveryProbeRequired.mockClear().mockReturnValue(false);
+  pcgsQuota.isSystemicRecoveryProbeRequired.mockClear().mockReturnValue(false);
+  pcgsQuota.tripSystemicRejection.mockClear();
   pcgsQuota.getStatus.mockClear().mockReturnValue({ used: 10, remaining: 90, limit: 100, breakerTripped: false, upstreamAvailability: 'available' });
   auctionPrice.needsRefresh.mockClear().mockReturnValue(true);
   auctionPrice.getManifest.mockClear().mockReturnValue({ entries: {} });
@@ -218,6 +222,28 @@ describe('prefetchScheduler — executePrefetchRun', () => {
     );
   });
 
+  test('trips systemic cooldown after bare rejections across five distinct targets', async () => {
+    pcgsQuota.getAvailableForPrefetch.mockReturnValue(20);
+    auctionPrice.fetchByGrade.mockImplementation(async () => {
+      const error = new Error('PCGS rejected APR request: IsValidRequest=false');
+      error.code = 'PCGS_INVALID_RESPONSE';
+      error.rejectionReason = 'IsValidRequest=false';
+      error.rejectionScope = 'systemic';
+      error.quarantinePersisted = false;
+      throw error;
+    });
+
+    await scheduler.executePrefetchRun();
+
+    expect(auctionPrice.fetchByGrade).toHaveBeenCalledTimes(5);
+    expect(pcgsQuota.tripSystemicRejection).toHaveBeenCalledWith({
+      reason: 'IsValidRequest=false'
+    });
+    expect(mockStatusStore.rejectedTargets).toEqual(expect.arrayContaining([
+      expect.objectContaining({ scope: 'systemic', quarantinePersisted: false })
+    ]));
+  });
+
   test('stops after five total invalid responses even when a valid response intervenes', async () => {
     pcgsQuota.getAvailableForPrefetch.mockReturnValue(7);
     let call = 0;
@@ -309,6 +335,37 @@ describe('prefetchScheduler — executePrefetchRun', () => {
     expect(auctionPrice.fetchByGrade).toHaveBeenCalledTimes(4);
     expect(mockStatusStore.status).toBe('completed');
     expect(mockStatusStore.callsMade).toBe(4);
+  });
+
+  test('uses the verified known-good target for systemic recovery', async () => {
+    pcgsQuota.isRecoveryProbeRequired.mockReturnValue(true);
+    pcgsQuota.isSystemicRecoveryProbeRequired.mockReturnValue(true);
+    pcgsQuota.getAvailableForPrefetch
+      .mockReturnValueOnce(1)
+      .mockReturnValue(2);
+
+    await scheduler.executePrefetchRun();
+
+    expect(auctionPrice.fetchByGrade).toHaveBeenNthCalledWith(
+      1,
+      scheduler.SYSTEMIC_RECOVERY_PROBE.pcgsNo,
+      scheduler.SYSTEMIC_RECOVERY_PROBE.grade,
+      { force: true }
+    );
+  });
+
+  test('re-enters systemic cooldown when the known-good recovery probe has a transport failure', async () => {
+    pcgsQuota.isRecoveryProbeRequired.mockReturnValue(true);
+    pcgsQuota.isSystemicRecoveryProbeRequired.mockReturnValue(true);
+    pcgsQuota.getAvailableForPrefetch.mockReturnValue(1);
+    auctionPrice.fetchByGrade.mockRejectedValue(new Error('upstream timeout'));
+
+    await scheduler.executePrefetchRun();
+
+    expect(auctionPrice.fetchByGrade).toHaveBeenCalledTimes(1);
+    expect(pcgsQuota.tripSystemicRejection).toHaveBeenCalledWith({
+      reason: 'Systemic APR recovery probe failed'
+    });
   });
 
   test('stops after one invalid recovery probe response', async () => {

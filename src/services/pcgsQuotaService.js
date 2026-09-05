@@ -8,9 +8,11 @@
 
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 
 const CACHE_DIR = require('../utils/cachePath').CACHE_DIR;
 const QUOTA_PATH = path.join(CACHE_DIR, 'pcgs_quota.json');
+const PROBE_LOCK_PATH = path.join(CACHE_DIR, 'pcgs_probe.lock');
 const DAILY_LIMIT = 1000;
 const MIN_COOLDOWN_MS = 60 * 1000;
 const MAX_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
@@ -21,6 +23,12 @@ const DEFAULT_COOLDOWN_MS = Number.isInteger(configuredCooldownMs)
   && configuredCooldownMs <= MAX_COOLDOWN_MS
   ? configuredCooldownMs
   : 60 * 60 * 1000;
+const configuredSystemicCooldownMs = Number(process.env.PCGS_SYSTEMIC_COOLDOWN_MS);
+const DEFAULT_SYSTEMIC_COOLDOWN_MS = Number.isInteger(configuredSystemicCooldownMs)
+  && configuredSystemicCooldownMs >= MIN_COOLDOWN_MS
+  && configuredSystemicCooldownMs <= MAX_COOLDOWN_MS
+  ? configuredSystemicCooldownMs
+  : 24 * 60 * 60 * 1000;
 
 // ── Helpers ─────────────────────────────────────────────────
 
@@ -104,8 +112,6 @@ function loadState() {
 
 function newDayState(previous) {
   const previousCooldown = previous?.upstreamCooldown;
-  const keepCooldown = previousCooldown?.resetAt
-    && Date.parse(previousCooldown.resetAt) > Date.now();
   return {
     date: todayPacific(),
     used: 0,
@@ -114,7 +120,9 @@ function newDayState(previous) {
     headerSynced: false,
     breakerTripped: false,
     breakerTrippedAt: null,
-    upstreamCooldown: keepCooldown ? previousCooldown : null,
+    // Preserve expired cooldowns until their one recovery probe succeeds.
+    // Day rollover resets quota counters, not upstream health state.
+    upstreamCooldown: previousCooldown || null,
     lastRecoveryProbe: previous?.lastRecoveryProbe || null,
     log: [],
     previousDay: previous ? {
@@ -126,14 +134,49 @@ function newDayState(previous) {
 }
 
 function saveState() {
-  const temporaryPath = `${QUOTA_PATH}.tmp`;
+  const temporaryPath = `${QUOTA_PATH}.${process.pid}.${crypto.randomUUID()}.tmp`;
   try {
-    fs.writeFileSync(temporaryPath, JSON.stringify(_state, null, 2));
+    fs.writeFileSync(temporaryPath, JSON.stringify(_state, null, 2), { flag: 'wx' });
     fs.renameSync(temporaryPath, QUOTA_PATH);
+    return true;
   } catch (err) {
     console.error('[pcgs-quota] Failed to save state:', err.message);
     try { fs.unlinkSync(temporaryPath); } catch { /* best effort */ }
+    return false;
   }
+}
+
+function refreshStateFromDisk(fallback) {
+  try {
+    const raw = JSON.parse(fs.readFileSync(QUOTA_PATH, 'utf8'));
+    return raw.date === todayPacific() ? normalizeCurrentDayState(raw) : newDayState(raw);
+  } catch {
+    return fallback;
+  }
+}
+
+function acquireProbeLock() {
+  const openLock = () => {
+    const owner = crypto.randomUUID();
+    const fd = fs.openSync(PROBE_LOCK_PATH, 'wx');
+    fs.writeFileSync(fd, JSON.stringify({ owner, createdAt: new Date().toISOString() }));
+    return { fd, owner };
+  };
+  try {
+    return openLock();
+  } catch {
+    // Fail closed. A stale lock requires operator inspection/removal; automatic
+    // reclamation cannot safely distinguish replacement races on this store.
+    return null;
+  }
+}
+
+function releaseProbeLock(lock) {
+  try { fs.closeSync(lock.fd); } catch { /* best effort */ }
+  try {
+    const current = JSON.parse(fs.readFileSync(PROBE_LOCK_PATH, 'utf8'));
+    if (current.owner === lock.owner) fs.unlinkSync(PROBE_LOCK_PATH);
+  } catch { /* best effort */ }
 }
 
 // ── Public API ──────────────────────────────────────────────
@@ -218,6 +261,7 @@ function tripBreaker(options = {}) {
   state.breakerTripped = true;
   state.breakerTrippedAt = new Date(now).toISOString();
   state.upstreamCooldown = {
+    type: 'rate-limit',
     rateLimitedAt: state.breakerTrippedAt,
     resetAt,
     reason: options.reason || 'PCGS API rate limit exceeded (429)',
@@ -229,6 +273,30 @@ function tripBreaker(options = {}) {
   };
   saveState();
   console.warn(`[pcgs-quota] Circuit breaker TRIPPED — upstream cooldown until ${resetAt}`);
+}
+
+/**
+ * Block APR requests after a generic HTTP-success rejection. Unlike a
+ * target-specific manifest quarantine, this state applies to the upstream
+ * service and requires one bounded recovery probe after expiry.
+ */
+function tripSystemicRejection(options = {}) {
+  const state = loadState();
+  const now = Date.now();
+  const resetAt = new Date(now + DEFAULT_SYSTEMIC_COOLDOWN_MS).toISOString();
+  state.breakerTripped = true;
+  state.breakerTrippedAt = new Date(now).toISOString();
+  state.upstreamCooldown = {
+    type: 'systemic-invalid-response',
+    rateLimitedAt: state.breakerTrippedAt,
+    resetAt,
+    reason: options.reason || 'PCGS APR returned a generic invalid response',
+    retryAfter: null,
+    lastProbeAt: null,
+    lastProbeOutcome: 'blocked'
+  };
+  saveState();
+  console.warn(`[pcgs-quota] Systemic APR cooldown active until ${resetAt}`);
 }
 
 function clearUpstreamCooldown(state = loadState()) {
@@ -250,14 +318,29 @@ function getUpstreamAvailability(state = loadState(), now = Date.now()) {
   return 'probe-required';
 }
 
-function acquireRequestPermit() {
+function acquireRequestPermit(options = {}) {
   const state = loadState();
-  const availability = getUpstreamAvailability(state);
+  _state = refreshStateFromDisk(state);
+  const refreshedState = _state;
+  const availability = getUpstreamAvailability(refreshedState);
   if (availability === 'cooldown' || availability === 'probe-in-flight') return false;
   if (availability === 'probe-required') {
-    state.upstreamCooldown.lastProbeAt = new Date().toISOString();
-    state.upstreamCooldown.lastProbeOutcome = 'in-flight';
-    saveState();
+    const probeLock = acquireProbeLock();
+    if (probeLock === null) return false;
+    try {
+      _state = refreshStateFromDisk(state);
+      if (getUpstreamAvailability(_state) !== 'probe-required') return false;
+      if (_state.upstreamCooldown?.type === 'systemic-invalid-response'
+          && options.allowSystemicRecovery !== true) return false;
+      _state.upstreamCooldown.lastProbeAt = new Date().toISOString();
+      _state.upstreamCooldown.lastProbeOutcome = 'in-flight';
+      if (!saveState()) {
+        _state.upstreamCooldown.lastProbeOutcome = 'failed';
+        return false;
+      }
+    } finally {
+      releaseProbeLock(probeLock);
+    }
   }
   return true;
 }
@@ -288,6 +371,12 @@ function isRecoveryProbeRequired() {
   return getUpstreamAvailability() === 'probe-required';
 }
 
+function isSystemicRecoveryProbeRequired() {
+  const state = loadState();
+  return getUpstreamAvailability(state) === 'probe-required'
+    && state.upstreamCooldown?.type === 'systemic-invalid-response';
+}
+
 /**
  * Get current quota status.
  */
@@ -304,6 +393,7 @@ function getStatus() {
     breakerTripped: upstreamAvailability === 'cooldown',
     breakerTrippedAt: state.breakerTrippedAt,
     upstreamAvailability,
+    upstreamBlockType: state.upstreamCooldown?.type || null,
     rateLimitedAt: state.upstreamCooldown?.rateLimitedAt || null,
     nextEligibleProbeAt: state.upstreamCooldown?.resetAt || null,
     rateLimitReason: state.upstreamCooldown?.reason || null,
@@ -331,12 +421,15 @@ module.exports = {
   syncFromHeaders,
   recordCall,
   tripBreaker,
+  tripSystemicRejection,
   acquireRequestPermit,
   releaseRecoveryProbe,
   isBreakerTripped,
   isRecoveryProbeRequired,
+  isSystemicRecoveryProbeRequired,
   getStatus,
   getAvailableForPrefetch,
   DAILY_LIMIT,
-  DEFAULT_COOLDOWN_MS
+  DEFAULT_COOLDOWN_MS,
+  DEFAULT_SYSTEMIC_COOLDOWN_MS
 };

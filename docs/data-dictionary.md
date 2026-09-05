@@ -57,11 +57,12 @@ fields and do not replace that entitlement.
 | `remaining` | non-negative integer | Public | Local calls remaining; never exceeds `limit` |
 | `limit` | positive integer | Public | Local entitlement, bounded to 1,000 |
 | `headerSynced` | boolean | Public | Whether valid successful-response headers synchronized the counter |
-| `upstreamCooldown` | object or null | Public | Persisted 429 cooldown and recovery-probe state |
+| `upstreamCooldown` | object or null | Public | Persisted 429 or systemic-invalid-response cooldown and recovery-probe state |
+| `upstreamCooldown.type` | string or null | Public | `rate-limit` or `systemic-invalid-response`; absent only in legacy state |
 | `upstreamCooldown.reportedRemaining` | non-negative integer or null | Public | Sanitized `X-RateLimit-Remaining` observed on a 429 |
 | `upstreamCooldown.reportedLimit` | non-negative integer or null | Public | Sanitized `X-RateLimit-Limit` observed on a 429 |
 | `upstreamCooldown.resetAt` | ISO 8601 | Public | Next eligible recovery-probe time |
-| `upstreamCooldown.reason` | string | Public | Sanitized rate-limit reason |
+| `upstreamCooldown.reason` | string | Public | Bounded operational reason; never a raw payload |
 
 Invalid or inconsistent persisted counters are normalized fail-closed during
 load so they cannot expand the nightly prefetch budget.
@@ -70,7 +71,7 @@ load so they cannot expand the nightly prefetch budget.
 
 ### cache/apr_manifest.json
 
-Tracks PCGS APR freshness and rejected-target quarantine state by
+Tracks PCGS APR freshness and explicit target-specific quarantine state by
 `pcgsNo:grade`. A valid response writes `lastFetched`, `records`, and
 `freshUntil`. An invalid response preserves existing record metadata and adds
 the following public operational fields:
@@ -82,14 +83,15 @@ the following public operational fields:
 | `consecutiveRejections` | positive integer | Public | Same-reason rejection count, reset to 1 when the reason changes |
 | `retryAfter` | ISO 8601 | Public | Automatic queue exclusion boundary, 30 days after the latest rejection |
 
-A later valid forced or scheduled fetch replaces the entry with normal
+A generic or account/service-level rejection does not write these fields. A
+later valid forced or scheduled fetch replaces the entry with normal
 freshness metadata and clears these rejection fields.
 
 ### cache/prefetch_status.json
 
 The last real nightly run includes `invalidResponses` and a maximum of 20
 `rejectedTargets` entries. Each rejected target contains only `pcgsNo`, `grade`,
-the bounded `reason`, and boolean `quarantinePersisted`. The admin status projection exposes these as
+the bounded `reason`, `scope`, and boolean `quarantinePersisted`. The admin status projection exposes these as
 `lastInvalidResponses` and `lastRejectedTargets`.
 
 ---

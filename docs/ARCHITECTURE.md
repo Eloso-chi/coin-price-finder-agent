@@ -1135,6 +1135,7 @@ This ensures unslabbed proof coins (e.g. Proof Libertads in OGP) don't inflate r
 | `PREFETCH_THROTTLE_MS` | No | `1000` | Delay between prefetch PCGS calls (ms) |
 | `PREFETCH_RESERVE` | No | `10` | Quota calls reserved from prefetching |
 | `PCGS_PREFETCH_OBSERVED_LIMIT` | No | `100` | Temporary upstream request-window limit for nightly prefetch; does not replace the published 1,000-call entitlement |
+| `PCGS_SYSTEMIC_COOLDOWN_MS` | No | `86400000` | Cooldown after generic systemic APR rejection; bounded from one minute to seven days |
 | `APR_DATE_WINDOW_YEARS` | No | `3` | Auction history lookback window in years |
 | `APR_FRESHNESS_DAYS` | No | `30` | Auction history recrawl freshness threshold in days |
 | `COMMUNICATION_CONNECTION_STRING` | No | -- | Azure Communication Services Email connection string for crash/ops alerts |
@@ -1247,7 +1248,7 @@ The safety-net "no quota available" skip write no longer overwrites
 in-process run at 23:00 PT keeps `lastStatus: 'completed'` even after the
 GH Actions safety-net races into the same day.
 
-**Invalid APR response handling (#310H, 2026-09-01)**
+**Invalid APR response handling (#310H/#314H, 2026-09-04)**
 
 An HTTP-success APR payload is usable only when `IsValidRequest === true`.
 Missing or explicitly invalid payloads raise a classified
@@ -1255,7 +1256,7 @@ Missing or explicitly invalid payloads raise a classified
 result. Only bounded, whitespace-normalized rejection code/message fields are
 retained; raw responses and request credentials are never persisted.
 
-The affected `apr_manifest.json` entry records `lastRejected`,
+An explicit target-specific rejection records `lastRejected`,
 `rejectionReason`, `consecutiveRejections`, and a 30-day `retryAfter` time.
 `needsRefresh()` excludes the target during that quarantine, while a forced
 admin fetch can still probe it. A valid response replaces the manifest entry
@@ -1267,6 +1268,17 @@ failed probe and stops after that one call. Manifest replacements use an atomic
 temporary-file rename; status marks `quarantinePersisted: false` if that write
 fails. These boundaries protect the remaining nightly quota when PCGS has a
 systemic contract or authorization failure.
+
+A bare `IsValidRequest=false`, account-level error, or service-level error is
+systemic and never writes target quarantine fields. Five generic rejections on
+distinct targets trip a persisted `systemic-invalid-response` cooldown. After
+expiry the scheduler makes exactly one recovery request for the verified
+1881-S Morgan Dollar PCGS 7130 grade 65 target. Success releases the normal
+queue; any invalid or transport failure starts a fresh cooldown. This state is
+separate from, and does not weaken, the HTTP 429 breaker. The selective repair
+utility defaults to dry-run and removes only exact generic rejection metadata
+created since the #310H incident cutoff; apply mode creates a backup before an
+atomic manifest replacement.
 
 ---
 

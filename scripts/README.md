@@ -67,6 +67,24 @@ Operational scripts for data collection, migration, and maintenance. Most script
 | `backfill-sale-dates.js` | Backfill newestSaleDate/oldestSaleDate/compCount into meta sidecar | `node scripts/backfill-sale-dates.js [--dry-run]` |
 | `reclassify-comps.js` | Batch comp reclassification (weight mismatch rerouting) | `node scripts/reclassify-comps.js [--apply]` |
 | `load-secrets.sh` | Pull 9 dev secrets from Azure Key Vault `coinpricefinder-kv` into `.env` (mode 600 via umask 077). Modes: dryrun (default, redacted) / `--print` (raw) / `--write` (literal-prefix merge). (#137) | `scripts/load-secrets.sh` (dry-run) then `scripts/load-secrets.sh --write` |
+| `repair-apr-generic-quarantines.js` | Remove only #310H incident-created generic `IsValidRequest=false` quarantine fields; dry-run by default | `node scripts/repair-apr-generic-quarantines.js`; apply only while all app instances are stopped with `--apply --confirm-app-stopped` and optional `--cutoff=<ISO>` |
+
+#### APR generic-quarantine repair (#314H)
+
+1. Stop every application instance so no process can retain or rewrite a stale
+  in-memory APR manifest.
+2. Run `node scripts/repair-apr-generic-quarantines.js` and review the exact
+  target keys. The default cutoff is `2026-09-01T00:00:00.000Z`; override it
+  only with incident evidence using `--cutoff=<ISO>`.
+3. Apply with `node scripts/repair-apr-generic-quarantines.js --apply
+  --confirm-app-stopped`. The utility creates an exclusive backup and performs
+  an atomic replacement; concurrent repair invocations fail closed.
+4. Verify the reported backup exists, restart the app, confirm APR history
+  counts are unchanged, and confirm only generic incident quarantine fields
+  were removed.
+5. To roll back, stop every instance, restore the reported
+  `.pre-314H-repair-*.bak` file, and then restart. Never delete the full APR
+  manifest or auction-history cache.
 
 ### Utilities
 

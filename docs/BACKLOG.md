@@ -4498,7 +4498,7 @@ Gated on data: run pricing-health across a Reverse-Proof slate (2023 RP Morgan, 
 
 ---
 
-### #314H. Distinguish systemic PCGS APR rejection from target errors and prevent duplicate nightly attempts [P1 -- DATA-AVAILABILITY / OPERATIONS] -- PROPOSED 2026-09-04
+### #314H. Distinguish systemic PCGS APR rejection from target errors and prevent duplicate nightly attempts [P1 -- DATA-AVAILABILITY / OPERATIONS] -- IMPLEMENTED / PRODUCTION VALIDATION PENDING 2026-09-04
 
 **Origin:** Production alert at `2026-09-04T07:22:29.641Z` after #310H reached production: `Partial run: 5 errors in 5 calls. First error: 4965:67 - PCGS rejected APR request: IsValidRequest=false`. Workflow evidence showed five degraded scheduler attempts in roughly 2.5 days, not five separate nights.
 
@@ -4509,6 +4509,7 @@ Gated on data: run pricing-health across a Reverse-Proof slate (2023 RP Morgan, 
 - 2026-09-03: five generic rejections across Franklin half dollar and Mercury dime targets; zero new records.
 - 2026-09-04: five generic rejections across Mercury dime and Buffalo nickel targets; zero new records.
 - Every captured reason was exactly `IsValidRequest=false`; upstream availability remained `available`, so the existing HTTP 429 cooldown path did not apply.
+- A bounded one-call diagnostic on 2026-09-04 used the repository-mapped 1881-S Morgan Dollar PCGS 7130 at grade 65 and returned HTTP 200, JSON, `IsValidRequest=true`, and the expected APR top-level field shape. No raw payload or credential was retained.
 
 **Proposed approach (requires implementation approval):**
 1. Temporarily contain the incident by disabling both automatic prefetch entry points while preserving the APR cache and manifest. Do not clear quarantines or increase the five-call fail-fast threshold before diagnosis.
