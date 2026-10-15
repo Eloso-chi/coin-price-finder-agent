@@ -22,6 +22,7 @@ const greysheetHistory = require('../src/services/greysheetHistoryService');
 const { TYPE_GSID_MAP } = require('../src/data/greysheetTypeMap');
 const { CACHE_DIR } = require('../src/utils/cachePath');
 const { acquireExclusiveLease } = require('../src/utils/durableLease');
+const { parseRefreshIntervalDays, needsRefresh } = require('../src/utils/greysheetRefreshSchedule');
 
 const REFRESH_LEASE_DIR = path.join(CACHE_DIR, 'greysheet-refresh-lease');
 const REFRESH_LEASE_STALE_MS = 30 * 60 * 1000;
@@ -147,6 +148,7 @@ async function executeRefresh(options = {}) {
   }
 
   // ── Record refresh date ──
+  assertLease?.();
   greysheetHistory.setLastRefreshDate();
 
   const summary = {
@@ -184,6 +186,13 @@ async function runWithLease(options) {
   }
 
   try {
+    const intervalDays = options.intervalDays === undefined
+      ? parseRefreshIntervalDays(process.env.GS_REFRESH_INTERVAL_DAYS)
+      : options.intervalDays;
+    const lastCompletedAt = greysheetHistory.getLastRefreshDate({ reload: true });
+    if (!needsRefresh(lastCompletedAt, intervalDays)) {
+      return { skipped: true, reason: 'recently-completed', lastCompletedAt };
+    }
     return await executeRefresh({ ...options, assertLease: lease.assertOwner });
   } finally {
     lease.release();

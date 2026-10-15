@@ -21,6 +21,16 @@ function readJson(filePath) {
   }
 }
 
+function atomicWriteFile(filePath, contents) {
+  const tempPath = `${filePath}.${process.pid}-${randomUUID()}.tmp`;
+  try {
+    fs.writeFileSync(tempPath, contents);
+    fs.renameSync(tempPath, filePath);
+  } finally {
+    fs.rmSync(tempPath, { force: true });
+  }
+}
+
 function acquireExclusiveLease({ rootDir, staleMs, heartbeatMs = 60_000, now = Date.now }) {
   fs.mkdirSync(rootDir, { recursive: true });
   const leaderPath = path.join(rootDir, 'active');
@@ -31,7 +41,7 @@ function acquireExclusiveLease({ rootDir, staleMs, heartbeatMs = 60_000, now = D
   fs.mkdirSync(ownerDir);
 
   function writeHeartbeat() {
-    fs.writeFileSync(heartbeatPath, JSON.stringify({ ownerId, pid: process.pid, host: os.hostname(), at: now() }));
+    atomicWriteFile(heartbeatPath, JSON.stringify({ ownerId, pid: process.pid, host: os.hostname(), at: now() }));
   }
 
   function leaderOwner() {
@@ -52,20 +62,39 @@ function acquireExclusiveLease({ rootDir, staleMs, heartbeatMs = 60_000, now = D
     }
   }
 
+  function filesystemEntryIsStale(...filePaths) {
+    for (const filePath of filePaths) {
+      try {
+        const ageMs = now() - fs.statSync(filePath).mtimeMs;
+        return Number.isFinite(ageMs) && ageMs > staleMs;
+      } catch {
+        continue;
+      }
+    }
+    return false;
+  }
+
+  function ownerIsReclaimable(incumbentId, ownershipPath = leaderPath) {
+    const incumbentDir = path.join(rootDir, incumbentId);
+    if (fs.existsSync(path.join(incumbentDir, 'released'))) return incumbentId;
+    const incumbentHeartbeatPath = path.join(incumbentDir, 'heartbeat.json');
+    const heartbeat = readJson(incumbentHeartbeatPath);
+    if (heartbeat
+      && heartbeat.ownerId === incumbentId
+      && Number.isFinite(heartbeat.at)) {
+      return now() - heartbeat.at > staleMs ? incumbentId : false;
+    }
+    return filesystemEntryIsStale(incumbentHeartbeatPath, incumbentDir, ownershipPath)
+      ? incumbentId
+      : false;
+  }
+
   function reclaimableOwner() {
     const incumbentId = leaderOwner();
     if (!incumbentId) {
-      try {
-        return now() - fs.statSync(leaderPath).mtimeMs > staleMs ? '' : false;
-      } catch {
-        return '';
-      }
+      return filesystemEntryIsStale(leaderPath) ? '' : false;
     }
-
-    const incumbentDir = path.join(rootDir, incumbentId);
-    if (fs.existsSync(path.join(incumbentDir, 'released'))) return incumbentId;
-    const heartbeat = readJson(path.join(incumbentDir, 'heartbeat.json'));
-    return !heartbeat || now() - heartbeat.at > staleMs ? incumbentId : false;
+    return ownerIsReclaimable(incumbentId);
   }
 
   writeHeartbeat();
@@ -77,7 +106,8 @@ function acquireExclusiveLease({ rootDir, staleMs, heartbeatMs = 60_000, now = D
       try {
         fs.renameSync(leaderPath, retiredPath);
         const retiredOwner = fs.readFileSync(retiredPath, 'utf8').trim();
-        if (retiredOwner === expectedOwner) {
+        if (retiredOwner === expectedOwner
+          && (!retiredOwner || ownerIsReclaimable(retiredOwner, retiredPath) !== false)) {
           acquired = tryBecomeLeader();
         } else {
           try {
@@ -98,31 +128,27 @@ function acquireExclusiveLease({ rootDir, staleMs, heartbeatMs = 60_000, now = D
     return null;
   }
 
+  let heartbeatError = null;
   const heartbeatTimer = heartbeatMs > 0
     ? setInterval(() => {
       try {
         if (leaderOwner() === ownerId) writeHeartbeat();
-      } catch {
-        // The next ownership check fails closed before another paid request.
+      } catch (error) {
+        heartbeatError = error;
       }
     }, heartbeatMs)
     : null;
   heartbeatTimer?.unref();
 
   function assertOwner() {
-    if (leaderOwner() !== ownerId) {
+    if (leaderOwner() !== ownerId || heartbeatError) {
       throw new LeaseLostError('Durable refresh lease ownership was lost');
-    }
-    try {
-      writeHeartbeat();
-    } catch {
-      throw new LeaseLostError('Durable refresh lease heartbeat could not be persisted');
     }
   }
 
   function release() {
     if (heartbeatTimer) clearInterval(heartbeatTimer);
-    fs.writeFileSync(releasedPath, new Date(now()).toISOString());
+    atomicWriteFile(releasedPath, new Date(now()).toISOString());
   }
 
   return { ownerId, assertOwner, release };
