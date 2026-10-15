@@ -114,6 +114,7 @@ async function executeRefresh(options = {}) {
     typeEntries,
     async (entry) => {
       const result = await greysheetService.fetchPriceByGsid(entry.gsid, null);
+      assertLease?.();
       if (result && (result.greyVal || result.cpgVal)) {
         const lookupKey = greysheetHistory.makeKey(entry.gsid, null);
         greysheetHistory.recordSnapshot(lookupKey, result.greyVal, result.cpgVal);
@@ -134,6 +135,7 @@ async function executeRefresh(options = {}) {
       pcgsNumbers,
       async (pcgsNum) => {
         const result = await greysheetService.fetchPriceByPcgsNumber(pcgsNum, defaultGrade);
+        assertLease?.();
         if (result && (result.greyVal || result.cpgVal)) {
           const lookupKey = greysheetHistory.makeKey(pcgsNum, defaultGrade);
           greysheetHistory.recordSnapshot(lookupKey, result.greyVal, result.cpgVal);

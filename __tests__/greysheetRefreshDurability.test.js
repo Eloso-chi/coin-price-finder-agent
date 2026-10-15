@@ -29,6 +29,8 @@ describe('Greysheet refresh cross-process durability', () => {
     jest.dontMock('../src/utils/cosmosClient');
     jest.dontMock('../src/data/greysheetTypeMap');
     jest.dontMock('../src/services/greysheetService');
+    jest.dontMock('../src/utils/durableLease');
+    jest.dontMock('../src/services/greysheetHistoryService');
     fs.rmSync(cacheDir, { recursive: true, force: true });
   });
 
@@ -85,5 +87,42 @@ describe('Greysheet refresh cross-process durability', () => {
     await runRefresh({ typesOnly: true, delayMs: 1, intervalDays: 7 });
 
     expect(events).toEqual(['persist', 'release']);
+  });
+
+  test.each([
+    ['GSID', true, 'fetchPriceByGsid'],
+    ['PCGS', false, 'fetchPriceByPcgsNumber'],
+  ])('does not persist a fetched %s result after lease takeover', async (_label, typesOnly, fetchMethod) => {
+    let resumeFetch;
+    let markFetchStarted;
+    const fetchStarted = new Promise(resolve => { markFetchStarted = resolve; });
+    const deferredFetch = jest.fn(() => {
+      markFetchStarted();
+      return new Promise(resolve => { resumeFetch = resolve; });
+    });
+    const greysheetService = require('../src/services/greysheetService');
+    greysheetService[fetchMethod].mockImplementation(deferredFetch);
+    if (!typesOnly) greysheetService.fetchPriceByGsid.mockResolvedValue(null);
+    const first = loadIndependentContext();
+
+    const refresh = first.runRefresh({ typesOnly, delayMs: 1, intervalDays: 7 });
+    await fetchStarted;
+
+    const leaseRoot = path.join(cacheDir, 'greysheet-refresh-lease');
+    const firstOwner = fs.readFileSync(path.join(leaseRoot, 'active'), 'utf8').trim();
+    const heartbeatPath = path.join(leaseRoot, firstOwner, 'heartbeat.json');
+    const heartbeat = JSON.parse(fs.readFileSync(heartbeatPath, 'utf8'));
+    fs.writeFileSync(heartbeatPath, JSON.stringify({ ...heartbeat, at: Date.now() - 31 * 60 * 1000 }));
+    const { acquireExclusiveLease } = require('../src/utils/durableLease');
+    const replacement = acquireExclusiveLease({ rootDir: leaseRoot, staleMs: 30 * 60 * 1000, heartbeatMs: 0 });
+    expect(replacement).not.toBeNull();
+
+    resumeFetch({ greyVal: 100, cpgVal: 120 });
+    await expect(refresh).rejects.toMatchObject({ code: 'LEASE_LOST' });
+    const fetchedId = deferredFetch.mock.calls[0][0];
+    const fetchedGrade = fetchMethod === 'fetchPriceByPcgsNumber' ? 63 : null;
+    expect(first.history.getLatest(first.history.makeKey(fetchedId, fetchedGrade))).toBeNull();
+    expect(first.history.getLastRefreshDate()).toBeNull();
+    replacement.release();
   });
 });
