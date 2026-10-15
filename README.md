@@ -212,7 +212,7 @@ Optional variables:
 | `EBAY_TIMEOUT_MS` | eBay API timeout | `10000` |
 | `METALS_CACHE_TTL_MS` | Metals spot price cache lifetime | `2700000` (45 min) |
 | `METALS_POLL_MS` | Background metals polling interval | `1800000` (30 min) |
-| `GS_REFRESH_INTERVAL_DAYS` | Days between automatic Greysheet price refreshes | `3` |
+| `GS_REFRESH_INTERVAL_DAYS` | Days between automatic Greysheet price refreshes | `7` |
 | `TERAPEAK_DATA_DIR` | Local Terapeak CSV directory override | `data/terapeak` |
 | `COOKIE_FILE` | Per-machine cookie jar for `terapeak-export.py` / `cookie-health-check.py`. Lets the same script run from a residential laptop (preferred) and a Codespace (travel fallback) without their cookie jars colliding. Akamai treats one persistent eBay identity used from two disparate IPs as a fraud signal. Supports `~` expansion. (#250) | `cache/ebay_cookies.json` |
 | `TERAPEAK_PACING_PROFILE` | #280H pilot profile for canonical operators: `baseline` or `normal-tuned`. Tuned delays apply only in Normal risk state. | `baseline` |

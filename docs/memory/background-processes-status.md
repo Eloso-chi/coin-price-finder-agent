@@ -33,7 +33,7 @@
 
 ### 3. Greysheet Price History Refresh
 - **Status:** ✓ ACTIVE
-- **Interval:** 3 days default (configurable: GS_REFRESH_INTERVAL_DAYS)
+- **Interval:** 7 days default (configurable: GS_REFRESH_INTERVAL_DAYS)
 - **Behavior:** Checks on startup (T+10s), re-checks hourly, runs if interval elapsed
 - **Data retention:** Auto-evicts entries older than 400 days
 - **Failure alert:** On error (if ACS Email configured)
@@ -93,7 +93,7 @@ All background processes have status endpoints:
 | Process | Env Var | Default | Configurable? |
 |---------|---------|---------|---------------|
 | Metals polling | METALS_POLL_MS | 1800000 (30m) | ✓ Yes |
-| Greysheet interval | GS_REFRESH_INTERVAL_DAYS | 3 | ✓ Yes |
+| Greysheet interval | GS_REFRESH_INTERVAL_DAYS | 7 | ✓ Yes |
 | Blob re-import | BLOB_REIMPORT_MS | 1800000 (30m) | ✓ Yes |
 | Prefetch hour | PREFETCH_HOUR_PT | 23 (11 PM) | ✓ Yes |
 | Prefetch throttle | PREFETCH_THROTTLE_MS | 1000 | ✓ Yes |

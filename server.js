@@ -369,11 +369,11 @@ const server = app.listen(PORT, '0.0.0.0', async () => {
   setInterval(refreshMetalsPrices, METALS_POLL_MS);
   console.log(`  Metals spot price: polling every ${METALS_POLL_MS / 60000} min (round-robin across ${metals._providers.length} providers)`);
 
-  // ── Background Greysheet history refresh (interval-based, default every 3 days) ──
+  // ── Background Greysheet history refresh (interval-based, default every 7 days) ──
   const greysheetHistory = require('./src/services/greysheetHistoryService');
   const { runRefresh: runGreysheetRefresh } = require('./scripts/greysheet-refresh');
-  // GS_REFRESH_INTERVAL_DAYS: how many days between full refreshes (default 3)
-  const GS_REFRESH_INTERVAL_DAYS = parseInt(process.env.GS_REFRESH_INTERVAL_DAYS, 10) || 3;
+  // GS_REFRESH_INTERVAL_DAYS: how many days between full refreshes (default 7)
+  const GS_REFRESH_INTERVAL_DAYS = parseInt(process.env.GS_REFRESH_INTERVAL_DAYS, 10) || 7;
 
   // Evict Greysheet history entries older than 400 days on startup
   greysheetHistory.evictOld(400);

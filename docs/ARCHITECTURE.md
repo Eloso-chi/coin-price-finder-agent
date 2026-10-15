@@ -1128,7 +1128,7 @@ This ensures unslabbed proof coins (e.g. Proof Libertads in OGP) don't inflate r
 | `METALS_POLL_MS` | No | `1800000` | Metals spot-price polling interval (ms) |
 | `EBAY_DEFAULT_LOOKBACK_DAYS` | No | `180` | Default sold-comp lookback window. Tier ladder extends through 365 -> 730 -> `all` when the Terapeak-only pool is thin (#270W Option #1, PR #188). Supplemented path still caps at 365 (tracked: #275W). |
 | `BLOB_REIMPORT_MS` | No | `1800000` | Periodic blob re-import interval (ms; 30 min default) |
-| `GS_REFRESH_INTERVAL_DAYS` | No | `3` | Days between automatic Greysheet background refreshes |
+| `GS_REFRESH_INTERVAL_DAYS` | No | `7` | Days between automatic Greysheet background refreshes |
 | `NUMISTA_API_KEY` | No | -- | Numista API key for rarity/mintage lookups |
 | `PCGS_PREFETCH_ENABLED` | No | `true` | Enable/disable nightly PCGS prefetch scheduler |
 | `PREFETCH_HOUR_PT` | No | `23` | Prefetch run hour in Pacific time |
@@ -1153,7 +1153,7 @@ The server starts several background tasks on boot:
 | Timer | Interval | Purpose |
 |-------|----------|---------|
 | Metals spot price | 30 min (`METALS_POLL_MS`) | Round-robin fetch from goldapi.io / metals-api.com; persists to `metals_spot.json` |
-| Greysheet history refresh | `GS_REFRESH_INTERVAL_DAYS` days (default 3) | Runs `scripts/greysheet-refresh.js` to snapshot wholesale prices for all tracked coins. Checks `greysheetHistoryService.getLastRefreshDate()` on startup and every hour; skips if interval not elapsed. |
+| Greysheet history refresh | `GS_REFRESH_INTERVAL_DAYS` days (default 7) | Runs `scripts/greysheet-refresh.js` to snapshot wholesale prices for all tracked coins. Checks `greysheetHistoryService.getLastRefreshDate()` on startup and every hour; skips if interval not elapsed. |
 | Blob re-import | 30 min (`BLOB_REIMPORT_MS`) | Polls Azure Blob Storage for new Terapeak CSV uploads; clears eBay cache on new data |
 | Greysheet history eviction | Startup only | Evicts history entries older than 400 days |
 | Terapeak meta sidecar | Startup only | Loads `data/terapeak-meta.json` (aggregation markers + sale date bounds); auto-seeds file on first run |
