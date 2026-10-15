@@ -181,8 +181,9 @@ function evictOld(maxDays = 200) {
 }
 
 /**
- * Get the date of the last full refresh (written by greysheet-refresh.js).
- * @returns {string|null} ISO date string e.g. "2026-04-14", or null
+ * Get the completion time of the last full refresh (written by greysheet-refresh.js).
+ * Legacy stores may contain an ISO date without a time.
+ * @returns {string|null} ISO timestamp or legacy ISO date, or null
  */
 function getLastRefreshDate() {
   const store = loadStore();
@@ -190,12 +191,12 @@ function getLastRefreshDate() {
 }
 
 /**
- * Record the date of a completed full refresh.
- * @param {string} [date] -- defaults to today
+ * Record the completion time of a full refresh.
+ * @param {string} [date] -- defaults to the current time
  */
 function setLastRefreshDate(date) {
   const store = loadStore();
-  store._lastRefresh = date || new Date().toISOString().substring(0, 10);
+  store._lastRefresh = date || new Date().toISOString();
   _store = store;
   saveStore();
 }

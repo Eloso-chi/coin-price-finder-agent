@@ -16,9 +16,15 @@
 
 require('dotenv').config({ path: require('path').resolve(__dirname, '..', '.env') });
 
+const path = require('path');
 const greysheetService = require('../src/services/greysheetService');
 const greysheetHistory = require('../src/services/greysheetHistoryService');
 const { TYPE_GSID_MAP } = require('../src/data/greysheetTypeMap');
+const { CACHE_DIR } = require('../src/utils/cachePath');
+const { acquireExclusiveLease } = require('../src/utils/durableLease');
+
+const REFRESH_LEASE_DIR = path.join(CACHE_DIR, 'greysheet-refresh-lease');
+const REFRESH_LEASE_STALE_MS = 30 * 60 * 1000;
 
 // ── Collect all PCGS numbers from the static table ──────────
 function getAllPcgsNumbers() {
@@ -42,7 +48,7 @@ function getAllTypeGsids() {
 }
 
 // ── Throttled batch processor ───────────────────────────────
-async function processBatch(items, fetchFn, label, delayMs = 500) {
+async function processBatch(items, fetchFn, label, delayMs = 500, assertLease = null) {
   let ok = 0;
   let fail = 0;
   let skipped = 0;
@@ -51,6 +57,7 @@ async function processBatch(items, fetchFn, label, delayMs = 500) {
   for (let i = 0; i < total; i++) {
     const item = items[i];
     try {
+      assertLease?.();
       const result = await fetchFn(item);
       if (result) {
         ok++;
@@ -58,6 +65,7 @@ async function processBatch(items, fetchFn, label, delayMs = 500) {
         skipped++;
       }
     } catch (err) {
+      if (err.code === 'LEASE_LOST') throw err;
       fail++;
       if (process.env.NODE_ENV !== 'test') {
         process.stderr.write(`  [${label}] Error on ${JSON.stringify(item)}: ${err.message}\n`);
@@ -86,6 +94,7 @@ async function executeRefresh(options = {}) {
   const dryRun = options.dryRun || false;
   const defaultGrade = options.defaultGrade || 63; // MS-63 as baseline
   const delayMs = options.delayMs || 500;
+  const assertLease = options.assertLease || null;
 
   const typeEntries = getAllTypeGsids();
   const pcgsNumbers = typesOnly ? [] : getAllPcgsNumbers();
@@ -112,7 +121,8 @@ async function executeRefresh(options = {}) {
       return null;
     },
     'types',
-    delayMs
+    delayMs,
+    assertLease
   );
 
   // ── Phase 2: PCGS numbers (with default grade) ──
@@ -131,7 +141,8 @@ async function executeRefresh(options = {}) {
         return null;
       },
       'pcgs',
-      delayMs
+      delayMs,
+      assertLease
     );
   }
 
@@ -155,10 +166,28 @@ async function executeRefresh(options = {}) {
 
 function runRefresh(options = {}) {
   if (_refreshInFlight) return _refreshInFlight;
-  _refreshInFlight = executeRefresh(options).finally(() => {
+  _refreshInFlight = runWithLease(options).finally(() => {
     _refreshInFlight = null;
   });
   return _refreshInFlight;
+}
+
+async function runWithLease(options) {
+  if (options.dryRun) return executeRefresh(options);
+
+  const lease = acquireExclusiveLease({
+    rootDir: REFRESH_LEASE_DIR,
+    staleMs: REFRESH_LEASE_STALE_MS,
+  });
+  if (!lease) {
+    return { skipped: true, reason: 'lease-held' };
+  }
+
+  try {
+    return await executeRefresh({ ...options, assertLease: lease.assertOwner });
+  } finally {
+    lease.release();
+  }
 }
 
 // ── CLI entry point ─────────────────────────────────────────

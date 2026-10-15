@@ -281,8 +281,10 @@ describe('refresh date tracking', () => {
   });
 
   test('defaults to today when no date arg', () => {
+    const before = Date.now();
     setLastRefreshDate();
-    const today = new Date().toISOString().substring(0, 10);
-    expect(getLastRefreshDate()).toBe(today);
+    const completedAt = Date.parse(getLastRefreshDate());
+    expect(completedAt).toBeGreaterThanOrEqual(before);
+    expect(completedAt).toBeLessThanOrEqual(Date.now());
   });
 });

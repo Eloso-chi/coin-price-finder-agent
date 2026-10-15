@@ -174,7 +174,7 @@ See the authoritative tables in `README.md` and `docs/ARCHITECTURE.md`. Recent o
 
 ## Background Timers (server.js startup)
 - **Metals polling**: every 30 min (METALS_POLL_MS), records daily history snapshots
-- **Greysheet refresh**: every 7 days by default (`GS_REFRESH_INTERVAL_DAYS`), checked on startup and hourly
+- **Greysheet refresh**: every 7 full elapsed days by default (`GS_REFRESH_INTERVAL_DAYS`, integer 1-30), checked on startup and hourly; a heartbeat lease in shared `CACHE_DIR` prevents duplicate paid runs across workers
 - **Blob re-import**: every 30 min (BLOB_REIMPORT_MS), picks up new Terapeak CSVs from Azure Blob
 - **Stale eviction**: 180-day Terapeak comp eviction + CSV purge on startup
 - **PCGS APR prefetch**: nightly scheduler with local quota, persisted upstream cooldown, bounded recovery probe, and repeated-partial alerts
