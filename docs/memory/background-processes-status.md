@@ -33,8 +33,9 @@
 
 ### 3. Greysheet Price History Refresh
 - **Status:** ✓ ACTIVE
-- **Interval:** 3 days default (configurable: GS_REFRESH_INTERVAL_DAYS)
-- **Behavior:** Checks on startup (T+10s), re-checks hourly, runs if interval elapsed
+- **Interval:** 7 full elapsed days by default (`GS_REFRESH_INTERVAL_DAYS`, integer 1-30; invalid configured values fail startup)
+- **Behavior:** Checks on startup (T+10s), re-checks hourly, and compares the full ISO completion timestamp; legacy date-only checkpoints remain readable
+- **Concurrency:** A 60-second heartbeat lease under shared `CACHE_DIR` allows one paid bulk refresh across all workers. A contender can replace a lease only after 30 minutes without a heartbeat, and the displaced owner is fenced before its next API call.
 - **Data retention:** Auto-evicts entries older than 400 days
 - **Failure alert:** On error (if ACS Email configured)
 - **Code:** server.js, src/services/greysheetHistoryService.js
@@ -93,7 +94,7 @@ All background processes have status endpoints:
 | Process | Env Var | Default | Configurable? |
 |---------|---------|---------|---------------|
 | Metals polling | METALS_POLL_MS | 1800000 (30m) | ✓ Yes |
-| Greysheet interval | GS_REFRESH_INTERVAL_DAYS | 3 | ✓ Yes |
+| Greysheet interval | GS_REFRESH_INTERVAL_DAYS | 7 (integer 1-30) | ✓ Yes |
 | Blob re-import | BLOB_REIMPORT_MS | 1800000 (30m) | ✓ Yes |
 | Prefetch hour | PREFETCH_HOUR_PT | 23 (11 PM) | ✓ Yes |
 | Prefetch throttle | PREFETCH_THROTTLE_MS | 1000 | ✓ Yes |
