@@ -29,6 +29,7 @@
 ## Azure Files
 - Storage: coinpricecache01, share: appcache (1GB), mounted at /mnt/cache
 - CACHE_DIR=/mnt/cache
+- The Greysheet bulk refresh stores its exclusive heartbeat lease under `CACHE_DIR/greysheet-refresh-lease`. Every App Service worker must use this shared mount; process-local cache paths do not provide cross-worker protection.
 
 ## Dual-mode storage pattern
 - All services check cosmos.isEnabled() (true when COSMOS_ENDPOINT is set)

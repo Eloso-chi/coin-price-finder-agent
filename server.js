@@ -369,28 +369,29 @@ const server = app.listen(PORT, '0.0.0.0', async () => {
   setInterval(refreshMetalsPrices, METALS_POLL_MS);
   console.log(`  Metals spot price: polling every ${METALS_POLL_MS / 60000} min (round-robin across ${metals._providers.length} providers)`);
 
-  // ── Background Greysheet history refresh (interval-based, default every 3 days) ──
+  // ── Background Greysheet history refresh (interval-based, default every 7 days) ──
   const greysheetHistory = require('./src/services/greysheetHistoryService');
   const { runRefresh: runGreysheetRefresh } = require('./scripts/greysheet-refresh');
-  // GS_REFRESH_INTERVAL_DAYS: how many days between full refreshes (default 3)
-  const GS_REFRESH_INTERVAL_DAYS = parseInt(process.env.GS_REFRESH_INTERVAL_DAYS, 10) || 3;
+  const { parseRefreshIntervalDays, needsRefresh } = require('./src/utils/greysheetRefreshSchedule');
+  // GS_REFRESH_INTERVAL_DAYS: how many days between full refreshes (default 7)
+  const GS_REFRESH_INTERVAL_DAYS = parseRefreshIntervalDays(process.env.GS_REFRESH_INTERVAL_DAYS);
 
   // Evict Greysheet history entries older than 400 days on startup
   greysheetHistory.evictOld(400);
 
   function needsGreysheetRefresh() {
     const lastRun = greysheetHistory.getLastRefreshDate();
-    if (!lastRun) return true; // never ran
-    const lastDate = new Date(lastRun + 'T00:00:00Z');
-    const now = new Date();
-    const elapsed = (now - lastDate) / (1000 * 60 * 60 * 24);
-    return elapsed >= GS_REFRESH_INTERVAL_DAYS;
+    return needsRefresh(lastRun, GS_REFRESH_INTERVAL_DAYS);
   }
 
   async function doGreysheetRefresh() {
     try {
       console.log(`  [greysheet] Starting price refresh (every ${GS_REFRESH_INTERVAL_DAYS} days)...`);
       const result = await runGreysheetRefresh({ delayMs: 500 });
+      if (result.skipped) {
+        console.log('  [greysheet] Refresh skipped: another process holds the durable lease');
+        return;
+      }
       console.log(`  [greysheet] Refresh complete: ${result.totalSnapshots} snapshots, ${result.coinsTracked} coins tracked`);
     } catch (err) {
       console.warn(`  [greysheet] Refresh failed: ${err.message}`);

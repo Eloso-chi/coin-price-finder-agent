@@ -318,6 +318,9 @@ Local store replacement and live persistence share `<store>.reclassify.lock`. Lo
 Daily price snapshots written by `greysheetHistoryService` and
 `metalsHistoryService`. Partition keys are `/coinKey` and `/metal`
 respectively. Local JSON cache files remain the synchronous fallback.
+The local `greysheet_history.json` store includes `_lastRefresh`, a full ISO
+completion timestamp used by the scheduler. Legacy `YYYY-MM-DD` values remain
+valid and are interpreted as midnight UTC.
 
 ---
 
