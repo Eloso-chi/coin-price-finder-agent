@@ -60,7 +60,7 @@
     "eslint": "^10.12.0",
     "fake-indexeddb": "^6.2.5",
     "fast-check": "^4.9.0",
-    "globals": "^17.11.0",
+    "globals": "^17.13.0",
     "jest": "^30.5.2",
     "jest-environment-jsdom": "^30.5.2",
     "supertest": "^7.1.0"
