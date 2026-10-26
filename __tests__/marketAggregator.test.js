@@ -4,6 +4,10 @@
 
 'use strict';
 
+jest.mock('../src/services/metalsSpotPrice', () => ({
+  getMetalsSpotPrice: jest.fn(async () => ({ price: 2000, currency: 'USD' })),
+}));
+
 const {
   buildMarketMatrix,
   buildGradeMatrix,

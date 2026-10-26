@@ -43,6 +43,10 @@ jest.mock('../src/services/valuationService', () => ({
   })),
 }));
 
+jest.mock('../src/services/metalsSpotPrice', () => ({
+  getMetalsSpotPrice: jest.fn(async () => ({ price: 2000, currency: 'USD' })),
+}));
+
 jest.mock('../src/services/auditService', () => ({
   writeValuationAudit: jest.fn(async () => {}),
 }));
