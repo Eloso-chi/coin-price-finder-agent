@@ -7,6 +7,9 @@ jest.mock('../src/services/ebayService', () => ({
 jest.mock('../src/services/valuationService', () => ({
   computeValuation: jest.fn(),
 }));
+jest.mock('../src/services/metalsSpotPrice', () => ({
+  getMetalsSpotPrice: jest.fn(async () => ({ price: 2000, currency: 'USD' })),
+}));
 jest.mock('../src/data/constants', () => ({
   ...jest.requireActual('../src/data/constants'),
   zodiacForYear: jest.fn(() => 'Dragon'),

@@ -7,6 +7,7 @@
 
 const fs   = require('fs');
 const path = require('path');
+const { randomUUID } = require('crypto');
 
 const CACHE_DIR  = require('../utils/cachePath').CACHE_DIR;
 const cosmos     = require('../utils/cosmosClient');
@@ -16,8 +17,8 @@ const STORE_PATH = path.join(CACHE_DIR, 'greysheet_history.json');
 
 let _store = null;
 
-function loadStore() {
-  if (_store) return _store;
+function loadStore(forceReload = false) {
+  if (_store && !forceReload) return _store;
   try {
     if (fs.existsSync(STORE_PATH)) {
       const raw = JSON.parse(fs.readFileSync(STORE_PATH, 'utf8'));
@@ -31,16 +32,27 @@ function loadStore() {
   return _store;
 }
 
+function persistStoreSync() {
+  const tempPath = `${STORE_PATH}.${process.pid}-${randomUUID()}.tmp`;
+  try {
+    fs.writeFileSync(tempPath, JSON.stringify(_store, null, 2));
+    fs.renameSync(tempPath, STORE_PATH);
+  } finally {
+    fs.rmSync(tempPath, { force: true });
+  }
+}
+
 function saveStore() {
   if (saveStore._pending) clearTimeout(saveStore._pending);
   saveStore._pending = setTimeout(() => {
     saveStore._pending = null;
-    const data = JSON.stringify(_store, null, 2);
-    fs.writeFile(STORE_PATH, data, (err) => {
-      if (err && process.env.NODE_ENV !== 'test') {
+    try {
+      persistStoreSync();
+    } catch (err) {
+      if (process.env.NODE_ENV !== 'test') {
         console.error('[greysheetHistory] Failed to save store:', err.message);
       }
-    });
+    }
   }, 500);
 }
 
@@ -181,23 +193,28 @@ function evictOld(maxDays = 200) {
 }
 
 /**
- * Get the date of the last full refresh (written by greysheet-refresh.js).
- * @returns {string|null} ISO date string e.g. "2026-04-14", or null
+ * Get the completion time of the last full refresh (written by greysheet-refresh.js).
+ * Legacy stores may contain an ISO date without a time.
+ * @returns {string|null} ISO timestamp or legacy ISO date, or null
  */
-function getLastRefreshDate() {
-  const store = loadStore();
+function getLastRefreshDate(options = {}) {
+  const store = loadStore(options.reload === true);
   return store._lastRefresh || null;
 }
 
 /**
- * Record the date of a completed full refresh.
- * @param {string} [date] -- defaults to today
+ * Record the completion time of a full refresh.
+ * @param {string} [date] -- defaults to the current time
  */
 function setLastRefreshDate(date) {
   const store = loadStore();
-  store._lastRefresh = date || new Date().toISOString().substring(0, 10);
+  store._lastRefresh = date || new Date().toISOString();
   _store = store;
-  saveStore();
+  if (saveStore._pending) {
+    clearTimeout(saveStore._pending);
+    saveStore._pending = null;
+  }
+  persistStoreSync();
 }
 
 /**

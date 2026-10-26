@@ -8,7 +8,7 @@
 //
 // Designed to run:
 //   1. Manually from the CLI for initial seeding
-//   2. Automatically from server.js on startup (every GS_REFRESH_INTERVAL_DAYS, default 3)
+//   2. Automatically from server.js on startup (every GS_REFRESH_INTERVAL_DAYS, default 7)
 //
 // CommonJS
 
@@ -16,9 +16,16 @@
 
 require('dotenv').config({ path: require('path').resolve(__dirname, '..', '.env') });
 
+const path = require('path');
 const greysheetService = require('../src/services/greysheetService');
 const greysheetHistory = require('../src/services/greysheetHistoryService');
 const { TYPE_GSID_MAP } = require('../src/data/greysheetTypeMap');
+const { CACHE_DIR } = require('../src/utils/cachePath');
+const { acquireExclusiveLease } = require('../src/utils/durableLease');
+const { parseRefreshIntervalDays, needsRefresh } = require('../src/utils/greysheetRefreshSchedule');
+
+const REFRESH_LEASE_DIR = path.join(CACHE_DIR, 'greysheet-refresh-lease');
+const REFRESH_LEASE_STALE_MS = 30 * 60 * 1000;
 
 // ── Collect all PCGS numbers from the static table ──────────
 function getAllPcgsNumbers() {
@@ -42,7 +49,7 @@ function getAllTypeGsids() {
 }
 
 // ── Throttled batch processor ───────────────────────────────
-async function processBatch(items, fetchFn, label, delayMs = 500) {
+async function processBatch(items, fetchFn, label, delayMs = 500, assertLease = null) {
   let ok = 0;
   let fail = 0;
   let skipped = 0;
@@ -51,6 +58,7 @@ async function processBatch(items, fetchFn, label, delayMs = 500) {
   for (let i = 0; i < total; i++) {
     const item = items[i];
     try {
+      assertLease?.();
       const result = await fetchFn(item);
       if (result) {
         ok++;
@@ -58,6 +66,7 @@ async function processBatch(items, fetchFn, label, delayMs = 500) {
         skipped++;
       }
     } catch (err) {
+      if (err.code === 'LEASE_LOST') throw err;
       fail++;
       if (process.env.NODE_ENV !== 'test') {
         process.stderr.write(`  [${label}] Error on ${JSON.stringify(item)}: ${err.message}\n`);
@@ -86,6 +95,7 @@ async function executeRefresh(options = {}) {
   const dryRun = options.dryRun || false;
   const defaultGrade = options.defaultGrade || 63; // MS-63 as baseline
   const delayMs = options.delayMs || 500;
+  const assertLease = options.assertLease || null;
 
   const typeEntries = getAllTypeGsids();
   const pcgsNumbers = typesOnly ? [] : getAllPcgsNumbers();
@@ -104,6 +114,7 @@ async function executeRefresh(options = {}) {
     typeEntries,
     async (entry) => {
       const result = await greysheetService.fetchPriceByGsid(entry.gsid, null);
+      assertLease?.();
       if (result && (result.greyVal || result.cpgVal)) {
         const lookupKey = greysheetHistory.makeKey(entry.gsid, null);
         greysheetHistory.recordSnapshot(lookupKey, result.greyVal, result.cpgVal);
@@ -112,7 +123,8 @@ async function executeRefresh(options = {}) {
       return null;
     },
     'types',
-    delayMs
+    delayMs,
+    assertLease
   );
 
   // ── Phase 2: PCGS numbers (with default grade) ──
@@ -123,6 +135,7 @@ async function executeRefresh(options = {}) {
       pcgsNumbers,
       async (pcgsNum) => {
         const result = await greysheetService.fetchPriceByPcgsNumber(pcgsNum, defaultGrade);
+        assertLease?.();
         if (result && (result.greyVal || result.cpgVal)) {
           const lookupKey = greysheetHistory.makeKey(pcgsNum, defaultGrade);
           greysheetHistory.recordSnapshot(lookupKey, result.greyVal, result.cpgVal);
@@ -131,11 +144,13 @@ async function executeRefresh(options = {}) {
         return null;
       },
       'pcgs',
-      delayMs
+      delayMs,
+      assertLease
     );
   }
 
   // ── Record refresh date ──
+  assertLease?.();
   greysheetHistory.setLastRefreshDate();
 
   const summary = {
@@ -155,10 +170,35 @@ async function executeRefresh(options = {}) {
 
 function runRefresh(options = {}) {
   if (_refreshInFlight) return _refreshInFlight;
-  _refreshInFlight = executeRefresh(options).finally(() => {
+  _refreshInFlight = runWithLease(options).finally(() => {
     _refreshInFlight = null;
   });
   return _refreshInFlight;
+}
+
+async function runWithLease(options) {
+  if (options.dryRun) return executeRefresh(options);
+
+  const lease = acquireExclusiveLease({
+    rootDir: REFRESH_LEASE_DIR,
+    staleMs: REFRESH_LEASE_STALE_MS,
+  });
+  if (!lease) {
+    return { skipped: true, reason: 'lease-held' };
+  }
+
+  try {
+    const intervalDays = options.intervalDays === undefined
+      ? parseRefreshIntervalDays(process.env.GS_REFRESH_INTERVAL_DAYS)
+      : options.intervalDays;
+    const lastCompletedAt = greysheetHistory.getLastRefreshDate({ reload: true });
+    if (!needsRefresh(lastCompletedAt, intervalDays)) {
+      return { skipped: true, reason: 'recently-completed', lastCompletedAt };
+    }
+    return await executeRefresh({ ...options, assertLease: lease.assertOwner });
+  } finally {
+    lease.release();
+  }
 }
 
 // ── CLI entry point ─────────────────────────────────────────

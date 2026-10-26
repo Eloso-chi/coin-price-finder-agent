@@ -14,6 +14,7 @@
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const { execFileSync } = require('child_process');
 
 // We must use require('os').tmpdir() inside the factory (no out-of-scope refs)
 jest.mock('../src/utils/cachePath', () => ({
@@ -278,11 +279,33 @@ describe('refresh date tracking', () => {
   test('setLastRefreshDate stores and retrieves', () => {
     setLastRefreshDate('2026-04-20');
     expect(getLastRefreshDate()).toBe('2026-04-20');
+    const persisted = JSON.parse(fs.readFileSync(path.join(os.tmpdir(), 'greysheet_history.json'), 'utf8'));
+    expect(persisted._lastRefresh).toBe('2026-04-20');
   });
 
   test('defaults to today when no date arg', () => {
+    const before = Date.now();
     setLastRefreshDate();
-    const today = new Date().toISOString().substring(0, 10);
-    expect(getLastRefreshDate()).toBe(today);
+    const completedAt = Date.parse(getLastRefreshDate());
+    expect(completedAt).toBeGreaterThanOrEqual(before);
+    expect(completedAt).toBeLessThanOrEqual(Date.now());
+  });
+
+  test('completion survives immediate CLI process exit', () => {
+    const cacheDir = fs.mkdtempSync(path.join(os.tmpdir(), 'greysheet-cli-exit-'));
+    const servicePath = path.resolve(__dirname, '..', 'src', 'services', 'greysheetHistoryService.js');
+    try {
+      execFileSync(process.execPath, [
+        '-e',
+        `require(${JSON.stringify(servicePath)}).setLastRefreshDate('2026-10-15T20:00:00.000Z'); process.exit(0);`,
+      ], {
+        env: { ...process.env, CACHE_DIR: cacheDir, NODE_ENV: 'test' },
+      });
+
+      const persisted = JSON.parse(fs.readFileSync(path.join(cacheDir, 'greysheet_history.json'), 'utf8'));
+      expect(persisted._lastRefresh).toBe('2026-10-15T20:00:00.000Z');
+    } finally {
+      fs.rmSync(cacheDir, { recursive: true, force: true });
+    }
   });
 });
