@@ -7,6 +7,67 @@ Items marked DONE are kept for historical reference.
 
 ## Scraping & Data Pipeline
 
+### #317H. Replace ambiguous Greysheet `:all` snapshots with condition-aware raw and graded coverage [P1 -- PRICING-ACCURACY / DATA-GOVERNANCE] -- PROPOSED 2026-09-13
+
+**Origin:** Production coverage audit on 2026-09-13 found that the bulk refresh labels grade-unspecified Type-GSID responses as `:all`, even though Greysheet returns a specific first pricing row. Representative results included Silver Eagle `MS63`, Gold Eagle `MS66`, and Morgan and Walking Liberty `P1`. These are type-level graded references, not raw/ungraded prices.
+
+**Problem:** The 2026-09-13 audit snapshot counted 2,009 static PCGS numbers targeted at grade 63 plus 77 manually mapped Type GSIDs without an explicit grade. At that time, production had records for 1,238 PCGS targets and 75 Type GSIDs, while 773 configured targets had never produced a record. The `:all` key discards the returned grade identity and can let an arbitrary condition-specific guide value appear to represent an ungraded coin. Raw, certified, proof, and reverse-proof markets require separate valuation treatment.
+
+**Proposed approach:**
+1. Replace grade-unspecified Type-GSID collection with explicit grade selection. Persist the requested and returned grade/grade label in each snapshot identity; never store a condition-specific response under `:all`.
+2. Define a bounded, series-aware grade ladder instead of requesting every grade: representative circulated and mint-state conditions for classic coins, and appropriate BU/MS and proof conditions for modern bullion where Greysheet supports them.
+3. For a raw coin with a user-supplied or defensibly estimated condition, request the matching Greysheet condition as guide context while keeping raw sold comps as the primary market evidence. If condition is unknown, omit the Greysheet value or use a separately named, documented generic benchmark; never present an arbitrary first pricing row as raw.
+4. Preserve strict `raw`, `graded`, `proof`, and `reverse-proof` pool isolation throughout lookup, history, valuation, and UI attribution.
+5. Build a dry-run migration for existing `*:all` history that processes bounded batches and can resume from a checkpoint. Relabel only snapshots whose returned grade identity can be proven; quarantine ambiguous history from valuation rather than guessing or deleting it. Require explicit approval before applying production data mutation.
+6. Add durable run telemetry and an authenticated status endpoint reporting authoritative cache location, target counts, actual inserted snapshots, changed versus unchanged values, new keys, no-data responses, failures, last completion, and next due time. `totalSnapshots` must count successful `recordSnapshot()` insertions rather than successful API responses.
+7. Classify repeated no-data targets and back them off until target definitions or upstream catalog metadata change, instead of retrying them every run.
+
+**Acceptance criteria:**
+- No new Greysheet history key uses `:all` for a response carrying a specific grade or grade label.
+- Raw valuation without a known or estimated condition cannot consume a condition-specific Greysheet value as though it were raw.
+- Condition-aware raw guide lookup and certified-grade lookup remain explicitly distinguishable in API responses, history, valuation evidence, and UI labels.
+- A reviewed migration dry run inventories every existing `:all` key and classifies each as provably relabelable or quarantined before production mutation.
+- The migration processes history in bounded batches, can resume after interruption, and accounts for every key before any production mutation.
+- Run status distinguishes targets, API successes, inserted snapshots, changed values, unchanged values, no-data responses, and failures, using the configured `CACHE_DIR` rather than a repository-relative cache path.
+- Focused Greysheet service, history, refresh, route, valuation, and migration tests pass, followed by canonical `npm test`, ESLint, deep review, and commit-tied Onboard acceptance before merge.
+
+**Files (anticipated):** `src/services/greysheetService.js`; `src/services/greysheetHistoryService.js`; `scripts/greysheet-refresh.js`; `server.js`; Greysheet-consuming pricing and history routes/services; an authenticated admin status route; a dry-run migration script; focused Jest tests under `__tests__/`; `README.md`; `docs/ARCHITECTURE.md`; `docs/api-reference.md`; `docs/data-dictionary.md`; `docs/memory/background-processes-status.md`; and `docs/BACKLOG.md`.
+
+**Out of scope:** Treating guide values as sold-market evidence; merging raw and certified comp pools; scraping the entire Greysheet catalog without a bounded product requirement; requesting every grade for every coin; deleting or rewriting production history without a reviewed migration; changing Greysheet credentials or licensed-data exposure rules. The seven-day refresh cadence is tracked separately in #338 and is not part of this item.
+
+**Related:** #287H (world-PCGS target extraction and refresh single-flight), #282H (proof valuation and Greysheet fallback), #302H (canonical product identity), #338 (seven-day refresh cadence).
+
+---
+
+### #316H. Prevent contradictory weight tokens in Terapeak dataset keys and queues [P1 -- DATA-QUALITY / SCRAPER] -- PROPOSED 2026-09-13
+
+**Origin:** Read-only audit during an H-machine freshness run after the operator selected `1oz 2016 Libertad Mexican Oz Quarter Silver`, an impossible `1oz` plus `1/4oz` identity that returned no data.
+
+**Problem:** `data/terapeak-meta.json` and the generated freshness queue contain 402 dataset keys with multiple mutually exclusive explicit weights (7.5% of 5,378 datasets). Of these, 361 combine `1oz` with a fractional weight: 131 quarter-ounce, 109 tenth-ounce, 74 half-ounce, and 47 twentieth-ounce keys. All 402 malformed keys currently hold metadata for 3,248 aggregate comps and remain actionable (`6 refresh-bullion`, `105 refresh`, `291 monitor-refresh`), wasting Terapeak requests and risking ambiguous or cross-weight comparable pools. The largest affected families are American Eagle (126), Libertad (99), Maple Leaf (79), Lunar (35), and Panda (27).
+
+**Proposed approach:**
+1. Trace every key-production path that can combine a default `1oz` token with an explicit fractional or multi-ounce token, including canonical identity generation, filename/meta hydration, normalization, and freshness-report construction.
+2. Add one shared explicit-weight parser/validator that recognizes numeric, fractional, and normalized word-order forms such as `1/4 oz`, `quarter oz`, and `oz quarter`. Reject or quarantine keys containing more than one incompatible weight before they enter metadata or an operator queue.
+3. Do not silently rewrite ambiguous keys. Build a dry-run migration that inventories each malformed key, proposes a target only when product identity uniquely determines the intended weight, reports comp and metadata collisions, and emits rollback data. Require explicit approval before applying any production or local data mutation.
+4. Exclude unresolved contradictory-weight keys from freshness and deep-pagination queues so malformed searches do not consume requests or trigger avoidable anti-bot risk. Surface bounded exclusion counts in operator reporting.
+5. Add regression coverage for all supported fractional and multi-ounce aliases, token orders, duplicate aliases for the same weight, conflicting weights, and representative Eagle, Libertad, Maple Leaf, Lunar, and Panda identities.
+
+**Acceptance criteria:**
+- No generated search term or canonical dataset key contains two incompatible explicit weight classes.
+- Equivalent aliases for one weight normalize to one canonical weight without being treated as a conflict.
+- Ambiguous existing keys are quarantined rather than guessed, deleted, merged, or queued.
+- A reviewed dry run accounts for all 402 audited keys and all 3,248 associated comp-count metadata records before any mutation is approved.
+- `1oz 2016 Libertad Mexican Oz Quarter Silver` and equivalent contradictions cannot enter a page-1 or deep-pagination batch.
+- Focused normalization, queue-generation, migration, and no-data regression tests pass, followed by canonical `npm test`, ESLint, deep review, and commit-tied Onboard acceptance before merge.
+
+**Files (anticipated):** canonical identity/normalization helpers under `src/`; `scripts/generate-freshness-report.js`; Terapeak import and queue construction paths; a dry-run repair script under `scripts/`; focused Jest tests under `__tests__/`; `docs/ARCHITECTURE.md`; `docs/data-dictionary.md`; and `docs/BACKLOG.md`.
+
+**Out of scope:** Modifying or restarting an active operator run; deleting malformed keys or stored comps without a reviewed migration; guessing an intended weight from token order; weakening existing metal, series, finish, grade, or pool-isolation rules.
+
+**Related:** #266H (key normalization and duplicate-key migration), #283W (shared title-weight parsing and import rerouting), #302H (canonical product identity).
+
+---
+
 ### ~~S0. Active Listings Guard in Aggregator [DONE]~~
 
 Both `terapeak-export.py` and `sales-aggregator.py` now guard against active listings:
