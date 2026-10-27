@@ -1,5 +1,5 @@
 /**
- * @jest-environment jsdom
+ * @jest-environment @stryker-mutator/jest-runner/jest-env/jsdom
  *
  * myCoinsBatchChunker.test.js — BACKLOG #21 / #238
  *
