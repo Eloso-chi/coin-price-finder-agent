@@ -18,7 +18,7 @@ Items marked DONE are kept for historical reference.
 2. Define a bounded, series-aware grade ladder instead of requesting every grade: representative circulated and mint-state conditions for classic coins, and appropriate BU/MS and proof conditions for modern bullion where Greysheet supports them.
 3. For a raw coin with a user-supplied or defensibly estimated condition, request the matching Greysheet condition as guide context while keeping raw sold comps as the primary market evidence. If condition is unknown, omit the Greysheet value or use a separately named, documented generic benchmark; never present an arbitrary first pricing row as raw.
 4. Preserve strict `raw`, `graded`, `proof`, and `reverse-proof` pool isolation throughout lookup, history, valuation, and UI attribution.
-5. Build a dry-run migration for existing `*:all` history. Relabel only snapshots whose returned grade identity can be proven; quarantine ambiguous history from valuation rather than guessing or deleting it. Require explicit approval before applying production data mutation.
+5. Build a dry-run migration for existing `*:all` history that processes bounded batches and can resume from a checkpoint. Relabel only snapshots whose returned grade identity can be proven; quarantine ambiguous history from valuation rather than guessing or deleting it. Require explicit approval before applying production data mutation.
 6. Add durable run telemetry and an authenticated status endpoint reporting authoritative cache location, target counts, actual inserted snapshots, changed versus unchanged values, new keys, no-data responses, failures, last completion, and next due time. `totalSnapshots` must count successful `recordSnapshot()` insertions rather than successful API responses.
 7. Classify repeated no-data targets and back them off until target definitions or upstream catalog metadata change, instead of retrying them every run.
 
@@ -27,6 +27,7 @@ Items marked DONE are kept for historical reference.
 - Raw valuation without a known or estimated condition cannot consume a condition-specific Greysheet value as though it were raw.
 - Condition-aware raw guide lookup and certified-grade lookup remain explicitly distinguishable in API responses, history, valuation evidence, and UI labels.
 - A reviewed migration dry run inventories every existing `:all` key and classifies each as provably relabelable or quarantined before production mutation.
+- The migration processes history in bounded batches, can resume after interruption, and accounts for every key before any production mutation.
 - Run status distinguishes targets, API successes, inserted snapshots, changed values, unchanged values, no-data responses, and failures, using the configured `CACHE_DIR` rather than a repository-relative cache path.
 - Focused Greysheet service, history, refresh, route, valuation, and migration tests pass, followed by canonical `npm test`, ESLint, deep review, and commit-tied Onboard acceptance before merge.
 
