@@ -7,6 +7,37 @@ Items marked DONE are kept for historical reference.
 
 ## Scraping & Data Pipeline
 
+### #317H. Replace ambiguous Greysheet `:all` snapshots with condition-aware raw and graded coverage [P1 -- PRICING-ACCURACY / DATA-GOVERNANCE] -- PROPOSED 2026-09-13
+
+**Origin:** Production coverage audit on 2026-09-13 found that the bulk refresh labels grade-unspecified Type-GSID responses as `:all`, even though Greysheet returns a specific first pricing row. Representative results included Silver Eagle `MS63`, Gold Eagle `MS66`, and Morgan and Walking Liberty `P1`. These are type-level graded references, not raw/ungraded prices.
+
+**Problem:** The 2026-09-13 audit snapshot counted 2,009 static PCGS numbers targeted at grade 63 plus 77 manually mapped Type GSIDs without an explicit grade. At that time, production had records for 1,238 PCGS targets and 75 Type GSIDs, while 773 configured targets had never produced a record. The `:all` key discards the returned grade identity and can let an arbitrary condition-specific guide value appear to represent an ungraded coin. Raw, certified, proof, and reverse-proof markets require separate valuation treatment.
+
+**Proposed approach:**
+1. Replace grade-unspecified Type-GSID collection with explicit grade selection. Persist the requested and returned grade/grade label in each snapshot identity; never store a condition-specific response under `:all`.
+2. Define a bounded, series-aware grade ladder instead of requesting every grade: representative circulated and mint-state conditions for classic coins, and appropriate BU/MS and proof conditions for modern bullion where Greysheet supports them.
+3. For a raw coin with a user-supplied or defensibly estimated condition, request the matching Greysheet condition as guide context while keeping raw sold comps as the primary market evidence. If condition is unknown, omit the Greysheet value or use a separately named, documented generic benchmark; never present an arbitrary first pricing row as raw.
+4. Preserve strict `raw`, `graded`, `proof`, and `reverse-proof` pool isolation throughout lookup, history, valuation, and UI attribution.
+5. Build a dry-run migration for existing `*:all` history. Relabel only snapshots whose returned grade identity can be proven; quarantine ambiguous history from valuation rather than guessing or deleting it. Require explicit approval before applying production data mutation.
+6. Add durable run telemetry and an authenticated status endpoint reporting authoritative cache location, target counts, actual inserted snapshots, changed versus unchanged values, new keys, no-data responses, failures, last completion, and next due time. `totalSnapshots` must count successful `recordSnapshot()` insertions rather than successful API responses.
+7. Classify repeated no-data targets and back them off until target definitions or upstream catalog metadata change, instead of retrying them every run.
+
+**Acceptance criteria:**
+- No new Greysheet history key uses `:all` for a response carrying a specific grade or grade label.
+- Raw valuation without a known or estimated condition cannot consume a condition-specific Greysheet value as though it were raw.
+- Condition-aware raw guide lookup and certified-grade lookup remain explicitly distinguishable in API responses, history, valuation evidence, and UI labels.
+- A reviewed migration dry run inventories every existing `:all` key and classifies each as provably relabelable or quarantined before production mutation.
+- Run status distinguishes targets, API successes, inserted snapshots, changed values, unchanged values, no-data responses, and failures, using the configured `CACHE_DIR` rather than a repository-relative cache path.
+- Focused Greysheet service, history, refresh, route, valuation, and migration tests pass, followed by canonical `npm test`, ESLint, deep review, and commit-tied Onboard acceptance before merge.
+
+**Files (anticipated):** `src/services/greysheetService.js`; `src/services/greysheetHistoryService.js`; `scripts/greysheet-refresh.js`; `server.js`; Greysheet-consuming pricing and history routes/services; an authenticated admin status route; a dry-run migration script; focused Jest tests under `__tests__/`; `README.md`; `docs/ARCHITECTURE.md`; `docs/api-reference.md`; `docs/data-dictionary.md`; `docs/memory/background-processes-status.md`; and `docs/BACKLOG.md`.
+
+**Out of scope:** Treating guide values as sold-market evidence; merging raw and certified comp pools; scraping the entire Greysheet catalog without a bounded product requirement; requesting every grade for every coin; deleting or rewriting production history without a reviewed migration; changing Greysheet credentials or licensed-data exposure rules. The seven-day refresh cadence is tracked separately in #338 and is not part of this item.
+
+**Related:** #287H (world-PCGS target extraction and refresh single-flight), #282H (proof valuation and Greysheet fallback), #302H (canonical product identity), #338 (seven-day refresh cadence).
+
+---
+
 ### #316H. Prevent contradictory weight tokens in Terapeak dataset keys and queues [P1 -- DATA-QUALITY / SCRAPER] -- PROPOSED 2026-09-13
 
 **Origin:** Read-only audit during an H-machine freshness run after the operator selected `1oz 2016 Libertad Mexican Oz Quarter Silver`, an impossible `1oz` plus `1/4oz` identity that returned no data.
