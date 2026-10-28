@@ -55,7 +55,7 @@ function makeFindingComp(title, price, opts = {}) {
     galleryURL: ['https://i.ebayimg.com/1.jpg'],
     sellingStatus: [{ currentPrice: [{ __value__: String(price), '@currencyId': 'USD' }] }],
     shippingInfo: [{ shippingServiceCost: [{ __value__: '0' }] }],
-    listingInfo: [{ endTime: ['2024-06-01T00:00:00Z'], listingType: ['FixedPrice'] }],
+    listingInfo: [{ endTime: [opts.endTime || new Date().toISOString()], listingType: ['FixedPrice'] }],
     condition: [{ conditionId: [opts.conditionId || '4000'], conditionDisplayName: ['Circulated'] }],
     location: ['US']
   };
@@ -348,15 +348,20 @@ describe('fetchSoldComps — Terapeak tier', () => {
   });
 
   test('routes an exact Reverse Proof privy request before Terapeak strike filtering', async () => {
+    const recentSaleDate = daysAgo => {
+      const date = new Date();
+      date.setDate(date.getDate() - daysAgo);
+      return date.toISOString().slice(0, 10);
+    };
     terapeakService.lookupComps.mockReturnValue({
       searchTerm: '2015 Canada Silver Maple Leaf Reverse Proof EMC2 Privy',
       lastImport: '2026-05-26',
       comps: [
-        { title: '2015 Canada Silver Maple Leaf E=mc2 Privy Reverse Proof', totalUsd: 120, soldDate: '2026-05-01', conditionId: '4000', _source: 'terapeak' },
-        { title: '2015 Canada Silver Maple Leaf EMC2 Privy Reverse Proof OGP', totalUsd: 125, soldDate: '2026-05-02', conditionId: '3000', _source: 'terapeak' },
-        { title: '2015 Canada Silver Maple Leaf E mc2 Privy Reverse Proof PF69', totalUsd: 130, soldDate: '2026-05-03', conditionId: '2000', _source: 'terapeak' },
-        { title: '2015 Canada Silver Maple Leaf EMC2 Privy Proof', totalUsd: 90, soldDate: '2026-05-04', conditionId: '4000', _source: 'terapeak' },
-        { title: '2015 Canada Silver Maple Leaf Panda Privy Reverse Proof', totalUsd: 100, soldDate: '2026-05-05', conditionId: '4000', _source: 'terapeak' },
+        { title: '2015 Canada Silver Maple Leaf E=mc2 Privy Reverse Proof', totalUsd: 120, soldDate: recentSaleDate(1), conditionId: '4000', _source: 'terapeak' },
+        { title: '2015 Canada Silver Maple Leaf EMC2 Privy Reverse Proof OGP', totalUsd: 125, soldDate: recentSaleDate(2), conditionId: '3000', _source: 'terapeak' },
+        { title: '2015 Canada Silver Maple Leaf E mc2 Privy Reverse Proof PF69', totalUsd: 130, soldDate: recentSaleDate(3), conditionId: '2000', _source: 'terapeak' },
+        { title: '2015 Canada Silver Maple Leaf EMC2 Privy Proof', totalUsd: 90, soldDate: recentSaleDate(4), conditionId: '4000', _source: 'terapeak' },
+        { title: '2015 Canada Silver Maple Leaf Panda Privy Reverse Proof', totalUsd: 100, soldDate: recentSaleDate(5), conditionId: '4000', _source: 'terapeak' },
       ],
     });
 
