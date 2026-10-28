@@ -386,6 +386,14 @@ After import, data is normalized and merged by search key. Duplicates use
 The exact accepted aliases live in `COLUMN_MAP` in
 `src/services/terapeakService.js`.
 
+Each tracked `data/terapeak/*.csv` file is a startup seed for one Terapeak
+search key. A same-basename `.meta` companion stores the exact query term; when
+it is absent, the importer derives the term from the CSV filename by replacing
+underscores with spaces. The normalized query term must match the key used in
+`data/terapeak-meta.json`. When adding seed rows, update that key's `compCount`
+and sale-date bounds only for rows accepted by the production importer; do not
+copy scrape timestamps unless the collection provenance supports them.
+
 ---
 
 ## Test Data
