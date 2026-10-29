@@ -43,6 +43,12 @@ function validatePaths(metaPath, storePath, reportPath, rollbackPath) {
   if (fs.existsSync(reportPath) || fs.existsSync(rollbackPath)) throw new Error('Output paths must not already exist');
 }
 
+function assertPrivateOutputPlatform(platform = process.platform) {
+  if (platform === 'win32') {
+    throw new Error('Audit outputs require POSIX permissions; run this audit from WSL or another POSIX environment');
+  }
+}
+
 function* jsonChunks(value, depth = 0) {
   if (value === null || typeof value !== 'object') {
     yield JSON.stringify(value);
@@ -111,6 +117,7 @@ function stageJson(filePath, value) {
 }
 
 function publishJsonPair(entries) {
+  assertPrivateOutputPlatform();
   const staged = [];
   const published = [];
   try {
@@ -157,6 +164,23 @@ function buildAudit(meta, store) {
   };
 }
 
+function buildRollback(meta, store, report) {
+  const affectedKeys = new Set(report.affected.map(item => item.key));
+  const selectAffectedEntries = source => {
+    const selected = Object.create(null);
+    for (const key in source) {
+      if (Object.hasOwn(source, key) && affectedKeys.has(key)) selected[key] = source[key];
+    }
+    return selected;
+  };
+  return {
+    generatedAt: report.generatedAt,
+    mode: 'rollback-source',
+    meta: selectAffectedEntries(meta),
+    store: selectAffectedEntries(store),
+  };
+}
+
 function main() {
   const args = process.argv.slice(2);
   const root = path.join(__dirname, '..');
@@ -168,20 +192,7 @@ function main() {
   const meta = loadJson(metaPath, true);
   const store = loadJson(storePath, false);
   const report = buildAudit(meta, store);
-  const affectedKeys = new Set(report.affected.map(item => item.key));
-  const selectAffectedEntries = source => {
-    const selected = Object.create(null);
-    for (const key in source) {
-      if (Object.hasOwn(source, key) && affectedKeys.has(key)) selected[key] = source[key];
-    }
-    return selected;
-  };
-  const rollback = {
-    generatedAt: report.generatedAt,
-    mode: 'rollback-source',
-    meta: selectAffectedEntries(meta),
-    store: selectAffectedEntries(store),
-  };
+  const rollback = buildRollback(meta, store, report);
   publishJsonPair([[rollbackPath, rollback], [reportPath, report]]);
   console.log('Contradictory Weight Audit -- inventory only');
   console.log(`  Source keys:       ${report.sourceKeyCount}`);
@@ -201,4 +212,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { buildAudit, publishJsonPair };
+module.exports = { assertPrivateOutputPlatform, buildAudit, buildRollback, publishJsonPair };
