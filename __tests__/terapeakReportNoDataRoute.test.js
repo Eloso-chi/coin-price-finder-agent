@@ -119,6 +119,19 @@ describe('POST /api/terapeak/report-no-data (#271H Item 4)', () => {
     expect(_updateCalls).toHaveLength(0);
   });
 
+  test('400 for contradictory explicit weights without reading or writing metadata', async () => {
+    const { status, body } = await postJson(
+      '/api/terapeak/report-no-data',
+      { searchTerm: 'libertad 1/2 oz 1 oz' },
+      TEST_ADMIN_KEY,
+    );
+    expect(status).toBe(400);
+    expect(body.code).toBe('CONTRADICTORY_WEIGHT');
+    expect(body.explicitWeights).toEqual([0.5, 1]);
+    expect(terapeakService.listDatasets).not.toHaveBeenCalled();
+    expect(_updateCalls).toHaveLength(0);
+  });
+
   test('200 + meta-write on a new dataset (noDataCount stamped to 1)', async () => {
     const before = Date.now();
     const { status, body } = await postJson(

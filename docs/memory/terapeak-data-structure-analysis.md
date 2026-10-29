@@ -86,3 +86,9 @@ The low comp count was caused by **stale eBay disk cache** (`cache/ebay_cache.js
 - `scripts/reclassify-comps.js` dry-runs by default and requires `--apply` to replace the store. Apply mode writes versioned manifest and rollback artifacts before an atomic store replacement.
 - Live writers and migration share an ownership-aware lock. Successful apply leaves a restart-required marker; startup loads migrated state before clearing it. Dead writer locks are recovered by PID, while active migration locks are retained.
 - Canonical collisions group every alias before mutation, stable-sort source entries, preserve known and unknown dataset/aggregation fields, and deterministically resolve duplicate comp payloads independent of alias insertion order.
+
+### 10. Explicit Weight Quarantine (#316H)
+- `src/utils/explicitWeight.js` and `scripts/_explicit_weight.py` classify explicit ounce weights in dataset/search terms with parity tests for numeric, fractional/mixed, word-form, and `ozt` notation.
+- Import and no-data metadata writes reject invalid or contradictory explicit weights before persistence. The API responds with HTTP 400 and `code: "CONTRADICTORY_WEIGHT"`.
+- Freshness reports expose quarantined legacy entries and omit refresh/deep-pagination actions. Page-one and page-two scripts independently recheck local/server/backlog candidates.
+- `scripts/audit-contradictory-weights.js` is inventory-only and writes separate report/rollback-source artifacts. It does not infer a replacement target, inspect collisions, or mutate the source store or sidecar.

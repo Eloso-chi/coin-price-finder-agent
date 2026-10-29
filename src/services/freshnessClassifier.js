@@ -10,6 +10,8 @@
 
 'use strict';
 
+const { hasContradictoryWeightSources } = require('../utils/explicitWeight');
+
 // ── Thresholds ──────────────────────────────────────────────
 const STALE_THRESHOLD_DAYS = 15;
 const VERY_STALE_MULTIPLIER = 2; // very-stale = 2x stale threshold
@@ -207,8 +209,11 @@ function classify(meta, now = new Date(), opts = {}) {
 function shouldSkipRefresh(meta, now = new Date(), opts = {}) {
   const state = classify(meta, now, opts);
   const { freshness, marketDepth, lastRefreshDays, isDormant } = state;
-  const compCount = meta.compCount || 0;
   const consecutiveDryRefreshes = meta.consecutiveDryRefreshes || 0;
+
+  if (hasContradictoryWeightSources(meta.key, meta.searchTerm)) {
+    return { skip: true, reason: 'contradictory-weight', state };
+  }
 
   if (isDormant) {
     return { skip: true, reason: 'dormant', state };

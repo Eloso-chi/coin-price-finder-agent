@@ -261,6 +261,8 @@ Keyed by Terapeak search term (lowercase, e.g., "morgan dollar"). Tracks refresh
 | `.noDataCount` | number | Public | Consecutive no-data observations, capped by the service |
 | `.identifiers` | object, optional | Public | Evidence-derived composition/volume classification and confidence metadata |
 
+Contradictory or malformed explicit ounce weights are not persisted as dataset metadata. Import and no-data routes reject them with HTTP 400 and `code: "CONTRADICTORY_WEIGHT"`. The freshness report marks legacy matching keys with `quarantined: true`, `quarantineReason: "contradictory-weight"`, and parsed `explicitWeights`; these are report fields, not fields written back to this sidecar. Quarantine is preventive and inventory-only: it does not rename, merge, or delete existing datasets.
+
 Example:
 ```json
 {

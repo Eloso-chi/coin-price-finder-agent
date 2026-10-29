@@ -104,6 +104,7 @@ server.js                              Express entry point (port 3000)
 │   ├─ filters.js                      Deny-list filtering, denomination & series checks, two-way composition mismatch (silver/clad)
 │   ├─ coinMetalProfile.js             Metal detection + weight detection (detectWeightFromTitle, weightToKeyToken) for bullion
 │   ├─ coinIntent.js                   Route-layer extractor: canonicalizes {grade, finish, isProof, designation} across coinData / options / pcgs / parsed (#254)
+│   ├─ explicitWeight.js               Shared explicit-ounce parsing and contradictory-key validation for imports and freshness gates
 │   ├─ productIdentityResolver.js       Versioned canonical identity boundary; validates precedence/conflicts and resolves pricing pools
 │   ├─ responseValidator.js            /api/price response schema & sanity validation
 │   ├─ versionHash.js                  Cached valuation configuration SHA-256 fingerprint
@@ -167,6 +168,7 @@ server.js                              Express entry point (port 3000)
 │   ├─ load-secrets.sh                 Pull 9 dev secrets from Azure Key Vault `coinpricefinder-kv` into `.env` (mode 600); modes dryrun/--print/--write (#137)
 │   ├─ terapeak-export.py              Semi-automated Terapeak CSV exporter (Playwright + blob upload)
 │   ├─ sales-aggregator.py               Sales data aggregator (deep pagination) (extends CSVs beyond 50 rows)
+│   ├─ audit-contradictory-weights.js   Inventory-only legacy weight audit; verifies staged mode 0600 and rejects native Windows/typical WSL /mnt/c before serialization
 │   ├─ chain-aggregate.sh                 Chain multiple collect batches with anti-bot monitoring
 │   ├─ refresh-stale.sh                One-command biweekly stale data refresh
 │   ├─ greysheet-refresh.js            Bulk Greysheet price snapshot collector (all PCGS + type GSIDs)

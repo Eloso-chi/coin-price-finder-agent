@@ -213,6 +213,23 @@ describe('parseCSV', () => {
 //  importComps
 // ═══════════════════════════════════════════════════════════════
 describe('importComps', () => {
+  test('rejects contradictory-weight keys before creating store or metadata entries', () => {
+    const searchTerm = 'libertad 1/2 oz 1 oz';
+    const updateDatasetMeta = require('../src/services/terapeakService').updateDatasetMeta;
+
+    expect(() => importComps(searchTerm, [
+      { itemId: 'BAD1', title: 'Libertad', totalUsd: 50, soldDate: '2025-06-01' },
+    ])).toThrow(expect.objectContaining({
+      code: 'CONTRADICTORY_WEIGHT',
+      explicitWeights: [0.5, 1],
+    }));
+    expect(() => updateDatasetMeta(searchTerm, { noDataCount: 2 })).toThrow(expect.objectContaining({
+      code: 'CONTRADICTORY_WEIGHT',
+      explicitWeights: [0.5, 1],
+    }));
+    expect(listDatasets()).toEqual([]);
+  });
+
   test('imports new comps and returns stats', () => {
     const comps = [
       { itemId: 'A1', title: 'Test Coin 1', totalUsd: 50, soldDate: '2025-06-01' },

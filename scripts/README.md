@@ -22,6 +22,7 @@ Operational scripts for data collection, migration, and maintenance. Most script
 |---|---|---|
 | `terapeak-export.py` | Semi-automated Terapeak CSV exporter (page 1) | `python3 scripts/terapeak-export.py --run --limit 20` |
 | `sales-aggregator.py` | Deep pagination aggregator (pages 2-5/250 results for non-gold bullion; page 2/100 results for gold and non-bullion) with dashboard mode | `python3 scripts/sales-aggregator.py` (dashboard) or `--run --limit 10` |
+| `audit-contradictory-weights.js` | Inventory legacy Terapeak keys with malformed or conflicting explicit ounce weights; does not remap or mutate source data | `node scripts/audit-contradictory-weights.js --meta data/terapeak-meta.json --store cache/terapeak_sold.json` |
 | `bootstrap-surface-wsl.sh` | One-command Surface/WSL bootstrap for PR250 flow (deps, venv, Playwright, env templates) | `bash scripts/bootstrap-surface-wsl.sh` |
 | `surface` | One-word launcher for the Surface freshness loop (loads validated env + runs loop) | `surface` |
 | `terapeak-operator.sh` | Canonical H launcher with #284H risk states, Cooldown restart gates, randomized Normal batches, Elevated pacing, and shared pass telemetry | `bash scripts/terapeak-operator.sh` |
