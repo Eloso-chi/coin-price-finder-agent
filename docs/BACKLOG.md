@@ -47,32 +47,8 @@ Verification: focused parser/service/route/freshness/audit/scraper tests pass; f
 
 ---
 
-### #317H. Replace ambiguous Greysheet `:all` snapshots with condition-aware raw and graded coverage [P1 -- PRICING-ACCURACY / DATA-GOVERNANCE] -- PROPOSED 2026-09-13
 
-**Origin:** Read-only audit during an H-machine freshness run after the operator selected `1oz 2016 Libertad Mexican Oz Quarter Silver`, an impossible `1oz` plus `1/4oz` identity that returned no data.
 
-**Problem:** `data/terapeak-meta.json` and the generated freshness queue contain 402 dataset keys with multiple mutually exclusive explicit weights (7.5% of 5,378 datasets). Of these, 361 combine `1oz` with a fractional weight: 131 quarter-ounce, 109 tenth-ounce, 74 half-ounce, and 47 twentieth-ounce keys. All 402 malformed keys currently hold metadata for 3,248 aggregate comps and remain actionable (`6 refresh-bullion`, `105 refresh`, `291 monitor-refresh`), wasting Terapeak requests and risking ambiguous or cross-weight comparable pools. The largest affected families are American Eagle (126), Libertad (99), Maple Leaf (79), Lunar (35), and Panda (27).
-
-**Proposed approach:**
-1. Trace every key-production path that can combine a default `1oz` token with an explicit fractional or multi-ounce token, including canonical identity generation, filename/meta hydration, normalization, and freshness-report construction.
-2. Add one shared explicit-weight parser/validator that recognizes numeric, fractional, and normalized word-order forms such as `1/4 oz`, `quarter oz`, and `oz quarter`. Reject or quarantine keys containing more than one incompatible weight before they enter metadata or an operator queue.
-3. Do not silently rewrite ambiguous keys. Build a dry-run migration that inventories each malformed key, proposes a target only when product identity uniquely determines the intended weight, reports comp and metadata collisions, and emits rollback data. Require explicit approval before applying any production or local data mutation.
-4. Exclude unresolved contradictory-weight keys from freshness and deep-pagination queues so malformed searches do not consume requests or trigger avoidable anti-bot risk. Surface bounded exclusion counts in operator reporting.
-5. Add regression coverage for all supported fractional and multi-ounce aliases, token orders, duplicate aliases for the same weight, conflicting weights, and representative Eagle, Libertad, Maple Leaf, Lunar, and Panda identities.
-
-**Acceptance criteria:**
-- No generated search term or canonical dataset key contains two incompatible explicit weight classes.
-- Equivalent aliases for one weight normalize to one canonical weight without being treated as a conflict.
-- Ambiguous existing keys are quarantined rather than guessed, deleted, merged, or queued.
-- A reviewed dry run accounts for all 402 audited keys and all 3,248 associated comp-count metadata records before any mutation is approved.
-- `1oz 2016 Libertad Mexican Oz Quarter Silver` and equivalent contradictions cannot enter a page-1 or deep-pagination batch.
-- Focused normalization, queue-generation, migration, and no-data regression tests pass, followed by canonical `npm test`, ESLint, deep review, and commit-tied Onboard acceptance before merge.
-
-**Files (anticipated):** canonical identity/normalization helpers under `src/`; `scripts/generate-freshness-report.js`; Terapeak import and queue construction paths; a dry-run repair script under `scripts/`; focused Jest tests under `__tests__/`; `docs/ARCHITECTURE.md`; `docs/data-dictionary.md`; and `docs/BACKLOG.md`.
-
-**Out of scope:** Modifying or restarting an active operator run; deleting malformed keys or stored comps without a reviewed migration; guessing an intended weight from token order; weakening existing metal, series, finish, grade, or pool-isolation rules.
-
-**Related:** #266H (key normalization and duplicate-key migration), #283W (shared title-weight parsing and import rerouting), #302H (canonical product identity).
 
 ---
 
