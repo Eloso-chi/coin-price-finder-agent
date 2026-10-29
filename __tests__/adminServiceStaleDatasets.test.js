@@ -242,4 +242,18 @@ describe('getStaleDatasets exclusions (#229)', () => {
     expect(stale.find(s => s.searchTerm === 'clean-stale')).toBeDefined();
     expect(summary.skippedCount).toBe(0);
   });
+
+  test('quarantines contradictory keys even when display search term is benign', () => {
+    const dataset = makeDataset('1 oz silver tenth', {
+      newestSaleDate: dateAgo(40),
+      lastRefreshAt: daysAgo(30),
+      refreshCount: 1,
+    }, 50);
+    dataset.searchTerm = 'Silver Eagle';
+    setDatasets([dataset]);
+
+    const { stale, summary } = adminService.getStaleDatasets({ days: 30, limit: 50 });
+    expect(stale).toEqual([]);
+    expect(summary.skippedByReason['contradictory-weight']).toBe(1);
+  });
 });

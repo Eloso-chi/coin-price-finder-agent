@@ -58,6 +58,8 @@ function getStaleDatasets(opts = {}) {
     // Apply the same refresh-skip logic as the freshness report.
     // Build the meta shape shouldSkipRefresh() expects.
     const classifyMeta = {
+      key: d.key,
+      searchTerm: d.searchTerm || d.key,
       newestSaleDate,
       compCount,
       refreshCount: am.refreshCount || 0,

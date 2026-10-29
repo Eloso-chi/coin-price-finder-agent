@@ -43,13 +43,61 @@ function validatePaths(metaPath, storePath, reportPath, rollbackPath) {
   if (fs.existsSync(reportPath) || fs.existsSync(rollbackPath)) throw new Error('Output paths must not already exist');
 }
 
+function* jsonChunks(value, depth = 0) {
+  if (value === null || typeof value !== 'object') {
+    yield JSON.stringify(value);
+    return;
+  }
+
+  const isArray = Array.isArray(value);
+  const keys = isArray ? null : Object.keys(value);
+  const length = isArray ? value.length : keys.length;
+  const open = isArray ? '[' : '{';
+  const close = isArray ? ']' : '}';
+  if (length === 0) {
+    yield `${open}${close}`;
+    return;
+  }
+
+  yield `${open}\n`;
+  for (let index = 0; index < length; index += 1) {
+    const key = isArray ? index : keys[index];
+    yield `${' '.repeat((depth + 1) * 2)}${isArray ? '' : `${JSON.stringify(key)}: `}`;
+    yield* jsonChunks(value[key], depth + 1);
+    yield index + 1 < length ? ',\n' : `\n${' '.repeat(depth * 2)}`;
+  }
+  yield close;
+}
+
+function writeJson(fd, value) {
+  let chunks = [];
+  let bufferedCharacters = 0;
+  const flush = () => {
+    const buffer = Buffer.from(chunks.join(''), 'utf8');
+    let offset = 0;
+    while (offset < buffer.length) {
+      offset += fs.writeSync(fd, buffer, offset, buffer.length - offset);
+    }
+    chunks = [];
+    bufferedCharacters = 0;
+  };
+
+  for (const chunk of jsonChunks(value)) {
+    chunks.push(chunk);
+    bufferedCharacters += chunk.length;
+    if (bufferedCharacters >= 64 * 1024) flush();
+  }
+  chunks.push('\n');
+  flush();
+}
+
 function stageJson(filePath, value) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   const tempPath = path.join(path.dirname(filePath), `.${path.basename(filePath)}.${process.pid}.${Date.now()}.tmp`);
   let descriptor;
   try {
-    descriptor = fs.openSync(tempPath, 'wx');
-    fs.writeFileSync(descriptor, `${JSON.stringify(value, null, 2)}\n`);
+    descriptor = fs.openSync(tempPath, 'wx', 0o600);
+    writeJson(descriptor, value);
     fs.fsyncSync(descriptor);
     fs.closeSync(descriptor);
     descriptor = undefined;
@@ -121,11 +169,18 @@ function main() {
   const store = loadJson(storePath, false);
   const report = buildAudit(meta, store);
   const affectedKeys = new Set(report.affected.map(item => item.key));
+  const selectAffectedEntries = source => {
+    const selected = Object.create(null);
+    for (const key in source) {
+      if (Object.hasOwn(source, key) && affectedKeys.has(key)) selected[key] = source[key];
+    }
+    return selected;
+  };
   const rollback = {
     generatedAt: report.generatedAt,
     mode: 'rollback-source',
-    meta: Object.fromEntries(Object.entries(meta).filter(([key]) => affectedKeys.has(key))),
-    store: Object.fromEntries(Object.entries(store).filter(([key]) => affectedKeys.has(key))),
+    meta: selectAffectedEntries(meta),
+    store: selectAffectedEntries(store),
   };
   publishJsonPair([[rollbackPath, rollback], [reportPath, report]]);
   console.log('Contradictory Weight Audit -- inventory only');

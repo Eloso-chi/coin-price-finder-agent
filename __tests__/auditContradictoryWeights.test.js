@@ -43,4 +43,21 @@ describe('contradictory-weight audit inventory', () => {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }
   });
+
+  test('streams valid JSON outputs with owner-only permissions on POSIX', () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'weight-audit-private-'));
+    const reportPath = path.join(tempDir, 'report.json');
+    const rollbackPath = path.join(tempDir, 'rollback.json');
+    const payload = { entries: [{ key: 'a', comps: [{ title: 'Sale' }] }] };
+    try {
+      publishJsonPair([[reportPath, payload], [rollbackPath, payload]]);
+      expect(JSON.parse(fs.readFileSync(reportPath, 'utf8'))).toEqual(payload);
+      expect(JSON.parse(fs.readFileSync(rollbackPath, 'utf8'))).toEqual(payload);
+      if (process.platform !== 'win32') {
+        expect(fs.statSync(rollbackPath).mode & 0o777).toBe(0o600);
+      }
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
 });
