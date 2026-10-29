@@ -48,7 +48,7 @@ server.js                              Express entry point (port 3000)
 │   └─ coinRoute.js                    /api/coins/* -- collection CRUD (JWT-protected)
 │
 ├─ src/services/
-│   ├─ pricingService.js               Shared deterministic pricing boundary for structured and AI callers
+│   ├─ pricingService.js               Shared deterministic pricing boundary used by /api/price and deterministic AI pricing; batch/bulk call valuationService directly
 │   ├─ collectionContextService.js     Ownership-scoped deterministic collection summaries and metadata gaps
 │   ├─ marketAnalyticsService.js       Observed/derived/missing classifications over market matrices
 │   ├─ aiOrchestratorService.js        Server-side LLM loop restricted to three Phase 1 tools
@@ -96,7 +96,9 @@ server.js                              Express entry point (port 3000)
 │   ├─ constants.js                    Zodiac cycle + Perth Lunar series helpers
 │   ├─ barSeries.js                    Bar brand/series data (7 brands, 40+ series) + detection helpers
 │   ├─ dealerPremiums.js               Dealer premium benchmark ranges by bullion series (#196) -- lookupPremiumRange, classifyPremium, computePremium
-│   └─ lunarReference.js               Perth / Royal / RAMint lunar comparison
+│   ├─ lunarReference.js               Perth / Royal / RAMint lunar comparison
+│   ├─ specialMarksRegistry.js         Versioned registry of bullion privy/special-mark issues, applicability, and provenance
+│   └─ greysheetTypeMap.js             Dynamic series-to-GSID map + finish detection
 │
 ├─ src/utils/
 │   ├─ cache.js                        TTLCache class (in-memory + optional file persistence)
@@ -110,17 +112,16 @@ server.js                              Express entry point (port 3000)
 │   ├─ versionHash.js                  Cached valuation configuration SHA-256 fingerprint
 │   ├─ logger.js                       Redacted Pino JSON logger with request-ID injection
 │   ├─ gracefulShutdown.js             Shutdown task registration and bounded draining
+│   ├─ durableLease.js                 Shared heartbeat lease and fencing for cross-worker scheduled work
 │   ├─ redactForPublic.js              Public/admin response audience gating
+│   ├─ greysheetRefreshSchedule.js     Validated Greysheet refresh interval and due-time logic
 │   ├─ excelMapper.js                  Excel-to-backup converter (header aliases, series normalization)
 │   ├─ cachePath.js                    Centralized CACHE_DIR from env var
 │   ├─ cosmosClient.js                 Azure Cosmos DB client singleton (env-var gated)
 │   └─ blobClient.js                   Azure Blob Storage client (managed identity)
 │
-├─ src/data/
-│   └─ greysheetTypeMap.js             Dynamic series-to-GSID map + finish detection
-│
 ├─ public/
-│   ├─ index.html                      SPA frontend (dark theme, 9 tabs)
+│   ├─ index.html                      SPA frontend (dark theme, 10 tabs)
 │   └─ js/
 │       ├─ auth.js                     CoinAuth -- server-backed login/signup (JWT in memory)
 │       ├─ storage.js                  CoinStorage -- server-backed coin CRUD via /api/coins/*
@@ -216,8 +217,8 @@ server.js                              Express entry point (port 3000)
 │   │   └─ onboard.prompt.md                      /onboard slash command
 │   └─ copilot-instructions.md                    Workspace-wide Copilot rules
 │
-└─ __tests__/                          174 current `*.test.js` files recursively plus fixtures/helpers/setup
-                                        Verified at 715dda32: 174 suites / 4,539 tests
+└─ __tests__/                          Current Jest `*.test.js` suite tree plus fixtures/helpers/setup
+                                        Historical snapshot at 715dda32: 174 suites / 4,539 tests; run Jest for current totals
     ├─ fixtures/
     │   └─ golden_coins.json           Curated golden set (14 deterministic test coins)
     └─ helpers/
@@ -234,8 +235,12 @@ server.js                              Express entry point (port 3000)
 admin/audience context, calls `pricingService.priceCoin(input, trustedContext)`,
 writes the valuation audit, applies public redaction, and preserves the legacy
 response contract. `pricingService.js` owns the deterministic identification,
-comp acquisition, enrichment, and valuation flow shared by structured and AI
-callers. Provider and domain services do not read Express request state.
+comp acquisition, enrichment, and valuation flow for `/api/price` and
+deterministic AI tool calls. `pricingBatchRoute.js` and `bulkEvaluateService.js`
+currently call `valuationService.computeValuation()` through their own
+acquisition paths; equivalent-output tests document intended field parity
+without implying they share the same service pipeline. Provider and domain
+services do not read Express request state.
 
 ```
 Request
@@ -301,12 +306,12 @@ Request
   │   ├─ Split comps into graded / proof / raw pools (3-way classification)
   │   ├─ Select pool by user intent (proof > graded > raw)
   │   ├─ Compute weighted median (recency + match score weights)
-  │   ├─ Blend: certified (55/15/10/20) or raw (70/10/20) weights
-  │   │   eBay + PCGS Guide + Auction + Greysheet wholesale
-  │   │   (renormalizes if any source is missing)
-  │   ├─ Confidence score (0-100, +5 for Greysheet)
+  │   ├─ Blend: grade-tiered certified sources or raw eBay/PCGS/Greysheet sources;
+  │   │   available-source weights renormalize; non-proof bullion may use spot-premium;
+  │   │   Greysheet spread and source availability affect confidence conditionally
+  │   ├─ Confidence score (0-100; branch-specific factors in decision-engine-spec.md)
   │   ├─ Range = FMV +/- max(stddev, FMV x 0.05)
-  │   ├─ Buy thresholds: 70% / 75% / 80% of FMV
+  │   ├─ Buy thresholds: FMV-value tiered; see `docs/memory/decision-engine-spec.md`
   │   └─ Sell tiers: fast(0.92x) / normal / premium(1.05x or 1.15x) / offerFloor
   │
   ├── 7. Mintage Lookup ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -372,15 +377,16 @@ Request (valid metals: XAU, XAG, XPT, XPD)
 ### Bulk Lot Evaluation -- `POST /api/bulk-evaluate`
 
 ```
-POST { text | items | file(.xlsx) }
+POST { text | items | file(.xlsx; currently fails with HTTP 400) }
   │
   ├── 1. Parse Input ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   │   ├─ Text: one coin per line, pipe-delimited fields (query | qty=N | grade=X)
   │   ├─ JSON: { items: [{query, qty, grade, year, mintMark, weight, series}] }
-  │   └─ Excel: mapExcelToBackup() via excelMapper.js
+  │   ├─ Excel: adapter currently fails to await async mapExcelToBackup(); returns 400
+  │   └─ Text/JSON: non-empty; first 500 entries processed; each query <=300 chars
   │
   ├── 2. Create Job ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  │   ├─ Validate: 50-500 coins, max 3 concurrent jobs server-wide
+  │   ├─ Validate: 1-500 coins, max 3 concurrent jobs server-wide
   │   ├─ Check result cache (SHA-256 of audience + input array, 1hr TTL)
   │   └─ Return { jobId, coinCount } with 202 status
   │
@@ -393,7 +399,7 @@ POST { text | items | file(.xlsx) }
   │   ├─ pcgsService.parseDescription → resolve identity
   │   ├─ getCoinMetalProfile → detect metal/weight/bullion
   │   ├─ getMetalsSpotPrice → live spot for melt calculation
-  │   ├─ ebayService.fetchSoldComps (1 page, 90 days)
+  │   ├─ ebayService.fetchSoldComps (up to 3 pages; 120-day bullion / 180-day other initial lookback; eBay may extend when thin)
   │   ├─ greysheetService (PCGS number or type fallback)
   │   ├─ computeValuation → FMV, range, confidence, lowData, compCount, method, explanation
   │   └─ Emit SSE "coin" event with result
@@ -402,9 +408,9 @@ POST { text | items | file(.xlsx) }
   │   computeLotSummary(results):
   │   ├─ Totals: coinCount, pricedCount, failedCount, totalFmv, totalMelt
   │   ├─ Avg confidence, bullion count/pct
-  │   ├─ Discounts: sizeDiscount(0-20%) + confidencePenalty(5%) + concentrationPenalty(3%)
-  │   ├─ Concentration flags: coins > 25% of lot value
-  │   └─ Buy tiers: cherryPick(55-65%), fairLot(70-80%), fullRetail(85-90% minus fees)
+  │   ├─ Discounts: size (0-20%; 20% at 251+ priced rows) + confidence (5% below avg 60) + concentration (3% only above 50% of lot FMV)
+  │   ├─ Moderate concentration flag above 25%; no penalty through 50%
+  │   └─ Buy tiers: max(40%, 60%-discount), max(50%, 75%-discount), max(60%, 87%-discount); see bulk-evaluate-feature.md
   │
   └── 6. Complete ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       Emit SSE "summary" + "done" events

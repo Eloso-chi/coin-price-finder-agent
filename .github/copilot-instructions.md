@@ -7,9 +7,10 @@
 - Mock HTTP calls with `axios-mock-adapter` -- never make real network requests in tests.
 - **Never delete tests.**
 - **Never reduce assertion strength** (e.g., replacing `.toEqual` with `.toBeDefined()`).
-- **Never skip tests** to hide failures (`test.skip`, `xtest`, `xit`).
+- **Never skip tests** to hide failures (`test.skip`, `xtest`, `xit`). Platform-specific tests may be explicitly gated only when they cannot run on the current OS, the report shows them as skipped, and the applicable behavior is exercised on its supported platform/CI job.
 - **Never add blanket `jest.retryTimes()`** to mask flakiness.
 - Fix flaky tests by addressing root cause (determinism, isolation, time control).
+- **Persistence isolation:** tests must not mutate real repository data, operator caches, or durable user state. Exercise persistence through injected mocks, temporary paths, or an explicit test-mode no-op at the storage boundary; `NODE_ENV=test` alone is not proof of isolation. Every new persistence path needs a focused isolation test.
 - Run `npm test` after every code change and confirm zero failures before committing.
 
 ## Safety
@@ -41,9 +42,20 @@
   user-facing workflows MUST
 	update every mapped documentation surface in `CONTRIBUTING.md` and run the
   Onboard agent after commit as an end-to-end acceptance check tied to that commit
-  before merge. Onboard must report no actionable active documentation gaps.
+  before merge. Onboard must report no `BLOCKING_DELTA` findings; classify
+  pre-existing debt and optional improvements without blocking the target PR.
   Typo/formatting-only or non-behavioral metadata changes may use a documented
   reviewer-approved no-impact exemption.
+- Onboard documentation findings are delta-scoped: classify as
+  `BLOCKING_DELTA`, `PRE_EXISTING_DEBT`, or `OPTIONAL`; only gaps introduced or
+  materially worsened by the target change block it. Allow one mapped-document
+  correction pass and one Onboard verification rerun; repository-wide zero-gap
+  audits require explicit user approval and a separate branch. See the
+  “Delta-Scoped Documentation Acceptance” section in
+  `.github/skills/workflow/SKILL.md` (INC-018).
+- Before replacing a port-3000 listener, verify its command and working
+  directory identify this repository's `node server.js`. If ownership is
+  unclear, report the listener and do not terminate it.
 - Never merge unless every required CI check completes successfully. Queued,
   in-progress, failed, or cancelled checks block merge and cannot be bypassed.
   Normal merge is the default; `--admin` requires explicit user approval and a

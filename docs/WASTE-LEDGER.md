@@ -133,7 +133,7 @@ or other secrets.
 | Azure | $0.00 |
 | **Total** | **$2.22** |
 | Resolution | Commit `44444ad` -- `NODE_ENV=test` guard skips `saveStore()`/`saveMetaSidecar()`. Exported `_cancelPendingSaves()` for test teardown. Sidecar recovered via `backfillMetaFromDisk()`. |
-| Rule Added | All disk-write functions must no-op under `NODE_ENV=test`. |
+| Rule Added | The affected `saveStore()` and `saveMetaSidecar()` paths no-op under `NODE_ENV=test`, and tests cancel pending debounced saves during teardown. This incident-specific guard is not a universal substitute for persistence isolation: every persistence path exercised by tests must use an injected mock, temporary path, or explicit test-mode no-op at the storage boundary. `NODE_ENV=test` alone does not guarantee no writes. |
 
 ---
 

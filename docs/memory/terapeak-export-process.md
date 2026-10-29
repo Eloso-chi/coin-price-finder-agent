@@ -1,23 +1,19 @@
-# Terapeak Export Process -- Correct Steps
+# Terapeak Export Process (Historical Notes)
 
-## What the script NEEDS:
-- `DISPLAY=:7` (Xvfb/VNC for headful Chromium)
-- Python3 + Playwright
-- Valid eBay cookies at `cache/ebay_cookies.json`
+This file is retained as historical context. Use the canonical procedures in
+`docs/memory/terapeak-runbook.md`, `docs/runbooks/local-scraper-wsl2.md`, and
+`docs/runbooks/scraper-travel-mode.md` before operating a scraper.
 
-## What the script does NOT need:
-- `node server.js` -- export writes directly to blob or local CSV files
-- The Node server is ONLY needed for the import side (reimport from blob)
+The old fixed `DISPLAY=:7` example is not a requirement. The exporter detects
+the display supplied by the environment; the current local runbook uses the
+configured VNC display. `--login` opens a visible browser and requires a
+display. `--login-manual` accepts cookies pasted from the user's own browser
+when a display is unavailable, but it does not guarantee that the session is
+valid or that subsequent eBay requests will avoid a challenge.
 
-## Login flow:
-1. Try `--login` (visual browser on VNC). If browser freezes on first attempt:
-   - Do NOT retry. Offer `--login-manual` immediately.
-2. `--login-manual`: user pastes cookies from their own browser's DevTools.
-   - This is the reliable fallback -- always works, no CAPTCHA.
-
-## Run flow:
-```bash
-DISPLAY=:7 python3 scripts/terapeak-export.py --run --backlog cache/freshness-report.json --include-thin --shuffle --resume
-```
-
-## Do NOT start node server.js for this task.
+When no display is present, export may run headless and can trigger a challenge.
+Follow the anti-bot runbook: stop on a hard challenge and do not retry or bypass
+it. Do not assume a server is unnecessary for every export mode: API uploads
+require the configured app endpoint, while blob/local modes have different
+requirements. See `scripts/README.md` and the current runbooks for the selected
+`UPLOAD_MODE` workflow.

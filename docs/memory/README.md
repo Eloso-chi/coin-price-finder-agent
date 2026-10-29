@@ -28,9 +28,9 @@ the corpus into git so both machines see the same content.
 | `agents-and-prompts.md` | Inventory of all `.github/agents/`, `.github/prompts/`, and `.github/skills/` |
 | `agent-loading-order.md` | How Copilot loads memory scopes / agents / prompts / skills; where new content belongs (added under #271W F18) |
 | `anti-bot-operations.md` | Non-bypassable challenge stop, risk-state transitions, cooldown recovery gates, telemetry contract, and rollback boundaries for Terapeak operators (#284H). |
-| `audience-gating.md` | Public vs admin response gating (PR #85) |
+| `audience-gating.md` | Current public/admin response redaction contract, helper call sites, and retained public comp fields (original source-label change: PR #85) |
 | `azure-infrastructure.md` | Key Vault, Cosmos DB, Blob Storage, App Service |
-| `background-processes-status.md` | Background timers, prefetch scheduler (2026-05-26, refreshed 2026-07-03 for #277W) |
+| `background-processes-status.md` | Background timers and prefetch scheduler; code reviewed 2026-10-29, production state last verified 2026-09-04 |
 | `bulk-evaluate-feature.md` | Lot Evaluator engine reference |
 | `cache-invalidation-fix.md` | Cache TTL / eviction fix (2026-04-11) |
 | `codebase-overview.md` | Stack, services, routes, auth, env vars |
@@ -53,7 +53,7 @@ the corpus into git so both machines see the same content.
 | `terapeak-cache-wipe-gotcha.md` | `cache/terapeak_sold.json` wipe + CSV-only re-import produces degraded `compCount`; self-heals on next hydration. Design, not a bug. Added 2026-07-05. |
 | `terapeak-data-structure-analysis.md` | CSV format, column mapping (2026-04-12) |
 | `terapeak-export-automation.md` | Playwright aggregation architecture |
-| `terapeak-export-process.md` | Correct export steps |
+| `terapeak-export-process.md` | Historical export notes; canonical procedures are in the Terapeak runbook and scraper runbooks |
 | `terapeak-runbook.md` | Aggregation operations, VNC setup, troubleshooting |
 | `terapeak-startup-auto-cleanup.md` | What `node server.js` boot does with stale CSVs + meta (evict/purge/import chain in `server.js` L247-265). Includes "lesson learned" about not misreading legitimate drift. Added 2026-07-05. |
 | `README.md` | This file |
