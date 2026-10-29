@@ -119,7 +119,7 @@ If you act in good faith, avoid privacy violations/destructive testing, and repo
 - Never commit credentials, API keys, tokens, or private customer/user data.
 - Use placeholders in tests and documentation.
 - If a secret leak is suspected, report immediately and rotate affected credentials.
-- `scripts/audit-contradictory-weights.js` rollback artifacts contain stored Terapeak sale records and metadata for affected keys. Generate them only from WSL or another POSIX environment: staged and published files use owner-only mode `0600`, and the publisher refuses native Windows where that mode does not establish a restrictive ACL. Keep custom output directories private, do not commit the artifacts, and share them only through an approved private channel.
+- `scripts/audit-contradictory-weights.js` rollback artifacts contain stored Terapeak sale records and metadata for affected keys. Generate them only on a filesystem that enforces POSIX permissions. The publisher requests mode `0600` and verifies the staged file has no group/world permissions before serializing data; it refuses native Windows and mounted filesystems that do not enforce the requested restriction (including typical WSL `/mnt/c` mounts). Keep custom output directories private, do not commit the artifacts, and share them only through an approved private channel.
 
 ## Related References
 

@@ -49,6 +49,12 @@ function assertPrivateOutputPlatform(platform = process.platform) {
   }
 }
 
+function assertPrivateFileMode(mode) {
+  if ((mode & 0o077) !== 0) {
+    throw new Error('Audit output filesystem does not enforce owner-only permissions; choose a POSIX-permission-enforcing filesystem');
+  }
+}
+
 function* jsonChunks(value, depth = 0) {
   if (value === null || typeof value !== 'object') {
     yield JSON.stringify(value);
@@ -103,6 +109,7 @@ function stageJson(filePath, value) {
   let descriptor;
   try {
     descriptor = fs.openSync(tempPath, 'wx', 0o600);
+    assertPrivateFileMode(fs.fstatSync(descriptor).mode);
     writeJson(descriptor, value);
     fs.fsyncSync(descriptor);
     fs.closeSync(descriptor);
@@ -212,4 +219,10 @@ if (require.main === module) {
   }
 }
 
-module.exports = { assertPrivateOutputPlatform, buildAudit, buildRollback, publishJsonPair };
+module.exports = {
+  assertPrivateFileMode,
+  assertPrivateOutputPlatform,
+  buildAudit,
+  buildRollback,
+  publishJsonPair,
+};

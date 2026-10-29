@@ -45,6 +45,8 @@ Implemented on `fix/316h-explicit-weight-clean-main`: JavaScript and Python now 
 
 Verification: focused parser/service/route/freshness/audit/scraper tests pass; full Jest suite passes. Independent review follow-ups covered valid mixed fractions, `ozt`, and mismatched canonical key/display term checks.
 
+**Related:** #266H (key normalization and duplicate-key migration), #283W (shared title-weight parsing and import rerouting), #302H (canonical product identity).
+
 ---
 
 

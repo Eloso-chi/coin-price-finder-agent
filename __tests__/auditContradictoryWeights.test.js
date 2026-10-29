@@ -4,6 +4,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const {
+  assertPrivateFileMode,
   assertPrivateOutputPlatform,
   buildAudit,
   buildRollback,
@@ -88,6 +89,12 @@ describe('contradictory-weight audit inventory', () => {
   test('refuses private audit output on native Windows', () => {
     expect(() => assertPrivateOutputPlatform('win32')).toThrow(/run this audit from WSL/i);
     expect(() => assertPrivateOutputPlatform('linux')).not.toThrow();
+  });
+
+  test('refuses filesystems that expose group or world permissions', () => {
+    expect(() => assertPrivateFileMode(0o600)).not.toThrow();
+    expect(() => assertPrivateFileMode(0o640)).toThrow(/does not enforce owner-only permissions/i);
+    expect(() => assertPrivateFileMode(0o777)).toThrow(/does not enforce owner-only permissions/i);
   });
 
   windowsTest('publisher refuses native Windows even with extra caller arguments', () => {

@@ -112,7 +112,7 @@ Page-one and page-two scripts automatically exclude search terms with malformed 
 node scripts/audit-contradictory-weights.js --meta data/terapeak-meta.json --store cache/terapeak_sold.json
 ```
 
-The audit refuses existing output paths and never overwrites its metadata/store inputs. Audit output requires POSIX file permissions and therefore runs from WSL or another POSIX environment, not native Windows. Review the generated inventory and rollback-source artifact separately; no target or collision analysis is performed.
+The audit refuses existing output paths and never overwrites its metadata/store inputs. Audit output requires a filesystem that enforces POSIX file permissions. WSL on a Windows-mounted path such as `/mnt/c` is not sufficient; the publisher checks the staged file’s effective permissions and refuses to serialize data when group/world access remains. Use a private POSIX filesystem, not native Windows or a permission-incompatible mount. Review the generated inventory and rollback-source artifact separately; no target or collision analysis is performed.
 
 ### 7. Launch Deep Pagination (Pages 2-5)
 ```bash
