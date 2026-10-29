@@ -31,6 +31,7 @@ const path = require('path');
 const { classifyComposition, classifyGradeCategory, getCoinMetalProfile } = require('../src/utils/coinMetalProfile');
 const { normalizeSearchKey } = require('../src/services/terapeakService');
 const { latestRefreshAt, THRESHOLDS } = require('../src/services/freshnessClassifier');
+const { analyzeExplicitWeightSources } = require('../src/utils/explicitWeight');
 
 // META_PATH may be overridden via env so jest tests can point at a per-worker
 // tmpdir (#273H). Without the hook, parallel workers race on the real file.
@@ -172,6 +173,10 @@ for (const [key, entry] of Object.entries(meta)) {
 
   // Apply metal filter if specified
   if (METAL_FILTER && metal !== METAL_FILTER) continue;
+  const searchTerm = entry.searchTerm || key.replace(/(^|\s)\S/g, c => c.toUpperCase());
+  const weightAnalysis = analyzeExplicitWeightSources(key, searchTerm);
+  const explicitWeights = weightAnalysis.weights;
+  const hasWeightConflict = weightAnalysis.invalid || explicitWeights.length > 1;
   const gradeCategory = classifyGradeCategory(key);
   const newestSaleDate = entry.newestSaleDate || null;
   const compCount = entry.compCount || 0;
@@ -284,7 +289,10 @@ for (const [key, entry] of Object.entries(meta)) {
     && storedIdsEarly.identifier_confidence === 'Medium');
   const evidenceProbeNeeded = isMediumConfLowVol && refreshCount === 0;
 
-  if (isDormant) {
+  if (hasWeightConflict) {
+    actions.push('contradictory-weight');
+    priority = null;
+  } else if (isDormant) {
     actions.push('dormant');
     priority = null;
   } else if (isGenericCoin(key)) {
@@ -375,7 +383,7 @@ for (const [key, entry] of Object.entries(meta)) {
   // scraper stamps only `lastRefreshAt`, while the JS route stamps `page1At`; post-#245 Fix D,
   // `refreshCount` is the canonical "has been runtime-touched" marker. Evidence-hydrated entries
   // (refreshCount=0) graduate to deep-paginate naturally after the cheap page-1 refresh.
-  if (compCount >= 50 && !hasDeepAt && marketDepth === 'viable' && refreshCount >= 1) {
+  if (!hasWeightConflict && compCount >= 50 && !hasDeepAt && marketDepth === 'viable' && refreshCount >= 1) {
     actions.push('deep-paginate');
   }
   if (actions.length === 0) actions.push('ok');
@@ -402,7 +410,7 @@ for (const [key, entry] of Object.entries(meta)) {
 
   const record = {
     key,
-    searchTerm: entry.searchTerm || key.replace(/(^|\s)\S/g, c => c.toUpperCase()),
+    searchTerm,
     // New two-axis classification
     freshness,
     marketDepth,
@@ -421,6 +429,11 @@ for (const [key, entry] of Object.entries(meta)) {
     hasDeepAt,
     actions,
     identifiers,
+    ...(hasWeightConflict ? {
+      quarantined: true,
+      quarantineReason: 'contradictory-weight',
+      explicitWeights,
+    } : {}),
     ...(noDataCount > 0 ? { noDataCount, noDataAt } : {}),
     ...(consecutiveDryRefreshes > 0 ? { consecutiveDryRefreshes, lastRefreshNewComps } : {}),
   };
@@ -469,6 +482,7 @@ const stale30d = datasets.filter(d => d.freshnessStatus === 'Stale' && d.staleDa
 const missing = datasets.filter(d => d.freshnessStatus === 'Missing').length;
 const lowSignal = datasets.filter(d => d.freshnessStatus === 'LowSignalMarketData').length;
 const lowComps = datasets.filter(d => d.compCount > 0 && d.compCount < LOW_COMP_THRESHOLD).length;
+const contradictoryWeights = datasets.filter(d => d.quarantineReason === 'contradictory-weight').length;
 
 // New: priority-based counts
 const recentlyConfirmedStale = datasets.filter(d => d.actions && d.actions.includes('recently-confirmed-stale')).length;
@@ -499,6 +513,7 @@ const summary = {
   missing,
   lowSignal,
   lowComps,
+  contradictoryWeights,
   lowSignalThreshold: LOW_SIGNAL_THRESHOLD,
   priorityCounts,
   depthCounts,
@@ -524,6 +539,7 @@ console.log(`  Stale (${STALE_THRESHOLD}-${VERY_STALE_THRESHOLD}d):    ${stale15
 console.log(`  Very stale (>${VERY_STALE_THRESHOLD}d): ${stale30d}`);
 console.log(`  Missing data:      ${missing}`);
 console.log(`  Low comps (<${LOW_COMP_THRESHOLD}):  ${lowComps}`);
+console.log(`  Quarantined weights: ${contradictoryWeights}`);
 console.log('');
 console.log('  Priority queue (action tiers):');
 console.log(`    P0.1 bullion-fast: ${priorityCounts['P0.1']}`);
@@ -641,7 +657,8 @@ if (BATCH_SIZE > 0) {
   if (BATCH_MODE === 'low-signal') {
     // Low-signal mode: thin + confirmed-thin datasets (backward compat)
     batchPool = datasets
-      .filter(d => d.marketDepth === 'thin' || d.marketDepth === 'confirmed-thin')
+      .filter(d => !d.quarantined &&
+        (d.marketDepth === 'thin' || d.marketDepth === 'confirmed-thin'))
       .sort((a, b) => (a.compCount || 0) - (b.compCount || 0));
   } else if (BATCH_MODE === 'bullion') {
     // Bullion mode: only bullion-tagged datasets that have an action

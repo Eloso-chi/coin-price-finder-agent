@@ -106,6 +106,14 @@ cd "$(git rev-parse --show-toplevel)" && DISPLAY=:1 python3 scripts/terapeak-exp
 # --dry-run to preview without collecting
 ```
 
+Page-one and page-two scripts automatically exclude search terms with malformed or contradictory explicit ounce weights. The freshness report marks matching legacy datasets as quarantined with the `contradictory-weight` action; these entries are not queued. The guard does not rename or remove existing data. The inventory-only audit may be run against explicit input paths for review:
+
+```bash
+node scripts/audit-contradictory-weights.js --meta data/terapeak-meta.json --store cache/terapeak_sold.json
+```
+
+The audit refuses existing output paths and never overwrites its metadata/store inputs. Review the generated inventory and rollback-source artifact separately; no target or collision analysis is performed.
+
 ### 7. Launch Deep Pagination (Pages 2-5)
 ```bash
 # Dashboard mode (interactive priority menu -- no flags needed):

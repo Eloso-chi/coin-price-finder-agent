@@ -39,7 +39,15 @@ Items marked DONE are kept for historical reference.
 
 ---
 
-### #316H. Prevent contradictory weight tokens in Terapeak dataset keys and queues [P1 -- DATA-QUALITY / SCRAPER] -- PROPOSED 2026-09-13
+### ~~#316H. Prevent contradictory weight tokens in Terapeak dataset keys and queues [DONE]~~
+
+Implemented on `fix/316h-explicit-weight-clean-main`: JavaScript and Python now share parity-tested explicit-weight analysis, including supported ounce abbreviations and fractional/mixed quantities. Contradictory or malformed terms are rejected before Terapeak imports/metadata writes and excluded from freshness, page-one, and page-two queues. Existing records are inventoried only; no target remapping, collision analysis, or data mutation is claimed. The audit writes a separate inventory and rollback-source artifact without overwriting inputs.
+
+Verification: focused parser/service/route/freshness/audit/scraper tests pass; full Jest suite passes. Independent review follow-ups covered valid mixed fractions, `ozt`, and mismatched canonical key/display term checks.
+
+---
+
+### #317H. Replace ambiguous Greysheet `:all` snapshots with condition-aware raw and graded coverage [P1 -- PRICING-ACCURACY / DATA-GOVERNANCE] -- PROPOSED 2026-09-13
 
 **Origin:** Read-only audit during an H-machine freshness run after the operator selected `1oz 2016 Libertad Mexican Oz Quarter Silver`, an impossible `1oz` plus `1/4oz` identity that returned no data.
 

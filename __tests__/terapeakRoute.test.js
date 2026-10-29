@@ -207,6 +207,19 @@ describe('/api/terapeak/import-text — validation', () => {
     expect(body.error).toMatch(/searchTerm/i);
   });
 
+  test('rejects contradictory weights before parsing, quota, or import mutation', async () => {
+    const { status, body } = await request('POST', '/api/terapeak/import-text', {
+      csvText: 'Title,Sold Price\nCoin,50',
+      searchTerm: 'libertad 1/2 oz 1 oz',
+    }, TEST_ADMIN_KEY);
+    expect(status).toBe(400);
+    expect(body.code).toBe('CONTRADICTORY_WEIGHT');
+    expect(body.explicitWeights).toEqual([0.5, 1]);
+    expect(require('../src/services/terapeakService').parseCSV).not.toHaveBeenCalled();
+    expect(require('../src/services/terapeakService').importComps).not.toHaveBeenCalled();
+    expect(quotaService.recordQueries).not.toHaveBeenCalled();
+  });
+
   test('returns 429 when quota exhausted', async () => {
     quotaService.recordQueries.mockReturnValue({
       ok: false, used: 100, remaining: 0, limit: 100,

@@ -11,6 +11,7 @@ const fs = require('fs');
 const path = require('path');
 const { parse } = require('csv-parse/sync');
 const { isDenied } = require('../utils/filters');
+const { analyzeExplicitWeights } = require('../utils/explicitWeight');
 const {
   normalizeWeightDatasetKey,
   stripFractionalWeightPhrase,
@@ -910,6 +911,13 @@ function parseCSV(csvData, searchTerm) {
  * @returns {object} import summary
  */
 function importComps(searchTerm, comps, meta = {}, context = {}) {
+  const weightAnalysis = analyzeExplicitWeights(searchTerm);
+  if (weightAnalysis.invalid || weightAnalysis.weights.length > 1) {
+    const err = new Error(`Contradictory explicit weights in search term: ${weightAnalysis.weights.join(', ')} oz`);
+    err.code = 'CONTRADICTORY_WEIGHT';
+    err.explicitWeights = weightAnalysis.weights;
+    throw err;
+  }
   const store = loadStore();
   const normalizedKey = normalizeSearchKey(searchTerm);
   const importSource = context.source || 'unspecified';
@@ -1458,6 +1466,13 @@ function _mergeDatasets(candidates) {
  * Used to stamp noDataAt/noDataCount when Terapeak returns no results.
  */
 function updateDatasetMeta(searchTerm, metaUpdates) {
+  const weightAnalysis = analyzeExplicitWeights(searchTerm);
+  if (weightAnalysis.invalid || weightAnalysis.weights.length > 1) {
+    const err = new Error(`Contradictory explicit weights in search term: ${weightAnalysis.weights.join(', ')} oz`);
+    err.code = 'CONTRADICTORY_WEIGHT';
+    err.explicitWeights = weightAnalysis.weights;
+    throw err;
+  }
   const store = loadStore();
   const normalizedKey = normalizeSearchKey(searchTerm);
   if (!store[normalizedKey]) {

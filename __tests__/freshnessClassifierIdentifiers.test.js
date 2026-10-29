@@ -52,6 +52,41 @@ describe('freshnessClassifier -- evidence-low-vol gate (Fix A of #245)', () => {
     expect(_isHighConfidenceLowVolEvidence(null)).toBe(false);
   });
 
+  test('contradictory-weight key is skipped before other refresh classifications', () => {
+    const decision = shouldSkipRefresh({
+      key: 'libertad 1/2 oz 1 oz',
+      newestSaleDate: daysAgoIso(30),
+      compCount: 80,
+      refreshCount: 1,
+    }, NOW);
+    expect(decision.skip).toBe(true);
+    expect(decision.reason).toBe('contradictory-weight');
+  });
+
+  test('clean display search term cannot mask a contradictory stable key', () => {
+    const decision = shouldSkipRefresh({
+      key: 'libertad 1/2 oz 1 oz',
+      searchTerm: 'Silver Libertad',
+      newestSaleDate: daysAgoIso(30),
+      compCount: 80,
+      refreshCount: 1,
+    }, NOW);
+    expect(decision.skip).toBe(true);
+    expect(decision.reason).toBe('contradictory-weight');
+  });
+
+  test('benign display term cannot mask a detached word weight in a canonical key', () => {
+    const decision = shouldSkipRefresh({
+      key: '1 oz silver tenth',
+      searchTerm: 'Silver Eagle',
+      newestSaleDate: daysAgoIso(30),
+      compCount: 80,
+      refreshCount: 1,
+    }, NOW);
+    expect(decision.skip).toBe(true);
+    expect(decision.reason).toBe('contradictory-weight');
+  });
+
   test('High-conf low-vol with recent attempt is SKIPPED with reason=evidence-low-vol', () => {
     // 1968 Krugerrand: empty in 5/5 runs, last attempt 16 days ago
     const meta = {

@@ -79,6 +79,70 @@ ADMIN_API_KEY=test-key-12345
   });
 
   describe('script syntax and availability', () => {
+    test('page-one exporter rechecks the CSV key and filters quarantined targets', () => {
+      const source = fs.readFileSync(path.join(PROJECT_ROOT, 'scripts', 'terapeak-export.py'), 'utf8');
+      expect(source).toContain('"quarantined": has_contradictory_weight_sources(f.stem, term)');
+      expect(source).toContain('terms = [term for term in terms if not term.get("quarantined")]');
+      expect(source).toContain('has_contradictory_weight_sources(item["key"], item_search_term)');
+    });
+
+    test('deep-page server and local candidate queues exclude contradictory weights', () => {
+      const res = runPython(`
+import importlib.util
+import os
+import pathlib
+import sys
+import tempfile
+import types
+
+playwright = types.ModuleType("playwright")
+playwright_sync_api = types.ModuleType("playwright.sync_api")
+playwright_sync_api.sync_playwright = lambda: None
+playwright_sync_api.TimeoutError = type("PlaywrightTimeout", (Exception,), {})
+playwright.sync_api = playwright_sync_api
+sys.modules["playwright"] = playwright
+sys.modules["playwright.sync_api"] = playwright_sync_api
+
+requests = types.ModuleType("requests")
+requests.get = lambda *args, **kwargs: types.SimpleNamespace(
+    raise_for_status=lambda: None,
+    json=lambda: {"datasets": [
+        {"key": "libertad 1/2 oz 1 oz", "searchTerm": "Silver Libertad", "compCount": 90},
+        {"searchTerm": "silver eagle 1 oz", "compCount": 90},
+    ]},
+)
+sys.modules["requests"] = requests
+
+module_path = os.path.join(os.environ["PYTHONPATH"], "sales-aggregator.py")
+spec = importlib.util.spec_from_file_location("sales_aggregator", module_path)
+aggregator = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(aggregator)
+
+with tempfile.TemporaryDirectory() as temp_dir:
+    aggregator.CSV_DIR = pathlib.Path(temp_dir)
+    (aggregator.CSV_DIR / "bad.csv").write_text("title\\nrow\\n")
+    (aggregator.CSV_DIR / "good.csv").write_text("title\\nrow\\n")
+    aggregator.get_search_terms = lambda: [
+        {"term": "libertad 1/2 oz 1 oz", "filename": "bad.csv"},
+        {"term": "silver eagle 1 oz", "filename": "good.csv"},
+    ]
+    local = aggregator.get_candidates(min_rows=1)
+    remote = aggregator.get_candidates_from_server(min_rows=1)
+    assert [item["term"] for item in local] == ["silver eagle 1 oz"], local
+    assert [item["term"] for item in remote] == ["silver eagle 1 oz"], remote
+
+    split_key = [{"key": "1 oz silver tenth", "searchTerm": "Silver Eagle", "compCount": 90}]
+    monkey_response = types.SimpleNamespace(
+      raise_for_status=lambda: None,
+      json=lambda: {"datasets": split_key},
+    )
+    aggregator.requests.get = lambda *args, **kwargs: monkey_response
+    assert aggregator.get_candidates_from_server(min_rows=1) == [], "canonical word-weight key must not be masked"
+`);
+      if (res.status !== 0) throw new Error(`${res.stdout}\n${res.stderr}`);
+      expect(res.stderr).toBe('');
+    });
+
     test('deep aggregator exits 2 after one mocked hard-challenge attempt', () => {
       const res = runPython(`
 import types

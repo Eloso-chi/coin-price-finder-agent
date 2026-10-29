@@ -10,6 +10,18 @@ const quotaService = require('../services/terapeakQuotaService');
 const { isPlausibleRefreshTimestamp, latestRefreshAt } = require('../services/freshnessClassifier');
 const requireAdmin = require('../middleware/requireAdminOrKey');
 const { redactCompsForPublic } = require('../utils/redactForPublic');
+const { analyzeExplicitWeights } = require('../utils/explicitWeight');
+
+function rejectContradictoryWeights(searchTerm, res) {
+  const analysis = analyzeExplicitWeights(searchTerm);
+  if (!analysis.invalid && analysis.weights.length <= 1) return false;
+  res.status(400).json({
+    error: 'searchTerm contains contradictory explicit weights',
+    code: 'CONTRADICTORY_WEIGHT',
+    explicitWeights: analysis.weights,
+  });
+  return true;
+}
 
 // ── Multer: accept CSV uploads up to 10 MB ──────────────────
 const upload = multer({
@@ -45,6 +57,7 @@ router.post('/import', requireAdmin, upload.single('file'), (req, res) => {
     if (typeof searchTerm !== 'string' || searchTerm.length > 500) {
       return res.status(400).json({ error: 'searchTerm must be a string of 500 characters or fewer' });
     }
+    if (rejectContradictoryWeights(searchTerm, res)) return;
 
     // ── Quota: log the import for tracking, but don't enforce the limit ──
     // Imports are uploads of already-aggregated data — the actual Terapeak
@@ -109,6 +122,13 @@ router.post('/import', requireAdmin, upload.single('file'), (req, res) => {
       quota: { used: quota.used, remaining: quota.remaining, limit: quota.limit, warning: quota.warning || null }
     });
   } catch (err) {
+    if (err.code === 'CONTRADICTORY_WEIGHT') {
+      return res.status(400).json({
+        error: err.message,
+        code: err.code,
+        explicitWeights: err.explicitWeights,
+      });
+    }
     console.error('[terapeak] Import error:', err.message);
     res.status(500).json({ error: 'CSV import failed' });
   }
@@ -129,6 +149,7 @@ router.post('/import-text', requireAdmin, express.json(), (req, res) => {
     if (typeof searchTerm !== 'string' || searchTerm.length > 500) {
       return res.status(400).json({ error: 'searchTerm must be a string of 500 characters or fewer' });
     }
+    if (rejectContradictoryWeights(searchTerm, res)) return;
 
     const { comps, skipped, columns, unmappedColumns, totalRows } = terapeakService.parseCSV(csvText, searchTerm);
 
@@ -158,6 +179,13 @@ router.post('/import-text', requireAdmin, express.json(), (req, res) => {
       quota: { used: quota.used, remaining: quota.remaining, limit: quota.limit, warning: quota.warning || null }
     });
   } catch (err) {
+    if (err.code === 'CONTRADICTORY_WEIGHT') {
+      return res.status(400).json({
+        error: err.message,
+        code: err.code,
+        explicitWeights: err.explicitWeights,
+      });
+    }
     console.error('[terapeak] Import-text error:', err.message);
     res.status(500).json({ error: 'CSV text import failed' });
   }
@@ -422,6 +450,10 @@ router.post('/report-no-data', requireAdmin, express.json(), async (req, res) =>
   if (!searchTerm || typeof searchTerm !== 'string') {
     return res.status(400).json({ error: 'searchTerm is required' });
   }
+  if (searchTerm.length > 500) {
+    return res.status(400).json({ error: 'searchTerm must be a string of 500 characters or fewer' });
+  }
+  if (rejectContradictoryWeights(searchTerm, res)) return;
 
   // Resolve the key + read the previous count up front so the catch path
   // below can return a numerically-sane payload even when the meta-write
@@ -463,6 +495,13 @@ router.post('/report-no-data', requireAdmin, express.json(), async (req, res) =>
       noDataAt: result.aggregationMeta.noDataAt,
     });
   } catch (err) {
+    if (err.code === 'CONTRADICTORY_WEIGHT') {
+      return res.status(400).json({
+        error: err.message,
+        code: err.code,
+        explicitWeights: err.explicitWeights,
+      });
+    }
     console.error('[terapeak] /report-no-data meta-write failed for', searchTerm, '--', err.message);
     res.json({
       status: 'ok',

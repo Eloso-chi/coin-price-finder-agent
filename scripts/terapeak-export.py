@@ -57,6 +57,7 @@ if str(SCRIPT_MODULE_DIR) not in sys.path:
 
 from _terapeak_pacing import BASELINE, authorized_effective_profile, scale_range, scale_seconds, validate_profile
 from _terapeak_risk import load_state
+from _explicit_weight import has_contradictory_weight_sources, has_contradictory_weights
 
 try:
     from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeout
@@ -471,7 +472,12 @@ def get_search_terms():
         if _PROOF_COIN_RE.search(term) and not _GRADE_SUFFIX_RE.search(term):
             search_query = term + PROOF_NEGATIVE_KEYWORDS
 
-        terms.append({"term": term, "filename": f.name, "search_query": search_query})
+        terms.append({
+            "term": term,
+            "filename": f.name,
+            "search_query": search_query,
+                "quarantined": has_contradictory_weight_sources(f.stem, term),
+        })
     return terms
 
 
@@ -1417,6 +1423,10 @@ def do_export_run(args):
 
     # Load search terms
     terms = get_search_terms()
+    quarantined_count = sum(1 for term in terms if term.get("quarantined"))
+    terms = [term for term in terms if not term.get("quarantined")]
+    if quarantined_count:
+        print(f"Quarantined {quarantined_count} contradictory-weight search terms")
     print(f"Found {len(terms)} search terms from data/terapeak/")
 
     # Apply filters
@@ -1462,6 +1472,10 @@ def do_export_run(args):
         priority_filtered = 0
         for item in report.get("datasets", []):
             item_search_term = item.get("searchTerm", item["key"])
+            if (item.get("quarantined")
+                    or item.get("quarantineReason") == "contradictory-weight"
+                    or has_contradictory_weight_sources(item["key"], item_search_term)):
+                continue
             if backlog_filter and not (backlog_filter.search(item_search_term) or backlog_filter.search(item["key"])):
                 continue
             actions = item.get("actions", [])

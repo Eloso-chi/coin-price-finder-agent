@@ -66,6 +66,8 @@ _spec.loader.exec_module(_mod)
 
 # Config
 PROJECT_DIR = _mod.PROJECT_DIR
+has_contradictory_weights = _mod.has_contradictory_weights
+has_contradictory_weight_sources = _mod.has_contradictory_weight_sources
 COOKIE_FILE = _mod.COOKIE_FILE
 DOWNLOAD_DIR = _mod.DOWNLOAD_DIR
 TERAPEAK_DIR = _mod.TERAPEAK_DIR
@@ -456,7 +458,9 @@ def get_candidates_from_server(min_rows=50, filter_pattern=None):
 
     candidates = []
     for d in datasets:
-        search_term = d.get("searchTerm", "")
+        search_term = d.get("searchTerm") or d.get("key", "")
+        if has_contradictory_weight_sources(d.get("key"), search_term):
+            continue
         comp_count = d.get("compCount", 0)
         # Skip gold coins -- low eBay sales volume makes deep pagination wasteful
         if re.search(r'\bgold\b', search_term, re.IGNORECASE):
@@ -484,6 +488,9 @@ def get_candidates(min_rows=50, filter_pattern=None):
     for entry in terms:
         csv_path = CSV_DIR / entry["filename"]
         if not csv_path.exists():
+            continue
+        if (entry.get("quarantined")
+            or has_contradictory_weight_sources(csv_path.stem, entry["term"])):
             continue
         # Count data rows (exclude header)
         with open(csv_path) as f:
@@ -962,6 +969,10 @@ def do_page2_run(args):
         candidates = []
         for item in report.get("datasets", []):
             actions = item.get("actions", [])
+            if (item.get("quarantined")
+                    or item.get("quarantineReason") == "contradictory-weight"
+                    or has_contradictory_weight_sources(item.get("key"), item.get("searchTerm"))):
+                continue
             if "deep-paginate" in actions:
                 candidates.append({
                     "term": item["key"],

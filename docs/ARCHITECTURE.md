@@ -69,6 +69,7 @@ server.js                              Express entry point (port 3000)
 │   ├─ pcgsQuotaService.js             PCGS API quota tracking service
 │   ├─ prefetchScheduler.js            Nightly PCGS prefetch scheduler
 │   ├─ terapeakService.js              Terapeak CSV import, fuzzy lookup, eviction, auto-import, aggregationMeta tracking (Cosmos write-through + hydration + git-tracked sidecar)
+│   ├─ explicitWeight.js               Shared explicit-ounce parsing and contradictory-key validation for imports and freshness gates
 │   ├─ terapeakQuotaService.js         Daily Terapeak query quota tracker
 │   ├─ adminService.js                 Admin dashboard aggregation (stats, stale detection [filters via freshnessClassifier], data health)
 │   ├─ auditService.js                 Admin + valuation audit writer (Cosmos with valuation JSONL fallback)

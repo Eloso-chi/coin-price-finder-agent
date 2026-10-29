@@ -88,6 +88,23 @@ describe('generate-freshness-report.js', () => {
     expect(ds.actions).toContain('refresh');
   });
 
+  test('contradictory explicit weights are quarantined from every freshness queue', () => {
+    const report = runReport({
+      'libertad 1/2 oz 1 oz': {
+        compCount: 80,
+        newestSaleDate: daysAgo(30),
+        refreshCount: 1,
+      },
+    });
+    const [dataset] = report.datasets;
+    expect(dataset.quarantined).toBe(true);
+    expect(dataset.quarantineReason).toBe('contradictory-weight');
+    expect(dataset.explicitWeights).toEqual([0.5, 1]);
+    expect(dataset.priority).toBeNull();
+    expect(dataset.actions).toEqual(['contradictory-weight']);
+    expect(report.summary.contradictoryWeights).toBe(1);
+  });
+
   test('LowSignalMarketData -- few comps', () => {
     const meta = {
       '1895 o morgan silver dollar ms65': {
