@@ -168,6 +168,7 @@ server.js                              Express entry point (port 3000)
 │   ├─ load-secrets.sh                 Pull 9 dev secrets from Azure Key Vault `coinpricefinder-kv` into `.env` (mode 600); modes dryrun/--print/--write (#137)
 │   ├─ terapeak-export.py              Semi-automated Terapeak CSV exporter (Playwright + blob upload)
 │   ├─ sales-aggregator.py               Sales data aggregator (deep pagination) (extends CSVs beyond 50 rows)
+│   ├─ audit-contradictory-weights.js   Inventory-only legacy weight audit; private rollback output requires POSIX/WSL
 │   ├─ chain-aggregate.sh                 Chain multiple collect batches with anti-bot monitoring
 │   ├─ refresh-stale.sh                One-command biweekly stale data refresh
 │   ├─ greysheet-refresh.js            Bulk Greysheet price snapshot collector (all PCGS + type GSIDs)
