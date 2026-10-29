@@ -165,7 +165,7 @@ Read the first 50 lines of each to understand the module interface (80 lines for
 20. `src/services/MetalsSpotPriceError.js` -- custom metals provider error type
 21. `src/services/auditService.js` -- audit log writer (action + actor + resource triples)
 22. `src/services/freshnessClassifier.js` -- shared refresh-skip logic (thresholds + shouldSkipRefresh) used by adminService and generate-freshness-report.js (#229)
-23. `src/services/pricingService.js` -- shared deterministic pricing boundary used by structured, batch, bulk, and AI consumers
+23. `src/services/pricingService.js` -- shared deterministic pricing boundary used by `/api/price` and deterministic AI tools; batch and bulk currently call `valuationService.computeValuation()` directly
 24. `src/services/aiOrchestratorService.js` -- bounded conversational orchestration over allowlisted tools
 25. `src/services/aiToolRegistry.js` -- allowlisted deterministic AI tool implementations
 26. `src/services/llmProviderAdapter.js` -- disabled-by-default Azure OpenAI provider adapter
@@ -193,7 +193,7 @@ Read the first 50 lines of each to understand the module interface (80 lines for
 18. `src/routes/aiMarketRoute.js` -- bounded market coverage and comparison analytics
 19. `src/routes/specialMarksRoute.js` -- context-filtered registered bullion privy and special-mark lookup
 
-**Data:**
+**Data (all 10):**
 1. `src/data/greysheetTypeMap.js` -- series-to-GSID mapping + finish detection
 2. `src/data/constants.js` -- zodiac cycle, Perth Lunar helpers, roll quantities
 3. `src/data/pcgsNumbers.js` -- static PCGS number tables (10 US series + 7 world bullion) + SERIES_MAP routing
@@ -203,8 +203,9 @@ Read the first 50 lines of each to understand the module interface (80 lines for
 7. `src/data/halfDollarSeries.js` -- Half Dollar design eras + year-based resolver
 8. `src/data/barSeries.js` -- bar brand/series data (7 brands, 40+ series) + detection helpers
 9. `src/data/lunarReference.js` -- Perth / Royal / RAMint lunar comparison
+10. `src/data/specialMarksRegistry.js` -- versioned bullion privy/special-mark definitions, applicability, and provenance
 
-**Utils (all 15):**
+**Utils (all 18):**
 1. `src/utils/filters.js` -- deny lists, denomination detection, series conflicts, two-way composition mismatch (silver/clad)
 2. `src/utils/cosmosClient.js` -- Cosmos DB client singleton
 3. `src/utils/blobClient.js` -- Blob Storage client
@@ -220,6 +221,9 @@ Read the first 50 lines of each to understand the module interface (80 lines for
 13. `src/utils/logger.js` -- redacted Pino JSON logger with request-ID context
 14. `src/utils/gracefulShutdown.js` -- bounded shutdown task registration/draining
 15. `src/utils/productIdentityResolver.js` -- versioned canonical product identity, ambiguity detection, pool isolation, and persisted identity serialization
+16. `src/utils/explicitWeight.js` -- shared explicit-ounce parsing and contradictory-weight validation for import and freshness paths
+17. `src/utils/durableLease.js` -- heartbeat lease and fencing for scheduled work across workers
+18. `src/utils/greysheetRefreshSchedule.js` -- validates the Greysheet refresh interval and determines whether it is due
 
 **Middleware (all 4) + Schemas:**
 1. `src/middleware/requireAdminOrKey.js` -- guards admin routes (JWT or ADMIN_API_KEY)
@@ -257,6 +261,7 @@ Read the first 50 lines of each to understand the module interface (80 lines for
 25. `scripts/analyze-pacing-pilot.py` -- scoped #280H A/B crossover analyzer (first 30 lines)
 26. `scripts/validate-pass-telemetry.py` -- validates risk/pacing pass telemetry contracts (first 30 lines)
 27. `scripts/test_vnc_login_flow.py` -- dependency-free smoke tests for the VNC research-access decision layer
+28. `scripts/audit-contradictory-weights.js` -- inventory-only legacy dataset audit; output requires a POSIX-permission-enforcing filesystem
 
 **Test infrastructure:**
 1. `__tests__/helpers/coinTestConstants.js` -- shared test helpers, golden set loader, selectCoins()
@@ -306,7 +311,7 @@ List the rules below verbatim in the report so the user sees you internalized th
 3. **Server is background-only.** From `cd "$(git rev-parse --show-toplevel)"`, `node server.js` MUST always be started with `isBackground: true`. It never exits; foreground launches block the terminal. Before replacing a port-3000 listener, verify its command and cwd identify this repository's `node server.js`; if ownership is unknown, report the listener instead of terminating it. Source: `docs/WASTE-LEDGER.md` INC-003.
 4. **No direct commits to main.** Branch-protected. Every change goes through a feature branch + PR + pre-commit review + (for M-tier) deep review. The only carve-out is `docs/WASTE-LEDGER.md` postmortem entries that reference already-merged or already-closed PRs. Reverts and doc-only PRs are NOT exempt. Source: `.github/skills/workflow/SKILL.md` "Hard Rule" and "WASTE-LEDGER Carve-Out"; `docs/WASTE-LEDGER.md` INC-008, INC-013 rule #18.
 5. **"More survivors" is not a success metric.** Any pre-filter that counts rejections (e.g., `prefilterStrikeSplit`) is a correctness signal -- a high value means the pool is sparse, not that the gate is broken. Fix sparse-pool symptoms via lookback / better seeding / honest null, never by widening the gate. Source: `docs/memory/numismatic-terminology.md`; `docs/WASTE-LEDGER.md` INC-013 rule #16.
-6. **Documentation acceptance is a merge gate.** Contract-affecting architecture/API/data/operations/environment/customization/user-workflow changes must update every mapped doc and receive an Onboard PASS tied to the current commit. Classify findings as `BLOCKING_DELTA`, `PRE_EXISTING_DEBT`, or `OPTIONAL`; only `BLOCKING_DELTA` may block the target PR. Allow one mapped-document correction pass and one verification rerun; a repository-wide zero-gap audit requires explicit approval and a separate branch. Source: `CONTRIBUTING.md`; `.github/skills/workflow/SKILL.md`; `docs/WASTE-LEDGER.md` INC-017.
+6. **Documentation acceptance is a merge gate.** Contract-affecting architecture/API/data/operations/environment/customization/user-workflow changes must update every mapped doc and receive an Onboard PASS tied to the current commit. Classify findings as `BLOCKING_DELTA`, `PRE_EXISTING_DEBT`, or `OPTIONAL`; only `BLOCKING_DELTA` may block the target PR. Allow one mapped-document correction pass and one verification rerun; a repository-wide zero-gap audit requires explicit approval and a separate branch. Source: `CONTRIBUTING.md`; `.github/skills/workflow/SKILL.md` "Delta-Scoped Documentation Acceptance"; `docs/WASTE-LEDGER.md` INC-018.
 7. **Required CI must succeed before merge.** Queued, in-progress, failed, or cancelled checks block merge. `--admin` requires explicit user approval and a documented reason; it never bypasses unfinished checks by default. Source: `.github/skills/workflow/SKILL.md`; `docs/WASTE-LEDGER.md` INC-017.
 8. **Incident evidence is public-safe.** Tracked WASTE-LEDGER entries use redacted references and measured/estimated caveats; full session/case/billing identifiers belong in ignored `.local/github-support/` packets. Source: `.github/skills/process-discipline/SKILL.md`; `docs/WASTE-LEDGER.md` INC-017.
 

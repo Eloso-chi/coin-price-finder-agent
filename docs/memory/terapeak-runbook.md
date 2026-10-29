@@ -44,12 +44,23 @@ bash /usr/share/novnc/utils/novnc_proxy --vnc localhost:5901 --listen 6080 &>/de
 
 ### 2. App Server
 ```bash
-kill $(lsof -t -i:3000) 2>/dev/null
 cd "$(git rev-parse --show-toplevel)"
+
+# Inspect any existing listener before starting the server.
+listener_pids=$(lsof -tiTCP:3000 -sTCP:LISTEN 2>/dev/null || true)
+if [ -n "$listener_pids" ]; then
+  for pid in $listener_pids; do
+    ps -p "$pid" -o pid=,args=
+    readlink -f "/proc/$pid/cwd" || true
+  done
+  # Stop a listener only after confirming its command and cwd identify this
+  # checkout's node server.js. If ownership is unclear, do not kill it.
+fi
 ```
 
-Then use the execute tool to run `node server.js` with background/async mode.
-Do not append `&` or run it synchronously; the server never exits.
+Then start `node server.js` in a background/async terminal. Do not append `&`
+or run it synchronously; the server does not exit. This repository-owner check
+is also listed in `scripts/README.md` and the onboarding hard rules.
 
 ### 3. Reset Terapeak Quota
 ```bash
@@ -106,7 +117,7 @@ cd "$(git rev-parse --show-toplevel)" && DISPLAY=:1 python3 scripts/terapeak-exp
 # --dry-run to preview without collecting
 ```
 
-Page-one and page-two scripts automatically exclude search terms with malformed or contradictory explicit ounce weights. The freshness report marks matching legacy datasets as quarantined with the `contradictory-weight` action; these entries are not queued. The guard does not rename or remove existing data. The inventory-only audit may be run against explicit input paths for review:
+Page-one and page-two scripts automatically exclude search terms with malformed or contradictory explicit ounce weights. The freshness report marks matching legacy datasets as quarantined with the `contradictory-weight` action; these entries are not queued. The guard does not rename or remove existing data. The inventory-only audit may be run against explicit input paths for review, but only on a filesystem that enforces POSIX permissions:
 
 ```bash
 node scripts/audit-contradictory-weights.js --meta data/terapeak-meta.json --store cache/terapeak_sold.json

@@ -1,10 +1,17 @@
-# Background Processes & Automation Status (refreshed 2026-09-04 for #314H)
+# Background Processes & Automation Status (code reviewed 2026-10-29; production state last checked 2026-09-04)
+
+This document's production enablement and alert-configuration statements are a
+snapshot from 2026-09-04, not a live health report. Verify current production
+state with the endpoints and workflow logs in `production-state-lookup.md`
+before acting on those statements. Code defaults below are not proof of the
+App Service's effective environment settings.
 
 ## Working Processes ✓
 
 ### 1. PCGS APR Prefetch Scheduler
-- **Status:** CONTAINED; automatic triggers disabled during #314H production remediation
-- **Schedule:** In-process disabled with `PCGS_PREFETCH_ENABLED=false`; GitHub Actions remains manually disabled during containment. Its dual 6:05/7:05 UTC schedule is restored in code with a 23:00 `America/Los_Angeles` gate for post-validation re-enablement. Controlled manual diagnostics remain available.
+- **Last verified production status (2026-09-04):** CONTAINED; automatic triggers were disabled during #314H production remediation. Current App Service and workflow enablement has not been re-verified here.
+- **Code default:** `PCGS_PREFETCH_ENABLED=true`; production may override it.
+- **Schedule (last verified production setting, 2026-09-04):** The in-process scheduler was disabled with `PCGS_PREFETCH_ENABLED=false`, and GitHub Actions was manually disabled during containment. Its dual 6:05/7:05 UTC schedule is restored in code with a 23:00 `America/Los_Angeles` gate for post-validation re-enablement. Controlled manual diagnostics remain available.
 - **Production truth:** Use `/api/admin/prefetch-status` or the nightly workflow logs; local `cache/` files are not production evidence.
 - **Fixes (PR #50):** Fire-and-forget (202 response), idempotency guard, 30-min workflow polling, metrics reporting
 - **Fixes (#277W, 2026-07-03):**
@@ -57,10 +64,10 @@
 
 ---
 
-## NOT Working / Disabled ⚠️
+## Production Configuration Last Reported Disabled (Verify Before Acting)
 
 ### Email Alert System
-- **Status:** ⚠️ **NOT CONFIGURED** in production
+- **Last verified production status (2026-09-04):** ⚠️ **NOT CONFIGURED**. Current App Service/Key Vault alert settings have not been re-verified here.
 - **Type:** On-demand Azure Communication Services Email notifications
 - **Should alert on:**
   - Metals refresh failure (2+ consecutive)
@@ -70,7 +77,7 @@
   - PCGS breaker tripped during daytime
   - Server crash (unhandledRejection, uncaughtException)
 
-**Missing Config:**
+**Configuration last observed missing (2026-09-04; re-verify before relying on this):**
 - ❌ COMMUNICATION_CONNECTION_STRING: NOT in Azure Key Vault / App Service
 - ❌ ALERT_EMAIL_TO: NOT in Azure App Service
 - ❌ ALERT_FROM_EMAIL: NOT in Azure App Service
@@ -79,13 +86,19 @@
 
 ---
 
-## Health Endpoints
+## Health and Status Endpoints
 
-All background processes have status endpoints:
-- GET /api/health — overall server status & uptime
-- GET /api/admin/prefetch-status — PCGS APR scheduler state (needs ADMIN_API_KEY)
-- GET /api/admin/pcgs-quota — PCGS API quota status
-- GET /api/admin/dashboard — overall system stats
+Not every timer exposes a dedicated scheduler-state endpoint:
+- `GET /api/health` — shallow server status and uptime
+- `GET /api/health?deep=1` — bounded downstream dependency health (admin auth)
+- `GET /api/admin/prefetch-status` — PCGS APR scheduler state (admin auth)
+- `GET /api/admin/pcgs-quota` — PCGS quota and upstream cooldown status (admin auth)
+- `GET /api/admin/dashboard` — aggregate system statistics, not a per-timer run ledger
+- `GET /api/metals` — current spot data; it does not report polling timer state
+
+Greysheet refresh history can be inspected through the Greysheet history data.
+Blob re-import and timer-specific failures are primarily visible in server logs
+and alerts. Do not infer that each timer has a dedicated status endpoint.
 
 ---
 
@@ -100,7 +113,7 @@ All background processes have status endpoints:
 | Prefetch throttle | PREFETCH_THROTTLE_MS | 1000 | ✓ Yes |
 | Prefetch reserve | PREFETCH_RESERVE | 10 | ✓ Yes |
 | Prefetch observed upstream limit | PCGS_PREFETCH_OBSERVED_LIMIT | 100 (90-call effective fresh budget) | ✓ Yes |
-| Prefetch enabled | PCGS_PREFETCH_ENABLED | true | ✓ Yes |
+| Prefetch enabled | PCGS_PREFETCH_ENABLED | true (code default; effective production setting not re-verified) | ✓ Yes |
 | PCGS 429 fallback cooldown | PCGS_429_COOLDOWN_MS | 3600000 (1h) | ✓ Yes |
 | PCGS systemic rejection cooldown | PCGS_SYSTEMIC_COOLDOWN_MS | 86400000 (24h) | Yes |
 | ACS Email connection | COMMUNICATION_CONNECTION_STRING | (none) | ✓ Needs setup |

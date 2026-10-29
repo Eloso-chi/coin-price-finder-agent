@@ -68,6 +68,25 @@ Required controls:
 
 Absent all four controls, mixed-scope PRs are out of policy.
 
+## Delta-Scoped Documentation Acceptance
+
+For a material change, Onboard reviews the target commit against its base and
+classifies findings as:
+
+- `BLOCKING_DELTA`: introduced or materially worsened by the target change;
+  must be corrected before merge.
+- `PRE_EXISTING_DEBT`: already present on the base branch and not materially
+  worsened; record it, but do not expand the target PR to fix it.
+- `OPTIONAL`: useful documentation improvement that is not required for the
+  changed contract; propose separately.
+
+Allow at most one mapped-document correction pass and one Onboard verification
+rerun for a PR. If actionable scope remains after that pass, stop and ask the
+user rather than continuing repository-wide cleanup. A repository-wide
+zero-gap audit requires explicit user approval and a separate branch. This
+scope rule was added after the recursive documentation loop recorded in
+`docs/WASTE-LEDGER.md` INC-018.
+
 ---
 
 ## Step-by-Step

@@ -6,8 +6,8 @@ Operational scripts for data collection, migration, and maintenance. Most script
 
 | Requirement | Scripts that need it |
 |---|---|
-| Node server running (`npm start`, background terminal) | `pricing-health-full.js`; Terapeak exporters only when `UPLOAD_MODE=api` |
-| VNC desktop + browser session | `terapeak-export.py`, `sales-aggregator.py`, `vnc-login.py` |
+| Node server running (`npm start`, background terminal) | `pricing-health-full.js`; Terapeak exporters when `UPLOAD_MODE=api` targets the local app (remote `APP_URL` must be reachable instead when configured) |
+| VNC desktop + browser session | Interactive login via `terapeak-export.py --login` and `vnc-login.py`; recommended for visible, lower-challenge export sessions. `--run` can be headless without a display but may trigger an eBay challenge. `sales-aggregator.py` requires a display for its browser session. |
 | Azure credentials (Key Vault) | `upload-csvs-to-blob.js`, `migrate-to-cosmos.js`, `greysheet-refresh.js`, `load-secrets.sh` |
 | Python 3 + playwright | `terapeak-export.py`, `sales-aggregator.py`, `vnc-login.py`, `create_placeholders.py` |
 | Python 3 only | `test_vnc_login_flow.py` |
@@ -22,7 +22,7 @@ Operational scripts for data collection, migration, and maintenance. Most script
 |---|---|---|
 | `terapeak-export.py` | Semi-automated Terapeak CSV exporter (page 1) | `python3 scripts/terapeak-export.py --run --limit 20` |
 | `sales-aggregator.py` | Deep pagination aggregator (pages 2-5/250 results for non-gold bullion; page 2/100 results for gold and non-bullion) with dashboard mode | `python3 scripts/sales-aggregator.py` (dashboard) or `--run --limit 10` |
-| `audit-contradictory-weights.js` | Inventory legacy Terapeak keys with malformed or conflicting explicit ounce weights; does not remap or mutate source data | `node scripts/audit-contradictory-weights.js --meta data/terapeak-meta.json --store cache/terapeak_sold.json` |
+| `audit-contradictory-weights.js` | Inventory legacy Terapeak keys with malformed or conflicting explicit ounce weights; does not remap or mutate source data. Outputs contain affected sale records and require a POSIX-permission-enforcing filesystem; native Windows and typical WSL `/mnt/c` mounts are rejected. | `node scripts/audit-contradictory-weights.js --meta data/terapeak-meta.json --store cache/terapeak_sold.json` |
 | `bootstrap-surface-wsl.sh` | One-command Surface/WSL bootstrap for PR250 flow (deps, venv, Playwright, env templates) | `bash scripts/bootstrap-surface-wsl.sh` |
 | `surface` | One-word launcher for the Surface freshness loop (loads validated env + runs loop) | `surface` |
 | `terapeak-operator.sh` | Canonical H launcher with #284H risk states, Cooldown restart gates, randomized Normal batches, Elevated pacing, and shared pass telemetry | `bash scripts/terapeak-operator.sh` |
@@ -109,10 +109,13 @@ PID=$(lsof -t -i:3000 2>/dev/null || true)
 # 2. Login to eBay via VNC
 python3 scripts/vnc-login.py
 
-# 3. Run exports (limit to 20 coins)
+# 3. Start the server only for local API uploads (`UPLOAD_MODE=api` and local APP_URL).
+#    Blob and local-file upload modes do not require a local Node server.
+
+# 4. Run exports (limit to 20 coins)
 python3 scripts/terapeak-export.py --run --limit 20
 
-# 4. Deep-collect pages 2+ for thin datasets
+# 5. Deep-collect pages 2+ for thin datasets
 python3 scripts/sales-aggregator.py --run --limit 10
 ```
 

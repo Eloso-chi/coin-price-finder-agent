@@ -33,6 +33,7 @@ This guide is the contributor workflow reference. For architecture and product b
 - Do not expose secrets, tokens, API keys, or PII in code, docs, tests, or commits.
 - Validate and sanitize external inputs.
 - Do not make destructive or hard-to-reverse infra changes without explicit approval.
+- When starting `node server.js`, use a background terminal. Before stopping anything on port 3000, verify its command and working directory identify this repository's server; if ownership is unclear, leave it running and report the listener.
 
 ## Testing Requirements
 
@@ -40,10 +41,11 @@ This guide is the contributor workflow reference. For architecture and product b
 - Run tests after every code change and before opening a PR.
 - Do not delete tests to make failures disappear.
 - Do not weaken assertions (for example replacing precise equality assertions with vague existence checks).
-- Do not skip tests (test.skip, xtest, xit).
+- Do not skip tests to hide failures (`test.skip`, `xtest`, `xit`). Platform-specific tests may be explicitly gated only when they cannot run on the current OS, Jest reports them as skipped, and the applicable behavior runs on its supported platform/CI job.
 - Do not add blanket retries to mask flakiness.
 - Fix flaky tests at root cause (determinism, isolation, time control).
 - Mock HTTP calls in tests using axios-mock-adapter. Do not make live network calls from tests.
+- Tests must not mutate tracked repository data, operator caches, or durable user state. Use an injected mock, temporary path, or explicit test-mode no-op at the storage boundary; `NODE_ENV=test` by itself is not a universal no-write guarantee. Add an isolation regression for each new persistence path. See `docs/WASTE-LEDGER.md` INC-002 and the testing plan.
 
 ## Branching and Backlog IDs
 
@@ -157,6 +159,14 @@ tied to that commit with no actionable active documentation gaps. Typo/formattin
 edits and non-behavioral metadata may use a documented reviewer-approved
 no-impact exemption; later relevant commits invalidate prior acceptance.
 Mapped documentation omissions are merge blockers, not advisory warnings.
+
+Onboard acceptance is delta-scoped: findings are classified as
+`BLOCKING_DELTA`, `PRE_EXISTING_DEBT`, or `OPTIONAL`; only gaps introduced or
+materially worsened by the target PR block it. Follow the one mapped-document
+correction pass plus one verification rerun limit in
+[the workflow skill](.github/skills/workflow/SKILL.md#delta-scoped-documentation-acceptance).
+A repository-wide zero-gap audit requires explicit user approval and a
+separate branch.
 
 Every required CI check must complete successfully before merge. Queued,
 in-progress, failed, or cancelled checks block merge. Do not use an admin

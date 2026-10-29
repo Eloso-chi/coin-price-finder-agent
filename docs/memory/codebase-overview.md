@@ -1,18 +1,18 @@
 # Coin Price Agent — Codebase Overview
 
 ## IMPORTANT: Server Startup
-- ALWAYS use `isBackground: true` when running `node server.js` -- the server never exits and will block the terminal forever otherwise.
+- ALWAYS use `isBackground: true` when running `node server.js` -- the server never exits and will block the terminal forever otherwise. Before replacing a port-3000 listener, verify its command and cwd identify this repository's `node server.js`; if ownership is unknown, report it and do not kill it.
 - After starting, use `get_terminal_output` to confirm it's up, then run all subsequent commands in a separate foreground terminal.
 
 ## Stack
-- **Runtime:** Node.js 22, Express 5.2, CommonJS
+- **Runtime:** Node.js 22, Express 5.x (`package.json` declares `^5.3.0`), CommonJS
 - **Frontend:** Single-page app in `public/index.html`, dark theme, 10 tabs including AI Pricing
 - **Auth:** Server-side bcrypt + JWT (authService.js); client modules are thin API wrappers
 - **Hosting:** Azure App Service (Linux, B2, Canada Central) -- `coinpricefinder-h3a3b5g0dmdydna4`
 - **Azure Services:** Key Vault (`coinpricefinder-kv`), Cosmos DB (`coinpricefinder-cosmos`, serverless), Blob Storage (`coinpricecache01/terapeak-csvs`), Azure Files (`appcache` at `/mnt/cache`)
 - **CI/CD:** GitHub Actions with OIDC -> Azure (`main_coinpricefinder-h3a3b5g0dmdydna4.yml`)
 - **Observability:** X-Request-ID async context, redacted Pino JSON logs, shallow/deep health checks, versioned valuation audits
-- **Tests:** Jest 30; merge commit `715dda32` passed 174 suites / 4,539 tests. Run `npm test` for the current count.
+- **Tests:** Jest 30. Historical validation example: merge commit `715dda32` passed 174 suites / 4,539 tests; run `npm test` for the current count rather than relying on that snapshot.
 
 ## Project Structure
 ```
@@ -25,12 +25,11 @@ public/
   js/test-my-coins.js      Browser-only My Coins regression helper
 src/
   routes/                  19 Express route modules
-  services/                28 service modules, including `pricingService.priceCoin()` as the shared deterministic pricing boundary
-  utils/                   Shared utilities, including versioned canonical product identity resolution
+  services/                28 service modules; `pricingService.priceCoin()` backs `/api/price` and deterministic AI pricing, while batch and bulk currently call `valuationService.computeValuation()` directly
+  utils/                   18 shared modules, including explicit-weight parsing, durable leases, Greysheet scheduling, and versioned product identity resolution
   middleware/              4 request/auth/logging middleware modules
   schemas/                 Price response and AI tool argument schemas
-  data/                    Static reference data, including the versioned bullion special-mark registry
-  utils/                   Cache, stats, filters, coinMetalProfile, responseValidator, excelMapper, cachePath, cosmosClient, blobClient
+  data/                    10 static reference modules, including the versioned bullion special-mark registry
 data/terapeak/             CSV import folder; count local CSV/meta files as needed (production truth is via admin endpoints)
 cache/                     Persisted caches (ebay, pcgs, greysheet, metals, terapeak, users, user_coins, history files)
 scripts/                   Terapeak scrapers, greysheet-refresh, migrate-to-cosmos, upload-csvs-to-blob, test-metrics
@@ -41,14 +40,14 @@ docs/testing/test-monitor.md  Test Monitor usage guide & command reference
 .github/agents/            14 Copilot agents (see root AGENTS.md)
 .github/prompts/           6 slash-command prompts (/review-deep, /apply-approved, /pre-commit, /test-coverage, /onboard, /pricing-health)
 .github/skills/            7 shared workflow/domain skill directories
-__tests__/                 174 current *.test.js files recursively plus fixtures/helpers/setup
+__tests__/                 Jest suites plus fixtures/helpers/setup; run `npm test -- --runInBand` for the current discovered count
 ```
 
 ## 10 Tabs
 1. **Price Discovery** -- Coin + Bar sub-modes, POST /api/price or /api/bar-price
 2. **Melt Calculator** -- 80+ coin types + 20 bar types, live spot from /api/metals
 3. **Live eBay Tracker** -- Market matrix (year x mint, year x grade, or brand), GET /api/market/ebay
-4. **Lot Evaluator** -- Bulk collection pricing (50-500 coins), SSE streaming, POST /api/bulk-evaluate
+4. **Lot Evaluator** -- Bulk collection pricing, SSE streaming, POST /api/bulk-evaluate. The API accepts a non-empty text/JSON list and processes the first 500 entries; the UI may advise 50-500. Excel upload currently returns HTTP 400 because its mapper adapter is not awaited.
 5. **Sold Data (Terapeak)** -- CSV import + quota tracking, admin-gated writes
 6. **My Coins** -- Auth-gated, server-backed collection with live FMV pricing + Cosmos DB write-through
 7. **Price History** -- Auth-gated, canvas chart with metal overlay, GET /api/coin-history
@@ -62,7 +61,7 @@ __tests__/                 174 current *.test.js files recursively plus fixtures
 | /api/price | POST | -- | HTTP validation/audit/redaction adapter over `pricingService.priceCoin()` |
 | /api/bar-price | POST | -- | Bullion bar pricing |
 | /api/pricing-batch | POST | -- | Batch pricing (<=25 coins, lightweight) |
-| /api/bulk-evaluate | POST+GET+SSE | -- | Lot evaluator (50-500 coins, SSE streaming) |
+| /api/bulk-evaluate | POST+GET+SSE | -- | Lot evaluator (non-empty text/JSON; first 500 entries; 5 MB JSON body limit; SSE streaming; Excel currently returns 400) |
 | /api/metals[/:metal] | GET | -- | Spot prices (XAU, XAG, XPT, XPD) |
 | /api/coin-variant | GET | -- | Half-dollar design series lookup |
 | /api/special-marks | GET | -- | Context-filtered registered bullion privy and special-mark lookup |
