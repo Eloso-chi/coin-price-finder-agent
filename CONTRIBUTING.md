@@ -155,10 +155,12 @@ PRs that materially change architecture, routes/APIs, persistence/data models,
 operations/runbooks, environment variables, agents/prompts/skills, or
 user-facing workflows must run the Onboard agent after documentation edits and
 after commit, before merge. The PR must record an Onboard acceptance result
-tied to that commit with no actionable active documentation gaps. Typo/formatting
+tied to that commit with no `BLOCKING_DELTA` findings. Typo/formatting
 edits and non-behavioral metadata may use a documented reviewer-approved
 no-impact exemption; later relevant commits invalidate prior acceptance.
-Mapped documentation omissions are merge blockers, not advisory warnings.
+Mapped documentation omissions introduced or materially worsened by the target
+change are merge blockers; pre-existing debt is reported but does not expand
+the PR.
 
 Onboard acceptance is delta-scoped: findings are classified as
 `BLOCKING_DELTA`, `PRE_EXISTING_DEBT`, or `OPTIONAL`; only gaps introduced or

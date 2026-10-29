@@ -88,7 +88,7 @@
   - [ ] Deep review (`@code-reviewer.approval-gated`) -- required for M / L; report attached
   - [ ] `@numismatic-audit` Step 5b -- required if PR touches pool-isolation surfaces (ebayService classifyGradeType / applyFilters, valuationService pool selection)
   - [ ] Tests pass (`npm test`)
-  - [ ] Onboard acceptance tied to the current commit reports no actionable active documentation gaps (required for material architecture/API/data/operations/environment/customization/user-facing workflow changes)
+  - [ ] Onboard acceptance tied to the current commit reports no `BLOCKING_DELTA` findings (required for material architecture/API/data/operations/environment/customization/user-facing workflow changes; pre-existing debt is recorded without blocking)
   - [ ] N/A -- reviewer-approved no-impact exemption documented for typo/formatting-only or non-behavioral metadata changes
   - [ ] Required CI checks completed successfully before merge
   - [ ] Normal merge planned; any `--admin` exception has explicit user approval and a documented reason

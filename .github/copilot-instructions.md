@@ -42,7 +42,8 @@
   user-facing workflows MUST
 	update every mapped documentation surface in `CONTRIBUTING.md` and run the
   Onboard agent after commit as an end-to-end acceptance check tied to that commit
-  before merge. Onboard must report no actionable active documentation gaps.
+  before merge. Onboard must report no `BLOCKING_DELTA` findings; classify
+  pre-existing debt and optional improvements without blocking the target PR.
   Typo/formatting-only or non-behavioral metadata changes may use a documented
   reviewer-approved no-impact exemption.
 - Onboard documentation findings are delta-scoped: classify as

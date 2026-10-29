@@ -6,9 +6,9 @@ Operational scripts for data collection, migration, and maintenance. Most script
 
 | Requirement | Scripts that need it |
 |---|---|
-| Node server running (`npm start`, background terminal) | `pricing-health-full.js`; Terapeak exporters when `UPLOAD_MODE=api` targets the local app (remote `APP_URL` must be reachable instead when configured) |
+| Node server running (`npm start`, background terminal) | `pricing-health-full.js`; Terapeak export when `UPLOAD_MODE=api`, or when `UPLOAD_MODE=auto` falls back to API, and `APP_URL` is local. API upload also requires `ADMIN_API_KEY`; a remote `APP_URL` must be reachable and authorized. |
 | VNC desktop + browser session | Interactive login via `terapeak-export.py --login` and `vnc-login.py`; recommended for visible, lower-challenge export sessions. `--run` can be headless without a display but may trigger an eBay challenge. `sales-aggregator.py` requires a display for its browser session. |
-| Azure credentials (Key Vault) | `upload-csvs-to-blob.js`, `migrate-to-cosmos.js`, `greysheet-refresh.js`, `load-secrets.sh` |
+| Azure credentials (Key Vault) | `upload-csvs-to-blob.js`, `migrate-to-cosmos.js`, `greysheet-refresh.js`, `load-secrets.sh`; Terapeak `UPLOAD_MODE=blob` or the Blob-first part of `auto` requires `TERAPEAK_BLOB_ACCOUNT` and `TERAPEAK_BLOB_CONTAINER` |
 | Python 3 + playwright | `terapeak-export.py`, `sales-aggregator.py`, `vnc-login.py`, `create_placeholders.py` |
 | Python 3 only | `test_vnc_login_flow.py` |
 | `az` CLI logged into the right subscription | `load-secrets.sh` (see [../docs/runbooks/secret-bootstrap.md](../docs/runbooks/secret-bootstrap.md)) |
@@ -101,16 +101,24 @@ Operational scripts for data collection, migration, and maintenance. Most script
 
 ```bash
 # 1. Inspect port 3000 before starting from the repository root
-PID=$(lsof -t -i:3000 2>/dev/null || true)
-# If set, verify with: ps -p "$PID" -o args=; readlink -f "/proc/$PID/cwd"
-# Kill only this repository's `node server.js`; stop on an unknown listener.
+PIDS=$(lsof -tiTCP:3000 -sTCP:LISTEN 2>/dev/null || true)
+for PID in $PIDS; do
+  ps -p "$PID" -o pid=,args=
+  readlink -f "/proc/$PID/cwd" || true
+done
+# Stop a listener only after confirming its command and cwd identify this
+# checkout's `node server.js`. If ownership is unclear, do not kill it.
 # Then use the execute tool to run `node server.js` with background/async mode.
 
 # 2. Login to eBay via VNC
 python3 scripts/vnc-login.py
 
-# 3. Start the server only for local API uploads (`UPLOAD_MODE=api` and local APP_URL).
-#    Blob and local-file upload modes do not require a local Node server.
+# 3. Start the server if UPLOAD_MODE=api uses local APP_URL, or if auto may
+#    fall back to API and APP_URL is local. API uploads require ADMIN_API_KEY.
+#    UPLOAD_MODE=blob requires Blob account/container config and defers import.
+#    auto tries Blob when configured, then falls back to API on Blob failure.
+#    A remote APP_URL must be reachable and authorized; this local server does
+#    not satisfy a request sent to another host.
 
 # 4. Run exports (limit to 20 coins)
 python3 scripts/terapeak-export.py --run --limit 20
