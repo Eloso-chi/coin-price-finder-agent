@@ -503,6 +503,7 @@ describe('#284H risk-state transitions', () => {
   });
 
   test('concurrent Elevated exporter starts allow only one reservation', () => {
+    expect(results.concurrent_elevated_runs).toContain('allowed');
     expect(results.concurrent_elevated_allowed_count).toBe(1);
     expect(results.concurrent_elevated_runs.filter(result => result !== 'allowed')).toHaveLength(1);
     expect(results.concurrent_elevated_runs.find(result => result !== 'allowed')).toMatch(/between passes/);
