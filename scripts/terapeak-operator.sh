@@ -340,6 +340,14 @@ export TERAPEAK_EFFECTIVE_PACING_PROFILE="baseline"
 if [[ "$DO_LOGIN" == true ]]; then
   CURRENT_STAGE="login"
   write_state "login" "running" "Starting interactive eBay login"
+  if [[ ! -t 0 ]]; then
+    echo "[operator] Interactive login requires a terminal so noVNC can be opened and confirmed before browser login." >&2
+    exit 1
+  fi
+  export DISPLAY=":${TERAPEAK_VNC_DISPLAY:-1}"
+  bash scripts/terapeak-display.sh start
+  read -r -p "[operator] Open the printed noVNC URL and confirm the page is ready, then press Enter to continue: " _
+  bash scripts/terapeak-display.sh check
   "$PYTHON_BIN" scripts/terapeak-export.py --login
   if [[ "$CURRENT_RISK_STATE" == "Cooldown" ]]; then
     if ! "$PYTHON_BIN" scripts/cookie-health-check.py --probe; then
@@ -399,6 +407,9 @@ while true; do
   pass_extra=$((pass_page1_batch - P01_FIXED))
   if (( pass_extra < 0 )); then
     pass_extra=0
+  fi
+  if [[ "$state_before" == "Elevated" ]]; then
+    export TERAPEAK_ELEVATED_PAUSE_SECONDS="$ELEVATED_PAUSE_SECONDS"
   fi
   echo "[operator] Pass ${PASS} blended queue: P0.1 fixed=${P01_FIXED}, non-P0.1 extra=${pass_extra} (total target=${pass_page1_batch})"
 

@@ -43,6 +43,7 @@ Requirements:
 
 import argparse
 import csv
+import fcntl
 import json
 import os
 import re
@@ -56,7 +57,7 @@ if str(SCRIPT_MODULE_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_MODULE_DIR))
 
 from _terapeak_pacing import BASELINE, authorized_effective_profile, scale_range, scale_seconds, validate_profile
-from _terapeak_risk import load_state
+from _terapeak_risk import cooldown_remaining_seconds, load_state, write_state
 from _explicit_weight import has_contradictory_weight_sources, has_contradictory_weights
 
 try:
@@ -158,6 +159,7 @@ COFFEE_BREAK_DURATION = (15, 45)   # 15-45 second pause
 
 import random
 import math
+import subprocess
 
 
 def has_display():
@@ -686,6 +688,10 @@ class UploadPipelineStalled(RuntimeError):
     pass
 
 
+class CooldownPersistenceError(RuntimeError):
+    """A hard challenge was detected but its mandatory stop state could not be saved."""
+
+
 def upload_csv_async(csv_path, search_term, aggregation_meta=None, cleanup=False):
     """Start one background upload so it can overlap the next coin scrape."""
     drain_upload()
@@ -989,6 +995,117 @@ def do_cookie_file(filepath):
     return True
 
 
+def scraper_machine_id():
+    machine_id_path = PROJECT_DIR / ".machine-id"
+    try:
+        machine_id = machine_id_path.read_text(encoding="utf-8").strip()
+    except OSError:
+        machine_id = "W" if os.environ.get("CODESPACES", "").lower() == "true" else ""
+    if machine_id not in ("H", "W"):
+        raise RuntimeError("Cannot determine H/W risk-state file; configure .machine-id before scraping")
+    return machine_id
+
+
+def scraper_risk_state_path():
+    machine_id = scraper_machine_id()
+    canonical_path = PROJECT_DIR / "cache" / f"terapeak-risk-state-{machine_id}.json"
+    configured_path = os.environ.get("TERAPEAK_RISK_STATE_FILE", "").strip()
+    if configured_path and Path(os.path.expanduser(configured_path)).resolve() != canonical_path.resolve():
+        raise RuntimeError("TERAPEAK_RISK_STATE_FILE does not match the machine-specific risk-state file")
+    return canonical_path
+
+
+def guard_scraper_action(action, state_path=None, cooldown_seconds=None, args=None):
+    """Block direct scraper entrypoints from bypassing persisted Cooldown."""
+    state_path = Path(state_path) if state_path else scraper_risk_state_path()
+    state_record = load_state(str(state_path))
+    state = state_record.get("state", "Cooldown")
+
+    if action == "run":
+        state_path.parent.mkdir(parents=True, exist_ok=True)
+        lock_path = state_path.with_suffix(state_path.suffix + ".run.lock")
+        lock_fd = os.open(lock_path, os.O_CREAT | os.O_RDWR, 0o600)
+        try:
+            fcntl.flock(lock_fd, fcntl.LOCK_EX)
+            state_record = load_state(str(state_path))
+            state = state_record.get("state", "Cooldown")
+            if state == "Elevated":
+                if (
+                    not getattr(args, "backlog", None)
+                    or getattr(args, "mixed_p01_fixed", None) != 15
+                    or getattr(args, "mixed_extra_min", None) is None
+                    or getattr(args, "mixed_extra_max", None) is None
+                ):
+                    raise RuntimeError("Elevated collection requires the canonical bounded backlog batch")
+                try:
+                    extra_min = int(args.mixed_extra_min)
+                    extra_max = int(args.mixed_extra_max)
+                    minimum_pause = int(os.environ.get("TERAPEAK_ELEVATED_PAUSE_SECONDS", "900"))
+                except (KeyError, TypeError, ValueError):
+                    raise RuntimeError("Elevated collection has invalid batch or pause settings") from None
+                if extra_min != extra_max or extra_min < 0 or extra_max > 5 or minimum_pause < 900:
+                    raise RuntimeError("Elevated batch bounds do not match the canonical 15-20 item range")
+                changed_at = state_record.get("changed_at")
+                try:
+                    elevated_since = datetime.fromisoformat(changed_at.replace("Z", "+00:00"))
+                    last_run_path = state_path.with_suffix(state_path.suffix + ".last-run")
+                    if last_run_path.exists():
+                        last_run = datetime.fromisoformat(last_run_path.read_text(encoding="utf-8").strip().replace("Z", "+00:00"))
+                        if last_run > elevated_since:
+                            elevated_since = last_run
+                    now = datetime.now(elevated_since.tzinfo)
+                    elapsed = (now - elevated_since).total_seconds()
+                except (AttributeError, TypeError, ValueError):
+                    raise RuntimeError("Elevated pacing timestamp is invalid; refusing collection") from None
+                if elapsed < minimum_pause:
+                    raise RuntimeError(f"Elevated pacing requires {minimum_pause}s between passes; {int(minimum_pause - elapsed)}s remain")
+                last_run_path.parent.mkdir(parents=True, exist_ok=True)
+                temp_path = last_run_path.with_suffix(last_run_path.suffix + ".tmp")
+                temp_path.write_text(now.isoformat().replace("+00:00", "Z"), encoding="utf-8")
+                os.replace(temp_path, last_run_path)
+                try:
+                    os.chmod(last_run_path, 0o600)
+                except OSError:
+                    pass
+        finally:
+            fcntl.flock(lock_fd, fcntl.LOCK_UN)
+            os.close(lock_fd)
+        if state not in ("Normal", "Elevated"):
+            raise RuntimeError(
+                f"Terapeak risk state is {state}; collection is blocked until canonical Cooldown recovery completes"
+            )
+        return
+
+    if action == "login":
+        display_helper = PROJECT_DIR / "scripts" / "terapeak-display.sh"
+        if not display_helper.is_file():
+            raise RuntimeError("Authenticated display helper is missing; refusing headed login")
+        result = subprocess.run(
+            ["bash", str(display_helper), "check"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode != 0:
+            message = result.stderr.strip() or result.stdout.strip() or "display check failed"
+            raise RuntimeError(f"Authenticated VNC display is not verified: {message}")
+
+    if action not in ("login", "login-manual", "cookie-file"):
+        return
+    if state == "Cooldown":
+        minimum_seconds = cooldown_seconds
+        if minimum_seconds is None:
+            minimum_seconds = int(os.environ.get("TERAPEAK_COOLDOWN_SECONDS", "7200"))
+        remaining = cooldown_remaining_seconds(state_record, minimum_seconds)
+        if remaining > 0:
+            raise RuntimeError(
+                f"Terapeak Cooldown is active for another {remaining}s; refusing {action}"
+            )
+        print("[risk] Cooldown elapsed; recovery input is allowed, but collection remains blocked until the canonical live probe passes")
+    elif state not in ("Normal", "Elevated"):
+        raise RuntimeError(f"Terapeak risk state is {state}; refusing {action}")
+
+
 # ── Export Flow ─────────────────────────────────────────────
 def is_logged_in(page):
     """Quick check if the page indicates a logged-in session."""
@@ -1048,8 +1165,16 @@ def challenge_indicators(page, response=None):
 
 
 def record_hard_challenge(progress, term):
-    """Persist the failed term and require the caller to terminate the run."""
+    """Persist the failed term and Cooldown before another action can start."""
     progress.setdefault("failed", []).append(term)
+    risk_path = scraper_risk_state_path()
+    run_id = os.environ.get("TERAPEAK_RUN_ID", f"exporter-{os.getpid()}")
+    try:
+        write_state(str(risk_path), "Cooldown", "hard_challenge_signal", run_id)
+    except Exception as error:
+        raise CooldownPersistenceError(
+            "Hard challenge detected but Cooldown could not be persisted; stopping immediately"
+        ) from error
     save_progress(progress)
     return True
 
@@ -1861,6 +1986,14 @@ def do_export_run(args):
                 failed += 1
                 progress.setdefault("failed", []).append(term)
 
+        except CooldownPersistenceError as error:
+            print(f"FATAL: {error}", file=sys.stderr)
+            bot_blocked = True
+            try:
+                browser.close()
+            except Exception:
+                pass
+            break
         except PlaywrightTimeout:
             print("TIMEOUT")
             failed += 1
@@ -2001,22 +2134,55 @@ Examples:
         if not args.limit:
             args.limit = args.batch
 
-    ok = True
+    scraper_action = None
     if args.login:
-        ok = do_login()
+        scraper_action = "login"
     elif args.login_manual:
-        ok = do_login_manual()
+        scraper_action = "login-manual"
     elif args.cookie_file:
-        ok = do_cookie_file(args.cookie_file)
-    elif args.run or args.dry_run:
-        ok = do_export_run(args)
-    elif args.check:
-        check_cookies()
-    else:
-        parser.print_help()
+        scraper_action = "cookie-file"
+    elif args.run and not args.dry_run:
+        scraper_action = "run"
+    action_lock = None
+    if scraper_action:
+        machine_id = scraper_machine_id()
+        lock_path = PROJECT_DIR / "cache" / f"terapeak-risk-state-{machine_id}.scraper.lock"
+        lock_path.parent.mkdir(parents=True, exist_ok=True)
+        action_lock = open(lock_path, "a", encoding="utf-8")
+        try:
+            fcntl.flock(action_lock.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            print("[risk:FAIL] Another Terapeak exporter action is active; refusing parallel login or collection", file=sys.stderr)
+            action_lock.close()
+            sys.exit(2)
 
-    if ok is False:
-        sys.exit(1)
+    try:
+        if scraper_action:
+            try:
+                guard_scraper_action(scraper_action, state_path=None, cooldown_seconds=None, args=args)
+            except (OSError, RuntimeError, ValueError) as error:
+                print(f"[risk:FAIL] {error}", file=sys.stderr)
+                sys.exit(2)
+        ok = True
+        if args.login:
+            ok = do_login()
+        elif args.login_manual:
+            ok = do_login_manual()
+        elif args.cookie_file:
+            ok = do_cookie_file(args.cookie_file)
+        elif args.run or args.dry_run:
+            ok = do_export_run(args)
+        elif args.check:
+            check_cookies()
+        else:
+            parser.print_help()
+
+        if ok is False:
+            sys.exit(1)
+    finally:
+        if action_lock:
+            fcntl.flock(action_lock.fileno(), fcntl.LOCK_UN)
+            action_lock.close()
 
 
 if __name__ == "__main__":

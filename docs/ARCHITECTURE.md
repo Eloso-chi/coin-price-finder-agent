@@ -158,7 +158,8 @@ server.js                              Express entry point (port 3000)
 │
 ├─ scripts/
 │   ├─ cpf-go                          One-command WSL bootstrap + scraper launcher (#258; merge commit reads #252); page-1 batch size randomized 15-30 per loop pass for bot evasion (#268H)
-│   ├─ terapeak-operator.sh             Canonical deterministic launcher (H-machine / WSL Surface): preflight(login) -> optional login -> preflight(loop) -> freshness pass (#168); randomized page-1 batching window (`--batch-min/--batch-max`) and run-scoped pass logs (`cache/terapeak-operator-passes/<RUN_ID>/pass-XXXX.log`) (#191)
+│   ├─ terapeak-operator.sh             Canonical deterministic launcher (H-machine / WSL Surface): preflight(login) -> authenticated visible login -> preflight(loop) -> freshness pass (#168); randomized page-1 batching window (`--batch-min/--batch-max`) and run-scoped pass logs (`cache/terapeak-operator-passes/<RUN_ID>/pass-XXXX.log`) (#191)
+│   ├─ terapeak-display.sh              Starts/verifies VncAuth-protected loopback VNC and private noVNC; prints H-local or W-forwarded browser URL
 │   ├─ terapeak-operator-codespace.sh   Codespace (W-machine) operator sibling (#200): no `~/.env.surface` dependency, system `python3`, unlimited loop by default (`--max-passes 0`), single-instance `flock` lock, jittered pause 600s +/- 90s. Per-run logs under `cache/terapeak-operator-codespace-passes/<RUN_ID>/`
 │   ├─ _parse-terapeak-pass.py          Best-effort parser invoked by the codespace operator after each pass; appends to `cache/terapeak-runs/passes.jsonl` + `coins.jsonl`. Parse failures log to stderr but never fail the operator loop (#200)
 │   ├─ show-terapeak-runs.sh            jq-backed viewer for the JSONL ledger (#200). Subcommands: `recent`, `runs`, `run <RUN_ID>`, `coin <pattern>`, `totals`, `stop-conditions`. Flags: `--since`, `--until`, `--json`
@@ -769,7 +770,7 @@ When the user provides a free-text description (not a cert number), `resolveFrom
 
 ## Terapeak Sales Aggregation Architecture
 
-The project uses two Python scripts (Playwright-based) and one Node.js script to build and maintain the Terapeak sold-comp dataset. All run inside a VNC session (Xtigervnc :1, port 5901, noVNC on 6080).
+The project uses Python Playwright collectors and Node.js import tooling to build and maintain the Terapeak sold-comp dataset. Interactive login uses the authenticated VNC/noVNC path below; collection may run headed or headless depending on the selected collector and display availability.
 
 ### Page 1 Aggregator -- `scripts/terapeak-export.py`
 
@@ -928,17 +929,23 @@ When the pricing engine calls `lookupComps(keywords, expected)`:
 
 ### VNC Environment
 
-The collectors require a graphical environment for Playwright's Chromium:
+The canonical exporter login/operator path uses `scripts/terapeak-display.sh`
+for an authenticated display. `sales-aggregator.py` retains a separate legacy
+display bootstrap and is not covered by this helper; do not infer that its
+VNC lifecycle has the same authentication guarantees.
 
 | Component | Config |
 |-----------|--------|
-| Display server | Xtigervnc :7, geometry 1280x800 |
-| VNC port | 5907 |
-| noVNC / websockify | Port 6080 |
-| VNC password | `coin2026` |
-| Login helper | `scripts/vnc-login.py` |
+| Display server | `Xtigervnc :${TERAPEAK_VNC_DISPLAY:-1}`, geometry 1280x800 |
+| VNC port | `${TERAPEAK_VNC_PORT:-5901}`, loopback only, VncAuth |
+| noVNC / websockify | `${TERAPEAK_NOVNC_PORT:-6080}`; private Codespaces forwarding |
+| VNC password | Owner-only `VNC_PASSWORD_FILE` created interactively with `vncpasswd` |
+| Login helper | `scripts/terapeak-display.sh` + `scripts/terapeak-export.py --login` |
 
-VNC and noVNC are auto-started by `_start_vnc()` in both `--run` and dashboard modes. The function always checks that noVNC/websockify is alive on port 6080, even when Xtigervnc is already running -- this handles the case where the VNC server survives but the websockify proxy dies independently. VNC sessions may die between codespace restarts -- always verify with `ps aux | grep Xtigervnc` before running collectors.
+The helper verifies the owning executable, user, effective security options,
+loopback binding, and noVNC readiness. It can start a missing proxy for a
+verified VNC session and cleans up only child processes it started if startup
+fails. Codespace port forwarding does not itself start either service.
 
 ### Chain Aggregation -- `scripts/chain-aggregate.sh`
 
@@ -961,7 +968,9 @@ Chains multiple Terapeak collect batches sequentially with anti-bot monitoring:
 
 ### Stale Data Refresh -- `scripts/refresh-stale.sh`
 
-One-command biweekly refresh of stale Terapeak datasets:
+One-command biweekly refresh of stale Terapeak datasets. `--full` starts the
+authenticated display, waits for noVNC confirmation, and only then opens the
+visible login flow:
 
 ```
 ┌─ Query ───────────────────────────────────────────────────┐
@@ -1125,6 +1134,11 @@ This ensures unslabbed proof coins (e.g. Proof Libertads in OGP) don't inflate r
 | `TERAPEAK_BLOB_CONTAINER` | No | -- | Azure Blob Storage container name |
 | `TERAPEAK_DATA_DIR` | No | `data/terapeak` | Local directory for Terapeak CSV files |
 | `COOKIE_FILE` | No | `cache/ebay_cookies.json` | Per-machine cookie jar for `terapeak-export.py` and `cookie-health-check.py`. Set to a path outside the worktree on each host (e.g. `~/cpf/state/cookies-surface.json`) to keep Akamai trust intact when running from multiple machines. (#250) |
+| `TERAPEAK_VNC_DISPLAY` | No | `1` | Display number used by authenticated Terapeak VNC and headed Playwright login |
+| `TERAPEAK_VNC_PORT` | No | `5901` | Local VNC port; do not forward it |
+| `TERAPEAK_NOVNC_PORT` | No | `6080` | Browser proxy port; Codespaces forwarding must use private visibility |
+| `VNC_PASSWORD_FILE` | No | `~/.vnc/passwd` | Owner-only VNC password file created via interactive `vncpasswd`; password contents are not passed via env |
+| `TERAPEAK_COOLDOWN_SECONDS` | No | `7200` | Minimum persisted risk-state Cooldown duration before recovery login |
 | `TERAPEAK_PACING_PROFILE` | No | `baseline` | #280H operator A/B profile (`baseline` or `normal-tuned`); tuned delays are effective only in Normal risk state |
 | `TERAPEAK_PACING_PILOT_ID` | No | -- | Safe #280H pilot identifier; required for `normal-tuned` and used to scope analysis |
 | `METALS_POLL_MS` | No | `1800000` | Metals spot-price polling interval (ms) |

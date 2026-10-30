@@ -365,6 +365,9 @@ while (( MAX_PASSES == 0 || PASS_NUM < MAX_PASSES )); do
   log ""
   PASS_EXTRA=$((BATCH_SIZE - P01_FIXED))
   if (( PASS_EXTRA < 0 )); then PASS_EXTRA=0; fi
+  if [[ "$STATE_BEFORE" == "Elevated" ]]; then
+    export TERAPEAK_ELEVATED_PAUSE_SECONDS="$ELEVATED_PAUSE_SECONDS"
+  fi
 
   log "--- pass ${PASS_NUM}$( ((MAX_PASSES>0)) && echo " / ${MAX_PASSES}" ) (total=${BATCH_SIZE}; P0.1=${P01_FIXED}; extra=${PASS_EXTRA}) ---"
   write_state "pass-${PASS_NUM}" "running" "pass ${PASS_NUM} total=${BATCH_SIZE} p01=${P01_FIXED} extra=${PASS_EXTRA}"

@@ -34,7 +34,7 @@ for current counts instead of carrying volatile suite totals.
 | `freshness-triage.agent.md` | Freshness Triage | Read-only | Uses portable repository-root commands; if unhealthy, verifies listener ownership before guarded tool-level background startup. |
 | `pricing-health.agent.md` | Pricing Health | Read-only | Uses portable repository-root commands to validate pricing flows and comp attrition; verifies listener ownership before background startup. |
 | `numismatic-audit.agent.md` | Numismatic Audit | Read-only | Audits classification/filter functions against `.github/skills/numismatics/SKILL.md` ground truth. Catches grade/finish/pool misclassification (e.g. Proof-Like as Proof, Burnished into proof pool, raw into graded pool). |
-| `terapeak-operator.agent.md` | Terapeak Operator | Mixed | Runs the canonical local Terapeak startup flow with strict preflight, interactive login, and freshness-only loop mode. Use when: starting a reliable Terapeak run from chat without ad-hoc command construction. |
+| `terapeak-operator.agent.md` | Terapeak Operator | Mixed | Selects the H or W launcher, requires authenticated VNC/noVNC, and confirms the machine-correct browser URL is open before interactive login; preserves anti-bot Cooldown gates. |
 | `test-coverage.agent.md` | Test Coverage Engineer | Write | Identifies behavioral gaps, writes new tests using existing helpers. |
 | `test-monitor.agent.md` | Test Monitor | Write | Test health monitoring, flaky diagnosis, slow test optimization. |
 | `ux-reviewer.agent.md` | UX Reviewer | Read-only | WCAG 2.2 AA, responsive design, dark theme, Nielsen heuristics. |

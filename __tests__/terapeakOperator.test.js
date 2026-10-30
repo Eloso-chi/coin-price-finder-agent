@@ -37,6 +37,84 @@ function runBash(args, options = {}) {
   });
 }
 
+function runRefreshRiskHarness(riskState, args = []) {
+  const toRuntimePath = process.platform === 'win32' ? toWslPath : value => value;
+  const refreshScript = toRuntimePath(path.join(PROJECT_ROOT, 'scripts', 'refresh-stale.sh'));
+  const riskScript = toRuntimePath(path.join(PROJECT_ROOT, 'scripts', '_terapeak_risk.py'));
+  const tempRoot = process.platform === 'win32' ? '/tmp' : os.tmpdir().replace(/\\/g, '/');
+  const tempDir = path.posix.join(tempRoot, `cpf-refresh-risk-${process.pid}-${riskState.toLowerCase()}-${args.includes('--dry-run') ? 'dry' : 'run'}`);
+  const harnessFile = path.join(os.tmpdir(), `cpf-refresh-risk-${process.pid}-${riskState.toLowerCase()}.sh`);
+  const shellArgs = args.map(arg => `'${arg.replace(/'/g, `'\\''`)}'`).join(' ');
+  const harness = String.raw`
+set -euo pipefail
+temp_dir="${tempDir}"
+mkdir -p "$temp_dir/scripts" "$temp_dir/cache"
+trap 'rm -rf "$temp_dir"' EXIT
+cp "${refreshScript}" "$temp_dir/scripts/refresh-stale.sh"
+cp "${riskScript}" "$temp_dir/scripts/_terapeak_risk.py"
+cat > "$temp_dir/scripts/terapeak-display.sh" <<'SH'
+#!/usr/bin/env bash
+echo "display $*" >> "$CALL_LOG"
+exit 0
+SH
+chmod +x "$temp_dir/scripts/terapeak-display.sh"
+printf '%s\n' 'H' > "$temp_dir/.machine-id"
+printf '%s\n' '{"state":"${riskState}","reason":"test","run_id":"test","changed_at":"2026-10-30T00:00:00Z"}' > "$temp_dir/cache/terapeak-risk-state-H.json"
+printf '%s\n' 'ADMIN_API_KEY=test-key' > "$temp_dir/.env"
+printf '%s\n' '[]' > "$temp_dir/cache/ebay_cookies.json"
+cat > "$temp_dir/node" <<'SH'
+#!/usr/bin/env bash
+echo node "$*" >> "$CALL_LOG"
+if [[ "$1" == scripts/generate-freshness-report.js ]]; then
+  mkdir -p cache
+  printf '%s\n' '{"summary":{"byAction":{"ok":0,"refresh-page1":1,"needs-data":0},"total":1}}' > cache/freshness-report.json
+fi
+SH
+cat > "$temp_dir/curl" <<'SH'
+#!/usr/bin/env bash
+echo curl "$*" >> "$CALL_LOG"
+exit 0
+SH
+cat > "$temp_dir/python3" <<'SH'
+#!/usr/bin/env bash
+echo python3 "$*" >> "$CALL_LOG"
+case "$1" in
+  scripts/_terapeak_risk.py) exec /usr/bin/python3 "$@" ;;
+  scripts/cookie-health-check.py) exit 0 ;;
+  scripts/terapeak-export.py) exit 0 ;;
+  *) exec /usr/bin/python3 "$@" ;;
+esac
+SH
+chmod +x "$temp_dir/node" "$temp_dir/curl" "$temp_dir/python3"
+: > "$temp_dir/calls.log"
+set +e
+(cd "$temp_dir" && PATH="$temp_dir:$PATH" CALL_LOG="$temp_dir/calls.log" bash scripts/refresh-stale.sh ${shellArgs}) > "$temp_dir/output.log" 2>&1
+status=$?
+set -e
+cat "$temp_dir/output.log"
+printf '%s\n' "status=$status"
+printf '%s\n' 'calls='
+cat "$temp_dir/calls.log"
+`;
+  fs.writeFileSync(harnessFile, harness);
+  try {
+    if (process.platform === 'win32') {
+      return childProcess.spawnSync('wsl', ['bash', toWslPath(harnessFile)], {
+        encoding: 'utf8',
+        cwd: PROJECT_ROOT,
+        timeout: 10000,
+      });
+    }
+    return childProcess.spawnSync('bash', [harnessFile], {
+      encoding: 'utf8',
+      cwd: PROJECT_ROOT,
+      timeout: 10000,
+    });
+  } finally {
+    fs.rmSync(harnessFile, { force: true });
+  }
+}
+
 function toWslPath(winPath) {
   const normalized = winPath.replace(/\\/g, '/');
   return normalized.replace(/^([A-Za-z]):/, (_, drive) => `/mnt/${drive.toLowerCase()}`);
@@ -79,6 +157,90 @@ ADMIN_API_KEY=test-key-12345
   });
 
   describe('script syntax and availability', () => {
+    test('interactive H login requires an authenticated, verified noVNC handoff', () => {
+      const operator = fs.readFileSync(OPERATOR_SCRIPT, 'utf8');
+      const display = fs.readFileSync(path.join(PROJECT_ROOT, 'scripts', 'terapeak-display.sh'), 'utf8');
+      const refresh = fs.readFileSync(path.join(PROJECT_ROOT, 'scripts', 'refresh-stale.sh'), 'utf8');
+      const startIndex = operator.indexOf('bash scripts/terapeak-display.sh start');
+      const confirmIndex = operator.indexOf('Open the printed noVNC URL');
+      const loginIndex = operator.indexOf('scripts/terapeak-export.py --login');
+
+      expect(startIndex).toBeGreaterThan(-1);
+      expect(confirmIndex).toBeGreaterThan(startIndex);
+      expect(loginIndex).toBeGreaterThan(confirmIndex);
+      expect(display).toContain('-SecurityTypes VncAuth');
+      expect(display).toContain('127.0.0.1:$VNC_PORT');
+      expect(display).not.toContain('SecurityTypes None');
+      expect(display).toContain('VNC password file missing');
+      expect(refresh).toContain('bash scripts/terapeak-display.sh start');
+      expect(refresh).not.toContain('SecurityTypes None');
+    });
+
+    test('every real refresh passes machine-specific Cooldown gate before startup or export', () => {
+      const refresh = fs.readFileSync(path.join(PROJECT_ROOT, 'scripts', 'refresh-stale.sh'), 'utf8');
+      const gateDefinition = refresh.indexOf('check_scrape_risk_state() {');
+      const gateCall = refresh.indexOf('  check_scrape_risk_state\nfi');
+      const startup = refresh.indexOf('if [[ "$FULL_STARTUP" == true ]]; then', gateCall);
+      const exporter = refresh.indexOf('python3 scripts/terapeak-export.py \\', startup);
+
+      expect(gateDefinition).toBeGreaterThan(-1);
+      expect(refresh).toContain('Normal) ;;');
+      expect(refresh).toContain('export TERAPEAK_RISK_STATE_FILE');
+      expect(refresh).toContain('if [[ "$FULL_STARTUP" == true ]] || [[ "$DRY_RUN" != true ]]; then');
+      expect(gateCall).toBeGreaterThan(gateDefinition);
+      expect(startup).toBeGreaterThan(gateCall);
+      expect(exporter).toBeGreaterThan(startup);
+    });
+
+    test.each(['Elevated', 'Challenged', 'Cooldown'])(
+      'non-full refresh refuses %s before starting server or exporter', riskState => {
+        const result = runRefreshRiskHarness(riskState);
+
+        expect(result.status).toBe(0);
+        expect(result.stdout).toMatch(new RegExp(`Terapeak risk state is ${riskState}`));
+        expect(result.stdout).toMatch(/status=1/);
+        expect(result.stdout).toContain('python3 scripts/_terapeak_risk.py current');
+        expect(result.stdout).not.toContain('node ');
+        expect(result.stdout).not.toContain('terapeak-export.py');
+      },
+    );
+
+    test('Normal refresh passes risk gate and reaches exporter; cooldown dry-run never collects', () => {
+      const normal = runRefreshRiskHarness('Normal');
+      const cooldownDryRun = runRefreshRiskHarness('Cooldown', ['--dry-run']);
+
+      expect(normal.status).toBe(0);
+      expect(normal.stdout).toMatch(/status=0/);
+      expect(normal.stdout).toContain('display check');
+      expect(normal.stdout).toContain('scripts/terapeak-export.py');
+      expect(normal.stdout).not.toContain('Terapeak risk state is Normal');
+      expect(cooldownDryRun.status).toBe(0);
+      expect(cooldownDryRun.stdout).toMatch(/Dry run -- would refresh 1 datasets/);
+      expect(cooldownDryRun.stdout.split('calls=\n')[1]).not.toContain('scripts/terapeak-export.py');
+    });
+
+    test('Codespaces forwards only private noVNC, never raw VNC', () => {
+      const config = JSON.parse(fs.readFileSync(
+        path.join(PROJECT_ROOT, '.devcontainer', 'devcontainer.json'),
+        'utf8',
+      ));
+
+      expect(config.forwardPorts).not.toContain(5901);
+      expect(config.portsAttributes['6080'].visibility).toBe('private');
+      expect(config.portsAttributes['6080'].onAutoForward).toBe('openBrowser');
+    });
+
+    test('display helper prints machine-correct browser URLs', () => {
+      const helper = 'scripts/terapeak-display.sh';
+      const local = runBash([helper, 'url']);
+      const source = fs.readFileSync(path.join(PROJECT_ROOT, helper), 'utf8');
+
+      expect(local.status).toBe(0);
+      expect(local.stdout.trim()).toBe('http://localhost:6080/vnc.html?host=localhost&port=6080');
+      expect(source).toContain('https://%s-%s.%s/vnc.html?autoconnect=true');
+      expect(source).toContain('GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN');
+    });
+
     test('page-one exporter rechecks the CSV key and filters quarantined targets', () => {
       const source = fs.readFileSync(path.join(PROJECT_ROOT, 'scripts', 'terapeak-export.py'), 'utf8');
       expect(source).toContain('"quarantined": has_contradictory_weight_sources(f.stem, term)');

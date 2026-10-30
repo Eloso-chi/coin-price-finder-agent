@@ -22,7 +22,9 @@ Challenged decision between the prior state and persisted Cooldown.
 1. Soft-signal clusters move Normal to Elevated. Continue only with bounded
    smaller batches and longer pauses.
 2. Any hard challenge moves the run through Challenged to Cooldown and stops
-   the exporter and operator with a nonzero exit.
+   the exporter and operator with a nonzero exit. The exporter persists the
+   machine-specific Cooldown state at challenge detection, before releasing
+   its action lock; the operator parser then records the pass telemetry.
 3. Cooldown lasts at least `TERAPEAK_COOLDOWN_SECONDS` (default 7200 seconds).
 4. Local restart requires an interactive login followed by
    `cookie-health-check.py --probe` returning HEALTHY.
