@@ -38,9 +38,11 @@ function runBash(args, options = {}) {
 }
 
 function runRefreshRiskHarness(riskState, args = []) {
-  const refreshScript = toWslPath(path.join(PROJECT_ROOT, 'scripts', 'refresh-stale.sh'));
-  const riskScript = toWslPath(path.join(PROJECT_ROOT, 'scripts', '_terapeak_risk.py'));
-  const tempDir = `/tmp/cpf-refresh-risk-${process.pid}-${riskState.toLowerCase()}-${args.includes('--dry-run') ? 'dry' : 'run'}`;
+  const toRuntimePath = process.platform === 'win32' ? toWslPath : value => value;
+  const refreshScript = toRuntimePath(path.join(PROJECT_ROOT, 'scripts', 'refresh-stale.sh'));
+  const riskScript = toRuntimePath(path.join(PROJECT_ROOT, 'scripts', '_terapeak_risk.py'));
+  const tempRoot = process.platform === 'win32' ? '/tmp' : os.tmpdir().replace(/\\/g, '/');
+  const tempDir = path.posix.join(tempRoot, `cpf-refresh-risk-${process.pid}-${riskState.toLowerCase()}-${args.includes('--dry-run') ? 'dry' : 'run'}`);
   const harnessFile = path.join(os.tmpdir(), `cpf-refresh-risk-${process.pid}-${riskState.toLowerCase()}.sh`);
   const shellArgs = args.map(arg => `'${arg.replace(/'/g, `'\\''`)}'`).join(' ');
   const harness = String.raw`
@@ -96,7 +98,14 @@ cat "$temp_dir/calls.log"
 `;
   fs.writeFileSync(harnessFile, harness);
   try {
-    return childProcess.spawnSync('wsl', ['bash', toWslPath(harnessFile)], {
+    if (process.platform === 'win32') {
+      return childProcess.spawnSync('wsl', ['bash', toWslPath(harnessFile)], {
+        encoding: 'utf8',
+        cwd: PROJECT_ROOT,
+        timeout: 10000,
+      });
+    }
+    return childProcess.spawnSync('bash', [harnessFile], {
       encoding: 'utf8',
       cwd: PROJECT_ROOT,
       timeout: 10000,

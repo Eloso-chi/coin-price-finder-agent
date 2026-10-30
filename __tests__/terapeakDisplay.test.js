@@ -16,7 +16,14 @@ function runWslHarness(name, harness, timeout = 10000) {
   const harnessFile = path.join(os.tmpdir(), `cpf-display-${name}-${process.pid}.sh`);
   fs.writeFileSync(harnessFile, harness);
   try {
-    return childProcess.spawnSync('wsl', ['bash', toWslPath(harnessFile)], {
+    if (process.platform === 'win32') {
+      return childProcess.spawnSync('wsl', ['bash', toWslPath(harnessFile)], {
+        cwd: PROJECT_ROOT,
+        encoding: 'utf8',
+        timeout,
+      });
+    }
+    return childProcess.spawnSync('bash', [harnessFile], {
       cwd: PROJECT_ROOT,
       encoding: 'utf8',
       timeout,
@@ -29,7 +36,7 @@ function runWslHarness(name, harness, timeout = 10000) {
 describe('terapeak-display.sh lifecycle', () => {
   test('failed proxy startup cleans up new VNC and a retry completes securely', () => {
     const testId = `${process.pid}-${Date.now()}`;
-    const helperPath = toWslPath(DISPLAY_HELPER);
+    const helperPath = process.platform === 'win32' ? toWslPath(DISPLAY_HELPER) : DISPLAY_HELPER;
     const tempDir = `/tmp/cpf-display-lifecycle-${testId}`;
     const portNonce = Date.now() % 10000;
     const vncPort = 20000 + portNonce;
@@ -170,7 +177,7 @@ cat "$temp_dir/timeout.log"
 
   test('process verification rejects duplicate conflicting VNC security options', () => {
     const testId = `${process.pid}-${Date.now()}`;
-    const helperPath = toWslPath(DISPLAY_HELPER);
+    const helperPath = process.platform === 'win32' ? toWslPath(DISPLAY_HELPER) : DISPLAY_HELPER;
     const tempDir = `/tmp/cpf-display-process-${testId}`;
     const harness = String.raw`
 set -euo pipefail
