@@ -251,9 +251,17 @@ race_state = cli_project / "cache" / "terapeak-risk-state-H.json"
 race_state.write_text(json.dumps(risk_record("Elevated", now - timedelta(seconds=901))), encoding="utf-8")
 os.environ["TERAPEAK_RISK_STATE_FILE"] = str(race_state)
 race_script = r'''
-import importlib.util, json, os, pathlib, sys, tempfile
+import importlib.util, json, os, pathlib, sys, tempfile, types
 from types import SimpleNamespace
 sys.path.insert(0, sys.argv[1])
+playwright = types.ModuleType("playwright")
+sync_api = types.ModuleType("playwright.sync_api")
+sync_api.sync_playwright = lambda: None
+sync_api.TimeoutError = TimeoutError
+playwright.sync_api = sync_api
+sys.modules["playwright"] = playwright
+sys.modules["playwright.sync_api"] = sync_api
+sys.modules["requests"] = types.ModuleType("requests")
 spec = importlib.util.spec_from_file_location("terapeak_export", sys.argv[2])
 module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
 module.PROJECT_DIR = pathlib.Path(sys.argv[3]).parent.parent
