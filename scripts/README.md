@@ -109,13 +109,18 @@ PID=$(lsof -t -i:3000 2>/dev/null || true)
 # Kill only this repository's `node server.js`; stop on an unknown listener.
 # Then use the execute tool to run `node server.js` with background/async mode.
 
-# 2. Login to eBay via VNC
-python3 scripts/vnc-login.py
+# 2. Start the authenticated display (create ~/.vnc/passwd once with vncpasswd)
+bash scripts/terapeak-display.sh start
+# Open the printed noVNC URL and confirm it is ready before continuing.
 
-# 3. Run exports (limit to 20 coins)
+# 3. Complete guarded interactive login
+DISPLAY=":${TERAPEAK_VNC_DISPLAY:-1}" python3 scripts/terapeak-export.py --login
+
+# 4. Run exports (limit to 20 coins)
 python3 scripts/terapeak-export.py --run --limit 20
 
-# 4. Deep-collect pages 2+ for thin datasets
+# 5. Deep-collect pages 2+ for thin datasets (legacy display path; not covered
+#    by the authenticated display helper or exporter risk-state gate)
 python3 scripts/sales-aggregator.py --run --limit 10
 ```
 
