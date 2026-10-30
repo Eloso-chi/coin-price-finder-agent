@@ -276,7 +276,11 @@ race_outputs = []
 try:
   for process in race_processes:
     stdout, stderr = process.communicate(timeout=10)
-    race_outputs.append(stdout.strip() if process.returncode == 0 else stderr.strip())
+    race_outputs.append({
+      "returncode": process.returncode,
+      "stdout": stdout.strip(),
+      "stderr": stderr.strip(),
+    })
 except Exception:
   for process in race_processes:
     if process.poll() is None:
@@ -289,7 +293,7 @@ except Exception:
       process.wait(timeout=1)
   raise
 results["concurrent_elevated_runs"] = race_outputs
-results["concurrent_elevated_allowed_count"] = race_outputs.count("allowed")
+results["concurrent_elevated_allowed_count"] = sum(item["stdout"] == "allowed" for item in race_outputs)
 
 cli_state = cli_project / "cache" / "terapeak-risk-state-H.json"
 cli_state.write_text(json.dumps(risk_record("Cooldown", now)), encoding="utf-8")
@@ -503,10 +507,13 @@ describe('#284H risk-state transitions', () => {
   });
 
   test('concurrent Elevated exporter starts allow only one reservation', () => {
-    expect(results.concurrent_elevated_runs).toContain('allowed');
+    expect(results.concurrent_elevated_runs).toEqual(expect.arrayContaining([
+      expect.objectContaining({ returncode: 0, stdout: 'allowed' }),
+    ]));
     expect(results.concurrent_elevated_allowed_count).toBe(1);
-    expect(results.concurrent_elevated_runs.filter(result => result !== 'allowed')).toHaveLength(1);
-    expect(results.concurrent_elevated_runs.find(result => result !== 'allowed')).toMatch(/between passes/);
+    const refused = results.concurrent_elevated_runs.filter(result => result.stdout !== 'allowed');
+    expect(refused).toHaveLength(1);
+    expect(refused[0].stdout).toMatch(/between passes/);
   });
 
   test('direct --run CLI exits before collection while persisted Cooldown is active', () => {
