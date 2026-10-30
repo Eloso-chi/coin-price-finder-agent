@@ -249,6 +249,7 @@ finally:
 
 race_state = cli_project / "cache" / "terapeak-risk-state-H.json"
 race_state.write_text(json.dumps(risk_record("Elevated", now - timedelta(seconds=901))), encoding="utf-8")
+os.environ["TERAPEAK_RISK_STATE_FILE"] = str(race_state)
 race_script = r'''
 import importlib.util, json, os, pathlib, sys, tempfile
 from types import SimpleNamespace
