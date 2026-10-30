@@ -255,6 +255,7 @@ from types import SimpleNamespace
 sys.path.insert(0, sys.argv[1])
 spec = importlib.util.spec_from_file_location("terapeak_export", sys.argv[2])
 module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
+module.PROJECT_DIR = pathlib.Path(sys.argv[3]).parent.parent
 try:
     module.guard_scraper_action("run", pathlib.Path(sys.argv[3]), args=SimpleNamespace(backlog="cache/freshness-report.json", mixed_p01_fixed=15, mixed_extra_min=5, mixed_extra_max=5))
     print("allowed")
