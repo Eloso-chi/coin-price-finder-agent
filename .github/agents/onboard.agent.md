@@ -66,7 +66,7 @@ Priority order:
 2. `docs/memory/decision-engine-spec.md` -- valuation engine FMV modes, confidence scoring, buy/sell spreads
 3. `docs/memory/numismatic-terminology.md` -- **CRITICAL DOMAIN CONTRACT.** Strike types, grade prefixes, pool classification rules (raw / graded / proof are THREE DISTINCT POOLS and must never be merged for FMV), common traps. Promoted to #3 under #271W F10 after INC-013 (pool-isolation violation, $10.03 cost) demonstrated this must be read before any pricing/comp work, not after the operational docs.
 4. `docs/memory/pool-isolation-rule.md` -- **MANDATORY READ-FIRST for `ebayService.js` pool gates.** Concrete detection guard + failure-mode narrative from INC-013 ($10.03 direct cost + 5 days polluted FMV in prod). Codifies the pool-isolation contract into an actionable pre-edit checklist so the domain rule from #3 is not merely aspirational.
-5. `docs/memory/terapeak-runbook.md` -- aggregation operations, VNC setup, troubleshooting, long-running operator (W/codespace) via `scripts/terapeak-operator-codespace.sh`, structured run history ledger under `cache/terapeak-runs/` (#200), codespace keepalive TTY-reset mechanism (ADMIN_API_KEY value is REDACTED; load from `.env` or Key Vault)
+5. `docs/memory/terapeak-runbook.md` -- W/Codespace authenticated VNC/noVNC setup and login handoff, troubleshooting, long-running operator via `scripts/terapeak-operator-codespace.sh`, structured run history ledger under `cache/terapeak-runs/` (#200), codespace keepalive TTY-reset mechanism (ADMIN_API_KEY value is REDACTED; load from `.env` or Key Vault)
 6. `docs/memory/terapeak-data-structure-analysis.md` -- CSV format, column mapping, data quality
 7. `docs/memory/terapeak-export-automation.md` -- Playwright aggregation architecture (ADMIN_API_KEY value REDACTED)
 8. `docs/memory/terapeak-export-process.md` -- correct export steps
@@ -120,7 +120,7 @@ Read these project docs:
 13. `.github/skills/process-discipline/SKILL.md` -- hot-file -> INC mapping + WASTE-LEDGER author guide -- added under #271W F9
 14. `.github/skills/valuation/SKILL.md` -- FMV / confidence / buy-sell decision engine routing reference (pool routing, FMV modes, confidence scoring, buy/sell tiers) -- added under #271W F7
 15. `.github/skills/comp-data/SKILL.md` -- eBay 3-tier cascade + Terapeak ingestion / lookup (cascade, scoring, attrition, lookupComps guard chain, CSV format) -- added under #271W F8
-16. `docs/runbooks/local-scraper-wsl2.md` -- Surface laptop + WSL2 setup for the preferred scraper path (#250)
+16. `docs/runbooks/local-scraper-wsl2.md` -- Surface laptop + WSL2 setup for the preferred scraper path, including authenticated noVNC login confirmation (#250)
 17. `docs/runbooks/scraper-travel-mode.md` -- Codespace fallback scraper workflow, host-browser cookie export, per-machine `COOKIE_FILE` discipline (#250)
 18. `CONTRIBUTING.md` -- contributor workflow, setup, testing rules, branching strategy, PR process, required reviews
 19. `SECURITY.md` -- vulnerability reporting policy, response SLAs, coordinated disclosure, safe harbor

@@ -121,6 +121,14 @@ If you act in good faith, avoid privacy violations/destructive testing, and repo
 - If a secret leak is suspected, report immediately and rotate affected credentials.
 - `scripts/audit-contradictory-weights.js` rollback artifacts contain stored Terapeak sale records and metadata for affected keys. Generate them only on a filesystem that enforces POSIX permissions. The publisher requests mode `0600` and verifies the staged file has no group/world permissions before serializing data; it refuses native Windows and mounted filesystems that do not enforce the requested restriction (including typical WSL `/mnt/c` mounts). Keep custom output directories private, do not commit the artifacts, and share them only through an approved private channel.
 
+## Local Terapeak Display Security
+
+- The canonical interactive login path uses `scripts/terapeak-display.sh` and a user-created owner-only TigerVNC password file. Enter the VNC password directly in the local terminal with `vncpasswd`; never place it in chat, shell arguments, or an environment variable.
+- The VNC server must bind to loopback and use VncAuth. Do not use `SecurityTypes None` or forward the raw VNC port.
+- In Codespaces, forward only the noVNC port and keep its visibility `private`; private forwarding is part of the security boundary, not a convenience setting.
+- The helper verifies the owning process, effective listener/security options, and noVNC readiness before interactive login. If listener identity cannot be verified, stop rather than killing an unknown process.
+- Treat the browser session and cookie jar as credentials. Do not copy cookies between H and W machines, and do not use the legacy standalone display bootstrap for sensitive sessions.
+
 ## Related References
 
 - `README.md`

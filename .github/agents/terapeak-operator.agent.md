@@ -61,12 +61,30 @@ preflights only. See [docs/memory/terapeak-runbook.md "Long-running operator (co
 2. Read the runbook for context if unclear:
    - H: [docs/runbooks/local-scraper-wsl2.md](../../docs/runbooks/local-scraper-wsl2.md)
    - W: [docs/memory/terapeak-runbook.md](../../docs/memory/terapeak-runbook.md)
-3. Run the matching launcher from repo root.
-4. If login is requested (H operator only), wait for user to solve CAPTCHA
-   and complete sign-in. The W operator does not prompt for login; refresh
-   cookies separately with `DISPLAY=:1 python3 scripts/vnc-login.py` if
-   `cookie-health-check.py` reports degraded health.
-5. Report startup state:
+3. If an interactive login is needed, verify the risk state first. H's
+  launcher performs its own Cooldown gate. For W, run
+  `python3 scripts/_terapeak_risk.py cooldown-ready --state-file
+  cache/terapeak-risk-state-W.json --minimum-seconds "${TERAPEAK_COOLDOWN_SECONDS:-7200}"`
+  and stop if it fails. Never bypass Cooldown recovery. If the VNC password
+  file is missing, stop and ask the user to create it in their own terminal
+  with `mkdir -p ~/.vnc && chmod 700 ~/.vnc && vncpasswd` followed by
+  `chmod 600 ~/.vnc/passwd`. Never request or handle the password.
+4. H: run the H launcher. It completes preflight and Cooldown gates before
+  starting/checking the display, prints the noVNC URL, and pauses. Open that
+  exact URL in the coordinating assistant's browser and confirm the page is
+  ready before allowing the launcher to continue. W: for a requested
+  missing/expired-cookie login, run `bash scripts/terapeak-display.sh start`,
+  then open and confirm the printed URL before running
+  `DISPLAY=":${TERAPEAK_VNC_DISPLAY:-1}" python3
+  scripts/terapeak-export.py --login` with the repo environment loaded.
+5. This agent has no browser tool. If the coordinating assistant cannot open
+  and confirm the noVNC page, stop and report the URL; do not ask the user to
+  sign in or solve a challenge. Once the coordinator confirms noVNC is open,
+  allow the launcher/login command to continue and wait for the user to
+  complete sign-in and the research-access check. Do not retry challenged
+  sessions or bypass risk-state Cooldown.
+6. Confirm login completed or report why the gate stopped before collection.
+7. Report startup state:
    - H: `cache/terapeak-startup-state.json`
    - W: `cache/terapeak-operator-codespace.state.json`
 
@@ -76,6 +94,9 @@ preflights only. See [docs/memory/terapeak-runbook.md "Long-running operator (co
   Defaults and dependencies differ.
 - Never run on unsupported distro targets (Ubuntu 26.04). The preflight handles this.
 - Never bypass preflight.
+- Never start interactive login until the noVNC page has been opened and confirmed.
+- VNC must use the authenticated loopback display managed by `terapeak-display.sh`;
+  never use `SecurityTypes None` or forward port 5901.
 - Never start deep pagination unless explicitly requested.
 - Use terms aggregate/pull, not scrape.
 

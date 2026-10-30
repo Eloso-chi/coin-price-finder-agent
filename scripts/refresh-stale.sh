@@ -4,8 +4,8 @@
 # Queries the staleness API to find coins with outdated Terapeak data,
 # then feeds them into terapeak-export.py automatically.
 #
-# Prerequisites: VNC running, server running, eBay cookies valid
-#   (solve CAPTCHA first via: DISPLAY=:1 python3 scripts/vnc-login.py)
+# Prerequisites: authenticated display, server running, eBay cookies valid
+#   (start display with: bash scripts/terapeak-display.sh start)
 #
 # Usage:
 #   ./scripts/refresh-stale.sh                    # Refresh top 100 stale (>14 days)
@@ -16,7 +16,7 @@
 #   ./scripts/refresh-stale.sh --full             # Full startup: VNC + server + login + refresh
 #
 # What it does:
-#   1. (--full only) Starts VNC, server, opens login page for CAPTCHA
+#   1. (--full only) Starts authenticated VNC/noVNC, server, and visible login
 #   2. Queries GET /api/admin/stale-datasets to find outdated coins
 #   3. Builds a filter regex from the stalest datasets
 #   4. Runs terapeak-export.py --run --refresh --max-age <days> --filter <regex>
@@ -83,6 +83,35 @@ fi
 API_BASE="http://localhost:3000"
 ANTIBOT_PATTERNS="captcha|blocked|forbidden|403|rate.limit|unusual.activity|verify.you|not.a.robot|access.denied"
 
+check_scrape_risk_state() {
+  local machine_id risk_state
+  machine_id="$(cat .machine-id 2>/dev/null || true)"
+  case "$machine_id" in
+    H) TERAPEAK_RISK_STATE_FILE="cache/terapeak-risk-state-H.json" ;;
+    W) TERAPEAK_RISK_STATE_FILE="cache/terapeak-risk-state-W.json" ;;
+    *) fail "Cannot verify machine risk state (.machine-id must be H or W)" ;;
+  esac
+
+  risk_state="$(python3 scripts/_terapeak_risk.py current --state-file "$TERAPEAK_RISK_STATE_FILE")" || \
+    fail "Cannot verify Terapeak risk state; refusing to launch a scraper browser"
+  case "$risk_state" in
+    Normal) ;;
+    *) fail "Terapeak risk state is $risk_state; refresh-stale requires Normal state and refuses to launch a scraper browser" ;;
+  esac
+  export TERAPEAK_RISK_STATE_FILE
+}
+
+# A dry run does not launch a scraper browser. Every real refresh, including
+# the default non---full path, must pass the same persisted-state gate.
+if [[ "$FULL_STARTUP" == true ]] || [[ "$DRY_RUN" != true ]]; then
+  check_scrape_risk_state
+fi
+DISPLAY_VALUE=":${TERAPEAK_VNC_DISPLAY:-1}"
+
+if [[ "$FULL_STARTUP" != true ]] && [[ "$DRY_RUN" != true ]]; then
+  DISPLAY="$DISPLAY_VALUE" bash scripts/terapeak-display.sh check
+fi
+
 # ── Full startup mode ───────────────────────────────────
 SERVER_PID=""
 cleanup() {
@@ -96,17 +125,12 @@ cleanup() {
 trap cleanup EXIT
 
 if [[ "$FULL_STARTUP" == true ]]; then
-  # ── Start VNC ──
-  step "Start VNC"
-  if pgrep -f Xtigervnc > /dev/null 2>&1; then
-    ok "VNC already running"
-  else
-    Xtigervnc :1 -geometry 1280x800 -SecurityTypes None -AlwaysShared &>/dev/null &
-    sleep 1
-    bash /usr/share/novnc/utils/novnc_proxy --vnc localhost:5901 --listen 6080 &>/dev/null &
-    sleep 1
-    ok "VNC started on port 6080"
-  fi
+  step "Start authenticated VNC/noVNC"
+  [[ -t 0 ]] || fail "--full requires an interactive terminal for noVNC confirmation"
+  export DISPLAY="$DISPLAY_VALUE"
+  bash scripts/terapeak-display.sh start
+  read -r -p "Open the printed noVNC URL and confirm the page is ready, then press Enter: " _
+  bash scripts/terapeak-display.sh check
 
   # ── Start server ──
   step "Start server"
@@ -136,7 +160,7 @@ if [[ "$FULL_STARTUP" == true ]]; then
 
   # ── eBay login ──
   step "eBay Login (solve CAPTCHA in VNC on port 6080)"
-  DISPLAY=:1 python3 scripts/vnc-login.py
+  DISPLAY="$DISPLAY_VALUE" python3 scripts/terapeak-export.py --login
   ok "Login confirmed"
 fi
 
@@ -226,7 +250,7 @@ if [[ "$DRY_RUN" == true ]]; then
   step "Dry run -- would refresh ${TARGETS} datasets"
   echo ""
   echo -e "   ${CYAN}Command that would run:${NC}"
-  echo "   DISPLAY=:1 python3 scripts/terapeak-export.py --run --backlog $REPORT_FILE 2>&1 | tee $LOGFILE"
+  echo "   DISPLAY=$DISPLAY_VALUE python3 scripts/terapeak-export.py --run --backlog $REPORT_FILE 2>&1 | tee $LOGFILE"
   exit 0
 fi
 
@@ -239,7 +263,7 @@ curl -sf -X POST "$API_BASE/api/terapeak/quota/reset" \
 ok "Quota reset"
 
 # Run the aggregator with backlog
-DISPLAY=:1 python3 scripts/terapeak-export.py \
+DISPLAY="$DISPLAY_VALUE" python3 scripts/terapeak-export.py \
   --run --backlog "$REPORT_FILE" \
   ${LIMIT:+--limit $LIMIT} \
   2>&1 | tee "$LOGFILE"
