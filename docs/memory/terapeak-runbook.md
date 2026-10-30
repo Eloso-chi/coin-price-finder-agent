@@ -337,6 +337,6 @@ The page-1 exporter overlaps one upload with the next scrape, drains every uploa
 - ADMIN_API_KEY: stored in local `.env` (gitignored) and Azure Key Vault secret `ADMIN-API-KEY` (prod). Bootstrap a fresh machine with `bash scripts/load-secrets.sh`. Never commit the value.
 - Cookie file: cache/ebay_cookies.json (gitignored)
 - Progress tracking: cache/terapeak_export_progress.json (for --resume)
-- Session expires: usually ~24-48 hours; re-login via vnc-login.py
+- Session expires: usually ~24-48 hours; use the machine's canonical operator and guarded exporter login after the persisted Cooldown gate allows recovery. Open the authenticated noVNC URL before continuing.
 - Terapeak provides up to 3 years of historical paid sales data
 - Default sort is Best Match; scripts click "Date last sold" for chronological order
