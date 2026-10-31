@@ -312,6 +312,7 @@ def main(argv=None):
                 "soft_risk_signal_count": soft_risk_signal_count,
             },
             stateful=stateful,
+            pass_clean=args.pass_exit_code == 0 and agg["attempted"] > 0,
         )
         if state_after == "Cooldown" or (
             stateful and (state_after != state_before or transition_reason)

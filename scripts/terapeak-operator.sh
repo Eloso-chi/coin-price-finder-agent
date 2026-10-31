@@ -514,7 +514,17 @@ while true; do
     pass_pause_seconds="$ELEVATED_PAUSE_SECONDS"
   fi
   echo "[operator] sleeping ${pass_pause_seconds}s before next pass"
-  sleep "$pass_pause_seconds"
+  if [[ "$RISK_STATE_ENABLED" != "0" && "$CURRENT_RISK_STATE" == "Elevated" ]]; then
+    # The exporter gate measures wall-clock time; a fixed sleep can return early.
+    if ! "$PYTHON_BIN" scripts/_terapeak_risk.py wait-elevated-pause \
+      --state-file "$RISK_STATE_FILE" --minimum-seconds "$ELEVATED_PAUSE_SECONDS" >/dev/null; then
+      write_state "loop-pass" "failed" "Elevated pause did not elapse" 1
+      echo "[operator:risk] Elevated pause did not elapse; stopping before the next pass." >&2
+      exit 1
+    fi
+  else
+    sleep "$pass_pause_seconds"
+  fi
   PASS=$((PASS + 1))
 done
 
