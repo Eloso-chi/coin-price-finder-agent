@@ -7,6 +7,50 @@ Items marked DONE are kept for historical reference.
 
 ## Scraping & Data Pipeline
 
+### #329H. Apply the Elevated wall-clock pause and clean-pass rule to the Codespace operator and the `evaluate` command [P2 -- RISK-STATE / OPERATIONS] -- PROPOSED 2026-10-31
+
+**Origin:** Deep review of PR #359 (finding 9). #325H and #320H fixed the H operator; the same exporter and risk helper serve the W operator, which was out of scope.
+
+**Problem:** `scripts/terapeak-operator-codespace.sh` (around lines 473 to 478) still sleeps a fixed `PAUSE` for Elevated passes. The exporter's Elevated gate measures wall-clock time, so any early return from `sleep` would again leave the next pass short of the gate and exit the loop. On H a 120 second `sleep` measured 113.9 seconds of wall time (about 5 percent early); Codespaces has not been measured. Separately, `python3 scripts/_terapeak_risk.py evaluate` still calls `evaluate_transition` without `pass_clean`, so it defaults to clean and disagrees with the pass parser.
+
+**Proposed approach:**
+1. Measure `sleep` against the wall clock in a Codespace to see whether the same drift occurs.
+2. Make the Codespace operator wait through `_terapeak_risk.py wait-elevated-pause` for Elevated passes, as `terapeak-operator.sh` does through `pause_before_next_pass`.
+3. Give `evaluate` a `--pass-clean` argument (or remove the subcommand if unused) so it cannot clear Elevated on a pass that attempted nothing.
+
+**Acceptance criteria:**
+- The Codespace operator's Elevated pause is covered by a test that executes the real code path with stubs, like `__tests__/terapeakElevatedPacing.test.js`.
+- `evaluate` and the parser agree on every clean-pass case.
+- No hard-challenge or Cooldown behavior changes.
+
+**Files (anticipated):** `scripts/terapeak-operator-codespace.sh`; `scripts/_terapeak_risk.py`; `__tests__/terapeakElevatedPacing.test.js` or a sibling test.
+
+**Related:** #325H, #320H, PR #359.
+
+---
+
+### #328H. Treat a 422 "No valid comps found in CSV" upload as no data, not as an upload failure [P2 -- DATA-QUALITY / SCRAPER] -- PROPOSED 2026-10-31
+
+**Origin:** Operator runs `20261031T003645Z-230493`, `20261031T154735Z-235989` and `20261031T193332Z-241090`. Five datasets were saved and then rejected by the server with `HTTP 422 {"error":"No valid comps found in CSV"}` (1 or 2 rows in the file, all skipped): 2013 Half Lunar Oz Perth Silver Snake, 1oz 2018 Dog Gold Lunar Perth, 2010 Libertad Mexican Oz Proof Quarter Silver, 1997 Chinese Half Oz Panda Silver and 2014 Horse Lunar Rcm Silver.
+
+**Problem:** Running the server's own parser (`parseCSV` and `rowToComp` in `src/services/terapeakService.js`) on these files reproduces 0 comps and every row skipped. Four of the five have a blank `Item Title` and `Item ID` on every row (continuation rows of multi-sale listings with no title row in the file), and `rowToComp` returns null when there is no title because metal, grade and lot filtering all depend on it. The fifth has only a multi-coin lot title that `isDenied` rejects. The server is right to refuse them, but the exporter reports them as upload failures, keeps the CSV in `data/terapeak/` as a new untracked file, and does not record the dataset as having no usable data, so it is likely to be queued again. The operator's pass parser also counts them inconsistently (#323H).
+
+**Proposed approach:**
+1. In `scripts/terapeak-export.py`, treat a 422 with that error as a no-data result: call the existing `_report_no_data` path so the dataset's dormant counters advance, and do not keep the CSV.
+2. Optionally pre-check the CSV before uploading and skip the upload when every row has a blank title.
+3. Report these as their own outcome in the pass log and summary rather than as a failure.
+
+**Acceptance criteria:**
+- Replaying the five rejected files yields a no-data outcome, no retained CSV, and an advanced dormant counter for each dataset.
+- A genuine upload error (network failure, 5xx, `CONTRADICTORY_WEIGHT`) is still reported as an upload failure.
+- Pass summaries count the new outcome separately; tests cover both paths without weakening existing assertions.
+
+**Files (anticipated):** `scripts/terapeak-export.py` (upload and no-data reporting); `scripts/_parse-terapeak-pass.py`; matching tests under `__tests__/`.
+
+**Related:** #323H (pass outcome counts), #327H (a different `CONTRADICTORY_WEIGHT` rejection).
+
+---
+
 ### #327H. Deployed server rejected a valid 1oz Libertad upload as CONTRADICTORY_WEIGHT with no weights [P2 -- DATA-QUALITY / SCRAPER] -- PROPOSED 2026-10-31
 
 **Origin:** Operator run `20261031T172953Z-237070`, pass 1. The exporter saved `data/terapeak/2022_Mexican_Silver_Libertad_1oz.csv` and uploaded it with search term `2022 Mexican Silver Libertad 1oz`. The deployed API answered `HTTP 400 {"error":"Contradictory explicit weights in search term:  oz","code":"CONTRADICTORY_WEIGHT","explicitWeights":[]}` (request id `ba2ad91c-fc39-4ba8-b5dc-ed29d2998f01`). The 10 other uploads in that pass succeeded.
