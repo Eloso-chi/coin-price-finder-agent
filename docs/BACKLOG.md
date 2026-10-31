@@ -7,6 +7,245 @@ Items marked DONE are kept for historical reference.
 
 ## Scraping & Data Pipeline
 
+### #329H. Apply the Elevated wall-clock pause and clean-pass rule to the Codespace operator and the `evaluate` command [P2 -- RISK-STATE / OPERATIONS] -- PROPOSED 2026-10-31
+
+**Origin:** Deep review of PR #359 (finding 9). #325H and #320H fixed the H operator; the same exporter and risk helper serve the W operator, which was out of scope.
+
+**Problem:** `scripts/terapeak-operator-codespace.sh` (around lines 473 to 478) still sleeps a fixed `PAUSE` for Elevated passes. The exporter's Elevated gate measures wall-clock time, so any early return from `sleep` would again leave the next pass short of the gate and exit the loop. On H a 120 second `sleep` measured 113.9 seconds of wall time (about 5 percent early); Codespaces has not been measured. Separately, `python3 scripts/_terapeak_risk.py evaluate` still calls `evaluate_transition` without `pass_clean`, so it defaults to clean and disagrees with the pass parser.
+
+**Proposed approach:**
+1. Measure `sleep` against the wall clock in a Codespace to see whether the same drift occurs.
+2. Make the Codespace operator wait through `_terapeak_risk.py wait-elevated-pause` for Elevated passes, as `terapeak-operator.sh` does through `pause_before_next_pass`.
+3. Give `evaluate` a `--pass-clean` argument (or remove the subcommand if unused) so it cannot clear Elevated on a pass that attempted nothing.
+
+**Acceptance criteria:**
+- The Codespace operator's Elevated pause is covered by a test that executes the real code path with stubs, like `__tests__/terapeakElevatedPacing.test.js`.
+- `evaluate` and the parser agree on every clean-pass case.
+- No hard-challenge or Cooldown behavior changes.
+
+**Files (anticipated):** `scripts/terapeak-operator-codespace.sh`; `scripts/_terapeak_risk.py`; `__tests__/terapeakElevatedPacing.test.js` or a sibling test.
+
+**Related:** #325H, #320H, PR #359.
+
+---
+
+### #328H. Treat a 422 "No valid comps found in CSV" upload as no data, not as an upload failure [P2 -- DATA-QUALITY / SCRAPER] -- PROPOSED 2026-10-31
+
+**Origin:** Operator runs `20261031T003645Z-230493`, `20261031T154735Z-235989` and `20261031T193332Z-241090`. Five datasets were saved and then rejected by the server with `HTTP 422 {"error":"No valid comps found in CSV"}` (1 or 2 rows in the file, all skipped): 2013 Half Lunar Oz Perth Silver Snake, 1oz 2018 Dog Gold Lunar Perth, 2010 Libertad Mexican Oz Proof Quarter Silver, 1997 Chinese Half Oz Panda Silver and 2014 Horse Lunar Rcm Silver.
+
+**Problem:** Running the server's own parser (`parseCSV` and `rowToComp` in `src/services/terapeakService.js`) on these files reproduces 0 comps and every row skipped. Four of the five have a blank `Item Title` and `Item ID` on every row (continuation rows of multi-sale listings with no title row in the file), and `rowToComp` returns null when there is no title because metal, grade and lot filtering all depend on it. The fifth has only a multi-coin lot title that `isDenied` rejects. The server is right to refuse them, but the exporter reports them as upload failures, keeps the CSV in `data/terapeak/` as a new untracked file, and does not record the dataset as having no usable data, so it is likely to be queued again. The operator's pass parser also counts them inconsistently (#323H).
+
+**Proposed approach:**
+1. In `scripts/terapeak-export.py`, treat a 422 with that error as a no-data result: call the existing `_report_no_data` path so the dataset's dormant counters advance, and do not keep the CSV.
+2. Optionally pre-check the CSV before uploading and skip the upload when every row has a blank title.
+3. Report these as their own outcome in the pass log and summary rather than as a failure.
+
+**Acceptance criteria:**
+- Replaying the five rejected files yields a no-data outcome, no retained CSV, and an advanced dormant counter for each dataset.
+- A genuine upload error (network failure, 5xx, `CONTRADICTORY_WEIGHT`) is still reported as an upload failure.
+- Pass summaries count the new outcome separately; tests cover both paths without weakening existing assertions.
+
+**Files (anticipated):** `scripts/terapeak-export.py` (upload and no-data reporting); `scripts/_parse-terapeak-pass.py`; matching tests under `__tests__/`.
+
+**Related:** #323H (pass outcome counts), #327H (a different `CONTRADICTORY_WEIGHT` rejection).
+
+---
+
+### #327H. Deployed server rejected a valid 1oz Libertad upload as CONTRADICTORY_WEIGHT with no weights [P2 -- DATA-QUALITY / SCRAPER] -- PROPOSED 2026-10-31
+
+**Origin:** Operator run `20261031T172953Z-237070`, pass 1. The exporter saved `data/terapeak/2022_Mexican_Silver_Libertad_1oz.csv` and uploaded it with search term `2022 Mexican Silver Libertad 1oz`. The deployed API answered `HTTP 400 {"error":"Contradictory explicit weights in search term:  oz","code":"CONTRADICTORY_WEIGHT","explicitWeights":[]}` (request id `ba2ad91c-fc39-4ba8-b5dc-ed29d2998f01`). The 10 other uploads in that pass succeeded.
+
+**Problem:** `importComps` and `updateDatasetMeta` in `src/services/terapeakService.js` throw only when `analyzeExplicitWeights(searchTerm)` is `invalid` or returns 2 or more weights. The response reports zero weights, so the analyzer must have returned `invalid: true`. In this repo, `analyzeExplicitWeights('2022 Mexican Silver Libertad 1oz')` returns `{ weights: [1], invalid: false }` (also for the Proof variant, 2021, 2024, and `1oz 2005 Lunar Perth Rooster Silver`), so the rejection is not reproducible from the current source. The upload was lost for this pass and the dataset was not updated.
+
+**Proposed approach:**
+1. Establish what the deployed build runs (commit or version) and compare its `src/utils/explicitWeight.js` with main, since the server may lag or differ from the H checkout.
+2. Capture the exact bytes of the failing `searchTerm` (for example hidden or non-ASCII characters from the CSV-derived name) and test the analyzer with them.
+3. If the analyzer can return `invalid: true` with no weights, make the error message and `explicitWeights` explain why (the current text, `Contradictory explicit weights in search term:  oz`, is misleading) and fix the cause.
+4. Re-upload `2022_Mexican_Silver_Libertad_1oz.csv` once resolved; it is saved locally but not on the server.
+
+**Acceptance criteria:**
+- The failing term is reproduced locally or on the deployed build, with the cause identified.
+- An `invalid` result yields an accurate error that does not claim contradictory weights when none were found.
+- A regression test covers the identified input.
+- The affected dataset is uploaded and appears in the freshness report.
+
+**Files (anticipated):** `src/utils/explicitWeight.js`; `src/services/terapeakService.js`; `src/routes/terapeakRoute.js`; matching tests under `__tests__/`.
+
+**Related:** #316H (explicit-weight analysis), #323H (pass outcome counts).
+
+---
+
+### #326H. Resolve npm audit failures blocking CI on main [P1 -- SECURITY / CI] -- PROPOSED 2026-10-31
+
+**Origin:** PR #358 CI (2026-10-31). The `test` job fails in "Audit dependencies" (`npm audit --audit-level=moderate --omit=dev`) with 8 moderate advisories: `minimatch` (GHSA-g3hv-75wg-m249, denial of service via globparts amplification) and its dependents `glob`, `archiver-utils`, `archiver`, `readdir-glob`, `zip-stream`, `rimraf` and `exceljs`. The same failure reproduces on main's lockfile; main's previous deploy run (the #357 merge) passed, so the advisory is new.
+
+**Problem:** Every PR to main, and the next deploy, fails the audit step until the advisories are resolved. The only automatic fix is `npm audit fix --force`, which installs `exceljs@4.1.1` (a breaking downgrade).
+
+**Proposed approach:** Establish which of these are reachable at runtime (exceljs is used for exports; dev-only paths are excluded by `--omit=dev`). Prefer a non-breaking resolution first: an `overrides` entry pinning a patched `minimatch` for the affected transitive dependents, or an exceljs/archiver version that already depends on a fixed release. Only if neither works, evaluate the exceljs downgrade and its export behavior. Do not suppress the audit step or lower `--audit-level` without explicit approval.
+
+**Acceptance criteria:**
+- `npm audit --audit-level=moderate --omit=dev` exits 0 on main's lockfile.
+- Existing export tests (`exceljs` paths) pass unchanged; no assertions weakened.
+- Canonical `npm test` and CI pass.
+
+**Files (anticipated):** `package.json`; `package-lock.json`; export-related tests if behavior changes.
+
+**Related:** #358 (blocked), #325H.
+
+---
+
+### #325H. Elevated sleep and exporter pacing gate disagree, so the loop exits at pass 2 [P1 -- OPERATIONS / RISK-STATE] -- PROPOSED 2026-10-31
+
+**Origin:** Operator runs `20261031T003645Z-230493`, `20261031T012537Z-231475`, `20261031T151611Z-235302` and `20261031T154735Z-235989`. After every Elevated pass the operator slept the nominal 900 seconds, then the exporter's Elevated gate (added in PR #357) refused the next pass with 28, 29, 48 and 46 seconds remaining and 0 coins attempted. The loop exited each time (4 of 4), where before #357 it carried on until a hard challenge.
+
+**Problem:** `scripts/terapeak-operator.sh` sleeps a fixed `ELEVATED_PAUSE_SECONDS`, while `scripts/terapeak-export.py` measures elapsed time from the risk state file's `changed_at` (or `.last-run`). The two clocks disagree by roughly 30 to 50 seconds. The cause of the gap is not yet identified, and raising `TERAPEAK_ELEVATED_PAUSE_SECONDS` cannot fix it because both the sleep and the gate read the same value and the gate rejects values below 900. The loop therefore cannot run unattended in Elevated.
+
+**Proposed approach:**
+1. Add a `pause-remaining` subcommand to `scripts/_terapeak_risk.py` that returns the seconds until the exporter gate would pass, from the same `changed_at` and `.last-run` timestamps.
+2. Replace the single `sleep` in the operator with a loop that sleeps the remainder plus a small margin and re-checks until the remainder is zero.
+3. Log sleep-start, sleep-end and gate-check timestamps in the operator log so the unexplained gap can be explained from data.
+4. Keep the gate and the guardrail that the loop exits on the first non-zero pass; this fix removes the cause rather than retrying through failures.
+
+**Acceptance criteria:**
+- A test that drives sleep followed by the gate fails on the current code and passes after the fix.
+- The `pause-remaining` helper returns 0 only when the exporter gate would accept the pass, using fabricated state timestamps.
+- A hard challenge still persists Cooldown and stops the run; no existing risk-state assertion is weakened.
+- A looped Elevated run completes at least two passes without manual restart (manual verification on H).
+
+**Files (anticipated):** `scripts/terapeak-operator.sh`; `scripts/_terapeak_risk.py`; `scripts/terapeak-export.py` (only if the gate reference needs aligning); `__tests__/terapeakOperator.test.js`; `__tests__/terapeakRiskState.test.js`.
+
+**Related:** #320H (zero-attempt pass resets Elevated), PR #357.
+
+---
+
+### #324H. Decide VNC authentication policy for loopback-only H operator logins [P3 -- OPERATIONS / DX] -- PROPOSED 2026-10-31
+
+**Origin:** First H operator run after PR #357 (2026-10-31). The operator login flow now requires a user-created `~/.vnc/passwd` and starts Xtigervnc with `-SecurityTypes VncAuth`. The previous Codespace flow (`docs/memory/terapeak-runbook.md`) used `SecurityTypes None`. H has no VNC at all before #357.
+
+**Problem:** A first-time H login is blocked until the operator creates a VNC password in their own terminal. On H, VNC (5901) and noVNC (6080) bind to WSL loopback only, so the password may be redundant, but this tradeoff was not an explicit recorded decision.
+
+**Proposed approach:** Record an explicit decision: keep the mandatory password (document it as one-time setup), allow `SecurityTypes None` only when every listener is verified loopback-only, or keep VncAuth but make the failure message and runbook prerequisite more prominent. Whatever is chosen must keep the non-loopback and Codespaces paths authenticated.
+
+**Acceptance criteria:**
+- The decision and its threat-model rationale are recorded in `docs/memory/anti-bot-operations.md` or the runbook.
+- If the password becomes optional on loopback, `__tests__/terapeakDisplay.test.js` proves it is still required for any non-loopback bind.
+
+**Files (anticipated):** `scripts/terapeak-display.sh`; `docs/runbooks/local-scraper-wsl2.md`; `__tests__/terapeakDisplay.test.js`.
+
+**Related:** #302W (vnc-login/probe noVNC handoff), #318H, #319H.
+
+---
+
+### #323H. Pass parse line miscounts outcomes versus the pass log [P3 -- REPORTING / OPERATIONS] -- PROPOSED 2026-10-31
+
+**Origin:** Operator run `20261031T003645Z-230493`, pass 1. The pass log shows 25 uploaded coins, 5 `NO EXPORT` results, and 3 saved coins whose uploads were rejected (two HTTP 422 "No valid comps found in CSV", one HTTP 400 `CONTRADICTORY_WEIGHT`).
+
+**Problem:** The `[parse]` line reported `ok=25 empty=4 failed=4` for the same pass. Counts for empty and failed do not match the 5 and 3 visible in the log, so per-pass reporting and cumulative tables built from `passes.jsonl` disagree with the log.
+
+**Proposed approach:** Define the outcome classes explicitly (OK, NO DATA, upload failed) and make `_parse-terapeak-pass.py` classify each coin by the exact log markers. Add a fixture-based test using the real pass-1 log excerpt.
+
+**Acceptance criteria:**
+- Parsing the fixture yields ok=25, no-export=5, upload-failed=3 and matching new/dup totals (1,222 new, 1,001 dups).
+- `cache/terapeak-runs/passes.jsonl` and `coins.jsonl` records agree with the log for the fixture.
+
+**Files (anticipated):** `scripts/_parse-terapeak-pass.py`; matching parser tests under `__tests__/`.
+
+**Related:** #320H.
+
+---
+
+### #322H. Add a Node dependency check to H operator preflight and runbook [P2 -- OPERATIONS / DOCS] -- PROPOSED 2026-10-31
+
+**Origin:** Operator run `20261031T002753Z-229475`, pass 1. After a successful login, the freshness-report step failed with `Cannot find module 'csv-parse/sync'`, the pass failed with `attempted=0`, and the loop exited.
+
+**Problem:** The H checkout had no `node_modules`. Neither `scripts/terapeak-startup-preflight.sh` nor `docs/runbooks/local-scraper-wsl2.md` requires or checks Node dependencies, so the failure surfaced only after an interactive login.
+
+**Proposed approach:** Add a preflight check for `node_modules/csv-parse` (and a clear remediation message naming `npm ci`) in both login and loop modes, and add the install step to the runbook's one-time setup.
+
+**Acceptance criteria:**
+- Preflight fails fast before login when `node_modules/csv-parse` is missing, with the `npm ci` remediation.
+- The runbook lists the dependency install in H setup.
+- `__tests__` cover the missing-dependency preflight case.
+
+**Files (anticipated):** `scripts/terapeak-startup-preflight.sh`; `docs/runbooks/local-scraper-wsl2.md`; operator and preflight tests.
+
+---
+
+### #321H. Display script start races on listener inspection and warns on binary reads [P2 -- OPERATIONS / RELIABILITY] -- PROPOSED 2026-10-31
+
+**Origin:** Operator run `20261031T002042Z-228287`. `scripts/terapeak-display.sh` failed with `Cannot inspect listener process 228365` shortly after starting the noVNC proxy, and its cleanup stopped both servers. An immediate manual `start` succeeded. Every start also printed `warning: command substitution: ignored null byte in input`.
+
+**Problem:** `verify_process` rejects a listener whose `/proc/<pid>/exe` or `cmdline` is not yet readable, so a timing window can abort a healthy start. The warning comes from `head -n 1` reading the binary `Xtigervnc` to test for a shebang. The root cause of the unreadable process is not confirmed.
+
+**Proposed approach:** First reproduce and identify why the process was uninspectable. Then retry the `/proc` inspection for a short bounded period before failing, and test for a shebang with `head -c 2` so binaries are not read into a shell variable.
+
+**Acceptance criteria:**
+- A start with a briefly uninspectable listener passes within a bounded wait; a persistently uninspectable one still fails and cleans up.
+- No `ignored null byte` warning is emitted for a binary executable.
+- Tests in `__tests__/terapeakDisplay.test.js` cover both cases without weakening existing assertions.
+
+**Files (anticipated):** `scripts/terapeak-display.sh`; `__tests__/terapeakDisplay.test.js`.
+
+**Related:** #318H, #319H.
+
+---
+
+### #320H. Zero-attempt pass must not reset Elevated risk state to Normal [P1 -- RISK-STATE / SAFETY] -- PROPOSED 2026-10-31
+
+**Origin:** Operator run `20261031T003645Z-230493`. Pass 1 recorded 5 `NO EXPORT` outcomes and moved the state to Elevated. Pass 2 was stopped by the 900-second pacing gate before any eBay request (`attempted=0`, `pass_exit_code=2`, 4 seconds), yet its summary recorded `state_before=Elevated`, `state_after=Normal`, `transition_reason=clean_pass_after_elevated`.
+
+**Problem:** The contract says one clean pass returns Elevated to Normal. A pass that attempted nothing is not a clean pass. The next run therefore started at full 32-coin Normal pacing instead of the Elevated bounds (15 to 20 terms, at least 900 seconds).
+
+**Proposed approach:** Require `attempted > 0` and a zero pass exit code before any Elevated to Normal transition, and leave the state unchanged otherwise. Review the other transitions for the same zero-attempt hole.
+
+**Acceptance criteria:**
+- A pass with `attempted=0` or a non-zero exit code leaves Elevated unchanged and records a distinct transition reason.
+- A genuine clean pass still returns to Normal.
+- `__tests__/terapeakRiskState.test.js` covers both cases; hard-challenge and Cooldown behavior are unchanged.
+
+**Files (anticipated):** `scripts/_terapeak_risk.py`; `scripts/terapeak-operator.sh`; `__tests__/terapeakRiskState.test.js`.
+
+**Related:** #323H; risk contract in `docs/memory/anti-bot-operations.md`.
+
+---
+
+### #319H. Display servers inherit and hold the operator lock [P1 -- OPERATIONS / RELIABILITY] -- PROPOSED 2026-10-31
+
+**Origin:** Operator run `20261031T002753Z-229475`. After the run, a `--no-login` restart exited with "Another Terapeak operator run is active". `lsof` showed Xtigervnc (229509) and websockify (229545) holding `cache/terapeak-operator.lock` on fd 10 after the operator had exited.
+
+**Problem:** `scripts/terapeak-operator.sh` acquires the `flock` lock on an inherited file descriptor and then starts the display servers from `scripts/terapeak-display.sh`. The long-lived servers inherit that descriptor and keep the lock indefinitely, blocking every later run until they are killed by hand.
+
+**Proposed approach:** Start the display servers with the lock descriptor closed (for example `10>&-` or by closing `LOCK_FD` in the child), and document that display servers outlive the operator.
+
+**Acceptance criteria:**
+- After the operator exits, a second operator invocation acquires the lock while the display servers are still running.
+- A test asserts the display processes do not hold the lock file open.
+
+**Files (anticipated):** `scripts/terapeak-display.sh`; `scripts/terapeak-operator.sh`; `__tests__/terapeakOperator.test.js`; `__tests__/terapeakDisplay.test.js`.
+
+**Related:** #318H, #321H.
+
+---
+
+### #318H. Display script aborts when VNC and noVNC are already running [P1 -- OPERATIONS / RELIABILITY] -- PROPOSED 2026-10-31
+
+**Origin:** Operator runs `20261031T002423Z-228775` and `20261031T002600Z-229301`. With VNC and noVNC already listening, the launcher printed the noVNC URL and exited immediately, never showing the "press Enter to continue" prompt or reaching login.
+
+**Problem:** At the end of `start_vnc` in `scripts/terapeak-display.sh`, `[[ -n "$vnc_pid" ]] && printf 'VNC PID: ...'` returns status 1 under `set -e` when the servers were not started by this invocation (empty PID). The script exits non-zero and the operator treats the display step as failed.
+
+**Proposed approach:** Replace the `[[ ... ]] && printf` lines with `if` blocks (or `|| true` guards) so a reused display returns success after `check_ready`. Add a test that runs `start` twice and asserts the second run exits 0 and prints the URL.
+
+**Acceptance criteria:**
+- `start` exits 0 when both listeners already exist and verify as authenticated loopback.
+- The operator reaches the Enter prompt on a reused display.
+- Existing partial-start cleanup tests keep their current assertions.
+
+**Files (anticipated):** `scripts/terapeak-display.sh`; `__tests__/terapeakDisplay.test.js`.
+
+**Related:** #319H, #321H.
+
+---
+
 ### #317H. Replace ambiguous Greysheet `:all` snapshots with condition-aware raw and graded coverage [P1 -- PRICING-ACCURACY / DATA-GOVERNANCE] -- PROPOSED 2026-09-13
 
 **Origin:** Production coverage audit on 2026-09-13 found that the bulk refresh labels grade-unspecified Type-GSID responses as `:all`, even though Greysheet returns a specific first pricing row. Representative results included Silver Eagle `MS63`, Gold Eagle `MS66`, and Morgan and Walking Liberty `P1`. These are type-level graded references, not raw/ungraded prices.
