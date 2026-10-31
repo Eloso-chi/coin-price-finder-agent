@@ -7,6 +7,30 @@ Items marked DONE are kept for historical reference.
 
 ## Scraping & Data Pipeline
 
+### #327H. Deployed server rejected a valid 1oz Libertad upload as CONTRADICTORY_WEIGHT with no weights [P2 -- DATA-QUALITY / SCRAPER] -- PROPOSED 2026-10-31
+
+**Origin:** Operator run `20261031T172953Z-237070`, pass 1. The exporter saved `data/terapeak/2022_Mexican_Silver_Libertad_1oz.csv` and uploaded it with search term `2022 Mexican Silver Libertad 1oz`. The deployed API answered `HTTP 400 {"error":"Contradictory explicit weights in search term:  oz","code":"CONTRADICTORY_WEIGHT","explicitWeights":[]}` (request id `ba2ad91c-fc39-4ba8-b5dc-ed29d2998f01`). The 10 other uploads in that pass succeeded.
+
+**Problem:** `importComps` and `updateDatasetMeta` in `src/services/terapeakService.js` throw only when `analyzeExplicitWeights(searchTerm)` is `invalid` or returns 2 or more weights. The response reports zero weights, so the analyzer must have returned `invalid: true`. In this repo, `analyzeExplicitWeights('2022 Mexican Silver Libertad 1oz')` returns `{ weights: [1], invalid: false }` (also for the Proof variant, 2021, 2024, and `1oz 2005 Lunar Perth Rooster Silver`), so the rejection is not reproducible from the current source. The upload was lost for this pass and the dataset was not updated.
+
+**Proposed approach:**
+1. Establish what the deployed build runs (commit or version) and compare its `src/utils/explicitWeight.js` with main, since the server may lag or differ from the H checkout.
+2. Capture the exact bytes of the failing `searchTerm` (for example hidden or non-ASCII characters from the CSV-derived name) and test the analyzer with them.
+3. If the analyzer can return `invalid: true` with no weights, make the error message and `explicitWeights` explain why (the current text, `Contradictory explicit weights in search term:  oz`, is misleading) and fix the cause.
+4. Re-upload `2022_Mexican_Silver_Libertad_1oz.csv` once resolved; it is saved locally but not on the server.
+
+**Acceptance criteria:**
+- The failing term is reproduced locally or on the deployed build, with the cause identified.
+- An `invalid` result yields an accurate error that does not claim contradictory weights when none were found.
+- A regression test covers the identified input.
+- The affected dataset is uploaded and appears in the freshness report.
+
+**Files (anticipated):** `src/utils/explicitWeight.js`; `src/services/terapeakService.js`; `src/routes/terapeakRoute.js`; matching tests under `__tests__/`.
+
+**Related:** #316H (explicit-weight analysis), #323H (pass outcome counts).
+
+---
+
 ### #326H. Resolve npm audit failures blocking CI on main [P1 -- SECURITY / CI] -- PROPOSED 2026-10-31
 
 **Origin:** PR #358 CI (2026-10-31). The `test` job fails in "Audit dependencies" (`npm audit --audit-level=moderate --omit=dev`) with 8 moderate advisories: `minimatch` (GHSA-g3hv-75wg-m249, denial of service via globparts amplification) and its dependents `glob`, `archiver-utils`, `archiver`, `readdir-glob`, `zip-stream`, `rimraf` and `exceljs`. The same failure reproduces on main's lockfile; main's previous deploy run (the #357 merge) passed, so the advisory is new.
