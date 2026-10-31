@@ -145,6 +145,19 @@ def cooldown_remaining_seconds(state_record, minimum_seconds, now=None):
     return max(0, minimum_seconds - elapsed)
 
 
+def elevated_pause_reference(state_record, last_run_text=None):
+    """Time the exporter's Elevated gate measures from; ValueError when unreadable."""
+    try:
+        since = datetime.fromisoformat(state_record["changed_at"].replace("Z", "+00:00"))
+        if last_run_text is not None:
+            last_run = datetime.fromisoformat(last_run_text.strip().replace("Z", "+00:00"))
+            if last_run > since:
+                since = last_run
+    except (KeyError, AttributeError, TypeError, ValueError) as error:
+        raise ValueError("Elevated pacing timestamp is invalid") from error
+    return since
+
+
 def elevated_pause_remaining_seconds(state_record, minimum_seconds, last_run_text=None, now=None):
     """Seconds until the exporter's Elevated pacing gate would accept a pass.
 
@@ -154,12 +167,8 @@ def elevated_pause_remaining_seconds(state_record, minimum_seconds, last_run_tex
     if state_record.get("state") != "Elevated":
         return 0
     try:
-        since = datetime.fromisoformat(state_record["changed_at"].replace("Z", "+00:00"))
-        if last_run_text:
-            last_run = datetime.fromisoformat(last_run_text.strip().replace("Z", "+00:00"))
-            if last_run > since:
-                since = last_run
-    except (KeyError, AttributeError, TypeError, ValueError):
+        since = elevated_pause_reference(state_record, last_run_text)
+    except ValueError:
         return minimum_seconds
     current = now or datetime.now(since.tzinfo)
     elapsed = (current - since).total_seconds()
@@ -170,7 +179,7 @@ def read_last_run(state_path):
     try:
         with open(f"{state_path}.last-run", encoding="utf-8") as marker:
             return marker.read()
-    except OSError:
+    except FileNotFoundError:
         return None
 
 
@@ -230,6 +239,7 @@ def main(argv=None):
     wait_parser.add_argument("--minimum-seconds", required=True, type=int)
     wait_parser.add_argument("--margin-seconds", type=int, default=2)
     wait_parser.add_argument("--max-rounds", type=int, default=20)
+    wait_parser.add_argument("--max-stalled-rounds", type=int, default=3)
 
     args = parser.parse_args(argv)
     if args.command == "current":
@@ -237,23 +247,34 @@ def main(argv=None):
         return 0
 
     if args.command in ("pause-remaining", "wait-elevated-pause"):
-        def remaining_now():
+        def remaining_checked():
+            state = load_state(args.state_file)
+            last_run_text = read_last_run(args.state_file)
+            if state.get("state") == "Elevated":
+                elevated_pause_reference(state, last_run_text)
             return elevated_pause_remaining_seconds(
-                load_state(args.state_file),
+                state,
                 args.minimum_seconds,
-                last_run_text=read_last_run(args.state_file),
+                last_run_text=last_run_text,
             )
 
-        remaining = remaining_now()
+        def pause_failure(shown_remaining, message):
+            print(shown_remaining)
+            print(f"[risk:FAIL] {message}", file=sys.stderr)
+            return 2
+
+        try:
+            remaining = remaining_checked()
+        except (OSError, ValueError) as error:
+            return pause_failure(args.minimum_seconds, f"Elevated pause inputs unreadable: {error}")
         if args.command == "pause-remaining":
             print(remaining)
             return 0 if remaining == 0 else 2
         rounds = 0
+        stalled_rounds = 0
         while remaining > 0:
             if rounds >= args.max_rounds:
-                print(remaining)
-                print("[risk:FAIL] Elevated pause did not elapse on the wall clock", file=sys.stderr)
-                return 2
+                return pause_failure(remaining, "Elevated pause did not elapse on the wall clock")
             rounds += 1
             print(
                 f"[risk:pause] {utc_now()} waiting {remaining + args.margin_seconds}s "
@@ -261,7 +282,17 @@ def main(argv=None):
                 file=sys.stderr,
             )
             time.sleep(remaining + args.margin_seconds)
-            remaining = remaining_now()
+            try:
+                next_remaining = remaining_checked()
+            except (OSError, ValueError) as error:
+                return pause_failure(remaining, f"Elevated pause inputs unreadable: {error}")
+            if next_remaining >= remaining:
+                stalled_rounds += 1
+                if stalled_rounds >= args.max_stalled_rounds:
+                    return pause_failure(next_remaining, "Elevated pause is not progressing")
+            else:
+                stalled_rounds = 0
+            remaining = next_remaining
         print(remaining)
         return 0
 
