@@ -21,9 +21,9 @@ Operators use the canonical four-state model:
 - `Normal`: run randomized configured batches and pauses.
 - `Elevated`: after a cluster of soft signals, reduce batches to 15-20 terms
   and pause at least 900 seconds, waited on the wall clock the exporter gate
-  uses. One clean pass (exit code 0 and at least one coin attempted) returns to
-  Normal; a pass that attempted nothing or exited non-zero leaves Elevated
-  unchanged.
+  uses (H operator; W parity pending, #329H). One clean pass (exit code 0 and
+  at least one coin attempted) returns to Normal; a pass that attempted
+  nothing or exited non-zero leaves Elevated unchanged.
 - `Challenged`: on any hard signal, stop immediately without retry. This is the
   transient decision leading to persisted Cooldown.
 - `Cooldown`: launch no scraper browser until the minimum wait, interactive

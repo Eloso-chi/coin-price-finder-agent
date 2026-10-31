@@ -318,7 +318,8 @@ Operator log outputs:
   defines the canonical Normal, Elevated, Challenged, and Cooldown states.
 - **Loop exit condition:** the first explicit hard challenge stops the exporter
   and operator with a nonzero exit and persists Cooldown. It does not retry the
-  challenged page.
+  challenged page. The H operator also exits nonzero if the Elevated pacing
+  wait does not elapse (unreadable inputs or no progress).
 - **Akamai cooldown:** once eBay serves a `/splashui/captchaP` challenge, the
   operator enforces at least a two-hour wait by default. Restart requires an
   interactive login and a successful live probe. Longer waits may be needed.

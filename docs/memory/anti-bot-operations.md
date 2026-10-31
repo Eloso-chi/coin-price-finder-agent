@@ -9,7 +9,7 @@ different state names or transitions.
 | State | Meaning | Operator behavior |
 |---|---|---|
 | Normal | Cookies are healthy and no risk cluster is present. | Use the configured randomized batch and pause range. |
-| Elevated | One pass contains at least three soft signals such as timeouts, browser crashes, or `NO EXPORT` outcomes. | Use 15-20 terms and at least a 900-second pause, measured on the wall clock the exporter gate uses (the operator waits via `_terapeak_risk.py wait-elevated-pause`). One clean pass (exit 0 and at least one coin attempted) returns to Normal; a pass that attempted nothing or exited non-zero leaves Elevated unchanged. |
+| Elevated | One pass contains at least three soft signals such as timeouts, browser crashes, or `NO EXPORT` outcomes. | Use 15-20 terms and at least a 900-second pause, measured on the wall clock the exporter gate uses (the H operator, `terapeak-operator.sh`, waits via `_terapeak_risk.py wait-elevated-pause`; the W Codespace operator still uses a fixed sleep, tracked as #329H). One clean pass (exit 0 and at least one coin attempted) returns to Normal; a pass that attempted nothing or exited non-zero leaves Elevated unchanged. |
 | Challenged | A hard signal was observed: explicit bot block, unusual-activity page, CAPTCHA/hCaptcha, splash challenge, or HTTP 403/429. | Transient decision state only. Stop the pass immediately; do not retry. |
 | Cooldown | Persisted stop state entered from Challenged. | Launch no scraper browser until the wait, re-login, and live-probe gates all pass. |
 
