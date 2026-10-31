@@ -179,6 +179,27 @@ cleanup() {
   exit $rc
 }
 
+pause_before_next_pass() {
+  local pass_pause_seconds="$PAUSE_SECONDS" elevated=false
+  if [[ "$RISK_STATE_ENABLED" != "0" && "$CURRENT_RISK_STATE" == "Elevated" ]]; then
+    elevated=true
+    pass_pause_seconds="$ELEVATED_PAUSE_SECONDS"
+  fi
+  if [[ "$elevated" != true ]]; then
+    echo "[operator] sleeping ${pass_pause_seconds}s before next pass"
+    sleep "$pass_pause_seconds"
+    return 0
+  fi
+  # The exporter gate measures wall-clock time from the last Elevated change or pass start; a fixed sleep can return early.
+  echo "[operator] waiting for the Elevated pacing gate (at least ${ELEVATED_PAUSE_SECONDS}s)"
+  if ! "$PYTHON_BIN" scripts/_terapeak_risk.py wait-elevated-pause \
+    --state-file "$RISK_STATE_FILE" --minimum-seconds "$ELEVATED_PAUSE_SECONDS" >/dev/null; then
+    write_state "loop-pass" "failed" "Elevated pause did not elapse" 1
+    echo "[operator:risk] Elevated pause did not elapse; stopping before the next pass." >&2
+    exit 1
+  fi
+}
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --env-file)
@@ -509,12 +530,7 @@ while true; do
     break
   fi
 
-  pass_pause_seconds="$PAUSE_SECONDS"
-  if [[ "$RISK_STATE_ENABLED" != "0" && "$CURRENT_RISK_STATE" == "Elevated" ]]; then
-    pass_pause_seconds="$ELEVATED_PAUSE_SECONDS"
-  fi
-  echo "[operator] sleeping ${pass_pause_seconds}s before next pass"
-  sleep "$pass_pause_seconds"
+  pause_before_next_pass
   PASS=$((PASS + 1))
 done
 

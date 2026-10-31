@@ -31,7 +31,7 @@ Operational scripts for data collection, migration, and maintenance. Most script
 | `terapeak-operator-codespace.sh` | Canonical W launcher using the same #284H state and telemetry contract | `bash scripts/terapeak-operator-codespace.sh --max-passes 1` |
 | `terapeak-display.sh` | Starts/verifies VncAuth-protected loopback VNC and the machine-correct private noVNC endpoint; requires a user-created `~/.vnc/passwd` | `bash scripts/terapeak-display.sh start` |
 | `_parse-terapeak-pass.py` | Parse pass logs into `cache/terapeak-runs/{passes,coins}.jsonl` and apply #284H risk transitions | Invoked by operators; use `--help` for direct diagnostics |
-| `_terapeak_risk.py` | Shared #284H risk-state classification and persistence helpers | Imported by parser/operators; direct use is uncommon |
+| `_terapeak_risk.py` | Shared #284H risk-state classification and persistence helpers; `pause-remaining` and `wait-elevated-pause` wait out the Elevated pacing gate on the exporter's wall clock (#325H) | Imported by parser/operators; `python3 scripts/_terapeak_risk.py pause-remaining --state-file FILE --minimum-seconds 900` (exit 0 when the gate would pass, 2 while waiting or unreadable) |
 | `show-terapeak-runs.sh` | View recent runs, pass totals, stop conditions, or coin history from the JSONL ledger | `bash scripts/show-terapeak-runs.sh recent 20` |
 | `commit-terapeak-progress.sh` | Safely branch, commit, push, and open a PR for one operator run's CSV/meta changes | `bash scripts/commit-terapeak-progress.sh --dry-run`, then rerun without `--dry-run` |
 | `validate-pass-telemetry.py` | Validate required #284H fields in pass JSONL; add `--json` for machine-readable output | `python3 scripts/validate-pass-telemetry.py cache/terapeak-runs/passes.jsonl` |
