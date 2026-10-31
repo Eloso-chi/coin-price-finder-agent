@@ -7,6 +7,49 @@ Items marked DONE are kept for historical reference.
 
 ## Scraping & Data Pipeline
 
+### #326H. Resolve npm audit failures blocking CI on main [P1 -- SECURITY / CI] -- PROPOSED 2026-10-31
+
+**Origin:** PR #358 CI (2026-10-31). The `test` job fails in "Audit dependencies" (`npm audit --audit-level=moderate --omit=dev`) with 8 moderate advisories: `minimatch` (GHSA-g3hv-75wg-m249, denial of service via globparts amplification) and its dependents `glob`, `archiver-utils`, `archiver`, `readdir-glob`, `zip-stream`, `rimraf` and `exceljs`. The same failure reproduces on main's lockfile; main's previous deploy run (the #357 merge) passed, so the advisory is new.
+
+**Problem:** Every PR to main, and the next deploy, fails the audit step until the advisories are resolved. The only automatic fix is `npm audit fix --force`, which installs `exceljs@4.1.1` (a breaking downgrade).
+
+**Proposed approach:** Establish which of these are reachable at runtime (exceljs is used for exports; dev-only paths are excluded by `--omit=dev`). Prefer a non-breaking resolution first: an `overrides` entry pinning a patched `minimatch` for the affected transitive dependents, or an exceljs/archiver version that already depends on a fixed release. Only if neither works, evaluate the exceljs downgrade and its export behavior. Do not suppress the audit step or lower `--audit-level` without explicit approval.
+
+**Acceptance criteria:**
+- `npm audit --audit-level=moderate --omit=dev` exits 0 on main's lockfile.
+- Existing export tests (`exceljs` paths) pass unchanged; no assertions weakened.
+- Canonical `npm test` and CI pass.
+
+**Files (anticipated):** `package.json`; `package-lock.json`; export-related tests if behavior changes.
+
+**Related:** #358 (blocked), #325H.
+
+---
+
+### #325H. Elevated sleep and exporter pacing gate disagree, so the loop exits at pass 2 [P1 -- OPERATIONS / RISK-STATE] -- PROPOSED 2026-10-31
+
+**Origin:** Operator runs `20261031T003645Z-230493`, `20261031T012537Z-231475`, `20261031T151611Z-235302` and `20261031T154735Z-235989`. After every Elevated pass the operator slept the nominal 900 seconds, then the exporter's Elevated gate (added in PR #357) refused the next pass with 28, 29, 48 and 46 seconds remaining and 0 coins attempted. The loop exited each time (4 of 4), where before #357 it carried on until a hard challenge.
+
+**Problem:** `scripts/terapeak-operator.sh` sleeps a fixed `ELEVATED_PAUSE_SECONDS`, while `scripts/terapeak-export.py` measures elapsed time from the risk state file's `changed_at` (or `.last-run`). The two clocks disagree by roughly 30 to 50 seconds. The cause of the gap is not yet identified, and raising `TERAPEAK_ELEVATED_PAUSE_SECONDS` cannot fix it because both the sleep and the gate read the same value and the gate rejects values below 900. The loop therefore cannot run unattended in Elevated.
+
+**Proposed approach:**
+1. Add a `pause-remaining` subcommand to `scripts/_terapeak_risk.py` that returns the seconds until the exporter gate would pass, from the same `changed_at` and `.last-run` timestamps.
+2. Replace the single `sleep` in the operator with a loop that sleeps the remainder plus a small margin and re-checks until the remainder is zero.
+3. Log sleep-start, sleep-end and gate-check timestamps in the operator log so the unexplained gap can be explained from data.
+4. Keep the gate and the guardrail that the loop exits on the first non-zero pass; this fix removes the cause rather than retrying through failures.
+
+**Acceptance criteria:**
+- A test that drives sleep followed by the gate fails on the current code and passes after the fix.
+- The `pause-remaining` helper returns 0 only when the exporter gate would accept the pass, using fabricated state timestamps.
+- A hard challenge still persists Cooldown and stops the run; no existing risk-state assertion is weakened.
+- A looped Elevated run completes at least two passes without manual restart (manual verification on H).
+
+**Files (anticipated):** `scripts/terapeak-operator.sh`; `scripts/_terapeak_risk.py`; `scripts/terapeak-export.py` (only if the gate reference needs aligning); `__tests__/terapeakOperator.test.js`; `__tests__/terapeakRiskState.test.js`.
+
+**Related:** #320H (zero-attempt pass resets Elevated), PR #357.
+
+---
+
 ### #324H. Decide VNC authentication policy for loopback-only H operator logins [P3 -- OPERATIONS / DX] -- PROPOSED 2026-10-31
 
 **Origin:** First H operator run after PR #357 (2026-10-31). The operator login flow now requires a user-created `~/.vnc/passwd` and starts Xtigervnc with `-SecurityTypes VncAuth`. The previous Codespace flow (`docs/memory/terapeak-runbook.md`) used `SecurityTypes None`. H has no VNC at all before #357.
