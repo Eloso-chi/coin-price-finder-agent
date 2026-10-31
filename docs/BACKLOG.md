@@ -7,6 +7,134 @@ Items marked DONE are kept for historical reference.
 
 ## Scraping & Data Pipeline
 
+### #324H. Decide VNC authentication policy for loopback-only H operator logins [P3 -- OPERATIONS / DX] -- PROPOSED 2026-10-31
+
+**Origin:** First H operator run after PR #357 (2026-10-31). The operator login flow now requires a user-created `~/.vnc/passwd` and starts Xtigervnc with `-SecurityTypes VncAuth`. The previous Codespace flow (`docs/memory/terapeak-runbook.md`) used `SecurityTypes None`. H has no VNC at all before #357.
+
+**Problem:** A first-time H login is blocked until the operator creates a VNC password in their own terminal. On H, VNC (5901) and noVNC (6080) bind to WSL loopback only, so the password may be redundant, but this tradeoff was not an explicit recorded decision.
+
+**Proposed approach:** Record an explicit decision: keep the mandatory password (document it as one-time setup), allow `SecurityTypes None` only when every listener is verified loopback-only, or keep VncAuth but make the failure message and runbook prerequisite more prominent. Whatever is chosen must keep the non-loopback and Codespaces paths authenticated.
+
+**Acceptance criteria:**
+- The decision and its threat-model rationale are recorded in `docs/memory/anti-bot-operations.md` or the runbook.
+- If the password becomes optional on loopback, `__tests__/terapeakDisplay.test.js` proves it is still required for any non-loopback bind.
+
+**Files (anticipated):** `scripts/terapeak-display.sh`; `docs/runbooks/local-scraper-wsl2.md`; `__tests__/terapeakDisplay.test.js`.
+
+**Related:** #302W (vnc-login/probe noVNC handoff), #318H, #319H.
+
+---
+
+### #323H. Pass parse line miscounts outcomes versus the pass log [P3 -- REPORTING / OPERATIONS] -- PROPOSED 2026-10-31
+
+**Origin:** Operator run `20261031T003645Z-230493`, pass 1. The pass log shows 25 uploaded coins, 5 `NO EXPORT` results, and 3 saved coins whose uploads were rejected (two HTTP 422 "No valid comps found in CSV", one HTTP 400 `CONTRADICTORY_WEIGHT`).
+
+**Problem:** The `[parse]` line reported `ok=25 empty=4 failed=4` for the same pass. Counts for empty and failed do not match the 5 and 3 visible in the log, so per-pass reporting and cumulative tables built from `passes.jsonl` disagree with the log.
+
+**Proposed approach:** Define the outcome classes explicitly (OK, NO DATA, upload failed) and make `_parse-terapeak-pass.py` classify each coin by the exact log markers. Add a fixture-based test using the real pass-1 log excerpt.
+
+**Acceptance criteria:**
+- Parsing the fixture yields ok=25, no-export=5, upload-failed=3 and matching new/dup totals (1,222 new, 1,001 dups).
+- `cache/terapeak-runs/passes.jsonl` and `coins.jsonl` records agree with the log for the fixture.
+
+**Files (anticipated):** `scripts/_parse-terapeak-pass.py`; matching parser tests under `__tests__/`.
+
+**Related:** #320H.
+
+---
+
+### #322H. Add a Node dependency check to H operator preflight and runbook [P2 -- OPERATIONS / DOCS] -- PROPOSED 2026-10-31
+
+**Origin:** Operator run `20261031T002753Z-229475`, pass 1. After a successful login, the freshness-report step failed with `Cannot find module 'csv-parse/sync'`, the pass failed with `attempted=0`, and the loop exited.
+
+**Problem:** The H checkout had no `node_modules`. Neither `scripts/terapeak-startup-preflight.sh` nor `docs/runbooks/local-scraper-wsl2.md` requires or checks Node dependencies, so the failure surfaced only after an interactive login.
+
+**Proposed approach:** Add a preflight check for `node_modules/csv-parse` (and a clear remediation message naming `npm ci`) in both login and loop modes, and add the install step to the runbook's one-time setup.
+
+**Acceptance criteria:**
+- Preflight fails fast before login when `node_modules/csv-parse` is missing, with the `npm ci` remediation.
+- The runbook lists the dependency install in H setup.
+- `__tests__` cover the missing-dependency preflight case.
+
+**Files (anticipated):** `scripts/terapeak-startup-preflight.sh`; `docs/runbooks/local-scraper-wsl2.md`; operator and preflight tests.
+
+---
+
+### #321H. Display script start races on listener inspection and warns on binary reads [P2 -- OPERATIONS / RELIABILITY] -- PROPOSED 2026-10-31
+
+**Origin:** Operator run `20261031T002042Z-228287`. `scripts/terapeak-display.sh` failed with `Cannot inspect listener process 228365` shortly after starting the noVNC proxy, and its cleanup stopped both servers. An immediate manual `start` succeeded. Every start also printed `warning: command substitution: ignored null byte in input`.
+
+**Problem:** `verify_process` rejects a listener whose `/proc/<pid>/exe` or `cmdline` is not yet readable, so a timing window can abort a healthy start. The warning comes from `head -n 1` reading the binary `Xtigervnc` to test for a shebang. The root cause of the unreadable process is not confirmed.
+
+**Proposed approach:** First reproduce and identify why the process was uninspectable. Then retry the `/proc` inspection for a short bounded period before failing, and test for a shebang with `head -c 2` so binaries are not read into a shell variable.
+
+**Acceptance criteria:**
+- A start with a briefly uninspectable listener passes within a bounded wait; a persistently uninspectable one still fails and cleans up.
+- No `ignored null byte` warning is emitted for a binary executable.
+- Tests in `__tests__/terapeakDisplay.test.js` cover both cases without weakening existing assertions.
+
+**Files (anticipated):** `scripts/terapeak-display.sh`; `__tests__/terapeakDisplay.test.js`.
+
+**Related:** #318H, #319H.
+
+---
+
+### #320H. Zero-attempt pass must not reset Elevated risk state to Normal [P1 -- RISK-STATE / SAFETY] -- PROPOSED 2026-10-31
+
+**Origin:** Operator run `20261031T003645Z-230493`. Pass 1 recorded 5 `NO EXPORT` outcomes and moved the state to Elevated. Pass 2 was stopped by the 900-second pacing gate before any eBay request (`attempted=0`, `pass_exit_code=2`, 4 seconds), yet its summary recorded `state_before=Elevated`, `state_after=Normal`, `transition_reason=clean_pass_after_elevated`.
+
+**Problem:** The contract says one clean pass returns Elevated to Normal. A pass that attempted nothing is not a clean pass. The next run therefore started at full 32-coin Normal pacing instead of the Elevated bounds (15 to 20 terms, at least 900 seconds).
+
+**Proposed approach:** Require `attempted > 0` and a zero pass exit code before any Elevated to Normal transition, and leave the state unchanged otherwise. Review the other transitions for the same zero-attempt hole.
+
+**Acceptance criteria:**
+- A pass with `attempted=0` or a non-zero exit code leaves Elevated unchanged and records a distinct transition reason.
+- A genuine clean pass still returns to Normal.
+- `__tests__/terapeakRiskState.test.js` covers both cases; hard-challenge and Cooldown behavior are unchanged.
+
+**Files (anticipated):** `scripts/_terapeak_risk.py`; `scripts/terapeak-operator.sh`; `__tests__/terapeakRiskState.test.js`.
+
+**Related:** #323H; risk contract in `docs/memory/anti-bot-operations.md`.
+
+---
+
+### #319H. Display servers inherit and hold the operator lock [P1 -- OPERATIONS / RELIABILITY] -- PROPOSED 2026-10-31
+
+**Origin:** Operator run `20261031T002753Z-229475`. After the run, a `--no-login` restart exited with "Another Terapeak operator run is active". `lsof` showed Xtigervnc (229509) and websockify (229545) holding `cache/terapeak-operator.lock` on fd 10 after the operator had exited.
+
+**Problem:** `scripts/terapeak-operator.sh` acquires the `flock` lock on an inherited file descriptor and then starts the display servers from `scripts/terapeak-display.sh`. The long-lived servers inherit that descriptor and keep the lock indefinitely, blocking every later run until they are killed by hand.
+
+**Proposed approach:** Start the display servers with the lock descriptor closed (for example `10>&-` or by closing `LOCK_FD` in the child), and document that display servers outlive the operator.
+
+**Acceptance criteria:**
+- After the operator exits, a second operator invocation acquires the lock while the display servers are still running.
+- A test asserts the display processes do not hold the lock file open.
+
+**Files (anticipated):** `scripts/terapeak-display.sh`; `scripts/terapeak-operator.sh`; `__tests__/terapeakOperator.test.js`; `__tests__/terapeakDisplay.test.js`.
+
+**Related:** #318H, #321H.
+
+---
+
+### #318H. Display script aborts when VNC and noVNC are already running [P1 -- OPERATIONS / RELIABILITY] -- PROPOSED 2026-10-31
+
+**Origin:** Operator runs `20261031T002423Z-228775` and `20261031T002600Z-229301`. With VNC and noVNC already listening, the launcher printed the noVNC URL and exited immediately, never showing the "press Enter to continue" prompt or reaching login.
+
+**Problem:** At the end of `start_vnc` in `scripts/terapeak-display.sh`, `[[ -n "$vnc_pid" ]] && printf 'VNC PID: ...'` returns status 1 under `set -e` when the servers were not started by this invocation (empty PID). The script exits non-zero and the operator treats the display step as failed.
+
+**Proposed approach:** Replace the `[[ ... ]] && printf` lines with `if` blocks (or `|| true` guards) so a reused display returns success after `check_ready`. Add a test that runs `start` twice and asserts the second run exits 0 and prints the URL.
+
+**Acceptance criteria:**
+- `start` exits 0 when both listeners already exist and verify as authenticated loopback.
+- The operator reaches the Enter prompt on a reused display.
+- Existing partial-start cleanup tests keep their current assertions.
+
+**Files (anticipated):** `scripts/terapeak-display.sh`; `__tests__/terapeakDisplay.test.js`.
+
+**Related:** #319H, #321H.
+
+---
+
 ### #317H. Replace ambiguous Greysheet `:all` snapshots with condition-aware raw and graded coverage [P1 -- PRICING-ACCURACY / DATA-GOVERNANCE] -- PROPOSED 2026-09-13
 
 **Origin:** Production coverage audit on 2026-09-13 found that the bulk refresh labels grade-unspecified Type-GSID responses as `:all`, even though Greysheet returns a specific first pricing row. Representative results included Silver Eagle `MS63`, Gold Eagle `MS66`, and Morgan and Walking Liberty `P1`. These are type-level graded references, not raw/ungraded prices.
