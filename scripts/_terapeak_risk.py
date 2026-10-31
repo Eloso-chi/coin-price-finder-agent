@@ -3,9 +3,11 @@
 
 import argparse
 import json
+import math
 import os
 import re
 import sys
+import time
 from datetime import datetime, timezone
 
 VALID_STATES = ("Normal", "Elevated", "Challenged", "Cooldown")
@@ -39,7 +41,7 @@ def classify_log_lines(lines):
     }
 
 
-def evaluate_transition(current_state, signals, stateful=True):
+def evaluate_transition(current_state, signals, stateful=True, pass_clean=True):
     if current_state not in VALID_STATES:
         raise ValueError(f"invalid risk state: {current_state}")
 
@@ -57,6 +59,8 @@ def evaluate_transition(current_state, signals, stateful=True):
         return "Elevated", reason
 
     if current_state == "Elevated" and stateful:
+        if not pass_clean:
+            return current_state, None
         return "Normal", "clean_pass_after_elevated"
 
     return current_state, None
@@ -141,6 +145,35 @@ def cooldown_remaining_seconds(state_record, minimum_seconds, now=None):
     return max(0, minimum_seconds - elapsed)
 
 
+def elevated_pause_remaining_seconds(state_record, minimum_seconds, last_run_text=None, now=None):
+    """Seconds until the exporter's Elevated pacing gate would accept a pass.
+
+    Mirrors the reference time used by terapeak-export.py: changed_at, or the
+    .last-run marker when it is later. An unreadable timestamp fails closed.
+    """
+    if state_record.get("state") != "Elevated":
+        return 0
+    try:
+        since = datetime.fromisoformat(state_record["changed_at"].replace("Z", "+00:00"))
+        if last_run_text:
+            last_run = datetime.fromisoformat(last_run_text.strip().replace("Z", "+00:00"))
+            if last_run > since:
+                since = last_run
+    except (KeyError, AttributeError, TypeError, ValueError):
+        return minimum_seconds
+    current = now or datetime.now(since.tzinfo)
+    elapsed = (current - since).total_seconds()
+    return max(0, math.ceil(minimum_seconds - elapsed))
+
+
+def read_last_run(state_path):
+    try:
+        with open(f"{state_path}.last-run", encoding="utf-8") as marker:
+            return marker.read()
+    except OSError:
+        return None
+
+
 def cookie_refreshed_after_state(state_record, cookie_path):
     changed_at = state_record.get("changed_at")
     if not changed_at:
@@ -188,9 +221,48 @@ def main(argv=None):
     cookie_parser.add_argument("--state-file", required=True)
     cookie_parser.add_argument("--cookie-file", required=True)
 
+    pause_parser = subparsers.add_parser("pause-remaining")
+    pause_parser.add_argument("--state-file", required=True)
+    pause_parser.add_argument("--minimum-seconds", required=True, type=int)
+
+    wait_parser = subparsers.add_parser("wait-elevated-pause")
+    wait_parser.add_argument("--state-file", required=True)
+    wait_parser.add_argument("--minimum-seconds", required=True, type=int)
+    wait_parser.add_argument("--margin-seconds", type=int, default=2)
+    wait_parser.add_argument("--max-rounds", type=int, default=20)
+
     args = parser.parse_args(argv)
     if args.command == "current":
         print(load_state(args.state_file).get("state", "Normal"))
+        return 0
+
+    if args.command in ("pause-remaining", "wait-elevated-pause"):
+        def remaining_now():
+            return elevated_pause_remaining_seconds(
+                load_state(args.state_file),
+                args.minimum_seconds,
+                last_run_text=read_last_run(args.state_file),
+            )
+
+        remaining = remaining_now()
+        if args.command == "pause-remaining":
+            print(remaining)
+            return 0 if remaining == 0 else 2
+        rounds = 0
+        while remaining > 0:
+            if rounds >= args.max_rounds:
+                print(remaining)
+                print("[risk:FAIL] Elevated pause did not elapse on the wall clock", file=sys.stderr)
+                return 2
+            rounds += 1
+            print(
+                f"[risk:pause] {utc_now()} waiting {remaining + args.margin_seconds}s "
+                f"(round {rounds}) for the Elevated pacing gate",
+                file=sys.stderr,
+            )
+            time.sleep(remaining + args.margin_seconds)
+            remaining = remaining_now()
+        print(remaining)
         return 0
 
 
