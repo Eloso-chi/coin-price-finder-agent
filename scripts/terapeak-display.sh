@@ -36,6 +36,22 @@ fail() {
   exit 1
 }
 
+# Long-lived daemons must not inherit the caller's descriptors, such as the operator's flock.
+spawn_detached() {
+  local log_file="$1"
+  shift
+  (
+    local fd_path fd
+    for fd_path in /proc/self/fd/*; do
+      fd="${fd_path##*/}"
+      if [[ "$fd" =~ ^[0-9]+$ ]] && (( fd > 2 )); then
+        eval "exec ${fd}>&-" 2>/dev/null || true
+      fi
+    done
+    exec nohup "$@" >"$log_file" 2>&1 </dev/null
+  ) &
+}
+
 listener_addresses() {
   "$SS_BIN" -H -ltn "sport = :$1" | awk '{print $4}'
 }
@@ -52,11 +68,18 @@ verify_process() {
   local pid="$1"
   local expected_exe="$2"
   shift 2
-  local executable arguments argument script_interpreter=""
+  local executable arguments argument script_interpreter="" attempt
   local -a argv=()
+  # A freshly started listener can appear in /proc before exe and cmdline are readable.
+  for attempt in {1..20}; do
+    if [[ -r "$PROC_ROOT/$pid/exe" && -n "$(tr -d '\0' < "$PROC_ROOT/$pid/cmdline" 2>/dev/null)" ]]; then
+      break
+    fi
+    sleep 0.1
+  done
   [[ -r "$PROC_ROOT/$pid/exe" && -r "$PROC_ROOT/$pid/cmdline" ]] || fail "Cannot inspect listener process $pid"
   executable="$(readlink -f "$PROC_ROOT/$pid/exe")" || fail "Cannot resolve listener executable for PID $pid"
-  if [[ -r "$expected_exe" ]] && [[ "$(head -n 1 "$expected_exe")" == '#!'* ]]; then
+  if [[ -r "$expected_exe" ]] && [[ "$(head -c 2 "$expected_exe")" == '#!' ]]; then
     script_interpreter="$(head -n 1 "$expected_exe" | cut -c3- | awk '{print $1}')"
     [[ "$executable" == "$(readlink -f "$script_interpreter")" ]] || fail "Listener PID $pid is not running under the script interpreter"
   else
@@ -220,9 +243,8 @@ start_vnc() {
   trap cleanup_started EXIT
 
   if ! port_has_listener "$VNC_PORT"; then
-    nohup "$XTIGERVNC_BIN" "$VNC_DISPLAY" -localhost yes -rfbport "$VNC_PORT" \
-      -geometry 1280x800 -SecurityTypes VncAuth -PasswordFile "$PASSWORD_FILE" \
-      -AlwaysShared >"$VNC_LOG" 2>&1 </dev/null &
+    spawn_detached "$VNC_LOG" "$XTIGERVNC_BIN" "$VNC_DISPLAY" -localhost yes -rfbport "$VNC_PORT" \
+      -geometry 1280x800 -SecurityTypes VncAuth -PasswordFile "$PASSWORD_FILE" -AlwaysShared
     vnc_pid=$!
     started_vnc=true
     local ready=false
@@ -245,8 +267,7 @@ start_vnc() {
     novnc_bind="0.0.0.0"
   fi
   if ! port_has_listener "$NOVNC_PORT"; then
-    nohup "$WEBSOCKIFY_BIN" "--web=$NOVNC_WEB_DIR" "$novnc_bind:$NOVNC_PORT" "127.0.0.1:$VNC_PORT" \
-      >"$NOVNC_LOG" 2>&1 </dev/null &
+    spawn_detached "$NOVNC_LOG" "$WEBSOCKIFY_BIN" "--web=$NOVNC_WEB_DIR" "$novnc_bind:$NOVNC_PORT" "127.0.0.1:$VNC_PORT"
     novnc_pid=$!
     started_novnc=true
     local ready=false
@@ -266,8 +287,12 @@ start_vnc() {
   export DISPLAY="$VNC_DISPLAY"
   check_ready
   trap - EXIT
-  [[ -n "$vnc_pid" ]] && printf 'VNC PID: %s\n' "$vnc_pid"
-  [[ -n "$novnc_pid" ]] && printf 'noVNC PID: %s\n' "$novnc_pid"
+  if [[ -n "$vnc_pid" ]]; then
+    printf 'VNC PID: %s\n' "$vnc_pid"
+  fi
+  if [[ -n "$novnc_pid" ]]; then
+    printf 'noVNC PID: %s\n' "$novnc_pid"
+  fi
 }
 
 command_name="${1:-}"
