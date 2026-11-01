@@ -144,6 +144,48 @@ describe('#327H parseDescription does not read a purity mark or silver-content f
     expect(pcgsService.parseDescription(title).weight).toBe(weight);
   });
 
+  test.each([
+    ['Libertad 1 / 50 oz', 0.02],
+    ['Libertad 1 / 100 oz', 0.01],
+    ['Libertad 1 / 1000 oz', 0.001],
+  ])('a spaced 1/N fraction with a listed denominator is read as written: %s -> %s', (title, weight) => {
+    expect(pcgsService.parseDescription(title).weight).toBe(weight);
+  });
+
+  test.each([
+    ['Libertad 1 / 15 oz', 15],
+    ['Libertad 1 / 16 oz', 16],
+    ['Silver 2 / 5 oz bars', 5],
+    ['Silver 3 / 4 oz bars', 4],
+  ])('a spaced fraction outside the known set reads the denominator, as before: %s -> %s', (title, weight) => {
+    expect(pcgsService.parseDescription(title).weight).toBe(weight);
+  });
+
+  test.each([
+    ['Silver 3/2 oz bar', 2],
+    ['Silver 10/10 oz bar', 10],
+  ])('an unspaced improper fraction reads the denominator: %s -> %s', (title, weight) => {
+    expect(pcgsService.parseDescription(title).weight).toBe(weight);
+  });
+
+  test.each([
+    'Mint .1/2 oz Silver',
+    'Mint .1 /10 oz Silver',
+    'Mint .1 / 2 oz Silver',
+    'Libertad Silver1.5 oz',
+  ])('a leading-dot proper fraction or a digit-glued decimal tail reads no weight: %s', title => {
+    expect(pcgsService.parseDescription(title).weight).toBeUndefined();
+  });
+
+  test('known limitation: a denomination glued to a real fraction reads the denominator', () => {
+    // "(51/10 oz" is a $5 coin of 1/10 oz; neither the old parser (5.1) nor this one (10) reads it right.
+    expect(pcgsService.parseDescription('(51/10 oz - .9999 2015 Gold Canada Coin').weight).toBe(10);
+  });
+
+  test('known limitation: a genuine heavy bar written after a letter-glued dot is dropped', () => {
+    expect(pcgsService.parseDescription('Silver Bar.200 oz').weight).toBeUndefined();
+  });
+
   test('a zero denominator reads no weight instead of Infinity', () => {
     expect(pcgsService.parseDescription('Silver 1/0 oz round').weight).toBeUndefined();
   });
@@ -153,6 +195,8 @@ describe('#327H parseDescription does not read a purity mark or silver-content f
     ['G-70 - .050 OZ Panda', '.050 OZ'],
     ['1 /20 Oz Libertad', '1 /20 Oz'],
     ['Mexico 2018 / 1 oz SILBER', '1 oz'],
+    ['Mexico 2018/1 oz SILBER', '1 oz'],
+    ['Silver Bar.100 oz', '100 oz'],
     ['Silver 1.5 oz round', '1.5 oz'],
   ])('weightRaw shows the text that was read: %s -> %s', (title, raw) => {
     expect(pcgsService.parseDescription(title).weightRaw).toBe(raw);

@@ -261,7 +261,7 @@ async function resolveFromDescription(text) {
 const LEADING_DOT_FRACTION_OZ = new Set([0.05, 0.1, 0.25, 0.5]);
 
 // Denominators of the 1/N ounce coins and rounds that sellers write as a spaced fraction ("1 /10 oz").
-const KNOWN_FRACTION_DENOMINATORS = new Set([2, 3, 4, 5, 8, 10, 20, 25, 40]);
+const KNOWN_FRACTION_DENOMINATORS = new Set([2, 3, 4, 5, 8, 10, 20, 25, 40, 50, 100, 1000]);
 
 /**
  * Find the stated ounce weight in a title, or null.
@@ -275,11 +275,12 @@ const KNOWN_FRACTION_DENOMINATORS = new Set([2, 3, 4, 5, 8, 10, 20, 25, 40]);
  *   ("Silver.999 oz"); a ".." ellipsis admits only fractions ("..1/2 oz").
  */
 function findOunceWeight(text) {
+  const source = String(text);
   const pattern = /\b(\d+(?:\.\d+)?(?:\s*\/\s*\d+)?)\s*(?:troy\s*)?oz\b/gi;
-  for (const match of String(text).matchAll(pattern)) {
+  for (const match of source.matchAll(pattern)) {
     const raw = match[1];
     const isFraction = raw.includes('/');
-    const before = text.slice(0, match.index);
+    const before = source.slice(0, match.index);
     const unit = match[0].slice(raw.length);
     let weight;
     let weightRaw = match[0];
@@ -301,10 +302,12 @@ function findOunceWeight(text) {
       if (beforeDot === '.') {
         if (!isFraction) continue;
       } else if (!/[a-z]/i.test(beforeDot)) {
+        // A leading-dot proper fraction (".1/2 oz") is a typo or purity-style figure, so it reads nothing;
+        // a dot after a digit ("Silver1.5 oz") is the tail of a decimal that \b split from its integer part.
         if (isFraction) {
           if (!denominatorOnly) continue;
         } else {
-          if (beforeDot === '$' || raw.includes('.')) continue;
+          if (beforeDot === '$' || /\d/.test(beforeDot) || raw.includes('.')) continue;
           const decimal = Number(`0.${raw}`);
           if (!LEADING_DOT_FRACTION_OZ.has(decimal)) continue;
           weight = decimal;
