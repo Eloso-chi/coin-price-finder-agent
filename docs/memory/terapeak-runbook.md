@@ -12,6 +12,8 @@ The dry run classifies rows as `valid`, `wrong_dataset`, `ambiguous`, or `unknow
 
 Fractional canonical keys are normalized before classification even when token sorting separates `oz` from `twentieth`, `tenth`, `quarter`, or `half`. Review reroute totals for those weights in the manifest; no manual key rewrite is required.
 
+An upload's import summary includes `weightUnplaceable`: comps dropped because the dataset key derived for their weight was rejected by the explicit-weight analyzer. A non-zero count is worth a look but never fails the upload. An HTTP 400 `CONTRADICTORY_WEIGHT` response with `derivedKey: true` means the rejected string was a key derived during reclassification, not the term that was uploaded; `searchTermLength` is the rejected string's length. Weight parsing now ignores purity marks and silver-content figures written as a leading-dot decimal (`.999 oz`, `.3617 oz`) and reads known fractions written that way (`.5 oz` is 0.5), so a `scripts/reclassify-comps.js` dry run after #327H classifies those comps differently. Over the unique oz titles in the CSVs under `data/terapeak/`, 96 of 24,109 change: 62 lose a wrong weight (such as 3617 oz) and no longer reroute to a bogus key, and 33 read a correct, different weight and reroute to that weight's dataset (1 more changes from one wrong weight to another). Re-run the dry run and check the manifest before `--apply`; that script has no analyzer guard on its target keys (backlog #327H, deferred item c).
+
 - `identity-reclassification-manifest.json` -- parser version, before/after counts, classification totals, and reroute counts.
 - `identity-reclassification-rollback.json` -- original rows removed or moved, including source dataset and index.
 

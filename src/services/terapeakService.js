@@ -902,6 +902,18 @@ function parseCSV(csvData, searchTerm) {
   };
 }
 
+function weightRejectionError(weightAnalysis, searchTerm, isDerivedKey = false) {
+  const contradictory = weightAnalysis.weights.length > 1;
+  const err = new Error(contradictory
+    ? `Contradictory explicit weights in search term: ${weightAnalysis.weights.join(', ')} oz`
+    : 'Invalid explicit weight in search term (unparseable, above the weight cap, or over 500 characters)');
+  err.code = 'CONTRADICTORY_WEIGHT';
+  err.explicitWeights = weightAnalysis.weights;
+  err.searchTermLength = typeof searchTerm === 'string' ? searchTerm.length : null;
+  err.derivedKey = isDerivedKey;
+  return err;
+}
+
 /**
  * Import parsed comps into the persistent terapeak store.
  *
@@ -913,10 +925,7 @@ function parseCSV(csvData, searchTerm) {
 function importComps(searchTerm, comps, meta = {}, context = {}) {
   const weightAnalysis = analyzeExplicitWeights(searchTerm);
   if (weightAnalysis.invalid || weightAnalysis.weights.length > 1) {
-    const err = new Error(`Contradictory explicit weights in search term: ${weightAnalysis.weights.join(', ')} oz`);
-    err.code = 'CONTRADICTORY_WEIGHT';
-    err.explicitWeights = weightAnalysis.weights;
-    throw err;
+    throw weightRejectionError(weightAnalysis, searchTerm, context.source === 'reroute');
   }
   const store = loadStore();
   const normalizedKey = normalizeSearchKey(searchTerm);
@@ -930,6 +939,7 @@ function importComps(searchTerm, comps, meta = {}, context = {}) {
   let reclassified = 0;
   let ambiguousExcluded = 0;
   let identityExcluded = 0;
+  let weightUnplaceable = 0;
   if (!isReclassifying) {
     const expectedIdentity = resolveProductIdentity({
       text: normalizeWeightDatasetKey(searchTerm),
@@ -943,9 +953,11 @@ function importComps(searchTerm, comps, meta = {}, context = {}) {
         reclassified: 0,
         ambiguousExcluded: comps.length,
         identityExcluded: 0,
+        weightUnplaceable: 0,
       };
     }
     const reroute = {};   // targetKey -> comp[]
+    const rejectedTargets = new Set();
     const keep = [];
     for (const comp of comps) {
         const compIdentity = comp._productIdentity?.parserVersion === PRODUCT_IDENTITY_PARSER_VERSION
@@ -972,6 +984,16 @@ function importComps(searchTerm, comps, meta = {}, context = {}) {
             normalizeSearchKey
           );
           if (targetKey && targetKey !== normalizedKey) {
+            // A derived key the analyzer rejects (for example a weight above the cap) would make the
+            // recursive import throw and discard the whole upload, so set that comp aside instead.
+            if (!reroute[targetKey] && !rejectedTargets.has(targetKey)) {
+              const targetAnalysis = analyzeExplicitWeights(targetKey);
+              if (targetAnalysis.invalid || targetAnalysis.weights.length > 1) rejectedTargets.add(targetKey);
+            }
+            if (rejectedTargets.has(targetKey)) {
+              weightUnplaceable++;
+              continue;
+            }
             if (!reroute[targetKey]) reroute[targetKey] = [];
             reroute[targetKey].push({ ...comp, _productIdentity: serializeProductIdentity(compIdentity) });
             continue;
@@ -1155,6 +1177,7 @@ function importComps(searchTerm, comps, meta = {}, context = {}) {
     reclassified,
     ambiguousExcluded,
     identityExcluded,
+    weightUnplaceable,
     totalStored: existing.length,
     lastImport: store[normalizedKey].lastImport
   };
@@ -1468,10 +1491,7 @@ function _mergeDatasets(candidates) {
 function updateDatasetMeta(searchTerm, metaUpdates) {
   const weightAnalysis = analyzeExplicitWeights(searchTerm);
   if (weightAnalysis.invalid || weightAnalysis.weights.length > 1) {
-    const err = new Error(`Contradictory explicit weights in search term: ${weightAnalysis.weights.join(', ')} oz`);
-    err.code = 'CONTRADICTORY_WEIGHT';
-    err.explicitWeights = weightAnalysis.weights;
-    throw err;
+    throw weightRejectionError(weightAnalysis, searchTerm);
   }
   const store = loadStore();
   const normalizedKey = normalizeSearchKey(searchTerm);
