@@ -12,6 +12,8 @@ The dry run classifies rows as `valid`, `wrong_dataset`, `ambiguous`, or `unknow
 
 Fractional canonical keys are normalized before classification even when token sorting separates `oz` from `twentieth`, `tenth`, `quarter`, or `half`. Review reroute totals for those weights in the manifest; no manual key rewrite is required.
 
+An upload's import summary includes `weightUnplaceable`: comps dropped because the dataset key derived for their weight was rejected by the explicit-weight analyzer. A non-zero count is worth a look but never fails the upload. An HTTP 400 `CONTRADICTORY_WEIGHT` response with `derivedKey: true` means the rejected string was a key derived during reclassification, not the term that was uploaded; `searchTermLength` is the rejected string's length. Weight parsing now ignores purity marks and silver-content figures written as a leading-dot decimal (`.999 oz`, `.3617 oz`) and reads known fractions written that way (`.5 oz` is 0.5), so a `scripts/reclassify-comps.js` dry run after #327H classifies those comps differently. Over the unique oz titles in the CSVs under `data/terapeak/`, 96 of 24,109 change: 62 lose a wrong weight (such as 3617 oz) and no longer reroute to a bogus key, and 33 read a correct, different weight and reroute to that weight's dataset (1 more changes from one wrong weight to another). Re-run the dry run and check the manifest before `--apply`; that script has no analyzer guard on its target keys (backlog #327H, deferred item c).
+
 - `identity-reclassification-manifest.json` -- parser version, before/after counts, classification totals, and reroute counts.
 - `identity-reclassification-rollback.json` -- original rows removed or moved, including source dataset and index.
 
@@ -29,18 +31,26 @@ After apply, restart the application to invalidate pricing caches. Re-running af
 
 ## Quick Start (run these in order)
 
-### 1. VNC Server
+This manual quick start is for the W Codespace path. The H Surface/WSL path
+uses [the local scraper runbook](../runbooks/local-scraper-wsl2.md) and its
+canonical `terapeak-operator.sh` launcher.
+
+### 1. Secure visible display (W Codespace)
 ```bash
-# Check if running:
-pgrep -f Xtigervnc && echo "running" || echo "not running"
+# One-time per machine; type the password directly into this terminal.
+sudo apt update && sudo apt install -y tigervnc-standalone-server novnc python3-websockify
+mkdir -p ~/.vnc && chmod 700 ~/.vnc && vncpasswd && chmod 600 ~/.vnc/passwd
 
-# If not running:
-Xtigervnc :1 -geometry 1280x800 -SecurityTypes None -AlwaysShared &>/dev/null &
-sleep 1
-bash /usr/share/novnc/utils/novnc_proxy --vnc localhost:5901 --listen 6080 &>/dev/null &
-
-# Access via browser: port 6080 (no password -- SecurityTypes None)
+# Start an authenticated VNC server and the noVNC web proxy.
+bash scripts/terapeak-display.sh start
 ```
+
+Wait for Codespaces to open the private-forwarded noVNC page on port 6080 and
+confirm it loads before starting a visible login. Only port 6080 is forwarded;
+the VNC port 5901 remains unforwarded and VNC itself listens on loopback.
+Never use `SecurityTypes None` or change the noVNC port to public visibility.
+If the page does not load or the helper reports an unexpected listener, stop
+and inspect it rather than killing an unknown process.
 
 ### 2. App Server
 ```bash
@@ -71,13 +81,19 @@ curl -s -X POST http://localhost:3000/api/terapeak/quota/reset \
 
 ### 4. eBay Login via VNC
 ```bash
-cd "$(git rev-parse --show-toplevel)" && DISPLAY=:1 python3 scripts/vnc-login.py
-# Opens eBay in Playwright browser inside VNC
-# Open port 6080 in your browser, solve CAPTCHA/2FA, log in
+cd "$(git rev-parse --show-toplevel)" && DISPLAY=":${TERAPEAK_VNC_DISPLAY:-1}" python3 scripts/terapeak-export.py --login
+# Run only after the noVNC page is open and confirmed
+# Solve CAPTCHA/2FA and log in in the noVNC browser
 # Script auto-detects login, then opens /sh/research in the same visible browser
 # so you can solve a second challenge before cookies are saved.
 # A hard bot-warning stops with exit 2; do not retry or bypass it.
 ```
+
+Direct exporter entrypoints enforce persisted risk state: ad-hoc collection is
+allowed only in `Normal`; `Elevated` collection requires the canonical H/W
+operator's bounded pacing gates. Recovery login is blocked until Cooldown
+expires. Logging in after the wait does not clear Cooldown; the canonical
+machine operator must complete its live cookie probe and state reset first.
 
 ### 5. Keepalive (prevents Codespace idle shutdown)
 ```bash
@@ -148,11 +164,18 @@ cd "$(git rev-parse --show-toplevel)" && DISPLAY=:1 python3 scripts/sales-aggreg
 ```
 
 **Recovery checklist after codespace restart:**
-1. VNC server (step 1)
+1. Authenticated VNC/noVNC display (step 1; create the password file if this is a new machine)
 2. App server (step 2)
 3. eBay login via VNC (step 4) -- cookies expire on restart
 4. Commit any uncommitted data: `git add data/terapeak/ && git diff --cached --stat`
 5. Resume with `--resume <old-log>` (step 8)
+
+For an explicit missing/expired-cookie refresh, first confirm the W risk state
+passes the canonical cooldown-ready gate. Then start the authenticated display with
+`bash scripts/terapeak-display.sh start`, wait for the private noVNC page to
+load, and only then run `DISPLAY=:1 python3 scripts/terapeak-export.py --login`
+with the repo environment loaded. The WSL
+Surface operator path is separate and uses `terapeak-operator.sh`.
 
 ## Long-running operator (codespace / W machine)
 
@@ -195,11 +218,17 @@ can be reviewed later:
 
 | File | Schema |
 |---|---|
-| `cache/terapeak-runs/passes.jsonl` | One JSON object per pass (run_id, machine, batch_size, attempted, succeeded, empty, failed, new_rows, dup_rows, duration_sec, ...) |
-| `cache/terapeak-runs/coins.jsonl` | One JSON object per coin attempt (run_id, pass, idx, coin, status, new, dups, dormant) |
+| `cache/terapeak-runs/passes.jsonl` | One JSON object per pass (run_id, machine, batch_size, attempted, succeeded, empty, failed, no_comps, no_comps_cluster, new_rows, dup_rows, duration_sec, ...) |
+| `cache/terapeak-runs/coins.jsonl` | One JSON object per coin attempt (run_id, pass, idx, coin, status, new, dups, dormant, no_comps) |
 
 `scripts/_parse-terapeak-pass.py` does the parsing. It is best-effort and
 never fails the operator -- parse errors are logged but the loop continues.
+
+Datasets the server rejects with HTTP 422 "No valid comps found" are reported
+as no data and, when the current run created the CSV, set aside (not deleted)
+in the git-ignored `cache/terapeak-rejected/`; see
+`docs/runbooks/local-scraper-wsl2.md`. Both operators stop after a pass with a
+cluster of such rejections (`no_comps_cluster`).
 
 View the ledger with `scripts/show-terapeak-runs.sh`:
 
@@ -327,6 +356,6 @@ The page-1 exporter overlaps one upload with the next scrape, drains every uploa
 - ADMIN_API_KEY: stored in local `.env` (gitignored) and Azure Key Vault secret `ADMIN-API-KEY` (prod). Bootstrap a fresh machine with `bash scripts/load-secrets.sh`. Never commit the value.
 - Cookie file: cache/ebay_cookies.json (gitignored)
 - Progress tracking: cache/terapeak_export_progress.json (for --resume)
-- Session expires: usually ~24-48 hours; re-login via vnc-login.py
+- Session expires: usually ~24-48 hours; use the machine's canonical operator and guarded exporter login after the persisted Cooldown gate allows recovery. Open the authenticated noVNC URL before continuing.
 - Terapeak provides up to 3 years of historical paid sales data
 - Default sort is Best Match; scripts click "Date last sold" for chronological order

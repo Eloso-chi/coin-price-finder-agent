@@ -104,6 +104,13 @@ The operator follows the canonical Normal, Elevated, Challenged, and Cooldown
 model in [anti-bot-operations.md](../memory/anti-bot-operations.md). The first
 hard challenge stops immediately. Cooldown restart requires the wait to elapse,
 a cookie file refreshed after the incident, and a successful live probe.
+The operator also stops with a nonzero exit after a pass whose record sets
+`no_comps_cluster` (parser output, including `[parse] WARN no_comps cluster`,
+goes to the operator master log). This is a data-quality stop, not a risk
+signal: it leaves the risk state unchanged and needs no Cooldown wait or
+re-login. Check whether the Terapeak export format or the server CSV parser
+changed (rejected CSVs are in `cache/terapeak-rejected/`) before restarting;
+see [anti-bot-operations.md](../memory/anti-bot-operations.md) item 7.
 
 If you need to run exporter directly (without triage orchestration), use:
 

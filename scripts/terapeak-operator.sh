@@ -179,6 +179,27 @@ cleanup() {
   exit $rc
 }
 
+pause_before_next_pass() {
+  local pass_pause_seconds="$PAUSE_SECONDS" elevated=false
+  if [[ "$RISK_STATE_ENABLED" != "0" && "$CURRENT_RISK_STATE" == "Elevated" ]]; then
+    elevated=true
+    pass_pause_seconds="$ELEVATED_PAUSE_SECONDS"
+  fi
+  if [[ "$elevated" != true ]]; then
+    echo "[operator] sleeping ${pass_pause_seconds}s before next pass"
+    sleep "$pass_pause_seconds"
+    return 0
+  fi
+  # The exporter gate measures wall-clock time from the last Elevated change or pass start; a fixed sleep can return early.
+  echo "[operator] waiting for the Elevated pacing gate (at least ${ELEVATED_PAUSE_SECONDS}s)"
+  if ! "$PYTHON_BIN" scripts/_terapeak_risk.py wait-elevated-pause \
+    --state-file "$RISK_STATE_FILE" --minimum-seconds "$ELEVATED_PAUSE_SECONDS" >/dev/null; then
+    write_state "loop-pass" "failed" "Elevated pause did not elapse" 1
+    echo "[operator:risk] Elevated pause did not elapse; stopping before the next pass." >&2
+    exit 1
+  fi
+}
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --env-file)
@@ -340,6 +361,14 @@ export TERAPEAK_EFFECTIVE_PACING_PROFILE="baseline"
 if [[ "$DO_LOGIN" == true ]]; then
   CURRENT_STAGE="login"
   write_state "login" "running" "Starting interactive eBay login"
+  if [[ ! -t 0 ]]; then
+    echo "[operator] Interactive login requires a terminal so noVNC can be opened and confirmed before browser login." >&2
+    exit 1
+  fi
+  export DISPLAY=":${TERAPEAK_VNC_DISPLAY:-1}"
+  bash scripts/terapeak-display.sh start
+  read -r -p "[operator] Open the printed noVNC URL and confirm the page is ready, then press Enter to continue: " _
+  bash scripts/terapeak-display.sh check
   "$PYTHON_BIN" scripts/terapeak-export.py --login
   if [[ "$CURRENT_RISK_STATE" == "Cooldown" ]]; then
     if ! "$PYTHON_BIN" scripts/cookie-health-check.py --probe; then
@@ -399,6 +428,9 @@ while true; do
   pass_extra=$((pass_page1_batch - P01_FIXED))
   if (( pass_extra < 0 )); then
     pass_extra=0
+  fi
+  if [[ "$state_before" == "Elevated" ]]; then
+    export TERAPEAK_ELEVATED_PAUSE_SECONDS="$ELEVATED_PAUSE_SECONDS"
   fi
   echo "[operator] Pass ${PASS} blended queue: P0.1 fixed=${P01_FIXED}, non-P0.1 extra=${pass_extra} (total target=${pass_page1_batch})"
 
@@ -477,12 +509,14 @@ while true; do
   fi
 
   if (( challenge_signal_count > 0 )); then
+    rm -f "$SUMMARY_FILE"
     write_state "loop-pass" "failed" "Hard challenge detected; risk state is Cooldown" 1
     echo "[operator:risk] Hard challenge detected; stopping now in Cooldown. Do not retry until the probe and re-login gate passes." >&2
     exit 1
   fi
 
   if (( PASS_EXIT_RC != 0 )); then
+    rm -f "$SUMMARY_FILE"
     write_state "loop-pass" "failed" "Pass ${PASS} failed"
     echo "[operator] Pass ${PASS} failed; exiting." >&2
     exit 1
@@ -490,20 +524,31 @@ while true; do
 
   write_state "loop-pass" "ok" "Pass ${PASS} completed"
 
+  # Data-quality check (not a risk signal): a cluster of uploads rejected as "No valid comps" points
+  # at a Terapeak export-format change or a server CSV parser fault. Read-only; fails closed.
+  NO_COMPS_CLUSTER_RC=0
+  "$PYTHON_BIN" scripts/_terapeak_risk.py no-comps-cluster --summary-file "$SUMMARY_FILE" >/dev/null || NO_COMPS_CLUSTER_RC=$?
+
   # Print progress metrics after each pass and persist them into pass log.
   bash scripts/operator-monitor.sh "$PROJECT_DIR" "$PASS" "$PASS_LOG_FILE" "$SUMMARY_FILE" | tee -a "$PASS_LOG_FILE"
   rm -f "$SUMMARY_FILE"
+
+  if (( NO_COMPS_CLUSTER_RC == 2 )); then
+    # The cleanup trap records the stage on a nonzero exit, so a distinct stage keeps this stop identifiable.
+    CURRENT_STAGE="no-comps-cluster-stop"
+    echo "[operator] Pass ${PASS} had a cluster of uploads rejected as 'No valid comps found'; stopping (data-quality stop, risk state unchanged). Check whether the Terapeak export format or the server CSV parser changed (rejected CSVs are in cache/terapeak-rejected/) before restarting." >&2
+    exit 1
+  elif (( NO_COMPS_CLUSTER_RC != 0 )); then
+    CURRENT_STAGE="no-comps-cluster-check-unreadable"
+    echo "[operator] Pass ${PASS} summary could not be read; stopping because the no-comps data-quality check cannot be evaluated." >&2
+    exit 1
+  fi
 
   if [[ "$LOOP" != true ]]; then
     break
   fi
 
-  pass_pause_seconds="$PAUSE_SECONDS"
-  if [[ "$RISK_STATE_ENABLED" != "0" && "$CURRENT_RISK_STATE" == "Elevated" ]]; then
-    pass_pause_seconds="$ELEVATED_PAUSE_SECONDS"
-  fi
-  echo "[operator] sleeping ${pass_pause_seconds}s before next pass"
-  sleep "$pass_pause_seconds"
+  pause_before_next_pass
   PASS=$((PASS + 1))
 done
 

@@ -150,17 +150,41 @@ curl -s -o /dev/null -w 'admin=%{http_code}\n' \
 
 ## First sign-in
 
+The visible login uses an authenticated local VNC display. Set its password
+once in the WSL Ubuntu terminal; type the password there, never in chat:
+
+```bash
+sudo apt update && sudo apt install -y tigervnc-standalone-server novnc python3-websockify
+mkdir -p ~/.vnc && chmod 700 ~/.vnc && vncpasswd && chmod 600 ~/.vnc/passwd
+```
+
+The canonical operator starts/checks the display and pauses after printing its
+noVNC URL. Open that URL and confirm the page is ready before pressing Enter;
+the operator will not start Playwright login until then. VNC and noVNC bind to
+WSL loopback, and no VNC port is forwarded publicly.
+
+For a manual first sign-in, start the display and open the printed URL before
+running the command below:
+
 ```bash
 cd ~/cpf/coin-price-finder-agent
 source .venv/bin/activate
 set -a; source .env.surface; set +a
+bash scripts/terapeak-display.sh start
+export DISPLAY="${TERAPEAK_VNC_DISPLAY:-1}"
 python3 scripts/terapeak-export.py --login
 ```
 
-A real Chromium window will appear. Sign in to eBay manually (solve any
+A real Chromium window will appear in noVNC. Sign in to eBay manually (solve any
 CAPTCHA), navigate once to `https://www.ebay.com/sh/research` to confirm
 Terapeak loads, then close the window. The script writes the jar to
 `$COOKIE_FILE`.
+
+Direct exporter entrypoints enforce the persisted risk state: ad-hoc collection
+is allowed only in `Normal`; `Elevated` collection requires the canonical H/W
+operator's bounded pacing gates. Recovery login is blocked until Cooldown
+expires. A recovery login does not clear Cooldown; complete the canonical
+operator's live cookie probe and state reset before collecting.
 
 > **Do not** copy this file into the repo. The whole point of the env override
 > is that the laptop's cookies stay on the laptop -- moving them between
@@ -203,7 +227,9 @@ python3 scripts/terapeak-export.py --dry-run \
 
 The wrapper always does:
 1. `terapeak-startup-preflight.sh --mode login`
-2. `terapeak-export.py --login` (unless `--no-login`)
+2. Starts and verifies authenticated VNC/noVNC, waits for confirmation that
+  the noVNC page is open, then runs `terapeak-export.py --login` (unless
+  `--no-login`)
 3. `terapeak-startup-preflight.sh --mode loop`
 4. `run-surface-freshness-loop.sh --skip-deep --skip-probe`
 
@@ -292,7 +318,13 @@ Operator log outputs:
   defines the canonical Normal, Elevated, Challenged, and Cooldown states.
 - **Loop exit condition:** the first explicit hard challenge stops the exporter
   and operator with a nonzero exit and persists Cooldown. It does not retry the
-  challenged page.
+  challenged page. The H operator also exits nonzero if the Elevated pacing
+  wait does not elapse (unreadable inputs or no progress). Both operators also
+  stop, without changing the risk state, after a pass that logs
+  `[parse] WARN no_comps cluster` (see
+  [anti-bot-operations.md](../memory/anti-bot-operations.md) item 7): check
+  whether the Terapeak export format or the server CSV parser changed before
+  restarting.
 - **Akamai cooldown:** once eBay serves a `/splashui/captchaP` challenge, the
   operator enforces at least a two-hour wait by default. Restart requires an
   interactive login and a successful live probe. Longer waits may be needed.
@@ -424,7 +456,19 @@ Notes:
 - `SAVED but upload failed` with HTTP 422 (`No valid comps found`) does not
   change metadata inside the import endpoint. The exporter recognizes that
   response and separately calls `POST /api/terapeak/report-no-data`, advancing
-  dormant tracking through the explicit no-result route.
+  dormant tracking through the explicit no-result route. When that CSV was
+  created by the current run the exporter also moves it to the git-ignored
+  `cache/terapeak-rejected/` (never deleting it) and prints
+  `[dataset] <term>: no valid comps; reported as no data, moved unusable CSV to cache/terapeak-rejected/<file>`;
+  a dataset file that already existed, or that another term merged into or
+  changed after this run created it, is left in place. After more than three
+  consecutive rejections in one run the exporter stops reporting no data
+  (`[dataset] WARN ... look systemic`) until an upload succeeds, but still sets
+  the CSV aside; genuine failures and `NO EXPORT` neither advance nor reset
+  that count. Pass telemetry counts
+  the coin as `empty` with `no_comps`, not as `failed`, and a pass where many
+  coins are rejected this way logs `[parse] WARN no_comps cluster` (see
+  `docs/memory/operator-status-format.md`).
 - P3 monitor/evidence-probe entries are excluded by default; include them with
   `--include-thin` when you intentionally want monitor passes.
 

@@ -43,9 +43,11 @@ Requirements:
 
 import argparse
 import csv
+import fcntl
 import json
 import os
 import re
+import shutil
 import sys
 import time
 from datetime import datetime, timedelta
@@ -56,7 +58,7 @@ if str(SCRIPT_MODULE_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_MODULE_DIR))
 
 from _terapeak_pacing import BASELINE, authorized_effective_profile, scale_range, scale_seconds, validate_profile
-from _terapeak_risk import load_state
+from _terapeak_risk import cooldown_remaining_seconds, load_state, write_state
 from _explicit_weight import has_contradictory_weight_sources, has_contradictory_weights
 
 try:
@@ -158,6 +160,7 @@ COFFEE_BREAK_DURATION = (15, 45)   # 15-45 second pause
 
 import random
 import math
+import subprocess
 
 
 def has_display():
@@ -686,6 +689,10 @@ class UploadPipelineStalled(RuntimeError):
     pass
 
 
+class CooldownPersistenceError(RuntimeError):
+    """A hard challenge was detected but its mandatory stop state could not be saved."""
+
+
 def upload_csv_async(csv_path, search_term, aggregation_meta=None, cleanup=False):
     """Start one background upload so it can overlap the next coin scrape."""
     drain_upload()
@@ -774,15 +781,137 @@ def _record_upload_result(result, progress):
         return 0, 0, 0
     term = result["term"]
     if result["ok"]:
+        _note_upload_success(term)
         print(f"  [async upload] {term}: OK ({result['msg']})")
         progress.setdefault("completed", []).append(term)
         return 1, 1, 0
 
     print(f"  [async upload] {term}: failed -- {result['msg']}")
-    if _is_no_valid_comps_error(result["msg"]):
-        _report_no_data(term)
+    _settle_failed_upload(term, result["msg"])
     progress.setdefault("failed", []).append(term)
     return 0, 0, 1
+
+
+def _record_sync_upload_result(term, ok, msg, progress):
+    """Apply one synchronous upload result; returns (success, uploaded, failed) deltas."""
+    if ok:
+        _note_upload_success(term)
+        print(f"OK ({msg})")
+        progress.setdefault("completed", []).append(term)
+        return 1, 1, 0
+
+    print(f"SAVED but upload failed: {msg}")
+    _settle_failed_upload(term, msg)
+    progress.setdefault("failed", []).append(term)
+    return 0, 0, 1
+
+
+def _note_upload_success(term):
+    """A successful upload keeps its CSV and proves the server parser is working."""
+    global _consecutive_no_comps
+    _new_dataset_paths.pop(term, None)
+    _consecutive_no_comps = 0
+
+
+def _settle_failed_upload(term, msg):
+    """A 422/no-valid-comps rejection is an empty scrape signal: report it so dormant
+    tracking can converge, and set the unusable CSV aside. Any other failure keeps the CSV.
+
+    More than NO_COMPS_BREAKER_LIMIT consecutive rejections look systemic (a Terapeak export
+    format change or a server parser fault), not like empty markets, so from then on they are
+    not reported as no data until an upload succeeds. The unusable CSV is still set aside
+    (moved, never deleted) so it cannot be committed as dataset data."""
+    global _consecutive_no_comps
+    if not _is_no_valid_comps_error(msg):
+        _new_dataset_paths.pop(term, None)
+        return
+    _consecutive_no_comps += 1
+    if _consecutive_no_comps > NO_COMPS_BREAKER_LIMIT:
+        print(
+            f"  [dataset] WARN {term}: {_consecutive_no_comps} consecutive no-valid-comps rejections "
+            "look systemic; not reporting no data until an upload succeeds"
+        )
+        _discard_no_comps_dataset(term, reported=False)
+        return
+    _report_no_data(term)
+    _discard_no_comps_dataset(term)
+
+
+# Consecutive 422 no-valid-comps rejections in this run; any successful upload resets it.
+NO_COMPS_BREAKER_LIMIT = 3
+_consecutive_no_comps = 0
+
+
+def _begin_run():
+    """Reset run-scoped tracking at the start of an export run."""
+    global _consecutive_no_comps
+    _new_dataset_paths.clear()
+    _consecutive_no_comps = 0
+
+
+# Dataset CSVs created (not merged into an existing file) during this run, keyed by
+# search term, with a size/mtime fingerprint taken right after creation. A server 422
+# "no valid comps" means the file holds nothing usable, so only these files are set
+# aside, and only while they still match the fingerprint; a pre-existing dataset, or one
+# another term has since merged into, is never touched. Files are moved to REJECTED_DIR
+# (git-ignored cache/) rather than deleted, so a server-side parser regression stays
+# debuggable. The commit helper refuses unusual files under data/terapeak/, so the
+# quarantine must live outside that directory.
+_new_dataset_paths = {}
+REJECTED_DIR = PROJECT_DIR / "cache" / "terapeak-rejected"
+
+
+def _stage_dataset(csv_path, dest, term):
+    """Merge a fresh export into its dataset file and remember whether this run created it."""
+    existed = dest.exists()
+    merged = _merge_csv(csv_path, dest)
+    if existed:
+        # The file already held data (possibly another term's, after a filename collision):
+        # it is no longer disposable for any term.
+        for other, entry in list(_new_dataset_paths.items()):
+            if entry["path"] == merged:
+                del _new_dataset_paths[other]
+    else:
+        stat = merged.stat()
+        _new_dataset_paths[term] = {
+            "path": merged,
+            "size": stat.st_size,
+            "mtime_ns": stat.st_mtime_ns,
+        }
+    return merged
+
+
+def _discard_no_comps_dataset(term, reported=True):
+    """Set aside the unusable CSV this run created for `term`. Returns True if moved."""
+    status = "reported as no data" if reported else "not reported as no data (systemic breaker)"
+    entry = _new_dataset_paths.pop(term, None)
+    if entry is None:
+        print(f"  [dataset] {term}: no valid comps; {status}")
+        return False
+    path = Path(entry["path"])
+    try:
+        stat = path.stat()
+    except FileNotFoundError:
+        print(f"  [dataset] {term}: no valid comps; {status}, CSV already gone")
+        return False
+    except OSError as error:
+        print(f"  [dataset] WARN {term}: no valid comps; {status}, could not inspect CSV {path.name}: {error}")
+        return False
+    if stat.st_size != entry["size"] or stat.st_mtime_ns != entry["mtime_ns"]:
+        print(f"  [dataset] {term}: no valid comps; {status}, kept {path.name} (changed since this run created it)")
+        return False
+    stamp = datetime.now().strftime('%Y%m%dT%H%M%S%f')
+    target = REJECTED_DIR / f"{path.stem}-{stamp}.csv"
+    try:
+        REJECTED_DIR.mkdir(parents=True, exist_ok=True)
+        if target.exists():
+            raise FileExistsError(f"{target.name} already exists")
+        shutil.move(str(path), str(target))
+    except OSError as error:
+        print(f"  [dataset] WARN {term}: no valid comps; {status}, could not set CSV aside, {path.name} stays in data/terapeak/: {error}")
+        return False
+    print(f"  [dataset] {term}: no valid comps; {status}, moved unusable CSV to cache/terapeak-rejected/{target.name}")
+    return True
 
 
 def _report_no_data(search_term):
@@ -798,7 +927,9 @@ def _report_no_data(search_term):
             data = resp.json()
             count = data.get("noDataCount", "?")
             if int(count) >= 2:
-                print(f"  (dormant: {count} consecutive empty attempts)")
+                # The term lets the pass parser attribute this line to the right coin
+                # even when it prints after a later coin's line (async uploads).
+                print(f"  (dormant: {count} consecutive empty attempts) [{search_term}]")
         else:
             print(f"  WARNING: report-no-data failed ({resp.status_code}): {resp.text[:120]}")
     except Exception as e:
@@ -989,6 +1120,117 @@ def do_cookie_file(filepath):
     return True
 
 
+def scraper_machine_id():
+    machine_id_path = PROJECT_DIR / ".machine-id"
+    try:
+        machine_id = machine_id_path.read_text(encoding="utf-8").strip()
+    except OSError:
+        machine_id = "W" if os.environ.get("CODESPACES", "").lower() == "true" else ""
+    if machine_id not in ("H", "W"):
+        raise RuntimeError("Cannot determine H/W risk-state file; configure .machine-id before scraping")
+    return machine_id
+
+
+def scraper_risk_state_path():
+    machine_id = scraper_machine_id()
+    canonical_path = PROJECT_DIR / "cache" / f"terapeak-risk-state-{machine_id}.json"
+    configured_path = os.environ.get("TERAPEAK_RISK_STATE_FILE", "").strip()
+    if configured_path and Path(os.path.expanduser(configured_path)).resolve() != canonical_path.resolve():
+        raise RuntimeError("TERAPEAK_RISK_STATE_FILE does not match the machine-specific risk-state file")
+    return canonical_path
+
+
+def guard_scraper_action(action, state_path=None, cooldown_seconds=None, args=None):
+    """Block direct scraper entrypoints from bypassing persisted Cooldown."""
+    state_path = Path(state_path) if state_path else scraper_risk_state_path()
+    state_record = load_state(str(state_path))
+    state = state_record.get("state", "Cooldown")
+
+    if action == "run":
+        state_path.parent.mkdir(parents=True, exist_ok=True)
+        lock_path = state_path.with_suffix(state_path.suffix + ".run.lock")
+        lock_fd = os.open(lock_path, os.O_CREAT | os.O_RDWR, 0o600)
+        try:
+            fcntl.flock(lock_fd, fcntl.LOCK_EX)
+            state_record = load_state(str(state_path))
+            state = state_record.get("state", "Cooldown")
+            if state == "Elevated":
+                if (
+                    not getattr(args, "backlog", None)
+                    or getattr(args, "mixed_p01_fixed", None) != 15
+                    or getattr(args, "mixed_extra_min", None) is None
+                    or getattr(args, "mixed_extra_max", None) is None
+                ):
+                    raise RuntimeError("Elevated collection requires the canonical bounded backlog batch")
+                try:
+                    extra_min = int(args.mixed_extra_min)
+                    extra_max = int(args.mixed_extra_max)
+                    minimum_pause = int(os.environ.get("TERAPEAK_ELEVATED_PAUSE_SECONDS", "900"))
+                except (KeyError, TypeError, ValueError):
+                    raise RuntimeError("Elevated collection has invalid batch or pause settings") from None
+                if extra_min != extra_max or extra_min < 0 or extra_max > 5 or minimum_pause < 900:
+                    raise RuntimeError("Elevated batch bounds do not match the canonical 15-20 item range")
+                changed_at = state_record.get("changed_at")
+                try:
+                    elevated_since = datetime.fromisoformat(changed_at.replace("Z", "+00:00"))
+                    last_run_path = state_path.with_suffix(state_path.suffix + ".last-run")
+                    if last_run_path.exists():
+                        last_run = datetime.fromisoformat(last_run_path.read_text(encoding="utf-8").strip().replace("Z", "+00:00"))
+                        if last_run > elevated_since:
+                            elevated_since = last_run
+                    now = datetime.now(elevated_since.tzinfo)
+                    elapsed = (now - elevated_since).total_seconds()
+                except (AttributeError, TypeError, ValueError):
+                    raise RuntimeError("Elevated pacing timestamp is invalid; refusing collection") from None
+                if elapsed < minimum_pause:
+                    raise RuntimeError(f"Elevated pacing requires {minimum_pause}s between passes; {int(minimum_pause - elapsed)}s remain")
+                last_run_path.parent.mkdir(parents=True, exist_ok=True)
+                temp_path = last_run_path.with_suffix(last_run_path.suffix + ".tmp")
+                temp_path.write_text(now.isoformat().replace("+00:00", "Z"), encoding="utf-8")
+                os.replace(temp_path, last_run_path)
+                try:
+                    os.chmod(last_run_path, 0o600)
+                except OSError:
+                    pass
+        finally:
+            fcntl.flock(lock_fd, fcntl.LOCK_UN)
+            os.close(lock_fd)
+        if state not in ("Normal", "Elevated"):
+            raise RuntimeError(
+                f"Terapeak risk state is {state}; collection is blocked until canonical Cooldown recovery completes"
+            )
+        return
+
+    if action == "login":
+        display_helper = PROJECT_DIR / "scripts" / "terapeak-display.sh"
+        if not display_helper.is_file():
+            raise RuntimeError("Authenticated display helper is missing; refusing headed login")
+        result = subprocess.run(
+            ["bash", str(display_helper), "check"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode != 0:
+            message = result.stderr.strip() or result.stdout.strip() or "display check failed"
+            raise RuntimeError(f"Authenticated VNC display is not verified: {message}")
+
+    if action not in ("login", "login-manual", "cookie-file"):
+        return
+    if state == "Cooldown":
+        minimum_seconds = cooldown_seconds
+        if minimum_seconds is None:
+            minimum_seconds = int(os.environ.get("TERAPEAK_COOLDOWN_SECONDS", "7200"))
+        remaining = cooldown_remaining_seconds(state_record, minimum_seconds)
+        if remaining > 0:
+            raise RuntimeError(
+                f"Terapeak Cooldown is active for another {remaining}s; refusing {action}"
+            )
+        print("[risk] Cooldown elapsed; recovery input is allowed, but collection remains blocked until the canonical live probe passes")
+    elif state not in ("Normal", "Elevated"):
+        raise RuntimeError(f"Terapeak risk state is {state}; refusing {action}")
+
+
 # ── Export Flow ─────────────────────────────────────────────
 def is_logged_in(page):
     """Quick check if the page indicates a logged-in session."""
@@ -1048,8 +1290,16 @@ def challenge_indicators(page, response=None):
 
 
 def record_hard_challenge(progress, term):
-    """Persist the failed term and require the caller to terminate the run."""
+    """Persist the failed term and Cooldown before another action can start."""
     progress.setdefault("failed", []).append(term)
+    risk_path = scraper_risk_state_path()
+    run_id = os.environ.get("TERAPEAK_RUN_ID", f"exporter-{os.getpid()}")
+    try:
+        write_state(str(risk_path), "Cooldown", "hard_challenge_signal", run_id)
+    except Exception as error:
+        raise CooldownPersistenceError(
+            "Hard challenge detected but Cooldown could not be persisted; stopping immediately"
+        ) from error
     save_progress(progress)
     return True
 
@@ -1420,6 +1670,7 @@ def do_export_run(args):
 
     # Prepare directories
     DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True)
+    _begin_run()
 
     # Load search terms
     terms = get_search_terms()
@@ -1821,7 +2072,7 @@ def do_export_run(args):
 
                 # Merge with existing CSV (preserve deep-paginated data)
                 dest = CSV_DIR / entry["filename"]
-                dest = _merge_csv(csv_path, dest)
+                dest = _stage_dataset(csv_path, dest, term)
 
                 # Upload to app with aggregationMeta
                 now = datetime.now().isoformat()
@@ -1842,25 +2093,26 @@ def do_export_run(args):
                     print("SAVED (upload pending)")
                 else:
                     ok, msg = upload_csv(dest, term, aggregation_meta=meta)
-                    if ok:
-                        print(f"OK ({msg})")
-                        uploaded += 1
-                        success += 1
-                        progress.setdefault("completed", []).append(term)
-                    else:
-                        print(f"SAVED but upload failed: {msg}")
-                        # Treat 422/no-valid-comps as an empty scrape signal so
-                        # dormant tracking can converge instead of retrying forever.
-                        if _is_no_valid_comps_error(msg):
-                            _report_no_data(term)
-                        failed += 1
-                        progress.setdefault("failed", []).append(term)
+                    success_delta, upload_delta, failed_delta = _record_sync_upload_result(
+                        term, ok, msg, progress
+                    )
+                    success += success_delta
+                    uploaded += upload_delta
+                    failed += failed_delta
             else:
                 print("NO EXPORT (no results or button not found)")
                 _report_no_data(term)
                 failed += 1
                 progress.setdefault("failed", []).append(term)
 
+        except CooldownPersistenceError as error:
+            print(f"FATAL: {error}", file=sys.stderr)
+            bot_blocked = True
+            try:
+                browser.close()
+            except Exception:
+                pass
+            break
         except PlaywrightTimeout:
             print("TIMEOUT")
             failed += 1
@@ -2001,22 +2253,55 @@ Examples:
         if not args.limit:
             args.limit = args.batch
 
-    ok = True
+    scraper_action = None
     if args.login:
-        ok = do_login()
+        scraper_action = "login"
     elif args.login_manual:
-        ok = do_login_manual()
+        scraper_action = "login-manual"
     elif args.cookie_file:
-        ok = do_cookie_file(args.cookie_file)
-    elif args.run or args.dry_run:
-        ok = do_export_run(args)
-    elif args.check:
-        check_cookies()
-    else:
-        parser.print_help()
+        scraper_action = "cookie-file"
+    elif args.run and not args.dry_run:
+        scraper_action = "run"
+    action_lock = None
+    if scraper_action:
+        machine_id = scraper_machine_id()
+        lock_path = PROJECT_DIR / "cache" / f"terapeak-risk-state-{machine_id}.scraper.lock"
+        lock_path.parent.mkdir(parents=True, exist_ok=True)
+        action_lock = open(lock_path, "a", encoding="utf-8")
+        try:
+            fcntl.flock(action_lock.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            print("[risk:FAIL] Another Terapeak exporter action is active; refusing parallel login or collection", file=sys.stderr)
+            action_lock.close()
+            sys.exit(2)
 
-    if ok is False:
-        sys.exit(1)
+    try:
+        if scraper_action:
+            try:
+                guard_scraper_action(scraper_action, state_path=None, cooldown_seconds=None, args=args)
+            except (OSError, RuntimeError, ValueError) as error:
+                print(f"[risk:FAIL] {error}", file=sys.stderr)
+                sys.exit(2)
+        ok = True
+        if args.login:
+            ok = do_login()
+        elif args.login_manual:
+            ok = do_login_manual()
+        elif args.cookie_file:
+            ok = do_cookie_file(args.cookie_file)
+        elif args.run or args.dry_run:
+            ok = do_export_run(args)
+        elif args.check:
+            check_cookies()
+        else:
+            parser.print_help()
+
+        if ok is False:
+            sys.exit(1)
+    finally:
+        if action_lock:
+            fcntl.flock(action_lock.fileno(), fcntl.LOCK_UN)
+            action_lock.close()
 
 
 if __name__ == "__main__":

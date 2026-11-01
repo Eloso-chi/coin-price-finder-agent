@@ -7,7 +7,9 @@ Operational scripts for data collection, migration, and maintenance. Most script
 | Requirement | Scripts that need it |
 |---|---|
 | Node server running (`npm start`, background terminal) | `pricing-health-full.js`; Terapeak export when `UPLOAD_MODE=api`, or when `UPLOAD_MODE=auto` falls back to API, and `APP_URL` is local. API upload also requires `ADMIN_API_KEY`; a remote `APP_URL` must be reachable and authorized. |
-| VNC desktop + browser session | Interactive login via `terapeak-export.py --login` and `vnc-login.py`; recommended for visible, lower-challenge export sessions. `--run` can be headless without a display but may trigger an eBay challenge. `sales-aggregator.py` requires a display for its browser session. |
+| Authenticated VNC/noVNC display (`terapeak-display.sh`) + browser session | Canonical `terapeak-export.py` login/operator path |
+| Existing VNC display + browser session | `sales-aggregator.py`, `vnc-login.py` legacy paths (separate authenticated-display hardening remains) |
+| Xtigervnc, websockify, noVNC, `ss`, and `curl` | `terapeak-display.sh` |
 | Azure credentials (Key Vault) | `upload-csvs-to-blob.js`, `migrate-to-cosmos.js`, `greysheet-refresh.js`, `load-secrets.sh`; Terapeak `UPLOAD_MODE=blob` or the Blob-first part of `auto` requires `TERAPEAK_BLOB_ACCOUNT` and `TERAPEAK_BLOB_CONTAINER` |
 | Python 3 + playwright | `terapeak-export.py`, `sales-aggregator.py`, `vnc-login.py`, `create_placeholders.py` |
 | Python 3 only | `test_vnc_login_flow.py` |
@@ -20,15 +22,16 @@ Operational scripts for data collection, migration, and maintenance. Most script
 
 | Script | Purpose | Usage |
 |---|---|---|
-| `terapeak-export.py` | Semi-automated Terapeak CSV exporter (page 1) | `python3 scripts/terapeak-export.py --run --limit 20` |
+| `terapeak-export.py` | Semi-automated Terapeak CSV exporter (page 1); direct commands enforce persisted risk-state gates, with Elevated collection reserved for canonical H/W operators | `python3 scripts/terapeak-export.py --run --limit 20` |
 | `sales-aggregator.py` | Deep pagination aggregator (pages 2-5/250 results for non-gold bullion; page 2/100 results for gold and non-bullion) with dashboard mode | `python3 scripts/sales-aggregator.py` (dashboard) or `--run --limit 10` |
 | `audit-contradictory-weights.js` | Inventory legacy Terapeak keys with malformed or conflicting explicit ounce weights; does not remap or mutate source data. Outputs contain affected sale records and require a POSIX-permission-enforcing filesystem; native Windows and typical WSL `/mnt/c` mounts are rejected. | `node scripts/audit-contradictory-weights.js --meta data/terapeak-meta.json --store cache/terapeak_sold.json` |
 | `bootstrap-surface-wsl.sh` | One-command Surface/WSL bootstrap for PR250 flow (deps, venv, Playwright, env templates) | `bash scripts/bootstrap-surface-wsl.sh` |
 | `surface` | One-word launcher for the Surface freshness loop (loads validated env + runs loop) | `surface` |
 | `terapeak-operator.sh` | Canonical H launcher with #284H risk states, Cooldown restart gates, randomized Normal batches, Elevated pacing, and shared pass telemetry | `bash scripts/terapeak-operator.sh` |
 | `terapeak-operator-codespace.sh` | Canonical W launcher using the same #284H state and telemetry contract | `bash scripts/terapeak-operator-codespace.sh --max-passes 1` |
+| `terapeak-display.sh` | Starts/verifies VncAuth-protected loopback VNC and the machine-correct private noVNC endpoint; requires a user-created `~/.vnc/passwd` | `bash scripts/terapeak-display.sh start` |
 | `_parse-terapeak-pass.py` | Parse pass logs into `cache/terapeak-runs/{passes,coins}.jsonl` and apply #284H risk transitions | Invoked by operators; use `--help` for direct diagnostics |
-| `_terapeak_risk.py` | Shared #284H risk-state classification and persistence helpers | Imported by parser/operators; direct use is uncommon |
+| `_terapeak_risk.py` | Shared #284H risk-state classification and persistence helpers; `pause-remaining` and `wait-elevated-pause` wait out the Elevated pacing gate on the exporter's wall clock (#325H); `no-comps-cluster --summary-file FILE` is the operators' read-only data-quality stop check (exit 0 no cluster, 2 cluster, 3 summary unreadable; never changes risk state) | Imported by parser/operators; `python3 scripts/_terapeak_risk.py pause-remaining --state-file FILE --minimum-seconds 900` (exit 0 when the gate would pass, 2 while waiting or unreadable) |
 | `show-terapeak-runs.sh` | View recent runs, pass totals, stop conditions, or coin history from the JSONL ledger | `bash scripts/show-terapeak-runs.sh recent 20` |
 | `commit-terapeak-progress.sh` | Safely branch, commit, push, and open a PR for one operator run's CSV/meta changes | `bash scripts/commit-terapeak-progress.sh --dry-run`, then rerun without `--dry-run` |
 | `validate-pass-telemetry.py` | Validate required #284H fields in pass JSONL; add `--json` for machine-readable output | `python3 scripts/validate-pass-telemetry.py cache/terapeak-runs/passes.jsonl` |
@@ -110,20 +113,25 @@ done
 # checkout's `node server.js`. If ownership is unclear, do not kill it.
 # Then use the execute tool to run `node server.js` with background/async mode.
 
-# 2. Login to eBay via VNC
-python3 scripts/vnc-login.py
+# 2. Start the authenticated display (create ~/.vnc/passwd once with vncpasswd)
+bash scripts/terapeak-display.sh start
+# Open the printed noVNC URL and confirm it is ready before continuing.
 
-# 3. Start the server if UPLOAD_MODE=api uses local APP_URL, or if auto may
+# 3. Complete guarded interactive login
+DISPLAY=":${TERAPEAK_VNC_DISPLAY:-1}" python3 scripts/terapeak-export.py --login
+
+# 4. Start the server if UPLOAD_MODE=api uses local APP_URL, or if auto may
 #    fall back to API and APP_URL is local. API uploads require ADMIN_API_KEY.
 #    UPLOAD_MODE=blob requires Blob account/container config and defers import.
 #    auto tries Blob when configured, then falls back to API on Blob failure.
 #    A remote APP_URL must be reachable and authorized; this local server does
 #    not satisfy a request sent to another host.
 
-# 4. Run exports (limit to 20 coins)
+# 5. Run exports (limit to 20 coins)
 python3 scripts/terapeak-export.py --run --limit 20
 
-# 5. Deep-collect pages 2+ for thin datasets
+# 6. Deep-collect pages 2+ for thin datasets (legacy display path; not covered
+#    by the authenticated display helper or exporter risk-state gate)
 python3 scripts/sales-aggregator.py --run --limit 10
 ```
 
@@ -202,7 +210,7 @@ Notes:
 - Use raw `ADMIN_API_KEY` value, not `@Microsoft.KeyVault(SecretUri=...)`.
 - If Playwright install fails on Ubuntu 26.04, use Ubuntu 24.04/22.04 for scraper runs.
 - Loop page-1 batching uses `--limit` semantics (no implicit `--resume`) to avoid skipping valid freshness backlog candidates.
-- The import endpoint returns HTTP 422 (`No valid comps found`) without writing metadata. The canonical exporter recognizes that response and separately calls `/api/terapeak/report-no-data`, which advances dormant tracking.
+- The import endpoint returns HTTP 422 (`No valid comps found`) without writing metadata. The canonical exporter recognizes that response and separately calls `/api/terapeak/report-no-data`, which advances dormant tracking. It also moves the unusable CSV to the git-ignored `cache/terapeak-rejected/` when the current run created it (never a pre-existing, merged-into or changed dataset), and pass telemetry counts the coin as `empty` with `no_comps` instead of `failed`, warning when a pass has a cluster of them (both operators then stop without changing the risk state).
 
 ### Upload mode (UPLOAD_MODE) -- #251 parity
 

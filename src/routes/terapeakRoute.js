@@ -12,14 +12,26 @@ const requireAdmin = require('../middleware/requireAdminOrKey');
 const { redactCompsForPublic } = require('../utils/redactForPublic');
 const { analyzeExplicitWeights } = require('../utils/explicitWeight');
 
+function weightRejectionBody(error, explicitWeights, searchTermLength, derivedKey = false) {
+  return {
+    error,
+    code: 'CONTRADICTORY_WEIGHT',
+    explicitWeights,
+    searchTermLength,
+    ...(derivedKey ? { derivedKey: true } : {}),
+  };
+}
+
 function rejectContradictoryWeights(searchTerm, res) {
   const analysis = analyzeExplicitWeights(searchTerm);
   if (!analysis.invalid && analysis.weights.length <= 1) return false;
-  res.status(400).json({
-    error: 'searchTerm contains contradictory explicit weights',
-    code: 'CONTRADICTORY_WEIGHT',
-    explicitWeights: analysis.weights,
-  });
+  res.status(400).json(weightRejectionBody(
+    analysis.weights.length > 1
+      ? 'searchTerm contains contradictory explicit weights'
+      : 'searchTerm contains an invalid explicit weight',
+    analysis.weights,
+    typeof searchTerm === 'string' ? searchTerm.length : null,
+  ));
   return true;
 }
 
@@ -123,11 +135,7 @@ router.post('/import', requireAdmin, upload.single('file'), (req, res) => {
     });
   } catch (err) {
     if (err.code === 'CONTRADICTORY_WEIGHT') {
-      return res.status(400).json({
-        error: err.message,
-        code: err.code,
-        explicitWeights: err.explicitWeights,
-      });
+      return res.status(400).json(weightRejectionBody(err.message, err.explicitWeights, err.searchTermLength ?? null, err.derivedKey === true));
     }
     console.error('[terapeak] Import error:', err.message);
     res.status(500).json({ error: 'CSV import failed' });
@@ -180,11 +188,7 @@ router.post('/import-text', requireAdmin, express.json(), (req, res) => {
     });
   } catch (err) {
     if (err.code === 'CONTRADICTORY_WEIGHT') {
-      return res.status(400).json({
-        error: err.message,
-        code: err.code,
-        explicitWeights: err.explicitWeights,
-      });
+      return res.status(400).json(weightRejectionBody(err.message, err.explicitWeights, err.searchTermLength ?? null, err.derivedKey === true));
     }
     console.error('[terapeak] Import-text error:', err.message);
     res.status(500).json({ error: 'CSV text import failed' });
@@ -496,11 +500,7 @@ router.post('/report-no-data', requireAdmin, express.json(), async (req, res) =>
     });
   } catch (err) {
     if (err.code === 'CONTRADICTORY_WEIGHT') {
-      return res.status(400).json({
-        error: err.message,
-        code: err.code,
-        explicitWeights: err.explicitWeights,
-      });
+      return res.status(400).json(weightRejectionBody(err.message, err.explicitWeights, err.searchTermLength ?? null, err.derivedKey === true));
     }
     console.error('[terapeak] /report-no-data meta-write failed for', searchTerm, '--', err.message);
     res.json({

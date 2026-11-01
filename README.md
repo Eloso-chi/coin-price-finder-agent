@@ -215,6 +215,11 @@ Optional variables:
 | `GS_REFRESH_INTERVAL_DAYS` | Full elapsed days between automatic Greysheet price refreshes; integer from 1 to 30 | `7` |
 | `TERAPEAK_DATA_DIR` | Local Terapeak CSV directory override | `data/terapeak` |
 | `COOKIE_FILE` | Per-machine cookie jar for `terapeak-export.py` / `cookie-health-check.py`. Lets the same script run from a residential laptop (preferred) and a Codespace (travel fallback) without their cookie jars colliding. Akamai treats one persistent eBay identity used from two disparate IPs as a fraud signal. Supports `~` expansion. (#250) | `cache/ebay_cookies.json` |
+| `TERAPEAK_VNC_DISPLAY` | Display number for the authenticated Terapeak VNC session and headed Playwright login | `1` |
+| `TERAPEAK_VNC_PORT` | Local VNC server port; never forward this port | `5901` |
+| `TERAPEAK_NOVNC_PORT` | noVNC browser/proxy port; Codespaces forwarding must remain private | `6080` |
+| `VNC_PASSWORD_FILE` | Owner-only TigerVNC password file created interactively with `vncpasswd`; never put the password in an environment variable | `~/.vnc/passwd` |
+| `TERAPEAK_COOLDOWN_SECONDS` | Minimum persisted anti-bot Cooldown before recovery login is permitted | `7200` |
 | `TERAPEAK_PACING_PROFILE` | #280H pilot profile for canonical operators: `baseline` or `normal-tuned`. Tuned delays apply only in Normal risk state. | `baseline` |
 | `TERAPEAK_PACING_PILOT_ID` | Safe identifier that scopes #280H pilot telemetry. Required for `normal-tuned`; use the same value for both arms. | *(none)* |
 | `PCGS_PREFETCH_ENABLED` | Enable nightly PCGS prefetch scheduler | `true` |

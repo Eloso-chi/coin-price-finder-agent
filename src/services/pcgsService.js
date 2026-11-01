@@ -257,6 +257,71 @@ async function resolveFromDescription(text) {
   };
 }
 
+// Known fractional ounces that sellers write with a leading decimal point (".5 oz").
+const LEADING_DOT_FRACTION_OZ = new Set([0.05, 0.1, 0.25, 0.5]);
+
+// Denominators of the 1/N ounce coins and rounds that sellers write as a spaced fraction ("1 /10 oz").
+const KNOWN_FRACTION_DENOMINATORS = new Set([2, 3, 4, 5, 8, 10, 20, 25, 40, 50, 100, 1000]);
+
+/**
+ * Find the stated ounce weight in a title, or null.
+ * - A leading-dot decimal is a purity mark (".999 oz") or a silver-content figure (".3617 oz"); it is
+ *   ignored unless it is a known fractional ounce (".5 oz").
+ * - A fraction is read as written ("1/2 oz") only when its numerator is below its denominator, and a
+ *   spaced one only for "1 / N" with a known N ("1 /20 oz"). Anything else ("2018 / 1 oz",
+ *   "MS 65 / 1 Troy Oz", "Lot of 3 / 10 oz") is a year, grade or lot count followed by a slash, so the
+ *   denominator is the weight, as it always was.
+ * - A number after a letter-glued dot ("coins.1 oz") is a weight unless it looks like a purity mark
+ *   ("Silver.999 oz"); a ".." ellipsis admits only fractions ("..1/2 oz").
+ */
+function findOunceWeight(text) {
+  const source = String(text);
+  const pattern = /\b(\d+(?:\.\d+)?(?:\s*\/\s*\d+)?)\s*(?:troy\s*)?oz\b/gi;
+  for (const match of source.matchAll(pattern)) {
+    const raw = match[1];
+    const isFraction = raw.includes('/');
+    const before = source.slice(0, match.index);
+    const unit = match[0].slice(raw.length);
+    let weight;
+    let weightRaw = match[0];
+    let denominatorOnly = false;
+    if (isFraction) {
+      const [numText, denText] = raw.split('/').map(part => part.trim());
+      const num = parseFloat(numText);
+      const den = parseFloat(denText);
+      if (!(den > 0)) continue;
+      const spaced = /\s/.test(raw);
+      denominatorOnly = num >= den || (spaced && !(num === 1 && KNOWN_FRACTION_DENOMINATORS.has(den)));
+      weight = denominatorOnly ? den : num / den;
+      if (denominatorOnly) weightRaw = `${denText}${unit}`;
+    } else {
+      weight = parseFloat(raw);
+    }
+    if (before.slice(-1) === '.') {
+      const beforeDot = before.slice(-2, -1);
+      if (beforeDot === '.') {
+        if (!isFraction) continue;
+      } else if (!/[a-z]/i.test(beforeDot)) {
+        // A leading-dot proper fraction (".1/2 oz") is a typo or purity-style figure, so it reads nothing;
+        // a dot after a digit ("Silver1.5 oz") is the tail of a decimal that \b split from its integer part.
+        if (isFraction) {
+          if (!denominatorOnly) continue;
+        } else {
+          if (beforeDot === '$' || /\d/.test(beforeDot) || raw.includes('.')) continue;
+          const decimal = Number(`0.${raw}`);
+          if (!LEADING_DOT_FRACTION_OZ.has(decimal)) continue;
+          weight = decimal;
+          weightRaw = `.${match[0]}`;
+        }
+      } else if (!isFraction && /^\d{3,}$/.test(raw) && ![100, 1000].includes(Number(raw))) {
+        continue;
+      }
+    }
+    return { weight, raw: weightRaw };
+  }
+  return null;
+}
+
 // ── Description parser ──────────────────────────────────────
 function parseDescription(text) {
   // Strip eBay/Terapeak exclusion operators (e.g. "-proof", "-gold") before
@@ -410,17 +475,11 @@ function parseDescription(text) {
     result.label = `Type ${typeMatch[1]}`;
   }
 
-  // Weight: extract "1/2 oz", "1/4 oz", "1/10 oz", "1.5 oz", "5 oz", "10 oz", etc.
-  const weightMatch = t.match(/\b(\d+(?:\.\d+)?(?:\/\d+)?)\s*(?:troy\s*)?oz\b/i);
+  // Weight: extract "1/2 oz", "1 /2 oz", "1/10 oz", "1.5 oz", "5 oz", "10 oz", ".5 oz", etc.
+  const weightMatch = findOunceWeight(t);
   if (weightMatch) {
-    const raw = weightMatch[1];
-    if (raw.includes('/')) {
-      const [num, den] = raw.split('/');
-      result.weight = parseFloat(num) / parseFloat(den);
-    } else {
-      result.weight = parseFloat(raw);
-    }
-    result.weightRaw = weightMatch[0];
+    result.weight = weightMatch.weight;
+    result.weightRaw = weightMatch.raw;
   }
 
   // Word-based fractional ounce forms: "half oz", "quarter ounce",

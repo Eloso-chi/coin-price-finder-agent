@@ -365,6 +365,9 @@ while (( MAX_PASSES == 0 || PASS_NUM < MAX_PASSES )); do
   log ""
   PASS_EXTRA=$((BATCH_SIZE - P01_FIXED))
   if (( PASS_EXTRA < 0 )); then PASS_EXTRA=0; fi
+  if [[ "$STATE_BEFORE" == "Elevated" ]]; then
+    export TERAPEAK_ELEVATED_PAUSE_SECONDS="$ELEVATED_PAUSE_SECONDS"
+  fi
 
   log "--- pass ${PASS_NUM}$( ((MAX_PASSES>0)) && echo " / ${MAX_PASSES}" ) (total=${BATCH_SIZE}; P0.1=${P01_FIXED}; extra=${PASS_EXTRA}) ---"
   write_state "pass-${PASS_NUM}" "running" "pass ${PASS_NUM} total=${BATCH_SIZE} p01=${P01_FIXED} extra=${PASS_EXTRA}"
@@ -403,6 +406,7 @@ while (( MAX_PASSES == 0 || PASS_NUM < MAX_PASSES )); do
   DISPLAY="$DISPLAY" python3 "${PASS_ARGS[@]}" > "$PASS_LOG" 2>&1 || PASS_EXIT_RC=$?
   PASS_END_TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   TRANSITION_FILE="${PASS_LOG}.risk.tsv"
+  SUMMARY_FILE="${PASS_LOG}.summary.json"
 
   # Always emit structured records, even on failure -- helps post-mortem
   python3 scripts/_parse-terapeak-pass.py \
@@ -427,6 +431,7 @@ while (( MAX_PASSES == 0 || PASS_NUM < MAX_PASSES )); do
     --state-file "$RISK_STATE_FILE" \
     --stateful "$RISK_STATE_ENABLED" \
     --transition-output "$TRANSITION_FILE" \
+    --summary-output "$SUMMARY_FILE" \
     >> "$MASTER_LOG" 2>&1 || fail "pass telemetry write failed; stopping to preserve the observability contract"
   IFS=$'\t' read -r STATE_BEFORE STATE_AFTER TRANSITION_REASON CHALLENGE_SIGNAL_COUNT SOFT_RISK_SIGNAL_COUNT < "$TRANSITION_FILE"
   rm -f "$TRANSITION_FILE"
@@ -436,11 +441,13 @@ while (( MAX_PASSES == 0 || PASS_NUM < MAX_PASSES )); do
   fi
 
   if (( CHALLENGE_SIGNAL_COUNT > 0 )); then
+    rm -f "$SUMMARY_FILE"
     write_state "pass-${PASS_NUM}" "fail" "hard challenge detected; risk state is Cooldown"
     fail "hard challenge detected; stopping now in Cooldown"
   fi
 
   if (( PASS_EXIT_RC != 0 )); then
+    rm -f "$SUMMARY_FILE"
     log "pass ${PASS_NUM} FAILED (exit=$PASS_EXIT_RC); tail of $PASS_LOG:"
     tail -25 "$PASS_LOG" | tee -a "$MASTER_LOG"
     write_state "pass-${PASS_NUM}" "fail" "pass exit $PASS_EXIT_RC"
@@ -467,6 +474,17 @@ except Exception:
   TOTAL_NEW_ROWS=$((TOTAL_NEW_ROWS + NEW_ROWS))
   log "pass ${PASS_NUM} complete: succeeded=${OK_NUM} empty=${EMPTY_NUM} failed=${FAIL_NUM} new_rows=${NEW_ROWS} dup_rows=${DUP_ROWS}"
   write_state "pass-${PASS_NUM}" "ok" "succeeded=${OK_NUM} empty=${EMPTY_NUM} failed=${FAIL_NUM} new_rows=${NEW_ROWS} dup_rows=${DUP_ROWS}"
+
+  # Data-quality check (not a risk signal): a cluster of uploads rejected as "No valid comps" points
+  # at a Terapeak export-format change or a server CSV parser fault. Read-only; fails closed.
+  NO_COMPS_CLUSTER_RC=0
+  python3 scripts/_terapeak_risk.py no-comps-cluster --summary-file "$SUMMARY_FILE" >/dev/null 2>> "$MASTER_LOG" || NO_COMPS_CLUSTER_RC=$?
+  rm -f "$SUMMARY_FILE"
+  if (( NO_COMPS_CLUSTER_RC == 2 )); then
+    fail "pass ${PASS_NUM} had a cluster of uploads rejected as 'No valid comps found'; stopping (data-quality stop, risk state unchanged). Check whether the Terapeak export format or the server CSV parser changed (rejected CSVs are in cache/terapeak-rejected/) before restarting"
+  elif (( NO_COMPS_CLUSTER_RC != 0 )); then
+    fail "pass ${PASS_NUM} summary could not be read; stopping because the no-comps data-quality check cannot be evaluated"
+  fi
 
   if (( MAX_PASSES == 0 || PASS_NUM < MAX_PASSES )); then
     if [[ "$RISK_STATE_ENABLED" != "0" && "$CURRENT_RISK_STATE" == "Elevated" ]]; then
