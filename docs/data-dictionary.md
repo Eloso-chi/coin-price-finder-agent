@@ -214,7 +214,7 @@ Append-only JSONL ledger written by `scripts/_parse-terapeak-pass.py` after each
 | `unknown` | number | Public | Coins whose status the parser could not determine |
 | `dormant` | number | Public | Coins flagged dormant by the freshness classifier |
 | `no_comps` | number | Public | Coins whose upload the server rejected as HTTP 422 "No valid comps found"; a subset of `empty` (#328H) |
-| `no_comps_cluster` | boolean | Public | True when at least 3 coins and at least 30% of the batch were no-comps rejections; points at an export-format or server-parser fault rather than empty markets |
+| `no_comps_cluster` | boolean | Public | True when at least 3 coins, at least 30% of the batch, and at least twice the successful uploads were no-comps rejections; points at an export-format or server-parser fault rather than empty markets and stops both operators |
 | `new_rows` | number | Public | Sum of new comp rows added across all coins this pass |
 | `dup_rows` | number | Public | Sum of duplicate rows skipped across all coins this pass |
 | `succeeded_reported` | number or null | Public | "succeeded" total scraped from the pass log's own summary line (cross-check) |

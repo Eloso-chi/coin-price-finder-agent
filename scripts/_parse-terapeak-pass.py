@@ -327,14 +327,21 @@ def aggregate(coins):
 
 # Many no-comps rejections in one pass is more likely a systemic fault (Terapeak export
 # format change, server CSV parser regression) than genuinely empty markets, so it is
-# flagged instead of blending into routine `empty` counts.
+# flagged instead of blending into routine `empty` counts. A healthy pass can still hold a
+# few known-bad datasets that are rejected every time, so the rejections must also clearly
+# outnumber the successful uploads: a systemic fault rejects almost everything.
 NO_COMPS_CLUSTER_MIN = 3
 NO_COMPS_CLUSTER_PERCENT = 30
+NO_COMPS_CLUSTER_OK_RATIO = 2
 
 
 def is_no_comps_cluster(agg):
     count = agg["no_comps"]
-    return count >= NO_COMPS_CLUSTER_MIN and count * 100 >= NO_COMPS_CLUSTER_PERCENT * agg["attempted"]
+    return (
+        count >= NO_COMPS_CLUSTER_MIN
+        and count * 100 >= NO_COMPS_CLUSTER_PERCENT * agg["attempted"]
+        and count >= NO_COMPS_CLUSTER_OK_RATIO * agg["ok"]
+    )
 
 
 def ensure_dir(path):

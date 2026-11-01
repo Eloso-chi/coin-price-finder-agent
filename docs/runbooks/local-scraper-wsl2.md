@@ -462,9 +462,10 @@ Notes:
   `[dataset] <term>: no valid comps; reported as no data, moved unusable CSV to cache/terapeak-rejected/<file>`;
   a dataset file that already existed, or that another term merged into or
   changed after this run created it, is left in place. After more than three
-  consecutive rejections in one run the exporter stops reporting no data and
-  stops moving files (`[dataset] WARN ... look systemic`) until an upload
-  succeeds. Pass telemetry counts
+  consecutive rejections in one run the exporter stops reporting no data
+  (`[dataset] WARN ... look systemic`) until an upload succeeds, but still sets
+  the CSV aside; genuine failures and `NO EXPORT` neither advance nor reset
+  that count. Pass telemetry counts
   the coin as `empty` with `no_comps`, not as `failed`, and a pass where many
   coins are rejected this way logs `[parse] WARN no_comps cluster` (see
   `docs/memory/operator-status-format.md`).

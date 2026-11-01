@@ -441,11 +441,13 @@ while (( MAX_PASSES == 0 || PASS_NUM < MAX_PASSES )); do
   fi
 
   if (( CHALLENGE_SIGNAL_COUNT > 0 )); then
+    rm -f "$SUMMARY_FILE"
     write_state "pass-${PASS_NUM}" "fail" "hard challenge detected; risk state is Cooldown"
     fail "hard challenge detected; stopping now in Cooldown"
   fi
 
   if (( PASS_EXIT_RC != 0 )); then
+    rm -f "$SUMMARY_FILE"
     log "pass ${PASS_NUM} FAILED (exit=$PASS_EXIT_RC); tail of $PASS_LOG:"
     tail -25 "$PASS_LOG" | tee -a "$MASTER_LOG"
     write_state "pass-${PASS_NUM}" "fail" "pass exit $PASS_EXIT_RC"
@@ -479,7 +481,6 @@ except Exception:
   python3 scripts/_terapeak_risk.py no-comps-cluster --summary-file "$SUMMARY_FILE" >/dev/null 2>> "$MASTER_LOG" || NO_COMPS_CLUSTER_RC=$?
   rm -f "$SUMMARY_FILE"
   if (( NO_COMPS_CLUSTER_RC == 2 )); then
-    write_state "pass-${PASS_NUM}" "fail" "cluster of uploads rejected as no valid comps"
     fail "pass ${PASS_NUM} had a cluster of uploads rejected as 'No valid comps found'; stopping (data-quality stop, risk state unchanged). Check whether the Terapeak export format or the server CSV parser changed (rejected CSVs are in cache/terapeak-rejected/) before restarting"
   elif (( NO_COMPS_CLUSTER_RC != 0 )); then
     fail "pass ${PASS_NUM} summary could not be read; stopping because the no-comps data-quality check cannot be evaluated"

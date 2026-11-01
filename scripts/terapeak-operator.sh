@@ -509,12 +509,14 @@ while true; do
   fi
 
   if (( challenge_signal_count > 0 )); then
+    rm -f "$SUMMARY_FILE"
     write_state "loop-pass" "failed" "Hard challenge detected; risk state is Cooldown" 1
     echo "[operator:risk] Hard challenge detected; stopping now in Cooldown. Do not retry until the probe and re-login gate passes." >&2
     exit 1
   fi
 
   if (( PASS_EXIT_RC != 0 )); then
+    rm -f "$SUMMARY_FILE"
     write_state "loop-pass" "failed" "Pass ${PASS} failed"
     echo "[operator] Pass ${PASS} failed; exiting." >&2
     exit 1
@@ -532,11 +534,12 @@ while true; do
   rm -f "$SUMMARY_FILE"
 
   if (( NO_COMPS_CLUSTER_RC == 2 )); then
-    write_state "loop-pass" "failed" "Pass ${PASS} had a cluster of uploads rejected as no valid comps" 1
+    # The cleanup trap records the stage on a nonzero exit, so a distinct stage keeps this stop identifiable.
+    CURRENT_STAGE="no-comps-cluster-stop"
     echo "[operator] Pass ${PASS} had a cluster of uploads rejected as 'No valid comps found'; stopping (data-quality stop, risk state unchanged). Check whether the Terapeak export format or the server CSV parser changed (rejected CSVs are in cache/terapeak-rejected/) before restarting." >&2
     exit 1
   elif (( NO_COMPS_CLUSTER_RC != 0 )); then
-    write_state "loop-pass" "failed" "Pass ${PASS} summary unreadable; cannot evaluate the no-comps check" 1
+    CURRENT_STAGE="no-comps-cluster-check-unreadable"
     echo "[operator] Pass ${PASS} summary could not be read; stopping because the no-comps data-quality check cannot be evaluated." >&2
     exit 1
   fi

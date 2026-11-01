@@ -818,19 +818,20 @@ def _settle_failed_upload(term, msg):
     tracking can converge, and set the unusable CSV aside. Any other failure keeps the CSV.
 
     More than NO_COMPS_BREAKER_LIMIT consecutive rejections look systemic (a Terapeak export
-    format change or a server parser fault), not like empty markets, so from then on the
-    rejections are neither reported as no data nor moved until an upload succeeds."""
+    format change or a server parser fault), not like empty markets, so from then on they are
+    not reported as no data until an upload succeeds. The unusable CSV is still set aside
+    (moved, never deleted) so it cannot be committed as dataset data."""
     global _consecutive_no_comps
     if not _is_no_valid_comps_error(msg):
         _new_dataset_paths.pop(term, None)
         return
     _consecutive_no_comps += 1
     if _consecutive_no_comps > NO_COMPS_BREAKER_LIMIT:
-        _new_dataset_paths.pop(term, None)
         print(
             f"  [dataset] WARN {term}: {_consecutive_no_comps} consecutive no-valid-comps rejections "
-            "look systemic; not reporting no data and keeping the CSV until an upload succeeds"
+            "look systemic; not reporting no data until an upload succeeds"
         )
+        _discard_no_comps_dataset(term, reported=False)
         return
     _report_no_data(term)
     _discard_no_comps_dataset(term)
@@ -880,23 +881,24 @@ def _stage_dataset(csv_path, dest, term):
     return merged
 
 
-def _discard_no_comps_dataset(term):
+def _discard_no_comps_dataset(term, reported=True):
     """Set aside the unusable CSV this run created for `term`. Returns True if moved."""
+    status = "reported as no data" if reported else "not reported as no data (systemic breaker)"
     entry = _new_dataset_paths.pop(term, None)
     if entry is None:
-        print(f"  [dataset] {term}: no valid comps; reported as no data")
+        print(f"  [dataset] {term}: no valid comps; {status}")
         return False
     path = Path(entry["path"])
     try:
         stat = path.stat()
     except FileNotFoundError:
-        print(f"  [dataset] {term}: no valid comps; reported as no data, CSV already gone")
+        print(f"  [dataset] {term}: no valid comps; {status}, CSV already gone")
         return False
     except OSError as error:
-        print(f"  [dataset] WARN {term}: no valid comps; reported as no data, could not inspect CSV {path.name}: {error}")
+        print(f"  [dataset] WARN {term}: no valid comps; {status}, could not inspect CSV {path.name}: {error}")
         return False
     if stat.st_size != entry["size"] or stat.st_mtime_ns != entry["mtime_ns"]:
-        print(f"  [dataset] {term}: no valid comps; reported as no data, kept {path.name} (changed since this run created it)")
+        print(f"  [dataset] {term}: no valid comps; {status}, kept {path.name} (changed since this run created it)")
         return False
     stamp = datetime.now().strftime('%Y%m%dT%H%M%S%f')
     target = REJECTED_DIR / f"{path.stem}-{stamp}.csv"
@@ -906,9 +908,9 @@ def _discard_no_comps_dataset(term):
             raise FileExistsError(f"{target.name} already exists")
         shutil.move(str(path), str(target))
     except OSError as error:
-        print(f"  [dataset] WARN {term}: no valid comps; reported as no data, could not set CSV aside, {path.name} stays in data/terapeak/: {error}")
+        print(f"  [dataset] WARN {term}: no valid comps; {status}, could not set CSV aside, {path.name} stays in data/terapeak/: {error}")
         return False
-    print(f"  [dataset] {term}: no valid comps; reported as no data, moved unusable CSV to cache/terapeak-rejected/{target.name}")
+    print(f"  [dataset] {term}: no valid comps; {status}, moved unusable CSV to cache/terapeak-rejected/{target.name}")
     return True
 
 

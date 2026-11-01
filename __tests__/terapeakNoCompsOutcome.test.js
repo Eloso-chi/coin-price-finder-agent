@@ -182,9 +182,35 @@ with tempfile.TemporaryDirectory() as temp_dir:
             "clusterOut": cli_out.getvalue().strip(),
         }
     out["cluster_cases"] = [
-        [n, m, pass_parser.is_no_comps_cluster({"no_comps": n, "attempted": m})]
-        for n, m in ((0, 5), (1, 1), (2, 2), (3, 3), (3, 10), (3, 11), (4, 15), (5, 15), (7, 22), (6, 22))
+        [n, m, k, pass_parser.is_no_comps_cluster({"no_comps": n, "attempted": m, "ok": k})]
+        for n, m, k in (
+            (0, 5, 0), (1, 1, 0), (2, 2, 0), (3, 3, 0), (3, 10, 0), (3, 11, 0),
+            (5, 15, 10), (5, 15, 3), (5, 15, 2), (6, 15, 3), (7, 22, 0), (6, 22, 0),
+        )
     ]
+    bad_dir = pathlib.Path(temp_dir) / "bad"
+    bad_dir.mkdir()
+    bad_inputs = {
+        "missing": None,
+        "badJson": "{not json",
+        "noPass": json.dumps({}),
+        "noKey": json.dumps({"pass": {}}),
+        "nonBool": json.dumps({"pass": {"no_comps_cluster": "yes"}}),
+        "listRoot": json.dumps([]),
+    }
+    for key, text in bad_inputs.items():
+        if text is not None:
+            (bad_dir / (key + ".json")).write_text(text, encoding="utf-8")
+    listing_before = sorted(os.listdir(temp_dir)) + sorted(os.listdir(bad_dir))
+    unreadable = {}
+    for key in bad_inputs:
+        cli_out = io.StringIO()
+        cli_err = io.StringIO()
+        with contextlib.redirect_stdout(cli_out), contextlib.redirect_stderr(cli_err):
+            rc = risk_main(["no-comps-cluster", "--summary-file", str(bad_dir / (key + ".json"))])
+        unreadable[key] = {"rc": rc, "out": cli_out.getvalue().strip(), "err": cli_err.getvalue()}
+    out["unreadable"] = unreadable
+    out["listingUnchanged"] = listing_before == sorted(os.listdir(temp_dir)) + sorted(os.listdir(bad_dir))
     out["coin_records"] = [
         json.loads(line)
         for line in pathlib.Path(pass_parser.COINS_PATH).read_text(encoding="utf-8").splitlines()
@@ -327,27 +353,46 @@ describe('#328H no-valid-comps outcome in pass telemetry', () => {
     expect(harness.oddtags.summary.pass.dormant).toBe(2);
   });
 
-  test('no_comps cluster thresholds: at least 3 coins and at least 30 percent of the batch', () => {
-    const verdicts = Object.fromEntries(harness.cluster_cases.map(([n, m, flag]) => [`${n}/${m}`, flag]));
+  test('no_comps cluster rule: at least 3 coins, at least 30 percent of the batch, and at least twice the successful uploads', () => {
+    const verdicts = Object.fromEntries(harness.cluster_cases.map(([n, m, k, flag]) => [`${n}/${m} ok=${k}`, flag]));
     expect(verdicts).toEqual({
-      '0/5': false,
-      '1/1': false, // isolated rejections (including a 1-coin canary) are routine headless datasets
-      '2/2': false,
-      '3/3': true,
-      '3/10': true, // exactly 30 percent
-      '3/11': false,
-      '4/15': false,
-      '5/15': true,
-      '7/22': true,
-      '6/22': false,
+      '0/5 ok=0': false,
+      '1/1 ok=0': false, // isolated rejections (including a 1-coin canary) are routine headless datasets
+      '2/2 ok=0': false,
+      '3/3 ok=0': true,
+      '3/10 ok=0': true, // exactly 30 percent
+      '3/11 ok=0': false,
+      '5/15 ok=10': false, // healthy pass holding known-bad datasets: most uploads succeed
+      '5/15 ok=3': false, // 5 < 2 x 3
+      '5/15 ok=2': true,
+      '6/15 ok=3': true, // exactly twice the successes
+      '7/22 ok=0': true,
+      '6/22 ok=0': false,
     });
   });
 
-  test('operator CLI reads the cluster flag from the pass summary and is fail-closed', () => {
+  test('a pass with a few rejections beside many successful uploads never stops the operator', () => {
+    // tagged log has 1 ok and 4 no_comps (flagged); the legacy log has 2 ok and 1 no_comps (not flagged)
+    expect(harness.legacy.summary.pass.no_comps_cluster).toBe(false);
+    expect(harness.legacy.clusterRc).toBe(0);
+  });
+
+  test('operator CLI reads the cluster flag from the pass summary', () => {
     expect(harness.tagged.clusterRc).toBe(2);
     expect(harness.tagged.clusterOut).toBe('true');
     expect(harness.legacy.clusterRc).toBe(0);
     expect(harness.legacy.clusterOut).toBe('false');
+  });
+
+  test.each(['missing', 'badJson', 'noPass', 'noKey', 'nonBool', 'listRoot'])('operator CLI fails closed (exit 3) on an unreadable summary: %s', key => {
+    const result = harness.unreadable[key];
+    expect(result.rc).toBe(3);
+    expect(result.out).toBe('unreadable');
+    expect(result.err).toMatch(/\[risk:FAIL\] pass summary unreadable/);
+  });
+
+  test('the cluster check is read-only', () => {
+    expect(harness.listingUnchanged).toBe(true);
   });
 
   test('a cluster of no_comps rejections is flagged and warned about; an isolated one is not', () => {
@@ -516,6 +561,16 @@ path = stage("breaker after", "breaker_after.csv", ["Coin L,601,2026-02-07,1.00"
 out["breakerAfter"] = settle("breaker after", False, NO_COMPS)
 out["breakerAfter"]["destExists"] = path.exists()
 
+# A genuine failure between rejections neither resets nor advances the consecutive count.
+exporter._begin_run()
+interleaved = []
+for index, (ok, msg) in enumerate(((False, NO_COMPS), (False, "HTTP 500: boom"), (False, NO_COMPS), (False, NO_COMPS), (False, NO_COMPS))):
+    term = "mix %d" % index
+    stage(term, "mix%d.csv" % index, ["Coin M%d,70%d,2026-04-0%d,1.00" % (index, index, index + 1)])
+    interleaved.append(settle(term, ok, msg))
+# rejections: 1st, 3rd, 4th are the first three counted; the genuine 500 between them changes nothing; the 5th is the 4th rejection
+out["breakerInterleaved"] = [interleaved[0], interleaved[2], interleaved[3], interleaved[4]]
+
 # _begin_run resets both pieces of run-scoped tracking.
 exporter._new_dataset_paths["stale"] = {"path": root / "stale.csv", "size": 1, "mtime_ns": 1}
 exporter._consecutive_no_comps = 9
@@ -681,18 +736,25 @@ describe('#328H exporter treats a 422 no-valid-comps upload as no data', () => {
     }
   });
 
-  test('more than three consecutive no-comps rejections stop reporting no data and keep the CSVs', () => {
+  test('more than three consecutive no-comps rejections stop reporting no data but still set the CSVs aside', () => {
     const runs = harness.breaker;
     for (const index of [0, 1, 2]) {
       expect(runs[index].reportedNow).toEqual([`breaker ${index + 1}`]);
       expect(runs[index].destExists).toBe(false);
+      expect(runs[index].stdout).not.toMatch(/systemic/);
     }
     for (const index of [3, 4]) {
       expect(runs[index].reportedNow).toEqual([]);
-      expect(runs[index].destExists).toBe(true);
+      // The unusable CSV is still moved out of data/terapeak so it cannot be committed as dataset data.
+      expect(runs[index].destExists).toBe(false);
       expect(runs[index].counts).toEqual([0, 0, 1]);
-      expect(runs[index].stdout).toMatch(/\[dataset\] WARN breaker \d: \d+ consecutive no-valid-comps rejections look systemic/);
+      expect(runs[index].stdout).toMatch(/\[dataset\] WARN breaker \d: \d+ consecutive no-valid-comps rejections look systemic; not reporting no data/);
+      expect(runs[index].stdout).toMatch(/not reported as no data \(systemic breaker\), moved unusable CSV to cache\/terapeak-rejected\//);
     }
+  });
+
+  test('the breaker counts upload outcomes only: genuine failures neither reset nor advance it', () => {
+    expect(harness.breakerInterleaved.map(run => run.reportedNow.length)).toEqual([1, 1, 1, 0]);
   });
 
   test('a successful upload resets the breaker', () => {
@@ -760,13 +822,30 @@ describe('#328H operators stop on a no_comps cluster as a data-quality stop', ()
     const parse = source.indexOf('_parse-terapeak-pass.py');
     const summaryArg = source.indexOf('--summary-output', parse);
     const check = source.indexOf('no-comps-cluster --summary-file');
-    const hardChallenge = source.indexOf('CHALLENGE_SIGNAL_COUNT > 0') > -1
-      ? source.indexOf('CHALLENGE_SIGNAL_COUNT > 0')
-      : source.indexOf('challenge_signal_count > 0');
-    expect(parse).toBeGreaterThan(-1);
+    const hardChallenge = source.indexOf(name === 'h' ? 'challenge_signal_count > 0' : 'CHALLENGE_SIGNAL_COUNT > 0');
+    const passExit = source.indexOf('PASS_EXIT_RC != 0');
+    for (const position of [parse, summaryArg, check, hardChallenge, passExit]) {
+      expect(position).toBeGreaterThan(-1);
+    }
     expect(summaryArg).toBeGreaterThan(parse);
-    expect(check).toBeGreaterThan(summaryArg);
-    expect(check).toBeGreaterThan(hardChallenge);
+    expect(hardChallenge).toBeGreaterThan(summaryArg);
+    expect(passExit).toBeGreaterThan(hardChallenge);
+    expect(check).toBeGreaterThan(passExit);
+  });
+
+  test.each(['h', 'codespace'])('%s operator removes the pass summary file on the early hard-challenge and pass-failure exits', name => {
+    const source = operators[name];
+    const hardChallenge = source.indexOf(name === 'h' ? 'challenge_signal_count > 0' : 'CHALLENGE_SIGNAL_COUNT > 0');
+    const passExit = source.indexOf('PASS_EXIT_RC != 0');
+    const check = source.indexOf('no-comps-cluster --summary-file');
+    expect(source.slice(hardChallenge, passExit)).toContain('rm -f "$SUMMARY_FILE"');
+    expect(source.slice(passExit, check)).toContain('rm -f "$SUMMARY_FILE"');
+  });
+
+  test('H operator records a distinct stage so the stop survives its cleanup trap', () => {
+    const source = operators.h;
+    expect(source).toContain('CURRENT_STAGE="no-comps-cluster-stop"');
+    expect(source).toContain('CURRENT_STAGE="no-comps-cluster-check-unreadable"');
   });
 
   test.each(['h', 'codespace'])('%s operator stop is fail-closed and does not change the risk state', name => {
