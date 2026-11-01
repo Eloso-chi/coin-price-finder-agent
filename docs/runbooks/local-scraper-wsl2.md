@@ -319,7 +319,12 @@ Operator log outputs:
 - **Loop exit condition:** the first explicit hard challenge stops the exporter
   and operator with a nonzero exit and persists Cooldown. It does not retry the
   challenged page. The H operator also exits nonzero if the Elevated pacing
-  wait does not elapse (unreadable inputs or no progress).
+  wait does not elapse (unreadable inputs or no progress). Both operators also
+  stop, without changing the risk state, after a pass that logs
+  `[parse] WARN no_comps cluster` (see
+  [anti-bot-operations.md](../memory/anti-bot-operations.md) item 7): check
+  whether the Terapeak export format or the server CSV parser changed before
+  restarting.
 - **Akamai cooldown:** once eBay serves a `/splashui/captchaP` challenge, the
   operator enforces at least a two-hour wait by default. Restart requires an
   interactive login and a successful live probe. Longer waits may be needed.
@@ -451,7 +456,19 @@ Notes:
 - `SAVED but upload failed` with HTTP 422 (`No valid comps found`) does not
   change metadata inside the import endpoint. The exporter recognizes that
   response and separately calls `POST /api/terapeak/report-no-data`, advancing
-  dormant tracking through the explicit no-result route.
+  dormant tracking through the explicit no-result route. When that CSV was
+  created by the current run the exporter also moves it to the git-ignored
+  `cache/terapeak-rejected/` (never deleting it) and prints
+  `[dataset] <term>: no valid comps; reported as no data, moved unusable CSV to cache/terapeak-rejected/<file>`;
+  a dataset file that already existed, or that another term merged into or
+  changed after this run created it, is left in place. After more than three
+  consecutive rejections in one run the exporter stops reporting no data
+  (`[dataset] WARN ... look systemic`) until an upload succeeds, but still sets
+  the CSV aside; genuine failures and `NO EXPORT` neither advance nor reset
+  that count. Pass telemetry counts
+  the coin as `empty` with `no_comps`, not as `failed`, and a pass where many
+  coins are rejected this way logs `[parse] WARN no_comps cluster` (see
+  `docs/memory/operator-status-format.md`).
 - P3 monitor/evidence-probe entries are excluded by default; include them with
   `--include-thin` when you intentionally want monitor passes.
 

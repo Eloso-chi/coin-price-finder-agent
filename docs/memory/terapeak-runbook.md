@@ -205,11 +205,17 @@ can be reviewed later:
 
 | File | Schema |
 |---|---|
-| `cache/terapeak-runs/passes.jsonl` | One JSON object per pass (run_id, machine, batch_size, attempted, succeeded, empty, failed, new_rows, dup_rows, duration_sec, ...) |
-| `cache/terapeak-runs/coins.jsonl` | One JSON object per coin attempt (run_id, pass, idx, coin, status, new, dups, dormant) |
+| `cache/terapeak-runs/passes.jsonl` | One JSON object per pass (run_id, machine, batch_size, attempted, succeeded, empty, failed, no_comps, no_comps_cluster, new_rows, dup_rows, duration_sec, ...) |
+| `cache/terapeak-runs/coins.jsonl` | One JSON object per coin attempt (run_id, pass, idx, coin, status, new, dups, dormant, no_comps) |
 
 `scripts/_parse-terapeak-pass.py` does the parsing. It is best-effort and
 never fails the operator -- parse errors are logged but the loop continues.
+
+Datasets the server rejects with HTTP 422 "No valid comps found" are reported
+as no data and, when the current run created the CSV, set aside (not deleted)
+in the git-ignored `cache/terapeak-rejected/`; see
+`docs/runbooks/local-scraper-wsl2.md`. Both operators stop after a pass with a
+cluster of such rejections (`no_comps_cluster`).
 
 View the ledger with `scripts/show-terapeak-runs.sh`:
 

@@ -29,7 +29,7 @@ Items marked DONE are kept for historical reference.
 
 ---
 
-### #328H. Treat a 422 "No valid comps found in CSV" upload as no data, not as an upload failure [P2 -- DATA-QUALITY / SCRAPER] -- PROPOSED 2026-10-31
+### #328H. Treat a 422 "No valid comps found in CSV" upload as no data, not as an upload failure [P2 -- DATA-QUALITY / SCRAPER] -- IMPLEMENTED 2026-11-01
 
 **Origin:** Operator runs `20261031T003645Z-230493`, `20261031T154735Z-235989` and `20261031T193332Z-241090`. Five datasets were saved and then rejected by the server with `HTTP 422 {"error":"No valid comps found in CSV"}` (1 or 2 rows in the file, all skipped): 2013 Half Lunar Oz Perth Silver Snake, 1oz 2018 Dog Gold Lunar Perth, 2010 Libertad Mexican Oz Proof Quarter Silver, 1997 Chinese Half Oz Panda Silver and 2014 Horse Lunar Rcm Silver.
 
@@ -48,6 +48,10 @@ Items marked DONE are kept for historical reference.
 **Files (anticipated):** `scripts/terapeak-export.py` (upload and no-data reporting); `scripts/_parse-terapeak-pass.py`; matching tests under `__tests__/`.
 
 **Related:** #323H (pass outcome counts), #327H (a different `CONTRADICTORY_WEIGHT` rejection).
+
+**Resolution (2026-11-01):** Correction to the problem statement above: the exporter already reported a 422 no-valid-comps upload to `POST /api/terapeak/report-no-data` (the `(dormant: N consecutive empty attempts)` lines after each rejection confirm the counters advance), so the dataset was not being re-queued blindly. What remained was the retained untracked CSV and the failure label in pass telemetry. `scripts/terapeak-export.py` now tracks CSVs created by the current run (`_stage_dataset` records a size and mtime fingerprint in `_new_dataset_paths`) and, on a 422 no-valid-comps result, moves that file to the git-ignored `cache/terapeak-rejected/` via `_discard_no_comps_dataset` (it is set aside, not deleted, so a server-side parser regression stays debuggable) and prints `[dataset] <term>: no valid comps; reported as no data, moved unusable CSV to cache/terapeak-rejected/<file>`. A dataset file that existed before the run, one another term has since merged into (filename collision), or one that changed after this run created it is never touched, and genuine failures (network, 5xx, `CONTRADICTORY_WEIGHT`) keep their CSV and are not reported as no data. The dormant line now carries the term (`(dormant: N consecutive empty attempts) [term]`) so the parser can attribute it. The exporter's `Failed:` tail count is unchanged, so `failed_reported` can exceed the parsed `failed` by the no-comps coins; `scripts/_parse-terapeak-pass.py` classifies the coin as `empty` with `no_comps` (separate `no_comps` count in the pass record, a flag per `coins.jsonl` record, and `no_comps=N` on the `[parse]` line) and flags a pass where at least 3 coins, at least 30% of the batch, and at least twice the successful uploads were rejected (`no_comps_cluster` in the pass record plus a `[parse] WARN no_comps cluster` line), because a systemic run of rejections points at a Terapeak export-format change or a server parser regression rather than empty markets. Two safeguards act on it: after more than three consecutive rejections in one run the exporter stops reporting no data until an upload succeeds (it still sets the CSV aside; genuine failures and `NO EXPORT` neither advance nor reset that count), and both operators (`terapeak-operator.sh`, `terapeak-operator-codespace.sh`) stop after a pass whose record sets `no_comps_cluster`, via the read-only, fail-closed `_terapeak_risk.py no-comps-cluster` subcommand. That stop is a data-quality stop, not a risk signal: it does not change the persisted risk state, start Cooldown or require a re-login (see `docs/memory/anti-bot-operations.md` item 7). The optional pre-upload blank-title check was not added because the server response already identifies these files. Evidence: all 8 rejected datasets across runs 1, 4 and 7 had a blank title on every row (7, 11 and 2 rows in three of them) except the 2013 Half Lunar Snake lot title, which `isDenied` rejects. Tests: `__tests__/terapeakNoCompsOutcome.test.js`.
+
+**Deferred follow-ups (not in this change):** (1) the five datasets named in the origin already exist on disk from earlier runs, so each run still merges new unusable rows into them, re-uploads and gets another 422; they need a one-off cleanup or a pre-upload blank-title skip. (2) Pass records written before this change classify a 422 as `failed`, so `scripts/analyze-pacing-pilot.py` failure rates are not directly comparable across the boundary; add `no_comps` back into the rate or record a parser version. (3) Pre-existing and unchanged here: `_stage_dataset` for the next coin runs before the previous coin's async upload is drained, so on a filename collision `_merge_csv` can rewrite a file the previous upload thread is still reading, which could produce a false 422; fix by draining before staging when two terms map to one file. (4) Nothing purges `cache/terapeak-rejected/`; add an age-based prune if disk use grows.
 
 ---
 
@@ -72,6 +76,8 @@ Items marked DONE are kept for historical reference.
 **Files (anticipated):** `src/utils/explicitWeight.js`; `src/services/terapeakService.js`; `src/routes/terapeakRoute.js`; matching tests under `__tests__/`.
 
 **Related:** #316H (explicit-weight analysis), #323H (pass outcome counts).
+
+**Update 2026-11-01 (evidence, not yet resolved):** The failure is deterministic, not a one-off. In run `20261031T193332Z-241090` the same term failed again in passes 6, 8, 9, 10 and 11 with the identical response (`"search term:  oz"`, `explicitWeights: []`), so the dataset has not been updated since. Ruled out so far: the repo analyzer returns `{ weights: [1], invalid: false }` for this term and for all 3,560 search terms derived from the dataset filenames; the deployed app runs latest main (health uptime matched the last deploy); the exporter sends only `searchTerm`, the file and aggregation meta. The route rejects terms over 500 characters with a different error, so length alone does not explain it. The text after `search term:` is the detected weights list followed by `oz` (compare `0.1, 999 oz` in the other rejection), so `search term:  oz` only shows that the list was empty, which is consistent with `invalid: true` and says nothing about the term itself. Next step is a small server change that adds the received term's length and code points to the 400 details and fixes the misleading `Contradictory ...` text when `invalid` is true with no weights, so the next occurrence explains itself. A different, legitimate rejection also seen on H (`999 Half Oz Round Silver`: `Contradictory explicit weights in search term: 0.1, 999 oz`) is correct server behavior for an ambiguous term and is not part of this item.
 
 ---
 
@@ -136,7 +142,7 @@ Items marked DONE are kept for historical reference.
 
 ---
 
-### #323H. Pass parse line miscounts outcomes versus the pass log [P3 -- REPORTING / OPERATIONS] -- PROPOSED 2026-10-31
+### #323H. Pass parse line miscounts outcomes versus the pass log [P3 -- REPORTING / OPERATIONS] -- IMPLEMENTED 2026-11-01
 
 **Origin:** Operator run `20261031T003645Z-230493`, pass 1. The pass log shows 25 uploaded coins, 5 `NO EXPORT` results, and 3 saved coins whose uploads were rejected (two HTTP 422 "No valid comps found in CSV", one HTTP 400 `CONTRADICTORY_WEIGHT`).
 
@@ -145,12 +151,14 @@ Items marked DONE are kept for historical reference.
 **Proposed approach:** Define the outcome classes explicitly (OK, NO DATA, upload failed) and make `_parse-terapeak-pass.py` classify each coin by the exact log markers. Add a fixture-based test using the real pass-1 log excerpt.
 
 **Acceptance criteria:**
-- Parsing the fixture yields ok=25, no-export=5, upload-failed=3 and matching new/dup totals (1,222 new, 1,001 dups).
+- Parsing the pass-1 shape yields ok=25, empty=7 (5 `NO EXPORT` plus 2 no-comps, flagged `no_comps`), failed=1 (the `CONTRADICTORY_WEIGHT` upload) and matching new/dup totals (1,222 new, 1,001 dups). The original 25/5/3 split was superseded by #328H, which counts a 422 no-valid-comps rejection as no data.
 - `cache/terapeak-runs/passes.jsonl` and `coins.jsonl` records agree with the log for the fixture.
 
 **Files (anticipated):** `scripts/_parse-terapeak-pass.py`; matching parser tests under `__tests__/`.
 
 **Related:** #320H.
+
+**Resolution (2026-11-01):** Root causes were in `parse_pass_log`: (1) a standalone `[async upload] X: failed -- HTTP ...` line (the final drain after the last coin) was applied to coin X and then also fell through to the continuation rules, flipping the coin currently open (a `NO EXPORT` coin) from `empty` to `failed`, which produced `empty=4 failed=4` instead of 5 and 3; (2) coins that ended in `TIMEOUT`, `ERROR:`, `EMPTY (file too small)` or a same-line `SAVED but upload failed` stayed `unknown` and dropped out of the printed counts (and would abort `commit-terapeak-progress.sh`, which requires `attempted = succeeded + empty + failed`); (3) the `(dormant: ...)` line after an async 422 was credited to the next coin. All fixed with the 422 no-valid-comps reclassification from #328H. For the run `20261031T003645Z-230493` pass 1 shape the parser now reports ok=25 and empty=7 (5 `NO EXPORT` plus 2 no-comps, `no_comps=2`) and failed=1 (the `CONTRADICTORY_WEIGHT` upload), instead of the 25/5/3 split originally listed, because no-comps uploads are now counted as no data. Verification was a re-parse of all 24 real pass logs on H, which reconciles exactly with raw log counts (0 mismatches; before, 2 passes disagreed); the committed test uses synthetic fixtures shaped after those logs rather than the full 33-coin excerpt. Tests: `__tests__/terapeakNoCompsOutcome.test.js`.
 
 ---
 

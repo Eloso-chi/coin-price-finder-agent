@@ -213,10 +213,12 @@ Append-only JSONL ledger written by `scripts/_parse-terapeak-pass.py` after each
 | `failed` | number | Public | Coins that errored out (network, parse, captcha, etc.) |
 | `unknown` | number | Public | Coins whose status the parser could not determine |
 | `dormant` | number | Public | Coins flagged dormant by the freshness classifier |
+| `no_comps` | number | Public | Coins whose upload the server rejected as HTTP 422 "No valid comps found"; a subset of `empty` (#328H) |
+| `no_comps_cluster` | boolean | Public | True when at least 3 coins, at least 30% of the batch, and at least twice the successful uploads were no-comps rejections; points at an export-format or server-parser fault rather than empty markets and stops both operators |
 | `new_rows` | number | Public | Sum of new comp rows added across all coins this pass |
 | `dup_rows` | number | Public | Sum of duplicate rows skipped across all coins this pass |
 | `succeeded_reported` | number or null | Public | "succeeded" total scraped from the pass log's own summary line (cross-check) |
-| `failed_reported` | number or null | Public | "failed" total scraped from the pass log's own summary line (cross-check) |
+| `failed_reported` | number or null | Public | "failed" total scraped from the pass log's own summary line (cross-check). The exporter counts `NO EXPORT` and no-comps rejections as failed, so this can exceed `failed` |
 | `pass_log` | string | Public | Path to the per-pass log this record was parsed from |
 
 **`coins.jsonl`** -- one JSON object per coin attempt within a pass:
@@ -234,7 +236,8 @@ Append-only JSONL ledger written by `scripts/_parse-terapeak-pass.py` after each
 | `new` | number | Public | New rows added from this coin |
 | `dups` | number | Public | Duplicate rows skipped |
 | `dormant` | boolean | Public | True if the coin was classified dormant before the attempt |
-| `error` | string or null | Public | Error excerpt if the attempt failed; null otherwise |
+| `no_comps` | boolean | Public | True if the server rejected the upload as HTTP 422 "No valid comps found" (status is `empty`) |
+| `error` | string or null | Public | Error excerpt (at most 200 characters) if the attempt failed; null otherwise |
 
 **Use:** Operator forensics and longitudinal yield tracking. Parse failures in `_parse-terapeak-pass.py` log to stderr but never fail the operator loop. Schemas are append-only and best-effort; new fields may be added in later operator versions. Source of truth: `scripts/_parse-terapeak-pass.py` `main()` -- consult before relying on any field semantics.
 
