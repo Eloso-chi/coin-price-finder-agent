@@ -257,6 +257,49 @@ async function resolveFromDescription(text) {
   };
 }
 
+// Known fractional ounces that sellers write with a leading decimal point (".5 oz").
+const LEADING_DOT_FRACTION_OZ = new Set([0.05, 0.1, 0.25, 0.5]);
+
+/**
+ * Find the stated ounce weight in a title, or null.
+ * A leading-dot decimal is a purity mark (".999 oz") or a silver-content figure (".3617 oz") and is
+ * ignored unless it is a known fractional ounce. A number after a letter-glued dot ("coins.1 oz")
+ * or after a slash that does not follow a digit ("30g/1oz") is a real weight; after a digit and a
+ * slash it is a fraction tail. A ".." ellipsis only admits fractions ("..1/2 oz").
+ */
+function findOunceWeight(text) {
+  const pattern = /\b(\d+(?:\.\d+)?(?:\s*\/\s*\d+)?)\s*(?:troy\s*)?oz\b/gi;
+  for (const match of String(text).matchAll(pattern)) {
+    const raw = match[1];
+    const isFraction = raw.includes('/');
+    const before = text.slice(0, match.index);
+    const prev = before.slice(-1);
+    let weight;
+    if (isFraction) {
+      const [num, den] = raw.split('/').map(part => parseFloat(part));
+      if (!(den > 0)) continue;
+      weight = num / den;
+    } else {
+      weight = parseFloat(raw);
+    }
+    if (prev === '.') {
+      const beforeDot = before.slice(-2, -1);
+      if (beforeDot === '.') {
+        if (!isFraction) continue;
+      } else if (!/[a-z]/i.test(beforeDot)) {
+        if (isFraction || beforeDot === '$' || raw.includes('.')) continue;
+        const decimal = Number(`0.${raw}`);
+        if (!LEADING_DOT_FRACTION_OZ.has(decimal)) continue;
+        weight = decimal;
+      }
+    } else if (prev === '/' && /\d\s*$/.test(before.slice(0, -1))) {
+      continue;
+    }
+    return { weight, raw: match[0] };
+  }
+  return null;
+}
+
 // ── Description parser ──────────────────────────────────────
 function parseDescription(text) {
   // Strip eBay/Terapeak exclusion operators (e.g. "-proof", "-gold") before
@@ -410,19 +453,11 @@ function parseDescription(text) {
     result.label = `Type ${typeMatch[1]}`;
   }
 
-  // Weight: extract "1/2 oz", "1/4 oz", "1/10 oz", "1.5 oz", "5 oz", "10 oz", etc.
-  // A decimal point or slash before the number means a purity mark (".999 oz"), a silver-content
-  // decimal (".3617 oz") or a fraction tail ("1 /2 oz"), not a weight. A ".." ellipsis is punctuation.
-  const weightMatch = t.match(/(?<![/\d])(?<!(?<!\.)\.)\b(\d+(?:\.\d+)?(?:\/\d+)?)\s*(?:troy\s*)?oz\b/i);
+  // Weight: extract "1/2 oz", "1 /2 oz", "1/10 oz", "1.5 oz", "5 oz", "10 oz", ".5 oz", etc.
+  const weightMatch = findOunceWeight(t);
   if (weightMatch) {
-    const raw = weightMatch[1];
-    if (raw.includes('/')) {
-      const [num, den] = raw.split('/');
-      result.weight = parseFloat(num) / parseFloat(den);
-    } else {
-      result.weight = parseFloat(raw);
-    }
-    result.weightRaw = weightMatch[0];
+    result.weight = weightMatch.weight;
+    result.weightRaw = weightMatch.raw;
   }
 
   // Word-based fractional ounce forms: "half oz", "quarter ounce",
