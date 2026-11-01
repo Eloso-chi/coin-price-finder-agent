@@ -67,7 +67,7 @@ App Service's effective environment settings.
 ## Production Configuration Last Reported Disabled (Verify Before Acting)
 
 ### Email Alert System
-- **Last verified production status (2026-09-04):** ⚠️ **NOT CONFIGURED**. Current App Service/Key Vault alert settings have not been re-verified here.
+- **Last verified production status (2026-09-04):** WARNING: **NOT CONFIGURED**. Current App Service/Key Vault alert settings have not been re-verified here.
 - **Type:** On-demand Azure Communication Services Email notifications
 - **Should alert on:**
   - Metals refresh failure (2+ consecutive)
@@ -89,12 +89,12 @@ App Service's effective environment settings.
 ## Health and Status Endpoints
 
 Not every timer exposes a dedicated scheduler-state endpoint:
-- `GET /api/health` — shallow server status and uptime
-- `GET /api/health?deep=1` — bounded downstream dependency health (admin auth)
-- `GET /api/admin/prefetch-status` — PCGS APR scheduler state (admin auth)
-- `GET /api/admin/pcgs-quota` — PCGS quota and upstream cooldown status (admin auth)
-- `GET /api/admin/dashboard` — aggregate system statistics, not a per-timer run ledger
-- `GET /api/metals` — current spot data; it does not report polling timer state
+- `GET /api/health` -- shallow server status and uptime
+- `GET /api/health?deep=1` -- bounded downstream dependency health (admin auth)
+- `GET /api/admin/prefetch-status` -- PCGS APR scheduler state (admin auth)
+- `GET /api/admin/pcgs-quota` -- PCGS quota and upstream cooldown status (admin auth)
+- `GET /api/admin/dashboard` -- aggregate system statistics, not a per-timer run ledger
+- `GET /api/metals` -- current spot data; it does not report polling timer state
 
 Greysheet refresh history can be inspected through the Greysheet history data.
 Blob re-import and timer-specific failures are primarily visible in server logs
@@ -113,7 +113,7 @@ and alerts. Do not infer that each timer has a dedicated status endpoint.
 | Prefetch throttle | PREFETCH_THROTTLE_MS | 1000 | ✓ Yes |
 | Prefetch reserve | PREFETCH_RESERVE | 10 | ✓ Yes |
 | Prefetch observed upstream limit | PCGS_PREFETCH_OBSERVED_LIMIT | 100 (90-call effective fresh budget) | ✓ Yes |
-| Prefetch enabled | PCGS_PREFETCH_ENABLED | true (code default; effective production setting not re-verified) | ✓ Yes |
+| Prefetch enabled | PCGS_PREFETCH_ENABLED | true (code default; effective production setting not re-verified) | Yes |
 | PCGS 429 fallback cooldown | PCGS_429_COOLDOWN_MS | 3600000 (1h) | ✓ Yes |
 | PCGS systemic rejection cooldown | PCGS_SYSTEMIC_COOLDOWN_MS | 86400000 (24h) | Yes |
 | ACS Email connection | COMMUNICATION_CONNECTION_STRING | (none) | ✓ Needs setup |

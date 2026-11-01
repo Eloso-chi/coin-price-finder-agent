@@ -51,7 +51,7 @@
   materially worsened by the target change block it. Allow one mapped-document
   correction pass and one Onboard verification rerun; repository-wide zero-gap
   audits require explicit user approval and a separate branch. See the
-  “Delta-Scoped Documentation Acceptance” section in
+  "Delta-Scoped Documentation Acceptance" section in
   `.github/skills/workflow/SKILL.md` (INC-018).
 - Before replacing a port-3000 listener, verify its command and working
   directory identify this repository's `node server.js`. If ownership is

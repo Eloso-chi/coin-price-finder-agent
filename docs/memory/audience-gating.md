@@ -1,4 +1,4 @@
-# Audience Gating (Public vs Admin) — Current Contract
+# Audience Gating (Public vs Admin) -- Current Contract
 
 The original source-label change shipped in PR #85. This document describes the
 current contract; implementation details and route coverage should be kept in
@@ -15,10 +15,10 @@ The shared helper is used by:
 - `src/routes/priceRoute.js`
 - `src/routes/barPriceRoute.js`
 - `src/routes/pricingBatchRoute.js`
-- `src/routes/bulkEvaluateRoute.js` — response, SSE, and poll paths
-- `src/routes/terapeakRoute.js` — public lookup response
+- `src/routes/bulkEvaluateRoute.js` -- response, SSE, and poll paths
+- `src/routes/terapeakRoute.js` -- public lookup response
 - `src/routes/aiPriceRoute.js`
-- `src/services/aiOrchestratorService.js` — tool results before they reach the model
+- `src/services/aiOrchestratorService.js` -- tool results before they reach the model
 
 `src/routes/coinHistoryRoute.js` separately emits the public-safe `ebay-sold`
 source label; it does not call the shared helper.
