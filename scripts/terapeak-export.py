@@ -780,6 +780,7 @@ def _record_upload_result(result, progress):
         return 0, 0, 0
     term = result["term"]
     if result["ok"]:
+        _new_dataset_paths.pop(term, None)
         print(f"  [async upload] {term}: OK ({result['msg']})")
         progress.setdefault("completed", []).append(term)
         return 1, 1, 0
@@ -787,8 +788,32 @@ def _record_upload_result(result, progress):
     print(f"  [async upload] {term}: failed -- {result['msg']}")
     if _is_no_valid_comps_error(result["msg"]):
         _report_no_data(term)
+        _discard_no_comps_dataset(term)
+    else:
+        _new_dataset_paths.pop(term, None)
     progress.setdefault("failed", []).append(term)
     return 0, 0, 1
+
+
+# Dataset CSVs created (not merged into an existing file) during this run, keyed by
+# search term. A server 422 "no valid comps" means the file holds nothing usable, so
+# only these files may be removed; a pre-existing dataset is never deleted.
+_new_dataset_paths = {}
+
+
+def _discard_no_comps_dataset(term):
+    """Remove the unusable CSV this run created for `term`. Returns True if removed."""
+    path = _new_dataset_paths.pop(term, None)
+    if path is None:
+        print(f"  [dataset] {term}: no valid comps; reported as no data")
+        return False
+    try:
+        Path(path).unlink(missing_ok=True)
+    except OSError as error:
+        print(f"  [dataset] {term}: no valid comps; reported as no data, could not remove CSV: {error}")
+        return False
+    print(f"  [dataset] {term}: no valid comps; reported as no data, removed unusable CSV")
+    return True
 
 
 def _report_no_data(search_term):
@@ -1946,7 +1971,10 @@ def do_export_run(args):
 
                 # Merge with existing CSV (preserve deep-paginated data)
                 dest = CSV_DIR / entry["filename"]
+                dest_existed = dest.exists()
                 dest = _merge_csv(csv_path, dest)
+                if not dest_existed:
+                    _new_dataset_paths[term] = dest
 
                 # Upload to app with aggregationMeta
                 now = datetime.now().isoformat()
@@ -1968,6 +1996,7 @@ def do_export_run(args):
                 else:
                     ok, msg = upload_csv(dest, term, aggregation_meta=meta)
                     if ok:
+                        _new_dataset_paths.pop(term, None)
                         print(f"OK ({msg})")
                         uploaded += 1
                         success += 1
@@ -1978,6 +2007,9 @@ def do_export_run(args):
                         # dormant tracking can converge instead of retrying forever.
                         if _is_no_valid_comps_error(msg):
                             _report_no_data(term)
+                            _discard_no_comps_dataset(term)
+                        else:
+                            _new_dataset_paths.pop(term, None)
                         failed += 1
                         progress.setdefault("failed", []).append(term)
             else:

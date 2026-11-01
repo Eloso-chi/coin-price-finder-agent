@@ -451,7 +451,12 @@ Notes:
 - `SAVED but upload failed` with HTTP 422 (`No valid comps found`) does not
   change metadata inside the import endpoint. The exporter recognizes that
   response and separately calls `POST /api/terapeak/report-no-data`, advancing
-  dormant tracking through the explicit no-result route.
+  dormant tracking through the explicit no-result route. When that CSV was
+  created by the current run the exporter also removes it and prints
+  `[dataset] <term>: no valid comps; reported as no data, removed unusable CSV`;
+  a dataset file that already existed is never deleted. Pass telemetry counts
+  the coin as `empty` with `no_comps`, not as `failed` (see
+  `docs/memory/operator-status-format.md`).
 - P3 monitor/evidence-probe entries are excluded by default; include them with
   `--include-thin` when you intentionally want monitor passes.
 

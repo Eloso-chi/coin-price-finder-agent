@@ -29,7 +29,7 @@ Items marked DONE are kept for historical reference.
 
 ---
 
-### #328H. Treat a 422 "No valid comps found in CSV" upload as no data, not as an upload failure [P2 -- DATA-QUALITY / SCRAPER] -- PROPOSED 2026-10-31
+### #328H. Treat a 422 "No valid comps found in CSV" upload as no data, not as an upload failure [P2 -- DATA-QUALITY / SCRAPER] -- IMPLEMENTED 2026-11-01
 
 **Origin:** Operator runs `20261031T003645Z-230493`, `20261031T154735Z-235989` and `20261031T193332Z-241090`. Five datasets were saved and then rejected by the server with `HTTP 422 {"error":"No valid comps found in CSV"}` (1 or 2 rows in the file, all skipped): 2013 Half Lunar Oz Perth Silver Snake, 1oz 2018 Dog Gold Lunar Perth, 2010 Libertad Mexican Oz Proof Quarter Silver, 1997 Chinese Half Oz Panda Silver and 2014 Horse Lunar Rcm Silver.
 
@@ -49,6 +49,8 @@ Items marked DONE are kept for historical reference.
 
 **Related:** #323H (pass outcome counts), #327H (a different `CONTRADICTORY_WEIGHT` rejection).
 
+**Resolution (2026-11-01):** Correction to the problem statement above: the exporter already reported a 422 no-valid-comps upload to `POST /api/terapeak/report-no-data` (the `(dormant: N consecutive empty attempts)` lines after each rejection confirm the counters advance), so the dataset was not being re-queued blindly. What remained was the retained untracked CSV and the failure label in pass telemetry. `scripts/terapeak-export.py` now tracks CSVs created by the current run (`_new_dataset_paths`) and, on a 422 no-valid-comps result, removes that file via `_discard_no_comps_dataset` and prints `[dataset] <term>: no valid comps; reported as no data, removed unusable CSV`. A dataset file that existed before the run is never deleted, and genuine failures (network, 5xx, `CONTRADICTORY_WEIGHT`) keep their CSV and are not reported as no data. The exporter's `Failed:` tail count is unchanged; `scripts/_parse-terapeak-pass.py` now classifies the coin as `empty` with `no_comps` (separate `no_comps` count in the pass record, a flag per `coins.jsonl` record, and `no_comps=N` on the `[parse]` line). The optional pre-upload blank-title check was not added because the server response already identifies these files. Evidence: all 8 rejected datasets across runs 1, 4 and 7 had a blank title on every row (7, 11 and 2 rows in three of them) except the 2013 Half Lunar Snake lot title, which `isDenied` rejects. Tests: `__tests__/terapeakNoCompsOutcome.test.js`.
+
 ---
 
 ### #327H. Deployed server rejected a valid 1oz Libertad upload as CONTRADICTORY_WEIGHT with no weights [P2 -- DATA-QUALITY / SCRAPER] -- PROPOSED 2026-10-31
@@ -62,6 +64,8 @@ Items marked DONE are kept for historical reference.
 2. Capture the exact bytes of the failing `searchTerm` (for example hidden or non-ASCII characters from the CSV-derived name) and test the analyzer with them.
 3. If the analyzer can return `invalid: true` with no weights, make the error message and `explicitWeights` explain why (the current text, `Contradictory explicit weights in search term:  oz`, is misleading) and fix the cause.
 4. Re-upload `2022_Mexican_Silver_Libertad_1oz.csv` once resolved; it is saved locally but not on the server.
+
+**Update 2026-11-01 (evidence, not yet resolved):** The failure is deterministic, not a one-off. In run `20261031T193332Z-241090` the same term failed again in passes 6, 8, 9, 10 and 11 with the identical response (`"search term:  oz"`, `explicitWeights: []`), so the dataset has not been updated since. Ruled out so far: the repo analyzer returns `{ weights: [1], invalid: false }` for this term and for all 3,560 search terms derived from the dataset filenames; the deployed app runs latest main (health uptime matched the last deploy); the exporter sends only `searchTerm`, the file and aggregation meta. The route rejects terms over 500 characters with a different error, so length alone does not explain it. The text after `search term:` is the detected weights list followed by `oz` (compare `0.1, 999 oz` in the other rejection), so `search term:  oz` only shows that the list was empty, which is consistent with `invalid: true` and says nothing about the term itself. Next step is a small server change that adds the received term's length and code points to the 400 details and fixes the misleading `Contradictory ...` text when `invalid` is true with no weights, so the next occurrence explains itself. A different, legitimate rejection also seen on H (`999 Half Oz Round Silver`: `Contradictory explicit weights in search term: 0.1, 999 oz`) is correct server behavior for an ambiguous term and is not part of this item.
 
 **Acceptance criteria:**
 - The failing term is reproduced locally or on the deployed build, with the cause identified.
@@ -136,7 +140,7 @@ Items marked DONE are kept for historical reference.
 
 ---
 
-### #323H. Pass parse line miscounts outcomes versus the pass log [P3 -- REPORTING / OPERATIONS] -- PROPOSED 2026-10-31
+### #323H. Pass parse line miscounts outcomes versus the pass log [P3 -- REPORTING / OPERATIONS] -- IMPLEMENTED 2026-11-01
 
 **Origin:** Operator run `20261031T003645Z-230493`, pass 1. The pass log shows 25 uploaded coins, 5 `NO EXPORT` results, and 3 saved coins whose uploads were rejected (two HTTP 422 "No valid comps found in CSV", one HTTP 400 `CONTRADICTORY_WEIGHT`).
 
@@ -151,6 +155,8 @@ Items marked DONE are kept for historical reference.
 **Files (anticipated):** `scripts/_parse-terapeak-pass.py`; matching parser tests under `__tests__/`.
 
 **Related:** #320H.
+
+**Resolution (2026-11-01):** Root causes were in `parse_pass_log`: (1) a standalone `[async upload] X: failed -- HTTP ...` line (the final drain after the last coin) was applied to coin X and then also fell through to the continuation rules, flipping the coin currently open (a `NO EXPORT` coin) from `empty` to `failed`, which produced `empty=4 failed=4` instead of 5 and 3; (2) coins that ended in `TIMEOUT`, `ERROR:`, `EMPTY (file too small)` or a same-line `SAVED but upload failed` stayed `unknown` and dropped out of the printed counts (and would abort `commit-terapeak-progress.sh`, which requires `attempted = succeeded + empty + failed`); (3) the `(dormant: ...)` line after an async 422 was credited to the next coin. All fixed with the 422 no-valid-comps reclassification from #328H. For the run `20261031T003645Z-230493` pass 1 shape the parser now reports ok=25 and empty=7 (5 `NO EXPORT` plus 2 no-comps, `no_comps=2`) and failed=1 (the `CONTRADICTORY_WEIGHT` upload), instead of the 25/5/3 split originally listed, because no-comps uploads are now counted as no data. Re-parsing all 24 real pass logs on H reconciles exactly with raw log counts (0 mismatches; before, 2 passes disagreed). Tests: `__tests__/terapeakNoCompsOutcome.test.js`.
 
 ---
 

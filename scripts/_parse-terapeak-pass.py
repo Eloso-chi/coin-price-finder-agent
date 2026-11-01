@@ -69,6 +69,15 @@ BOT_BLOCKED_RE = re.compile(r"\bBOT BLOCKED\b", re.IGNORECASE)
 HTTP_FAIL_RE = re.compile(r"HTTP\s+([45]\d{2})", re.IGNORECASE)
 FAILED_TAIL_RE = re.compile(r"^\s*Failed:\s*(\d+)", re.IGNORECASE)
 SUCCEEDED_TAIL_RE = re.compile(r"^\s*Succeeded:\s*(\d+)", re.IGNORECASE)
+# The server answers HTTP 422 "No valid comps found in CSV" when every row of an
+# uploaded dataset is unusable. That is a no-data outcome, not an upload failure
+# (#328H); the exporter reports it to the dormancy counters the same way.
+NO_COMPS_RE = re.compile(r"HTTP\s+422\b.*no valid comps", re.IGNORECASE)
+SYNC_UPLOAD_FAIL_RE = re.compile(r"SAVED but upload failed:\s*(.+)", re.IGNORECASE)
+# Outcomes the exporter prints for a coin that never reached an upload result.
+TIMEOUT_RE = re.compile(r"^\s*TIMEOUT\b")
+ERROR_RE = re.compile(r"^\s*(ERROR:.*)$")
+TINY_FILE_RE = re.compile(r"^\s*EMPTY \(file too small")
 
 
 def parse_pass_log(path):
@@ -90,7 +99,20 @@ def parse_pass_log(path):
         coins.append(current)
         current = None
 
+    # Set when an async result marks a coin as no-comps: the `(dormant: ...)` line
+    # the exporter prints right after it belongs to that coin, not to the coin
+    # whose line the async result was printed on.
+    dormant_target = None
+
+    def mark_no_comps(coin, message):
+        coin["status"] = "empty"
+        coin["no_comps"] = True
+        coin["error"] = None
+        coin["new"] = 0
+        coin["dups"] = 0
+
     def apply_async_result(match):
+        nonlocal dormant_target
         term = match.group(1).strip()
         target = current if current and current["coin"] == term else None
         if target is None:
@@ -102,9 +124,39 @@ def parse_pass_log(path):
             target["new"] = int(match.group(3))
             target["dups"] = int(match.group(4))
             target["error"] = None
+        elif NO_COMPS_RE.search(match.group(5)):
+            mark_no_comps(target, match.group(5))
+            dormant_target = target
         else:
             target["status"] = "failed"
             target["error"] = match.group(5).strip()
+
+    def apply_failure_text(coin, text):
+        """Classify a same-coin failure line. Returns True when it matched."""
+        sync_fail = SYNC_UPLOAD_FAIL_RE.search(text)
+        if sync_fail:
+            message = sync_fail.group(1)
+            if NO_COMPS_RE.search(message):
+                mark_no_comps(coin, message)
+            else:
+                http = HTTP_FAIL_RE.search(message)
+                coin["status"] = "failed"
+                coin["error"] = f"HTTP {http.group(1)}" if http else message.strip()[:200]
+            return True
+        if TIMEOUT_RE.search(text):
+            coin["status"] = "failed"
+            coin["error"] = "TIMEOUT"
+            return True
+        error = ERROR_RE.search(text)
+        if error:
+            coin["status"] = "failed"
+            coin["error"] = error.group(1).strip()[:200]
+            return True
+        if TINY_FILE_RE.search(text):
+            coin["status"] = "failed"
+            coin["error"] = "EMPTY (file too small)"
+            return True
+        return False
 
     try:
         with open(path, "r", encoding="utf-8", errors="replace") as f:
@@ -117,10 +169,20 @@ def parse_pass_log(path):
                 line_signals = classify_log_lines((line,))
                 challenge_signal_count += line_signals["challenge_signal_count"]
                 soft_risk_signal_count += line_signals["soft_risk_signal_count"]
+                pending_dormant = dormant_target
+                dormant_target = None
                 async_result = ASYNC_RESULT_RE.search(line)
                 if async_result:
                     apply_async_result(async_result)
                 m = COIN_LINE_RE.match(line)
+                if not m and not async_result and pending_dormant is not None and DORMANT_RE.search(line):
+                    pending_dormant["dormant"] = True
+                    continue
+                if not m and async_result:
+                    # A standalone async result (the final drain after the last coin)
+                    # applies to its own coin only; it must not fall through to the
+                    # continuation rules and reclassify the coin currently open.
+                    continue
                 if m:
                     # New coin starts; close out previous
                     finalize_current()
@@ -132,6 +194,7 @@ def parse_pass_log(path):
                         "new": 0,
                         "dups": 0,
                         "dormant": False,
+                        "no_comps": False,
                         "error": None,
                     }
                     # Try to resolve outcome on the same line
@@ -145,6 +208,8 @@ def parse_pass_log(path):
                     elif BOT_BLOCKED_RE.search(rest):
                         current["status"] = "failed"
                         current["error"] = "BOT BLOCKED"
+                    else:
+                        apply_failure_text(current, rest)
                     continue
 
                 sm = SUCCEEDED_TAIL_RE.match(line)
@@ -173,6 +238,8 @@ def parse_pass_log(path):
                 if BOT_BLOCKED_RE.search(line):
                     current["status"] = "failed"
                     current["error"] = "BOT BLOCKED"
+                    continue
+                if current.get("status") in (None,) and apply_failure_text(current, line):
                     continue
                 http = HTTP_FAIL_RE.search(line)
                 if http:
@@ -217,6 +284,7 @@ def aggregate(coins):
         "failed": 0,
         "unknown": 0,
         "dormant": 0,
+        "no_comps": 0,
         "new_rows": 0,
         "dup_rows": 0,
     }
@@ -226,6 +294,8 @@ def aggregate(coins):
             out[status] += 1
         if c.get("dormant"):
             out["dormant"] += 1
+        if c.get("no_comps"):
+            out["no_comps"] += 1
         out["new_rows"] += int(c.get("new") or 0)
         out["dup_rows"] += int(c.get("dups") or 0)
     return out
@@ -361,6 +431,7 @@ def main(argv=None):
         "failed": agg["failed"],
         "unknown": agg["unknown"],
         "dormant": agg["dormant"],
+        "no_comps": agg["no_comps"],
         "new_rows": agg["new_rows"],
         "dup_rows": agg["dup_rows"],
         "succeeded_reported": totals.get("succeeded_reported"),
@@ -383,6 +454,7 @@ def main(argv=None):
             "new": c["new"],
             "dups": c["dups"],
             "dormant": c["dormant"],
+            "no_comps": c.get("no_comps", False),
             "error": c["error"],
         }
         append_jsonl(COINS_PATH, coin_rec)
@@ -407,6 +479,7 @@ def main(argv=None):
     print(
         f"[parse] pass={args.pass_num} attempted={agg['attempted']} "
         f"ok={agg['ok']} empty={agg['empty']} failed={agg['failed']} "
+        f"no_comps={agg['no_comps']} "
         f"new_rows={agg['new_rows']} dup_rows={agg['dup_rows']} "
         f"-> {PASSES_PATH}, {COINS_PATH}"
     )
