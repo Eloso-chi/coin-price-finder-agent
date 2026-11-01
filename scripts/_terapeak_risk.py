@@ -241,10 +241,28 @@ def main(argv=None):
     wait_parser.add_argument("--max-rounds", type=int, default=20)
     wait_parser.add_argument("--max-stalled-rounds", type=int, default=3)
 
+    cluster_parser = subparsers.add_parser("no-comps-cluster")
+    cluster_parser.add_argument("--summary-file", required=True)
+
     args = parser.parse_args(argv)
     if args.command == "current":
         print(load_state(args.state_file).get("state", "Normal"))
         return 0
+
+    if args.command == "no-comps-cluster":
+        # Data-quality stop signal, not a risk signal: read-only, never changes the risk state.
+        # Exit 0 = no cluster, 2 = cluster (stop and investigate), 3 = summary unreadable (fail closed).
+        try:
+            with open(args.summary_file, "r", encoding="utf-8") as summary_file:
+                flag = json.load(summary_file)["pass"]["no_comps_cluster"]
+            if not isinstance(flag, bool):
+                raise ValueError("no_comps_cluster is not a boolean")
+        except (OSError, ValueError, KeyError, TypeError) as error:
+            print("unreadable")
+            print(f"[risk:FAIL] pass summary unreadable: {error}", file=sys.stderr)
+            return 3
+        print("true" if flag else "false")
+        return 2 if flag else 0
 
     if args.command in ("pause-remaining", "wait-elevated-pause"):
         def remaining_checked():

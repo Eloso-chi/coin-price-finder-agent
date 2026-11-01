@@ -319,7 +319,12 @@ Operator log outputs:
 - **Loop exit condition:** the first explicit hard challenge stops the exporter
   and operator with a nonzero exit and persists Cooldown. It does not retry the
   challenged page. The H operator also exits nonzero if the Elevated pacing
-  wait does not elapse (unreadable inputs or no progress).
+  wait does not elapse (unreadable inputs or no progress). Both operators also
+  stop, without changing the risk state, after a pass that logs
+  `[parse] WARN no_comps cluster` (see
+  [anti-bot-operations.md](../memory/anti-bot-operations.md) item 7): check
+  whether the Terapeak export format or the server CSV parser changed before
+  restarting.
 - **Akamai cooldown:** once eBay serves a `/splashui/captchaP` challenge, the
   operator enforces at least a two-hour wait by default. Restart requires an
   interactive login and a successful live probe. Longer waits may be needed.
@@ -456,7 +461,10 @@ Notes:
   `cache/terapeak-rejected/` (never deleting it) and prints
   `[dataset] <term>: no valid comps; reported as no data, moved unusable CSV to cache/terapeak-rejected/<file>`;
   a dataset file that already existed, or that another term merged into or
-  changed after this run created it, is left in place. Pass telemetry counts
+  changed after this run created it, is left in place. After more than three
+  consecutive rejections in one run the exporter stops reporting no data and
+  stops moving files (`[dataset] WARN ... look systemic`) until an upload
+  succeeds. Pass telemetry counts
   the coin as `empty` with `no_comps`, not as `failed`, and a pass where many
   coins are rejected this way logs `[parse] WARN no_comps cluster` (see
   `docs/memory/operator-status-format.md`).

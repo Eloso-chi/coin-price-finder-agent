@@ -31,6 +31,15 @@ Challenged decision between the prior state and persisted Cooldown.
 5. Codespace restart requires a cookie file refreshed after the incident and
    the same live probe returning HEALTHY.
 6. A failed gate leaves Cooldown active. Do not bypass the state file.
+7. A pass whose pass record sets `no_comps_cluster` (a cluster of uploads the
+   server rejected as HTTP 422 "No valid comps found") stops both operators
+   with a nonzero exit. This is a data-quality stop, not a risk signal: it does
+   not change the persisted risk state, start Cooldown, or require a re-login.
+   It exists because that pattern points at a Terapeak export-format change or
+   a server CSV parser fault, and continuing would keep marking datasets as
+   having no data. Investigate (rejected CSVs are in
+   `cache/terapeak-rejected/`), then restart. The check fails closed: an
+   unreadable pass summary also stops the operator.
 
 Stateful behavior is enabled by default. Set
 `TERAPEAK_RISK_STATE_ENABLED=0` only as a rollback during incident diagnosis;

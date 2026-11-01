@@ -188,9 +188,13 @@ def parse_pass_log(path):
                 m = COIN_LINE_RE.match(line)
                 if not m and not async_result and DORMANT_RE.search(line):
                     tagged = DORMANT_TERM_RE.search(line)
-                    tagged_coin = find_coin(tagged.group(1).strip()) if tagged else None
-                    if tagged_coin is not None:
-                        tagged_coin["dormant"] = True
+                    if tagged:
+                        # The tag is authoritative: attribute by term only. An unknown term
+                        # (for example a coin whose line was not parsed) is ignored rather than
+                        # credited to whichever coin happens to be open.
+                        tagged_coin = find_coin(tagged.group(1).strip())
+                        if tagged_coin is not None:
+                            tagged_coin["dormant"] = True
                         continue
                     if pending_dormant is not None:
                         # Untagged (older) log: the dormant line follows the async result it belongs to.
@@ -325,12 +329,12 @@ def aggregate(coins):
 # format change, server CSV parser regression) than genuinely empty markets, so it is
 # flagged instead of blending into routine `empty` counts.
 NO_COMPS_CLUSTER_MIN = 3
-NO_COMPS_CLUSTER_SHARE = 0.3
+NO_COMPS_CLUSTER_PERCENT = 30
 
 
 def is_no_comps_cluster(agg):
     count = agg["no_comps"]
-    return count >= NO_COMPS_CLUSTER_MIN and count >= NO_COMPS_CLUSTER_SHARE * agg["attempted"]
+    return count >= NO_COMPS_CLUSTER_MIN and count * 100 >= NO_COMPS_CLUSTER_PERCENT * agg["attempted"]
 
 
 def ensure_dir(path):

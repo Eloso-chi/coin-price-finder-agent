@@ -522,9 +522,24 @@ while true; do
 
   write_state "loop-pass" "ok" "Pass ${PASS} completed"
 
+  # Data-quality check (not a risk signal): a cluster of uploads rejected as "No valid comps" points
+  # at a Terapeak export-format change or a server CSV parser fault. Read-only; fails closed.
+  NO_COMPS_CLUSTER_RC=0
+  "$PYTHON_BIN" scripts/_terapeak_risk.py no-comps-cluster --summary-file "$SUMMARY_FILE" >/dev/null || NO_COMPS_CLUSTER_RC=$?
+
   # Print progress metrics after each pass and persist them into pass log.
   bash scripts/operator-monitor.sh "$PROJECT_DIR" "$PASS" "$PASS_LOG_FILE" "$SUMMARY_FILE" | tee -a "$PASS_LOG_FILE"
   rm -f "$SUMMARY_FILE"
+
+  if (( NO_COMPS_CLUSTER_RC == 2 )); then
+    write_state "loop-pass" "failed" "Pass ${PASS} had a cluster of uploads rejected as no valid comps" 1
+    echo "[operator] Pass ${PASS} had a cluster of uploads rejected as 'No valid comps found'; stopping (data-quality stop, risk state unchanged). Check whether the Terapeak export format or the server CSV parser changed (rejected CSVs are in cache/terapeak-rejected/) before restarting." >&2
+    exit 1
+  elif (( NO_COMPS_CLUSTER_RC != 0 )); then
+    write_state "loop-pass" "failed" "Pass ${PASS} summary unreadable; cannot evaluate the no-comps check" 1
+    echo "[operator] Pass ${PASS} summary could not be read; stopping because the no-comps data-quality check cannot be evaluated." >&2
+    exit 1
+  fi
 
   if [[ "$LOOP" != true ]]; then
     break

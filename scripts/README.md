@@ -199,7 +199,7 @@ Notes:
 - Use raw `ADMIN_API_KEY` value, not `@Microsoft.KeyVault(SecretUri=...)`.
 - If Playwright install fails on Ubuntu 26.04, use Ubuntu 24.04/22.04 for scraper runs.
 - Loop page-1 batching uses `--limit` semantics (no implicit `--resume`) to avoid skipping valid freshness backlog candidates.
-- The import endpoint returns HTTP 422 (`No valid comps found`) without writing metadata. The canonical exporter recognizes that response and separately calls `/api/terapeak/report-no-data`, which advances dormant tracking. It also moves the unusable CSV to the git-ignored `cache/terapeak-rejected/` when the current run created it (never a pre-existing, merged-into or changed dataset), and pass telemetry counts the coin as `empty` with `no_comps` instead of `failed`, warning when a pass has a cluster of them.
+- The import endpoint returns HTTP 422 (`No valid comps found`) without writing metadata. The canonical exporter recognizes that response and separately calls `/api/terapeak/report-no-data`, which advances dormant tracking. It also moves the unusable CSV to the git-ignored `cache/terapeak-rejected/` when the current run created it (never a pre-existing, merged-into or changed dataset), and pass telemetry counts the coin as `empty` with `no_comps` instead of `failed`, warning when a pass has a cluster of them (both operators then stop without changing the risk state).
 
 ### Upload mode (UPLOAD_MODE) -- #251 parity
 

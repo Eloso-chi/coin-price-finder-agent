@@ -781,7 +781,7 @@ def _record_upload_result(result, progress):
         return 0, 0, 0
     term = result["term"]
     if result["ok"]:
-        _new_dataset_paths.pop(term, None)
+        _note_upload_success(term)
         print(f"  [async upload] {term}: OK ({result['msg']})")
         progress.setdefault("completed", []).append(term)
         return 1, 1, 0
@@ -795,7 +795,7 @@ def _record_upload_result(result, progress):
 def _record_sync_upload_result(term, ok, msg, progress):
     """Apply one synchronous upload result; returns (success, uploaded, failed) deltas."""
     if ok:
-        _new_dataset_paths.pop(term, None)
+        _note_upload_success(term)
         print(f"OK ({msg})")
         progress.setdefault("completed", []).append(term)
         return 1, 1, 0
@@ -806,14 +806,46 @@ def _record_sync_upload_result(term, ok, msg, progress):
     return 0, 0, 1
 
 
+def _note_upload_success(term):
+    """A successful upload keeps its CSV and proves the server parser is working."""
+    global _consecutive_no_comps
+    _new_dataset_paths.pop(term, None)
+    _consecutive_no_comps = 0
+
+
 def _settle_failed_upload(term, msg):
     """A 422/no-valid-comps rejection is an empty scrape signal: report it so dormant
-    tracking can converge, and set the unusable CSV aside. Any other failure keeps the CSV."""
-    if _is_no_valid_comps_error(msg):
-        _report_no_data(term)
-        _discard_no_comps_dataset(term)
-    else:
+    tracking can converge, and set the unusable CSV aside. Any other failure keeps the CSV.
+
+    More than NO_COMPS_BREAKER_LIMIT consecutive rejections look systemic (a Terapeak export
+    format change or a server parser fault), not like empty markets, so from then on the
+    rejections are neither reported as no data nor moved until an upload succeeds."""
+    global _consecutive_no_comps
+    if not _is_no_valid_comps_error(msg):
         _new_dataset_paths.pop(term, None)
+        return
+    _consecutive_no_comps += 1
+    if _consecutive_no_comps > NO_COMPS_BREAKER_LIMIT:
+        _new_dataset_paths.pop(term, None)
+        print(
+            f"  [dataset] WARN {term}: {_consecutive_no_comps} consecutive no-valid-comps rejections "
+            "look systemic; not reporting no data and keeping the CSV until an upload succeeds"
+        )
+        return
+    _report_no_data(term)
+    _discard_no_comps_dataset(term)
+
+
+# Consecutive 422 no-valid-comps rejections in this run; any successful upload resets it.
+NO_COMPS_BREAKER_LIMIT = 3
+_consecutive_no_comps = 0
+
+
+def _begin_run():
+    """Reset run-scoped tracking at the start of an export run."""
+    global _consecutive_no_comps
+    _new_dataset_paths.clear()
+    _consecutive_no_comps = 0
 
 
 # Dataset CSVs created (not merged into an existing file) during this run, keyed by
@@ -860,15 +892,21 @@ def _discard_no_comps_dataset(term):
     except FileNotFoundError:
         print(f"  [dataset] {term}: no valid comps; reported as no data, CSV already gone")
         return False
+    except OSError as error:
+        print(f"  [dataset] WARN {term}: no valid comps; reported as no data, could not inspect CSV {path.name}: {error}")
+        return False
     if stat.st_size != entry["size"] or stat.st_mtime_ns != entry["mtime_ns"]:
         print(f"  [dataset] {term}: no valid comps; reported as no data, kept {path.name} (changed since this run created it)")
         return False
-    target = REJECTED_DIR / f"{path.stem}-{datetime.now().strftime('%Y%m%dT%H%M%S')}.csv"
+    stamp = datetime.now().strftime('%Y%m%dT%H%M%S%f')
+    target = REJECTED_DIR / f"{path.stem}-{stamp}.csv"
     try:
         REJECTED_DIR.mkdir(parents=True, exist_ok=True)
+        if target.exists():
+            raise FileExistsError(f"{target.name} already exists")
         shutil.move(str(path), str(target))
     except OSError as error:
-        print(f"  [dataset] {term}: no valid comps; reported as no data, could not set CSV aside: {error}")
+        print(f"  [dataset] WARN {term}: no valid comps; reported as no data, could not set CSV aside, {path.name} stays in data/terapeak/: {error}")
         return False
     print(f"  [dataset] {term}: no valid comps; reported as no data, moved unusable CSV to cache/terapeak-rejected/{target.name}")
     return True
@@ -1630,7 +1668,7 @@ def do_export_run(args):
 
     # Prepare directories
     DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True)
-    _new_dataset_paths.clear()
+    _begin_run()
 
     # Load search terms
     terms = get_search_terms()
