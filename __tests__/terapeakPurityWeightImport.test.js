@@ -102,7 +102,45 @@ describe('#327H parseDescription does not read a purity mark or silver-content f
     ['10 / 1 oz bar', 1],
     ['Roll of 20 /1 oz', 1],
     ['Libertad .9999 /1 oz Fine Silver Coin', 1],
-  ])('a year, grade or lot count before a spaced slash is not the weight: %s -> %s', (title, weight) => {
+    ['Libertad .5 /1 oz Silver', 1],
+    ['2018/1 oz Silver Round', 1],
+    ['Roll of 20/1 oz', 1],
+    ['MS70/1 oz Silver Eagle', 1],
+    ['PF69/1 oz Silver Eagle', 1],
+    ['MS 70/1 oz Silver Eagle', 1],
+  ])('a year, grade or lot count before a slash is not the weight: %s -> %s', (title, weight) => {
+    expect(pcgsService.parseDescription(title).weight).toBe(weight);
+  });
+
+  test.each([
+    ['Lot of 3 / 10 oz Silver Bars', 10],
+    ['5 / 10 oz silver bar', 10],
+    ['3 / 5 oz Silver Bars', 5],
+    ['0 / 1 oz silver', 1],
+    ['1 / 1 oz round', 1],
+    ['2 / 2 oz round', 2],
+    ['4 / 2 oz round', 2],
+    ['3 / 2 oz round', 2],
+  ])('a spaced lot count or improper fraction reads the denominator, never a fraction: %s -> %s', (title, weight) => {
+    expect(pcgsService.parseDescription(title).weight).toBe(weight);
+  });
+
+  test.each([
+    ['Libertad 1 / 2 oz', 0.5],
+    ['Libertad 1 / 4 oz', 0.25],
+    ['Libertad 1 / 10 oz', 0.1],
+    ['Libertad 1 /20 Oz', 0.05],
+    ['Libertad 1 / 40 oz', 0.025],
+    ['Silver 3/16 oz', 0.1875],
+    ['Silver 5/10 oz', 0.5],
+  ])('a real spaced 1/N fraction or an unspaced proper fraction is read as written: %s -> %s', (title, weight) => {
+    expect(pcgsService.parseDescription(title).weight).toBe(weight);
+  });
+
+  test.each([
+    ['Silver Bar.100 oz', 100],
+    ['Silver Bar.1000 oz', 1000],
+  ])('a letter-glued round bar weight is kept: %s -> %s', (title, weight) => {
     expect(pcgsService.parseDescription(title).weight).toBe(weight);
   });
 

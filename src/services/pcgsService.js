@@ -260,14 +260,19 @@ async function resolveFromDescription(text) {
 // Known fractional ounces that sellers write with a leading decimal point (".5 oz").
 const LEADING_DOT_FRACTION_OZ = new Set([0.05, 0.1, 0.25, 0.5]);
 
+// Denominators of the 1/N ounce coins and rounds that sellers write as a spaced fraction ("1 /10 oz").
+const KNOWN_FRACTION_DENOMINATORS = new Set([2, 3, 4, 5, 8, 10, 20, 25, 40]);
+
 /**
  * Find the stated ounce weight in a title, or null.
- * A leading-dot decimal is a purity mark (".999 oz") or a silver-content figure (".3617 oz") and is
- * ignored unless it is a known fractional ounce. A number after a letter-glued dot ("coins.1 oz")
- * or after a slash that does not follow a digit ("30g/1oz") is a real weight; after a digit and a
- * slash it is a fraction tail. A ".." ellipsis only admits fractions ("..1/2 oz"). A spaced fraction
- * whose numerator is not below its denominator is a year, grade or lot count followed by a slash
- * ("2018 / 1 oz", "MS 65 / 1 Troy Oz"), so the denominator is the weight.
+ * - A leading-dot decimal is a purity mark (".999 oz") or a silver-content figure (".3617 oz"); it is
+ *   ignored unless it is a known fractional ounce (".5 oz").
+ * - A fraction is read as written ("1/2 oz") only when its numerator is below its denominator, and a
+ *   spaced one only for "1 / N" with a known N ("1 /20 oz"). Anything else ("2018 / 1 oz",
+ *   "MS 65 / 1 Troy Oz", "Lot of 3 / 10 oz") is a year, grade or lot count followed by a slash, so the
+ *   denominator is the weight, as it always was.
+ * - A number after a letter-glued dot ("coins.1 oz") is a weight unless it looks like a purity mark
+ *   ("Silver.999 oz"); a ".." ellipsis admits only fractions ("..1/2 oz").
  */
 function findOunceWeight(text) {
   const pattern = /\b(\d+(?:\.\d+)?(?:\s*\/\s*\d+)?)\s*(?:troy\s*)?oz\b/gi;
@@ -275,29 +280,29 @@ function findOunceWeight(text) {
     const raw = match[1];
     const isFraction = raw.includes('/');
     const before = text.slice(0, match.index);
-    const prev = before.slice(-1);
     const unit = match[0].slice(raw.length);
     let weight;
     let weightRaw = match[0];
-    let improper = false;
+    let denominatorOnly = false;
     if (isFraction) {
       const [numText, denText] = raw.split('/').map(part => part.trim());
       const num = parseFloat(numText);
       const den = parseFloat(denText);
       if (!(den > 0)) continue;
-      improper = /\s/.test(raw) && num >= den;
-      weight = improper ? den : num / den;
-      if (improper) weightRaw = `${denText}${unit}`;
+      const spaced = /\s/.test(raw);
+      denominatorOnly = num >= den || (spaced && !(num === 1 && KNOWN_FRACTION_DENOMINATORS.has(den)));
+      weight = denominatorOnly ? den : num / den;
+      if (denominatorOnly) weightRaw = `${denText}${unit}`;
     } else {
       weight = parseFloat(raw);
     }
-    if (prev === '.') {
+    if (before.slice(-1) === '.') {
       const beforeDot = before.slice(-2, -1);
       if (beforeDot === '.') {
         if (!isFraction) continue;
       } else if (!/[a-z]/i.test(beforeDot)) {
         if (isFraction) {
-          if (!improper) continue;
+          if (!denominatorOnly) continue;
         } else {
           if (beforeDot === '$' || raw.includes('.')) continue;
           const decimal = Number(`0.${raw}`);
@@ -305,11 +310,9 @@ function findOunceWeight(text) {
           weight = decimal;
           weightRaw = `.${match[0]}`;
         }
-      } else if (!isFraction && /^\d{3,}$/.test(raw)) {
+      } else if (!isFraction && /^\d{3,}$/.test(raw) && ![100, 1000].includes(Number(raw))) {
         continue;
       }
-    } else if (prev === '/' && /\d\s*$/.test(before.slice(0, -1))) {
-      continue;
     }
     return { weight, raw: weightRaw };
   }
