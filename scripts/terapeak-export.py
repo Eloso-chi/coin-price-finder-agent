@@ -47,6 +47,7 @@ import fcntl
 import json
 import os
 import re
+import shutil
 import sys
 import time
 from datetime import datetime, timedelta
@@ -786,33 +787,90 @@ def _record_upload_result(result, progress):
         return 1, 1, 0
 
     print(f"  [async upload] {term}: failed -- {result['msg']}")
-    if _is_no_valid_comps_error(result["msg"]):
-        _report_no_data(term)
-        _discard_no_comps_dataset(term)
-    else:
-        _new_dataset_paths.pop(term, None)
+    _settle_failed_upload(term, result["msg"])
     progress.setdefault("failed", []).append(term)
     return 0, 0, 1
 
 
+def _record_sync_upload_result(term, ok, msg, progress):
+    """Apply one synchronous upload result; returns (success, uploaded, failed) deltas."""
+    if ok:
+        _new_dataset_paths.pop(term, None)
+        print(f"OK ({msg})")
+        progress.setdefault("completed", []).append(term)
+        return 1, 1, 0
+
+    print(f"SAVED but upload failed: {msg}")
+    _settle_failed_upload(term, msg)
+    progress.setdefault("failed", []).append(term)
+    return 0, 0, 1
+
+
+def _settle_failed_upload(term, msg):
+    """A 422/no-valid-comps rejection is an empty scrape signal: report it so dormant
+    tracking can converge, and set the unusable CSV aside. Any other failure keeps the CSV."""
+    if _is_no_valid_comps_error(msg):
+        _report_no_data(term)
+        _discard_no_comps_dataset(term)
+    else:
+        _new_dataset_paths.pop(term, None)
+
+
 # Dataset CSVs created (not merged into an existing file) during this run, keyed by
-# search term. A server 422 "no valid comps" means the file holds nothing usable, so
-# only these files may be removed; a pre-existing dataset is never deleted.
+# search term, with a size/mtime fingerprint taken right after creation. A server 422
+# "no valid comps" means the file holds nothing usable, so only these files are set
+# aside, and only while they still match the fingerprint; a pre-existing dataset, or one
+# another term has since merged into, is never touched. Files are moved to REJECTED_DIR
+# (git-ignored cache/) rather than deleted, so a server-side parser regression stays
+# debuggable. The commit helper refuses unusual files under data/terapeak/, so the
+# quarantine must live outside that directory.
 _new_dataset_paths = {}
+REJECTED_DIR = PROJECT_DIR / "cache" / "terapeak-rejected"
+
+
+def _stage_dataset(csv_path, dest, term):
+    """Merge a fresh export into its dataset file and remember whether this run created it."""
+    existed = dest.exists()
+    merged = _merge_csv(csv_path, dest)
+    if existed:
+        # The file already held data (possibly another term's, after a filename collision):
+        # it is no longer disposable for any term.
+        for other, entry in list(_new_dataset_paths.items()):
+            if entry["path"] == merged:
+                del _new_dataset_paths[other]
+    else:
+        stat = merged.stat()
+        _new_dataset_paths[term] = {
+            "path": merged,
+            "size": stat.st_size,
+            "mtime_ns": stat.st_mtime_ns,
+        }
+    return merged
 
 
 def _discard_no_comps_dataset(term):
-    """Remove the unusable CSV this run created for `term`. Returns True if removed."""
-    path = _new_dataset_paths.pop(term, None)
-    if path is None:
+    """Set aside the unusable CSV this run created for `term`. Returns True if moved."""
+    entry = _new_dataset_paths.pop(term, None)
+    if entry is None:
         print(f"  [dataset] {term}: no valid comps; reported as no data")
         return False
+    path = Path(entry["path"])
     try:
-        Path(path).unlink(missing_ok=True)
-    except OSError as error:
-        print(f"  [dataset] {term}: no valid comps; reported as no data, could not remove CSV: {error}")
+        stat = path.stat()
+    except FileNotFoundError:
+        print(f"  [dataset] {term}: no valid comps; reported as no data, CSV already gone")
         return False
-    print(f"  [dataset] {term}: no valid comps; reported as no data, removed unusable CSV")
+    if stat.st_size != entry["size"] or stat.st_mtime_ns != entry["mtime_ns"]:
+        print(f"  [dataset] {term}: no valid comps; reported as no data, kept {path.name} (changed since this run created it)")
+        return False
+    target = REJECTED_DIR / f"{path.stem}-{datetime.now().strftime('%Y%m%dT%H%M%S')}.csv"
+    try:
+        REJECTED_DIR.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(path), str(target))
+    except OSError as error:
+        print(f"  [dataset] {term}: no valid comps; reported as no data, could not set CSV aside: {error}")
+        return False
+    print(f"  [dataset] {term}: no valid comps; reported as no data, moved unusable CSV to cache/terapeak-rejected/{target.name}")
     return True
 
 
@@ -829,7 +887,9 @@ def _report_no_data(search_term):
             data = resp.json()
             count = data.get("noDataCount", "?")
             if int(count) >= 2:
-                print(f"  (dormant: {count} consecutive empty attempts)")
+                # The term lets the pass parser attribute this line to the right coin
+                # even when it prints after a later coin's line (async uploads).
+                print(f"  (dormant: {count} consecutive empty attempts) [{search_term}]")
         else:
             print(f"  WARNING: report-no-data failed ({resp.status_code}): {resp.text[:120]}")
     except Exception as e:
@@ -1570,6 +1630,7 @@ def do_export_run(args):
 
     # Prepare directories
     DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True)
+    _new_dataset_paths.clear()
 
     # Load search terms
     terms = get_search_terms()
@@ -1971,10 +2032,7 @@ def do_export_run(args):
 
                 # Merge with existing CSV (preserve deep-paginated data)
                 dest = CSV_DIR / entry["filename"]
-                dest_existed = dest.exists()
-                dest = _merge_csv(csv_path, dest)
-                if not dest_existed:
-                    _new_dataset_paths[term] = dest
+                dest = _stage_dataset(csv_path, dest, term)
 
                 # Upload to app with aggregationMeta
                 now = datetime.now().isoformat()
@@ -1995,23 +2053,12 @@ def do_export_run(args):
                     print("SAVED (upload pending)")
                 else:
                     ok, msg = upload_csv(dest, term, aggregation_meta=meta)
-                    if ok:
-                        _new_dataset_paths.pop(term, None)
-                        print(f"OK ({msg})")
-                        uploaded += 1
-                        success += 1
-                        progress.setdefault("completed", []).append(term)
-                    else:
-                        print(f"SAVED but upload failed: {msg}")
-                        # Treat 422/no-valid-comps as an empty scrape signal so
-                        # dormant tracking can converge instead of retrying forever.
-                        if _is_no_valid_comps_error(msg):
-                            _report_no_data(term)
-                            _discard_no_comps_dataset(term)
-                        else:
-                            _new_dataset_paths.pop(term, None)
-                        failed += 1
-                        progress.setdefault("failed", []).append(term)
+                    success_delta, upload_delta, failed_delta = _record_sync_upload_result(
+                        term, ok, msg, progress
+                    )
+                    success += success_delta
+                    uploaded += upload_delta
+                    failed += failed_delta
             else:
                 print("NO EXPORT (no results or button not found)")
                 _report_no_data(term)

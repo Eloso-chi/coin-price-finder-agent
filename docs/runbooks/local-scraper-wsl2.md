@@ -452,10 +452,13 @@ Notes:
   change metadata inside the import endpoint. The exporter recognizes that
   response and separately calls `POST /api/terapeak/report-no-data`, advancing
   dormant tracking through the explicit no-result route. When that CSV was
-  created by the current run the exporter also removes it and prints
-  `[dataset] <term>: no valid comps; reported as no data, removed unusable CSV`;
-  a dataset file that already existed is never deleted. Pass telemetry counts
-  the coin as `empty` with `no_comps`, not as `failed` (see
+  created by the current run the exporter also moves it to the git-ignored
+  `cache/terapeak-rejected/` (never deleting it) and prints
+  `[dataset] <term>: no valid comps; reported as no data, moved unusable CSV to cache/terapeak-rejected/<file>`;
+  a dataset file that already existed, or that another term merged into or
+  changed after this run created it, is left in place. Pass telemetry counts
+  the coin as `empty` with `no_comps`, not as `failed`, and a pass where many
+  coins are rejected this way logs `[parse] WARN no_comps cluster` (see
   `docs/memory/operator-status-format.md`).
 - P3 monitor/evidence-probe entries are excluded by default; include them with
   `--include-thin` when you intentionally want monitor passes.

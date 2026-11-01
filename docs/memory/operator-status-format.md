@@ -57,7 +57,15 @@ CSV" counts as `empty` and is flagged `no_comps` (#328H): the dataset has no
 usable sales, so it is reported as no data rather than as an upload failure.
 The pass record carries the `no_comps` count (a subset of `empty`), each
 `coins.jsonl` record carries a `no_comps` flag, and the operator
-`[parse]` line prints `no_comps=N` after `failed=`.
+`[parse]` line prints `no_comps=N` after `failed=`. When at least 3 coins and
+at least 30% of the batch are no-comps rejections the record sets
+`no_comps_cluster` and the operator log gets a `[parse] WARN no_comps cluster`
+line: a run of rejections that large points at a Terapeak export-format change
+or a server CSV parser fault, not at empty markets, so investigate before
+continuing. The exporter's own `Failed:` tail (`failed_reported`) still counts
+`NO EXPORT` and no-comps coins as failed, so it can exceed the parsed `failed`.
+Records written before #328H count a no-comps rejection as `failed`, so
+failure rates are not directly comparable across that boundary.
 
 The default pacing profile is `baseline`. Set
 `TERAPEAK_PACING_PROFILE=normal-tuned` only for an approved pilot. The tuned

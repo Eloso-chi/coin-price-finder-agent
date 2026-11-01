@@ -62,6 +62,9 @@ ASYNC_RESULT_RE = re.compile(
 WARN_EMPTY_RE = re.compile(r"WARNING:\s*No data rows found", re.IGNORECASE)
 NO_EXPORT_RE = re.compile(r"^NO EXPORT", re.IGNORECASE)
 DORMANT_RE = re.compile(r"\(dormant:", re.IGNORECASE)
+# Current exporters tag the line with the dataset term: "(dormant: N consecutive ...) [term]".
+# Older logs have no tag, so attribution falls back to adjacency (see parse_pass_log).
+DORMANT_TERM_RE = re.compile(r"\(dormant:[^)]*\)\s*\[(.+)\]\s*$", re.IGNORECASE)
 BOT_BLOCKED_RE = re.compile(r"\bBOT BLOCKED\b", re.IGNORECASE)
 # Only treat 4xx/5xx HTTP statuses as failures. A bare HTTP 2xx/3xx anywhere
 # in a coin's continuation lines (e.g. an upstream "HTTP 200 OK" trace) must
@@ -78,6 +81,11 @@ SYNC_UPLOAD_FAIL_RE = re.compile(r"SAVED but upload failed:\s*(.+)", re.IGNORECA
 TIMEOUT_RE = re.compile(r"^\s*TIMEOUT\b")
 ERROR_RE = re.compile(r"^\s*(ERROR:.*)$")
 TINY_FILE_RE = re.compile(r"^\s*EMPTY \(file too small")
+
+
+def clip_error(text):
+    """Bound an error excerpt so unbounded server responses never bloat coins.jsonl."""
+    return text.strip()[:200]
 
 
 def parse_pass_log(path):
@@ -104,19 +112,22 @@ def parse_pass_log(path):
     # whose line the async result was printed on.
     dormant_target = None
 
-    def mark_no_comps(coin, message):
+    def mark_no_comps(coin):
         coin["status"] = "empty"
         coin["no_comps"] = True
         coin["error"] = None
         coin["new"] = 0
         coin["dups"] = 0
 
+    def find_coin(term):
+        if current and current["coin"] == term:
+            return current
+        return next((coin for coin in reversed(coins) if coin["coin"] == term), None)
+
     def apply_async_result(match):
         nonlocal dormant_target
         term = match.group(1).strip()
-        target = current if current and current["coin"] == term else None
-        if target is None:
-            target = next((coin for coin in reversed(coins) if coin["coin"] == term), None)
+        target = find_coin(term)
         if target is None:
             return
         if match.group(3) is not None:
@@ -125,11 +136,11 @@ def parse_pass_log(path):
             target["dups"] = int(match.group(4))
             target["error"] = None
         elif NO_COMPS_RE.search(match.group(5)):
-            mark_no_comps(target, match.group(5))
+            mark_no_comps(target)
             dormant_target = target
         else:
             target["status"] = "failed"
-            target["error"] = match.group(5).strip()
+            target["error"] = clip_error(match.group(5))
 
     def apply_failure_text(coin, text):
         """Classify a same-coin failure line. Returns True when it matched."""
@@ -137,11 +148,11 @@ def parse_pass_log(path):
         if sync_fail:
             message = sync_fail.group(1)
             if NO_COMPS_RE.search(message):
-                mark_no_comps(coin, message)
+                mark_no_comps(coin)
             else:
                 http = HTTP_FAIL_RE.search(message)
                 coin["status"] = "failed"
-                coin["error"] = f"HTTP {http.group(1)}" if http else message.strip()[:200]
+                coin["error"] = f"HTTP {http.group(1)}" if http else clip_error(message)
             return True
         if TIMEOUT_RE.search(text):
             coin["status"] = "failed"
@@ -150,7 +161,7 @@ def parse_pass_log(path):
         error = ERROR_RE.search(text)
         if error:
             coin["status"] = "failed"
-            coin["error"] = error.group(1).strip()[:200]
+            coin["error"] = clip_error(error.group(1))
             return True
         if TINY_FILE_RE.search(text):
             coin["status"] = "failed"
@@ -175,9 +186,16 @@ def parse_pass_log(path):
                 if async_result:
                     apply_async_result(async_result)
                 m = COIN_LINE_RE.match(line)
-                if not m and not async_result and pending_dormant is not None and DORMANT_RE.search(line):
-                    pending_dormant["dormant"] = True
-                    continue
+                if not m and not async_result and DORMANT_RE.search(line):
+                    tagged = DORMANT_TERM_RE.search(line)
+                    tagged_coin = find_coin(tagged.group(1).strip()) if tagged else None
+                    if tagged_coin is not None:
+                        tagged_coin["dormant"] = True
+                        continue
+                    if pending_dormant is not None:
+                        # Untagged (older) log: the dormant line follows the async result it belongs to.
+                        pending_dormant["dormant"] = True
+                        continue
                 if not m and async_result:
                     # A standalone async result (the final drain after the last coin)
                     # applies to its own coin only; it must not fall through to the
@@ -239,8 +257,10 @@ def parse_pass_log(path):
                     current["status"] = "failed"
                     current["error"] = "BOT BLOCKED"
                     continue
-                if current.get("status") in (None,) and apply_failure_text(current, line):
+                if current.get("status") is None and apply_failure_text(current, line):
                     continue
+                # A bare continuation "HTTP 4xx/5xx" line stays `failed` (including a bare 422);
+                # only an upload result line (async or same-line sync) can mark no_comps.
                 http = HTTP_FAIL_RE.search(line)
                 if http:
                     current["status"] = "failed"
@@ -299,6 +319,18 @@ def aggregate(coins):
         out["new_rows"] += int(c.get("new") or 0)
         out["dup_rows"] += int(c.get("dups") or 0)
     return out
+
+
+# Many no-comps rejections in one pass is more likely a systemic fault (Terapeak export
+# format change, server CSV parser regression) than genuinely empty markets, so it is
+# flagged instead of blending into routine `empty` counts.
+NO_COMPS_CLUSTER_MIN = 3
+NO_COMPS_CLUSTER_SHARE = 0.3
+
+
+def is_no_comps_cluster(agg):
+    count = agg["no_comps"]
+    return count >= NO_COMPS_CLUSTER_MIN and count >= NO_COMPS_CLUSTER_SHARE * agg["attempted"]
 
 
 def ensure_dir(path):
@@ -432,6 +464,7 @@ def main(argv=None):
         "unknown": agg["unknown"],
         "dormant": agg["dormant"],
         "no_comps": agg["no_comps"],
+        "no_comps_cluster": is_no_comps_cluster(agg),
         "new_rows": agg["new_rows"],
         "dup_rows": agg["dup_rows"],
         "succeeded_reported": totals.get("succeeded_reported"),
@@ -483,6 +516,12 @@ def main(argv=None):
         f"new_rows={agg['new_rows']} dup_rows={agg['dup_rows']} "
         f"-> {PASSES_PATH}, {COINS_PATH}"
     )
+    if is_no_comps_cluster(agg):
+        print(
+            f"[parse] WARN no_comps cluster: {agg['no_comps']} of {agg['attempted']} coins were "
+            "rejected as no valid comps; check whether the Terapeak export format or the "
+            "server CSV parser changed (rejected CSVs are kept in cache/terapeak-rejected/)"
+        )
     return 0
 
 
