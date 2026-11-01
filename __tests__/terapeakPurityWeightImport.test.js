@@ -86,6 +86,39 @@ describe('#327H parseDescription does not read a purity mark or silver-content f
   ])('a number after a slash that does not follow a digit, or after a letter-glued dot, is a real weight: %s -> %s', (title, weight) => {
     expect(pcgsService.parseDescription(title).weight).toBe(weight);
   });
+
+  test.each([
+    'Silver.999 oz Round',
+    'Fine Silver.9999 oz Bar',
+    'Libertad Round.925 oz',
+  ])('a purity mark glued to a letter by a dot is not a weight: %s', title => {
+    expect(pcgsService.parseDescription(title).weight).toBeUndefined();
+  });
+
+  test.each([
+    ['Mexico Libertad 2018 / 1 oz SILBER', 1],
+    ['NGC Certified MS 65 / 1 Troy Oz .999 Silver', 1],
+    ['Silver Eagle 1986 / 1 oz BU', 1],
+    ['10 / 1 oz bar', 1],
+    ['Roll of 20 /1 oz', 1],
+    ['Libertad .9999 /1 oz Fine Silver Coin', 1],
+  ])('a year, grade or lot count before a spaced slash is not the weight: %s -> %s', (title, weight) => {
+    expect(pcgsService.parseDescription(title).weight).toBe(weight);
+  });
+
+  test('a zero denominator reads no weight instead of Infinity', () => {
+    expect(pcgsService.parseDescription('Silver 1/0 oz round').weight).toBeUndefined();
+  });
+
+  test.each([
+    ['.5 oz Gold Eagle', '.5 oz'],
+    ['G-70 - .050 OZ Panda', '.050 OZ'],
+    ['1 /20 Oz Libertad', '1 /20 Oz'],
+    ['Mexico 2018 / 1 oz SILBER', '1 oz'],
+    ['Silver 1.5 oz round', '1.5 oz'],
+  ])('weightRaw shows the text that was read: %s -> %s', (title, raw) => {
+    expect(pcgsService.parseDescription(title).weightRaw).toBe(raw);
+  });
 });
 
 describe('#327H import of a 1 oz dataset whose comps carry a .999 purity mark', () => {
@@ -160,8 +193,33 @@ describe('#327H fractional-ounce comps with a leading-dot weight reroute to the 
     expect(stored).toEqual(['W1']);
     expect(result.reclassified).toBe(3);
     expect(result.weightUnplaceable).toBe(0);
-    const keys = terapeakService.listDatasets().map(d => d.searchTerm).sort();
+    const keys = terapeakService.listDatasets().map(d => d.searchTerm);
     expect(keys).toHaveLength(4);
+    for (const [itemId, weight] of [['HALF1', 0.5], ['QTR1', 0.25], ['TEN1', 0.1]]) {
+      const home = terapeakService.listDatasets().find(d => {
+        const found = lookupComps(d.searchTerm);
+        return found && found.comps.some(c => c.itemId === itemId);
+      });
+      expect(home).toBeDefined();
+      expect(analyzeExplicitWeights(home.searchTerm).weights).toEqual([weight]);
+    }
+  });
+});
+
+describe('#327H genuine 1 oz comps with a year, grade or lot count before a slash stay in the 1 oz dataset', () => {
+  const comps = [
+    comp('2022 Mexico Libertad 2022 / 1 oz Silver BU', 'Y1'),
+    comp('2022 Mexico Libertad NGC MS 65 / 1 Troy Oz .999', 'G65'),
+    comp('2022 Mexico Libertad Roll of 20 /1 oz Silver', 'R20'),
+  ];
+
+  test('they are neither rerouted to a bogus weight dataset nor dropped as ambiguous', () => {
+    const result = importComps(TERM, comps, {}, { source: 'direct-page1' });
+    expect(lookupComps(TERM).comps.map(c => c.itemId).sort()).toEqual(['G65', 'R20', 'Y1']);
+    expect(result.reclassified).toBe(0);
+    expect(result.ambiguousExcluded).toBe(0);
+    expect(result.weightUnplaceable).toBe(0);
+    expect(terapeakService.listDatasets()).toHaveLength(1);
   });
 });
 
