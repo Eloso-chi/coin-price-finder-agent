@@ -16,9 +16,12 @@ function rejectContradictoryWeights(searchTerm, res) {
   const analysis = analyzeExplicitWeights(searchTerm);
   if (!analysis.invalid && analysis.weights.length <= 1) return false;
   res.status(400).json({
-    error: 'searchTerm contains contradictory explicit weights',
+    error: analysis.weights.length > 1
+      ? 'searchTerm contains contradictory explicit weights'
+      : 'searchTerm contains an invalid explicit weight',
     code: 'CONTRADICTORY_WEIGHT',
     explicitWeights: analysis.weights,
+    searchTermLength: typeof searchTerm === 'string' ? searchTerm.length : null,
   });
   return true;
 }

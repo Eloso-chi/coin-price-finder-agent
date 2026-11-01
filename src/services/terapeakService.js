@@ -902,6 +902,16 @@ function parseCSV(csvData, searchTerm) {
   };
 }
 
+function weightRejectionError(weightAnalysis) {
+  const contradictory = weightAnalysis.weights.length > 1;
+  const err = new Error(contradictory
+    ? `Contradictory explicit weights in search term: ${weightAnalysis.weights.join(', ')} oz`
+    : 'Invalid explicit weight in search term (unparseable, above the weight cap, or over 500 characters)');
+  err.code = 'CONTRADICTORY_WEIGHT';
+  err.explicitWeights = weightAnalysis.weights;
+  return err;
+}
+
 /**
  * Import parsed comps into the persistent terapeak store.
  *
@@ -913,10 +923,7 @@ function parseCSV(csvData, searchTerm) {
 function importComps(searchTerm, comps, meta = {}, context = {}) {
   const weightAnalysis = analyzeExplicitWeights(searchTerm);
   if (weightAnalysis.invalid || weightAnalysis.weights.length > 1) {
-    const err = new Error(`Contradictory explicit weights in search term: ${weightAnalysis.weights.join(', ')} oz`);
-    err.code = 'CONTRADICTORY_WEIGHT';
-    err.explicitWeights = weightAnalysis.weights;
-    throw err;
+    throw weightRejectionError(weightAnalysis);
   }
   const store = loadStore();
   const normalizedKey = normalizeSearchKey(searchTerm);
@@ -972,6 +979,13 @@ function importComps(searchTerm, comps, meta = {}, context = {}) {
             normalizeSearchKey
           );
           if (targetKey && targetKey !== normalizedKey) {
+            // A derived key the analyzer rejects (for example a weight above the cap) would make the
+            // recursive import throw and discard the whole upload, so set that comp aside instead.
+            const targetAnalysis = analyzeExplicitWeights(targetKey);
+            if (targetAnalysis.invalid || targetAnalysis.weights.length > 1) {
+              identityExcluded++;
+              continue;
+            }
             if (!reroute[targetKey]) reroute[targetKey] = [];
             reroute[targetKey].push({ ...comp, _productIdentity: serializeProductIdentity(compIdentity) });
             continue;
@@ -1468,10 +1482,7 @@ function _mergeDatasets(candidates) {
 function updateDatasetMeta(searchTerm, metaUpdates) {
   const weightAnalysis = analyzeExplicitWeights(searchTerm);
   if (weightAnalysis.invalid || weightAnalysis.weights.length > 1) {
-    const err = new Error(`Contradictory explicit weights in search term: ${weightAnalysis.weights.join(', ')} oz`);
-    err.code = 'CONTRADICTORY_WEIGHT';
-    err.explicitWeights = weightAnalysis.weights;
-    throw err;
+    throw weightRejectionError(weightAnalysis);
   }
   const store = loadStore();
   const normalizedKey = normalizeSearchKey(searchTerm);

@@ -411,7 +411,9 @@ function parseDescription(text) {
   }
 
   // Weight: extract "1/2 oz", "1/4 oz", "1/10 oz", "1.5 oz", "5 oz", "10 oz", etc.
-  const weightMatch = t.match(/\b(\d+(?:\.\d+)?(?:\/\d+)?)\s*(?:troy\s*)?oz\b/i);
+  // A decimal point or slash before the number means a purity mark (".999 oz"), a silver-content
+  // decimal (".3617 oz") or a fraction tail ("1 /2 oz"), not a weight. A ".." ellipsis is punctuation.
+  const weightMatch = t.match(/(?<![/\d])(?<!(?<!\.)\.)\b(\d+(?:\.\d+)?(?:\/\d+)?)\s*(?:troy\s*)?oz\b/i);
   if (weightMatch) {
     const raw = weightMatch[1];
     if (raw.includes('/')) {

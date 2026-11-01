@@ -104,7 +104,7 @@ External OpenAPI/MCP exposure is not enabled. See [docs/AI-EXTERNAL-EXPOSURE-EVA
 | `DELETE` | `/api/terapeak/datasets/:key` | 🔒 | Delete specific Terapeak dataset |
 | `DELETE` | `/api/terapeak/datasets` | 🔒 | Clear all Terapeak data |
 
-Both import endpoints and `POST /api/terapeak/report-no-data` reject malformed or contradictory explicit ounce weights before quota recording or metadata mutation, returning HTTP `400` with `code: "CONTRADICTORY_WEIGHT"` and the parsed `explicitWeights` list. Legacy datasets are instead marked in generated freshness reports and omitted from scraper queues; this does not rewrite or delete existing data.
+Both import endpoints and `POST /api/terapeak/report-no-data` reject malformed or contradictory explicit ounce weights before quota recording or metadata mutation, returning HTTP `400` with `code: "CONTRADICTORY_WEIGHT"`, the parsed `explicitWeights` list, and `searchTermLength` (the received term's length, never the term). The `error` text says `contradictory` only when two or more weights were found; otherwise it says `an invalid explicit weight` (unparseable, above the 1000 oz cap, or over 500 characters). The same check applies to the dataset keys an import reroutes comps into: a comp whose rerouted key would be rejected is excluded (counted in `identityExcluded`) instead of failing the whole upload. Legacy datasets are instead marked in generated freshness reports and omitted from scraper queues; this does not rewrite or delete existing data.
 
 ## Terapeak Metadata & Quota
 

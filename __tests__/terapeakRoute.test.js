@@ -220,6 +220,31 @@ describe('/api/terapeak/import-text — validation', () => {
     expect(quotaService.recordQueries).not.toHaveBeenCalled();
   });
 
+  test('pre-check names the contradiction and reports the received term length (#327H)', async () => {
+    const searchTerm = 'libertad 1/2 oz 1 oz';
+    const { status, body } = await request('POST', '/api/terapeak/import-text', {
+      csvText: 'Title,Sold Price\nCoin,50',
+      searchTerm,
+    }, TEST_ADMIN_KEY);
+    expect(status).toBe(400);
+    expect(body.error).toBe('searchTerm contains contradictory explicit weights');
+    expect(body.searchTermLength).toBe(searchTerm.length);
+    expect(JSON.stringify(body)).not.toContain(searchTerm);
+  });
+
+  test('pre-check does not call an unparseable weight contradictory (#327H)', async () => {
+    const searchTerm = 'libertad 3/0 oz silver';
+    const { status, body } = await request('POST', '/api/terapeak/import-text', {
+      csvText: 'Title,Sold Price\nCoin,50',
+      searchTerm,
+    }, TEST_ADMIN_KEY);
+    expect(status).toBe(400);
+    expect(body.code).toBe('CONTRADICTORY_WEIGHT');
+    expect(body.explicitWeights).toEqual([]);
+    expect(body.error).toBe('searchTerm contains an invalid explicit weight');
+    expect(body.searchTermLength).toBe(searchTerm.length);
+  });
+
   test('returns 429 when quota exhausted', async () => {
     quotaService.recordQueries.mockReturnValue({
       ok: false, used: 100, remaining: 0, limit: 100,
