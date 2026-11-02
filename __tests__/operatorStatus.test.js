@@ -73,16 +73,22 @@ const LIVE_LOG = [
 
 const made = [];
 
-function makeProject({ passes, coins, operatorLog = OPERATOR_LOG, liveLog = null, livePass = 3, risk = 'Elevated', passDirRun = RUN }) {
+// layout 'H' is the local operator (terapeak-operator.sh); 'W' is the Codespace operator (terapeak-operator-codespace.sh).
+const LAYOUTS = {
+  H: { passesDir: 'terapeak-operator-passes', log: id => `terapeak-operator-${id}.log` },
+  W: { passesDir: 'terapeak-operator-codespace-passes', log: id => `terapeak-operator-codespace_${id}.log` },
+};
+
+function makeProject({ passes, coins, operatorLog = OPERATOR_LOG, liveLog = null, livePass = 3, risk = 'Elevated', passDirRun = RUN, layout = 'H' }) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'opstatus-'));
   made.push(dir);
   const runs = path.join(dir, 'cache', 'terapeak-runs');
   fs.mkdirSync(runs, { recursive: true });
   fs.writeFileSync(path.join(runs, 'passes.jsonl'), passes.map(p => JSON.stringify(p)).join('\n') + '\n');
   fs.writeFileSync(path.join(runs, 'coins.jsonl'), coins.map(c => JSON.stringify(c)).join('\n') + '\n');
-  if (operatorLog !== null) fs.writeFileSync(path.join(dir, 'cache', `terapeak-operator-${RUN}.log`), operatorLog);
+  if (operatorLog !== null) fs.writeFileSync(path.join(dir, 'cache', LAYOUTS[layout].log(RUN)), operatorLog);
   if (liveLog !== null) {
-    const passDir = path.join(dir, 'cache', 'terapeak-operator-passes', passDirRun);
+    const passDir = path.join(dir, 'cache', LAYOUTS[layout].passesDir, passDirRun);
     fs.mkdirSync(passDir, { recursive: true });
     fs.writeFileSync(path.join(passDir, `pass-${String(livePass).padStart(4, '0')}.log`), liveLog);
   }
@@ -378,5 +384,32 @@ describe('operator-status.py: malformed telemetry never produces a traceback', (
     expect(result.stdout).toContain('cookie health: H?ALTHY');
     expect(result.stdout).toContain('Norm?l -> Elev?ted');
     expect(result.stdout).toContain('Risk state: Cool?own');
+  });
+});
+
+describe('operator-status.py: Codespace (W) operator layout', () => {
+  test('reads the W queue log and detects the in-progress pass from the W pass directory', () => {
+    const result = runStatus(standardProject({ liveLog: LIVE_LOG, layout: 'W' }));
+    expect({ status: result.status, stderr: result.stderr }).toEqual({ status: 0, stderr: '' });
+    const lines = result.stdout.trimEnd().split('\n');
+    expect(lines[0]).toBe('Pass 3 | Batch: 6 coins | in progress (5 of 6 started)');
+    expect(lines).toContain('  Queue: 1,308 stale | 157 ok | 491 dormant | 10 deep-paginate pending');
+    expect(lines).toContain('  Batch total (partial): 10 new, 1 dups, 1 no-export out of 5 coins started');
+  });
+
+  test('a completed W pass still reports the W queue', () => {
+    const out = runStatus(standardProject({ layout: 'W' })).stdout;
+    expect(out.split('\n')[0]).toBe('Pass 2 | Batch: 4 coins | ~2 min (complete)');
+    expect(out).toContain('  Queue: 1,308 stale | 157 ok | 491 dormant | 10 deep-paginate pending');
+  });
+
+  test('when both layouts exist, the newest pass directory decides the live pass', () => {
+    const dir = standardProject({ liveLog: LIVE_LOG, layout: 'H' });
+    const wPass = path.join(dir, 'cache', LAYOUTS.W.passesDir, RUN);
+    fs.mkdirSync(wPass, { recursive: true });
+    fs.writeFileSync(path.join(wPass, 'pass-0004.log'), 'Exporting 2 coins...\n  [ 50%] Coin M... SAVED (upload pending)\n');
+    const future = new Date(Date.now() + 60000);
+    fs.utimesSync(wPass, future, future);
+    expect(runStatus(dir).stdout.split('\n')[0]).toBe('Pass 4 | Batch: 2 coins | in progress (1 of 2 started)');
   });
 });

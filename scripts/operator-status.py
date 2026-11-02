@@ -35,6 +35,11 @@ sys.path.insert(0, SCRIPT_DIR)
 PASS_LOG_RE = re.compile(r"^pass-0*(\d+)\.log$")
 EXPORTING_RE = re.compile(r"Exporting\s+(\d+)\s+coins")
 QUEUE_RE = re.compile(r"^\s{4}(refresh|dormant|ok|deep-paginate)\s+(\d+)\s*$")
+# Per-run files differ by operator: H (terapeak-operator.sh) and W (terapeak-operator-codespace.sh).
+LAYOUTS = (
+    ("terapeak-operator-passes", "terapeak-operator-{run}.log"),
+    ("terapeak-operator-codespace-passes", "terapeak-operator-codespace_{run}.log"),
+)
 QUEUE_LABELS = (("refresh", "stale"), ("ok", "ok"), ("dormant", "dormant"), ("deep-paginate", "deep-paginate pending"))
 
 
@@ -81,16 +86,25 @@ def thousands(value):
     return f"{num(value):,}"
 
 
+def run_dirs(project_dir, run_id=None):
+    """Existing per-run pass-log directories across both operator layouts."""
+    found = []
+    for passes_dir, _ in LAYOUTS:
+        base = os.path.join(project_dir, "cache", passes_dir)
+        if run_id:
+            candidates = [os.path.join(base, run_id)]
+        else:
+            try:
+                candidates = [os.path.join(base, name) for name in os.listdir(base)]
+            except OSError:
+                continue
+        found += [path for path in candidates if os.path.isdir(path)]
+    return found
+
+
 def newest_run_dir(project_dir):
-    base = os.path.join(project_dir, "cache", "terapeak-operator-passes")
-    try:
-        entries = [os.path.join(base, name) for name in os.listdir(base)]
-    except OSError:
-        return None
-    entries = [path for path in entries if os.path.isdir(path)]
-    if not entries:
-        return None
-    return max(entries, key=os.path.getmtime)
+    entries = run_dirs(project_dir)
+    return max(entries, key=os.path.getmtime) if entries else None
 
 
 def choose_run_id(project_dir, passes, requested):
@@ -104,34 +118,36 @@ def choose_run_id(project_dir, passes, requested):
 
 def live_pass(project_dir, run_id, last_recorded):
     """Return (number, path) of a pass log newer than the last recorded pass, else None."""
-    run_dir = os.path.join(project_dir, "cache", "terapeak-operator-passes", run_id)
-    try:
-        names = os.listdir(run_dir)
-    except OSError:
+    candidates = []
+    for run_dir in sorted(run_dirs(project_dir, run_id), key=os.path.getmtime, reverse=True):
+        try:
+            names = os.listdir(run_dir)
+        except OSError:
+            continue
+        numbers = [(int(m.group(1)), os.path.join(run_dir, name)) for name in names for m in [PASS_LOG_RE.match(name)] if m]
+        if numbers:
+            candidates.append(max(numbers))
+            break
+    if not candidates:
         return None
-    numbers = []
-    for name in names:
-        match = PASS_LOG_RE.match(name)
-        if match:
-            numbers.append((int(match.group(1)), os.path.join(run_dir, name)))
-    if not numbers:
-        return None
-    number, path = max(numbers)
+    number, path = candidates[0]
     return (number, path) if number > last_recorded else None
 
 
 def queue_counts(project_dir, run_id):
     """Last reported count for each queue tier from the operator log, or None when absent."""
     counts = {key: None for key, _ in QUEUE_LABELS}
-    path = os.path.join(project_dir, "cache", f"terapeak-operator-{run_id}.log")
-    try:
-        with open(path, encoding="utf-8", errors="replace") as handle:
-            for line in handle:
-                match = QUEUE_RE.match(line.rstrip("\n"))
-                if match:
-                    counts[match.group(1)] = int(match.group(2))
-    except OSError:
-        pass
+    logs = [os.path.join(project_dir, "cache", pattern.format(run=run_id)) for _, pattern in LAYOUTS]
+    logs = sorted((path for path in logs if os.path.isfile(path)), key=os.path.getmtime, reverse=True)
+    for path in logs[:1]:
+        try:
+            with open(path, encoding="utf-8", errors="replace") as handle:
+                for line in handle:
+                    match = QUEUE_RE.match(line.rstrip("\n"))
+                    if match:
+                        counts[match.group(1)] = int(match.group(2))
+        except OSError:
+            pass
     return counts
 
 

@@ -23,7 +23,7 @@ log lines unless the user asked for logs specifically.
 
 ## Generator
 
-`python3 scripts/operator-status.py` prints this report from telemetry (`cache/terapeak-runs/{passes,coins}.jsonl`, the newest pass log, the operator log queue counts and the risk-state file): the runbook contract block for the in-progress or last completed pass, then a labelled cumulative run view. It reuses the operator's own pass-log parser. Options: `--passes N` (rows shown, 0 for all), `--run-id ID`, `--project-dir DIR`, `--skip-process-check`. Exit code 2 means no run data was found.
+`python3 scripts/operator-status.py` prints this report from telemetry (`cache/terapeak-runs/{passes,coins}.jsonl`, the newest pass log, the operator log queue counts and the risk-state file): the runbook contract block for the in-progress or last completed pass, then a labelled cumulative run view. It reads both operator layouts (H: `cache/terapeak-operator-passes/<RUN_ID>/` and `cache/terapeak-operator-<RUN_ID>.log`; W/Codespace: `cache/terapeak-operator-codespace-passes/<RUN_ID>/` and `cache/terapeak-operator-codespace_<RUN_ID>.log`) and reuses the operator's own pass-log parser. Options: `--passes N` (rows shown, 0 for all), `--run-id ID`, `--project-dir DIR`, `--skip-process-check`. Exit code 2 means no run data was found or the telemetry could not be interpreted.
 
 ## Rationale
 
