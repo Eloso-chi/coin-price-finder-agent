@@ -6,11 +6,11 @@ Operational scripts for data collection, migration, and maintenance. Most script
 
 | Requirement | Scripts that need it |
 |---|---|
-| Node server running (`npm start`, background terminal) | `pricing-health-full.js`; Terapeak exporters only when `UPLOAD_MODE=api` |
+| Node server running (`npm start`, background terminal) | `pricing-health-full.js`; Terapeak export when `UPLOAD_MODE=api`, or when `UPLOAD_MODE=auto` falls back to API, and `APP_URL` is local. API upload also requires `ADMIN_API_KEY`; a remote `APP_URL` must be reachable and authorized. |
 | Authenticated VNC/noVNC display (`terapeak-display.sh`) + browser session | Canonical `terapeak-export.py` login/operator path |
 | Existing VNC display + browser session | `sales-aggregator.py`, `vnc-login.py` legacy paths (separate authenticated-display hardening remains) |
 | Xtigervnc, websockify, noVNC, `ss`, and `curl` | `terapeak-display.sh` |
-| Azure credentials (Key Vault) | `upload-csvs-to-blob.js`, `migrate-to-cosmos.js`, `greysheet-refresh.js`, `load-secrets.sh` |
+| Azure credentials (Key Vault) | `upload-csvs-to-blob.js`, `migrate-to-cosmos.js`, `greysheet-refresh.js`, `load-secrets.sh`; Terapeak `UPLOAD_MODE=blob` or the Blob-first part of `auto` requires `TERAPEAK_BLOB_ACCOUNT` and `TERAPEAK_BLOB_CONTAINER` |
 | Python 3 + playwright | `terapeak-export.py`, `sales-aggregator.py`, `vnc-login.py`, `create_placeholders.py` |
 | Python 3 only | `test_vnc_login_flow.py` |
 | `az` CLI logged into the right subscription | `load-secrets.sh` (see [../docs/runbooks/secret-bootstrap.md](../docs/runbooks/secret-bootstrap.md)) |
@@ -24,7 +24,7 @@ Operational scripts for data collection, migration, and maintenance. Most script
 |---|---|---|
 | `terapeak-export.py` | Semi-automated Terapeak CSV exporter (page 1); direct commands enforce persisted risk-state gates, with Elevated collection reserved for canonical H/W operators | `python3 scripts/terapeak-export.py --run --limit 20` |
 | `sales-aggregator.py` | Deep pagination aggregator (pages 2-5/250 results for non-gold bullion; page 2/100 results for gold and non-bullion) with dashboard mode | `python3 scripts/sales-aggregator.py` (dashboard) or `--run --limit 10` |
-| `audit-contradictory-weights.js` | Inventory legacy Terapeak keys with malformed or conflicting explicit ounce weights; does not remap or mutate source data | `node scripts/audit-contradictory-weights.js --meta data/terapeak-meta.json --store cache/terapeak_sold.json` |
+| `audit-contradictory-weights.js` | Inventory legacy Terapeak keys with malformed or conflicting explicit ounce weights; does not remap or mutate source data. Outputs contain affected sale records and require a POSIX-permission-enforcing filesystem; native Windows and typical WSL `/mnt/c` mounts are rejected. | `node scripts/audit-contradictory-weights.js --meta data/terapeak-meta.json --store cache/terapeak_sold.json` |
 | `bootstrap-surface-wsl.sh` | One-command Surface/WSL bootstrap for PR250 flow (deps, venv, Playwright, env templates) | `bash scripts/bootstrap-surface-wsl.sh` |
 | `surface` | One-word launcher for the Surface freshness loop (loads validated env + runs loop) | `surface` |
 | `terapeak-operator.sh` | Canonical H launcher with #284H risk states, Cooldown restart gates, randomized Normal batches, Elevated pacing, and shared pass telemetry | `bash scripts/terapeak-operator.sh` |
@@ -104,10 +104,13 @@ Operational scripts for data collection, migration, and maintenance. Most script
 
 ```bash
 # 1. Inspect port 3000 before starting from the repository root
-PID=$(lsof -t -i:3000 2>/dev/null || true)
-# If set, verify with: ps -p "$PID" -o args=; readlink -f "/proc/$PID/cwd"
-# Kill only this repository's `node server.js`; stop on an unknown listener.
-# Then use the execute tool to run `node server.js` with background/async mode.
+PIDS=$(lsof -tiTCP:3000 -sTCP:LISTEN 2>/dev/null || true)
+for PID in $PIDS; do
+  ps -p "$PID" -o pid=,args=
+  readlink -f "/proc/$PID/cwd" || true
+done
+# Stop a listener only after confirming its command and cwd identify this
+# checkout's `node server.js`. If ownership is unclear, do not kill it.
 
 # 2. Start the authenticated display (create ~/.vnc/passwd once with vncpasswd)
 bash scripts/terapeak-display.sh start
@@ -116,10 +119,18 @@ bash scripts/terapeak-display.sh start
 # 3. Complete guarded interactive login
 DISPLAY=":${TERAPEAK_VNC_DISPLAY:-1}" python3 scripts/terapeak-export.py --login
 
-# 4. Run exports (limit to 20 coins)
+# 4. Start the server if UPLOAD_MODE=api uses local APP_URL, or if auto may
+#    fall back to API and APP_URL is local. API uploads require ADMIN_API_KEY.
+#    UPLOAD_MODE=blob requires Blob account/container config and defers import.
+#    auto tries Blob when configured, then falls back to API on Blob failure.
+#    A remote APP_URL must be reachable and authorized; this local server does
+#    not satisfy a request sent to another host. When one is needed, start it
+#    in a separate background terminal: node server.js
+
+# 5. Run exports (limit to 20 coins)
 python3 scripts/terapeak-export.py --run --limit 20
 
-# 5. Deep-collect pages 2+ for thin datasets (legacy display path; not covered
+# 6. Deep-collect pages 2+ for thin datasets (legacy display path; not covered
 #    by the authenticated display helper or exporter risk-state gate)
 python3 scripts/sales-aggregator.py --run --limit 10
 ```

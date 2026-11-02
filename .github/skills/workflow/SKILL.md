@@ -68,6 +68,33 @@ Required controls:
 
 Absent all four controls, mixed-scope PRs are out of policy.
 
+## Delta-Scoped Documentation Acceptance
+
+For a material change, Onboard reviews the target commit against its base and
+classifies findings as:
+
+- `BLOCKING_DELTA`: introduced or materially worsened by the target change;
+  must be corrected before merge.
+- `PRE_EXISTING_DEBT`: already present on the base branch and not materially
+  worsened; record it, but do not expand the target PR to fix it.
+- `OPTIONAL`: useful documentation improvement that is not required for the
+  changed contract; propose separately.
+
+Allow at most one mapped-document correction pass and one Onboard verification
+rerun for a PR. If actionable scope remains after that pass, stop and ask the
+user rather than continuing repository-wide cleanup. A repository-wide
+zero-gap audit requires explicit user approval and a separate branch. This
+scope rule was added after the recursive documentation loop recorded in
+`docs/WASTE-LEDGER.md` INC-018.
+
+## Onboard Agent Approval Boundary
+
+The Onboard agent is read-only. It may inspect documents and source and report
+proposed corrections, but it does not have authority to edit files or classify
+user approval on the user's behalf. The user must approve proposed edits before
+implementation; any such edits follow the normal branch/PR workflow and this
+delta-scoped acceptance gate.
+
 ---
 
 ## Step-by-Step
@@ -137,10 +164,13 @@ habit (INC-013 rule #20).
 
 For material architecture, API, persistence/data, operations, environment,
 agent/prompt/skill, or user-facing workflow changes, run top-level `@onboard`
-against the commit created in Step 4. Record the exact SHA and require no
-actionable active documentation gaps. Typo/formatting-only and non-behavioral
-metadata changes may use a reviewer-approved documented no-impact exemption.
-Any later relevant amendment invalidates acceptance and requires a new run.
+against the commit created in Step 4. Record the exact SHA and classify findings
+per "Delta-Scoped Documentation Acceptance" above. Acceptance passes when no
+`BLOCKING_DELTA` findings remain; pre-existing debt and optional improvements
+are recorded but do not expand the target PR. Typo/formatting-only and
+non-behavioral metadata changes may use a reviewer-approved documented
+no-impact exemption. Any later relevant amendment invalidates acceptance and
+requires a new run.
 
 ### 6. Push
 

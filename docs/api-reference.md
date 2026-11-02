@@ -37,7 +37,7 @@ For equivalent deterministic inputs, `/api/price`, `/api/pricing-batch`, and `/a
 | `GET` | `/api/bulk-evaluate/:jobId` | None | Poll job status and completed results |
 | `GET` | `/api/bulk-evaluate/:jobId/stream` | None | SSE stream of per-coin + lot summary results |
 
-**Input formats:** text (one coin per line, pipe-delimited), JSON array, or Excel .xlsx upload.
+**Input formats:** text (one coin per line, pipe-delimited) or JSON array (global 5 MB JSON body limit). The route processes only the first 500 entries and rejects queries over 300 characters (for text, the query is the segment before the first `|`; overlong JSON queries are truncated, marked, then rejected). Excel `.xlsx` currently returns HTTP 400 because the route's adapter does not await the asynchronous Excel mapper; use text or JSON until that integration is repaired.
 
 Per-coin bulk results include `lowData`, `explanation`, `dataSource`, and `gradePool` in addition to FMV, confidence, method, and comp count. A genuine confidence score of `0` is returned as `0`, not `null`.
 

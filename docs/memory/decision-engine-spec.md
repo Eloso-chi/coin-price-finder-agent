@@ -92,22 +92,26 @@ Before valuation, comps are separated into four mutually exclusive pools:
 
 | Factor | Contribution | Notes |
 |--------|-------------|-------|
-| US comp count | Up to 35-40 pts (logarithmic) | Bar mode: up to 35 pts |
-| Dispersion (CV) | Up to 20-25 pts (lower = better) | |
-| Match quality | Up to 15-25 pts | |
-| PCGS verified | +10 | Not for bars |
-| PCGS guide available | +10 | Not for bars |
-| Auction data | +5 | |
-| Greysheet data | +5 | |
-| Greysheet spread <=15% | +5 (liquid market) | |
-| Greysheet spread >=40% | -5 (illiquid) | |
-| 20+ US comps | +10-15 bonus | |
-| Browse fallback used | -5 to -15 | Scaled by US comp count |
-| < 5 US comps | -10 | |
-| Browse-only (no sold) | -15 | |
-| Low population <50 | -15 | |
-| Low population 50-99 | -10 | |
-| Low population 100-199 | -5 | |
+| Sample size | Bars: up to 35; non-PCGS: up to 40; PCGS-covered: up to 30 | Linear caps at 12 or 15 US comps depending on branch |
+| Dispersion (CV) | Bars: up to 25; non-PCGS: up to 20; PCGS-covered: up to 20 | Lower dispersion scores higher |
+| Match quality | Bars: up to 25; non-PCGS: up to 25; PCGS-covered: up to 15 | Average comp match score |
+| PCGS verified / guide | +10 each | PCGS-covered, non-bar branch |
+| Auction median available | +5 | Non-bar branches when PCGS resolution supplies auction data |
+| Greysheet available | +5 | PCGS-covered, non-bar branch |
+| Greysheet wholesale/retail spread <=15% | +5 | Tight-spread liquidity signal; applies in every branch when Greysheet spread data exists |
+| Greysheet wholesale/retail spread >=40% | -5 | Wide-spread liquidity signal; applies in every branch when Greysheet spread data exists |
+| 20+ US comps | +15 for bars; +10 for non-PCGS coins | No separate 20-comp bonus in the PCGS-covered branch |
+| Fallback used | Bars: -5; other branches: 0, -7, or -15 by comp count | Other branches: 0 at 30+, -7 at 15-29, -15 below 15 |
+| < 5 US comps | -10 | All branches |
+| Browse-only (no sold) | -30 | Active asking prices only |
+| Sold ratio below 0.3 / 0.6 | -20 / -10 | Applies when active listings are mixed with sold comps |
+| Low population <50 | -15 | Not applied to bars |
+| Low population 50-99 | -10 | Not applied to bars |
+| Low population 100-199 | -5 | Not applied to bars |
+| Graded-to-raw pool fallback | -10 | Only the explicit last-resort raw fallback |
+| Filter attrition 50-70% / >70-90% / >90% | -5 / -10 / -20 | High removal rates weaken confidence in the surviving pool |
+
+After contributions and penalties, the score is rounded and clamped to 0-100.
 
 ## Buy Spread Tiers (sliding by FMV value)
 
@@ -160,9 +164,10 @@ After per-coin FMV, `computeLotSummary()` applies:
 |----------|-----------|--------|
 | Size discount | 11-50 coins: 5%, 51-100: 10%, 101-250: 15%, 251+: 20% | 0-20% |
 | Confidence penalty | Avg confidence < 60 | 5% |
-| Concentration penalty | Any coin > 25% of lot FMV | 3% |
+| Concentration penalty | Any coin > 50% of total lot FMV | 3% |
+| Concentration flag (no penalty) | Any coin > 25% through 50% of total lot FMV | Moderate-risk flag |
 
-Three buy tiers: cherry-pick (55-65%), fair lot (70-80%), full retail (85-90% minus fees)
+Three buy-tier values use `max(floor, baseline - totalDiscount) * totalFmv`: cherry-pick baseline 60% / floor 40%; fair-lot baseline 75% / floor 50%; full-retail baseline 87% / floor 60% (approximately 13% eBay fees). The discount is size + average-confidence + high-concentration penalties; size and average confidence use successfully priced rows.
 
 ## Resilience Patterns
 
