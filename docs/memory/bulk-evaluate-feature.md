@@ -18,7 +18,7 @@ The API requires at least one coin. Text and JSON parsers keep only the first 50
 
 The JSON route parser currently forwards `query`/`name`/`coin`, `qty`/`quantity`, `grade`, `year`, `mintMark`/`mint`, `weight`, and `series`; it does not forward arbitrary nested `options`. Text input supports `qty`/`quantity`, `grade`, `year`, `mint`, and `weight`. Although the service has an internal `coin.options.timeWindowDays` hook, callers of the current HTTP endpoint cannot set it; they receive the bullion/non-bullion defaults below.
 
-Each query is limited to 300 characters at job creation. JSON strings over 300 characters are truncated by the parser, marked, then rejected by the route; text parsing preserves the full line and the route rejects it when it exceeds 300 characters. Excel input currently fails earlier in its adapter and should not be used until repaired. Text and JSON arrays are sliced to their first 500 entries before the route's length check; extra rows are ignored rather than producing a maximum-count error.
+Each query is limited to 300 characters at job creation. JSON strings over 300 characters are truncated by the parser, marked, then rejected by the route; text parsing takes the query as the segment before the first `|` and the route rejects it when that segment exceeds 300 characters (other pipe-delimited fields are not length-checked). Excel input currently fails earlier in its adapter and should not be used until repaired. Text and JSON arrays are sliced to their first 500 entries before the route's length check; extra rows are ignored rather than producing a maximum-count error.
 
 ## Endpoints
 

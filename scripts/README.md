@@ -111,7 +111,6 @@ for PID in $PIDS; do
 done
 # Stop a listener only after confirming its command and cwd identify this
 # checkout's `node server.js`. If ownership is unclear, do not kill it.
-# Then use the execute tool to run `node server.js` with background/async mode.
 
 # 2. Start the authenticated display (create ~/.vnc/passwd once with vncpasswd)
 bash scripts/terapeak-display.sh start
@@ -125,7 +124,8 @@ DISPLAY=":${TERAPEAK_VNC_DISPLAY:-1}" python3 scripts/terapeak-export.py --login
 #    UPLOAD_MODE=blob requires Blob account/container config and defers import.
 #    auto tries Blob when configured, then falls back to API on Blob failure.
 #    A remote APP_URL must be reachable and authorized; this local server does
-#    not satisfy a request sent to another host.
+#    not satisfy a request sent to another host. When one is needed, start it
+#    in a separate background terminal: node server.js
 
 # 5. Run exports (limit to 20 coins)
 python3 scripts/terapeak-export.py --run --limit 20

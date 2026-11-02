@@ -98,8 +98,8 @@ Before valuation, comps are separated into four mutually exclusive pools:
 | PCGS verified / guide | +10 each | PCGS-covered, non-bar branch |
 | Auction median available | +5 | Non-bar branches when PCGS resolution supplies auction data |
 | Greysheet available | +5 | PCGS-covered, non-bar branch |
-| Greysheet wholesale/retail spread <=15% | +5 | Tight-spread liquidity signal; not applied to bars |
-| Greysheet wholesale/retail spread >=40% | -5 | Wide-spread liquidity signal; not applied to bars |
+| Greysheet wholesale/retail spread <=15% | +5 | Tight-spread liquidity signal; applies in every branch when Greysheet spread data exists |
+| Greysheet wholesale/retail spread >=40% | -5 | Wide-spread liquidity signal; applies in every branch when Greysheet spread data exists |
 | 20+ US comps | +15 for bars; +10 for non-PCGS coins | No separate 20-comp bonus in the PCGS-covered branch |
 | Fallback used | Bars: -5; other branches: 0, -7, or -15 by comp count | Other branches: 0 at 30+, -7 at 15-29, -15 below 15 |
 | < 5 US comps | -10 | All branches |
