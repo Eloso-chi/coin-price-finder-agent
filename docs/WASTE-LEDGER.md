@@ -485,6 +485,305 @@ The ledger's low-confidence visible-event proxy is 89 request-equivalent events,
 
 ---
 
+### INC-019: Review Loops Recurred After INC-018 (PRs #355, #356, #357) -- Fixes Applied Without New Approval
+
+| Field | Value |
+|-------|-------|
+| Date / UTC window | Four active windows: 2026-10-29T14:12Z-18:50Z (PR #355), 2026-10-29T19:48Z-21:07Z (PR #356 docs), 2026-10-30T14:41Z-20:42Z (PR #357), 2026-11-01T23:58Z-2026-11-02T01:50Z (PR #356 re-review). Active work 613 minutes by the 15-minute-gap method (191 / 78 / 305 / 39 in window order); wall-clock spans include CI waits and idle time. |
+| Category | `agent-violation` / `recovery-ops` |
+| Attribution | Agent. INC-018 predicted this recurrence: its resolution enforced the stop rules only in persistent user memory and deferred repository enforcement to a separately approved scope. |
+| Rule(s) violated | `docs/WASTE-LEDGER.md` INC-018 rules 33 (at most one mapped-document correction pass and one verification rerun) and 34 (audits need approval and their own branch). `.github/skills/workflow/SKILL.md` "Delta-Scoped Documentation Acceptance". The persistent delivery rule that review fixes are approval-gated. For the docs-only #356 work the user also stated that unnecessary checks must not run. |
+| Root cause | No numeric cap or approval checkpoint existed for review rounds on code PRs, and the INC-018 rules were scoped to Onboard and documentation. In the #357 window the user approved a set of five findings once (2026-10-30T16:42Z); after that, 120 patches were applied with no further approval question and reviewer findings outside the approved set were fixed immediately. The #355 window shows the same pattern: one "apply all" at 17:42Z, 103 patch applications in the window, and the next user message was the merge approval. Reviewer prompts were labelled "Final" 37 times. A docs-only branch received 8 Onboard runs. |
+| Impact | About 10 hours of active agent time across four windows for three PRs (#355 27 files, #356 22 files, #357 19 files). Part of the #357 work was legitimate: reviewers found real S2 security issues, so excess is estimated against a baseline, not assumed to be total. All three PRs merged only after required CI passed. No production effect. |
+| Mistakes | 1) Applied post-approval findings without a new approval question (120 patches after the single #357 approval; 103 patch applications in the #355 window) instead of stopping after one rerun and asking approval for findings outside the approved set. 2) Launched 37 reviewer prompts labelled "Final" while continuing to launch rounds. 3) Ran 8 Onboard runs plus 4 other reviewer runs on the docs-only #356 branch on 2026-10-29. 4) Re-ran Onboard and Code review on #356 on 2026-11-01/02 after merging main; the first Code Reviewer run returned no output and was repeated. 5) Did not state a round number or cap before launching each reviewer. |
+| PR / commit evidence | PR #355 https://github.com/Eloso-chi/coin-price-finder-agent/pull/355, branch `fix/316h-explicit-weight-clean-main`, merge `ef48700adcfd7d5176a6d15ec1a665204f976b81`, 27 files +1115/-26. PR #356 https://github.com/Eloso-chi/coin-price-finder-agent/pull/356, branch `docs/current-documentation-alignment`, merge `d9f04ada52a145f5a916270c22ec8a3391257f74`, 22 files +307/-189. PR #357 https://github.com/Eloso-chi/coin-price-finder-agent/pull/357, branch `fix/operator-visible-vnc-login`, merge `6e969cd76967c0c5c35ce7664873a1e58a6d2280`, 19 files +1378/-80. |
+| Session evidence | Public reference `93633a02-...-d15`; full session UUID only in ignored `.local/github-support/INC-019.txt`. Repository `Eloso-chi/coin-price-finder-agent`. Windows above; genuine user messages 9 / 3 / 8 / 0 plus 3 / 1 / 4 / 0 automatic "Continue to iterate?" confirmations. No raw prompts stored here. |
+| Workflow evidence | PR #355 test runs 40914448144 (43s), 40924574982 (52s), 40929634843 (47s), 40930075961 (58s), 40933461252 (63s), all successful. PR #356 final required test run 41372896583 successful. PR #357 runs are recorded in INC-020. These CI runs were required to ship the PRs and are not charged here. |
+| Rework inventory | 93 subagent launches (22 Onboard, 27 Code, 20 Security, 11 Performance, 13 Pre-commit); 4,704 tool calls; 199 full local test-suite runs; 223 patch applications in the #355 and #357-after-approval windows; 1,323 assistant turns inside subagent windows (measured events, not billing units). |
+| Measured usage | 613 active minutes; 199 full `npm test` runs totalling 176.7 minutes of local elapsed time (36 runs / 46.4 min in #355, 159 / 126.3 in #357, 4 / 4.0 in #356 re-review; 0 in the docs-only window because the user forbade code tests). Local compute is recorded but not assigned a GitHub charge. GitHub Actions, Codespace and Azure: 0 attributable. |
+| Estimated usage | Baseline per rules: 9 subagent launches per code PR (3 review-deep, 1 pre-commit, 1 Onboard, 4 verification reruns) and 3 per docs-only change, so 9 + 3 + 9 + 3 = 24. Actual 93, excess 69, plus 8 automatic continue prompts = 77 request-equivalents. Method: visible user-message plus subagent-launch events at the ledger rate. Low confidence; premium-request counts, model multipliers and plan inclusion are not visible locally. |
+| Cost calculation | Copilot visible-event proxy: 77 x $0.04 = **$3.08 estimated gross equivalent**. Actions $0.00, Codespace $0.00, Azure $0.00. Actual incremental billing may be $0 if usage was included. |
+| User attention | 20 genuine user messages in the four windows, mostly approvals and next-step requests; the loop ended at merge rather than by a corrective prompt. The user did have to confirm 8 automatic continuation prompts. Non-billable. |
+| **Total (direct cost)** | **$3.08 nominal Copilot gross-equivalent estimate; actual incremental billed cost unknown and may be $0 pending GitHub Support verification.** |
+| Billing review request | Ask GitHub Support to inspect actual Copilot usage for the privately supplied full session ID and the four UTC windows above: premium-request count (including subagent calls), model multipliers, plan inclusion and overage. Requested remedy: adjustment or credit for verified usage in review rounds beyond the repository's own caps. |
+| Evidence confidence | High: PR/merge SHAs, subagent counts by type, patch and test-run counts, CI run IDs. Medium: 613 active-minute estimate (15-minute-gap method); the baseline used for excess. Low: request-equivalent proxy and dollar amount. Unavailable: actual billed requests. |
+| Resolution | Rule 35 enforced in `.github/skills/workflow/SKILL.md` ("Review-Round Cap") and `.github/agents/pre-commit-reviewer.agent.md` (process-discipline checks). Delivered by the PR that adds INC-019 through INC-025. |
+| Rules added / enforcement | 35) After the user approves a set of review findings, each reviewer gets at most one verification rerun. Any finding outside the approved set MUST be put to the user as a new approval question before it is applied. A reviewer prompt MUST NOT be labelled "Final" unless it is the declared last rerun, and the round number and cap MUST be stated before each reviewer launch. |
+| Support case status | Not filed. Private packet prepared at `.local/github-support/INC-019.txt`; full session and case fields remain private. |
+
+**Copy/paste GitHub Support summary**
+
+```text
+Subject: Billing review request for review-loop usage beyond repository caps (PRs 355, 356, 357)
+
+Repository: Eloso-chi/coin-price-finder-agent
+Public session reference: 93633a02-...-d15
+Copilot session: [insert full UUID from private .local/github-support/INC-019.txt]
+UTC windows: 2026-10-29T14:12Z-18:50Z, 2026-10-29T19:48Z-21:07Z, 2026-10-30T14:41Z-20:42Z, 2026-11-01T23:58Z-2026-11-02T01:50Z
+Merge commits: ef48700adcfd7d5176a6d15ec1a665204f976b81, 6e969cd76967c0c5c35ce7664873a1e58a6d2280, d9f04ada52a145f5a916270c22ec8a3391257f74
+
+Across three PRs Copilot launched 93 reviewer subagents (baseline for the work was about 24), applied review findings without new approval after a single approval (120 patches in one window), labelled 37 reviewer prompts "Final", and ran 8 Onboard acceptance runs on a docs-only branch. The ledger's low-confidence visible-event proxy is 77 excess request-equivalents, or $3.08 at $0.04 each. This is not invoice data.
+
+Please inspect actual premium-request counts (including subagent calls), model multipliers and plan/overage treatment for the session and windows, and consider an adjustment or credit for verified excess usage. Repository record: docs/WASTE-LEDGER.md INC-019.
+```
+
+---
+
+### INC-020: PR #357 Shipped Windows-Only Integration Tests -- CI Used as the Debugger
+
+| Field | Value |
+|-------|-------|
+| Date / UTC window | 2026-10-30T20:24:48Z (PR created) through 23:32:03Z (first green run); CI-wait dominated. |
+| Category | `code-bug` / `agent-violation` |
+| Attribution | Agent. |
+| Rule(s) violated | `.github/copilot-instructions.md` Testing Rules: run `npm test` after every code change and confirm zero failures before committing. The run was performed only on the Windows workstation; no repository rule distinguished the CI platform, which is recorded as a process gap (rule 36). |
+| Root cause | New shell-integration tests for `scripts/terapeak-display.sh` and the risk-state race unconditionally spawned `wsl`, which exists only on Windows. Later fixture defects were also Linux-only (an inherited `TERAPEAK_RISK_STATE_FILE` and a missing Playwright stub in the race subprocesses). The full local suite passed on Windows (192 suites), so each defect appeared only in CI. After repeated failures a diagnostic-only commit was pushed so CI would print child-process output instead of reproducing the failure under Linux. |
+| Impact | Six failed required checks; PR #357 blocked for about three hours of wall-clock. The PR was not merged over a red check: merge was 2026-10-30T23:35:38Z after run 41145035052 passed. No production effect. |
+| Mistakes | 1) Wrote Windows-only test harnesses. 2) Reported validation green at PR creation from Windows-only evidence. 3) Iterated through CI with six pushes instead of reproducing under Linux (WSL). 4) Pushed a diagnostic-only commit to learn the failure cause. |
+| PR / commit evidence | PR #357, branch `fix/operator-visible-vnc-login`, merge `6e969cd76967c0c5c35ce7664873a1e58a6d2280`. Failing heads `c6d61bc1`, `06b5823e`, `2d429e06`, `8aabb3b6`, `ec3bb15c`, `cb09fd55`; green head `9b07a15f`. Failing suites named in the CI logs: `__tests__/terapeakOperator.test.js`, `__tests__/terapeakRiskState.test.js`. |
+| Session evidence | Public reference `93633a02-...-d15`; full UUID in ignored `.local/github-support/INC-020.txt`. Repository `Eloso-chi/coin-price-finder-agent`, branch `fix/operator-visible-vnc-login`, window above. |
+| Workflow evidence | Failed `test` runs: 41122996945 (47s), 41125608597 (58s), 41126063549 (42s), 41144069530 (59s), 41144355584 (62s), 41144585755 (61s). Successful run 41145035052 (69s). Main deploy for the merge: 41145406292. |
+| Rework inventory | Test-harness changes in the two suites above across six commits; repeated local full-suite runs (counted in INC-019's #357 window). |
+| Measured usage | 329 job-seconds across the six failed runs (47 + 58 + 42 + 59 + 62 + 61). Estimated billable rounding: 6 Linux minutes (one per job). |
+| Estimated usage | Copilot usage for this window is already inside INC-019's #357 window and is not counted again here. |
+| Cost calculation | GitHub Actions nominal gross equivalent: 6 min x $0.008 = **$0.048 (rounded $0.05)**. Copilot: counted in INC-019. Codespace and Azure: $0.00. |
+| User attention | The user asked whether their approval was sufficient (2026-10-30T20:41Z, while CI was failing) and approved merge again at 23:33Z and 23:35Z (admin merge, because the sole maintainer cannot satisfy the review-required rule). The merge waited for the green run. Non-billable. |
+| **Total (direct cost)** | **$0.05 nominal Actions gross-equivalent estimate; Support must verify whether the minutes were billed.** |
+| Billing review request | Ask GitHub Support to verify billed Actions minutes for the seven runs above and consider a credit for the six failed runs. |
+| Evidence confidence | High: run IDs, conclusions, durations, failing suite names, merge timing. Unavailable: whether Actions minutes were billed or covered by plan inclusion. |
+| Resolution | Rule 36 enforced in `.github/copilot-instructions.md` (Testing Rules) and the Pre-commit Reviewer's process-discipline checks. The existing harnesses already select native Bash on Linux and WSL on Windows after the PR #357 fixes. |
+| Rules added / enforcement | 36) Tests that spawn platform tools (`wsl`, `powershell`, `bash`, `python3`) MUST choose the runtime by platform, and a PR that adds or changes such tests MUST be run under Linux (WSL or CI-equivalent) before its first push. A diagnostic-only commit MUST NOT be pushed to learn a failure that can be reproduced locally. |
+| Support case status | Not filed. Private packet at `.local/github-support/INC-020.txt`. |
+
+**Copy/paste GitHub Support summary**
+
+```text
+Subject: Billing review request for six failed CI runs caused by Windows-only tests (PR 357)
+
+Repository: Eloso-chi/coin-price-finder-agent
+Public session reference: 93633a02-...-d15
+Copilot session: [insert full UUID from private .local/github-support/INC-020.txt]
+UTC window: 2026-10-30T20:24:48Z through 2026-10-30T23:32:03Z
+Pull request: https://github.com/Eloso-chi/coin-price-finder-agent/pull/357 (merge 6e969cd76967c0c5c35ce7664873a1e58a6d2280)
+Failed Actions runs: 41122996945, 41125608597, 41126063549, 41144069530, 41144355584, 41144585755
+Successful run: 41145035052
+
+Copilot wrote integration tests that unconditionally invoked a Windows-only executable and validated only on Windows, so six required CI runs failed (329 job-seconds, about 6 billable Linux minutes, roughly $0.05 at the ledger rate). Please verify whether these minutes were billed and consider a credit. Repository record: docs/WASTE-LEDGER.md INC-020.
+```
+
+---
+
+### INC-021: PR #364 Weight Parser -- Three Wrong Versions, Unverified Claims, and a Doc-Count Error
+
+| Field | Value |
+|-------|-------|
+| Date / UTC window | 2026-11-01T17:38Z through 21:31Z; 137 active minutes. |
+| Category | `code-bug` / `agent-violation` |
+| Attribution | Agent. |
+| Rule(s) violated | No tracked rule required a reproducible old-versus-new probe before a no-regression claim; recorded as a process gap (rule 37). The general expectation that PR and backlog claims be accurate was violated. |
+| Root cause | The fix for fractional-ounce decimals (`.5 oz`) and purity marks (`.999 oz`) went through three wrong versions. Each was checked against a narrow probe set. The blast-radius counts came from a comma-split CSV read that truncated quoted titles, and the PR body asserted that no correct weight was lost and no 999 oz datasets existed. Review rounds, not my own probes, found the regressions. |
+| Impact | PR #364 needed five pushes and five review rounds (11 subagents), plus a second documentation-correction pass after Onboard rejected a 34-versus-33 count. No production effect; the fix merged after CI passed and stopped the repeated Libertad upload failures (44 failed attempts across three operator runs before the fix). |
+| Mistakes | 1) Version one ignored all leading-dot decimals (35 real fractional-ounce comps stayed in the 1 oz dataset). 2) Version two read `2018 / 1 oz` as 2018 oz. 3) Version three read `5 / 10 oz` as 0.5 and dropped the weight from `MS70/1 oz`. 4) Reported measurements (130 of 273,253 and 88 of 23,660) from the flawed read and made absolute claims later retracted. 5) Published a wrong count (34 instead of 33) in three documents. |
+| PR / commit evidence | PR #364 https://github.com/Eloso-chi/coin-price-finder-agent/pull/364, branch `fix/327H-contradictory-weight`, merge `317fbb9d7e66b45720fd86a43b196e721643a580`, 11 files +524/-44. Heads `87f09c37`, `2be71f60`, `d20ebaae`, `e6915728`, `50a29376`. |
+| Session evidence | Public reference `93633a02-...-d15`; full UUID in ignored `.local/github-support/INC-021.txt`. Repository `Eloso-chi/coin-price-finder-agent`, branch `fix/327H-contradictory-weight`. |
+| Workflow evidence | Test runs 41334786846 (57s), 41343768227 (64s), 41347425275 (46s), 41350346233 (44s), 41352292063 (55s), all successful. |
+| Rework inventory | 11 subagent launches (4 Code, 2 numismatic audit, 2 Pre-commit, 3 Onboard), 8 of them after the first review round; 427 tool calls; three parser rewrites; corrected docs in `docs/BACKLOG.md`, `docs/memory/terapeak-runbook.md` and the PR body. |
+| Measured usage | 137 active minutes; 8 full `npm test` runs (11.4 min) and 37 Jest invocations (29.2 min) locally; CI 5 runs, 266 job-seconds. |
+| Estimated usage | Excess over baseline: 8 subagent launches plus 1 continue prompt = 9 request-equivalents; 3 extra CI runs beyond a two-run baseline (about 3 billable minutes). Low confidence. |
+| Cost calculation | Copilot: 9 x $0.04 = $0.36. Actions: 3 min x $0.008 = $0.024. Total **$0.384 (rounded $0.38)**. |
+| User attention | One approval question (docs and polish) and one continue confirmation. Non-billable. |
+| **Total (direct cost)** | **$0.38 nominal estimate; actual billed cost unknown and may be $0.** |
+| Billing review request | Ask GitHub Support to verify Copilot usage for the session window above and Actions minutes for the five runs; requested remedy: adjustment for the review rounds caused by the three defective versions. |
+| Evidence confidence | High: PR/commit SHAs, run IDs, tool and test counts. Medium: the excess baseline. Low: dollar amount. |
+| Resolution | PR #364 merged and deployed; the corrected counts (62 / 33 / 1 of 96 changed titles) are in the PR body and docs. Rule 37 enforced in `.github/skills/workflow/SKILL.md` ("Behavior-Change Claims") and the Pre-commit Reviewer's process-discipline checks. |
+| Rules added / enforcement | 37) A claim that a classifier or parser change causes no regression MUST cite a reproducible old-versus-new probe over the real corpus (parsed with a CSV reader, never comma-splitting) plus an adversarial title set, run before the claim is made; counts in the PR body and docs MUST be regenerated from that probe. |
+| Support case status | Not filed. Private packet at `.local/github-support/INC-021.txt`. |
+
+**Copy/paste GitHub Support summary**
+
+```text
+Subject: Billing review request for review rounds caused by defective parser versions (PR 364)
+
+Repository: Eloso-chi/coin-price-finder-agent
+Public session reference: 93633a02-...-d15
+Copilot session: [insert full UUID from private .local/github-support/INC-021.txt]
+UTC window: 2026-11-01T17:38Z through 2026-11-01T21:31Z
+Pull request: https://github.com/Eloso-chi/coin-price-finder-agent/pull/364 (merge 317fbb9d7e66b45720fd86a43b196e721643a580)
+Actions runs: 41334786846, 41343768227, 41347425275, 41350346233, 41352292063
+
+Copilot shipped three successive wrong versions of a weight parser and published unverified no-regression claims; review rounds found each defect. Excess usage estimate: 9 request-equivalents (about $0.36) plus 3 extra CI minutes (about $0.02). Not invoice data. Please inspect actual premium-request counts, multipliers and plan/overage treatment and consider an adjustment. Repository record: docs/WASTE-LEDGER.md INC-021.
+```
+
+---
+
+### INC-022: PR #357 Defects Found Only in Live Operation -- 13-Hour Idle Operator, Failed Startups, Out-of-Order Login
+
+| Field | Value |
+|-------|-------|
+| Date / UTC window | 2026-10-31T00:06Z-00:40Z (startup), 15:46Z-19:43Z (stall diagnosis), 19:43Z-22:50Z (follow-up PRs). Operator idle wall-clock 2026-10-31T02:14Z-15:16Z (782 minutes, no coins attempted, unbilled) is excluded from active time. Active work 205 minutes (32 / 52 / 121). |
+| Category | `code-bug` / `agent-violation` / `recovery-ops` |
+| Attribution | Agent. |
+| Rule(s) violated | `docs/runbooks/local-scraper-wsl2.md` startup order (authenticated display, then login). `.github/pull_request_template.md` "Scraper Risk And Compliance" required evidence for pacing and operator changes. The pacing contract in `docs/memory/anti-bot-operations.md` did not yet state which clock the Elevated pause is measured on; that gap is backlog #325H. |
+| Root cause | PR #357 added a persisted Elevated gate in `scripts/terapeak-export.py` that measures elapsed time from the risk-state file, while `scripts/terapeak-operator.sh` slept a fixed 900 seconds on its own clock. The 28 to 48 second disagreement made the exporter refuse pass 2 with zero coins, and the loop exited. Backlog #325H cites four runs (`20261031T003645Z-230493`, `20261031T012537Z-231475`, `20261031T151611Z-235302`, `20261031T154735Z-235989`); telemetry shows two further two-pass runs in the same window. The display helper also stopped its own healthy VNC/noVNC servers (#318H, #319H, #321H), and first-time login needed a VncAuth password prerequisite that was not presented up front (#324H). Unit and review gates exercised the gate in isolation, never a real two-pass loop on the target machine. |
+| Impact | The operator collected no data for about 13 hours; startup needed repeated corrections; the user spent 26 messages (14 + 12) on startup and diagnosis; three follow-up PRs shipped fixes. No data corruption. |
+| Mistakes | 1) Merged a pacing gate without a multi-pass loop test on the H machine. 2) Asked the user to create the VNC password before starting the display, against the runbook order, then ran a helper whose own defect stopped its servers. 3) Did not present the new VNC password prerequisite prominently when shipping it. |
+| PR / commit evidence | Origin PR #357, merge `6e969cd76967c0c5c35ce7664873a1e58a6d2280`. Fixes: PR #359 (#325H, #320H) merge `76e0491b30c41665c7cf494d8158b87c1f471a60`, 8 files +610/-11; PR #361 (#318H, #319H, #321H) merge `4d2cbee55c991876293a1330c237c71e5cac5900`, 2 files +261/-9; backlog PR #358 merge `f8a8cd1c49791d9e3a2fdc3eba03d7baff8ee5c5`. PR #360 (npm audit, #326H) is excluded: its cause was an external advisory. |
+| Session evidence | Public reference `93633a02-...-d15`; full UUID in ignored `.local/github-support/INC-022.txt`. Repository `Eloso-chi/coin-price-finder-agent`. |
+| Workflow evidence | None attributed. Follow-up PR CI and the main deploys for the fix merges would have run for any merge and are excluded; recovery cost is carried in the Copilot proxy only. |
+| Rework inventory | Three follow-up PRs, seven reviewer subagents on them, backlog items #318H, #319H, #320H, #321H, #324H, #325H, repeated operator restarts. |
+| Measured usage | 205 active minutes; 782 minutes operator idle (unbilled); no coins attempted in the failing passes of the cited runs. |
+| Estimated usage | 41 request-equivalents (14 startup + 12 diagnosis + 15 follow-up PR work including 7 subagent launches). Low confidence. |
+| Cost calculation | Copilot: 41 x $0.04 = **$1.64 estimated gross equivalent**. Actions, Codespace, Azure: $0.00 attributed. |
+| User attention | 26 genuine user messages in the startup and diagnosis windows, many corrective. Non-billable but material. |
+| **Total (direct cost)** | **$1.64 nominal Copilot gross-equivalent estimate; actual incremental billed cost unknown and may be $0.** |
+| Billing review request | Ask GitHub Support to inspect actual Copilot usage for the session and the three UTC windows above; requested remedy: adjustment for recovery work caused by defects shipped in PR #357. |
+| Evidence confidence | High: PR/merge SHAs, run IDs, backlog items, idle window. Medium: active minutes. Low: request-equivalent proxy. |
+| Resolution | Defects fixed by PRs #359 and #361. Rule 38 enforced in `.github/pull_request_template.md` (Scraper Risk And Compliance) and the Pre-commit Reviewer's process-discipline checks (check J). |
+| Rules added / enforcement | 38) A PR that changes operator pacing, display, login or loop behavior MUST include evidence from at least two consecutive real or simulated passes on the target machine, including an Elevated transition, and any sleep and gate MUST share one clock. |
+| Support case status | Not filed. Private packet at `.local/github-support/INC-022.txt`. |
+
+**Copy/paste GitHub Support summary**
+
+```text
+Subject: Billing review request for recovery work after defects shipped in PR 357
+
+Repository: Eloso-chi/coin-price-finder-agent
+Public session reference: 93633a02-...-d15
+Copilot session: [insert full UUID from private .local/github-support/INC-022.txt]
+UTC windows: 2026-10-31T00:06Z-00:40Z, 15:46Z-19:43Z, 19:43Z-22:50Z
+Origin PR merge: 6e969cd76967c0c5c35ce7664873a1e58a6d2280
+Fix PR merges: 76e0491b30c41665c7cf494d8158b87c1f471a60 (359), 4d2cbee55c991876293a1330c237c71e5cac5900 (361)
+
+A pacing gate and display helper shipped in PR 357 were never exercised in a real multi-pass loop; the operator then collected no data for about 13 hours and startup failed repeatedly. Recovery needed 26 user messages and three follow-up PRs (205 active minutes). Visible-event proxy: 41 request-equivalents, about $1.64. Not invoice data. Please inspect actual premium-request counts, multipliers and plan/overage treatment and consider an adjustment. Repository record: docs/WASTE-LEDGER.md INC-022.
+```
+
+---
+
+### INC-023: Runbook Order and Reporting-Contract Non-Compliance (Four Episodes)
+
+| Field | Value |
+|-------|-------|
+| Date / UTC window | 2026-10-29T01:41Z-14:10Z, 2026-10-30T13:07Z-14:41Z, 2026-10-31T00:38Z-01:43Z, 2026-11-01T21:37Z-21:40Z. Active work about 124 minutes (51 / 52 / 18 / 3). |
+| Category | `agent-violation` |
+| Attribution | Agent for the 10-30, 10-31 and 11-01 episodes; shared for 10-29 (the user asked for a clean checkout, but over-verification and installs were the agent's choice). |
+| Rule(s) violated | The user's explicit instructions on 2026-10-29 and 2026-10-31 to read the runbook and not make assumptions. `docs/runbooks/local-scraper-wsl2.md` "Status report contract" (Run totals line, mandatory Highlights, per-pass coin rows) and the persistent cumulative-view requirement. `.github/agents/terapeak-operator.agent.md` startup sequence. |
+| Root cause | The generic W/Codespace quick-start was treated as authoritative for the H machine; startup was over-verified instead of following the H launcher's own preflight; status text was hand-built, and the contract corrected on 2026-10-31 was not re-read before later requests. No deterministic status generator existed. |
+| Impact | 13 corrective prompts and about 124 active minutes; one incorrect "runbook not ready" conclusion; no data risk. |
+| Mistakes | 1) 10-29: over-verified a fresh checkout and treated a tooling limitation as a blocker. 2) 10-30: labelled the W/Codespace quick-start "legacy" and called the runbook not ready from a finding that applied to the other machine path. 3) 10-31: gave status without per-pass coin lists, then without the contract. 4) 11-01: answered three consecutive status requests without Run totals, Highlights or the cumulative table. |
+| PR / commit evidence | No code merged for the incident itself. Remediation: `scripts/operator-status.py` and `__tests__/operatorStatus.test.js` in the PR that adds this entry. |
+| Session evidence | Public reference `93633a02-...-d15`; full UUID in ignored `.local/github-support/INC-023.txt`. Repository `Eloso-chi/coin-price-finder-agent`. |
+| Workflow evidence | None attributable. |
+| Rework inventory | 277 tool calls across the four windows; repeated status replies; one runbook trace. |
+| Measured usage | About 124 active minutes; 277 tool calls; 0 subagents. |
+| Estimated usage | 13 corrective user prompts = 13 request-equivalents. Assistant replies to corrections are not separately counted by the proxy. Low confidence. |
+| Cost calculation | Copilot: 13 x $0.04 = **$0.52 estimated gross equivalent**. Actions, Codespace, Azure: $0.00. |
+| User attention | 13 corrective prompts. Non-billable but material. |
+| **Total (direct cost)** | **$0.52 nominal Copilot gross-equivalent estimate; actual billed cost unknown and may be $0.** |
+| Billing review request | Ask GitHub Support to inspect Copilot usage for the session and the four windows above; requested remedy: adjustment for corrective prompts caused by ignoring existing runbook and reporting rules. |
+| Evidence confidence | Medium: corrective-prompt classification is a judgement; counts and windows are exact. Low: dollar amount. |
+| Resolution | `scripts/operator-status.py` prints the contract and cumulative view from telemetry and is covered by a Jest suite. Rule 39 enforced in `.github/agents/terapeak-operator.agent.md`, `docs/runbooks/local-scraper-wsl2.md` and `docs/memory/operator-status-format.md`. |
+| Rules added / enforcement | 39) Operator status reports MUST be produced by `python3 scripts/operator-status.py` and pasted unmodified; when told to follow a runbook, the agent MUST quote the step number before each action and MUST NOT substitute another machine's procedure. The startup-order half is enforced in `.github/agents/terapeak-operator.agent.md` (Required startup sequence), the status half in the same file (Status reports). |
+| Support case status | Not filed. Private packet at `.local/github-support/INC-023.txt`. |
+
+**Copy/paste GitHub Support summary**
+
+```text
+Subject: Billing review request for corrective prompts caused by ignoring runbook and reporting rules
+
+Repository: Eloso-chi/coin-price-finder-agent
+Public session reference: 93633a02-...-d15
+Copilot session: [insert full UUID from private .local/github-support/INC-023.txt]
+UTC windows: 2026-10-29T01:41Z-14:10Z, 2026-10-30T13:07Z-14:41Z, 2026-10-31T00:38Z-01:43Z, 2026-11-01T21:37Z-21:40Z
+
+Copilot repeatedly ignored explicit instructions to follow the operator runbook and the documented status-report contract, producing 13 corrective user prompts (about 124 active minutes). Visible-event proxy: 13 request-equivalents, about $0.52. Not invoice data. Please inspect actual premium-request counts and multipliers for the windows and consider an adjustment. Repository record: docs/WASTE-LEDGER.md INC-023.
+```
+
+---
+
+### INC-024: Back-to-Back Merges Caused an Azure 409 Deploy Conflict
+
+| Field | Value |
+|-------|-------|
+| Date / UTC window | 2026-11-01T21:40:27Z through 22:59Z; 8 active minutes. |
+| Category | `recovery-ops` |
+| Attribution | Agent (process gap; no tracked rule covered merge sequencing). |
+| Rule(s) violated | None tracked. The user's delivery workflow (persistent memory) says to watch the main deploy after a merge; the gap is that two merges were issued before either deploy could run. |
+| Root cause | PR #364 and PR #363 were merged by consecutive commands 9 seconds apart. The main deploy workflow has no concurrency guard, so both deploys targeted the same App Service and the second received HTTP 409 from OneDeploy. A workflow re-run and a manual dispatch were then attempted with a token that lacked Actions write permission (HTTP 403). |
+| Impact | The deploy for PR #363 failed (run 41353232136, first attempt, deploy step failed after about 88 seconds); production stayed on the PR #364 deploy until the user re-ran the job manually (success, 3.6 minutes). Four user messages including a token-permissions question. No data loss. |
+| Mistakes | 1) Merged two PRs back to back without waiting for the first deploy. 2) Attempted re-run and dispatch without first checking the token's scope. |
+| PR / commit evidence | PR #364 merge `317fbb9d7e66b45720fd86a43b196e721643a580`; PR #363 merge `263413f2d18f6fb15b4eb95d7ca7b4eeb0c13859`. |
+| Session evidence | Public reference `93633a02-...-d15`; full UUID in ignored `.local/github-support/INC-024.txt`. Repository `Eloso-chi/coin-price-finder-agent`, branch `main`. |
+| Workflow evidence | Run 41353219112 (PR #364 merge, success, 267s) and run 41353232136 (PR #363 merge) were created 9 seconds apart. Run 41353232136 attempt 1 failed in "Deploy to Azure Web App" (HTTP 409); the user re-run succeeded (deploy job 2026-11-01T22:37:13Z-22:40:52Z). |
+| Rework inventory | One manual re-run; token-permission investigation. |
+| Measured usage | Failed deploy job about 88 seconds of runner time (2 billable minutes); Azure: one failed OneDeploy, no incremental cost identified. |
+| Estimated usage | 4 user messages after the failure (deployment status, token question, two follow-ups) = 4 request-equivalents; the merge approval itself is excluded as normal work. Low confidence. |
+| Cost calculation | Copilot: 4 x $0.04 = $0.16. Actions: 2 min x $0.008 = $0.016. Total **$0.176 (rounded $0.18)**. |
+| User attention | 4 messages and one manual action in the GitHub UI. Non-billable. |
+| **Total (direct cost)** | **$0.18 nominal estimate; actual billed cost unknown and may be $0.** |
+| Billing review request | Ask GitHub Support to verify the billed minutes for run 41353232136 attempt 1 and consider a credit. |
+| Evidence confidence | High: run IDs, timestamps, error code. Low: Copilot proxy. |
+| Resolution | The user re-ran the deploy; the app is on the current main. Rule 40 enforced in `.github/skills/workflow/SKILL.md` Step 9 (Merge). |
+| Rules added / enforcement | 40) Merge one PR at a time into main and wait for its deploy run to finish before the next merge. Before promising a workflow re-run or dispatch, the agent MUST check that the token can perform it, and otherwise ask the user to use the GitHub UI. |
+| Support case status | Not filed. Private packet at `.local/github-support/INC-024.txt`. |
+
+**Copy/paste GitHub Support summary**
+
+```text
+Subject: Billing review request for a failed Azure deploy caused by back-to-back merges
+
+Repository: Eloso-chi/coin-price-finder-agent
+Public session reference: 93633a02-...-d15
+Copilot session: [insert full UUID from private .local/github-support/INC-024.txt]
+UTC window: 2026-11-01T21:40:27Z through 2026-11-01T22:59Z
+Merge commits: 317fbb9d7e66b45720fd86a43b196e721643a580, 263413f2d18f6fb15b4eb95d7ca7b4eeb0c13859
+Actions runs: 41353219112 (success), 41353232136 (attempt 1 failed with HTTP 409, re-run succeeded)
+
+Copilot merged two PRs 9 seconds apart; the second deploy hit an Azure 409 and failed (about 88 seconds, 2 billable minutes) until re-run manually. Proxy estimate: 4 request-equivalents plus 2 Actions minutes, about $0.18. Not invoice data. Please verify billed usage and consider a credit. Repository record: docs/WASTE-LEDGER.md INC-024.
+```
+
+---
+
+### INC-025: Unverified Subagent Claims Relayed as Findings, Plus a Console-Encoding Misdiagnosis
+
+| Field | Value |
+|-------|-------|
+| Date / UTC window | 2026-11-02T01:50Z through 02:33Z; about 25 active minutes. |
+| Category | `agent-violation` |
+| Attribution | Agent. |
+| Rule(s) violated | None tracked. The lesson of INC-021 (verify claims before reporting) existed only in persistent repository memory, not in an enforced repository rule. |
+| Root cause | The Freshness Triage subagent's report was relayed with specifics that were not checked against `scripts/generate-freshness-report.js`, `scripts/terapeak-export.py` or the run telemetry: stalest-first ordering, gold NO DATA slot waste, dormancy resets, P2 NO DATA history. The headline "Fresh 99" (newest-sale age) was presented as progress, and P0.1 clearance was omitted. Separately, 33 non-ASCII lines were first diagnosed as mojibake because the console mis-decoded git output; six scan scripts ran before code points showed they were ordinary Unicode characters. |
+| Impact | The user challenged the report; about 20 tool calls and two corrected replies were needed. Recommendations to reset dormancy and to rank by value were withdrawn. No production action was taken on the wrong advice. |
+| Mistakes | 1) Relayed subagent claims as conclusions without verifying the ones that drove recommendations. 2) Led with a metric whose definition I had not checked. 3) Omitted the P0.1 backlog clearance. 4) Misdiagnosed non-ASCII lines as corruption. 5) Implied the data PR might be urgent from an unverified storage hypothesis. |
+| PR / commit evidence | No code merged for the incident itself. |
+| Session evidence | Public reference `93633a02-...-d15`; full UUID in ignored `.local/github-support/INC-025.txt`. Repository `Eloso-chi/coin-price-finder-agent`. |
+| Workflow evidence | None attributable. |
+| Rework inventory | 78 tool calls; one Freshness Triage subagent run; six scan scripts; two corrected replies. |
+| Measured usage | About 25 active minutes; 78 tool calls; 1 subagent. |
+| Estimated usage | 1 corrective user prompt plus 1 subagent launch whose output needed re-verification = 2 request-equivalents (an upper bound: the other requests in the window were normal work). Low confidence. |
+| Cost calculation | Copilot: 2 x $0.04 = **$0.08 estimated gross equivalent**. Actions, Codespace, Azure: $0.00. |
+| User attention | One explicit challenge ("are you sure") that also asked for verification and an update. Non-billable. |
+| **Total (direct cost)** | **$0.08 nominal Copilot gross-equivalent estimate; actual billed cost unknown and may be $0.** |
+| Billing review request | Ask GitHub Support to inspect Copilot usage for the session and window above; requested remedy: adjustment for the verification rework caused by unverified claims. |
+| Evidence confidence | High: counts and window. Medium: active minutes. Low: dollar amount. |
+| Resolution | Corrected analysis delivered; queue mechanics recorded in persistent repository memory. Rule 41 enforced in `.github/agents/freshness-triage.agent.md` and `.github/skills/workflow/SKILL.md` ("Subagent Findings Are Unverified"). |
+| Rules added / enforcement | 41) Subagent findings that drive a recommendation MUST be verified against code or logs before they are reported, and each reported claim MUST be labelled verified or unverified. A summary metric MUST NOT be presented as progress until its definition has been checked in code. |
+| Support case status | Not filed. Private packet at `.local/github-support/INC-025.txt`. |
+
+**Copy/paste GitHub Support summary**
+
+```text
+Subject: Billing review request for verification rework caused by unverified subagent claims
+
+Repository: Eloso-chi/coin-price-finder-agent
+Public session reference: 93633a02-...-d15
+Copilot session: [insert full UUID from private .local/github-support/INC-025.txt]
+UTC window: 2026-11-02T01:50Z through 2026-11-02T02:33Z
+
+Copilot relayed a subagent report with unverified specifics and a misdiagnosis, requiring user challenge and about 20 tool calls of correction. Proxy estimate: 2 request-equivalents, about $0.08. Not invoice data. Please inspect actual premium-request counts and multipliers and consider an adjustment. Repository record: docs/WASTE-LEDGER.md INC-025.
+```
+
+---
+
 
 ## Summary
 
@@ -509,17 +808,25 @@ The ledger's low-confidence visible-event proxy is 89 request-equivalent events,
 | INC-016 | Jun 24 (origin) / Jun 30 (unwind) | recovery-ops (docs-quality; attribution ambiguous) | #276W entry reproduction-matrix labels transposed at authoring; investigation cost absorbed by PR #219 session | $0.33 |
 | INC-017 | Aug 13 | agent-violation / documentation-drift / recovery-ops | PR #278 22-file corrective docs sweep caused by repeated failure to enforce existing doc-coverage rules | $0.04 known Actions equivalent + Copilot unknown |
 | INC-018 | Aug 13-14 | agent-violation / documentation-drift / recovery-ops | Recursive Onboard zero-gap loop expanded PR #280 follow-up to 38 files and 112 Jest commands | $3.56 nominal Copilot estimate; actual unknown |
-| | | | **Running Total** | **$29.63 nominal ledger estimate + unknown actual Copilot billing for INC-017/INC-018** |
+| INC-019 | Oct 29 - Nov 2 | agent-violation / recovery-ops | Review loops recurred after INC-018 (#355, #356, #357): 93 reviewer launches vs ~24 baseline, fixes applied without new approval | $3.08 nominal Copilot estimate; actual unknown |
+| INC-020 | Oct 30 | code-bug / agent-violation | PR #357 Windows-only integration tests; six failed CI runs used as the debugger | $0.05 nominal Actions estimate |
+| INC-021 | Nov 1 | code-bug / agent-violation | PR #364 weight parser: three wrong versions, unverified no-regression claims, doc-count error | $0.38 nominal estimate; actual unknown |
+| INC-022 | Oct 31 | code-bug / agent-violation / recovery-ops | PR #357 pacing-gate and display defects found in live operation: 13-hour idle operator, failed startups | $1.64 nominal Copilot estimate; actual unknown |
+| INC-023 | Oct 29 - Nov 1 | agent-violation | Runbook order and reporting-contract non-compliance (13 corrective prompts) | $0.52 nominal Copilot estimate; actual unknown |
+| INC-024 | Nov 1 | recovery-ops | Back-to-back merges caused an Azure 409 deploy conflict; manual re-run needed | $0.18 nominal estimate; actual unknown |
+| INC-025 | Nov 2 | agent-violation | Unverified subagent claims relayed as findings; console-encoding misdiagnosis | $0.08 nominal Copilot estimate; actual unknown |
+| | | | **Running Total** | **$35.56 nominal ledger estimate + unknown actual Copilot billing for INC-017 through INC-025** |
 
 ---
 
 ## Metrics
 
-- **Total waste (all time):** $29.63 nominal ledger estimate + unknown actual Copilot billing for INC-017/INC-018
-- **Worst category:** code-bug + agent-violation combined (INC-013 alone is $10.03 / 34%)
-- **Worst single incident:** INC-013 at $10.03 (pool-isolation violation, multi-PR arc; 34% of current ledger total)
-- **Agent violations:** 13 incidents, $22.79 nominal + unknown actual Copilot billing for INC-017/INC-018
-- **Code bugs:** 3 incidents, $12.56
+- **Total waste (all time):** $35.56 nominal ledger estimate + unknown actual Copilot billing for INC-017 through INC-025
+- **Worst category:** code-bug + agent-violation combined (INC-013 alone is $10.03 / 28%)
+- **Worst single incident:** INC-013 at $10.03 (pool-isolation violation, multi-PR arc; 28% of current ledger total)
+- **Agent violations:** 19 incidents, $28.54 nominal + unknown actual Copilot billing for INC-017 through INC-025 (INC-024 is recovery-ops only and is not counted here)
+- **Code bugs:** 6 incidents, $14.63 (INC-020, INC-021 and INC-022 added; each is also counted under agent violations)
 - **Recovery-ops (attribution-ambiguous / prior-session-carryover):** 1 incident (INC-016), $0.33
 - **Documentation drift:** 2 incidents (INC-017/INC-018), $3.60 nominal + unknown actual Copilot billing
-- **Preventable (with rules now in place):** $29.30 nominal + unknown actual Copilot billing for INC-017/INC-018 (INC-016 preventable at the *authoring* session, not this one)
+- **Preventable (with rules now in place):** $35.23 nominal + unknown actual Copilot billing for INC-017 through INC-025 (INC-016 preventable at the *authoring* session, not this one)
+- **Housekeeping (25 incidents):** the ledger now holds 25 incidents. No Support case is resolved (INC-017 through INC-025 are "Not filed"), so no support detail is yet eligible to move to `docs/waste-evidence/`; the move applies once cases resolve.

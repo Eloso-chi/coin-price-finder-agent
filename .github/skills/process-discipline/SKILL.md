@@ -37,6 +37,21 @@ for the others it is author discipline.
 
 ---
 
+## Process Rules From Recent Incidents
+
+Rules 35-41 (INC-019 through INC-025). Read the INC entry and the enforcement
+surface before work that touches these areas.
+
+| Rule | Incident | Enforcement surface |
+|---|---|---|
+| 35 Review-round cap; new findings need new approval | INC-019 | `.github/skills/workflow/SKILL.md` Review-Round Cap |
+| 36 Platform-aware test runtimes; Linux run before first push | INC-020 | `.github/copilot-instructions.md` Testing Rules; pre-commit reviewer check J |
+| 37 No-regression claims need a reproducible probe | INC-021 | `.github/skills/workflow/SKILL.md` Behavior-Change Claims |
+| 38 Operator pacing/display/login changes need two-pass evidence | INC-022 | `.github/pull_request_template.md` Scraper Risk And Compliance |
+| 39 Status reports come from `scripts/operator-status.py` | INC-023 | `.github/agents/terapeak-operator.agent.md`; runbook status contract |
+| 40 Sequential merges; check token scope before promising a re-run | INC-024 | `.github/skills/workflow/SKILL.md` Step 9 |
+| 41 Subagent findings are verified before reporting | INC-025 | `.github/agents/freshness-triage.agent.md`; workflow skill |
+
 ## WASTE-LEDGER Author Guide
 
 ### When to file a new INC

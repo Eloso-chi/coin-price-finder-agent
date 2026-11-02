@@ -29,7 +29,7 @@ for current counts instead of carrying volatile suite totals.
 | Agent File | Name | Mode | Purpose |
 |---|---|---|---|
 | `code-reviewer.approval-gated.agent.md` | Code Reviewer | Read-only | Primary correctness, testing, maintainability, domain, and operability review, including test persistence isolation via no-op or mocked/temp paths. Runs beside specialist reviewers under `/review-deep`. |
-| `pre-commit-reviewer.agent.md` | Pre-commit Reviewer | Read-only | Staged-change gate: secrets/tests, data-model sync, mapped documentation, Onboard acceptance, support-ready incident evidence, and merge readiness. |
+| `pre-commit-reviewer.agent.md` | Pre-commit Reviewer | Read-only | Staged-change gate: secrets/tests, data-model sync, mapped documentation, Onboard acceptance, support-ready incident evidence, process-discipline checks (check J: platform-aware tests, behavior-change claims, operator two-pass evidence), and merge readiness. |
 | `implementer.approval-only.agent.md` | Implementer | Write | Applies ONLY explicitly approved findings from Code Review Report. Minimal diffs. |
 | `onboard.agent.md` | Onboard | Read-only | Bootstraps full project context and reports `BLOCKING_DELTA`, `PRE_EXISTING_DEBT`, and `OPTIONAL` findings with one correction pass and one verification rerun. |
 | `sales-aggregator.agent.md` | Sales Aggregator | Mixed | Uses portable repository-root commands and verifies listener ownership before background startup; manages Terapeak dashboard, freshness, and deep batches using pages 2-5/250 results for non-gold bullion, page 2/100 results for gold and non-bullion, and a 120-search recycle default. |
@@ -61,8 +61,8 @@ for current counts instead of carrying volatile suite totals.
 | `.github/skills/code-review/SKILL.md` | Shared review framework (severity defs, finding schema, report structure) |
 | `.github/skills/numismatics/SKILL.md` | Domain knowledge: classification decision tree, finish detection, audit checklist, MANDATORY Pool-Isolation Contract |
 | `.github/skills/testing/TESTING-PLAN.md` | Testing standards, batch plan, coverage targets |
-| `.github/skills/workflow/SKILL.md` | Canonical PR workflow (hard rule, tiered execution, 10-step lifecycle, WASTE-LEDGER carve-out) |
-| `.github/skills/process-discipline/SKILL.md` | Hot-file -> INC mapping + WASTE-LEDGER author guide (schema, rate card, citation discipline) |
+| `.github/skills/workflow/SKILL.md` | Canonical PR workflow (hard rule, tiered execution, 10-step lifecycle, WASTE-LEDGER carve-out, review-round cap, behavior-change claims, sequential merges, subagent-finding verification) |
+| `.github/skills/process-discipline/SKILL.md` | Hot-file -> INC mapping, Process Rules From Recent Incidents table (rules 35-41), and WASTE-LEDGER author guide (schema, rate card, citation discipline) |
 | `.github/skills/valuation/SKILL.md` | FMV / confidence / buy-sell decision engine routing reference; cites decision-engine-spec, pool-isolation contract, INC-013 |
 | `.github/skills/comp-data/SKILL.md` | eBay 3-tier cascade + Terapeak ingestion / lookup; cites terapeak-runbook, pool-isolation contract, INC-001/002/004/011/013 |
 

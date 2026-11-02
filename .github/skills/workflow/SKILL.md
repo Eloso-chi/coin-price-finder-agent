@@ -87,6 +87,30 @@ zero-gap audit requires explicit user approval and a separate branch. This
 scope rule was added after the recursive documentation loop recorded in
 `docs/WASTE-LEDGER.md` INC-018.
 
+## Review-Round Cap
+
+Recorded after `docs/WASTE-LEDGER.md` INC-019 (rule 35). After the user approves a
+set of review findings, each reviewer gets at most one verification rerun. Any
+finding outside the approved set MUST be put to the user as a new approval
+question before it is applied. A reviewer prompt MUST NOT be labelled "Final"
+unless it is the declared last rerun. Before launching any reviewer, state the
+round number and this cap.
+
+## Behavior-Change Claims
+
+Recorded after INC-021 (rule 37). A claim that a classifier or parser change
+causes no regression MUST cite a reproducible old-versus-new probe over the real
+corpus (parsed with a CSV reader, never comma-splitting) plus an adversarial
+input set, run before the claim is made. Counts in the PR body and docs MUST be
+regenerated from that probe.
+
+## Subagent Findings Are Unverified
+
+Recorded after INC-025 (rule 41). Subagent findings that drive a recommendation
+MUST be verified against code or logs before they are reported, and each
+reported claim MUST be labelled verified or unverified. A summary metric MUST NOT
+be presented as progress until its definition has been checked in code.
+
 ## Onboard Agent Approval Boundary
 
 The Onboard agent is read-only. It may inspect documents and source and report
@@ -232,6 +256,11 @@ protection still blocks the merge, and the user explicitly approves the
 override. Record the reason in the PR. Incomplete, failed, or cancelled checks
 cannot be bypassed.
 
+Merge one PR at a time into `main` and wait for its deploy run to finish before
+the next merge (INC-024, rule 40): concurrent main deploys race and the second
+fails with an Azure 409. Before promising a workflow re-run or dispatch, check
+that the token can perform it; otherwise ask the user to use the GitHub UI.
+
 Default merge strategy is `--merge` (commit-preserving) unless the user
 specifies otherwise. After merge:
 
@@ -309,6 +338,9 @@ Before requesting merge:
 - [ ] Contract-affecting changes have a clean Onboard acceptance tied to the
   current commit, or a reviewer-approved no-impact exemption
 - [ ] Required CI checks completed successfully before merge
+- [ ] Review rounds stated and within the Review-Round Cap; findings outside the
+  approved set were approved by the user before being applied
+- [ ] Merges into `main` are sequential: previous deploy finished before this merge
 - [ ] Any new WASTE-LEDGER entry satisfies the public-safe support schema and
   has a private ignored support packet when full identifiers are needed
 - [ ] For pool-isolation surfaces (ebayService classifyGradeType /

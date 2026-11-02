@@ -57,6 +57,8 @@ preflights only. See [docs/memory/terapeak-runbook.md "Long-running operator (co
 
 ## Required startup sequence
 
+When the user says to follow the runbook, quote the runbook step number before each action and never substitute another machine's procedure (INC-023).
+
 1. Detect machine letter (see above).
 2. Read the runbook for context if unclear:
    - H: [docs/runbooks/local-scraper-wsl2.md](../../docs/runbooks/local-scraper-wsl2.md)
@@ -99,6 +101,13 @@ preflights only. See [docs/memory/terapeak-runbook.md "Long-running operator (co
   never use `SecurityTypes None` or forward port 5901.
 - Never start deep pagination unless explicitly requested.
 - Use terms aggregate/pull, not scrape.
+
+## Status reports
+
+Status reports MUST be produced by `python3 scripts/operator-status.py` (read-only)
+and pasted unmodified: it prints the runbook's status-report contract plus the
+cumulative run view (WASTE-LEDGER INC-023, rule 39). Do not hand-build status
+text. Add `--passes N` to change how many per-pass rows are shown.
 
 ## Health checks to report
 
