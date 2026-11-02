@@ -132,6 +132,10 @@ default travel workflow -- they cause `auto` mode to attempt blob-first uploads.
 Set `VERIFY_IMPORT=1` to log explicit warnings when ingestion cannot be
 confirmed immediately (any non-api mode).
 
+## Checking status
+
+Use `python3 scripts/operator-status.py` (read-only) for a status report. It finds this Codespace operator's pass logs and log automatically and prints the status contract (`docs/runbooks/local-scraper-wsl2.md`, Status report contract) plus a cumulative run view; do not hand-build status text.
+
 ## Hard limits
 
 - **One active jar per Codespace.** If you've used the Codespace for scraping

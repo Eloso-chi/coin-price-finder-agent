@@ -372,7 +372,7 @@ for k in ('refresh','initial-fetch','deep-paginate','evidence-probe'):
 
 #### Status report contract
 
-When reporting scraper status in chat, use this exact template:
+Generate the report with `python3 scripts/operator-status.py` (read-only; reads `cache/terapeak-runs/`, the newest pass log and the operator log) and paste its output unmodified. Hand-built status text is out of policy (WASTE-LEDGER INC-023). When reporting scraper status in chat, the script prints this exact template, followed by a labelled cumulative run view:
 
 ```text
 Pass N | Batch: XX coins | ~YY min

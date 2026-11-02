@@ -193,6 +193,25 @@ cancelled required checks. Incomplete or unsuccessful required checks cannot be 
 Normal merge is the default. `--admin` requires explicit user approval and a
 documented reason; it must never be used to bypass queued or in-progress checks.
 
+#### J. Process Discipline (BLOCK if a rule below is violated)
+
+Rules 36-38 from `docs/WASTE-LEDGER.md` INC-020, INC-021 and INC-022:
+
+- BLOCK if a new or changed Jest test spawns `wsl`, `powershell`, `bash` or `python3`
+  unconditionally (no platform selection or explicit gate) or there is no
+  evidence of a Linux run for it.
+- BLOCK if the PR body or docs claim a classifier or parser change has no
+  regression, or quote blast-radius counts, without a reproducible old-versus-new
+  probe over the real corpus plus an adversarial input set.
+- BLOCK if the PR changes operator pacing, display, login or loop behavior
+  without evidence from two consecutive real or simulated passes on the target
+  machine, including an Elevated transition, and a single shared clock for sleep
+  and gate.
+
+Review-round counting (rule 35) is the orchestrator's duty: report the round
+number you were told, and WARN if a prompt is labelled "Final" but further
+rounds are requested.
+
 ### Step 3: Report
 
 Print a concise report:
@@ -210,6 +229,7 @@ Print a concise report:
 | Documentation coverage | PASS / BLOCK |
 | Onboard acceptance | REQUIRED POST-COMMIT / PASS / NOT REQUIRED |
 | WASTE-LEDGER evidence | PASS / BLOCK / NOT APPLICABLE |
+| Process discipline | PASS / WARN / BLOCK / NOT APPLICABLE |
 | Required CI checks | PASS / BLOCK / NOT CHECKED (pre-commit only) |
 
 [Details for any BLOCK or WARN items]

@@ -136,3 +136,4 @@ Always tell the user:
 - The freshness report is always regenerated fresh -- don't rely on stale cache.
 - If the server isn't running, start it and wait for healthy before proceeding.
 - After presenting the triage, wait for the user to decide what to run.
+- Label every claim in the report as verified (checked against code or logs) or unverified. Never present a summary metric as progress before checking its definition in code: "Fresh" counts datasets whose newest sale is under 15 days old, not recently scraped ones, so progress is shown by the Skip and actionable totals (INC-025).

@@ -11,6 +11,7 @@
 - **Never add blanket `jest.retryTimes()`** to mask flakiness.
 - Fix flaky tests by addressing root cause (determinism, isolation, time control).
 - **Persistence isolation:** tests must not mutate real repository data, operator caches, or durable user state. Exercise persistence through injected mocks, temporary paths, or an explicit test-mode no-op at the storage boundary; `NODE_ENV=test` alone is not proof of isolation. Every new persistence path needs a focused isolation test.
+- **Platform-aware runtimes (INC-020):** tests that spawn platform tools (`wsl`, `powershell`, `bash`, `python3`) must choose the runtime by platform (native on Linux CI, WSL on Windows). A PR that adds or changes such tests must be run under Linux (WSL or equivalent) before its first push. Never push a diagnostic-only commit to learn a failure that can be reproduced locally.
 - Run `npm test` after every code change and confirm zero failures before committing.
 
 ## Safety
@@ -33,6 +34,7 @@
 - Use `/pre-commit` for a quick safety check before committing.
 - Use `/test-coverage` to analyze test gaps and generate missing tests.
 - Review agents are read-only. The Implementer only acts on explicit `APPLY` commands.
+- After the user approves a set of review findings, each reviewer gets one verification rerun. Findings outside the approved set need a new approval question. State the round number and cap before each reviewer launch; never label a round "Final" unless it is the last (INC-019).
 - Use the UX Reviewer agent for accessibility (WCAG 2.2 AA), responsive design, interaction patterns, IA, Nielsen heuristics, and performance UX checks on UI changes.
 - The pre-commit reviewer auto-detects UI changes and recommends running `@ux-reviewer` before merge.
 - Include the UX Decision Log from `@ux-reviewer` in PR descriptions when UI changes are involved.

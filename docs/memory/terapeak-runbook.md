@@ -241,6 +241,8 @@ bash scripts/show-terapeak-runs.sh totals          # lifetime totals
 bash scripts/show-terapeak-runs.sh --since 2026-06-29 runs   # date filter
 ```
 
+For a status report in chat, run `python3 scripts/operator-status.py` (read-only): it reads this Codespace operator's pass logs and log under `cache/terapeak-operator-codespace-passes/` and `cache/terapeak-operator-codespace_<RUN_ID>.log` and prints the runbook status contract plus a cumulative run view. The contract itself is in `docs/runbooks/local-scraper-wsl2.md` (Status report contract).
+
 Both ledger files are append-only; no rotation, no truncation. They survive
 across runs and codespace stop/resume within the same workspace. The ledger
 lives under `cache/` (gitignored), so a fresh clone or recreated codespace

@@ -114,4 +114,5 @@
 - [ ] Risk-state transitions and rollback behavior reviewed against `docs/memory/anti-bot-operations.md`
 - [ ] Change does not automate challenge bypass, rotate identities/IPs, or weaken Cooldown stop gates
 - [ ] Local and travel runbooks remain consistent
+- [ ] Pacing, display, login or loop changes include evidence from two consecutive passes on the target machine, including an Elevated transition, with sleep and gate on one clock (INC-022)
 - [ ] First production run will capture #284H telemetry and use the anti-bot WASTE-LEDGER template if challenged
