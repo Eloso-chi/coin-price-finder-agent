@@ -390,7 +390,7 @@ If an asking price is provided:
 
 - **Text** -- `{ "text": "1921 Morgan Dollar | qty=5 | grade=MS-63\n2024 ASE" }` (one coin per line, pipe-delimited fields)
 - **JSON** -- `{ "items": [{"query": "1921 Morgan Dollar", "qty": 5, "grade": "MS-63"}] }`
-- **Excel** -- multipart form upload of `.xlsx` file (reuses the Excel mapper)
+- **Excel** -- currently unavailable: the route's async mapper adapter is not awaited and the request returns HTTP 400; use text or JSON
 
 **SSE events:** `coin` (per-result with index/total), `summary` (lot-level analysis), `done`, `error`.
 

@@ -85,7 +85,7 @@ __tests__/                 Jest suites plus fixtures/helpers/setup; run `npm tes
 - **pcgsService** -- PCGS CoinFacts API, parseDescription text parser, static PCGS number table
 - **valuationService** -- FMV blending (3 modes: bullion-spot-premium, certified-blend, raw-blend), confidence scoring, buy/sell decisions, grade-tiered weights, sale context adjustment
 - **greysheetService** -- Greysheet CDN Public API V2 (wholesale/retail pricing, 5 price sources), finish-aware type fallback
-- **bulkEvaluateService** -- Lot evaluator (50-500 coins), 10-coin concurrency, 3-job cap, SSE streaming, lot-level discounts
+- **bulkEvaluateService** -- Lot evaluator (non-empty text/JSON list, first 500 entries processed), 10-coin concurrency, 3-job cap, SSE streaming, lot-level discounts
 - **metalsSpotPrice** -- 4-provider round-robin (gold-api-com, goldprice-org, goldapi, metals-api), multi-tier fallback (live -> stale -> disk -> hardcoded)
 - **metalsHistoryService** -- Daily spot snapshots (cache/metals_history.json + Cosmos)
 - **greysheetHistoryService** -- Daily Greysheet price snapshots (cache/greysheet_history.json + Cosmos)

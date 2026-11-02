@@ -155,7 +155,7 @@ If staged changes materially affect architecture, routes/APIs,
 persistence/data models, operations/runbooks, environment variables,
 agents/prompts/skills, or user-facing workflows, require a top-level `@onboard`
 acceptance run after commit and before merge. The acceptance must report no
-actionable active documentation gaps and identify the newly created commit.
+`BLOCKING_DELTA` findings and identify the newly created commit.
 During pre-commit, report `Onboard acceptance` as `REQUIRED POST-COMMIT`; do not
 BLOCK the commit for evidence that cannot yet exist. Nested reviewers must not
 fabricate it. A reviewer-approved no-impact exemption is allowed only for typo/formatting edits
