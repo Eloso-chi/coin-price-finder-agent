@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // scripts/bar-pricing-health.js -- Sanity-check bar pricing across sizes/brands
 // Usage: node scripts/bar-pricing-health.js [--base-url http://localhost:3000]
+// Requires ADMIN_API_KEY in the environment (exits 3 when unset).
 'use strict';
 
 const BASE_URL = (() => {
@@ -11,7 +12,11 @@ const BASE_URL = (() => {
   return 'http://localhost:3000';
 })();
 
-const API_KEY = process.env.ADMIN_API_KEY || 'terapeak-1775345508';
+const API_KEY = process.env.ADMIN_API_KEY;
+if (!API_KEY) {
+  console.error('ADMIN_API_KEY is required. Set it in your environment (see scripts/load-secrets.sh) and rerun.');
+  process.exit(3);
+}
 
 // ── Test cases: [query, expectedMetal, minFmv, maxFmv, sizeGrams] ──
 const CASES = [
