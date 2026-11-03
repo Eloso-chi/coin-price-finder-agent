@@ -5002,7 +5002,9 @@ Gated on data: run pricing-health across a Reverse-Proof slate (2023 RP Morgan, 
 
 ---
 
-### #306H. Honest collection loading failures and recoverable inline mutation states [P1 -- RELIABILITY-UX / ERROR-RECOVERY] -- PROPOSED 2026-08-31
+### #306H. Honest collection loading failures and recoverable inline mutation states [P1 -- RELIABILITY-UX / ERROR-RECOVERY] -- IMPLEMENTED 2026-11-03
+
+**Status update (2026-11-03):** Implemented in `public/js/storage.js` (categorized `CollectionError`, 20-second timeout, `getAllDecrypted` never returns `[]` for a failure or a non-array `coins` body), `public/js/my-coins.js` (distinct load-failure views with Log in again / Try again, adjacent saving/validation/server-error text with `aria-invalid` and `aria-describedby`, previous value restored after a failed save, per-item removal with a forced reload and a persistent retry) and `public/index.html` (styles). Tests: `__tests__/frontend/collectionStorageErrors.test.js` (401, 403, 429, 500, timeout, network for the load and each mutation; malformed for the load; 404 handling) and `__tests__/frontend/myCoinsFailureStates.test.js` (load states, edit and delete failures with uncertain vs definitive outcomes, queued-edit coalescing, bulk partial failure, session loss, status region). Retry is offered only for retryable codes. Not changed: `hasCoin`, `getCoin` and `count` in `storage.js` still map failures to `false`, `null` and `0`; the add-coin flows in `public/index.html` use `hasCoin` and `getCoin`, and `addCoin` overwrites an existing entry, so a transient failure there can overwrite a saved coin. A separate follow-up item is recommended; it is not fixed here. Review: pre-commit, code, and UX reviews applied.
 
 **Origin:** Comprehensive UX Reviewer audit at commit `557095966cb1580f330322beff4cd83042de9cb4` (2026-08-30), S2 collection-state and mutation-feedback findings.
 

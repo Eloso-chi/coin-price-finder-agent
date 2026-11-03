@@ -21,6 +21,10 @@ const MyCoins = (() => {
   let _page = 0;
   const PAGE_SIZE = 50;
 
+  let _statusEl = null;     // persistent status region (outside the re-rendered container)
+  let _statusTimer = null;
+  const STATUS_CLEAR_MS = 4000;
+
   // Spot price cache (reused across renders for 5 minutes)
   let _spotPrices = null;  // { silver: number, gold: number } | null
   let _spotPricesFetchedAt = 0;
@@ -56,8 +60,330 @@ const MyCoins = (() => {
     });
   }
 
+  // -- Failure and progress feedback --
+  // The status region lives outside _container so it survives table re-renders.
+  // It has a polite channel (progress/saved) and an alert channel (failures).
+  const _inFlight = new Set();   // 'qty:<hash>' / 'cost:<hash>' while that save is running
+  const _queued = new Map();     // key -> latest value typed while that save was running
+  let _authListening = false;
+
+  function _statusRegion() {
+    if (_statusEl && _statusEl.isConnected) return _statusEl;
+    if (!_container || !_container.parentNode) return null;
+    let el = document.getElementById('mycoins-status');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'mycoins-status';
+      el.className = 'mycoins-status';
+      el.innerHTML = '<div class="mycoins-status-polite" role="status" aria-live="polite"></div>' +
+        '<div class="mycoins-status-alert" role="alert"></div>';
+      _container.parentNode.insertBefore(el, _container);
+    }
+    if (el.getAttribute('data-bound') !== '1') {
+      el.setAttribute('data-bound', '1');
+      el.addEventListener('click', _onStatusClick);
+    }
+    _statusEl = el;
+    return el;
+  }
+
+  function _actionButtons(actions) {
+    return (actions || []).map(a =>
+      '<button type="button" class="btn-sm ' + a.cls + '"' +
+      (a.hashes ? ' data-hashes="' + _escAttr(a.hashes.join(',')) + '"' : '') + '>' + _esc(a.label) + '</button>'
+    ).join('');
+  }
+
+  /**
+   * kind: 'success' (polite, auto-clears), 'info' (polite, stays until replaced),
+   * 'error' (alert, stays until dismissed or replaced). Success and info never touch the alert.
+   */
+  function _setStatus(kind, text, actions) {
+    const el = _statusRegion();
+    if (!el) return;
+    clearTimeout(_statusTimer);
+    const polite = el.querySelector('.mycoins-status-polite');
+    const alertBox = el.querySelector('.mycoins-status-alert');
+    if (kind === 'error') {
+      polite.textContent = '';
+      alertBox.innerHTML = '<span class="mycoins-status-text">' + _esc(text) + '</span>' +
+        _actionButtons(actions) +
+        '<button type="button" class="btn-sm mycoins-status-dismiss">Dismiss</button>';
+    } else {
+      polite.textContent = text;
+      if (kind === 'success') {
+        _statusTimer = setTimeout(() => { if (_statusEl) polite.textContent = ''; }, STATUS_CLEAR_MS);
+      }
+    }
+  }
+
+  function _clearStatus() {
+    clearTimeout(_statusTimer);
+    if (!_statusEl) return;
+    _statusEl.querySelector('.mycoins-status-polite').textContent = '';
+    _statusEl.querySelector('.mycoins-status-alert').textContent = '';
+  }
+
+  // Recovery actions replace the control that had focus; park it on the container.
+  function _restoreFocusIfLost() {
+    const ae = document.activeElement;
+    if ((!ae || ae === document.body) && _container) _container.focus({ preventScroll: true });
+  }
+
+  function _openLogin() {
+    if (typeof window._openAuthDialog === 'function') window._openAuthDialog();
+  }
+
+  async function _onStatusClick(e) {
+    const t = e.target;
+    if (t.closest('.mycoins-status-dismiss')) { _clearStatus(); _restoreFocusIfLost(); return; }
+    if (t.closest('.mycoins-relogin')) { _openLogin(); return; }
+    if (t.closest('.mycoins-retry-load')) {
+      _clearStatus();
+      await render(true);
+      _restoreFocusIfLost();
+      return;
+    }
+    const retryRemove = t.closest('.mycoins-retry-remove');
+    if (retryRemove) {
+      const hashes = (retryRemove.getAttribute('data-hashes') || '').split(',').filter(Boolean);
+      if (hashes.length) {
+        await _removeHashes(hashes);
+        _restoreFocusIfLost();
+      }
+    }
+  }
+
+  // After a login the expired-session view and any log-in alert are stale: reload.
+  function _onAuthChange(e) {
+    if (!_container) return;
+    if (!e || !e.detail) {
+      _clearStatus();
+      _lastPriced = null;
+      _lastRenderedAt = 0;
+      return;
+    }
+    const stale = _container.querySelector('.mycoins-error') ||
+      (_statusEl && _statusEl.querySelector('.mycoins-relogin'));
+    if (stale) {
+      _clearStatus();
+      render(true);
+    }
+  }
+
+  /**
+   * Map a CollectionError (or anything thrown) to user-facing text and flags.
+   * indeterminate: the request may have been applied (timeout, network, 5xx);
+   * reload: the on-screen list is out of date; unexpected: not a CollectionError.
+   */
+  function _describeFailure(err) {
+    const base = { login: false, retry: false, indeterminate: false, reload: false, unexpected: false };
+    switch (err && err.code) {
+      case 'auth-expired':
+        return { ...base, text: 'Your session has expired. Log in again to continue.', login: true };
+      case 'forbidden':
+        return { ...base, text: 'You do not have access to this collection with the current login. Log in again to continue.', login: true };
+      case 'rate-limited':
+        return { ...base, text: 'Too many requests right now. Wait a moment, then try again.', retry: true };
+      case 'timeout':
+        return { ...base, text: 'The server took too long to respond.', retry: true, indeterminate: true };
+      case 'network':
+        return { ...base, text: 'The server could not be reached. Check your connection.', retry: true, indeterminate: true };
+      case 'malformed':
+        return { ...base, text: 'The server sent a response that could not be read.', retry: true };
+      case 'not-found':
+        return { ...base, text: 'This coin no longer exists.', reload: true };
+      default:
+        if (err && err.code && err.status && err.status < 500 && err.message) {
+          return { ...base, text: err.message };
+        }
+        if (err && err.code) {
+          return { ...base, text: 'The service is unavailable right now.', retry: true, indeterminate: true };
+        }
+        return { ...base, text: 'Something went wrong.', retry: true, indeterminate: true, unexpected: true };
+    }
+  }
+
+  function _renderLoadError(err) {
+    const d = _describeFailure(err);
+    if (d.unexpected) console.error('[my-coins] unexpected load failure', err);
+    // Drop cached rows so a failed load can never be acted on or re-shown as current.
+    _lastPriced = null;
+    _lastRenderedAt = 0;
+    _container.innerHTML = '<div class="mycoins-error" role="alert">' +
+      '<p>' + _esc(d.text) + ' Your collection has not been changed.</p>' +
+      '<div class="mycoins-error-actions">' +
+      (d.login ? '<button type="button" class="btn-sm mycoins-relogin">Log in again</button>' : '') +
+      '<button type="button" class="btn-sm mycoins-retry">Try again</button>' +
+      '</div></div>';
+  }
+
+  function _requireUser(text) {
+    const user = CoinAuth.currentUser();
+    if (user) return user;
+    _setStatus('error', text || 'Your session has expired. Log in again to continue.',
+      [{ cls: 'mycoins-relogin', label: 'Log in again' }]);
+    return null;
+  }
+
+  function _itemFor(hash) {
+    return _lastPriced ? _lastPriced.find(it => it.coin.coinHash === hash) : null;
+  }
+
+  /**
+   * Short adjacent message for an inline editor. kind: 'error' | 'info'; empty text clears it.
+   * announce adds role=alert (validation only; failed saves are announced by the status region).
+   */
+  function _fieldMsg(input, text, kind, announce) {
+    const cell = input.closest('td');
+    if (!cell) return;
+    let msg = cell.querySelector('.mycoins-field-msg');
+    if (!text) {
+      if (msg) msg.remove();
+      input.removeAttribute('aria-invalid');
+      input.removeAttribute('aria-describedby');
+      return;
+    }
+    if (!msg) {
+      msg = document.createElement('span');
+      cell.appendChild(msg);
+    }
+    const id = 'mycoins-msg-' + (cell.getAttribute('data-hash') || '').slice(0, 12) +
+      (input.classList.contains('mycoins-qty-input') ? '-qty' : '-cost');
+    msg.id = id;
+    msg.className = 'mycoins-field-msg mycoins-field-msg-' + kind;
+    if (announce) msg.setAttribute('role', 'alert');
+    else msg.removeAttribute('role');
+    msg.textContent = text;
+    input.setAttribute('aria-describedby', id);
+    if (kind === 'error') input.setAttribute('aria-invalid', 'true');
+    else input.removeAttribute('aria-invalid');
+  }
+
+  function _reportSaveFailure(item, what, err) {
+    const d = _describeFailure(err);
+    const label = item ? _coinLabel(item.coin) : 'This coin';
+    const actions = [];
+    if (d.login) actions.push({ cls: 'mycoins-relogin', label: 'Log in again' });
+    if (d.indeterminate || d.reload) actions.push({ cls: 'mycoins-retry-load', label: 'Reload list' });
+    const outcome = d.indeterminate
+      ? ' The change may have been saved. Reload the list to check.'
+      : (d.reload ? ' The list is out of date. Reload it.' : ' The previous value is shown.');
+    _setStatus('error', label + ': the ' + what + ' could not be saved. ' + d.text + outcome, actions);
+  }
+
+  /**
+   * Save one inline edit. Edits typed while a save is running are coalesced: only the
+   * latest value is sent once the running save finishes, so rapid +/- clicks are not lost.
+   */
+  async function _commitEdit(spec) {
+    const { key, input, item, what } = spec;
+    _inFlight.add(key);
+    input.setAttribute('aria-busy', 'true');
+    _fieldMsg(input, 'Saving\u2026', 'info', false);
+    let failure = null;
+    try {
+      let next = spec.val;
+      for (;;) {
+        await spec.write(next);
+        spec.apply(next);
+        const queued = _queued.get(key);
+        _queued.delete(key);
+        if (queued === undefined || spec.isCurrent(queued)) break;
+        next = queued;
+      }
+    } catch (err) {
+      failure = err;
+      _queued.delete(key);
+    } finally {
+      _inFlight.delete(key);
+      input.removeAttribute('aria-busy');
+    }
+    if (failure) {
+      spec.restore();
+      const d = _describeFailure(failure);
+      _fieldMsg(input, d.indeterminate ? 'Not confirmed. Reload the list.' : 'Not saved. Previous value shown.', 'error', false);
+      _reportSaveFailure(item, what, failure);
+      return;
+    }
+    if (_lastPriced) {
+      const scrollY = window.scrollY;
+      _renderTable(_lastPriced);
+      window.scrollTo(0, scrollY);
+    }
+    _setStatus('success', spec.saved);
+  }
+
+  /**
+   * Remove coins one by one, tolerating failures. Returns the hashes that could not be removed.
+   * The list is reloaded when anything was (or may have been) removed; when nothing changed
+   * the cached rows are re-rendered so hidden rows come back without another load.
+   */
+  async function _removeHashes(hashes) {
+    const user = _requireUser('Your session has expired. Nothing was removed.');
+    if (!user) {
+      await render(true);
+      return hashes.slice();
+    }
+    const total = hashes.length;
+    const failures = [];
+    let removed = 0;
+    for (let i = 0; i < total; i++) {
+      if (total > 1) _setStatus('info', 'Removing ' + (i + 1) + ' of ' + total + '\u2026');
+      try {
+        await CoinStorage.removeCoin(user.userId, hashes[i]);
+        removed++;
+      } catch (err) {
+        failures.push({ hash: hashes[i], err });
+        if (err && (err.code === 'auth-expired' || err.code === 'forbidden')) {
+          hashes.slice(i + 1).forEach(h => failures.push({ hash: h, err }));
+          break;
+        }
+      }
+    }
+    const failed = failures.map(f => f.hash);
+    const firstError = failures.length ? failures[0].err : null;
+    const d = firstError ? _describeFailure(firstError) : null;
+    const uncertain = failures.some(f => _describeFailure(f.err).indeterminate);
+    let refreshed = true;
+    if (removed > 0 || uncertain) {
+      refreshed = await render(true);
+    } else if (_lastPriced) {
+      _renderTable(_lastPriced);
+    }
+    if (!failed.length) {
+      if (refreshed) {
+        _setStatus('success', total === 1 ? 'Coin removed.' : total + ' coins removed.');
+      } else {
+        _setStatus('error', (total === 1 ? 'The coin was' : total + ' coins were') + ' removed, but the list could not be refreshed.',
+          [{ cls: 'mycoins-retry-load', label: 'Reload list' }]);
+      }
+      return failed;
+    }
+    let outcome;
+    if (uncertain) {
+      outcome = failed.length + (failed.length === 1 ? ' coin' : ' coins') + ' may not have been removed' +
+        (refreshed ? '; the list shows what is saved.' : '. Reload the list to check.');
+    } else if (removed === 0) {
+      outcome = total === 1 ? 'The coin was not removed.' : 'None of the ' + total + ' coins were removed.';
+    } else {
+      outcome = removed + ' removed; ' + failed.length + ' not removed.' + (refreshed ? '' : ' The list could not be refreshed.');
+    }
+    const actions = [];
+    if (d.login) actions.push({ cls: 'mycoins-relogin', label: 'Log in again' });
+    if (d.retry) actions.push({ cls: 'mycoins-retry-remove', label: 'Retry removal', hashes: failed });
+    if (!refreshed) actions.push({ cls: 'mycoins-retry-load', label: 'Reload list' });
+    _setStatus('error', d.text + ' ' + outcome, actions);
+    return failed;
+  }
+
   function init() {
     _container = document.getElementById('mycoins-content');
+    if (_container) _container.setAttribute('tabindex', '-1');
+    if (!_authListening) {
+      window.addEventListener('coinauth:change', _onAuthChange);
+      _authListening = true;
+    }
     if (_container && !_delegated) {
       _setupDelegation();
       _delegated = true;
@@ -70,6 +396,14 @@ const MyCoins = (() => {
     // Click delegation: sort headers, pagination, qty +/-, remove, bulk delete
     _container.addEventListener('click', async (e) => {
       const target = e.target;
+
+      // Load-failure recovery buttons (inside the error view)
+      if (target.closest('.mycoins-retry')) {
+        await render(true);
+        _restoreFocusIfLost();
+        return;
+      }
+      if (target.closest('.mycoins-relogin')) { _openLogin(); return; }
 
       // Sortable headers use native buttons inside semantic column headers.
       const sortButton = target.closest('.mycoins-sort-button');
@@ -112,16 +446,16 @@ const MyCoins = (() => {
       const removeBtn = target.closest('.mycoins-remove');
       if (removeBtn) {
         const hash = removeBtn.getAttribute('data-hash');
-        const user = CoinAuth.currentUser();
-        if (!user || !hash || !_lastPriced) return;
+        if (!hash || !_lastPriced) return;
+        if (!_requireUser('Your session has expired. Nothing was removed.')) return;
         const item = _lastPriced.find(it => it.coin.coinHash === hash);
         const qty = item ? (item.coin.count || 1) : 1;
         const msg = qty > 1
           ? 'Remove all ' + qty + ' of this coin from your collection?'
           : 'Remove this coin from your collection?';
         if (!(await _confirm(msg))) return;
-        await CoinStorage.removeCoin(user.userId, hash);
-        render(true);
+        await _removeHashes([hash]);
+        _restoreFocusIfLost();
         return;
       }
 
@@ -132,8 +466,7 @@ const MyCoins = (() => {
         const hashes = Array.from(checked).map(cb => cb.getAttribute('data-hash'));
         if (!hashes.length) return;
         if (!(await _confirm('Delete ' + hashes.length + ' selected coin(s)?'))) return;
-        const user = CoinAuth.currentUser();
-        if (!user) return;
+        if (!_requireUser('Your session has expired. Nothing was removed.')) return;
 
         // Hide rows immediately, show undo toast for 5s
         hashes.forEach(h => {
@@ -145,9 +478,11 @@ const MyCoins = (() => {
         var toast = document.createElement('div');
         toast.className = 'mycoins-undo-toast';
         toast.setAttribute('role', 'status');
-        toast.innerHTML = hashes.length + ' coin(s) removed. <button class="mycoins-undo-btn">Undo</button>';
+        toast.innerHTML = '<span id="mycoins-undo-text">Removing ' + hashes.length + ' coin(s) in 5 seconds.</span> ' +
+          '<button class="mycoins-undo-btn" aria-describedby="mycoins-undo-text">Undo</button>';
         _container.prepend(toast);
         var undoBtn = toast.querySelector('.mycoins-undo-btn');
+        undoBtn.focus();
         undoBtn.addEventListener('click', function() {
           undone = true;
           toast.remove();
@@ -161,10 +496,8 @@ const MyCoins = (() => {
         await new Promise(r => setTimeout(r, 5000));
         toast.remove();
         if (undone) return;
-        for (let di = 0; di < hashes.length; di++) {
-          await CoinStorage.removeCoin(user.userId, hashes[di]);
-        }
-        render(true);
+        await _removeHashes(hashes);
+        _restoreFocusIfLost();
         return;
       }
     });
@@ -212,7 +545,13 @@ const MyCoins = (() => {
     // Sort buttons use native keyboard activation.
     _container.addEventListener('keydown', (e) => {
       if (e.target.classList.contains('mycoins-cost-input') || e.target.classList.contains('mycoins-qty-input')) {
-        if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); }
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          const field = e.target;
+          field.blur();
+          // A validation error keeps the user in the field they need to fix.
+          if (field.isConnected && field.getAttribute('aria-invalid') === 'true') field.focus();
+        }
         if (e.key === 'Escape') { e.target.blur(); }
       }
     });
@@ -235,66 +574,65 @@ const MyCoins = (() => {
   async function _saveQty(input) {
     const cell = input.closest('.mycoins-qty-cell');
     const hash = cell ? cell.getAttribute('data-hash') : null;
-    const user = CoinAuth.currentUser();
-    if (!user || !hash || !_lastPriced) return;
+    if (!hash || !_lastPriced) return;
+    const user = _requireUser('Your session has expired. Your last change was not saved.');
+    if (!user) return;
     const val = parseInt(input.value, 10);
     if (isNaN(val) || val < 1 || val > 9999) {
-      input.style.borderColor = 'var(--red, #e74c3c)';
+      _fieldMsg(input, 'Whole number, 1 to 9999.', 'error', true);
       return;
     }
-    input.style.borderColor = '';
-    const item = _lastPriced.find(it => it.coin.coinHash === hash);
+    const item = _itemFor(hash);
     if (!item) return;
-    const oldQty = item.coin.count || 1;
-    if (val === oldQty) return;
-    try {
-      await CoinStorage.updateCount(user.userId, user.key, hash, val);
-      item.coin.count = val;
-      const scrollY = window.scrollY;
-      _renderTable(_lastPriced);
-      window.scrollTo(0, scrollY);
-    } catch {
-      input.value = oldQty;
-      input.style.borderColor = 'var(--red, #e74c3c)';
-      setTimeout(() => { input.style.borderColor = ''; }, 2000);
-    }
+    const key = 'qty:' + hash;
+    if (_inFlight.has(key)) { _queued.set(key, val); return; }
+    _fieldMsg(input, '', 'info', false);
+    if (val === (item.coin.count || 1)) return;
+    await _commitEdit({
+      key, input, item, val, what: 'quantity', saved: 'Quantity saved.',
+      write: (v) => CoinStorage.updateCount(user.userId, user.key, hash, v),
+      apply: (v) => { item.coin.count = v; },
+      isCurrent: (v) => v === (item.coin.count || 1),
+      restore: () => { input.value = item.coin.count || 1; },
+    });
   }
 
   async function _saveCost(input) {
     const cell = input.closest('.mycoins-cost-cell');
     const hash = cell ? cell.getAttribute('data-hash') : null;
-    const user = CoinAuth.currentUser();
-    if (!user || !hash || !_lastPriced) return;
+    if (!hash || !_lastPriced) return;
+    const user = _requireUser('Your session has expired. Your last change was not saved.');
+    if (!user) return;
     const raw = input.value.trim().replace(/^\$/, '');
     const val = raw === '' ? null : parseFloat(raw);
     if (raw !== '' && (isNaN(val) || val < 0)) {
-      input.style.borderColor = 'var(--red, #e74c3c)';
+      _fieldMsg(input, 'Enter 0 or more, or leave blank.', 'error', true);
       return;
     }
-    input.style.borderColor = '';
-    const item = _lastPriced.find(it => it.coin.coinHash === hash);
+    const item = _itemFor(hash);
     if (!item) return;
-    const oldVal = item.coin.costPer;
-    if (val === oldVal || (val == null && oldVal == null)) return;
-    try {
-      await CoinStorage.updateCostPer(user.userId, user.key, hash, val);
-      item.coin.costPer = val;
-      const scrollY = window.scrollY;
-      _renderTable(_lastPriced);
-      window.scrollTo(0, scrollY);
-    } catch {
-      input.value = oldVal != null ? oldVal.toFixed(2) : '';
-      input.style.borderColor = 'var(--red, #e74c3c)';
-      setTimeout(() => { input.style.borderColor = ''; }, 2000);
-    }
+    const key = 'cost:' + hash;
+    if (_inFlight.has(key)) { _queued.set(key, val); return; }
+    _fieldMsg(input, '', 'info', false);
+    const same = (v) => v === item.coin.costPer || (v == null && item.coin.costPer == null);
+    if (same(val)) return;
+    await _commitEdit({
+      key, input, item, val, what: 'cost', saved: 'Cost saved.',
+      write: (v) => CoinStorage.updateCostPer(user.userId, user.key, hash, v),
+      apply: (v) => { item.coin.costPer = v; },
+      isCurrent: same,
+      restore: () => { input.value = item.coin.costPer != null ? item.coin.costPer.toFixed(2) : ''; },
+    });
   }
 
   /**
    * Load, decrypt, price, and render the My Coins table.
+   * Resolves true when the collection loaded (table or empty message shown), false when
+   * the load failed or was skipped (no session, or another load already running).
    */
   async function render(force) {
     if (!_container) init();
-    if (!_container) return;
+    if (!_container) return false;
 
     const user = CoinAuth.currentUser();
     if (!user) {
@@ -302,21 +640,22 @@ const MyCoins = (() => {
         '<div class="mycoins-empty">' +
         '<p>Log in to view your coin collection.</p>' +
         '</div>';
-      return;
+      return false;
     }
 
     // If data is fresh and not forced, re-render from cache (no API calls)
     if (!force && _lastPriced && (Date.now() - _lastRenderedAt < RENDER_CACHE_TTL)) {
       _renderTable(_lastPriced);
-      return;
+      return true;
     }
 
-    if (_loading) return;
+    if (_loading) return false;
     _loading = true;
     _container.innerHTML = '<p class="mycoins-loading">Loading inventory\u2026</p>';
 
     try {
       const coins = await CoinStorage.getAllDecrypted(user.userId, user.key);
+      _clearStatus();
       if (!coins.length) {
         _lastPriced = null;
         _container.innerHTML =
@@ -324,8 +663,7 @@ const MyCoins = (() => {
           '<p>No coins in your collection yet.</p>' +
           '<p style="color:var(--text-muted);font-size:0.85rem">Use the "I have this coin" button on any Price Discovery result to add coins.</p>' +
           '</div>';
-        _loading = false;
-        return;
+        return true;
       }
 
       _container.innerHTML = '<p class="mycoins-loading" role="status" aria-live="polite">Fetching pricing for ' + coins.length + ' coin(s)\u2026</p>';
@@ -343,8 +681,10 @@ const MyCoins = (() => {
         warn.textContent = 'Spot prices unavailable \u2014 melt values may be stale or missing.';
         _container.prepend(warn);
       }
+      return true;
     } catch (err) {
-      _container.innerHTML = '<div class="mycoins-error">Error: ' + _esc(err.message) + '</div>';
+      _renderLoadError(err);
+      return false;
     } finally {
       _loading = false;
     }
@@ -810,7 +1150,20 @@ const MyCoins = (() => {
         _sortAsc = true;
         _page = 0;
         _filterText = '';
+        _loading = false;
+        _lastRenderedAt = 0;
+        clearTimeout(_statusTimer);
+        _statusEl = null;
+        _inFlight.clear();
+        _queued.clear();
+        window.removeEventListener('coinauth:change', _onAuthChange);
+        _authListening = false;
       },
+      STATUS_CLEAR_MS,
+      _saveQty,
+      _saveCost,
+      _removeHashes,
+      _setStatus,
       _setLastPriced(items) { _lastPriced = items; },
     },
   };
