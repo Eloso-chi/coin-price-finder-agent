@@ -128,7 +128,9 @@ Items marked DONE are kept for historical reference.
 
 ---
 
-### #324H. Decide VNC authentication policy for loopback-only H operator logins [P3 -- OPERATIONS / DX] -- PROPOSED 2026-10-31
+### ~~#324H. Decide VNC authentication policy for loopback-only H operator logins [P3 -- OPERATIONS / DX] -- CLOSED: DECIDED 2026-11-03 (was PROPOSED 2026-10-31)~~
+
+**Resolution (2026-11-03):** The policy is already enforced in code and documented: `scripts/terapeak-display.sh` requires an owner-only VNC password file and starts VNC with `-localhost yes`, and `docs/memory/terapeak-runbook.md` forbids `SecurityTypes None` and public noVNC visibility. Decision: keep the password even though VNC is loopback-only. No further work.
 
 **Origin:** First H operator run after PR #357 (2026-10-31). The operator login flow now requires a user-created `~/.vnc/passwd` and starts Xtigervnc with `-SecurityTypes VncAuth`. The previous Codespace flow (`docs/memory/terapeak-runbook.md`) used `SecurityTypes None`. H has no VNC at all before #357.
 
@@ -349,7 +351,9 @@ After S2a went in and the candidate list was re-measured (2026-05-31), only **1 
 
 ---
 
-### S4. Refresh Stale 14-30 Days [MEDIUM -- defer after S2]
+### ~~S4. Refresh Stale 14-30 Days [MEDIUM -- defer after S2] -- CLOSED: SUPERSEDED 2026-11-03~~
+
+**Resolution (2026-11-03):** S2 is complete and the freshness pipeline now covers this item. `scripts/generate-freshness-report.js` assigns stale viable datasets to the P1 `refresh` tier (very-stale to P0), and `RECENTLY_REFRESHED_DAYS = 14` in `src/services/freshnessClassifier.js` parks recently checked datasets as `recently-confirmed-stale`. The operator loop works these tiers automatically.
 
 ---
 
@@ -397,7 +401,9 @@ Added `is_barber_nonhalf_term()` filter (regex: `\bbarber\b(?!.*\bhalf\b)`). Bar
 
 ---
 
-### 24. Proof Libertad Search Term Quality [DATA QUALITY]
+### ~~24. Proof Libertad Search Term Quality [DATA QUALITY] -- CLOSED: ALREADY IMPLEMENTED 2026-11-03~~
+
+**Resolution (2026-11-03):** `PROOF_NEGATIVE_KEYWORDS` in `scripts/terapeak-export.py` (`-NGC -PCGS -graded -slab -certified`) is appended to raw proof coin searches. Proof sets and searches that are already grade-specific are excluded from the suffix.
 
 **Problem:** Proof Libertad searches return results dominated by NGC/PCGS slabbed coins. Need to split "raw proof" vs "graded proof" or add negative keywords.
 
@@ -1221,7 +1227,9 @@ Verified:
 
 ---
 
-### #279H. Page-1 export loop still blocks on synchronous upload per coin -- overlap upload with next scrape [P2 -- PERFORMANCE / SCRAPER] -- OPEN 2026-06-19
+### ~~#279H. Page-1 export loop still blocks on synchronous upload per coin -- overlap upload with next scrape [P2 -- PERFORMANCE / SCRAPER] -- CLOSED: ALREADY IMPLEMENTED 2026-11-03 (was OPEN 2026-06-19)~~
+
+**Resolution (2026-11-03):** `upload_csv_async()` in `scripts/terapeak-export.py` starts one background upload that overlaps the next coin's scrape, and the prior upload is drained before another starts (see `docs/memory/terapeak-export-automation.md`).
 
 **Problem:** `scripts/terapeak-export.py` still uploads each CSV synchronously in the main page-1 loop (`ok, msg = upload_csv(...)`). The browser waits on network/API latency before starting the next coin. Deep pagination already has async upload overlap, but page-1 does not.
 
@@ -1440,7 +1448,9 @@ Verified:
 
 ---
 
-### #301H. New operator run type: max batch size 20, same P0.1 rules, P0/P1-only backfill when P0.1 backlog is empty [P3 -- OPERATIONS / TOOLING] -- PROPOSED 2026-08-20
+### ~~#301H. New operator run type: max batch size 20, same P0.1 rules, P0/P1-only backfill when P0.1 backlog is empty [P3 -- OPERATIONS / TOOLING] -- CLOSED: WONTFIX 2026-11-03 (was PROPOSED 2026-08-20)~~
+
+**Resolution (2026-11-03):** Closed by owner decision; the preset was not built. What exists instead: the Elevated risk state runs 15-20 coin batches with a pause of at least 900 seconds (`ELEVATED_BATCH_MIN`, `ELEVATED_BATCH_MAX` in `scripts/terapeak-operator.sh`), and `--batch-min` / `--batch-max` make the bounds configurable. Not implemented: the P0/P1-only restriction on the backfill pool. Backlog mode still allows P2 (`allowed_priorities` in `scripts/terapeak-export.py`) and the operator does not restrict the non-P0.1 pool with `--priority-include`. Open a new item if P2 must be excluded from backfill.
 
 **Origin:** User request 2026-08-20 for a smaller, discoverable operator run preset (max batch 20) that reuses the existing P0.1 fixed-slice + non-P0.1 backfill pattern already used by the larger default mixed-mode runs.
 
@@ -1949,7 +1959,9 @@ Delivered in PR #60 (`774f136 feat(auth): admin role + audit log + login hardeni
 
 ---
 
-### 114. Cookie Blob Persistence [MEDIUM]
+### ~~114. Cookie Blob Persistence [MEDIUM] -- CLOSED: WONTFIX 2026-11-03~~
+
+**Resolution (2026-11-03):** Closed by owner decision, not because the code changed. Persisting eBay session cookies in blob storage is not pursued: after a hard challenge `docs/memory/anti-bot-operations.md` requires an interactive re-login and live probe (H) or a cookie file refreshed after the incident (W), and the H operator keeps its cookie jar on local disk (`COOKIE_FILE`).
 
 **Problem:** eBay cookies expire when codespace restarts. Manual CAPTCHA solve required every session.
 
@@ -2009,7 +2021,9 @@ Added `npm audit --audit-level=high` step to CI (xlsx excluded -- unmaintained, 
 
 ---
 
-### 120. Structured Logging [LOW -- long-term]
+### ~~120. Structured Logging [LOW -- long-term] -- CLOSED: SUPERSEDED BY #300W 2026-11-03~~
+
+**Resolution (2026-11-03):** `pino` is now a dependency, `src/utils/logger.js` provides the structured logger and injects the request correlation ID from `src/middleware/requestId.js`, and `src/middleware/requestLogger.js` logs API request completion (#290W, #300W phase 1). Migrating the remaining `console.*` calls is tracked under the later phases of #300W.
 
 **Problem:** All logging is raw `console.log`/`console.warn` across 10 services and 9 routes. No structured format, no log levels, no correlation IDs. Production debugging requires Azure log stream with manual grep.
 
@@ -2054,7 +2068,9 @@ Both `data/terapeak/1968-D_Kennedy_Half_Dollar_40_Silver.csv` and `data/terapeak
 
 ---
 
-### 45. Walking Liberty Common Dates [P3]
+### ~~45. Walking Liberty Common Dates [P3] -- CLOSED: OBSOLETE 2026-11-03~~
+
+**Resolution (2026-11-03):** The generic datasets are now populated: `data/terapeak-meta.json` records 50 comps for `generic half liberty walking` and for `dollar generic half liberty walking`, and many year-specific Walking Liberty files exist.
 
 **Problem:** Key dates covered (1916, 1916-S, 1919-D, 1921 all mints, 1938-D). Many common dates (1917-1939) lack year-specific files. Generic file only 27 rows.
 
@@ -2068,7 +2084,9 @@ Both `data/terapeak/1968-D_Kennedy_Half_Dollar_40_Silver.csv` and `data/terapeak
 
 ---
 
-### 47. Barber Half/Quarter/Dime Generics [P3]
+### ~~47. Barber Half/Quarter/Dime Generics [P3] -- CLOSED: OBSOLETE 2026-11-03~~
+
+**Resolution (2026-11-03):** The generic datasets are no longer nearly empty: `data/terapeak-meta.json` records 50 comps each for `barber generic quarter`, `barber dime generic`, and `barber dollar generic half`, plus 57 for `barber quarter` and 28 for `barber dime`.
 
 **Problem:** Generic files nearly empty (2-5 rows).
 
@@ -2076,7 +2094,9 @@ Both `data/terapeak/1968-D_Kennedy_Half_Dollar_40_Silver.csv` and `data/terapeak
 
 ---
 
-### 48. Mercury Dime Generics [P3]
+### ~~48. Mercury Dime Generics [P3] -- CLOSED: OBSOLETE 2026-11-03~~
+
+**Resolution (2026-11-03):** `data/terapeak-meta.json` records 46 comps for `dime generic mercury`, and year-specific Mercury dime files exist.
 
 **Problem:** Generic file only 34 rows. Common dates lack year-specific files.
 
@@ -2084,7 +2104,9 @@ Both `data/terapeak/1968-D_Kennedy_Half_Dollar_40_Silver.csv` and `data/terapeak
 
 ---
 
-### 49. Washington Quarter Silver Generics [P3]
+### ~~49. Washington Quarter Silver Generics [P3] -- CLOSED: OBSOLETE 2026-11-03~~
+
+**Resolution (2026-11-03):** `data/terapeak-meta.json` records 50 comps for `generic quarter silver washington`, and year-specific Washington quarter files exist.
 
 **Problem:** Generic file only 27 rows. Only key dates (1932-D, 1932-S) have dedicated files.
 
@@ -3986,7 +4008,9 @@ Current repo state: 63 total PRs, **0 open**. Item was stale-imported; root caus
 
 ---
 
-### 101. Run Playwright Scraping in Azure Container Instances [P2]
+### ~~101. Run Playwright Scraping in Azure Container Instances [P2] -- CLOSED: SUPERSEDED 2026-11-03~~
+
+**Resolution (2026-11-03):** Scraping runs from the H operator (`scripts/terapeak-operator.sh`, WSL2) and the W operator (`scripts/terapeak-operator-codespace.sh`); the repo has no ACI artifacts. `docs/memory/anti-bot-operations.md` requires an interactive re-login and live probe (H) or a refreshed cookie file (W) before restarting after a hard challenge, which needs a person at the display, so an unattended container flow would not meet it. Open a new item if hosted scraping is wanted again.
 
 **Problem:** Three scrapers (`terapeak-export.py`, `terapeak-page2.py`, `vnc-login.py`) need headful Chromium + manual CAPTCHA.
 
@@ -3994,7 +4018,9 @@ Current repo state: 63 total PRs, **0 open**. Item was stale-imported; root caus
 
 ---
 
-### 102. Schedule Scraping With Azure Logic Apps [P3]
+### ~~102. Schedule Scraping With Azure Logic Apps [P3] -- CLOSED: SUPERSEDED 2026-11-03~~
+
+**Resolution (2026-11-03):** Closed together with #101, whose ACI lifecycle this item scheduled. See the #101 resolution.
 
 **Problem:** ACI lifecycle (#101) still needs a scheduler.
 
@@ -4004,7 +4030,9 @@ Current repo state: 63 total PRs, **0 open**. Item was stale-imported; root caus
 
 ---
 
-### 103. Alternative -- Azure VM (B1s) for Scraping [P3]
+### ~~103. Alternative -- Azure VM (B1s) for Scraping [P3] -- CLOSED: SUPERSEDED 2026-11-03~~
+
+**Resolution (2026-11-03):** Closed together with #101 and #102. The H and W operators are the supported scraping paths; see the #101 resolution.
 
 **Problem:** Alternative to #101/#102 for high-frequency scraping.
 
@@ -4537,7 +4565,9 @@ and obscures regressions in unrelated PRs.
 
 ---
 
-### #252. Bullion Strike-Pool Split Misclassifies Graded Bullion as Off-Pool [P1 -- DATA-QUALITY] -- REVERTED 2026-06-23 (PR #154 reverted; correct path forward tracked in #270W)
+### ~~#252. Bullion Strike-Pool Split Misclassifies Graded Bullion as Off-Pool [P1 -- DATA-QUALITY] -- REVERTED 2026-06-23 (PR #154 reverted; correct path forward tracked in #270W) -- CLOSED: SUPERSEDED BY #270W 2026-11-03~~
+
+**Resolution (2026-11-03):** PR #154 was reverted and the replacement work shipped under #270W: a tiered lookback ladder (Option #1, `src/services/ebayService.js`) and a raw-intent request with no usable comps returning `fmvCore: null` with `dataSource.label: 'metal-only'` (Option #4, PR #186). Any remaining raw-bullion signal work stays in #270W.
 
 **REVERTED 2026-06-23 (pool-isolation violation):** PR #154's "merge graded+raw for >=1oz bullion" approach was reverted because it violates the pool-isolation contract documented in `docs/memory/numismatic-terminology.md`: raw, graded, and proof are THREE DISTINCT POOLS as observed by `classifyGradeType()` and must never be merged in FMV computation. Even for modern bullion (Gold Maple, Gold Eagle, Krugerrand, Britannia, Panda), the slab pool trades differently from raw because every series contains scarce dates, varieties, and first-year / anniversary issues -- the cross-pool dispersion is wide enough to make a blended FMV wrong for both pools. PR #154's `+191 survivors` metric was pool pollution, not a correctness improvement. The original symptom (sparse raw-bullion comps producing thin FMV) is a real problem and is now tracked as **#270W** with pool-preserving solutions (adaptive lookback, better Terapeak seeding for raw, two-pool FMV surfacing, honest "insufficient comps" return). Do NOT re-implement pool merging without first re-reading `docs/memory/numismatic-terminology.md`.
 
