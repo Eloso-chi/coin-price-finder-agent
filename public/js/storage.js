@@ -11,6 +11,67 @@ const CoinStorage = (() => {
     return h;
   }
 
+  const REQUEST_TIMEOUT_MS = 20000;
+
+  /**
+   * Failure from a collection request. `code` is one of: auth-expired, forbidden,
+   * rate-limited, not-found, server, timeout, network, malformed. The UI picks its state from it.
+   */
+  class CollectionError extends Error {
+    constructor(code, message, status) {
+      super(message);
+      this.name = 'CollectionError';
+      this.code = code;
+      this.status = status || null;
+    }
+  }
+
+  function _codeForStatus(status) {
+    if (status === 401) return 'auth-expired';
+    if (status === 403) return 'forbidden';
+    if (status === 429) return 'rate-limited';
+    if (status === 404) return 'not-found';
+    return 'server';
+  }
+
+  function _transportError(err) {
+    if (err && err.name === 'AbortError') return new CollectionError('timeout', 'The request timed out.');
+    return new CollectionError('network', 'Could not reach the server.');
+  }
+
+  /**
+   * fetch + JSON parse under one timeout. Parse failures are reported via
+   * `parseFailed` so each caller decides whether they matter.
+   */
+  async function _exchange(url, options) {
+    const controller = typeof AbortController === 'function' ? new AbortController() : null;
+    const timer = controller ? setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS) : null;
+    try {
+      let resp;
+      try {
+        resp = await fetch(url, controller ? { ...options, signal: controller.signal } : options);
+      } catch (err) {
+        throw _transportError(err);
+      }
+      let data = null;
+      let parseFailed = false;
+      try {
+        data = await resp.json();
+      } catch (err) {
+        if (err && err.name === 'AbortError') throw _transportError(err);
+        parseFailed = true;
+      }
+      return { resp, data, parseFailed };
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  }
+
+  function _responseError(resp, data, fallback) {
+    const serverMessage = data && typeof data.error === 'string' ? data.error : null;
+    return new CollectionError(_codeForStatus(resp.status), serverMessage || fallback, resp.status);
+  }
+
   /**
    * Add or update a coin.
    * @param {string} _userId - ignored (server derives from token)
@@ -72,15 +133,12 @@ const CoinStorage = (() => {
    * @param {number} newCount
    */
   async function updateCount(_userId, _key, coinHash, newCount) {
-    const resp = await fetch('/api/coins/' + encodeURIComponent(coinHash), {
+    const { resp, data } = await _exchange('/api/coins/' + encodeURIComponent(coinHash), {
       method: 'PUT',
       headers: _authHeaders(),
       body: JSON.stringify({ count: newCount }),
     });
-    if (!resp.ok) {
-      const data = await resp.json().catch(() => ({}));
-      throw new Error(data.error || 'Failed to update count');
-    }
+    if (!resp.ok) throw _responseError(resp, data, 'Failed to update count');
   }
 
   /**
@@ -91,15 +149,12 @@ const CoinStorage = (() => {
    * @param {number|null} costPer
    */
   async function updateCostPer(_userId, _key, coinHash, costPer) {
-    const resp = await fetch('/api/coins/' + encodeURIComponent(coinHash), {
+    const { resp, data } = await _exchange('/api/coins/' + encodeURIComponent(coinHash), {
       method: 'PUT',
       headers: _authHeaders(),
       body: JSON.stringify({ costPer }),
     });
-    if (!resp.ok) {
-      const data = await resp.json().catch(() => ({}));
-      throw new Error(data.error || 'Failed to update cost');
-    }
+    if (!resp.ok) throw _responseError(resp, data, 'Failed to update cost');
   }
 
   /**
@@ -108,27 +163,33 @@ const CoinStorage = (() => {
    * @param {string} coinHash
    */
   async function removeCoin(_userId, coinHash) {
-    const resp = await fetch('/api/coins/' + encodeURIComponent(coinHash), {
+    const { resp, data } = await _exchange('/api/coins/' + encodeURIComponent(coinHash), {
       method: 'DELETE',
       headers: _authHeaders(),
     });
-    if (!resp.ok) {
-      const data = await resp.json().catch(() => ({}));
-      throw new Error(data.error || 'Failed to remove coin');
-    }
+    if (resp.status === 404) return; // already gone (retry after a timeout, or removed in another tab)
+    if (!resp.ok) throw _responseError(resp, data, 'Failed to remove coin');
   }
 
   /**
    * Get all coins (plaintext) for authenticated user.
+   * Throws CollectionError on any HTTP, transport, timeout or parse failure so a
+   * failed load is never mistaken for an empty collection.
    * @param {string} _userId - ignored
    * @param {*} _key - ignored
    * @returns {Promise<object[]>}
    */
   async function getAllDecrypted(_userId, _key) {
-    const resp = await fetch('/api/coins', { headers: _authHeaders() });
-    if (!resp.ok) return [];
-    const data = await resp.json();
-    return data.coins || [];
+    const { resp, data, parseFailed } = await _exchange('/api/coins', { headers: _authHeaders() });
+    if (!resp.ok) {
+      const failure = _responseError(resp, data, 'Could not load your collection.');
+      if (failure.code === 'not-found') failure.code = 'server'; // a missing route is a service failure, not a missing coin
+      throw failure;
+    }
+    if (parseFailed || !data || !Array.isArray(data.coins)) {
+      throw new CollectionError('malformed', 'The server sent an unreadable response.', resp.status);
+    }
+    return data.coins;
   }
 
   /** Alias kept for backwards compatibility. */
@@ -224,6 +285,8 @@ const CoinStorage = (() => {
   }
 
   return {
+    CollectionError,
+    REQUEST_TIMEOUT_MS,
     openDB,
     addCoin,
     hasCoin,
@@ -251,3 +314,8 @@ const BackupReminder = (() => {
   function check() { return { needed: false, reason: null }; }
   return { recordAdd, recordBackup, dismiss, check };
 })();
+
+// CommonJS shim for jest. No-op in the browser (no `module` global there).
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = CoinStorage;
+}

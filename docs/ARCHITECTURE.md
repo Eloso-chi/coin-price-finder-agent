@@ -1367,16 +1367,18 @@ Server-backed coin CRUD via `/api/coins/*`. All methods accept `(userId, key, ..
 | `addCoin(_userId, _key, coin)` | POST `/api/coins` -> returns `coinHash` |
 | `hasCoin(_userId, coin)` | POST `/api/coins/get` -> returns boolean |
 | `getCoin(_userId, _key, coin)` | POST `/api/coins/get` -> returns coin or null |
-| `updateCount(_userId, _key, hash, count)` | PUT `/api/coins/:hash` with `{count}` |
-| `updateCostPer(_userId, _key, hash, cost)` | PUT `/api/coins/:hash` with `{costPer}` |
-| `removeCoin(_userId, hash)` | DELETE `/api/coins/:hash` |
-| `getAllDecrypted(_userId, _key)` | GET `/api/coins` -> returns `coins[]` |
+| `updateCount(_userId, _key, hash, count)` | PUT `/api/coins/:hash` with `{count}`; rejects with `CollectionError` on failure |
+| `updateCostPer(_userId, _key, hash, cost)` | PUT `/api/coins/:hash` with `{costPer}`; rejects with `CollectionError` on failure |
+| `removeCoin(_userId, hash)` | DELETE `/api/coins/:hash`; rejects with `CollectionError` on failure |
+| `getAllDecrypted(_userId, _key)` | GET `/api/coins` -> returns `coins[]`; rejects with `CollectionError` on any failure (never returns `[]` for an error) |
 | `count(_userId)` | GET `/api/coins/count` |
 | `exportJSON(_userId, _key)` | GET `/api/coins/export` -> returns JSON string |
 | `importJSON(_userId, _key, jsonStr)` | POST `/api/coins/import` -> returns `{imported, skipped}` |
 | `coinHash(coin)` | Client-side SHA-256 (matches server `coinStorageService.coinHash()`) |
 | `reEncryptAll()` | No-op (server-side storage, no client-side encryption) |
 | `clearAll(_userId)` | Iterates and deletes all coins |
+
+**Collection error contract (#306H).** `getAllDecrypted`, `updateCount`, `updateCostPer` and `removeCoin` run under a 20-second timeout (covering the response body) and reject with a `CollectionError` whose `code` is one of `auth-expired` (401), `forbidden` (403), `rate-limited` (429), `not-found` (404 on `updateCount` / `updateCostPer`), `server` (other HTTP failures, including a 404 on the collection load), `timeout`, `network`, or `malformed` (`getAllDecrypted` only: unparseable body or non-array `coins` on a 2xx response). `removeCoin` treats a 404 as already removed and resolves. `My Coins` maps each code to a distinct state: a recovery view with Log in again / Try again (retry only for retryable codes) for load failures, adjacent field messages plus a persistent alert for inline edit failures (the last saved value is restored; timeout and network failures are reported as unconfirmed with a Reload list action), and a persistent status region (outside the re-rendered table) for removals, which reloads the list after a removal that succeeded or is uncertain and offers Retry removal / Log in again / Reload list. `hasCoin`, `getCoin` and `count` still map failures to `false`, `null` and `0`.
 
 **BackupReminder** (also in `storage.js`) is a no-op in server mode -- `check()` always returns `{needed: false}`.
 
