@@ -215,6 +215,9 @@ Append-only JSONL ledger written by `scripts/_parse-terapeak-pass.py` after each
 | `dormant` | number | Public | Coins flagged dormant by the freshness classifier |
 | `no_comps` | number | Public | Coins whose upload the server rejected as HTTP 422 "No valid comps found"; a subset of `empty` (#328H) |
 | `no_comps_cluster` | boolean | Public | True when at least 3 coins, at least 30% of the batch, and at least twice the successful uploads were no-comps rejections; points at an export-format or server-parser fault rather than empty markets and stops both operators |
+| `fallback_filled` | number | Public | Batch slots the P3 fallback tiers filled in this pass (#330H); 0 for records written before #330H |
+| `tier_yield` | object | Public | Maps each fallback tier, and `primary` for P0-P2 datasets, to `{items, appended_rows}`: exported datasets and rows added to their CSVs (#330H); `{}` for records written before #330H |
+| `drained` | boolean | Public | True for the zero-coin pass on which nothing was eligible in P0-P2 or any fallback tier, after which the operator exits 0 (#330H); false for records written before #330H |
 | `new_rows` | number | Public | Sum of new comp rows added across all coins this pass |
 | `dup_rows` | number | Public | Sum of duplicate rows skipped across all coins this pass |
 | `succeeded_reported` | number or null | Public | "succeeded" total scraped from the pass log's own summary line (cross-check) |
