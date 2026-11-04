@@ -5095,6 +5095,34 @@ Gated on data: run pricing-health across a Reverse-Proof slate (2023 RP Morgan, 
 
 ---
 
+### #332H. My Coins add flows treat a failed lookup as "not in collection" and can overwrite an owned coin [P2 -- DATA-LOSS / ERROR-RECOVERY] -- PROPOSED 2026-11-03
+
+**Origin:** Follow-up to #306H (PR #375). That change made the collection load and the `updateCount`, `updateCostPer` and `removeCoin` calls throw categorized `CollectionError`s, and left `hasCoin`, `getCoin` and `count` unchanged on purpose.
+
+**Problem:**
+1. `hasCoin`, `getCoin` and `count` in `public/js/storage.js` return `false`, `null` and `0` for any non-OK response (around lines 105, 123 and 205), so an expired session, a 429 or a 5xx looks the same as "not found". Network failures throw a raw error instead of a `CollectionError`.
+2. The add-coin flows in `public/index.html` read that as "not in collection". The single-coin add (`getCoin`, around line 4849) shows the "I have this coin" add button for a coin the user already owns, and the bulk add form (`hasCoin`, around line 6815) takes its add branch. The server's `addCoin` (`src/services/coinStorageService.js`) replaces an existing entry with the same hash in place, so the add resets `count` to the submitted value (default 1), `costPer`, `notes` and `dateAdded`. The loss is silent. It needs a failed lookup followed by an add, so it is rare, but the effect is on the user's saved data.
+3. Related defects in the same flows: the bulk add merge path calls `existing.coinHash` after `hasCoin` returned true even when the second lookup (`getCoin`) returned `null`, which throws a TypeError that the form's catch reports as a confusing "Cannot read properties of null" instead of the real cause; the single-add button handler (around line 4879) has no error handling around `addCoin`, so a failure leaves the button disabled on "Adding..." with no message; the owned-quantity minus and plus handlers (around lines 4856 to 4866) change `currentQty` before awaiting `updateCount`, which now rejects with a `CollectionError` on failure, so the handler's internal quantity stops matching the saved one, an unhandled rejection is raised, and the next successful click saves and shows a jumped value.
+
+**Proposed approach:**
+1. Make `hasCoin`, `getCoin` and `count` throw `CollectionError` for any failure, reusing the exchange and error mapping added in #306H. A successful response with no coin stays `false` or `null`.
+2. In the add flows, show a visible error state on a failed lookup (Log in again or Try again, matching `public/js/my-coins.js`) and do not render the add control or take the add branch. Wrap `addCoin` and the quantity updates in error handling with persistent text, and restore the previous quantity on failure. Guard the bulk merge path against a null second lookup.
+3. Optional, decide before starting: add a create-only mode to the server (409 when the coin exists) so a stale client can never overwrite; the client then merges through `updateCount`. This changes a route and raises the tier.
+
+**Acceptance criteria:**
+- `hasCoin`, `getCoin` and `count` reject with `CollectionError` for 401, 403, 429, 500, timeout, network failure and a malformed body, and return `false`, `null` or the count only for a successful response.
+- With a failing lookup, the single-add UI shows an error and no add control, and the bulk form shows an error and calls neither `addCoin` nor `updateCount`; a test asserts that `POST /api/coins` is not sent and an owned coin's count, cost and notes are unchanged.
+- A failed `addCoin` leaves the button usable with persistent error text; a failed plus or minus click restores the previous quantity.
+- The existing `__tests__/frontend` failure-state tests keep their assertions.
+
+**Files (anticipated):** `public/js/storage.js`; `public/index.html` (add-coin flows); `public/js/test-my-coins.js` (uses `count`); `__tests__/frontend/` tests; `docs/ARCHITECTURE.md` (the collection error contract paragraph currently says `hasCoin`, `getCoin` and `count` map failures to `false`, `null` and `0`); `src/routes/coinRoute.js`, `src/services/coinStorageService.js` and `docs/api-reference.md` only if option 3 is chosen.
+
+**Tier:** M, or L if option 3 changes the route.
+
+**Related:** #306H, PR #375.
+
+---
+
 ### #307H. Lot Evaluator mobile layout, cancellation, and bounded streaming DOM [P2 -- RESPONSIVE / PERFORMANCE-UX] -- PROPOSED 2026-08-31
 
 **Origin:** Comprehensive UX Reviewer audit at commit `557095966cb1580f330322beff4cd83042de9cb4` (2026-08-30), S2 responsive and long-running-operation findings.
