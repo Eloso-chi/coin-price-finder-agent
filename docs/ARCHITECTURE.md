@@ -72,7 +72,7 @@ server.js                              Express entry point (port 3000)
 │   ├─ terapeakQuotaService.js         Daily Terapeak query quota tracker
 │   ├─ adminService.js                 Admin dashboard aggregation (stats, stale detection [filters via freshnessClassifier], data health)
 │   ├─ auditService.js                 Admin + valuation audit writer (Cosmos with valuation JSONL fallback)
-│   ├─ freshnessClassifier.js          Shared refresh-skip logic (thresholds + shouldSkipRefresh) used by adminService and generate-freshness-report.js -- #229
+│   ├─ freshnessClassifier.js          Shared refresh-skip logic (thresholds + shouldSkipRefresh) used by adminService and generate-freshness-report.js -- #229; `classifyP3Tier` assigns each P3 dataset a fallback tier (`probe-with-data`, `near-viable`, `probe-no-data`, `thin-low`, `confirmed-thin`, or `generic`, which is never selected) -- #330H
 │   ├─ greysheetHistoryService.js      Daily Greysheet price history snapshots
 │   ├─ authService.js                  Server-side auth (bcrypt + JWT, dual-mode Cosmos + local JSON)
 │   │                                  JWT_SECRET REQUIRED in production (FATAL throw if unset)
@@ -182,7 +182,7 @@ server.js                              Express entry point (port 3000)
 │   ├─ pricing-health-full.js          Pricing health check runner (--full, --filter, --limit, --concurrency, --out)
 │   ├─ reclassify-comps.js             Canonical identity migration with stable collision merge, rollback artifacts, and ownership-aware atomic apply
 │   ├─ build-evidence-index.js         Historical evidence index builder
-│   ├─ generate-freshness-report.js    Freshness triage report (5-state decision tree: Fresh/Stale/LowSignal/Missing/Dormant + recently-confirmed-stale split)
+│   ├─ generate-freshness-report.js    Freshness triage report (5-state decision tree: Fresh/Stale/LowSignal/Missing/Dormant + recently-confirmed-stale split; P3 entries carry `p3Tier`/`p3SaleRate` and the summary `p3TierCounts` for the operators' fallback fill -- #330H)
 │   ├─ scan-parallel-key-drift.js      Silent-drift detector for the #267H class -- flags datasets whose normalized key collides with an empty sibling (#272H). `npm run scan:parallel-key-drift`
 │   ├─ analyze-freshness-composition.js  Cross-tabulates freshness by category/composition
 │   ├─ commit-terapeak-progress.sh      Fail-closed post-run branch/commit/PR helper (#293W)

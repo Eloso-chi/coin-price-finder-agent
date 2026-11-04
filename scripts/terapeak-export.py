@@ -50,7 +50,7 @@ import re
 import shutil
 import sys
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 SCRIPT_MODULE_DIR = Path(__file__).resolve().parent
@@ -485,11 +485,28 @@ def get_search_terms():
 
 
 # ── CSV Merge (preserves deep-paginated data on refresh) ────
+def _count_data_rows(path):
+    """Rows with at least four columns, excluding the header; 0 when unreadable."""
+    try:
+        with open(path, "r", newline="", encoding="utf-8") as f:
+            reader = csv.reader(f)
+            next(reader, None)
+            return sum(1 for row in reader if len(row) >= 4)
+    except (OSError, csv.Error, UnicodeDecodeError):
+        return 0
+
+
+# Rows the latest _merge_csv call added to the dataset file (0 when it kept the file as is).
+_LAST_MERGE = {"appended": 0}
+
+
 def _merge_csv(new_csv_path, existing_csv_path):
     """Merge new CSV rows into existing CSV, deduplicating by Item ID and
     title+price+date.  Returns the path of the merged file (always existing_csv_path).
     If the existing file doesn't exist, simply moves new_csv into place."""
+    _LAST_MERGE["appended"] = 0
     if not existing_csv_path.exists():
+        _LAST_MERGE["appended"] = _count_data_rows(new_csv_path)
         new_csv_path.rename(existing_csv_path)
         return existing_csv_path
 
@@ -561,6 +578,7 @@ def _merge_csv(new_csv_path, existing_csv_path):
         if header:
             writer.writerow(header)
         writer.writerows(all_rows)
+    _LAST_MERGE["appended"] = new_count
 
     # Clean up temp file
     if new_csv_path.exists() and new_csv_path != existing_csv_path:
@@ -846,6 +864,7 @@ def _begin_run():
     """Reset run-scoped tracking at the start of an export run."""
     global _consecutive_no_comps
     _new_dataset_paths.clear()
+    _dataset_yield.clear()
     _consecutive_no_comps = 0
 
 
@@ -860,11 +879,24 @@ def _begin_run():
 _new_dataset_paths = {}
 REJECTED_DIR = PROJECT_DIR / "cache" / "terapeak-rejected"
 
+# Rows each term's latest merge added to its dataset CSV (#330H yield). `printed` marks that the
+# [yield] line is already in the log, so a later correction is only emitted when it has to be.
+_dataset_yield = {}
+
+
+def _emit_yield(term):
+    """Print the term's [yield] line on its own line; the parser keeps the last line per term."""
+    entry = _dataset_yield.get(term)
+    if entry:
+        print(f"  [yield] tier={entry['tier']} appended={entry['appended']} term={term}")
+        entry["printed"] = True
+
 
 def _stage_dataset(csv_path, dest, term):
     """Merge a fresh export into its dataset file and remember whether this run created it."""
     existed = dest.exists()
     merged = _merge_csv(csv_path, dest)
+    _dataset_yield[term] = {"tier": "primary", "appended": _LAST_MERGE["appended"], "printed": False}
     if existed:
         # The file already held data (possibly another term's, after a filename collision):
         # it is no longer disposable for any term.
@@ -911,6 +943,12 @@ def _discard_no_comps_dataset(term, reported=True):
         print(f"  [dataset] WARN {term}: no valid comps; {status}, could not set CSV aside, {path.name} stays in data/terapeak/: {error}")
         return False
     print(f"  [dataset] {term}: no valid comps; {status}, moved unusable CSV to cache/terapeak-rejected/{target.name}")
+    # The set-aside file no longer holds this term's rows; correct a [yield] line already logged.
+    moved_yield = _dataset_yield.get(term)
+    if moved_yield:
+        moved_yield["appended"] = 0
+        if moved_yield["printed"]:
+            _emit_yield(term)
     return True
 
 
@@ -1656,6 +1694,82 @@ def do_search_and_export(page, search_term, download_dir):
     return csv_path
 
 
+# P3 fallback (#330H): spare batch slots are filled from these tiers, in this order.
+# The freshness report tags each P3 dataset with `p3Tier`; generic benchmark items are never used.
+FALLBACK_TIER_ORDER = ("probe-with-data", "near-viable", "probe-no-data", "thin-low", "confirmed-thin")
+# Exit status when no dataset is eligible in P0-P2 or any fallback tier (nothing left to run).
+EXIT_DRAINED = 20
+# A report only counts as fresh evidence of an empty queue if it was generated this recently.
+REPORT_MAX_AGE_MINUTES = 120
+
+
+def parse_fallback_tiers(value):
+    """Ordered tuple of fallback tier names; 'all' means the default order, empty means off."""
+    text = (value or "").strip()
+    if not text:
+        return ()
+    if text.lower() == "all":
+        return FALLBACK_TIER_ORDER
+    tiers = []
+    for raw in text.split(","):
+        tier = raw.strip()
+        if not tier:
+            continue
+        if tier not in FALLBACK_TIER_ORDER:
+            raise ValueError(f"unknown fallback tier '{tier}' (known: {', '.join(FALLBACK_TIER_ORDER)})")
+        if tier not in tiers:
+            tiers.append(tier)
+    return tuple(tiers)
+
+
+def _fallback_sort_key(term):
+    """Order within a tier. Probe and near-viable tiers: observed sale rate, then stalest.
+    Thin and confirmed-thin tiers: most comps, then most recent sale."""
+    stale = term.get("_stale_days")
+    if term.get("_fallback_tier") in ("thin-low", "confirmed-thin"):
+        return (-(term.get("_comp_count") or 0), stale if stale is not None else float("inf"), term["term"])
+    rate = term.get("_p3_sale_rate")
+    return (
+        0 if rate is not None else 1,
+        -(rate or 0),
+        -(stale if stale is not None else float("inf")),
+        term["term"],
+    )
+
+
+def select_fallback_terms(pool, tiers, slots):
+    """Fill up to `slots` from `pool`, tier by tier in the given order. A lower tier only
+    contributes after every eligible item of the higher tiers has been picked."""
+    picked = []
+    for tier in tiers:
+        if len(picked) >= slots:
+            break
+        in_tier = sorted((t for t in pool if t.get("_fallback_tier") == tier), key=_fallback_sort_key)
+        picked.extend(in_tier[: slots - len(picked)])
+    return picked
+
+
+def report_is_valid(report, now=None, max_age_minutes=REPORT_MAX_AGE_MINUTES):
+    """(ok, reason). A report counts only if it lists datasets and was generated just now."""
+    if not isinstance(report, dict):
+        return False, "report is not a JSON object"
+    datasets = report.get("datasets")
+    if not isinstance(datasets, list) or not datasets:
+        return False, "report lists no datasets"
+    try:
+        generated = datetime.fromisoformat(str(report.get("generatedAt")).replace("Z", "+00:00"))
+    except ValueError:
+        return False, "report has no valid generatedAt"
+    if generated.tzinfo is None:
+        generated = generated.replace(tzinfo=timezone.utc)
+    age_minutes = ((now or datetime.now(timezone.utc)) - generated).total_seconds() / 60
+    if age_minutes < -5:
+        return False, "report generatedAt is in the future"
+    if age_minutes > max_age_minutes:
+        return False, f"report is {age_minutes:.0f} minutes old"
+    return True, ""
+
+
 def mixed_selection_targets(p01_fixed, extra_target, p01_available):
     selected_p01_target = min(p01_fixed, p01_available)
     total_target = p01_fixed + extra_target
@@ -1700,6 +1814,25 @@ def do_export_run(args):
             if p.strip()
         }
 
+    # P3 fallback (#330H): ordered tiers that may fill batch slots P0-P2 leaves empty.
+    try:
+        fallback_tiers = parse_fallback_tiers(getattr(args, "fallback_tiers", None))
+    except ValueError as error:
+        print(f"ERROR: {error}")
+        sys.exit(2)
+    exit_on_drained = bool(getattr(args, "exit_on_drained", False))
+    if fallback_tiers or exit_on_drained:
+        if not args.backlog:
+            print("ERROR: --fallback-tiers and --exit-on-drained require --backlog")
+            sys.exit(2)
+        if args.mixed_p01_fixed is None and args.mixed_extra_min is None and args.mixed_extra_max is None:
+            print("ERROR: --fallback-tiers and --exit-on-drained require mixed selection")
+            sys.exit(2)
+    if fallback_tiers and getattr(args, "include_thin", False):
+        print("ERROR: --fallback-tiers cannot be combined with --include-thin")
+        sys.exit(2)
+    report_valid, report_invalid_reason = True, ""
+
     # Apply backlog: read freshness report and keep only datasets needing page1 refresh
     if args.backlog:
         import json as _json
@@ -1709,6 +1842,7 @@ def do_export_run(args):
             sys.exit(1)
         with open(backlog_path) as f:
             report = _json.load(f)
+        report_valid, report_invalid_reason = report_is_valid(report)
         backlog_filter = re.compile(args.filter, re.IGNORECASE) if args.filter else None
         # Only include priority tiers P0-P2 by default (viable markets).
         # P3 (thin-market monitor) is excluded unless --include-thin is passed.
@@ -1718,6 +1852,7 @@ def do_export_run(args):
         backlog_keys = set()
         backlog_search_terms = {}
         backlog_priorities = {}
+        backlog_fallback = {}
         dormant_count = 0
         thin_skipped = 0
         priority_filtered = 0
@@ -1745,17 +1880,30 @@ def do_export_run(args):
                 backlog_keys.add(item["key"])
                 backlog_search_terms[item["key"]] = item.get("searchTerm", item["key"])
                 backlog_priorities[item["key"]] = priority
+                if priority == "P3" and item.get("p3Tier") == "generic":
+                    backlog_fallback[item["key"]] = {"_generic": True}
             # Legacy fallback: old action names (no priority field)
             elif priority is None and any(a in actions for a in ("refresh-page1", "needs-data")):
                 backlog_keys.add(item["key"])
                 backlog_search_terms[item["key"]] = item.get("searchTerm", item["key"])
                 backlog_priorities[item["key"]] = None
+            elif fallback_tiers and priority == "P3" and item.get("p3Tier") in fallback_tiers:
+                backlog_keys.add(item["key"])
+                backlog_search_terms[item["key"]] = item.get("searchTerm", item["key"])
+                backlog_priorities[item["key"]] = "P3"
+                backlog_fallback[item["key"]] = {
+                    "_fallback_tier": item["p3Tier"],
+                    "_p3_sale_rate": item.get("p3SaleRate"),
+                    "_stale_days": item.get("staleDays"),
+                    "_comp_count": item.get("compCount") or 0,
+                }
             elif priority == "P3":
                 thin_skipped += 1
         if dormant_count:
             print(f"Skipping {dormant_count} dormant datasets (no Terapeak results on prior attempts)")
         if thin_skipped:
-            print(f"Skipping {thin_skipped} thin-market datasets (P3 monitor cadence, use --include-thin to include)")
+            hint = "outside the fallback tiers" if fallback_tiers else "P3 monitor cadence, use --include-thin to include"
+            print(f"Skipping {thin_skipped} thin-market datasets ({hint})")
         if priority_filtered:
             print(f"Skipping {priority_filtered} datasets by priority include/exclude filters")
         # Filter existing terms to backlog keys
@@ -1764,6 +1912,7 @@ def do_export_run(args):
         terms = [t for t in terms if t["term"] in backlog_keys]
         for t in terms:
             t["_backlog_priority"] = backlog_priorities.get(t["term"])
+            t.update(backlog_fallback.get(t["term"], {}))
         # Inject needs-data keys that have no CSV yet (new exports).
         # Try to find an existing CSV on disk via word-set matching so we
         # don't create duplicate files with a different naming convention.
@@ -1784,6 +1933,7 @@ def do_export_run(args):
                     "term": search_term,
                     "filename": existing_csv,
                     "_backlog_priority": backlog_priorities.get(key),
+                    **backlog_fallback.get(key, {}),
                 })
             else:
                 # Genuinely new -- use the searchTerm from report as eBay query
@@ -1795,6 +1945,7 @@ def do_export_run(args):
                     "term": st,
                     "filename": filename,
                     "_backlog_priority": backlog_priorities.get(key),
+                    **backlog_fallback.get(key, {}),
                 })
         print(f"Backlog mode: {len(terms)} from report ({len(missing_keys)} new, {len(terms) - len(missing_keys)} existing), skipping {before - (len(terms) - len(missing_keys))} not in backlog")
 
@@ -1821,15 +1972,39 @@ def do_export_run(args):
                 return random.sample(pool, take)
             return pool[:take]
 
+        fallback_pool = [t for t in terms if t.get("_fallback_tier")]
         p01_pool = [t for t in terms if t.get("_backlog_priority") == "P0.1"]
-        other_pool = [t for t in terms if t.get("_backlog_priority") != "P0.1"]
+        other_pool = [
+            t for t in terms
+            if t.get("_backlog_priority") != "P0.1" and not t.get("_fallback_tier")
+        ]
+        # Drained: nothing eligible in P0-P2 or any fallback tier. Only a valid, unfiltered
+        # report may say so; an invalid report is a failure, never a drain. Generic benchmark
+        # items (admitted by --include-thin) never leave P3 and do not count as eligible.
+        unfiltered = not args.filter and include_priorities is None and not exclude_priorities
+        if exit_on_drained and unfiltered and not any(not t.get("_generic") for t in terms):
+            if not report_valid:
+                print(f"ERROR: freshness report is not valid ({report_invalid_reason}); "
+                      "refusing to treat an empty queue as drained")
+                sys.exit(1)
+            print("DRAINED: no eligible dataset in P0-P2 or any fallback tier")
+            return "drained"
         extra_target = random.randint(extra_min, extra_max)
         p01_target, other_target, total_target = mixed_selection_targets(
             p01_fixed, extra_target, len(p01_pool)
         )
         selected_p01 = _pick(p01_pool, p01_target)
         selected_other = _pick(other_pool, other_target)
-        terms = selected_p01 + selected_other
+        # Slots P0-P2 left empty first go to P0.1 items beyond the fixed share, then to the fallback
+        # tiers, so the pass still uses the full batch size and no P0-P2 item waits behind a fallback.
+        open_slots = max(0, total_target - len(selected_p01) - len(selected_other))
+        surplus_p01 = []
+        if fallback_tiers and open_slots:
+            chosen = {id(t) for t in selected_p01}
+            surplus_p01 = _pick([t for t in p01_pool if id(t) not in chosen], open_slots)
+            open_slots -= len(surplus_p01)
+        selected_fallback = select_fallback_terms(fallback_pool, fallback_tiers, open_slots)
+        terms = selected_p01 + surplus_p01 + selected_other + selected_fallback
         if args.shuffle and len(terms) > 1:
             random.shuffle(terms)
         mixed_selection_applied = True
@@ -1839,6 +2014,15 @@ def do_export_run(args):
             f"non-P0.1 {len(selected_other)}/{other_target}, "
             f"total {len(terms)}/{total_target}"
         )
+        if fallback_tiers:
+            def _per_tier(items):
+                return ", ".join(
+                    f"{tier}={sum(1 for t in items if t['_fallback_tier'] == tier)}" for tier in fallback_tiers
+                )
+            print(f"Fallback pool: {len(fallback_pool)} eligible ({_per_tier(fallback_pool)})")
+            if surplus_p01:
+                print(f"P0.1 surplus fill: {len(surplus_p01)} (open slots used by P0.1 items beyond the fixed share)")
+            print(f"Fallback fill: {len(selected_fallback)} ({_per_tier(selected_fallback)})")
 
     # Apply resume
     progress = load_progress()
@@ -2073,6 +2257,7 @@ def do_export_run(args):
                 # Merge with existing CSV (preserve deep-paginated data)
                 dest = CSV_DIR / entry["filename"]
                 dest = _stage_dataset(csv_path, dest, term)
+                _dataset_yield[term]["tier"] = entry.get("_fallback_tier") or "primary"
 
                 # Upload to app with aggregationMeta
                 now = datetime.now().isoformat()
@@ -2099,6 +2284,7 @@ def do_export_run(args):
                     success += success_delta
                     uploaded += upload_delta
                     failed += failed_delta
+                _emit_yield(term)
             else:
                 print("NO EXPORT (no results or button not found)")
                 _report_no_data(term)
@@ -2242,6 +2428,8 @@ Examples:
     parser.add_argument("--mixed-p01-fixed", type=int, metavar="N", help="Backlog-only mixed mode: fixed count drawn from P0.1 queue")
     parser.add_argument("--mixed-extra-min", type=int, metavar="N", help="Backlog-only mixed mode: minimum random count drawn from non-P0.1 queue")
     parser.add_argument("--mixed-extra-max", type=int, metavar="N", help="Backlog-only mixed mode: maximum random count drawn from non-P0.1 queue")
+    parser.add_argument("--fallback-tiers", type=str, metavar="LIST", help="Mixed backlog mode: comma-separated P3 tiers (or 'all') that fill batch slots P0-P2 leaves empty, in order: " + ", ".join(FALLBACK_TIER_ORDER))
+    parser.add_argument("--exit-on-drained", action="store_true", help=f"Mixed backlog mode: exit {EXIT_DRAINED} when a valid report has no eligible dataset in P0-P2 or any fallback tier")
 
     args = parser.parse_args()
 
@@ -2296,6 +2484,8 @@ Examples:
         else:
             parser.print_help()
 
+        if ok == "drained":
+            sys.exit(EXIT_DRAINED)
         if ok is False:
             sys.exit(1)
     finally:

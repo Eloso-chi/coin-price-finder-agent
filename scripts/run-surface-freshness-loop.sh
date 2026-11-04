@@ -31,6 +31,8 @@ MIXED_PAGE1=false
 MIXED_P01_FIXED=15
 MIXED_EXTRA_MIN=15
 MIXED_EXTRA_MAX=20
+FALLBACK_TIERS=""
+EXIT_ON_DRAINED=false
 EFFECTIVE_PACING_PROFILE="baseline"
 RISK_STATE_FILE=""
 
@@ -54,6 +56,11 @@ Options:
   --mixed-p01-fixed N  Blended mode: fixed P0.1 picks per pass (default: 15).
   --mixed-extra-min N  Blended mode: min non-P0.1 picks (default: 15).
   --mixed-extra-max N  Blended mode: max non-P0.1 picks (default: 20).
+  --fallback-tiers LIST  Blended mode: P3 tiers (or 'all') that fill batch slots P0-P2 leaves
+                       empty, in order: probe-with-data, near-viable, probe-no-data, thin-low,
+                       confirmed-thin. Cannot be combined with --include-thin.
+  --exit-on-drained    Blended mode: exit 20 when a valid report has no eligible dataset in
+                       P0-P2 or any fallback tier.
   --effective-pacing-profile NAME  Operator-derived profile for this pass.
   --risk-state-file FILE  Persisted #284H risk-state file used to authorize tuned pacing.
   -h, --help           Show this help text.
@@ -203,6 +210,14 @@ while [[ $# -gt 0 ]]; do
       MIXED_EXTRA_MAX="$2"
       shift 2
       ;;
+    --fallback-tiers)
+      FALLBACK_TIERS="$2"
+      shift 2
+      ;;
+    --exit-on-drained)
+      EXIT_ON_DRAINED=true
+      shift
+      ;;
     --effective-pacing-profile)
       EFFECTIVE_PACING_PROFILE="$2"
       shift 2
@@ -271,6 +286,16 @@ fi
 
 if (( MIXED_EXTRA_MIN > MIXED_EXTRA_MAX )); then
   echo "require mixed-extra-min <= mixed-extra-max" >&2
+  exit 1
+fi
+
+if [[ ( -n "$FALLBACK_TIERS" || "$EXIT_ON_DRAINED" == true ) && "$MIXED_PAGE1" != true ]]; then
+  echo "--fallback-tiers and --exit-on-drained require --mixed-page1" >&2
+  exit 1
+fi
+
+if [[ -n "$FALLBACK_TIERS" && "$INCLUDE_THIN" == true ]]; then
+  echo "--fallback-tiers cannot be combined with --include-thin" >&2
   exit 1
 fi
 
@@ -388,6 +413,12 @@ if [[ "$MIXED_PAGE1" == true ]]; then
     --mixed-extra-min "$MIXED_EXTRA_MIN"
     --mixed-extra-max "$MIXED_EXTRA_MAX"
   )
+  if [[ -n "$FALLBACK_TIERS" ]]; then
+    PAGE1_ARGS+=(--fallback-tiers "$FALLBACK_TIERS")
+  fi
+  if [[ "$EXIT_ON_DRAINED" == true ]]; then
+    PAGE1_ARGS+=(--exit-on-drained)
+  fi
 else
   PAGE1_ARGS=(
     "$PYTHON_BIN" scripts/terapeak-export.py

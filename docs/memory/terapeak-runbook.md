@@ -230,6 +230,19 @@ in the git-ignored `cache/terapeak-rejected/`; see
 `docs/runbooks/local-scraper-wsl2.md`. Both operators stop after a pass with a
 cluster of such rejections (`no_comps_cluster`).
 
+Both operators also fill batch slots that P0 to P2 leaves empty from five
+ordered P3 fallback tiers and end cleanly when nothing is eligible (#330H):
+the exporter is called with `--fallback-tiers all --exit-on-drained` by
+default, and its exit 20 is recorded as a completed zero-coin pass followed by
+a `drained` state (`cache/terapeak-startup-state.json` for H,
+`cache/terapeak-operator-codespace.state.json` for W) and exit 0, leaving the
+risk state unchanged. `--no-fallback` restores the old behavior; `--include-thin`
+turns the tiers off but keeps the drained exit (generic benchmark items do not
+count as eligible work). Pass records carry
+`fallback_filled`, `tier_yield` (rows appended to each tier's dataset CSVs; the
+upload `new` count overstates fresh rows) and `drained`. Details:
+`docs/runbooks/local-scraper-wsl2.md`.
+
 View the ledger with `scripts/show-terapeak-runs.sh`:
 
 ```bash

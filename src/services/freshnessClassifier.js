@@ -278,12 +278,67 @@ function shouldSkipRefresh(meta, now = new Date(), opts = {}) {
   return { skip: false, reason: null, state };
 }
 
+// -- P3 fallback tiers (#330H) ----------------------------------------------
+// P3 datasets are not equally worth a request. The report tags each one with a
+// tier so the exporter can fill spare batch slots in a fixed, testable order.
+// `generic` benchmark items are tagged too but are never part of the fallback pool.
+const P3_FALLBACK_TIER_ORDER = Object.freeze([
+  'probe-with-data', // evidence probe that already has comps and was never refreshed
+  'near-viable', // thin market one or two sales short of viable
+  'probe-no-data', // evidence probe with no comps yet
+  'thin-low', // remaining thin datasets
+  'confirmed-thin', // thin after repeated refreshes
+]);
+const P3_NEAR_VIABLE_MIN_COMPS = 5;
+const P3_NEAR_VIABLE_MAX_SALE_AGE_DAYS = 365;
+const P3_RECENT_FETCH_DAYS = 180;
+const P3_EST_NEW_SALES_MIN = 2;
+const P3_DAYS_PER_MONTH = 30.4;
+
+/**
+ * Observed sales per month: comps divided by the span between the oldest and
+ * newest sale (never less than one month). Null when the dates are unusable.
+ */
+function p3SaleRatePerMonth({ compCount, newestSaleDate, oldestSaleDate }) {
+  if (!compCount || !newestSaleDate || !oldestSaleDate) return null;
+  const newest = new Date(newestSaleDate).getTime();
+  const oldest = new Date(oldestSaleDate).getTime();
+  if (!Number.isFinite(newest) || !Number.isFinite(oldest) || newest < oldest) return null;
+  const spanMonths = Math.max((newest - oldest) / 86_400_000 / P3_DAYS_PER_MONTH, 1);
+  return Math.round((compCount / spanMonths) * 100) / 100;
+}
+
+/**
+ * Tier of a P3 dataset, or null when it is not a P3 candidate.
+ * `actions` is the report's action list; `isGeneric` is the report's generic-name test.
+ */
+function classifyP3Tier({
+  actions = [], marketDepth, compCount = 0, staleDays = null, page1At = null,
+  saleRate = null, isGeneric = false, now = new Date(),
+}) {
+  if (isGeneric) return 'generic';
+  if (actions.includes('evidence-probe')) return compCount > 0 ? 'probe-with-data' : 'probe-no-data';
+  if (marketDepth === 'confirmed-thin') return 'confirmed-thin';
+  if (marketDepth !== 'thin') return null;
+
+  const recentSale = compCount >= P3_NEAR_VIABLE_MIN_COMPS
+    && staleDays !== null && staleDays <= P3_NEAR_VIABLE_MAX_SALE_AGE_DAYS;
+  const fetchAgeDays = _daysBetween(now, page1At);
+  const likelyNewSales = saleRate !== null
+    && fetchAgeDays !== null && fetchAgeDays >= 0 && fetchAgeDays <= P3_RECENT_FETCH_DAYS
+    && saleRate * (fetchAgeDays / P3_DAYS_PER_MONTH) >= P3_EST_NEW_SALES_MIN;
+  return recentSale || likelyNewSales ? 'near-viable' : 'thin-low';
+}
+
 module.exports = {
   THRESHOLDS,
   classify,
   isPlausibleRefreshTimestamp,
   latestRefreshAt,
   shouldSkipRefresh,
+  p3SaleRatePerMonth,
+  classifyP3Tier,
+  P3_FALLBACK_TIER_ORDER,
   _isHighConfidenceLowVolEvidence,
   _isMediumConfidenceLowVolEvidence,
 };
