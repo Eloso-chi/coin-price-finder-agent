@@ -242,7 +242,10 @@ has been picked for the pass: `probe-with-data`, `near-viable`, `probe-no-data`
 (one attempt each), `thin-low`, `confirmed-thin`. P0.1 items beyond the fixed
 share take open slots before any fallback item. Batch size and pacing do not
 change, so a pass with a short P0 to P2 queue sends the usual number of requests
-rather than idling. Generic benchmark items are never selected.
+rather than idling. Generic benchmark items are never selected: a dataset whose
+search term contains the word "Generic" (for example "American Gold Eagle 1oz
+Generic") is tagged `generic` in the freshness report, because Terapeak answers
+those synthetic terms with no results for most of them.
 
 When a valid report (generated within the last 120 minutes; the operators
 regenerate it before every exporter call) has no eligible dataset in P0 to P2 or any

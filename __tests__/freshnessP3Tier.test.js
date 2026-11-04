@@ -152,6 +152,11 @@ describe('generate-freshness-report.js P3 tiers', () => {
       '1887 morgan silver dollar generic': { compCount: 50, newestSaleDate: daysAgo(5), refreshCount: 2 },
       '1888 morgan silver dollar': { compCount: 150, newestSaleDate: daysAgo(3), refreshCount: 2 },
       '1889 morgan silver dollar': { compCount: 80, newestSaleDate: daysAgo(20), refreshCount: 0 },
+      // Word-sorted keys put "generic" mid-key; a probe with comps must not land in probe-with-data.
+      'american eagle generic gold oz quarter': { compCount: 285, newestSaleDate: daysAgo(5), refreshCount: 0, identifiers: mediumLowVol },
+      'bear canadian generic oz polar silver tenth': { compCount: 3, newestSaleDate: daysAgo(200), refreshCount: 0 },
+      '1891 morgan silver dollar': { compCount: 3, newestSaleDate: daysAgo(200), refreshCount: 0, searchTerm: '1891 Morgan Silver Dollar Generic' },
+      '1892 morgan silver dollar': { compCount: 3, newestSaleDate: daysAgo(200), refreshCount: 0, searchTerm: '1892 Morgan Silver Dollar Degenerics' },
     };
   }
 
@@ -169,6 +174,10 @@ describe('generate-freshness-report.js P3 tiers', () => {
     ['1885 morgan silver dollar', 'thin-low'],
     ['1886 morgan silver dollar', 'confirmed-thin'],
     ['1887 morgan silver dollar generic', 'generic'],
+    ['american eagle generic gold oz quarter', 'generic'],
+    ['bear canadian generic oz polar silver tenth', 'generic'],
+    ['1891 morgan silver dollar', 'generic'],
+    ['1892 morgan silver dollar', 'thin-low'],
   ])('%s is a P3 dataset in tier %s', (key, tier) => {
     expect(byKey(key).priority).toBe('P3');
     expect(byKey(key).p3Tier).toBe(tier);
@@ -192,11 +201,11 @@ describe('generate-freshness-report.js P3 tiers', () => {
       'probe-with-data': 1,
       'near-viable': 2,
       'probe-no-data': 1,
-      'thin-low': 1,
+      'thin-low': 2,
       'confirmed-thin': 1,
-      generic: 1,
+      generic: 4,
     });
-    expect(report.summary.priorityCounts.P3).toBe(7);
+    expect(report.summary.priorityCounts.P3).toBe(11);
   });
 
   test('a report with no P3 datasets still lists all tiers with zero counts', () => {

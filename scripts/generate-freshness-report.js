@@ -147,6 +147,12 @@ function isGenericCoin(searchKey) {
   return /[_\s]generic$/i.test(searchKey);
 }
 
+// Report keys are word-sorted, so "generic" is usually mid-key. A search term containing the word
+// "Generic" is a synthetic aggregate that Terapeak mostly answers with no table (#330H).
+function hasGenericWord(text) {
+  return /\bgeneric\b/i.test(text || '');
+}
+
 // ── P0.1 Bullion fast-lane detection ───────────────────────
 // User-defined high-volume silver bullion family:
 // Libertads, Pandas, American Silver Eagles, Perth, RCM silver lines.
@@ -400,7 +406,7 @@ for (const [key, entry] of Object.entries(meta)) {
       staleDays,
       page1At: entry.page1At || null,
       saleRate: p3SaleRate,
-      isGeneric: isGenericCoin(key),
+      isGeneric: isGenericCoin(key) || hasGenericWord(searchTerm),
       now: today,
     });
   }
