@@ -7,6 +7,72 @@ Items marked DONE are kept for historical reference.
 
 ## Scraping & Data Pipeline
 
+### #331H. Add a graceful stop (stop-request file and signal handling) to the Terapeak operators [P2 -- OPERATIONS / RELIABILITY] -- PROPOSED 2026-11-03
+
+**Origin:** Stopping H operator run `20261101T172803Z-344805` after pass 86 on 2026-11-03.
+
+**Problem:** There is no supported way to stop an operator. In `scripts/terapeak-operator.sh` and `scripts/run-surface-freshness-loop.sh` there is no stop file or other control file, no handler for SIGTERM or SIGINT, and the only exit hook is `trap cleanup EXIT`. The only stop guidance in `docs/runbooks/local-scraper-wsl2.md` is `pkill` on the wrapper, loop, exporter and browser, written for killing a loop before a focused pass. The 2026-11-03 stop was safe only because a one-off watcher timed it to a pass boundary (pass recorded in `passes.jsonl`, no loop child running, then SIGTERM during the Elevated wait). Afterward the startup state still read "Pass 86 completed" (status ok), so nothing recorded that the run had been stopped; the locks were free because `flock` releases them when the process dies. A stop landing mid-coin could leave a partial export, a pending async upload, or a CSV that was merged but not uploaded.
+
+**Proposed approach:**
+1. A stop-request file, for example `cache/terapeak-operator.stop`. The operator checks it at the top of each pass and while it waits between passes (the Elevated wait already runs through `_terapeak_risk.py wait-elevated-pause`). The exporter checks it between coins, finishes the current coin and its upload, and exits with a dedicated exit code that the operator treats as a stop, not a failure.
+2. `scripts/terapeak-operator-stop.sh [--after-pass | --after-coin] [--timeout SEC]` writes the file, waits for the operator to exit, then verifies that no operator, loop, exporter or browser process is left and both locks are free, and prints the last pass and the risk state.
+3. SIGTERM and SIGINT handlers in the operator and the loop set the same flag and forward to the exporter; a second signal exits immediately.
+4. A stop is not a risk signal. The risk state is unchanged (Elevated stays Elevated). `cache/terapeak-startup-state.json` gets a distinct `stopped` stage so a stop is distinguishable from a failure and from "Pass N completed", and a partial pass writes telemetry with a `stopped` outcome so `passes.jsonl` and `scripts/operator-status.py` stay consistent.
+5. Startup detects a stale stop file from an earlier run and clears it or refuses with a clear message, so the next start does not stop immediately.
+6. Replace the `pkill` guidance for normal stops with the new procedure and keep `pkill` as the documented emergency path.
+
+**Acceptance criteria:**
+- Tests run the real operator path with stubs: a stop request during a pass finishes the current coin and its upload, writes partial-pass telemetry, records the `stopped` state, and leaves no process or lock behind.
+- A stop request during the between-pass wait exits before the next pass starts.
+- A stale stop file does not stop a new run unexpectedly.
+- A stop does not change the risk state; hard-challenge and Cooldown stops behave as before.
+- The emergency `pkill` path stays documented.
+
+**Files (anticipated):** `scripts/terapeak-operator.sh`; `scripts/terapeak-operator-codespace.sh`; `scripts/run-surface-freshness-loop.sh`; `scripts/terapeak-export.py`; `scripts/_parse-terapeak-pass.py`; new `scripts/terapeak-operator-stop.sh`; `docs/runbooks/local-scraper-wsl2.md`; `scripts/README.md`; `docs/memory/anti-bot-operations.md`; `.github/agents/terapeak-operator.agent.md`; matching tests.
+
+**Tier:** M. Operator control flow changes; review against `docs/memory/anti-bot-operations.md` (a stop must not weaken Cooldown).
+
+**Out of scope:** changing hard-challenge or Cooldown stop behavior; any UI for stopping a run.
+
+**Related:** #330H, #325H, #320H.
+
+---
+
+### #330H. Fill empty operator batch slots from a tiered P3 fallback and exit cleanly when the queue is drained [P2 -- OPERATIONS / DATA-COVERAGE] -- PROPOSED 2026-11-03
+
+**Origin:** H operator run `20261101T172803Z-344805`, stopped after pass 86 with about 90 P0 datasets left (288 when this was first measured). The operator never reads P3, and nothing handles an empty queue.
+
+**Problem:**
+1. P3 is excluded unless `--include-thin`, which is fixed at launch and mixes all P3 datasets into the uniform random sample. In the 2026-11-03 freshness report P3 held 1,421 datasets against 288 P0, so adding the flag would put about 83 percent of the draws on P3 and slow P0. The launchers do not pass the exporter's `--priority-include` for the main (P0 to P2) batch; only the bullion fast-lane batch does.
+2. P3 is not uniformly low value. In that report: 62 of the 83 evidence-probe items already have data (56 viable and 6 thin, 4 to 189 comps, newest sale within 12 months) and have never been refreshed by the operator; 223 thin datasets have 5 to 9 comps and a sale in the last 12 months, so one or two new sales would make them viable; 299 confirmed-thin datasets have 11 to 200 or more refreshes and almost no yield; about 760 thin datasets have 1 to 4 comps; 21 probes have no data (several are synthetic "generic" keys).
+3. When P0 to P2 are empty, `terapeak-operator.sh` has no exit: the exporter prints "No terms to process." and the loop sleeps and repeats until items return after the 14-day recently-confirmed-stale window (`RECENTLY_REFRESHED_DAYS` in `src/services/freshnessClassifier.js`). How the pass parser and monitor handle a zero-coin pass has not been verified.
+4. Upload telemetry overstates fresh rows. The exporter uploads the whole merged dataset file and the server's "new" count is relative to its own store, so run `20261101T172803Z-344805` reported 108,624 new rows while the CSV delta against main was 54,181 (at most 50 rows per page-1 scrape). A yield gate must use the CSV delta, not the `new` telemetry.
+
+**Proposed approach:**
+1. `scripts/generate-freshness-report.js` adds a `p3Tier` field to P3 entries (probe with data, near-viable, probe without data, thin low-comp, confirmed-thin, generic) so selection is data-driven and testable.
+2. `scripts/terapeak-export.py` gets `--fallback-tiers LIST` (ordered) and `--fallback-max N` (proposed default 8). Fallback items are used only when the P0 to P2 pool is smaller than the slots to fill; total batch size and pacing do not change. Within a tier, order by estimated sale rate (comps divided by sale span), then staleness.
+3. Initial tier order: probes with data (about 62); near-viable thin datasets (about 223, plus about 52 already in P3 with a page-1 fetch in the last 6 months and an estimated 2 or more new sales since); probes without data, one attempt each. Exclude confirmed-thin and generic benchmark items. Include a sample of about 40 thin 1-to-4-comp datasets only behind an explicit flag after the first two tiers are reviewed.
+4. Both operators pass the fallback flags by default. The pass parser records the fallback fill count, and `scripts/operator-status.py` shows P3 fill separately from P0.
+5. Drained behavior: when P0 to P2 and the fallback pool stay empty for 2 consecutive passes, record a `drained` state and exit 0 instead of idling. Open decision: exit versus hibernate until items return.
+6. Yield gate: judge each tier by rows appended to the dataset CSVs, not by upload telemetry. Proposed bar: 3 or more appended rows on most tier-1 items before tier 2 runs. The bar is a proposal for the maintainer to set.
+
+**Open decisions:** the per-pass cap (8), the yield bar, exit versus hibernate when drained, and whether to sample the thin 1-to-4-comp datasets.
+
+**Acceptance criteria:**
+- With a P0 to P2 pool smaller than the slots to fill, the batch holds fallback items in tier order up to the cap; with enough P0 to P2 items, no fallback item is selected.
+- Batch size, pacing, dormancy rules and hard-challenge stops are unchanged.
+- A fixture with the 2026-11-03 distribution produces the expected `p3Tier` counts.
+- The drained path exits 0 with a recorded state, and a zero-coin pass parses without a telemetry failure.
+- Status output separates fallback fill from P0, and tests do not weaken existing assertions.
+
+**Files (anticipated):** `scripts/generate-freshness-report.js`; `scripts/terapeak-export.py`; `scripts/terapeak-operator.sh`; `scripts/terapeak-operator-codespace.sh`; `scripts/_parse-terapeak-pass.py`; `scripts/operator-status.py`; matching tests under `__tests__/` and `scripts/test_*.py`; `docs/memory/terapeak-runbook.md`; `docs/runbooks/local-scraper-wsl2.md`.
+
+**Tier:** M. Scraper selection changes; review against `docs/memory/anti-bot-operations.md` (no increase in request volume or pacing change).
+
+**Related:** #331H, #325H, #320H, #323H, #328H.
+
+---
+
 ### #329H. Apply the Elevated wall-clock pause and clean-pass rule to the Codespace operator and the `evaluate` command [P2 -- RISK-STATE / OPERATIONS] -- PROPOSED 2026-10-31
 
 **Origin:** Deep review of PR #359 (finding 9). #325H and #320H fixed the H operator; the same exporter and risk helper serve the W operator, which was out of scope.
