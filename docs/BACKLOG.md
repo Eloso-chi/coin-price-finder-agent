@@ -491,6 +491,64 @@ Added `is_barber_nonhalf_term()` filter (regex: `\bbarber\b(?!.*\bhalf\b)`). Bar
 
 ## Pricing Accuracy
 
+### #333H. Bar pricing: segment branded versus generic bars on every route, and normalize sold comps to premium over spot at the sale date [P2 -- PRICING-ACCURACY / DATA-QUALITY] -- PROPOSED 2026-11-04
+
+**Origin:** Review of the bar catalog and bar pricing path on 2026-11-04 (H machine), after asking whether brands carry value over generic bars and how the metal price at the time of sale is handled. Related: #285W (bar-series variant filter, coin route), #196 (dealer premium benchmark), #187 (bar pricing health script), #270W (raw-bullion comp signal).
+
+**Problem:**
+1. **Segmentation is inconsistent between endpoints.** `POST /api/bar-price` ([src/routes/barPriceRoute.js](src/routes/barPriceRoute.js)) builds `expected` with `brand` and `barSeries` but never sets `barBrand` or `meltPerOz`, and calls `computeValuation` without `barSeries`. The hard brand+series comp filter (`ebayService.js`, `if (expected.barBrand && expected.barSeries)`), the series scoring bonus, the "fewer than 3 series comps returns no FMV" rule, and the melt floor and ceiling filters therefore do not run on that route. It gets only the soft brand score in `scoreBarMatch` (+20 on a title match, -25 on a mismatch). The general path (`pricingService.js`, `pricingBatchRoute.js`, via `coinIntent.js`) does set both, as #285W intended. The same bar is isolated on one endpoint and pooled on the other.
+2. **There is no generic bar segment.** A request with no brand has no brand logic at all, so named-maker comps (PAMP, Geiger) pool with unbranded bars and move the generic FMV. There is no way to ask for "unbranded only". A brand-only request does not hard-filter by brand.
+3. **Comp prices are not normalized to the metal price at sale time.** `valuationService.js` computes `rawPremium = (ebayMedian - spotPrice) / spotPrice`, clamps it to -5% up to +40% (+100% when the bar's total spot is 500 or less), and returns `spotPrice * (1 + premiumPct)`. `ebayMedian` is the median of raw dollar sold prices from different dates, compared against today's spot. If the metal moved after those sales the premium is wrong, and the clamp hides the error. `metalsHistoryService.getSpotOnDate` (daily, 400 days) exists, but its only consumer is the melt-floor filter in `ebayService.js`, which does not run for bars on `/api/bar-price` because `meltPerOz` is unset. Nothing converts a comp to a premium over spot at its sale date.
+4. **The premium cap depends on bar size, not metal.** `maxPremium = spotPrice > 500 ? 0.40 : 1.00` tests the bar's total spot (spot times weight), so a 10 oz silver bar gets 40% and a 1 oz silver bar 100%.
+5. **Weight handling.** `sizeMap` in `barPriceRoute.js` omits 25 g, 250 g, 500 g, fractional ounces, 20 oz, 50 oz, 100 oz and 1000 oz, and falls back to `|| 1`, so `pureOzt` is reported as 1 oz for those sizes. We already scrape a 25 g PAMP dataset and a 100 oz silver dataset. The UI offers 0.5 g to 10 oz only.
+6. **Dataset contamination.** Rows of the wrong weight sit in weight-keyed datasets (see evidence).
+7. **Catalog gaps.** 7 brands are registered, and only PAMP and Geiger have bar datasets (26 PAMP keys, 10 Geiger bar keys among 86 bar and round keys of 5,383). Valcambi, Perth bars and Scottsdale are in code with no sold data. Argor-Heraeus, Sunshine, Asahi, SilverTowne, OPM, Engelhard, Johnson Matthey, Sunshine Mining, US Assay, RCM, Royal Mint, Metalor and Umicore have no series entries and no data. There are no platinum or palladium bar datasets and no premium range for them in `dealerPremiums.js`. Two brand lists exist (`BAR_BRANDS` with 7 entries, and the 20 tokens in `marketAggregator.js`), and `\bjm\b` matches JM Bullion listings as Johnson Matthey while `/sunshine/` merges Sunshine Minting with Sunshine Mining.
+
+**Evidence (2026-11-04, local Terapeak CSVs):**
+- `Silver_Bar_1oz_Generic.csv`, monthly median sold price: $33 (2024-12), $66 (2025-12), $87 (2026-01), $100 (2026-04). The metal roughly tripled in under two years.
+- `Silver_Bar_100oz_Generic.csv`: $3.1k (2024-12), $7.1k (2026-01), $8.6k (2026-02), then $747 (2026-03) and $600 (2026-04) from smaller bars mixed in.
+- `PAMP_Suisse_1_oz_Gold_Bar.csv`: $4.3k to $5.0k by month, with one month at $1,040.
+- Branded versus generic medians cannot be compared cleanly from the current datasets because of the contamination above and the time spread.
+- Local spot history was not available in the H clone, so production history coverage is unverified. Sold-comp rows also carry Shipping, Condition, Format and Quantity Sold columns that are not used for bar pricing.
+
+**Proposed approach:**
+1. **Phase 1 -- one bar identity and one segmentation (Tier M).**
+   - Resolve every bar request to `(metal, form, weight bucket, brand class)`. Brand class is `series` (maker and series), `brand` (maker only) or `generic` (no recognized maker). Bars and rounds are separate forms.
+   - `generic` hard-excludes every recognized maker. `brand` hard-filters on maker. `series` hard-filters on maker and series. Fewer than three survivors returns no FMV with an explicit label rather than falling through silently.
+   - The bar route and the general path share one builder; the route sets `barBrand` and `meltPerOz` and passes `barSeries` to `computeValuation`.
+   - Fix `sizeMap` (add the missing sizes, remove the `|| 1` default, offer the sizes in the UI) and replace the `spotPrice > 500` cap test with a metal- and segment-based cap.
+   - Narrow the `\bjm\b` and `sunshine` tokens; merge the two brand lists into one registry.
+2. **Phase 2 -- spot-normalized comps (Tier L; formula change).**
+   - For each comp compute `premium = (price + shipping) / (weight_oz * spotOnDate(sold date)) - 1`. Use a recency-weighted, outlier-trimmed median per segment.
+   - `FMV = spot_today * weight * (1 + segment premium)`. Comps without a sold date, or dates outside history, fall back to today's behavior.
+   - Fallback ladder, reported in the result: series comps, then brand comps, then generic comps of the same weight bucket, then the dealer premium range. A branded request never falls to generic without saying so.
+   - Add weight-bucket validation of dataset rows (reject a "100 oz" row priced like a 10 oz bar).
+3. **Phase 3 -- brand premium data and catalog (Tier M).**
+   - A script writes `data/bar-premiums.json` with the median and spread of premium over spot per segment, with sample size and date range, and a brand-over-generic uplift figure. `dealerPremiums.js` consumes it for brand-specific ranges, including platinum and palladium.
+   - Expand makers and series by priority: (1) Sunshine Minting, Asahi, PAMP Cast and Minted, Valcambi, Perth bars, Scottsdale data; (2) Argor-Heraeus, RCM, SilverTowne, OPM, Royal Mint, platinum and palladium bars; (3) vintage Engelhard, Johnson Matthey, Sunshine Mining, US Assay, legacy Swiss gold. Line names must be checked against live eBay sold titles before they are added.
+   - Operator queue: add the new bar datasets by brand and weight (they enter the freshness report and the #330H fallback tiers like any other dataset).
+
+**Decisions needed (maintainer):**
+- Whether Phase 1 ships first as its own PR (it fixes live endpoint inconsistency independent of the spot work). Recommended.
+- Historical spot: how far back production history reaches and, if it is shorter than the comp dates, which provider to use for a one-time backfill.
+- Whether to keep the existing -5% / +40% / +100% clamp as a safety net during the rollout of Phase 2.
+
+**Acceptance criteria:**
+- The same bar request returns the same comp set and segment on `/api/bar-price`, `/api/price` and `/api/pricing-batch`.
+- A generic request admits no comp that `detectBarBrands` recognizes; a brand-only request admits no other maker; a brand+series request admits no other series. Each case has a route-level test, not only a mocked-service test.
+- `/api/bar-price` applies the melt floor and ceiling, and reports `pureOzt` correctly for every size in `sizeMap` and the UI. An unlisted size is rejected or parsed, never defaulted to 1 oz.
+- Phase 2: with a fixture whose comps were sold at different spot prices, FMV tracks today's spot and the premium matches the per-comp normalization; comps without dates keep today's result; existing bullion tests in `computeValuation.test.js` still pass unchanged.
+- The response names the segment used, the comp count, and any fallback step.
+- Mutation-check the segment filters and the normalization before merge.
+
+**Files (anticipated):** `src/routes/barPriceRoute.js`; `src/services/ebayService.js`; `src/services/valuationService.js`; `src/services/metalsHistoryService.js`; `src/services/marketAggregator.js`; `src/data/barSeries.js`; `src/data/dealerPremiums.js`; `src/utils/coinMetalProfile.js`; `public/index.html` (size options); `scripts/bar-pricing-health.js`; a new premium-data script; matching tests under `__tests__/` (`barPriceRoute`, `barSeries`, `computeValuation`, `ebayFetchSoldComps`, `dealerPremiums`, `metalsHistoryService`); `docs/ARCHITECTURE.md`, `docs/data-dictionary.md`, `docs/memory` pricing docs.
+
+**Tier:** M for Phases 1 and 3; L for Phase 2 (valuation formula change affecting every bar FMV), with manual smoke on silver and gold bars across weights.
+
+**Related:** #285W, #196, #187, #270W, #316H (contradictory weight keys), #330H (fallback tiers feed new bar datasets).
+
+---
+
 ### ~~P0-A. MintMismatch Over-Filtering on Over-Mintmark Varieties [DONE]~~
 
 Fixed in `a1e02ca` (May 1). Uses `matchAll` + over-mintmark detection (`O/S`, `O over S`). 1882-S Morgan: $74.85 -> $133.21.
