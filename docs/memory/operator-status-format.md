@@ -74,6 +74,19 @@ The exporter's own `Failed:` tail (`failed_reported`) still counts
 Records written before #328H count a no-comps rejection as `failed`, so
 failure rates are not directly comparable across that boundary.
 
+P3 fallback fields (#330H): `fallback_filled` is the number of batch slots the
+P3 fallback tiers filled in the pass, `tier_yield` maps each tier (and `primary`
+for P0 to P2 datasets) to `{items, appended_rows}` where `appended_rows` is the
+CSV row delta of each exported dataset (the upload `new` count includes rows the
+app already held, so it is not a yield measure), and `drained` is true for the
+zero-coin pass on which the exporter found nothing eligible in any tier. Logs
+written before #330H yield zeros, an empty `tier_yield` and `false`.
+`operator-status.py` prints `P3 fill: N slots this pass | M this run` and
+`Appended rows this pass: ...` between `Batch total` and `Queue` only when a
+fallback tier was used in the pass or earlier in the run, and adds
+`queue drained: no eligible dataset in any tier` to Highlights for a drained
+pass.
+
 The default pacing profile is `baseline`. Set
 `TERAPEAK_PACING_PROFILE=normal-tuned` only for an approved pilot. The tuned
 profile scales centralized idle and action delays to 80% during Normal passes.

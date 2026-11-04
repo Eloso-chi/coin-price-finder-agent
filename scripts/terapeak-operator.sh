@@ -22,6 +22,8 @@ BATCH_MIN=30
 BATCH_MAX=35
 USER_PASSED_PAGE1_BATCH=0
 INCLUDE_THIN=false
+FALLBACK_ENABLED=true
+DRAINED_EXIT_RC=20
 FOCUS_REGEX=""
 COIN_TYPE=""
 P01_FIXED=15
@@ -68,6 +70,11 @@ Options:
   --batch-min N         Min randomized TOTAL page-1 picks per pass (default: 30)
   --batch-max N         Max randomized TOTAL page-1 picks per pass (default: 35)
   --include-thin        Include thin-market queue entries
+  --no-fallback         Do not fill spare batch slots from the P3 fallback tiers and do not exit when
+                        the queue is drained (previous behavior). Without it, slots P0-P2 leaves empty
+                        are filled from P3 tiers (probe-with-data, near-viable, probe-no-data, thin-low,
+                        confirmed-thin) and the operator exits 0 with a recorded `drained` state when a
+                        valid report has nothing eligible in any tier. --include-thin turns the tiers off.
   --focus REGEX         Focus terms matching REGEX
   --coin-type NAME      Built-in alias focus (libertads, morgans, etc.)
   -h, --help            Show this help text
@@ -233,6 +240,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --include-thin)
       INCLUDE_THIN=true
+      shift
+      ;;
+    --no-fallback)
+      FALLBACK_ENABLED=false
       shift
       ;;
     --focus)
@@ -457,6 +468,12 @@ while true; do
   if [[ "$INCLUDE_THIN" == true ]]; then
     LOOP_ARGS+=(--include-thin)
   fi
+  if [[ "$FALLBACK_ENABLED" == true ]]; then
+    if [[ "$INCLUDE_THIN" != true ]]; then
+      LOOP_ARGS+=(--fallback-tiers all)
+    fi
+    LOOP_ARGS+=(--exit-on-drained)
+  fi
   if [[ -n "$FOCUS_REGEX" ]]; then
     LOOP_ARGS+=(--focus "$FOCUS_REGEX")
   fi
@@ -469,6 +486,13 @@ while true; do
 
   PASS_EXIT_RC=0
   "${LOOP_ARGS[@]}" 2>&1 | tee -a "$PASS_LOG_FILE" || PASS_EXIT_RC=$?
+  # The exporter exits DRAINED_EXIT_RC when a valid report has nothing eligible in any tier. That is
+  # a completed zero-coin pass, not a failure; it is recorded below and then ends the run.
+  PASS_DRAINED=false
+  if (( PASS_EXIT_RC == DRAINED_EXIT_RC )); then
+    PASS_DRAINED=true
+    PASS_EXIT_RC=0
+  fi
   PASS_END_TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   TRANSITION_FILE="${PASS_LOG_FILE}.risk.tsv"
   SUMMARY_FILE="${PASS_LOG_FILE}.summary.json"
@@ -523,6 +547,14 @@ while true; do
   fi
 
   write_state "loop-pass" "ok" "Pass ${PASS} completed"
+
+  if [[ "$PASS_DRAINED" == true ]]; then
+    rm -f "$SUMMARY_FILE"
+    CURRENT_STAGE="drained"
+    write_state "drained" "ok" "Queue drained after pass ${PASS}: no eligible dataset in P0-P2 or any fallback tier" 0
+    echo "[operator] Queue drained: no eligible dataset in P0-P2 or any fallback tier. Exiting; risk state is unchanged."
+    exit 0
+  fi
 
   # Data-quality check (not a risk signal): a cluster of uploads rejected as "No valid comps" points
   # at a Terapeak export-format change or a server CSV parser fault. Read-only; fails closed.

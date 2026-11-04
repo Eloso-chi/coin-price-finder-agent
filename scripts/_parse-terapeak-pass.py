@@ -81,6 +81,14 @@ SYNC_UPLOAD_FAIL_RE = re.compile(r"SAVED but upload failed:\s*(.+)", re.IGNORECA
 TIMEOUT_RE = re.compile(r"^\s*TIMEOUT\b")
 ERROR_RE = re.compile(r"^\s*(ERROR:.*)$")
 TINY_FILE_RE = re.compile(r"^\s*EMPTY \(file too small")
+# #330H: the exporter reports how many slots the P3 fallback tiers filled, the rows each exported
+# dataset appended to its CSV (the yield measure; upload `new` counts overstate fresh rows), and a
+# drained marker when nothing was eligible in any tier.
+FALLBACK_FILL_RE = re.compile(r"^\s*Fallback fill:\s*(\d+)\s*\(")
+YIELD_RE = re.compile(r"^\s*\[yield\]\s+tier=(\S+)\s+appended=(\d+)\s+term=(.+?)\s*$")
+DRAINED_RE = re.compile(r"^\s*DRAINED:")
+# Display order of the P3 fallback tiers; a test keeps it equal to the exporter's and the report's order.
+FALLBACK_TIER_ORDER = ("probe-with-data", "near-viable", "probe-no-data", "thin-low", "confirmed-thin")
 
 
 def clip_error(text):
@@ -300,6 +308,42 @@ def parse_pass_log(path):
     return coins, totals
 
 
+def parse_tier_telemetry(path):
+    """Fallback fill, per-tier yield and drained marker from a pass log (#330H).
+
+    fallback_filled: slots the P3 fallback tiers filled in this pass's batch selection.
+    tier_yield: {tier: {"items": exported datasets, "appended_rows": rows added to their CSVs}};
+    non-fallback datasets are reported under "primary" so tiers can be compared with P0-P2.
+    A term can log more than one [yield] line (a later one corrects an earlier one when its CSV is
+    set aside), so the last line per term counts.
+    Logs written before #330H carry none of these lines and yield zeros.
+    """
+    fallback_filled = 0
+    by_term = {}
+    drained = False
+    try:
+        with open(path, encoding="utf-8", errors="replace") as handle:
+            for line in handle:
+                fill = FALLBACK_FILL_RE.match(line)
+                if fill:
+                    fallback_filled = int(fill.group(1))
+                    continue
+                if DRAINED_RE.match(line):
+                    drained = True
+                    continue
+                found = YIELD_RE.match(line)
+                if found:
+                    by_term[found.group(3)] = (found.group(1), int(found.group(2)))
+    except OSError:
+        pass
+    tier_yield = {}
+    for tier, appended in by_term.values():
+        entry = tier_yield.setdefault(tier, {"items": 0, "appended_rows": 0})
+        entry["items"] += 1
+        entry["appended_rows"] += appended
+    return {"fallback_filled": fallback_filled, "tier_yield": tier_yield, "drained": drained}
+
+
 def aggregate(coins):
     out = {
         "attempted": len(coins),
@@ -392,6 +436,7 @@ def main(argv=None):
 
     coins, totals = parse_pass_log(args.pass_log)
     agg = aggregate(coins)
+    tiers = parse_tier_telemetry(args.pass_log)
 
     # Duration (best-effort)
     try:
@@ -480,6 +525,9 @@ def main(argv=None):
         "dup_rows": agg["dup_rows"],
         "succeeded_reported": totals.get("succeeded_reported"),
         "failed_reported": totals.get("failed_reported"),
+        "fallback_filled": tiers["fallback_filled"],
+        "tier_yield": tiers["tier_yield"],
+        "drained": tiers["drained"],
         "pass_log": args.pass_log,
     }
     append_jsonl(PASSES_PATH, pass_rec)

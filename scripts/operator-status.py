@@ -226,15 +226,39 @@ def sums(coins):
     return new, dups
 
 
+def tier_lines(tiers, run_fill, fallback_order):
+    """P3 fallback lines (#330H); empty unless this pass or the run used a fallback tier.
+
+    Appended rows are what the exporter added to the dataset CSVs; upload `new` counts include rows
+    the app already held, so tiers are compared on appended rows.
+    """
+    yields = tiers.get("tier_yield") if isinstance(tiers.get("tier_yield"), dict) else {}
+    filled = num(tiers.get("fallback_filled"))
+    if not filled and not run_fill and not any(name != "primary" for name in yields):
+        return []
+    lines = [f"  P3 fill: {thousands(filled)} slots this pass | {thousands(run_fill)} this run"]
+    order = ["primary", *fallback_order]
+    names = sorted(yields, key=lambda name: (order.index(name) if name in order else len(order), name))
+    parts = []
+    for name in names:
+        entry = yields[name] if isinstance(yields[name], dict) else {}
+        parts.append(f"{ascii_text(name)} {thousands(entry.get('appended_rows'))} ({num(entry.get('items'))} items)")
+    if parts:
+        lines.append("  Appended rows this pass: " + " | ".join(parts))
+    return lines
+
+
 def build_report(project_dir, run_id, passes, coins_all, parser, show_passes, check_process):
     run_passes = sorted((p for p in passes if p.get("run_id") == run_id), key=lambda p: p["pass"])
     last_recorded = run_passes[-1]["pass"] if run_passes else 0
     live = live_pass(project_dir, run_id, last_recorded)
 
     live_coins, live_totals, live_batch = [], {}, None
+    live_tiers = None
     if live:
         try:
             live_coins, live_totals = parser.parse_pass_log(live[1])
+            live_tiers = parser.parse_tier_telemetry(live[1])
             with open(live[1], encoding="utf-8", errors="replace") as handle:
                 for line in handle:
                     match = EXPORTING_RE.search(line)
@@ -256,6 +280,7 @@ def build_report(project_dir, run_id, passes, coins_all, parser, show_passes, ch
         batch = live_batch if live_batch is not None else "?"
         out.append(f"Pass {live[0]} | Batch: {batch} coins | in progress ({len(live_coins)} of {batch} started)")
         current_totals = (live_new, live_dups, live_totals.get("no_export_count", 0), len(live_coins), True)
+        current_tiers = live_tiers or {}
     else:
         record = run_passes[-1]
         coins = [c for c in coins_all if c.get("run_id") == run_id and c.get("pass") == record["pass"]]
@@ -265,6 +290,7 @@ def build_report(project_dir, run_id, passes, coins_all, parser, show_passes, ch
         out.append(f"Pass {record['pass']} | Batch: {batch} coins | ~{minutes} min (complete)")
         current_totals = (num(record.get("new_rows")), num(record.get("dup_rows")),
                           num(record.get("no_export_count")), batch, False)
+        current_tiers = record
 
     out += ["", f"  Run totals: {thousands(run_coins)} coins | {thousands(run_new)} new | {thousands(run_dups)} dups", ""]
     out += render_rows(rows)
@@ -276,6 +302,11 @@ def build_report(project_dir, run_id, passes, coins_all, parser, show_passes, ch
     else:
         batch_total = f"Batch total: {thousands(new)} new, {thousands(dups)} dups, {no_export} no-export out of {total} coins"
     out += ["", f"  {batch_total}", ""]
+
+    run_fill = sum(num(p.get("fallback_filled")) for p in run_passes) + (num(live_tiers.get("fallback_filled")) if live_tiers else 0)
+    fill_lines = tier_lines(current_tiers, run_fill, getattr(parser, "FALLBACK_TIER_ORDER", ()))
+    if fill_lines:
+        out += fill_lines + [""]
 
     queue = queue_counts(project_dir, run_id)
     parts = [(f"{thousands(queue[key])} {text}" if queue[key] is not None else f"n/a {text}") for key, text in QUEUE_LABELS]
@@ -296,6 +327,8 @@ def build_report(project_dir, run_id, passes, coins_all, parser, show_passes, ch
         highlights.append(f"{len(failed)} failed coin(s) in current pass")
     if run_passes and run_passes[-1].get("no_comps_cluster"):
         highlights.append("no_comps cluster in last pass")
+    if current_tiers.get("drained"):
+        highlights.append("queue drained: no eligible dataset in any tier")
     out.append("  Highlights: " + ("; ".join(highlights) if highlights else "none"))
 
     out += ["", f"Cumulative run view (run {ascii_text(run_id)}, {len(run_passes)} completed pass(es)" + (f", pass {live[0]} in progress)" if live else ")")]

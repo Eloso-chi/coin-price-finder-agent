@@ -53,6 +53,8 @@ PAUSE_BETWEEN=600
 JITTER_SECONDS=90      # +/- this many seconds on the pause
 USE_JITTER=true
 INCLUDE_THIN=false
+FALLBACK_ENABLED=true
+DRAINED_EXIT_RC=20
 DRY_RUN=false
 P01_FIXED=15
 EXTRA_ARGS=()
@@ -85,6 +87,8 @@ Options:
   --no-jitter           Disable +/- jitter on pause (default: jitter enabled)
   --jitter-seconds N    Jitter window in seconds; pause is base +/- this (default: 90)
   --include-thin        Include P3 thin-market queue entries
+  --no-fallback         Do not fill spare batch slots from the P3 fallback tiers and do not exit when
+                        the queue is drained (previous behavior). --include-thin turns the tiers off.
   --dry-run             Show what would run, do not execute passes
   -h, --help            Show this help text
 
@@ -92,6 +96,8 @@ Stop conditions:
   - Pass exits non-zero (session/captcha/server failure)
   - cookie-health-check.py returns anything other than 0 (HEALTHY)
   - --max-passes reached (only if user set it; 0 = unlimited)
+  - queue drained: a valid report has no eligible dataset in P0-P2 or any P3 fallback tier
+    (exits 0 with a `drained` state)
 EOF
 }
 
@@ -105,6 +111,7 @@ while [[ $# -gt 0 ]]; do
     --jitter-seconds)  JITTER_SECONDS="$2"; shift 2 ;;
     --no-jitter)       USE_JITTER=false; shift ;;
     --include-thin)    INCLUDE_THIN=true; shift ;;
+    --no-fallback)     FALLBACK_ENABLED=false; shift ;;
     --dry-run)         DRY_RUN=true; shift ;;
     -h|--help)         usage; exit 0 ;;
     *)                 EXTRA_ARGS+=("$1"); shift ;;
@@ -342,6 +349,7 @@ if [[ "$DRY_RUN" == "true" ]]; then
   exit 0
 fi
 
+DRAINED=false
 while (( MAX_PASSES == 0 || PASS_NUM < MAX_PASSES )); do
   PASS_NUM=$((PASS_NUM + 1))
   PASS_LOG="${RUN_DIR}/pass-$(printf '%04d' "$PASS_NUM").log"
@@ -395,6 +403,12 @@ while (( MAX_PASSES == 0 || PASS_NUM < MAX_PASSES )); do
   if [[ "$INCLUDE_THIN" == "true" ]]; then
     PASS_ARGS+=(--include-thin)
   fi
+  if [[ "$FALLBACK_ENABLED" == "true" ]]; then
+    if [[ "$INCLUDE_THIN" != "true" ]]; then
+      PASS_ARGS+=(--fallback-tiers all)
+    fi
+    PASS_ARGS+=(--exit-on-drained)
+  fi
   if [[ ${#EXTRA_ARGS[@]} -gt 0 ]]; then
     PASS_ARGS+=("${EXTRA_ARGS[@]}")
   fi
@@ -404,6 +418,13 @@ while (( MAX_PASSES == 0 || PASS_NUM < MAX_PASSES )); do
 
   PASS_EXIT_RC=0
   DISPLAY="$DISPLAY" python3 "${PASS_ARGS[@]}" > "$PASS_LOG" 2>&1 || PASS_EXIT_RC=$?
+  # The exporter exits DRAINED_EXIT_RC when a valid report has nothing eligible in any tier. That is
+  # a completed zero-coin pass, not a failure; it is recorded below and then ends the run.
+  PASS_DRAINED=false
+  if (( PASS_EXIT_RC == DRAINED_EXIT_RC )); then
+    PASS_DRAINED=true
+    PASS_EXIT_RC=0
+  fi
   PASS_END_TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   TRANSITION_FILE="${PASS_LOG}.risk.tsv"
   SUMMARY_FILE="${PASS_LOG}.summary.json"
@@ -486,6 +507,12 @@ except Exception:
     fail "pass ${PASS_NUM} summary could not be read; stopping because the no-comps data-quality check cannot be evaluated"
   fi
 
+  if [[ "$PASS_DRAINED" == true ]]; then
+    log "queue drained after pass ${PASS_NUM}: no eligible dataset in P0-P2 or any fallback tier; exiting (risk state unchanged)"
+    DRAINED=true
+    break
+  fi
+
   if (( MAX_PASSES == 0 || PASS_NUM < MAX_PASSES )); then
     if [[ "$RISK_STATE_ENABLED" != "0" && "$CURRENT_RISK_STATE" == "Elevated" ]]; then
       PAUSE="$ELEVATED_PAUSE_SECONDS"
@@ -502,4 +529,8 @@ log "=== terapeak-operator-codespace finished ==="
 log "passes_run=${PASS_NUM} total_succeeded=${TOTAL_OK} total_failed=${TOTAL_FAIL} total_new_rows=${TOTAL_NEW_ROWS}"
 log "master log: $MASTER_LOG"
 log "per-pass logs: $RUN_DIR/"
-write_state "finished" "ok" "passes=${PASS_NUM} succeeded=${TOTAL_OK} failed=${TOTAL_FAIL} new_rows=${TOTAL_NEW_ROWS}"
+if [[ "$DRAINED" == true ]]; then
+  write_state "drained" "ok" "queue drained after pass ${PASS_NUM}: no eligible dataset in P0-P2 or any fallback tier; passes=${PASS_NUM} succeeded=${TOTAL_OK} failed=${TOTAL_FAIL} new_rows=${TOTAL_NEW_ROWS}"
+else
+  write_state "finished" "ok" "passes=${PASS_NUM} succeeded=${TOTAL_OK} failed=${TOTAL_FAIL} new_rows=${TOTAL_NEW_ROWS}"
+fi

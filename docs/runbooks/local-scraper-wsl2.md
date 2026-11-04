@@ -231,7 +231,46 @@ The wrapper always does:
   the noVNC page is open, then runs `terapeak-export.py --login` (unless
   `--no-login`)
 3. `terapeak-startup-preflight.sh --mode loop`
-4. `run-surface-freshness-loop.sh --skip-deep --skip-probe`
+4. `run-surface-freshness-loop.sh --skip-deep --skip-probe --fallback-tiers all --exit-on-drained`
+   (the last two flags are omitted with `--no-fallback`)
+
+#### P3 fallback and the `drained` exit (#330H)
+
+By default the operator fills batch slots that P0 to P2 leaves empty from five
+P3 tiers, in this order and only after every eligible item of the higher tiers
+has been picked for the pass: `probe-with-data`, `near-viable`, `probe-no-data`
+(one attempt each), `thin-low`, `confirmed-thin`. P0.1 items beyond the fixed
+share take open slots before any fallback item. Batch size and pacing do not
+change, so a pass with a short P0 to P2 queue sends the usual number of requests
+rather than idling. Generic benchmark items are never selected.
+
+When a valid report (generated within the last 120 minutes; the operators
+regenerate it before every exporter call) has no eligible dataset in P0 to P2 or any
+tier, the exporter exits 20. The operator records that pass as a completed
+zero-coin pass, leaves the risk state and Cooldown handling unchanged, writes the
+state `drained` (status `ok`) to `cache/terapeak-startup-state.json`, prints
+`Queue drained`, and exits 0. Nothing should restart it in a loop: a drained run
+ends until datasets age back into the queue (the 14-day recently-confirmed-stale
+window) or new coins are added. An invalid report (generator failure, no
+datasets, or older than 120 minutes) is an error, not a drain. A run narrowed
+with `--focus`, `--coin-type`, `--filter`, `--priority-include` or
+`--priority-exclude` never reports drained.
+
+- `--no-fallback` restores the previous behavior (no fallback tiers, no drained
+  exit).
+- `--include-thin` mixes all of P3 into the draw as before; it turns the tiers
+  off but keeps the drained exit, with generic benchmark items not counting as
+  eligible work.
+- The exporter prints `Fallback pool:` and `Fallback fill:` lines (plus
+  `P0.1 surplus fill:` when surplus P0.1 items took open slots) and, on its own
+  line after each dataset's upload outcome, one
+  `[yield] tier=<tier|primary> appended=<rows> term=<term>` line. If a
+  no-valid-comps rejection sets the CSV aside after that line, a second line with
+  `appended=0` follows and the parser keeps the last line per term.
+  `appended` is the number of rows the merge added to the dataset CSV; the
+  upload `new` count overstates fresh rows (the whole merged file is uploaded),
+  so compare tiers on appended rows. The pass record carries `fallback_filled`,
+  `tier_yield` and `drained`.
 
 If preflight fails, fix the reported issue first; do not continue with manual
 startup commands.
@@ -299,6 +338,8 @@ Any other flags are forwarded to `./surface` (and then
 |------|---------|
 | `--skip-deep` | Skip the deep-pagination stage (sales-aggregator.py). Page-1 only. |
 | `--include-thin` | Include P3 monitor / evidence-probe entries in the backlog. |
+| `--fallback-tiers LIST\|all` | Mixed backlog mode: fill slots P0-P2 leaves empty from the named P3 tiers, in order (`all` = `probe-with-data, near-viable, probe-no-data, thin-low, confirmed-thin`). Operators pass `all` by default (#330H). |
+| `--exit-on-drained` | Mixed backlog mode: exit 20 when a valid report has nothing eligible in P0-P2 or any tier. Operators pass it by default and treat exit 20 as a clean `drained` stop. |
 | `--page1-batch N` | Number of terms per page-1 batch (default 15). |
 | `--batch-min N` | Minimum randomized total page-1 picks per pass when `--page1-batch` is not explicitly set (default 30). |
 | `--batch-max N` | Maximum randomized total page-1 picks per pass when `--page1-batch` is not explicitly set (default 35). |
@@ -400,6 +441,7 @@ Rules:
 - `Run totals` must aggregate coins, new rows, and duplicate rows across all passes in the current run.
 - `Queue` must report only stale(refresh), ok, dormant, and deep-paginate counts.
 - `Highlights` is mandatory; write `none` when no unusual event occurred.
+- When a P3 fallback tier filled slots in the current pass or earlier in the run, the script adds `P3 fill: N slots this pass | M this run` and `Appended rows this pass: <tier> N (K items) | ...` between `Batch total` and `Queue`; a drained pass adds `queue drained: no eligible dataset in any tier` to `Highlights`. Paste them unmodified (#330H).
 - Do not include the full freshness report body unless explicitly requested.
 
 #### CRLF warning
@@ -469,8 +511,11 @@ Notes:
   the coin as `empty` with `no_comps`, not as `failed`, and a pass where many
   coins are rejected this way logs `[parse] WARN no_comps cluster` (see
   `docs/memory/operator-status-format.md`).
-- P3 monitor/evidence-probe entries are excluded by default; include them with
-  `--include-thin` when you intentionally want monitor passes.
+- P3 monitor/evidence-probe entries are excluded from the uniform draw by
+  default; the operators reach them only through the ordered fallback tiers
+  described under "P3 fallback and the `drained` exit". Use `--include-thin`
+  when you intentionally want P3 mixed into every pass, or `--no-fallback` to
+  keep P3 out entirely.
 
 ### Upload mode (UPLOAD_MODE) -- #251
 

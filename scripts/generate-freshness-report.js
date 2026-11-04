@@ -30,7 +30,7 @@ const fs = require('fs');
 const path = require('path');
 const { classifyComposition, classifyGradeCategory, getCoinMetalProfile } = require('../src/utils/coinMetalProfile');
 const { normalizeSearchKey } = require('../src/services/terapeakService');
-const { latestRefreshAt, THRESHOLDS } = require('../src/services/freshnessClassifier');
+const { latestRefreshAt, THRESHOLDS, classifyP3Tier, p3SaleRatePerMonth, P3_FALLBACK_TIER_ORDER } = require('../src/services/freshnessClassifier');
 const { analyzeExplicitWeightSources } = require('../src/utils/explicitWeight');
 
 // META_PATH may be overridden via env so jest tests can point at a per-worker
@@ -388,6 +388,23 @@ for (const [key, entry] of Object.entries(meta)) {
   }
   if (actions.length === 0) actions.push('ok');
 
+  // P3 fallback tier (#330H): lets the exporter fill spare batch slots from P3 in a fixed order.
+  let p3Tier = null;
+  let p3SaleRate = null;
+  if (priority === 'P3') {
+    p3SaleRate = p3SaleRatePerMonth({ compCount, newestSaleDate, oldestSaleDate: entry.oldestSaleDate || null });
+    p3Tier = classifyP3Tier({
+      actions,
+      marketDepth,
+      compCount,
+      staleDays,
+      page1At: entry.page1At || null,
+      saleRate: p3SaleRate,
+      isGeneric: isGenericCoin(key),
+      now: today,
+    });
+  }
+
   // ── Identifier integration (fast path from terapeak-meta.json) ──
   const storedIds = entry.identifiers || null;
   // Fallback: derive bullion tag from classifyComposition if no stored identifier
@@ -429,6 +446,7 @@ for (const [key, entry] of Object.entries(meta)) {
     hasDeepAt,
     actions,
     identifiers,
+    ...(p3Tier ? { p3Tier, p3SaleRate } : {}),
     ...(hasWeightConflict ? {
       quarantined: true,
       quarantineReason: 'contradictory-weight',
@@ -504,6 +522,9 @@ const depthCounts = {
   empty: datasets.filter(d => d.marketDepth === 'empty').length,
   untested: datasets.filter(d => d.marketDepth === 'untested').length,
 };
+const p3TierCounts = Object.fromEntries(
+  [...P3_FALLBACK_TIER_ORDER, 'generic'].map(tier => [tier, datasets.filter(d => d.p3Tier === tier).length]),
+);
 
 const summary = {
   total,
@@ -517,6 +538,7 @@ const summary = {
   lowSignalThreshold: LOW_SIGNAL_THRESHOLD,
   priorityCounts,
   depthCounts,
+  p3TierCounts,
   byComposition: compositionSummary,
 };
 
@@ -547,6 +569,7 @@ console.log(`    P0 refresh-urgent:  ${priorityCounts.P0}`);
 console.log(`    P1 refresh:         ${priorityCounts.P1}`);
 console.log(`    P2 initial-fetch:   ${priorityCounts.P2}`);
 console.log(`    P3 monitor:         ${priorityCounts.P3}`);
+console.log(`      P3 fallback tiers: ${[...P3_FALLBACK_TIER_ORDER, 'generic'].map(tier => `${tier}=${p3TierCounts[tier]}`).join(' ')}`);
 console.log(`    Skip (ok/dormant):  ${priorityCounts.skip}`);
 console.log(`    Actionable total:   ${priorityCounts['P0.1'] + priorityCounts.P0 + priorityCounts.P1 + priorityCounts.P2 + priorityCounts.P3}`);
 console.log(`    Recently-confirmed-stale (scraped <${RECENTLY_REFRESHED_DAYS}d, no new sales): ${recentlyConfirmedStale}`);

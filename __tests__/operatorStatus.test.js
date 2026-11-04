@@ -413,3 +413,87 @@ describe('operator-status.py: Codespace (W) operator layout', () => {
     expect(runStatus(dir).stdout.split('\n')[0]).toBe('Pass 4 | Batch: 2 coins | in progress (1 of 2 started)');
   });
 });
+
+describe('operator-status.py: P3 fallback fill and drained (#330H)', () => {
+  const P3_LINE = /^ {2}P3 fill:/m;
+
+  function fallbackProject(secondPass, extra = {}) {
+    return makeProject({
+      passes: [
+        passRecord({ pass: 1, fallback_filled: 5 }),
+        passRecord({ pass: 2, ...secondPass }),
+      ],
+      coins: [coinRecord(1, 'Coin E', 'ok', { new: 6, dups: 2 }), coinRecord(2, 'Coin A', 'ok', { new: 8, dups: 3 })],
+      ...extra,
+    });
+  }
+
+  test('shows nothing about P3 when no pass used a fallback tier', () => {
+    const out = runStatus(standardProject()).stdout;
+    expect(out).not.toMatch(P3_LINE);
+    expect(out).not.toContain('Appended rows this pass');
+    expect(out).not.toContain('queue drained');
+  });
+
+  test('a completed pass reports its fill, the run fill, and appended rows per tier in tier order', () => {
+    const dir = fallbackProject({
+      fallback_filled: 7,
+      tier_yield: {
+        'near-viable': { items: 3, appended_rows: 4 },
+        primary: { items: 2, appended_rows: 9 },
+        'probe-with-data': { items: 1, appended_rows: 12 },
+      },
+    });
+    const lines = runStatus(dir).stdout.split('\n');
+    const fill = lines.indexOf('  P3 fill: 7 slots this pass | 12 this run');
+    expect(fill).toBeGreaterThan(-1);
+    expect(lines[fill + 1]).toBe('  Appended rows this pass: primary 9 (2 items) | probe-with-data 12 (1 items) | near-viable 4 (3 items)');
+    expect(lines[fill + 2]).toBe('');
+    expect(lines[fill + 3]).toMatch(/^ {2}Queue: /);
+    expect(lines[fill - 1]).toBe('');
+    expect(lines[fill - 2]).toMatch(/^ {2}Batch total: /);
+  });
+
+  test('a pass that used no fallback still shows the line when an earlier pass in the run did', () => {
+    const dir = fallbackProject({ fallback_filled: 0 });
+    const out = runStatus(dir).stdout;
+    expect(out).toContain('  P3 fill: 0 slots this pass | 5 this run');
+    expect(out).not.toContain('Appended rows this pass');
+  });
+
+  test('a live pass adds its own fallback fill and yield to the run total', () => {
+    const liveLog = [
+      'Exporting 2 coins...',
+      'Fallback pool: 9 eligible (near-viable 9)',
+      'Fallback fill: 2 (near-viable 2)',
+      '  [ 50%] Coin H... OK (7 new, 1 dups)',
+      '  [yield] tier=near-viable appended=6 term=Coin H',
+      '  [ 75%] Coin I... OK (3 new, 0 dups)',
+      '  [yield] tier=near-viable appended=2 term=Coin I',
+    ].join('\n');
+    const dir = fallbackProject({ fallback_filled: 0 }, { liveLog, livePass: 3 });
+    const out = runStatus(dir).stdout;
+    expect(out).toContain('  P3 fill: 2 slots this pass | 7 this run');
+    expect(out).toContain('  Appended rows this pass: near-viable 8 (2 items)');
+  });
+
+  test('a drained pass is named in Highlights', () => {
+    const dir = fallbackProject({ attempted: 0, succeeded: 0, empty: 0, new_rows: 0, dup_rows: 0, no_export_count: 0, batch_size_executed: 0, drained: true });
+    const result = runStatus(dir);
+    expect({ status: result.status, stderr: result.stderr }).toEqual({ status: 0, stderr: '' });
+    expect(result.stdout).toContain('queue drained: no eligible dataset in any tier');
+    expect(runStatus(standardProject()).stdout).not.toContain('queue drained');
+  });
+
+  test('wrong-typed or non-ASCII telemetry never raises and the output stays ASCII', () => {
+    const dir = fallbackProject({
+      fallback_filled: 'many',
+      tier_yield: { 'caf\u00e9-tier': { items: 1, appended_rows: 3 }, 'near-viable': 'bad', primary: { items: 'x', appended_rows: Infinity } },
+    });
+    const result = runStatus(dir);
+    expect({ status: result.status, stderr: result.stderr }).toEqual({ status: 0, stderr: '' });
+    expect(result.stdout).toContain('  P3 fill: 0 slots this pass | 5 this run');
+    expect(result.stdout).toMatch(/Appended rows this pass: primary 0 \(0 items\) \| near-viable 0 \(0 items\) \| caf\S+-tier 3 \(1 items\)/);
+    expect([...result.stdout].every(ch => ch.charCodeAt(0) < 128)).toBe(true);
+  });
+});
