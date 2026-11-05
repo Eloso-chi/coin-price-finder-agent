@@ -151,7 +151,10 @@ const seedPhaseIdx = args.indexOf('--us-seed-phase');
 const seedPhaseInfo = resolveSeedPhase(seedPhaseIdx >= 0 ? args[seedPhaseIdx + 1] : process.env.TERAPEAK_US_SEED_PHASE);
 if (seedPhaseInfo.warning) console.error(`WARNING: ${seedPhaseInfo.warning}`);
 let usSeedSummary = null;
-if (seedPhaseInfo.phase !== null) {
+if (seedPhaseInfo.phase !== null && Object.keys(meta).length === 0) {
+  // An empty meta means the sync failed or the store is empty; seeds must not make that report look valid.
+  console.error('WARNING: US type seed skipped: terapeak-meta.json has no datasets');
+} else if (seedPhaseInfo.phase !== null) {
   const loaded = loadSeedTerms(US_SEED_PATH);
   for (const problem of loaded.errors) console.error(`WARNING: US type seed: ${problem}`);
   if (!loaded.missing) {

@@ -307,8 +307,13 @@ with `--focus`, `--coin-type`, `--filter`, `--priority-include` or
   tiers. Check results with `node scripts/us-type-seed-status.js` (pending,
   no-data, thin, viable and median comps per group), then raise the phase in the
   env file (`TERAPEAK_US_SEED_PHASE=1`) and restart the operator. Set it to `off`
-  to stop seeding. A seeded term that returns no data goes dormant through the
-  normal rules; nothing is written to `terapeak-meta.json` by the seed itself.
+  to stop seeding. A seeded term that returns no data is searched twice before it
+  goes dormant (dormancy needs two no-data reports), so an empty probe term costs
+  two searches. Seeds are skipped when the synced meta file has no datasets, so a
+  failed meta sync still produces an invalid report. Nothing is written to
+  `terapeak-meta.json` by the seed itself. The default phase 0 queues the 36
+  probe terms as soon as this code reaches the operator's clone; they sort ahead
+  of other P2 items and the run does not report drained until they resolve.
 
 If preflight fails, fix the reported issue first; do not continue with manual
 startup commands.

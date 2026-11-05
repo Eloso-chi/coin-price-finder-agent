@@ -251,7 +251,8 @@ US types and Mint sets with no dataset are seeded from
 to `TERAPEAK_US_SEED_PHASE` (default 0, the probe set) in memory as missing
 datasets, which queue as P2 `initial-fetch` ahead of the P3 fallback tiers;
 `scripts/us-type-seed-status.js` reports how each group is doing before the next
-phase is enabled.
+phase is enabled. An empty seeded term is searched twice before it goes dormant,
+and seeds are skipped when the synced meta file has no datasets.
 
 View the ledger with `scripts/show-terapeak-runs.sh`:
 
