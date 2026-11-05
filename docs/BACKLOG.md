@@ -7,6 +7,70 @@ Items marked DONE are kept for historical reference.
 
 ## Scraping & Data Pipeline
 
+### #334H. Collect history for untracked US coin types and Mint sets, ranked by likely eBay volume [P3 -- DATA-COVERAGE / SCRAPER] -- PROPOSED 2026-11-05
+
+**Origin:** Coverage review on 2026-11-05 (H machine) of the 5,383 dataset keys in `data/terapeak-meta.json` against the US type list and the Mint annual-set record. The tracked universe is mostly world bullion (Libertad, Maple Leaf, Lunar, Panda, Philharmonic) plus a deep core of Morgan, Barber, Walking Liberty, Mercury and Seated types.
+
+**Problem:** Many official US types have no dataset, and several tracked types have large year gaps. Dataset keys are word-order-independent token bags (for example `1948 d dollar franklin half`), so any coverage check must match by token, not by phrase. Modern clad and circulation types (Lincoln Memorial and Shield, Jefferson, Kennedy clad, Roosevelt clad, Washington clad, State, ATB and Women quarters, SBA, Sacagawea, Presidential) are out of scope: mostly face value.
+
+**Verified coverage (nothing to collect, do not redo):**
+- **Mint sets:** 74 `YYYY american mint set` keys cover 1947-2025 except 1965-67 (three `mint set sms special` keys cover the Special Mint Sets) and 1982-83 (no Mint Sets were issued; Souvenir Sets instead, see below). Uncirculated variants exist for 1990, 2018 and 2021. Median 94 comps, all 74 viable (10 or more comps).
+- **Clad proof sets:** 58 `YYYY american proof set` keys cover 1968-2025 with no gap. Median 68 comps, all viable.
+- **Silver proof sets:** 34 `YYYY american proof set silver` keys cover 1992-2025 with no gap. Median 82 comps, all viable.
+- **Complete by year:** Morgan (1878-1904, 1921), Peace, Roosevelt silver dime (1946-64), Barber dime, quarter and half, Mercury dime, Washington silver quarter (1932-64), Franklin half, Standing Liberty quarter, Capped Bust half, Shield and Liberty V nickels, Buffalo nickel, Indian Head cent, Eisenhower dollar. Not gaps: Buffalo 1922, 1932, 1933 and Eisenhower 1975 (no strikes or Bicentennial dual date).
+
+**Likelihood ranking.** Volume is estimated from analogous tracked groups in our own data (median comps per dataset: Barber 116, Capped Bust half 117, Morgan 110, Indian Head cent 93, Mercury dime 92, Seated half 60, Seated dime 54, Walking Liberty 38, Peace 38) and from general collector demand. These are estimates; Phase 0 replaces them with measured comp counts.
+
+| Rank | Group | Datasets (approx.) | Likelihood and rationale |
+|---|---|---|---|
+| 1 | Pre-1968 proof sets 1950-64 | 15 | High. Same buyer pool as the clad proof sets we track (median 68 comps). |
+| 2 | 1976 Bicentennial 3-piece silver sets (proof and uncirculated) | 2 | High. Constant listing volume; the dated 40% silver pieces are collector staples. |
+| 3 | Large cents: Coronet 1816-39, Braided Hair 1839-57 | about 40 | High. Raw and graded volume is deep; Indian Head cent analog is 93 median comps. |
+| 4 | Lincoln Wheat cent year gaps (35 of 50 years missing, incl. 1916-21, 1923, 1925) | about 35 | High. We already track 15 years at 95 median comps. |
+| 5 | Silver Eagle sets (proof, uncirculated, anniversary sets) | 10-15 | High. Silver Eagles are one of our largest tracked US lines (168 keys). |
+| 6 | Prestige proof sets (issued 1983, 1984, 1986-97; verify against the Mint catalog) | about 14 | Medium to high. Common sets with a commemorative dollar; priced like proof sets. |
+| 7 | Classic silver commemoratives 1892-1954, most common designs first (Columbian half, Isabella quarter, Lafayette dollar, Oregon Trail, Stone Mountain, Boone, Texas, Hawaii, Maine, Pilgrim) | 15 first, up to about 144 | Medium to high in aggregate; each design is moderate. |
+| 8 | Flying Eagle cent 1856-58 | 3 | Medium to high. Few dates but heavy demand. |
+| 9 | Two-cent 1864-73 and three-cent nickel 1865-89 and silver 1851-73 | about 55 | Medium. Popular type-set coins; thinner than cents. |
+| 10 | Modern silver commemoratives 1982-2023 (silver dollars and halves) | about 100 | Medium. Many designs, moderate per design. |
+| 11 | Souvenir Sets 1982-83 | 2 | Medium. Few sets, mid-range volume. |
+| 12 | Seated Liberty year gaps: half (40 years), dollar (22), quarter, dime | about 100 | Medium. Tracked half, dollar and dime median 54-61 comps, but the quarter is thin (median 2), so probe each denomination. |
+| 13 | America the Beautiful 5 oz silver (2010-21) | about 56 | Medium. Bullion-like, moderate volume. |
+| 14 | Seated Liberty half dime 1837-73 | about 35 | Medium to low. |
+| 15 | Capped Bust dime (1809-37) and quarter (1815-38) | about 50 | Medium to low. |
+| 16 | Walking Liberty missing years (1923, 1927-29) | 4 | Medium. Small fill on a type we already track. |
+| 17 | Proof sets 1936-42 | 7 | Low to medium. High price per set means few sales. |
+| 18 | Half cents (four designs) | about 30 | Low. Thin; expect many confirmed-thin datasets. |
+| 19 | Flowing Hair and Draped Bust half dime, dime, quarter, half dollar and dollar | about 60 | Low. High prices, few sales per month. |
+| 20 | Twenty-cent piece 1875-78 | 4 | Low. Four dates. |
+| 21 | Gold types (maintainer guidance: gold is lower priority): $20 Saint-Gaudens and Liberty, $10 and $5 Indian and Liberty, $2.50 Indian, gold dollar, $3 | about 200 | Medium to high for $20, $10 and $5, but deferred until gold is unblocked. |
+| 22 | Modern dollars (SBA, Sacagawea, Presidential, Innovation): proof, set and error variants only | -- | Deferred; face-value circulation. |
+
+**Optional variety splits inside sets we already cover** (only if collectors price them separately; verify against the Mint catalog and sold titles before adding): 1960 small and large date proof sets, and the no-S proof varieties (1968, 1970, 1971, 1975, 1983, 1990). Tracked proof set keys do not distinguish them today.
+
+**Proposed approach:**
+1. **Phase 0, seed list and probe.** Build a seed list of search terms for ranks 1-21 using the existing key conventions (token-bag normalization, #266H) and the explicit-weight guard (#316H). Probe one page-1 scrape per design group to measure real comp counts. A group is viable at 10 or more comps, thin at 1 to 9. Record the results next to this entry. Drop groups that probe thin or empty instead of scheduling them.
+2. **Phase 1.** Seed ranks 1-8 as datasets with no data, so the freshness report classifies them as missing and untested and queues them as P2 initial-fetch. Confirm this mechanism on one dataset first (a key with no CSV becomes `initial-fetch`; see `scripts/generate-freshness-report.js`).
+3. **Phase 2.** Ranks 9-16 only for groups whose probe showed 10 or more comps.
+4. **Phase 3.** Ranks 17-22 only on request. Gold follows the maintainer's gold guidance.
+5. Track fresh versus thin counts per phase and update this entry with the measured ranking.
+
+**Acceptance criteria:**
+- The seed list and the probe results are recorded, with one measured comp count per design group.
+- Phase 1 datasets appear in the freshness report as `initial-fetch` and end up either fresh or marked confirmed-thin or dormant by the existing rules, with no manual edits to `terapeak-meta.json`.
+- No seeded key trips the contradictory-weight guard or collides with an existing key after normalization.
+- This entry is updated with the measured ranking and the viable-group count per phase.
+
+**Files (anticipated):** seed list (new, location to be chosen in Phase 0); `docs/BACKLOG.md`. No runtime code is expected unless Phase 0 shows seeding needs a helper.
+
+**Tier:** S for this backlog entry; each seeding PR is its own tier (data only, likely M if it adds a script).
+
+**Out of scope:** the modern clad and circulation types named above; foreign and world bullion; pricing logic changes (#333H covers bars); changing the fallback tiers.
+
+**Related:** #330H (fallback tiers and the P3 yield gate; seeded datasets enter the same queue), #316H (weight-token guard), #266H (key normalization), #333H (bar pricing).
+
+---
+
 ### #331H. Add a graceful stop (stop-request file and signal handling) to the Terapeak operators [P2 -- OPERATIONS / RELIABILITY] -- PROPOSED 2026-11-03
 
 **Origin:** Stopping H operator run `20261101T172803Z-344805` after pass 86 on 2026-11-03.
