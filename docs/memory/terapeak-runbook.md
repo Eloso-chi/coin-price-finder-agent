@@ -228,7 +228,7 @@ Datasets the server rejects with HTTP 422 "No valid comps found" are reported
 as no data and, when the current run created the CSV, set aside (not deleted)
 in the git-ignored `cache/terapeak-rejected/`; see
 `docs/runbooks/local-scraper-wsl2.md`. Both operators stop after a pass with a
-cluster of such rejections (`no_comps_cluster`).
+cluster of such rejections (`no_comps_cluster`). A fallback-tier scrape whose rows all lack an Item Title and Item ID is printed as `HEADLESS`, set aside the same way without a merge or upload, and reported as no data (not a soft-risk signal and not a cluster input; breaker after 3 in a row).
 
 Both operators also fill batch slots that P0 to P2 leaves empty from five
 ordered P3 fallback tiers and end cleanly when nothing is eligible (#330H):
@@ -240,8 +240,11 @@ risk state unchanged. `--no-fallback` restores the old behavior; `--include-thin
 turns the tiers off but keeps the drained exit (generic benchmark items do not
 count as eligible work). Pass records carry
 `fallback_filled`, `tier_yield` (rows appended to each tier's dataset CSVs; the
-upload `new` count overstates fresh rows) and `drained`. Details:
-`docs/runbooks/local-scraper-wsl2.md`.
+upload `new` count overstates fresh rows), `tier_attempted`, `tier_productive`,
+`headless` and `drained`. A yield gate suspends a fallback tier for 7 days when its
+last 3 passes kept rows on under 15% of at least 30 attempts
+(`--fallback-gate-min-rate`, env `TERAPEAK_FALLBACK_GATE_MIN_RATE`; 0 disables).
+Details: `docs/runbooks/local-scraper-wsl2.md`.
 
 View the ledger with `scripts/show-terapeak-runs.sh`:
 
