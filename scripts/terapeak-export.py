@@ -496,6 +496,32 @@ def _count_data_rows(path):
         return 0
 
 
+def _headless_row_count(path):
+    """Data rows when every one lacks both Item Title and Item ID, else 0.
+
+    Terapeak lists some older or thin-market sales without listing details; the server rejects a
+    file made only of those rows as "no valid comps" (#328H).
+    """
+    try:
+        with open(path, "r", newline="", encoding="utf-8") as f:
+            reader = csv.reader(f)
+            header = [cell.strip().lower() for cell in (next(reader, None) or [])]
+            title_at = header.index("item title") if "item title" in header else 0
+            id_at = header.index("item id") if "item id" in header else 1
+            rows = 0
+            for row in reader:
+                if len(row) < 4:
+                    continue
+                title = row[title_at].strip() if len(row) > title_at else ""
+                item_id = row[id_at].strip() if len(row) > id_at else ""
+                if title or item_id:
+                    return 0
+                rows += 1
+            return rows
+    except (OSError, csv.Error, UnicodeDecodeError):
+        return 0
+
+
 # Rows the latest _merge_csv call added to the dataset file (0 when it kept the file as is).
 _LAST_MERGE = {"appended": 0}
 
@@ -826,9 +852,10 @@ def _record_sync_upload_result(term, ok, msg, progress):
 
 def _note_upload_success(term):
     """A successful upload keeps its CSV and proves the server parser is working."""
-    global _consecutive_no_comps
+    global _consecutive_no_comps, _consecutive_headless
     _new_dataset_paths.pop(term, None)
     _consecutive_no_comps = 0
+    _consecutive_headless = 0
 
 
 def _settle_failed_upload(term, msg):
@@ -858,14 +885,18 @@ def _settle_failed_upload(term, msg):
 # Consecutive 422 no-valid-comps rejections in this run; any successful upload resets it.
 NO_COMPS_BREAKER_LIMIT = 3
 _consecutive_no_comps = 0
+# Consecutive headless fallback scrapes in this run; any successful upload resets it.
+HEADLESS_BREAKER_LIMIT = 3
+_consecutive_headless = 0
 
 
 def _begin_run():
     """Reset run-scoped tracking at the start of an export run."""
-    global _consecutive_no_comps
+    global _consecutive_no_comps, _consecutive_headless
     _new_dataset_paths.clear()
     _dataset_yield.clear()
     _consecutive_no_comps = 0
+    _consecutive_headless = 0
 
 
 # Dataset CSVs created (not merged into an existing file) during this run, keyed by
@@ -949,6 +980,56 @@ def _discard_no_comps_dataset(term, reported=True):
         moved_yield["appended"] = 0
         if moved_yield["printed"]:
             _emit_yield(term)
+    return True
+
+
+def _set_aside_headless(csv_path, term):
+    """Move a scrape with no Item Title or Item ID on any row to the rejected directory."""
+    name = re.sub(r"[^\w\-]+", "_", term).strip("_")[:80] or "dataset"
+    target = REJECTED_DIR / f"{name}-{datetime.now().strftime('%Y%m%dT%H%M%S%f')}.csv"
+    try:
+        REJECTED_DIR.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(csv_path), str(target))
+    except OSError as error:
+        print(f"  [dataset] WARN {term}: could not set headless CSV aside: {error}")
+        try:
+            Path(csv_path).unlink()
+        except OSError:
+            pass
+
+
+def _report_headless_no_data(term):
+    """Report a headless fallback scrape as no data, unless too many in a row look systemic.
+
+    Like the no-comps breaker: more than HEADLESS_BREAKER_LIMIT consecutive headless scrapes with no
+    successful upload in between suggest a page-extraction fault rather than thin markets, so stop
+    marking datasets dormant until an upload succeeds."""
+    global _consecutive_headless
+    _consecutive_headless += 1
+    if _consecutive_headless > HEADLESS_BREAKER_LIMIT:
+        print(
+            f"  [dataset] WARN {term}: {_consecutive_headless} consecutive headless scrapes look systemic; "
+            "not reporting no data until an upload succeeds"
+        )
+        return
+    _report_no_data(term)
+
+
+def _skip_headless_fallback(entry, csv_path, term, progress):
+    """Handle a fallback dataset whose scrape has no Item Title or Item ID on any row.
+
+    The server cannot use such a file, so it is set aside instead of merged and uploaded. Returns True
+    when the scrape was handled; the caller counts it as failed and still runs the shared pacing tail.
+    P0-P2 datasets are never skipped here: their 422 path feeds the no-comps cluster stop."""
+    if not entry.get("_fallback_tier") or not csv_path:
+        return False
+    headless_rows = _headless_row_count(csv_path)
+    if not headless_rows:
+        return False
+    print(f"HEADLESS ({headless_rows} rows without Item Title or Item ID; not merged or uploaded)")
+    _set_aside_headless(csv_path, term)
+    _report_headless_no_data(term)
+    progress.setdefault("failed", []).append(term)
     return True
 
 
@@ -1770,6 +1851,107 @@ def report_is_valid(report, now=None, max_age_minutes=REPORT_MAX_AGE_MINUTES):
     return True, ""
 
 
+# Yield gate: a fallback tier that keeps returning too little usable data is suspended for a while.
+# The evidence is the pass ledger (`tier_attempted` and `tier_productive` per pass record), so no
+# extra state is stored. A tier is judged on its last FALLBACK_GATE_WINDOW_PASSES passes and stays
+# suspended until the newest of them is older than FALLBACK_GATE_EXPIRY_DAYS.
+FALLBACK_GATE_WINDOW_PASSES = 3
+FALLBACK_GATE_MIN_ATTEMPTS = 30
+FALLBACK_GATE_EXPIRY_DAYS = 7
+FALLBACK_GATE_DEFAULT_MIN_RATE = 0.15
+
+
+def pass_ledger_path():
+    runs_dir = os.environ.get("TERAPEAK_RUNS_DIR") or str(PROJECT_DIR / "cache" / "terapeak-runs")
+    return Path(runs_dir) / "passes.jsonl"
+
+
+def read_pass_ledger(path=None):
+    """Pass records in file order; unreadable files and lines yield nothing."""
+    records = []
+    try:
+        with open(path or pass_ledger_path(), encoding="utf-8", errors="replace") as handle:
+            for line in handle:
+                try:
+                    record = json.loads(line)
+                except ValueError:
+                    continue
+                if isinstance(record, dict):
+                    records.append(record)
+    except OSError:
+        pass
+    return records
+
+
+def _safe_count(value):
+    try:
+        return max(int(value), 0)
+    except (TypeError, ValueError, OverflowError):
+        return 0
+
+
+def _ledger_time(record):
+    text = str(record.get("end_ts") or record.get("ended_at") or "")
+    try:
+        moment = datetime.fromisoformat(text.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return moment if moment.tzinfo else moment.replace(tzinfo=timezone.utc)
+
+
+def gate_rate_from_env():
+    """TERAPEAK_FALLBACK_GATE_MIN_RATE as a rate in 0..1; anything else warns and uses the default."""
+    text = os.environ.get("TERAPEAK_FALLBACK_GATE_MIN_RATE", "").strip()
+    if not text:
+        return FALLBACK_GATE_DEFAULT_MIN_RATE
+    try:
+        value = float(text)
+    except ValueError:
+        value = None
+    if value is None or not 0 <= value <= 1:
+        print(
+            f"WARNING: TERAPEAK_FALLBACK_GATE_MIN_RATE={text!r} is not a rate between 0 and 1; "
+            f"using {FALLBACK_GATE_DEFAULT_MIN_RATE}",
+            file=sys.stderr,
+        )
+        return FALLBACK_GATE_DEFAULT_MIN_RATE
+    return value
+
+
+def suspended_fallback_tiers(tiers, records, min_rate, now=None):
+    """{tier: reason} for tiers whose recent passes produced too few datasets that kept rows.
+
+    Only passes newer than FALLBACK_GATE_EXPIRY_DAYS count, so a tier is re-probed once its evidence
+    ages out and is judged on fresh passes, not on a mix of old and new."""
+    suspended = {}
+    if not min_rate or min_rate <= 0:
+        return suspended
+    now = now or datetime.now(timezone.utc)
+    horizon = now - timedelta(days=FALLBACK_GATE_EXPIRY_DAYS)
+    for tier in tiers:
+        recent = []
+        for record in records:
+            attempts = record.get("tier_attempted")
+            when = _ledger_time(record)
+            if isinstance(attempts, dict) and when is not None and when > horizon and _safe_count(attempts.get(tier)) > 0:
+                recent.append((when, record))
+        recent = recent[-FALLBACK_GATE_WINDOW_PASSES:]
+        attempted = sum(_safe_count(r["tier_attempted"].get(tier)) for _, r in recent)
+        if attempted < FALLBACK_GATE_MIN_ATTEMPTS:
+            continue
+        productive = sum(
+            _safe_count(r["tier_productive"].get(tier)) if isinstance(r.get("tier_productive"), dict) else 0
+            for _, r in recent
+        )
+        if productive / attempted < min_rate:
+            expires = recent[-1][0] + timedelta(days=FALLBACK_GATE_EXPIRY_DAYS)
+            suspended[tier] = (
+                f"{productive} of {attempted} attempts kept rows over the last {len(recent)} passes "
+                f"(below {min_rate:.0%}); retry after {expires.strftime('%Y-%m-%d')}"
+            )
+    return suspended
+
+
 def mixed_selection_targets(p01_fixed, extra_target, p01_available):
     selected_p01_target = min(p01_fixed, p01_available)
     total_target = p01_fixed + extra_target
@@ -1831,6 +2013,17 @@ def do_export_run(args):
     if fallback_tiers and getattr(args, "include_thin", False):
         print("ERROR: --fallback-tiers cannot be combined with --include-thin")
         sys.exit(2)
+    gate_min_rate = float(getattr(args, "fallback_gate_min_rate", 0) or 0)
+    if not 0 <= gate_min_rate <= 1:
+        print("ERROR: --fallback-gate-min-rate must be a rate between 0 and 1")
+        sys.exit(2)
+    requested_fallback_tiers = fallback_tiers
+    gated = {}
+    if fallback_tiers and gate_min_rate > 0:
+        gated = suspended_fallback_tiers(fallback_tiers, read_pass_ledger(), gate_min_rate)
+        for gated_tier, gate_reason in gated.items():
+            print(f"Fallback gate: {gated_tier} suspended: {gate_reason}")
+        fallback_tiers = tuple(tier for tier in fallback_tiers if tier not in gated)
     report_valid, report_invalid_reason = True, ""
 
     # Apply backlog: read freshness report and keep only datasets needing page1 refresh
@@ -1902,7 +2095,7 @@ def do_export_run(args):
         if dormant_count:
             print(f"Skipping {dormant_count} dormant datasets (no Terapeak results on prior attempts)")
         if thin_skipped:
-            hint = "outside the fallback tiers" if fallback_tiers else "P3 monitor cadence, use --include-thin to include"
+            hint = "outside the fallback tiers" if (fallback_tiers or gated) else "P3 monitor cadence, use --include-thin to include"
             print(f"Skipping {thin_skipped} thin-market datasets ({hint})")
         if priority_filtered:
             print(f"Skipping {priority_filtered} datasets by priority include/exclude filters")
@@ -1987,7 +2180,11 @@ def do_export_run(args):
                 print(f"ERROR: freshness report is not valid ({report_invalid_reason}); "
                       "refusing to treat an empty queue as drained")
                 sys.exit(1)
-            print("DRAINED: no eligible dataset in P0-P2 or any fallback tier")
+            if gated:
+                print("DRAINED: nothing eligible in P0-P2 or an active fallback tier "
+                      f"(suspended by the yield gate: {', '.join(gated)})")
+            else:
+                print("DRAINED: no eligible dataset in P0-P2 or any fallback tier")
             return "drained"
         extra_target = random.randint(extra_min, extra_max)
         p01_target, other_target, total_target = mixed_selection_targets(
@@ -1999,7 +2196,7 @@ def do_export_run(args):
         # tiers, so the pass still uses the full batch size and no P0-P2 item waits behind a fallback.
         open_slots = max(0, total_target - len(selected_p01) - len(selected_other))
         surplus_p01 = []
-        if fallback_tiers and open_slots:
+        if requested_fallback_tiers and open_slots:
             chosen = {id(t) for t in selected_p01}
             surplus_p01 = _pick([t for t in p01_pool if id(t) not in chosen], open_slots)
             open_slots -= len(surplus_p01)
@@ -2014,14 +2211,14 @@ def do_export_run(args):
             f"non-P0.1 {len(selected_other)}/{other_target}, "
             f"total {len(terms)}/{total_target}"
         )
+        if surplus_p01:
+            print(f"P0.1 surplus fill: {len(surplus_p01)} (open slots used by P0.1 items beyond the fixed share)")
         if fallback_tiers:
             def _per_tier(items):
                 return ", ".join(
                     f"{tier}={sum(1 for t in items if t['_fallback_tier'] == tier)}" for tier in fallback_tiers
                 )
             print(f"Fallback pool: {len(fallback_pool)} eligible ({_per_tier(fallback_pool)})")
-            if surplus_p01:
-                print(f"P0.1 surplus fill: {len(surplus_p01)} (open slots used by P0.1 items beyond the fixed share)")
             print(f"Fallback fill: {len(selected_fallback)} ({_per_tier(selected_fallback)})")
 
     # Apply resume
@@ -2245,7 +2442,9 @@ def do_export_run(args):
                 bot_blocked = record_hard_challenge(progress, term)
                 break
 
-            if csv_path and csv_path.exists():
+            if _skip_headless_fallback(entry, csv_path, term, progress):
+                failed += 1
+            elif csv_path and csv_path.exists():
                 # Verify CSV has content
                 size = csv_path.stat().st_size
                 if size < 50:
@@ -2430,6 +2629,7 @@ Examples:
     parser.add_argument("--mixed-extra-max", type=int, metavar="N", help="Backlog-only mixed mode: maximum random count drawn from non-P0.1 queue")
     parser.add_argument("--fallback-tiers", type=str, metavar="LIST", help="Mixed backlog mode: comma-separated P3 tiers (or 'all') that fill batch slots P0-P2 leaves empty, in order: " + ", ".join(FALLBACK_TIER_ORDER))
     parser.add_argument("--exit-on-drained", action="store_true", help=f"Mixed backlog mode: exit {EXIT_DRAINED} when a valid report has no eligible dataset in P0-P2 or any fallback tier")
+    parser.add_argument("--fallback-gate-min-rate", type=float, metavar="RATE", default=gate_rate_from_env(), help=f"Suspend a fallback tier for {FALLBACK_GATE_EXPIRY_DAYS} days when, over its last {FALLBACK_GATE_WINDOW_PASSES} passes (at least {FALLBACK_GATE_MIN_ATTEMPTS} attempts), fewer than this share of its datasets kept rows (default {FALLBACK_GATE_DEFAULT_MIN_RATE}; 0 disables; env TERAPEAK_FALLBACK_GATE_MIN_RATE)")
 
     args = parser.parse_args()
 

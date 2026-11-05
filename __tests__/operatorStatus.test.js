@@ -485,6 +485,21 @@ describe('operator-status.py: P3 fallback fill and drained (#330H)', () => {
     expect(runStatus(standardProject()).stdout).not.toContain('queue drained');
   });
 
+  test('headless fallback coins are labelled NO DATA with their reason', () => {
+    const dir = makeProject({
+      passes: [passRecord({ pass: 1, attempted: 3, succeeded: 0, empty: 3 })],
+      coins: [
+        coinRecord(1, 'Coin H1', 'empty', { headless: true }),
+        coinRecord(1, 'Coin H2', 'empty', { headless: true, dormant: true }),
+        coinRecord(1, 'Coin D1', 'empty', { dormant: true }),
+      ],
+    });
+    const out = runStatus(dir).stdout;
+    expect(out).toContain(coinRow('Coin H1', '--', '--', 'NO DATA (headless)'));
+    expect(out).toContain(coinRow('Coin H2', '--', '--', 'NO DATA (headless, dormant)'));
+    expect(out).toContain(coinRow('Coin D1', '--', '--', 'NO DATA (dormant)'));
+  });
+
   test('wrong-typed or non-ASCII telemetry never raises and the output stays ASCII', () => {
     const dir = fallbackProject({
       fallback_filled: 'many',

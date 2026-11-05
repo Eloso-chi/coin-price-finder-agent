@@ -274,6 +274,32 @@ with `--focus`, `--coin-type`, `--filter`, `--priority-include` or
   upload `new` count overstates fresh rows (the whole merged file is uploaded),
   so compare tiers on appended rows. The pass record carries `fallback_filled`,
   `tier_yield` and `drained`.
+- Headless scrapes: Terapeak lists some older and thin-market sales without an
+  Item Title or Item ID. For a fallback dataset whose scrape has neither on any
+  row, the exporter prints `HEADLESS (N rows without Item Title or Item ID; not
+  merged or uploaded)`, moves the file to `cache/terapeak-rejected/`, reports the
+  dataset as no data (so it goes dormant after repeated attempts) and continues
+  through the normal delay, coffee break and progress save. After more than three
+  consecutive headless scrapes with no successful upload in between it prints a
+  `[dataset] WARN ... systemic` line and stops reporting no data. The line is not a `NO EXPORT` line, so it is not a soft-risk signal, and it
+  does not count toward the no-comps cluster stop. P0-P2 datasets keep the old
+  path: merge, upload, and a 422 counts toward the cluster stop, which still
+  catches a systemic export or parser fault. Status shows the coin as
+  `NO DATA (headless)`.
+- Yield gate: before reading the backlog the exporter reads the last three passes
+  that used each fallback tier, counting only passes from the last 7 days, from
+  `cache/terapeak-runs/passes.jsonl` (`tier_attempted`, `tier_productive`). If a
+  tier had at least 30 attempts and
+  fewer than 15% of them kept rows, it prints `Fallback gate: <tier> suspended:
+  ...` and leaves the tier out of the pool until 7 days after its newest
+  evidence. When every remaining tier is suspended the run drains (exit 20) with
+  `DRAINED: nothing eligible in P0-P2 or an active fallback tier (suspended by
+  the yield gate: <tiers>)`; the operator state message is the generic drained
+  text. An out-of-range rate (not between 0 and 1) is an error for the option
+  (exit 2) and a warning plus the default for the environment variable.
+  Tune with `--fallback-gate-min-rate RATE` or the environment variable
+  `TERAPEAK_FALLBACK_GATE_MIN_RATE` (default 0.15; 0 disables); the operators
+  use the default, so set the variable in the env file to change it.
 
 If preflight fails, fix the reported issue first; do not continue with manual
 startup commands.

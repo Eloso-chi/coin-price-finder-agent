@@ -218,6 +218,9 @@ Append-only JSONL ledger written by `scripts/_parse-terapeak-pass.py` after each
 | `fallback_filled` | number | Public | Batch slots the P3 fallback tiers filled in this pass (#330H); 0 for records written before #330H |
 | `tier_yield` | object | Public | Maps each fallback tier, and `primary` for P0-P2 datasets, to `{items, appended_rows}`: exported datasets and rows added to their CSVs (#330H); `{}` for records written before #330H |
 | `drained` | boolean | Public | True for the zero-coin pass on which nothing was eligible in P0-P2 or any fallback tier, after which the operator exits 0 (#330H); false for records written before #330H |
+| `tier_attempted` | object | Public | Maps each fallback tier to the batch slots selected for it in this pass (#330H); `{}` when no fallback tier was used. The exporter's yield gate reads it from the ledger |
+| `tier_productive` | object | Public | Maps each fallback tier to the exported datasets that kept at least one appended row after any no-comps correction (#330H); `{}` when none |
+| `headless` | number | Public | Coins skipped because their scrape had no Item Title or Item ID on any row (#330H); a subset of `empty` |
 | `new_rows` | number | Public | Sum of new comp rows added across all coins this pass |
 | `dup_rows` | number | Public | Sum of duplicate rows skipped across all coins this pass |
 | `succeeded_reported` | number or null | Public | "succeeded" total scraped from the pass log's own summary line (cross-check) |
@@ -240,6 +243,7 @@ Append-only JSONL ledger written by `scripts/_parse-terapeak-pass.py` after each
 | `dups` | number | Public | Duplicate rows skipped |
 | `dormant` | boolean | Public | True if the coin was classified dormant before the attempt |
 | `no_comps` | boolean | Public | True if the server rejected the upload as HTTP 422 "No valid comps found" (status is `empty`) |
+| `headless` | boolean | Public | True if the exporter skipped the coin because its scrape had no Item Title or Item ID on any row (status is `empty`; #330H) |
 | `error` | string or null | Public | Error excerpt (at most 200 characters) if the attempt failed; null otherwise |
 
 **Use:** Operator forensics and longitudinal yield tracking. Parse failures in `_parse-terapeak-pass.py` log to stderr but never fail the operator loop. Schemas are append-only and best-effort; new fields may be added in later operator versions. Source of truth: `scripts/_parse-terapeak-pass.py` `main()` -- consult before relying on any field semantics.

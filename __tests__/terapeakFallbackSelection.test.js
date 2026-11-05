@@ -25,6 +25,7 @@ import contextlib
 import importlib.util
 import io
 import json
+import os
 import re
 import sys
 import tempfile
@@ -40,6 +41,17 @@ playwright.sync_api = sync_api
 sys.modules["playwright"] = playwright
 sys.modules["playwright.sync_api"] = sync_api
 sys.modules["requests"] = types.ModuleType("requests")
+
+os.environ["TERAPEAK_RUNS_DIR"] = tempfile.mkdtemp()
+
+
+def write_ledger(records):
+    Path(os.environ["TERAPEAK_RUNS_DIR"]).joinpath("passes.jsonl").write_text("".join(json.dumps(r) + "\\n" for r in records))
+
+
+def ledger_pass(tier, attempted, productive, ended):
+    return {"end_ts": ended, "tier_attempted": {tier: attempted}, "tier_productive": {tier: productive}}
+
 
 spec = importlib.util.spec_from_file_location("terapeak_export", EXPORTER_PATH)
 exporter = importlib.util.module_from_spec(spec)
@@ -747,5 +759,380 @@ print(json.dumps({"yields": [l for l in text.splitlines() if "[yield]" in l]}))
     expect(emitted).toBeGreaterThan(syncResult);
     expect(noExport).toBeGreaterThan(emitted);
     expect(source).not.toMatch(/print\(f"\[yield\]/);
+  });
+});
+
+describe('_headless_row_count', () => {
+  const HEADER = 'Item Title,Item ID,Sold Date,Sold Price,Shipping,Condition,Seller,Format,Item URL,Quantity Sold';
+  const CASES = `
+tmp = Path(tempfile.mkdtemp())
+def count(name, body):
+    path = tmp / (name + ".csv")
+    path.write_text(body)
+    return exporter._headless_row_count(path)
+H = ${JSON.stringify(HEADER)} + "\\n"
+blank = ',,"Apr 21, 2025",$354.17,$0.00,,,Fixed price,,2\\n'
+out = {
+    "allBlank": count("a", H + blank * 3),
+    "oneTitled": count("b", H + blank * 2 + 'Coin X,111,"Apr 21, 2025",$354.17,$0.00,,,Fixed price,,1\\n'),
+    "idOnly": count("c", H + ',222,"Apr 21, 2025",$354.17,$0.00,,,Fixed price,,1\\n'),
+    "titleOnly": count("d", H + 'Coin X,,"Apr 21, 2025",$354.17,$0.00,,,Fixed price,,1\\n'),
+    "headerOnly": count("e", H),
+    "shortRowsIgnored": count("f", H + "a,b\\n" + blank * 2),
+    "whitespaceBlank": count("g", H + ' , ,"Apr 21, 2025",$354.17,$0.00,,,Fixed price,,1\\n'),
+    "missing": exporter._headless_row_count(tmp / "nope.csv"),
+}
+print(json.dumps(out))
+`;
+
+  test('counts data rows only when every row lacks both Item Title and Item ID', () => {
+    const out = runPython(CASES);
+    expect(out).toEqual({
+      allBlank: 3,
+      oneTitled: 0,
+      idOnly: 0,
+      titleOnly: 0,
+      headerOnly: 0,
+      shortRowsIgnored: 2,
+      whitespaceBlank: 1,
+      missing: 0,
+    });
+  });
+});
+
+describe('suspended_fallback_tiers (yield gate)', () => {
+  const GATE = `
+now = datetime(2026, 11, 5, 12, 0, 0, tzinfo=timezone.utc)
+def iso(days_ago):
+    return (now - timedelta(days=days_ago)).strftime("%Y-%m-%dT%H:%M:%SZ")
+tiers = ("near-viable", "thin-low")
+def gate(records, rate=0.15):
+    return {k: bool(v) for k, v in exporter.suspended_fallback_tiers(tiers, records, rate, now=now).items()}
+`;
+
+  test('suspends a tier whose recent passes kept rows for too few datasets, and names the retry date', () => {
+    const out = runPython(`${GATE}
+records = [ledger_pass("near-viable", 18, 2, iso(1)), ledger_pass("near-viable", 18, 2, iso(0.5))]
+result = exporter.suspended_fallback_tiers(tiers, records, 0.15, now=now)
+print(json.dumps({"tiers": sorted(result), "reason": result.get("near-viable")}))
+`);
+    expect(out.tiers).toEqual(['near-viable']);
+    expect(out.reason).toBe('4 of 36 attempts kept rows over the last 2 passes (below 15%); retry after 2026-11-12');
+  });
+
+  test('keeps a tier that is productive enough, has too few attempts, or is judged by stale evidence', () => {
+    const out = runPython(`${GATE}
+out = {
+    "productive": gate([ledger_pass("near-viable", 18, 6, iso(1)), ledger_pass("near-viable", 18, 6, iso(0.5))]),
+    "atThreshold": gate([ledger_pass("near-viable", 20, 3, iso(1)), ledger_pass("near-viable", 20, 3, iso(0.5))], 0.15),
+    "fewAttempts": gate([ledger_pass("near-viable", 18, 0, iso(0.5)), ledger_pass("near-viable", 11, 0, iso(0.2))]),
+    "expired": gate([ledger_pass("near-viable", 18, 0, iso(9)), ledger_pass("near-viable", 18, 0, iso(8))]),
+    "disabled": gate([ledger_pass("near-viable", 18, 0, iso(1)), ledger_pass("near-viable", 18, 0, iso(0.5))], 0),
+    "empty": gate([]),
+}
+print(json.dumps(out))
+`);
+    expect(out).toEqual({
+      productive: {},
+      atThreshold: {},
+      fewAttempts: {},
+      expired: {},
+      disabled: {},
+      empty: {},
+    });
+  });
+
+  test('judges each tier on its own last three passes and ignores passes that did not use it', () => {
+    const out = runPython(`${GATE}
+old_good = [ledger_pass("near-viable", 18, 12, iso(6)) for _ in range(3)]
+recent_bad = [ledger_pass("near-viable", 18, 0, iso(2)), ledger_pass("near-viable", 18, 0, iso(1)), ledger_pass("near-viable", 18, 0, iso(0.5))]
+other_tier = [ledger_pass("thin-low", 18, 9, iso(0.4))]
+legacy = [{"end_ts": iso(0.3), "tier_yield": {"near-viable": {"items": 3, "appended_rows": 9}}}]
+out = {
+    "oldGoodIgnored": gate(old_good + recent_bad + other_tier + legacy),
+    "onlyOldGood": gate(old_good + other_tier + legacy),
+    "bothBad": gate(recent_bad + [ledger_pass("thin-low", 18, 0, iso(0.4)), ledger_pass("thin-low", 18, 1, iso(0.3))]),
+}
+print(json.dumps(out))
+`);
+    expect(out.oldGoodIgnored).toEqual({ 'near-viable': true });
+    expect(out.onlyOldGood).toEqual({});
+    expect(out.bothBad).toEqual({ 'near-viable': true, 'thin-low': true });
+  });
+
+  test('an unreadable timestamp never suspends a tier, and malformed fields count as unproductive without raising', () => {
+    const out = runPython(`${GATE}
+records = [
+    {"end_ts": "not-a-time", "tier_attempted": {"near-viable": 40}, "tier_productive": {"near-viable": 0}},
+    {"end_ts": iso(0.5), "tier_attempted": "bad", "tier_productive": 5},
+    {"end_ts": iso(0.5), "tier_attempted": {"near-viable": 40}, "tier_productive": "bad"},
+]
+print(json.dumps({"gate": gate(records[:1]), "malformed": gate(records[1:])}))
+`);
+    expect(out.gate).toEqual({});
+    expect(out.malformed).toEqual({ 'near-viable': true });
+  });
+});
+
+describe('--dry-run fallback yield gate', () => {
+  const POOL = `
+now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+fallback = [
+    dataset("near a", "P3", "near-viable", p3SaleRate=1.0, staleDays=20, compCount=6),
+    dataset("near b", "P3", "near-viable", p3SaleRate=1.0, staleDays=30, compCount=6),
+    dataset("thin x", "P3", "thin-low", staleDays=30, compCount=4),
+]
+poor = [ledger_pass("near-viable", 18, 1, now_iso), ledger_pass("near-viable", 18, 2, now_iso)]
+args = ${JSON.stringify([...MIXED(8)])} + ["--fallback-tiers", "all"]
+`;
+
+  test('a suspended tier is announced and its datasets stay out of the batch', () => {
+    const out = runPython(`${POOL}
+write_ledger(poor)
+print(json.dumps(dry_run(fallback, args)))
+`);
+    expect(out.listed).toEqual(['thin x']);
+    expect(out.info.some(line => /^Fallback gate: near-viable suspended: 3 of 36 attempts kept rows over the last 2 passes \(below 15%\); retry after \d{4}-\d{2}-\d{2}$/.test(line))).toBe(true);
+    expect(out.info).toContain('Fallback pool: 1 eligible (probe-with-data=0, probe-no-data=0, thin-low=1, confirmed-thin=0)');
+  });
+
+  test('a run whose only remaining work is in suspended tiers drains instead of spinning', () => {
+    const out = runPython(`${POOL}
+write_ledger(poor)
+print(json.dumps(dry_run(fallback[:2], args + ["--exit-on-drained"])))
+`);
+    expect(out.code).toBe(20);
+    expect(out.info.some(line => line.startsWith('Fallback gate: near-viable suspended'))).toBe(true);
+    expect(out.info).toContain('DRAINED: nothing eligible in P0-P2 or an active fallback tier (suspended by the yield gate: near-viable)');
+  });
+
+  test('a rate of zero turns the gate off, as does an empty ledger', () => {
+    const out = runPython(`${POOL}
+write_ledger(poor)
+disabled = dry_run(fallback, args + ["--fallback-gate-min-rate", "0"])
+write_ledger([])
+empty = dry_run(fallback, args)
+print(json.dumps({"disabled": disabled["listed"], "empty": empty["listed"],
+                  "gateLines": [l for l in disabled["info"] + empty["info"] if l.startswith("Fallback gate")]}))
+`);
+    expect(out.disabled).toEqual(['near b', 'near a', 'thin x']);
+    expect(out.empty).toEqual(['near b', 'near a', 'thin x']);
+    expect(out.gateLines).toEqual([]);
+  });
+
+  test('the gate does not apply when no fallback tiers are requested', () => {
+    const out = runPython(`${POOL}
+write_ledger(poor)
+result = dry_run(fallback, ${JSON.stringify([...MIXED(8)])})
+print(json.dumps({"info": [l for l in result["info"] if l.startswith("Fallback")]}))
+`);
+    expect(out.info).toEqual([]);
+  });
+});
+
+describe('yield gate: fresh-window judgement, safe parsing, and rate validation', () => {
+  const GATE = `
+now = datetime(2026, 11, 5, 12, 0, 0, tzinfo=timezone.utc)
+def iso(days_ago):
+    return (now - timedelta(days=days_ago)).strftime("%Y-%m-%dT%H:%M:%SZ")
+tiers = ("near-viable",)
+def gate(records, rate=0.15):
+    return sorted(exporter.suspended_fallback_tiers(tiers, records, rate, now=now))
+`;
+
+  test('a tier is re-probed after its evidence ages out and is not re-suspended on stale passes', () => {
+    const out = runPython(`${GATE}
+stale = [ledger_pass("near-viable", 18, 0, iso(9)), ledger_pass("near-viable", 18, 0, iso(8))]
+small_probe = [ledger_pass("near-viable", 4, 0, iso(0.5))]
+full_probe = [ledger_pass("near-viable", 18, 0, iso(1)), ledger_pass("near-viable", 18, 0, iso(0.5))]
+print(json.dumps({"staleOnly": gate(stale), "afterSmallProbe": gate(stale + small_probe), "afterFullProbes": gate(stale + full_probe)}))
+`);
+    expect(out.staleOnly).toEqual([]);
+    expect(out.afterSmallProbe).toEqual([]);
+    expect(out.afterFullProbes).toEqual(['near-viable']);
+  });
+
+  test('non-numeric, negative, or huge ledger counts are treated as zero and never raise', () => {
+    const out = runPython(`${GATE}
+records = [
+    {"end_ts": iso(1), "tier_attempted": {"near-viable": "abc"}, "tier_productive": {"near-viable": "x"}},
+    {"end_ts": iso(1), "tier_attempted": {"near-viable": None}, "tier_productive": {"near-viable": [1]}},
+    {"end_ts": iso(1), "tier_attempted": {"near-viable": -5}, "tier_productive": {"near-viable": float("inf")}},
+]
+mixed = records + [ledger_pass("near-viable", 40, 1, iso(0.5))]
+print(json.dumps({"junkOnly": gate(records), "junkPlusOne": gate(mixed)}))
+`);
+    expect(out.junkOnly).toEqual([]);
+    expect(out.junkPlusOne).toEqual(['near-viable']);
+  });
+
+  test('a negative productive count cannot offset the productive items of another pass', () => {
+    const out = runPython(`${GATE}
+records = [ledger_pass("near-viable", 20, 20, iso(1)), ledger_pass("near-viable", 20, -30, iso(0.5))]
+print(json.dumps({"suspended": gate(records)}))
+`);
+    expect(out.suspended).toEqual([]);
+  });
+
+  test('the environment rate must be between 0 and 1, otherwise the default is used with a warning', () => {
+    const out = runPython(`
+def read(value):
+    if value is None:
+        os.environ.pop("TERAPEAK_FALLBACK_GATE_MIN_RATE", None)
+    else:
+        os.environ["TERAPEAK_FALLBACK_GATE_MIN_RATE"] = value
+    err = io.StringIO()
+    with contextlib.redirect_stderr(err):
+        rate = exporter.gate_rate_from_env()
+    return [rate, "WARNING" in err.getvalue()]
+print(json.dumps({v if v is not None else "unset": read(v) for v in (None, "", "0", "0.3", "1", "abc", "2", "-0.1", "nan", "inf")}))
+`);
+    expect(out).toEqual({
+      unset: [0.15, false],
+      '': [0.15, false],
+      0: [0, false],
+      '0.3': [0.3, false],
+      1: [1, false],
+      abc: [0.15, true],
+      2: [0.15, true],
+      '-0.1': [0.15, true],
+      nan: [0.15, true],
+      inf: [0.15, true],
+    });
+  });
+
+  test('a rate outside 0..1 on the command line is rejected', () => {
+    const out = runPython(`
+fallback = [dataset("near a", "P3", "near-viable", p3SaleRate=1.0, staleDays=20, compCount=6)]
+args = ${JSON.stringify([...MIXED(8)])} + ["--fallback-tiers", "all"]
+print(json.dumps({"high": dry_run(fallback, args + ["--fallback-gate-min-rate", "2"]),
+                  "negative": dry_run(fallback, args + ["--fallback-gate-min-rate=-0.5"])}))
+`);
+    for (const key of ['high', 'negative']) {
+      expect(out[key].code).toBe(2);
+      expect(out[key].info).toContain('ERROR: --fallback-gate-min-rate must be a rate between 0 and 1');
+    }
+  });
+
+  test('suspending every tier keeps the P0.1 surplus fill, because P0.1 items are not suspended', () => {
+    const out = runPython(`
+now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+write_ledger([ledger_pass("near-viable", 18, 1, now_iso), ledger_pass("near-viable", 18, 1, now_iso)])
+bullion = [dataset("bullion " + c, "P0.1") for c in "abcdef"]
+fallback = [dataset("near a", "P3", "near-viable", p3SaleRate=1.0, staleDays=20, compCount=6)]
+print(json.dumps(dry_run(bullion + fallback, ${JSON.stringify([...MIXED(4, 2)])} + ["--fallback-tiers", "near-viable"])))
+`);
+    expect(out.listed).toEqual(['bullion a', 'bullion b', 'bullion c', 'bullion d', 'bullion e', 'bullion f']);
+    expect(out.info).toContain('P0.1 surplus fill: 4 (open slots used by P0.1 items beyond the fixed share)');
+    expect(out.info.some(line => line.startsWith('Fallback gate: near-viable suspended'))).toBe(true);
+  });
+});
+
+describe('headless fallback scrapes: helper behavior and loop structure', () => {
+  const HELPER = `
+HEADER = "Item Title,Item ID,Sold Date,Sold Price,Shipping,Condition,Seller,Format,Item URL,Quantity Sold\\n"
+BLANK = ',,"Apr 21, 2025",$354.17,$0.00,,,Fixed price,,2\\n'
+TITLED = 'Coin X,111,"Apr 21, 2025",$354.17,$0.00,,,Fixed price,,1\\n'
+tmp = Path(tempfile.mkdtemp())
+exporter.REJECTED_DIR = tmp / "rejected"
+reported = []
+exporter._report_no_data = lambda term_name: reported.append(term_name)
+exporter._begin_run()
+
+def make(name, body):
+    path = tmp / (name + ".csv")
+    path.write_text(HEADER + body)
+    return path
+
+def run(entry, path, term_name, progress):
+    buffer = io.StringIO()
+    with contextlib.redirect_stdout(buffer):
+        handled = exporter._skip_headless_fallback(entry, path, term_name, progress)
+    return handled, buffer.getvalue()
+
+def rejected():
+    return sorted(p.name for p in (tmp / "rejected").glob("*.csv")) if (tmp / "rejected").exists() else []
+`;
+
+  test('a headless scrape of a fallback dataset is set aside, reported as no data, and recorded as failed', () => {
+    const out = runPython(`${HELPER}
+progress = {}
+path = make("a", BLANK * 3)
+handled, text = run({"_fallback_tier": "near-viable"}, path, "Coin A", progress)
+print(json.dumps({"handled": handled, "text": text.strip(), "exists": path.exists(), "rejected": rejected(),
+                  "reported": reported, "failed": progress.get("failed")}))
+`);
+    expect(out.handled).toBe(true);
+    expect(out.text).toBe('HEADLESS (3 rows without Item Title or Item ID; not merged or uploaded)');
+    expect(out.exists).toBe(false);
+    expect(out.rejected).toHaveLength(1);
+    expect(out.rejected[0]).toMatch(/^Coin_A-\d{8}T\d+\.csv$/);
+    expect(out.reported).toEqual(['Coin A']);
+    expect(out.failed).toEqual(['Coin A']);
+  });
+
+  test('anything else is left alone: P0-P2 datasets, scrapes with titled rows, and a missing file', () => {
+    const out = runPython(`${HELPER}
+progress = {}
+headless_primary = make("p", BLANK * 2)
+partial = make("q", BLANK + TITLED)
+results = {
+    "primary": run({}, headless_primary, "Primary", progress)[0],
+    "partial": run({"_fallback_tier": "thin-low"}, partial, "Partial", progress)[0],
+    "none": run({"_fallback_tier": "thin-low"}, None, "Nothing", progress)[0],
+    "missing": run({"_fallback_tier": "thin-low"}, tmp / "nope.csv", "Missing", progress)[0],
+}
+print(json.dumps({"results": results, "primaryStays": headless_primary.exists(), "partialStays": partial.exists(),
+                  "rejected": rejected(), "reported": reported, "progress": progress}))
+`);
+    expect(out.results).toEqual({ primary: false, partial: false, none: false, missing: false });
+    expect(out.primaryStays).toBe(true);
+    expect(out.partialStays).toBe(true);
+    expect(out.rejected).toEqual([]);
+    expect(out.reported).toEqual([]);
+    expect(out.progress).toEqual({});
+  });
+
+  test('after three consecutive headless scrapes no more no-data reports are sent until an upload succeeds', () => {
+    const out = runPython(`${HELPER}
+entry = {"_fallback_tier": "near-viable"}
+texts = []
+for n in range(5):
+    path = make("b%d" % n, BLANK)
+    texts.append(run(entry, path, "Coin %d" % n, {})[1])
+after_five = list(reported)
+exporter._note_upload_success("Coin 0")
+path = make("c", BLANK)
+run(entry, path, "Coin after success", {})
+print(json.dumps({"afterFive": after_five, "afterSuccess": reported, "warn": [t for t in texts if "systemic" in t]}))
+`);
+    expect(out.afterFive).toEqual(['Coin 0', 'Coin 1', 'Coin 2']);
+    expect(out.afterSuccess).toEqual(['Coin 0', 'Coin 1', 'Coin 2', 'Coin after success']);
+    expect(out.warn).toHaveLength(2);
+    expect(out.warn[0]).toContain('4 consecutive headless scrapes look systemic; not reporting no data until an upload succeeds');
+  });
+
+  test('a rejected directory that cannot be written still removes the scrape and warns', () => {
+    const out = runPython(`${HELPER}
+(tmp / "blocker").write_text("not a directory")
+exporter.REJECTED_DIR = tmp / "blocker" / "rejected"
+path = make("d", BLANK)
+handled, text = run({"_fallback_tier": "thin-low"}, path, "Coin D", {})
+print(json.dumps({"handled": handled, "exists": path.exists(), "warn": "could not set headless CSV aside" in text}))
+`);
+    expect(out).toEqual({ handled: true, exists: false, warn: true });
+  });
+
+  test('the run loop calls the helper in an if/elif chain, so the pacing and progress tail still runs', () => {
+    const source = fs.readFileSync(EXPORTER, 'utf8');
+    const call = source.indexOf('if _skip_headless_fallback(entry, csv_path, term, progress):');
+    const elif = source.indexOf('elif csv_path and csv_path.exists():', call);
+    const tail = source.indexOf('# Save progress after each item (for resume)', elif);
+    expect(call).toBeGreaterThan(-1);
+    expect(elif).toBeGreaterThan(call);
+    expect(tail).toBeGreaterThan(elif);
+    // No early exit between the helper call and the shared tail (the old size check keeps its own).
+    const handledBranch = source.slice(call, elif);
+    expect(handledBranch).not.toMatch(/\b(continue|break|return)\b/);
   });
 });
