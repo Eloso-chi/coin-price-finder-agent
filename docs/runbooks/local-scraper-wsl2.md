@@ -300,6 +300,15 @@ with `--focus`, `--coin-type`, `--filter`, `--priority-include` or
   Tune with `--fallback-gate-min-rate RATE` or the environment variable
   `TERAPEAK_FALLBACK_GATE_MIN_RATE` (default 0.15; 0 disables); the operators
   use the default, so set the variable in the env file to change it.
+- US type seed (#334H): `data/research/us-type-seed.json` lists search terms for
+  US types and Mint sets with no dataset. The freshness report adds the terms
+  whose phase is at most `TERAPEAK_US_SEED_PHASE` (default 0, the probe set) as
+  missing datasets, so they queue as P2 `initial-fetch` ahead of the P3 fallback
+  tiers. Check results with `node scripts/us-type-seed-status.js` (pending,
+  no-data, thin, viable and median comps per group), then raise the phase in the
+  env file (`TERAPEAK_US_SEED_PHASE=1`) and restart the operator. Set it to `off`
+  to stop seeding. A seeded term that returns no data goes dormant through the
+  normal rules; nothing is written to `terapeak-meta.json` by the seed itself.
 
 If preflight fails, fix the reported issue first; do not continue with manual
 startup commands.

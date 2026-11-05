@@ -250,6 +250,21 @@ Append-only JSONL ledger written by `scripts/_parse-terapeak-pass.py` after each
 
 ---
 
+### data/research/us-type-seed.json
+
+Seed search terms (#334H) for US coin types and Mint sets that have no Terapeak dataset. `scripts/generate-freshness-report.js` adds the selected terms in memory as missing, untested datasets (P2 `initial-fetch`); nothing is written to `data/terapeak-meta.json`, which the operator re-syncs from the app each pass. A term that already has a meta entry or a CSV on disk is skipped.
+
+| Field | Type | Privacy | Notes |
+|-------|------|---------|-------|
+| `version` | number | Public | Schema version (1) |
+| `backlog` | string | Public | Owning backlog item (`#334H`) |
+| `terms[].term` | string | Public | eBay search term, printable ASCII, 200 characters or fewer, never containing the word "generic" |
+| `terms[].group` | string | Public | Design group; one rank per group |
+| `terms[].rank` | integer | Public | Volume rank from the backlog table (1 = most likely to have deep eBay volume) |
+| `terms[].phase` | integer 0-3 | Public | 0 = probe set (one representative per group), 1-3 = later phases; a term is queued when its phase is at most `TERAPEAK_US_SEED_PHASE` (default 0) |
+
+Freshness report records for seeded terms carry `usSeed: { group, rank, phase }`, and the report summary carries `usSeed: { phase, added, alreadyTracked, duplicates, groups }`. Once the first upload or no-data report for a term reaches the app, the real meta entry replaces the in-memory seed.
+
 ### data/terapeak-meta.json
 
 Keyed by Terapeak search term (lowercase, e.g., "morgan dollar"). Tracks refresh history and freshness metrics:

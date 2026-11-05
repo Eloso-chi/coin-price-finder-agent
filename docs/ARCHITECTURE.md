@@ -107,6 +107,7 @@ server.js                              Express entry point (port 3000)
 │   ├─ coinMetalProfile.js             Metal detection + weight detection (detectWeightFromTitle, weightToKeyToken) for bullion
 │   ├─ coinIntent.js                   Route-layer extractor: canonicalizes {grade, finish, isProof, designation} across coinData / options / pcgs / parsed (#254)
 │   ├─ explicitWeight.js               Shared explicit-ounce parsing and contradictory-key validation for imports and freshness gates
+│   ├─ usTypeSeed.js                   US type seed loader and in-memory injection for the freshness report (#334H)
 │   ├─ productIdentityResolver.js       Versioned canonical identity boundary; validates precedence/conflicts and resolves pricing pools
 │   ├─ responseValidator.js            /api/price response schema & sanity validation
 │   ├─ versionHash.js                  Cached valuation configuration SHA-256 fingerprint
@@ -183,6 +184,7 @@ server.js                              Express entry point (port 3000)
 │   ├─ reclassify-comps.js             Canonical identity migration with stable collision merge, rollback artifacts, and ownership-aware atomic apply
 │   ├─ build-evidence-index.js         Historical evidence index builder
 │   ├─ generate-freshness-report.js    Freshness triage report (5-state decision tree: Fresh/Stale/LowSignal/Missing/Dormant + recently-confirmed-stale split; P3 entries carry `p3Tier`/`p3SaleRate` and the summary `p3TierCounts` for the operators' fallback fill -- #330H)
+│   ├─ us-type-seed-status.js          Per-group status of the #334H US type seed terms (pending/no-data/thin/viable)
 │   ├─ scan-parallel-key-drift.js      Silent-drift detector for the #267H class -- flags datasets whose normalized key collides with an empty sibling (#272H). `npm run scan:parallel-key-drift`
 │   ├─ analyze-freshness-composition.js  Cross-tabulates freshness by category/composition
 │   ├─ commit-terapeak-progress.sh      Fail-closed post-run branch/commit/PR helper (#293W)

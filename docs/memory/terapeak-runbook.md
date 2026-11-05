@@ -246,6 +246,13 @@ last 3 passes kept rows on under 15% of at least 30 attempts
 (`--fallback-gate-min-rate`, env `TERAPEAK_FALLBACK_GATE_MIN_RATE`; 0 disables).
 Details: `docs/runbooks/local-scraper-wsl2.md`.
 
+US types and Mint sets with no dataset are seeded from
+`data/research/us-type-seed.json` (#334H). The freshness report adds the terms up
+to `TERAPEAK_US_SEED_PHASE` (default 0, the probe set) in memory as missing
+datasets, which queue as P2 `initial-fetch` ahead of the P3 fallback tiers;
+`scripts/us-type-seed-status.js` reports how each group is doing before the next
+phase is enabled.
+
 View the ledger with `scripts/show-terapeak-runs.sh`:
 
 ```bash

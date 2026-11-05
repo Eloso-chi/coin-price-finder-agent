@@ -1,0 +1,143 @@
+// __tests__/freshnessReportUsSeed.test.js
+// #334H: the freshness report queues US type seed terms as P2 initial-fetch datasets
+// (in memory only) without touching real data files.
+'use strict';
+
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+const { spawnSync } = require('child_process');
+
+const SCRIPT = path.join(__dirname, '..', 'scripts', 'generate-freshness-report.js');
+const CSV_DIR = path.join(__dirname, '..', 'data', 'terapeak');
+
+let dir;
+beforeEach(() => {
+  dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cpf-seed-report-'));
+});
+afterEach(() => {
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+const t = (term, phase, extra = {}) => ({ term, group: 'test-group', rank: 1, phase, ...extra });
+const SEED = [
+  t('1850 Fantasy Test Piece Alpha', 0),
+  t('1851 Fantasy Test Piece Beta', 1),
+  t('1852 Fantasy Test Piece Gamma', 2),
+];
+
+function run({ meta = {}, seed = { terms: SEED }, env = {}, args = [], writeSeed = true } = {}) {
+  const metaPath = path.join(dir, 'meta.json');
+  const seedPath = path.join(dir, 'seed.json');
+  const reportPath = path.join(dir, 'report.json');
+  fs.writeFileSync(metaPath, JSON.stringify(meta));
+  if (writeSeed) fs.writeFileSync(seedPath, JSON.stringify(seed));
+  const result = spawnSync('node', [SCRIPT, ...args], {
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      META_PATH: metaPath,
+      FRESHNESS_REPORT_PATH: reportPath,
+      US_TYPE_SEED_PATH: seedPath,
+      TERAPEAK_US_SEED_PHASE: '',
+      ...env,
+    },
+  });
+  expect(result.status).toBe(0);
+  return { report: JSON.parse(fs.readFileSync(reportPath, 'utf8')), stdout: result.stdout, stderr: result.stderr, metaPath };
+}
+
+const keysOf = (report) => report.datasets.map((d) => d.key).sort();
+
+describe('US type seed in the freshness report', () => {
+  test('phase 0 is the default and queues only probe terms as P2 initial-fetch', () => {
+    const { report, stdout } = run();
+    expect(keysOf(report)).toEqual(['1850 alpha fantasy piece test']);
+    expect(report.datasets[0]).toMatchObject({
+      searchTerm: '1850 Fantasy Test Piece Alpha',
+      freshness: 'missing',
+      marketDepth: 'untested',
+      priority: 'P2',
+      actions: ['initial-fetch'],
+      usSeed: { group: 'test-group', rank: 1, phase: 0 },
+    });
+    expect(report.summary.usSeed).toEqual({ phase: 0, added: 1, alreadyTracked: 0, duplicates: 0, groups: { 'test-group': 1 } });
+    expect(stdout).toContain('US type seed (#334H): phase 0, 1 added, 0 already tracked');
+  });
+
+  test('TERAPEAK_US_SEED_PHASE raises the phase', () => {
+    const { report } = run({ env: { TERAPEAK_US_SEED_PHASE: '1' } });
+    expect(keysOf(report)).toEqual(['1850 alpha fantasy piece test', '1851 beta fantasy piece test']);
+  });
+
+  test('--us-seed-phase overrides the environment variable', () => {
+    const { report } = run({ env: { TERAPEAK_US_SEED_PHASE: '0' }, args: ['--us-seed-phase', '2'] });
+    expect(report.datasets).toHaveLength(3);
+    expect(report.summary.usSeed.phase).toBe(2);
+  });
+
+  test.each(['off', '-1'])('%p adds nothing and prints no seed line', (phase) => {
+    const { report, stdout } = run({ env: { TERAPEAK_US_SEED_PHASE: phase } });
+    expect(report.datasets).toEqual([]);
+    expect(report.summary.usSeed).toBeUndefined();
+    expect(stdout).not.toContain('US type seed');
+  });
+
+  test('an invalid phase warns on stderr and uses phase 0', () => {
+    const { report, stderr } = run({ env: { TERAPEAK_US_SEED_PHASE: 'banana' } });
+    expect(stderr).toContain('WARNING: US type seed phase "banana"');
+    expect(report.datasets).toHaveLength(1);
+  });
+
+  test('a key already in meta keeps its own state and is not tagged as a seed', () => {
+    const meta = { '1850 alpha fantasy piece test': { compCount: 60, newestSaleDate: new Date().toISOString().slice(0, 10), refreshCount: 1 } };
+    const { report } = run({ meta });
+    expect(report.datasets).toHaveLength(1);
+    expect(report.datasets[0].usSeed).toBeUndefined();
+    expect(report.datasets[0].compCount).toBe(60);
+    expect(report.summary.usSeed.added).toBe(0);
+    expect(report.summary.usSeed.alreadyTracked).toBe(1);
+  });
+
+  test('a dormant meta entry stays dormant and is not re-seeded', () => {
+    const meta = { '1850 alpha fantasy piece test': { compCount: 0, noDataCount: 2, noDataAt: new Date().toISOString() } };
+    const { report } = run({ meta });
+    expect(report.datasets).toHaveLength(1);
+    expect(report.datasets[0].actions).toContain('dormant');
+    expect(report.datasets[0].priority).toBeNull();
+  });
+
+  test('a term that already has a CSV on disk is not seeded', () => {
+    const csv = fs.readdirSync(CSV_DIR).find((f) => f.endsWith('.csv'));
+    const existingTerm = csv.slice(0, -4).replace(/_+/g, ' ').trim();
+    const { report } = run({ seed: { terms: [t(existingTerm, 0)] } });
+    expect(report.datasets).toEqual([]);
+    expect(report.summary.usSeed).toMatchObject({ added: 0, alreadyTracked: 1 });
+  });
+
+  test('a seed term with contradictory weights is quarantined, not queued', () => {
+    const { report } = run({ seed: { terms: [t('1850 Fantasy 1 oz half oz Test Piece', 0)] } });
+    expect(report.datasets).toHaveLength(1);
+    expect(report.datasets[0]).toMatchObject({ quarantined: true, quarantineReason: 'contradictory-weight', priority: null });
+  });
+
+  test('a missing seed file leaves the report unchanged', () => {
+    const { report, stdout, stderr } = run({ writeSeed: false });
+    expect(report.datasets).toEqual([]);
+    expect(report.summary.usSeed).toBeUndefined();
+    expect(stdout).not.toContain('US type seed');
+    expect(stderr).toBe('');
+  });
+
+  test('an invalid seed entry is skipped with a warning and the rest still load', () => {
+    const { report, stderr } = run({ seed: { terms: [t('1850 Fantasy Test Piece Alpha', 0), { term: '', group: 'g', rank: 1, phase: 0 }] } });
+    expect(stderr).toContain('WARNING: US type seed: terms[1]');
+    expect(report.datasets).toHaveLength(1);
+  });
+
+  test('seed entries are never written to the meta file', () => {
+    const meta = { '1900 existing piece test': { compCount: 5 } };
+    const { metaPath } = run({ meta });
+    expect(JSON.parse(fs.readFileSync(metaPath, 'utf8'))).toEqual(meta);
+  });
+});

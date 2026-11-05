@@ -221,6 +221,7 @@ Optional variables:
 | `VNC_PASSWORD_FILE` | Owner-only TigerVNC password file created interactively with `vncpasswd`; never put the password in an environment variable | `~/.vnc/passwd` |
 | `TERAPEAK_COOLDOWN_SECONDS` | Minimum persisted anti-bot Cooldown before recovery login is permitted | `7200` |
 | `TERAPEAK_PACING_PROFILE` | #280H pilot profile for canonical operators: `baseline` or `normal-tuned`. Tuned delays apply only in Normal risk state. | `baseline` |
+| `TERAPEAK_US_SEED_PHASE` | #334H: highest phase (0-3) of `data/research/us-type-seed.json` that the freshness report queues as P2 initial-fetch datasets; `off` disables. Raise it only after reviewing `node scripts/us-type-seed-status.js`. | `0` |
 | `TERAPEAK_FALLBACK_GATE_MIN_RATE` | #330H yield gate: a P3 fallback tier is suspended for 7 days when its last 3 passes kept rows on less than this share of at least 30 attempts. Range 0 to 1; `0` disables. | `0.15` |
 | `TERAPEAK_PACING_PILOT_ID` | Safe identifier that scopes #280H pilot telemetry. Required for `normal-tuned`; use the same value for both arms. | *(none)* |
 | `PCGS_PREFETCH_ENABLED` | Enable nightly PCGS prefetch scheduler | `true` |
