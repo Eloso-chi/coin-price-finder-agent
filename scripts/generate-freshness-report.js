@@ -32,6 +32,7 @@ const { classifyComposition, classifyGradeCategory, getCoinMetalProfile } = requ
 const { normalizeSearchKey } = require('../src/services/terapeakService');
 const { latestRefreshAt, THRESHOLDS, classifyP3Tier, p3SaleRatePerMonth, P3_FALLBACK_TIER_ORDER } = require('../src/services/freshnessClassifier');
 const { analyzeExplicitWeightSources } = require('../src/utils/explicitWeight');
+const { DEFAULT_SEED_PATH, resolveSeedPhase, loadSeedTerms, selectSeedTerms, injectSeeds } = require('../src/utils/usTypeSeed');
 
 // META_PATH may be overridden via env so jest tests can point at a per-worker
 // tmpdir (#273H). Without the hook, parallel workers race on the real file.
@@ -137,6 +138,56 @@ function hasCSVOnDisk(key) {
     .replace(/\bbritish\b/g, 'britain')
     .split(/\s+/).filter(Boolean).sort().join(' ');
   return csvWordSets.has(ws);
+}
+
+// -- US type seed (#334H) --
+// Seed terms with no meta entry and no CSV are added in memory as missing datasets, so the
+// existing P2 initial-fetch path queues them. Nothing is written to terapeak-meta.json: the
+// operator re-syncs that file from the app each pass, and the app creates the real entry when
+// the first upload (or no-data report) for the term arrives. Seeding is off unless
+// TERAPEAK_US_SEED_PHASE (or --us-seed-phase N) selects a phase 0-3; phase 0 is the probe set.
+const US_SEED_PATH = process.env.US_TYPE_SEED_PATH || DEFAULT_SEED_PATH;
+const seedPhaseIdx = args.indexOf('--us-seed-phase');
+let seedPhaseRaw = process.env.TERAPEAK_US_SEED_PHASE;
+if (seedPhaseIdx >= 0) {
+  const flagValue = args[seedPhaseIdx + 1];
+  if (flagValue === undefined || flagValue.startsWith('--')) {
+    console.error('WARNING: --us-seed-phase needs a value (off or 0-3); using TERAPEAK_US_SEED_PHASE');
+  } else {
+    seedPhaseRaw = flagValue;
+  }
+}
+const seedPhaseInfo = resolveSeedPhase(seedPhaseRaw);
+if (seedPhaseInfo.warning) console.error(`WARNING: ${seedPhaseInfo.warning}`);
+let usSeedSummary = null;
+if (seedPhaseInfo.phase !== null && Object.keys(meta).length === 0) {
+  // An empty meta means the sync failed or the store is empty; seeds must not make that report look valid.
+  console.error('WARNING: US type seed skipped: terapeak-meta.json has no datasets');
+} else if (seedPhaseInfo.phase !== null) {
+  const loaded = loadSeedTerms(US_SEED_PATH);
+  for (const problem of loaded.errors) console.error(`WARNING: US type seed: ${problem}`);
+  if (!loaded.missing) {
+    const injected = injectSeeds(meta, selectSeedTerms(loaded.terms, seedPhaseInfo.phase), {
+      normalizeKey: normalizeSearchKey,
+      hasCSV: hasCSVOnDisk,
+    });
+    const groups = {};
+    for (const item of [...injected.added, ...injected.retried]) groups[item.group] = (groups[item.group] || 0) + 1;
+    if (injected.csvOnDisk.length) {
+      // A CSV with no app entry usually means an upload failed; the seed is skipped, so name them.
+      console.error(`WARNING: US type seed: ${injected.csvOnDisk.length} term(s) have a CSV on disk but no app entry (upload may have failed): ${injected.csvOnDisk.slice(0, 5).join('; ')}`);
+    }
+    usSeedSummary = {
+      phase: seedPhaseInfo.phase,
+      added: injected.added.length,
+      retried: injected.retried.length,
+      alreadyTracked: injected.existing,
+      csvOnDisk: injected.csvOnDisk.length,
+      csvOnDiskTerms: injected.csvOnDisk,
+      duplicates: injected.duplicates,
+      groups,
+    };
+  }
 }
 
 // ── Generic coin detection ─────────────────────────────────
@@ -453,6 +504,7 @@ for (const [key, entry] of Object.entries(meta)) {
     actions,
     identifiers,
     ...(p3Tier ? { p3Tier, p3SaleRate } : {}),
+    ...(entry.usSeed ? { usSeed: entry.usSeed } : {}),
     ...(hasWeightConflict ? {
       quarantined: true,
       quarantineReason: 'contradictory-weight',
@@ -546,6 +598,7 @@ const summary = {
   depthCounts,
   p3TierCounts,
   byComposition: compositionSummary,
+  ...(usSeedSummary ? { usSeed: usSeedSummary } : {}),
 };
 
 const report = {
@@ -568,6 +621,9 @@ console.log(`  Very stale (>${VERY_STALE_THRESHOLD}d): ${stale30d}`);
 console.log(`  Missing data:      ${missing}`);
 console.log(`  Low comps (<${LOW_COMP_THRESHOLD}):  ${lowComps}`);
 console.log(`  Quarantined weights: ${contradictoryWeights}`);
+if (usSeedSummary) {
+  console.log(`  US type seed (#334H): phase ${usSeedSummary.phase}, ${usSeedSummary.added} added, ${usSeedSummary.retried} retrying, ${usSeedSummary.alreadyTracked} already tracked, ${usSeedSummary.csvOnDisk} csv-only`);
+}
 console.log('');
 console.log('  Priority queue (action tiers):');
 console.log(`    P0.1 bullion-fast: ${priorityCounts['P0.1']}`);

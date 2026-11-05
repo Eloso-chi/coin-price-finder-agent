@@ -1918,6 +1918,24 @@ def gate_rate_from_env():
     return value
 
 
+US_SEED_DEFAULT_MAX_PER_PASS = 5
+
+
+def us_seed_cap_from_env():
+    """TERAPEAK_US_SEED_MAX_PER_PASS as a count >= 0; anything else warns and uses the default."""
+    text = os.environ.get("TERAPEAK_US_SEED_MAX_PER_PASS", "").strip()
+    if not text:
+        return US_SEED_DEFAULT_MAX_PER_PASS
+    if not re.fullmatch(r"[0-9]+", text):
+        print(
+            f"WARNING: TERAPEAK_US_SEED_MAX_PER_PASS={text!r} is not a count of 0 or more; "
+            f"using {US_SEED_DEFAULT_MAX_PER_PASS}",
+            file=sys.stderr,
+        )
+        return US_SEED_DEFAULT_MAX_PER_PASS
+    return int(text)
+
+
 def suspended_fallback_tiers(tiers, records, min_rate, now=None):
     """{tier: reason} for tiers whose recent passes produced too few datasets that kept rows.
 
@@ -2017,6 +2035,10 @@ def do_export_run(args):
     if not 0 <= gate_min_rate <= 1:
         print("ERROR: --fallback-gate-min-rate must be a rate between 0 and 1")
         sys.exit(2)
+    us_seed_cap = getattr(args, "us_seed_max_per_pass", US_SEED_DEFAULT_MAX_PER_PASS)
+    if us_seed_cap < 0:
+        print("ERROR: --us-seed-max-per-pass must be 0 or more")
+        sys.exit(2)
     requested_fallback_tiers = fallback_tiers
     gated = {}
     if fallback_tiers and gate_min_rate > 0:
@@ -2075,6 +2097,8 @@ def do_export_run(args):
                 backlog_priorities[item["key"]] = priority
                 if priority == "P3" and item.get("p3Tier") == "generic":
                     backlog_fallback[item["key"]] = {"_generic": True}
+                elif item.get("usSeed"):
+                    backlog_fallback[item["key"]] = {"_us_seed": True}
             # Legacy fallback: old action names (no priority field)
             elif priority is None and any(a in actions for a in ("refresh-page1", "needs-data")):
                 backlog_keys.add(item["key"])
@@ -2167,9 +2191,14 @@ def do_export_run(args):
 
         fallback_pool = [t for t in terms if t.get("_fallback_tier")]
         p01_pool = [t for t in terms if t.get("_backlog_priority") == "P0.1"]
+        # US type seed items (#334H) are capped per pass so a large seed phase cannot crowd out P0-P2 refreshes.
+        seed_pool = [
+            t for t in terms
+            if t.get("_us_seed") and t.get("_backlog_priority") != "P0.1" and not t.get("_fallback_tier")
+        ]
         other_pool = [
             t for t in terms
-            if t.get("_backlog_priority") != "P0.1" and not t.get("_fallback_tier")
+            if t.get("_backlog_priority") != "P0.1" and not t.get("_fallback_tier") and not t.get("_us_seed")
         ]
         # Drained: nothing eligible in P0-P2 or any fallback tier. Only a valid, unfiltered
         # report may say so; an invalid report is a failure, never a drain. Generic benchmark
@@ -2191,7 +2220,14 @@ def do_export_run(args):
             p01_fixed, extra_target, len(p01_pool)
         )
         selected_p01 = _pick(p01_pool, p01_target)
-        selected_other = _pick(other_pool, other_target)
+        selected_seed = _pick(seed_pool, min(us_seed_cap, other_target))
+        selected_other = _pick(other_pool, other_target - len(selected_seed))
+        # Non-P0.1 slots that P0-P2 cannot fill go to more seed items, before any fallback tier.
+        spare_other = other_target - len(selected_seed) - len(selected_other)
+        if spare_other > 0:
+            chosen_seed = {id(t) for t in selected_seed}
+            selected_seed = selected_seed + _pick([t for t in seed_pool if id(t) not in chosen_seed], spare_other)
+        selected_other = selected_other + selected_seed
         # Slots P0-P2 left empty first go to P0.1 items beyond the fixed share, then to the fallback
         # tiers, so the pass still uses the full batch size and no P0-P2 item waits behind a fallback.
         open_slots = max(0, total_target - len(selected_p01) - len(selected_other))
@@ -2213,6 +2249,8 @@ def do_export_run(args):
         )
         if surplus_p01:
             print(f"P0.1 surplus fill: {len(surplus_p01)} (open slots used by P0.1 items beyond the fixed share)")
+        if seed_pool:
+            print(f"US type seed: {len(selected_seed)} selected from {len(seed_pool)} eligible (guaranteed up to {us_seed_cap} per pass; spare slots go to more seed items)")
         if fallback_tiers:
             def _per_tier(items):
                 return ", ".join(
@@ -2630,6 +2668,7 @@ Examples:
     parser.add_argument("--fallback-tiers", type=str, metavar="LIST", help="Mixed backlog mode: comma-separated P3 tiers (or 'all') that fill batch slots P0-P2 leaves empty, in order: " + ", ".join(FALLBACK_TIER_ORDER))
     parser.add_argument("--exit-on-drained", action="store_true", help=f"Mixed backlog mode: exit {EXIT_DRAINED} when a valid report has no eligible dataset in P0-P2 or any fallback tier")
     parser.add_argument("--fallback-gate-min-rate", type=float, metavar="RATE", default=gate_rate_from_env(), help=f"Suspend a fallback tier for {FALLBACK_GATE_EXPIRY_DAYS} days when, over its last {FALLBACK_GATE_WINDOW_PASSES} passes (at least {FALLBACK_GATE_MIN_ATTEMPTS} attempts), fewer than this share of its datasets kept rows (default {FALLBACK_GATE_DEFAULT_MIN_RATE}; 0 disables; env TERAPEAK_FALLBACK_GATE_MIN_RATE)")
+    parser.add_argument("--us-seed-max-per-pass", type=int, metavar="N", default=us_seed_cap_from_env(), help=f"Mixed backlog mode: slots guaranteed to US type seed items (#334H) each pass, so they cannot crowd out P0-P2 refreshes; unfilled non-P0.1 slots still go to more seed items (default {US_SEED_DEFAULT_MAX_PER_PASS}; 0 = only spare slots; env TERAPEAK_US_SEED_MAX_PER_PASS)")
 
     args = parser.parse_args()
 

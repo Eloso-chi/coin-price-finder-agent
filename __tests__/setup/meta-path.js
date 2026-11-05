@@ -44,3 +44,6 @@ if (fs.existsSync(realMeta)) {
 
 process.env.META_PATH = tmpMeta;
 process.env.FRESHNESS_REPORT_PATH = tmpReport;
+// #334H: keep the committed US type seed terms out of every report these suites generate.
+// freshnessReportUsSeed.test.js sets its own phase and seed file explicitly.
+process.env.TERAPEAK_US_SEED_PHASE = 'off';

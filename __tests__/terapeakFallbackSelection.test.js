@@ -115,7 +115,7 @@ def dry_run(items, args, generated_at=None, datasets=None, with_backlog=True):
     return {
         "code": code,
         "listed": [re.sub(r"^\\s+\\d+\\.\\s+", "", line) for line in lines if re.match(r"^\\s+\\d+\\.\\s", line)],
-        "info": [line for line in lines if line.startswith(("Mixed", "Fallback", "P0.1 surplus", "DRAINED", "ERROR", "No terms", "Skipping"))],
+        "info": [line for line in lines if line.startswith(("Mixed", "Fallback", "P0.1 surplus", "US type seed", "DRAINED", "ERROR", "No terms", "Skipping"))],
     }
 `;
 
@@ -574,6 +574,117 @@ print(json.dumps(dry_run(bullion + other, ${JSON.stringify(MIXED(4, 2))})))
 `);
     expect(out.listed).toEqual(['bullion a', 'bullion b', 'primary a']);
     expect(out.info.filter(line => line.startsWith('P0.1 surplus'))).toEqual([]);
+  });
+});
+
+describe('US type seed items in mixed backlog selection (#334H)', () => {
+  // Seed items come from the freshness report as P2 initial-fetch entries with no CSV on disk.
+  const SEEDS = `
+primary = [dataset("primary " + c, "P0") for c in "abcdefghij"]
+seeds = [
+    dataset("seed " + str(n), "P2", searchTerm="Seed Term " + str(n), usSeed={"group": "g", "rank": 1, "phase": 0}, _nofile=True)
+    for n in range(1, 13)
+]
+fallback = [dataset("thin x", "P3", "thin-low", staleDays=30, compCount=4), dataset("thin y", "P3", "thin-low", staleDays=10, compCount=4)]
+`;
+
+  test('a seed item with no CSV is scraped under its search term, not its sorted key', () => {
+    const out = runPython(`${SEEDS}
+item = dataset("1957 american proof set", "P2", searchTerm="1957 American Proof Set", usSeed={"group": "g", "rank": 1, "phase": 0}, _nofile=True)
+result = dry_run([item], ${JSON.stringify(MIXED(5))})
+print(json.dumps(result))
+`);
+    expect(out.listed).toEqual(['1957 American Proof Set']);
+  });
+
+  test('a retried seed keeps the seed term as its search text', () => {
+    const out = runPython(`${SEEDS}
+item = dataset("1982 american mint set souvenir", "P2", searchTerm="1982 US Mint Souvenir Set", usSeed={"group": "g", "rank": 11, "phase": 2}, noDataCount=1, _nofile=True)
+result = dry_run([item], ${JSON.stringify(MIXED(5))})
+print(json.dumps(result))
+`);
+    expect(out.listed).toEqual(['1982 US Mint Souvenir Set']);
+  });
+
+  test('the default cap of 5 leaves most slots to P0 refreshes', () => {
+    const out = runPython(`${SEEDS}
+result = dry_run(primary + seeds, ${JSON.stringify(MIXED(8))})
+print(json.dumps(result))
+`);
+    expect(out.listed.filter(name => name.startsWith('Seed Term'))).toHaveLength(5);
+    expect(out.listed.filter(name => name.startsWith('primary '))).toHaveLength(3);
+    expect(out.info).toContain('Mixed backlog selection: P0.1 0/0, non-P0.1 8/8, total 8/8');
+    expect(out.info).toContain('US type seed: 5 selected from 12 eligible (guaranteed up to 5 per pass; spare slots go to more seed items)');
+  });
+
+  test('--us-seed-max-per-pass changes the guaranteed share', () => {
+    const out = runPython(`${SEEDS}
+result = dry_run(primary + seeds, ${JSON.stringify(MIXED(8))} + ["--us-seed-max-per-pass", "2"])
+print(json.dumps(result))
+`);
+    expect(out.listed.filter(name => name.startsWith('Seed Term'))).toHaveLength(2);
+    expect(out.listed.filter(name => name.startsWith('primary '))).toHaveLength(6);
+  });
+
+  test('a cap of 0 gives seeds only the slots P0-P2 cannot fill', () => {
+    const full = runPython(`${SEEDS}
+result = dry_run(primary + seeds, ${JSON.stringify(MIXED(8))} + ["--us-seed-max-per-pass", "0"])
+print(json.dumps(result))
+`);
+    expect(full.listed.filter(name => name.startsWith('Seed Term'))).toHaveLength(0);
+    expect(full.listed).toHaveLength(8);
+    const short = runPython(`${SEEDS}
+result = dry_run(primary[:3] + seeds, ${JSON.stringify(MIXED(8))} + ["--us-seed-max-per-pass", "0"])
+print(json.dumps(result))
+`);
+    expect(short.listed.filter(name => name.startsWith('Seed Term'))).toHaveLength(5);
+    expect(short.listed.filter(name => name.startsWith('primary '))).toHaveLength(3);
+  });
+
+  test('slots P0-P2 cannot fill go to more seed items before any fallback tier', () => {
+    const out = runPython(`${SEEDS}
+result = dry_run(primary[:3] + seeds + fallback, ${JSON.stringify(MIXED(8))} + ["--us-seed-max-per-pass", "2", "--fallback-tiers", "all"])
+print(json.dumps(result))
+`);
+    expect(out.listed.filter(name => name.startsWith('Seed Term'))).toHaveLength(5);
+    expect(out.listed.filter(name => name.startsWith('primary '))).toHaveLength(3);
+    expect(out.listed).not.toContain('thin x');
+    expect(out.info).toContain('Fallback fill: 0 (probe-with-data=0, near-viable=0, probe-no-data=0, thin-low=0, confirmed-thin=0)');
+  });
+
+  test('with no P0-P2 work the seeds fill the whole non-P0.1 share, ahead of the fallback', () => {
+    const out = runPython(`${SEEDS}
+result = dry_run(seeds + fallback, ${JSON.stringify(MIXED(14))} + ["--fallback-tiers", "all"])
+print(json.dumps(result))
+`);
+    expect(out.listed).toHaveLength(14);
+    expect(out.listed.slice(0, 12).every(name => name.startsWith('Seed Term'))).toBe(true);
+    expect(out.listed.slice(12)).toEqual(['thin y', 'thin x']);
+  });
+
+  test('a negative cap is rejected', () => {
+    const out = runPython(`${SEEDS}
+result = dry_run(primary + seeds, ${JSON.stringify(MIXED(8))} + ["--us-seed-max-per-pass", "-1"])
+print(json.dumps(result))
+`);
+    expect(out.code).toBe(2);
+    expect(out.info).toContain('ERROR: --us-seed-max-per-pass must be 0 or more');
+  });
+
+  test('TERAPEAK_US_SEED_MAX_PER_PASS sets the default and a bad value falls back to 5 with a warning', () => {
+    const env = (value) => `
+os.environ["TERAPEAK_US_SEED_MAX_PER_PASS"] = ${JSON.stringify(value)}
+err = io.StringIO()
+with contextlib.redirect_stderr(err):
+    cap = exporter.us_seed_cap_from_env()
+print(json.dumps({"cap": cap, "err": err.getvalue()}))
+`;
+    expect(runPython(env('3'))).toEqual({ cap: 3, err: '' });
+    expect(runPython(env('0'))).toEqual({ cap: 0, err: '' });
+    expect(runPython(env(''))).toEqual({ cap: 5, err: '' });
+    const bad = runPython(env('lots'));
+    expect(bad.cap).toBe(5);
+    expect(bad.err).toContain("TERAPEAK_US_SEED_MAX_PER_PASS='lots'");
   });
 });
 
