@@ -252,7 +252,7 @@ Append-only JSONL ledger written by `scripts/_parse-terapeak-pass.py` after each
 
 ### data/research/us-type-seed.json
 
-Seed search terms (#334H) for US coin types and Mint sets that have no Terapeak dataset. `scripts/generate-freshness-report.js` adds the selected terms in memory as missing, untested datasets (P2 `initial-fetch`); nothing is written to `data/terapeak-meta.json`, which the operator re-syncs from the app each pass. A term that already has a meta entry or a CSV on disk is skipped.
+Seed search terms (#334H) for US coin types and Mint sets that have no Terapeak dataset. `scripts/generate-freshness-report.js` adds the selected terms in memory as missing, untested datasets (P2 `initial-fetch`); nothing is written to `data/terapeak-meta.json`, which the operator re-syncs from the app each pass. A term already tracked with comps, or with a CSV on disk, is skipped; a term whose meta entry has no comps yet is retried (see `retried` below).
 
 | Field | Type | Privacy | Notes |
 |-------|------|---------|-------|
