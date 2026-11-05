@@ -85,6 +85,10 @@ TINY_FILE_RE = re.compile(r"^\s*EMPTY \(file too small")
 # dataset appended to its CSV (the yield measure; upload `new` counts overstate fresh rows), and a
 # drained marker when nothing was eligible in any tier.
 FALLBACK_FILL_RE = re.compile(r"^\s*Fallback fill:\s*(\d+)\s*\(")
+FALLBACK_FILL_TIERS_RE = re.compile(r"^\s*Fallback fill:\s*\d+\s*\((.*)\)\s*$")
+# A fallback dataset whose scrape had no Item Title or Item ID on any row; the exporter skips it
+# without merging or uploading. It is not a NO EXPORT line, so it is not a soft-risk signal.
+HEADLESS_RE = re.compile(r"^\s*HEADLESS\b")
 YIELD_RE = re.compile(r"^\s*\[yield\]\s+tier=(\S+)\s+appended=(\d+)\s+term=(.+?)\s*$")
 DRAINED_RE = re.compile(r"^\s*DRAINED:")
 # Display order of the P3 fallback tiers; a test keeps it equal to the exporter's and the report's order.
@@ -225,6 +229,7 @@ def parse_pass_log(path):
                         "dups": 0,
                         "dormant": False,
                         "no_comps": False,
+                        "headless": False,
                         "error": None,
                     }
                     # Try to resolve outcome on the same line
@@ -235,6 +240,9 @@ def parse_pass_log(path):
                         current["dups"] = int(ok.group(2))
                     elif WARN_EMPTY_RE.search(rest):
                         current["status"] = "empty"
+                    elif HEADLESS_RE.search(rest):
+                        current["status"] = "empty"
+                        current["headless"] = True
                     elif BOT_BLOCKED_RE.search(rest):
                         current["status"] = "failed"
                         current["error"] = "BOT BLOCKED"
@@ -257,6 +265,10 @@ def parse_pass_log(path):
                 # Continuation lines for the current coin
                 if WARN_EMPTY_RE.search(line) and current.get("status") in (None,):
                     current["status"] = "empty"
+                    continue
+                if HEADLESS_RE.search(line) and current.get("status") in (None, "empty"):
+                    current["status"] = "empty"
+                    current["headless"] = True
                     continue
                 if NO_EXPORT_RE.search(line):
                     if current.get("status") in (None, "empty"):
@@ -312,6 +324,8 @@ def parse_tier_telemetry(path):
     """Fallback fill, per-tier yield and drained marker from a pass log (#330H).
 
     fallback_filled: slots the P3 fallback tiers filled in this pass's batch selection.
+    tier_attempted: {tier: slots selected for that tier}; tier_productive: {tier: exported datasets
+    that kept at least one appended row}. The exporter's yield gate reads both from the ledger.
     tier_yield: {tier: {"items": exported datasets, "appended_rows": rows added to their CSVs}};
     non-fallback datasets are reported under "primary" so tiers can be compared with P0-P2.
     A term can log more than one [yield] line (a later one corrects an earlier one when its CSV is
@@ -319,6 +333,7 @@ def parse_tier_telemetry(path):
     Logs written before #330H carry none of these lines and yield zeros.
     """
     fallback_filled = 0
+    tier_attempted = {}
     by_term = {}
     drained = False
     try:
@@ -327,6 +342,12 @@ def parse_tier_telemetry(path):
                 fill = FALLBACK_FILL_RE.match(line)
                 if fill:
                     fallback_filled = int(fill.group(1))
+                    tier_attempted = {}
+                    per_tier = FALLBACK_FILL_TIERS_RE.match(line)
+                    for part in (per_tier.group(1).split(",") if per_tier else []):
+                        name, _, count = part.strip().partition("=")
+                        if name and count.strip().isdigit() and int(count) > 0:
+                            tier_attempted[name] = int(count)
                     continue
                 if DRAINED_RE.match(line):
                     drained = True
@@ -337,11 +358,20 @@ def parse_tier_telemetry(path):
     except OSError:
         pass
     tier_yield = {}
+    tier_productive = {}
     for tier, appended in by_term.values():
         entry = tier_yield.setdefault(tier, {"items": 0, "appended_rows": 0})
         entry["items"] += 1
         entry["appended_rows"] += appended
-    return {"fallback_filled": fallback_filled, "tier_yield": tier_yield, "drained": drained}
+        if appended > 0 and tier != "primary":
+            tier_productive[tier] = tier_productive.get(tier, 0) + 1
+    return {
+        "fallback_filled": fallback_filled,
+        "tier_attempted": tier_attempted,
+        "tier_productive": tier_productive,
+        "tier_yield": tier_yield,
+        "drained": drained,
+    }
 
 
 def aggregate(coins):
@@ -353,6 +383,7 @@ def aggregate(coins):
         "unknown": 0,
         "dormant": 0,
         "no_comps": 0,
+        "headless": 0,
         "new_rows": 0,
         "dup_rows": 0,
     }
@@ -364,6 +395,8 @@ def aggregate(coins):
             out["dormant"] += 1
         if c.get("no_comps"):
             out["no_comps"] += 1
+        if c.get("headless"):
+            out["headless"] += 1
         out["new_rows"] += int(c.get("new") or 0)
         out["dup_rows"] += int(c.get("dups") or 0)
     return out
@@ -520,12 +553,15 @@ def main(argv=None):
         "unknown": agg["unknown"],
         "dormant": agg["dormant"],
         "no_comps": agg["no_comps"],
+        "headless": agg["headless"],
         "no_comps_cluster": is_no_comps_cluster(agg),
         "new_rows": agg["new_rows"],
         "dup_rows": agg["dup_rows"],
         "succeeded_reported": totals.get("succeeded_reported"),
         "failed_reported": totals.get("failed_reported"),
         "fallback_filled": tiers["fallback_filled"],
+        "tier_attempted": tiers["tier_attempted"],
+        "tier_productive": tiers["tier_productive"],
         "tier_yield": tiers["tier_yield"],
         "drained": tiers["drained"],
         "pass_log": args.pass_log,
@@ -547,6 +583,7 @@ def main(argv=None):
             "dups": c["dups"],
             "dormant": c["dormant"],
             "no_comps": c.get("no_comps", False),
+            "headless": c.get("headless", False),
             "error": c["error"],
         }
         append_jsonl(COINS_PATH, coin_rec)

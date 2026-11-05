@@ -192,7 +192,8 @@ def result_label(coin):
     if status == "ok":
         return "OK"
     if status == "empty":
-        return "NO DATA (dormant)" if coin.get("dormant") else "NO DATA"
+        notes = [name for name in ("headless", "dormant") if coin.get(name)]
+        return f"NO DATA ({', '.join(notes)})" if notes else "NO DATA"
     if status == "failed":
         return None
     return "pending"

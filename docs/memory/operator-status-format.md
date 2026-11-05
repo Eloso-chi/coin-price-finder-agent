@@ -87,6 +87,13 @@ fallback tier was used in the pass or earlier in the run, and adds
 `queue drained: no eligible dataset in any tier` to Highlights for a drained
 pass.
 
+Headless and gate fields (#330H): `tier_attempted` maps each fallback tier to the
+slots selected for it and `tier_productive` to the exported datasets that kept at
+least one appended row; the exporter's yield gate reads both from the ledger.
+`headless` counts coins whose scrape had no Item Title or Item ID on any row; the
+exporter skips them (they are `empty`, flagged `headless` in `coins.jsonl`, and
+not soft-risk signals) and status labels them `NO DATA (headless)`.
+
 The default pacing profile is `baseline`. Set
 `TERAPEAK_PACING_PROFILE=normal-tuned` only for an approved pilot. The tuned
 profile scales centralized idle and action delays to 80% during Normal passes.

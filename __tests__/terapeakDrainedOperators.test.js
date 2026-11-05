@@ -110,6 +110,31 @@ with tempfile.TemporaryDirectory() as temp_dir:
         "  Failed: 1",
     ], [])
 
+    results["headless_status"] = run("headless", [
+        "Exporting 3 coins...",
+        "Fallback pool: 20 eligible (near-viable=15, thin-low=5)",
+        "Fallback fill: 3 (probe-with-data=0, near-viable=2, probe-no-data=0, thin-low=1, confirmed-thin=0)",
+        "  [ 33%] Coin A... HEADLESS (14 rows without Item Title or Item ID; not merged or uploaded)",
+        "  [ 67%] Coin B... SAVED (upload pending)",
+        "  [yield] tier=near-viable appended=6 term=Coin B",
+        "  [100%] Coin C...   [async upload] Coin B: OK (6 new, 0 dups)",
+        "    WARNING: No data rows found (0 tables on page)",
+        "NO EXPORT (no results or button not found)",
+        "  Succeeded: 1",
+        "  Failed: 2",
+    ], [])
+
+    results["headless_line_status"] = run("headlessline", [
+        "Exporting 3 coins...",
+        "  [ 33%] Coin A...",
+        "HEADLESS (9 rows without Item Title or Item ID; not merged or uploaded)",
+        "  [ 67%] Coin B... OK (1 new, 0 dups)",
+        "  [100%] Coin C...",
+        "HEADLESS (4 rows without Item Title or Item ID; not merged or uploaded)",
+        "  Succeeded: 1",
+        "  Failed: 2",
+    ], [])
+
     records = [json.loads(line) for line in pathlib.Path(pass_parser.PASSES_PATH).read_text(encoding="utf-8").splitlines()]
     valid_failures = validator.validate_files([str(pass_parser.PASSES_PATH)])
     print(json.dumps({"results": results, "records": records, "validator_failures": valid_failures}))
@@ -140,9 +165,9 @@ describe('#330H pass record carries fallback fill, tier yield and drained', () =
 
   test('every parser invocation succeeded', () => {
     expect(harness.results).toEqual({
-      fallback_status: 0, legacy_status: 0, drained_status: 0, noise_status: 0, corrected_status: 0,
+      fallback_status: 0, legacy_status: 0, drained_status: 0, noise_status: 0, corrected_status: 0, headless_status: 0, headless_line_status: 0,
     });
-    expect(harness.records).toHaveLength(5);
+    expect(harness.records).toHaveLength(7);
   });
 
   test('records the fallback fill reported by the exporter', () => {
@@ -175,6 +200,35 @@ describe('#330H pass record carries fallback fill, tier yield and drained', () =
       'near-viable': { items: 2, appended_rows: 4 },
       primary: { items: 1, appended_rows: 7 },
     });
+  });
+
+  test('a headless-skipped coin is empty and flagged, and it is not a soft-risk signal', () => {
+    const record = byRun['run-headless'];
+    expect(record).toEqual(expect.objectContaining({
+      attempted: 3, succeeded: 1, empty: 2, failed: 0, headless: 1,
+    }));
+    // Only the NO EXPORT line of Coin C is a soft signal; the HEADLESS line must not add one.
+    expect(record.soft_risk_signal_count).toBe(1);
+  });
+
+  test('the pass record carries per-tier attempted slots and productive items for the yield gate', () => {
+    expect(byRun['run-headless'].tier_attempted).toEqual({ 'near-viable': 2, 'thin-low': 1 });
+    expect(byRun['run-headless'].tier_productive).toEqual({ 'near-viable': 1 });
+    expect(byRun['run-fallback'].tier_attempted).toEqual({});
+    expect(byRun['run-fallback'].tier_productive).toEqual({ 'probe-with-data': 1, 'near-viable': 1 });
+    expect(byRun['run-legacy'].tier_attempted).toEqual({});
+    expect(byRun['run-legacy'].tier_productive).toEqual({});
+  });
+
+  test('a HEADLESS line printed on its own line still classifies the open coin', () => {
+    expect(byRun['run-headlessline']).toEqual(expect.objectContaining({
+      attempted: 3, succeeded: 1, empty: 2, failed: 0, headless: 2,
+    }));
+    expect(byRun['run-headlessline'].soft_risk_signal_count).toBe(0);
+  });
+
+  test('a yield line corrected to zero rows is not productive', () => {
+    expect(byRun['run-corrected'].tier_productive).toEqual({ 'near-viable': 1 });
   });
 
   test('only line-anchored markers and well-formed yield lines count', () => {
