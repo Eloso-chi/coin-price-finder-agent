@@ -247,9 +247,11 @@ last 3 passes kept rows on under 15% of at least 30 attempts
 Details: `docs/runbooks/local-scraper-wsl2.md`.
 
 US types and Mint sets with no dataset are seeded from
-`data/research/us-type-seed.json` (#334H). The freshness report adds the terms up
-to `TERAPEAK_US_SEED_PHASE` (default 0, the probe set) in memory as missing
-datasets, which queue as P2 `initial-fetch` ahead of the P3 fallback tiers;
+`data/research/us-type-seed.json` (#334H). When a machine opts in with
+`TERAPEAK_US_SEED_PHASE` (off by default; 0 is the probe set), the freshness
+report adds the terms up to that phase in memory as missing datasets, which queue
+as P2 `initial-fetch` ahead of the P3 fallback tiers, capped at
+`TERAPEAK_US_SEED_MAX_PER_PASS` (default 5) guaranteed slots per pass;
 `scripts/us-type-seed-status.js` reports how each group is doing before the next
 phase is enabled. An empty seeded term is searched twice before it goes dormant,
 and seeds are skipped when the synced meta file has no datasets.

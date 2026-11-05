@@ -144,11 +144,20 @@ function hasCSVOnDisk(key) {
 // Seed terms with no meta entry and no CSV are added in memory as missing datasets, so the
 // existing P2 initial-fetch path queues them. Nothing is written to terapeak-meta.json: the
 // operator re-syncs that file from the app each pass, and the app creates the real entry when
-// the first upload (or no-data report) for the term arrives. Phase 0 (probe set) is the default;
-// raise it with --us-seed-phase N or TERAPEAK_US_SEED_PHASE, or set it to off.
+// the first upload (or no-data report) for the term arrives. Seeding is off unless
+// TERAPEAK_US_SEED_PHASE (or --us-seed-phase N) selects a phase 0-3; phase 0 is the probe set.
 const US_SEED_PATH = process.env.US_TYPE_SEED_PATH || DEFAULT_SEED_PATH;
 const seedPhaseIdx = args.indexOf('--us-seed-phase');
-const seedPhaseInfo = resolveSeedPhase(seedPhaseIdx >= 0 ? args[seedPhaseIdx + 1] : process.env.TERAPEAK_US_SEED_PHASE);
+let seedPhaseRaw = process.env.TERAPEAK_US_SEED_PHASE;
+if (seedPhaseIdx >= 0) {
+  const flagValue = args[seedPhaseIdx + 1];
+  if (flagValue === undefined || flagValue.startsWith('--')) {
+    console.error('WARNING: --us-seed-phase needs a value (off or 0-3); using TERAPEAK_US_SEED_PHASE');
+  } else {
+    seedPhaseRaw = flagValue;
+  }
+}
+const seedPhaseInfo = resolveSeedPhase(seedPhaseRaw);
 if (seedPhaseInfo.warning) console.error(`WARNING: ${seedPhaseInfo.warning}`);
 let usSeedSummary = null;
 if (seedPhaseInfo.phase !== null && Object.keys(meta).length === 0) {
@@ -163,11 +172,18 @@ if (seedPhaseInfo.phase !== null && Object.keys(meta).length === 0) {
       hasCSV: hasCSVOnDisk,
     });
     const groups = {};
-    for (const item of injected.added) groups[item.group] = (groups[item.group] || 0) + 1;
+    for (const item of [...injected.added, ...injected.retried]) groups[item.group] = (groups[item.group] || 0) + 1;
+    if (injected.csvOnDisk.length) {
+      // A CSV with no app entry usually means an upload failed; the seed is skipped, so name them.
+      console.error(`WARNING: US type seed: ${injected.csvOnDisk.length} term(s) have a CSV on disk but no app entry (upload may have failed): ${injected.csvOnDisk.slice(0, 5).join('; ')}`);
+    }
     usSeedSummary = {
       phase: seedPhaseInfo.phase,
       added: injected.added.length,
-      alreadyTracked: injected.existing + injected.withCsv,
+      retried: injected.retried.length,
+      alreadyTracked: injected.existing,
+      csvOnDisk: injected.csvOnDisk.length,
+      csvOnDiskTerms: injected.csvOnDisk,
       duplicates: injected.duplicates,
       groups,
     };
@@ -606,7 +622,7 @@ console.log(`  Missing data:      ${missing}`);
 console.log(`  Low comps (<${LOW_COMP_THRESHOLD}):  ${lowComps}`);
 console.log(`  Quarantined weights: ${contradictoryWeights}`);
 if (usSeedSummary) {
-  console.log(`  US type seed (#334H): phase ${usSeedSummary.phase}, ${usSeedSummary.added} added, ${usSeedSummary.alreadyTracked} already tracked`);
+  console.log(`  US type seed (#334H): phase ${usSeedSummary.phase}, ${usSeedSummary.added} added, ${usSeedSummary.retried} retrying, ${usSeedSummary.alreadyTracked} already tracked, ${usSeedSummary.csvOnDisk} csv-only`);
 }
 console.log('');
 console.log('  Priority queue (action tiers):');

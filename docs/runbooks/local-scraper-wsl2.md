@@ -301,19 +301,25 @@ with `--focus`, `--coin-type`, `--filter`, `--priority-include` or
   `TERAPEAK_FALLBACK_GATE_MIN_RATE` (default 0.15; 0 disables); the operators
   use the default, so set the variable in the env file to change it.
 - US type seed (#334H): `data/research/us-type-seed.json` lists search terms for
-  US types and Mint sets with no dataset. The freshness report adds the terms
-  whose phase is at most `TERAPEAK_US_SEED_PHASE` (default 0, the probe set) as
-  missing datasets, so they queue as P2 `initial-fetch` ahead of the P3 fallback
-  tiers. Check results with `node scripts/us-type-seed-status.js` (pending,
-  no-data, thin, viable and median comps per group), then raise the phase in the
-  env file (`TERAPEAK_US_SEED_PHASE=1`) and restart the operator. Set it to `off`
-  to stop seeding. A seeded term that returns no data is searched twice before it
-  goes dormant (dormancy needs two no-data reports), so an empty probe term costs
-  two searches. Seeds are skipped when the synced meta file has no datasets, so a
+  US types and Mint sets with no dataset. Seeding is off until a machine opts in
+  with `TERAPEAK_US_SEED_PHASE` (0 = the 36-term probe set, up to 3; `off` or
+  unset disables), so W and H never probe the same terms at once. The freshness
+  report adds the terms whose phase is at most that value as missing datasets,
+  which queue as P2 `initial-fetch` ahead of the P3 fallback tiers. The exporter
+  guarantees seed items at most `TERAPEAK_US_SEED_MAX_PER_PASS` (default 5, or
+  `--us-seed-max-per-pass N`) of the non-P0.1 slots each pass so a large phase
+  cannot crowd out P0 refreshes; slots P0-P2 cannot fill go to more seed items
+  before any fallback tier. Check results with `node scripts/us-type-seed-status.js`
+  (pending, no-data, thin, viable, csv-only and median comps per group), then
+  raise the phase in the env file (`TERAPEAK_US_SEED_PHASE=1`) and restart the
+  operator. A seeded term that returns no data is searched twice before it goes
+  dormant (dormancy needs two no-data reports), and dormancy expires after 60
+  days, so a term that never has data is retried about every 60 days. A term with
+  a CSV on disk but no app entry (usually a failed upload) is skipped and named in
+  a warning. Seeds are skipped when the synced meta file has no datasets, so a
   failed meta sync still produces an invalid report. Nothing is written to
-  `terapeak-meta.json` by the seed itself. The default phase 0 queues the 36
-  probe terms as soon as this code reaches the operator's clone; they sort ahead
-  of other P2 items and the run does not report drained until they resolve.
+  `terapeak-meta.json` by the seed itself. Report counts (Missing, untested, P2)
+  include the seeded entries, and seeded yields are logged under the `primary` tier.
 
 If preflight fails, fix the reported issue first; do not continue with manual
 startup commands.

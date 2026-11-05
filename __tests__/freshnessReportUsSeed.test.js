@@ -44,7 +44,7 @@ function run({ meta = {}, seed = { terms: SEED }, env = {}, args = [], writeSeed
       META_PATH: metaPath,
       FRESHNESS_REPORT_PATH: reportPath,
       US_TYPE_SEED_PATH: seedPath,
-      TERAPEAK_US_SEED_PHASE: '',
+      TERAPEAK_US_SEED_PHASE: '0',
       ...env,
     },
   });
@@ -56,7 +56,15 @@ const seeded = (report) => report.datasets.filter((d) => d.usSeed).map((d) => d.
 const find = (report, key) => report.datasets.find((d) => d.key === key);
 
 describe('US type seed in the freshness report', () => {
-  test('phase 0 is the default and queues only probe terms as P2 initial-fetch', () => {
+  test.each([undefined, '', 'banana'])('seeding is off when the phase is %p', (phase) => {
+    const { report, stdout } = run({ env: { TERAPEAK_US_SEED_PHASE: phase === undefined ? '' : phase } });
+    expect(seeded(report)).toEqual([]);
+    expect(report.datasets).toHaveLength(1);
+    expect(report.summary.usSeed).toBeUndefined();
+    expect(stdout).not.toContain('US type seed');
+  });
+
+  test('phase 0 queues only probe terms as P2 initial-fetch', () => {
     const { report, stdout } = run();
     expect(seeded(report)).toEqual(['1850 alpha fantasy piece test']);
     expect(find(report, '1850 alpha fantasy piece test')).toMatchObject({
@@ -67,8 +75,10 @@ describe('US type seed in the freshness report', () => {
       actions: ['initial-fetch'],
       usSeed: { group: 'test-group', rank: 1, phase: 0 },
     });
-    expect(report.summary.usSeed).toEqual({ phase: 0, added: 1, alreadyTracked: 0, duplicates: 0, groups: { 'test-group': 1 } });
-    expect(stdout).toContain('US type seed (#334H): phase 0, 1 added, 0 already tracked');
+    expect(report.summary.usSeed).toEqual({
+      phase: 0, added: 1, retried: 0, alreadyTracked: 0, csvOnDisk: 0, csvOnDiskTerms: [], duplicates: 0, groups: { 'test-group': 1 },
+    });
+    expect(stdout).toContain('US type seed (#334H): phase 0, 1 added, 0 retrying, 0 already tracked, 0 csv-only');
   });
 
   test('the real dataset in meta is untouched by seeding', () => {
@@ -89,6 +99,17 @@ describe('US type seed in the freshness report', () => {
     expect(report.summary.usSeed.phase).toBe(2);
   });
 
+  test('--us-seed-phase can turn seeding on when the environment variable is unset', () => {
+    const { report } = run({ env: { TERAPEAK_US_SEED_PHASE: '' }, args: ['--us-seed-phase', '1'] });
+    expect(seeded(report)).toHaveLength(2);
+  });
+
+  test('--us-seed-phase without a value warns and falls back to the environment variable', () => {
+    const { report, stderr } = run({ args: ['--us-seed-phase'] });
+    expect(stderr).toContain('WARNING: --us-seed-phase needs a value');
+    expect(seeded(report)).toHaveLength(1);
+  });
+
   test.each(['off', '-1'])('%p adds nothing and prints no seed line', (phase) => {
     const { report, stdout } = run({ env: { TERAPEAK_US_SEED_PHASE: phase } });
     expect(seeded(report)).toEqual([]);
@@ -97,10 +118,10 @@ describe('US type seed in the freshness report', () => {
     expect(stdout).not.toContain('US type seed');
   });
 
-  test('an invalid phase warns on stderr and uses phase 0', () => {
+  test('an invalid phase warns on stderr and leaves seeding off', () => {
     const { report, stderr } = run({ env: { TERAPEAK_US_SEED_PHASE: 'banana' } });
     expect(stderr).toContain('WARNING: US type seed phase "banana"');
-    expect(seeded(report)).toHaveLength(1);
+    expect(seeded(report)).toEqual([]);
   });
 
   test('an empty meta file gets no seeds, so the exporter still sees an empty report as invalid', () => {
@@ -120,21 +141,34 @@ describe('US type seed in the freshness report', () => {
     expect(report.summary.usSeed).toMatchObject({ added: 0, alreadyTracked: 1 });
   });
 
-  test('a dormant meta entry stays dormant and is not re-seeded', () => {
+  test('a dormant meta entry stays dormant and is never scheduled', () => {
     const meta = { '1850 alpha fantasy piece test': { compCount: 0, noDataCount: 2, noDataAt: new Date().toISOString() } };
     const { report } = run({ meta });
     const entry = find(report, '1850 alpha fantasy piece test');
     expect(entry.actions).toContain('dormant');
     expect(entry.priority).toBeNull();
-    expect(entry.usSeed).toBeUndefined();
   });
 
-  test('a term that already has a CSV on disk is not seeded', () => {
+  test('after a first no-data report the retry keeps the seed term as its search text and stays tagged', () => {
+    const meta = { '1850 alpha fantasy piece test': { compCount: 0, noDataCount: 1, noDataAt: new Date().toISOString() } };
+    const { report } = run({ meta });
+    expect(find(report, '1850 alpha fantasy piece test')).toMatchObject({
+      searchTerm: '1850 Fantasy Test Piece Alpha',
+      priority: 'P2',
+      actions: ['initial-fetch'],
+      usSeed: { group: 'test-group', rank: 1, phase: 0 },
+    });
+    expect(report.summary.usSeed).toMatchObject({ added: 0, retried: 1, alreadyTracked: 0 });
+  });
+
+  test('a term that already has a CSV on disk is not seeded and is named in a warning', () => {
     const csv = fs.readdirSync(CSV_DIR).find((f) => f.endsWith('.csv'));
     const existingTerm = csv.slice(0, -4).replace(/_+/g, ' ').trim();
-    const { report } = run({ seed: { terms: [t(existingTerm, 0)] } });
+    const { report, stderr, stdout } = run({ seed: { terms: [t(existingTerm, 0)] } });
     expect(seeded(report)).toEqual([]);
-    expect(report.summary.usSeed).toMatchObject({ added: 0, alreadyTracked: 1 });
+    expect(report.summary.usSeed).toMatchObject({ added: 0, alreadyTracked: 0, csvOnDisk: 1, csvOnDiskTerms: [existingTerm] });
+    expect(stderr).toContain('1 term(s) have a CSV on disk but no app entry');
+    expect(stdout).toContain('1 csv-only');
   });
 
   test('a seed term with contradictory weights is quarantined, not queued', () => {

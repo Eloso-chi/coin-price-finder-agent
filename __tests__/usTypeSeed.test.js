@@ -27,8 +27,6 @@ function term(overrides = {}) {
 
 describe('resolveSeedPhase', () => {
   test.each([
-    [undefined, 0],
-    ['', 0],
     ['0', 0],
     ['2', 2],
     [' 3 ', 3],
@@ -37,13 +35,13 @@ describe('resolveSeedPhase', () => {
     expect(resolveSeedPhase(raw)).toEqual({ phase });
   });
 
-  test.each(['off', 'OFF', '-1'])('%p turns seeding off', (raw) => {
+  test.each([undefined, null, '', '   ', 'off', 'OFF', '-1'])('%p leaves seeding off', (raw) => {
     expect(resolveSeedPhase(raw)).toEqual({ phase: null });
   });
 
-  test.each(['4', '1.5', 'abc', '99'])('%p warns and falls back to 0', (raw) => {
+  test.each(['4', '1.5', 'abc', '99'])('%p warns and leaves seeding off', (raw) => {
     const result = resolveSeedPhase(raw);
-    expect(result.phase).toBe(0);
+    expect(result.phase).toBeNull();
     expect(result.warning).toContain(`"${raw}"`);
   });
 });
@@ -139,19 +137,40 @@ describe('injectSeeds', () => {
     });
   });
 
-  test('never overwrites a key that already has a meta entry', () => {
+  test('never overwrites a key that already has comps in meta', () => {
     const existing = { compCount: 50, newestSaleDate: '2026-10-01' };
     const meta = { '1957 american proof set': existing };
     const result = injectSeeds(meta, [term()], { normalizeKey, hasCSV: () => false });
-    expect(result).toMatchObject({ added: [], existing: 1, withCsv: 0, duplicates: 0 });
+    expect(result).toMatchObject({ added: [], retried: [], existing: 1, csvOnDisk: [], duplicates: 0 });
     expect(meta['1957 american proof set']).toBe(existing);
     expect(existing).toEqual({ compCount: 50, newestSaleDate: '2026-10-01' });
   });
 
-  test('skips a term that already has a CSV on disk', () => {
+  test('a meta entry with no comps is a retry: it keeps the seed tag and gets the seed term as its search text', () => {
+    const entry = { compCount: 0, noDataCount: 1, noDataAt: '2026-11-05T00:00:00.000Z' };
+    const meta = { '1957 american proof set': entry };
+    const result = injectSeeds(meta, [term()], { normalizeKey, hasCSV: () => false });
+    expect(result.retried).toEqual([{ key: '1957 american proof set', ...term() }]);
+    expect(result).toMatchObject({ added: [], existing: 0 });
+    expect(meta['1957 american proof set']).toEqual({
+      compCount: 0,
+      noDataCount: 1,
+      noDataAt: '2026-11-05T00:00:00.000Z',
+      searchTerm: '1957 American Proof Set',
+      usSeed: { group: 'proof-sets-1950-64', rank: 1, phase: 0 },
+    });
+  });
+
+  test('a retry keeps a search text the entry already has', () => {
+    const meta = { '1957 american proof set': { compCount: null, searchTerm: 'Kept Text' } };
+    injectSeeds(meta, [term()], { normalizeKey, hasCSV: () => false });
+    expect(meta['1957 american proof set'].searchTerm).toBe('Kept Text');
+  });
+
+  test('names a term that has a CSV on disk but no meta entry', () => {
     const meta = {};
     const result = injectSeeds(meta, [term()], { normalizeKey, hasCSV: () => true });
-    expect(result).toMatchObject({ added: [], existing: 0, withCsv: 1 });
+    expect(result).toMatchObject({ added: [], existing: 0, csvOnDisk: ['1957 American Proof Set'] });
     expect(meta).toEqual({});
   });
 
@@ -235,6 +254,12 @@ describe('seed status report', () => {
     expect(classify(entry)).toBe(status);
   });
 
+  test('classify reports a CSV with no app entry as csv-only, but never overrides a real entry', () => {
+    expect(classify(null, true)).toBe('csv-only');
+    expect(classify({ compCount: 12 }, true)).toBe('viable');
+    expect(classify({ compCount: 0, noDataCount: 1 }, true)).toBe('no-data');
+  });
+
   test('buildStatus groups terms by rank and counts each state', () => {
     const terms = [
       term({ term: '1957 American Proof Set' }),
@@ -249,9 +274,12 @@ describe('seed status report', () => {
       '1959 american proof set': { compCount: 0, noDataCount: 1 },
     };
     expect(buildStatus(terms, meta)).toEqual([
-      { group: 'proof-sets-1950-64', rank: 1, terms: 4, pending: 1, noData: 1, thin: 1, viable: 1, medianComps: 40 },
-      { group: 'flying-eagle-cent', rank: 8, terms: 1, pending: 1, noData: 0, thin: 0, viable: 0, medianComps: null },
+      { group: 'proof-sets-1950-64', rank: 1, terms: 4, pending: 1, noData: 1, thin: 1, viable: 1, csvOnly: 0, medianComps: 40 },
+      { group: 'flying-eagle-cent', rank: 8, terms: 1, pending: 1, noData: 0, thin: 0, viable: 0, csvOnly: 0, medianComps: null },
     ]);
+    const withCsv = buildStatus(terms, meta, new Set(['1960 american proof set']));
+    expect(withCsv[0]).toMatchObject({ pending: 0, csvOnly: 1 });
+    expect(withCsv[1]).toMatchObject({ pending: 1, csvOnly: 0 });
   });
 
   describe('CLI', () => {
@@ -268,7 +296,10 @@ describe('seed status report', () => {
         ],
       }));
       fs.writeFileSync(meta, JSON.stringify({ '1957 american proof set': { compCount: 25 } }));
-      env = { ...process.env, META_PATH: meta, US_TYPE_SEED_PATH: seed };
+      const csvDir = path.join(dir, 'csv');
+      fs.mkdirSync(csvDir);
+      fs.writeFileSync(path.join(csvDir, '1958_American_Proof_Set.csv'), 'Item Title,Item ID\n');
+      env = { ...process.env, META_PATH: meta, US_TYPE_SEED_PATH: seed, US_SEED_CSV_DIR: csvDir };
     });
     afterEach(() => {
       fs.rmSync(dir, { recursive: true, force: true });
@@ -278,7 +309,7 @@ describe('seed status report', () => {
       const out = JSON.parse(execFileSync('node', [STATUS_SCRIPT, '--json'], { encoding: 'utf8', env }));
       expect(out.phase).toBe(3);
       expect(out.groups).toEqual([
-        { group: 'proof-sets-1950-64', rank: 1, terms: 2, pending: 1, noData: 0, thin: 0, viable: 1, medianComps: 25 },
+        { group: 'proof-sets-1950-64', rank: 1, terms: 2, pending: 0, noData: 0, thin: 0, viable: 1, csvOnly: 1, medianComps: 25 },
       ]);
     });
 
@@ -290,7 +321,7 @@ describe('seed status report', () => {
     test('the text table has a row per group', () => {
       const out = execFileSync('node', [STATUS_SCRIPT], { encoding: 'utf8', env });
       expect(out).toContain('US type seed status (#334H), terms up to phase 3');
-      expect(out).toMatch(/proof-sets-1950-64\s+2\s+1\s+0\s+0\s+1\s+25/);
+      expect(out).toMatch(/proof-sets-1950-64\s+2\s+0\s+0\s+0\s+1\s+1\s+25/);
     });
 
     test('an invalid --phase exits 2', () => {

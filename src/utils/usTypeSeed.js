@@ -11,13 +11,14 @@ const DEFAULT_SEED_PATH = path.join(__dirname, '..', '..', 'data', 'research', '
 const MAX_PHASE = 3;
 const MAX_TERM_LENGTH = 200;
 
-// Returns { phase, warning }. phase is null when seeding is off.
+// Returns { phase, warning }. phase is null when seeding is off, which is the default so that
+// each operator machine opts in explicitly (two machines must not probe the same terms at once).
 function resolveSeedPhase(raw) {
-  if (raw === undefined || raw === null || String(raw).trim() === '') return { phase: 0 };
+  if (raw === undefined || raw === null || String(raw).trim() === '') return { phase: null };
   const text = String(raw).trim().toLowerCase();
   if (text === 'off' || text === '-1') return { phase: null };
   if (/^[0-9]+$/.test(text) && Number(text) <= MAX_PHASE) return { phase: Number(text) };
-  return { phase: 0, warning: `US type seed phase "${raw}" must be off or an integer 0-${MAX_PHASE}; using 0` };
+  return { phase: null, warning: `US type seed phase "${raw}" must be off or an integer 0-${MAX_PHASE}; seeding is off` };
 }
 
 function validateTerm(item, index) {
@@ -67,11 +68,15 @@ function selectSeedTerms(terms, phase) {
 }
 
 // Adds one in-memory meta entry per seed term that has no meta entry and no CSV.
-// A term already in meta or on disk is left alone so real data always wins.
+// A term already tracked with comps, or with a CSV on disk, is left alone so real data always wins.
+// A term whose meta entry has no comps yet (for example after a first no-data report) is a retry:
+// it keeps its seed tag and gets the seed term back as its search text, because meta entries
+// carry no searchTerm and the report would otherwise fall back to the sorted key.
 function injectSeeds(meta, terms, { normalizeKey, hasCSV }) {
   const added = [];
+  const retried = [];
+  const csvOnDisk = [];
   let existing = 0;
-  let withCsv = 0;
   let duplicates = 0;
   const claimed = new Set();
   for (const item of terms) {
@@ -82,11 +87,18 @@ function injectSeeds(meta, terms, { normalizeKey, hasCSV }) {
     }
     claimed.add(key);
     if (Object.prototype.hasOwnProperty.call(meta, key)) {
-      existing++;
+      const entry = meta[key];
+      if (entry && !entry.compCount) {
+        if (!entry.searchTerm) entry.searchTerm = item.term;
+        entry.usSeed = { group: item.group, rank: item.rank, phase: item.phase };
+        retried.push({ key, ...item });
+      } else {
+        existing++;
+      }
       continue;
     }
     if (hasCSV(key)) {
-      withCsv++;
+      csvOnDisk.push(item.term);
       continue;
     }
     meta[key] = {
@@ -98,7 +110,7 @@ function injectSeeds(meta, terms, { normalizeKey, hasCSV }) {
     };
     added.push({ key, ...item });
   }
-  return { added, existing, withCsv, duplicates };
+  return { added, retried, existing, csvOnDisk, duplicates };
 }
 
 module.exports = {

@@ -4,15 +4,17 @@
  *
  * Reports, per seed group, how the US type seed terms in
  * data/research/us-type-seed.json are doing in data/terapeak-meta.json:
- * pending (no data and no no-data report yet), no-data, thin (1-9 comps) and
- * viable (10 or more comps). Use it to decide which phase to enable next.
+ * pending (no data and no no-data report yet), no-data, thin (1-9 comps),
+ * viable (10 or more comps) and csv-only (a CSV on disk but no app entry, which
+ * usually means an upload failed and the seed is skipped until it is fixed).
+ * Use it to decide which phase to enable next.
  *
  * Usage:
  *   node scripts/us-type-seed-status.js              # table for every phase
  *   node scripts/us-type-seed-status.js --phase 0    # only terms up to phase 0
  *   node scripts/us-type-seed-status.js --json       # machine-readable output
  *
- * META_PATH and US_TYPE_SEED_PATH override the input files (used by tests).
+ * META_PATH, US_TYPE_SEED_PATH and US_SEED_CSV_DIR override the inputs (used by tests).
  */
 'use strict';
 
@@ -23,10 +25,11 @@ const { DEFAULT_SEED_PATH, MAX_PHASE, loadSeedTerms, selectSeedTerms } = require
 
 const META_PATH = process.env.META_PATH || path.join(__dirname, '..', 'data', 'terapeak-meta.json');
 const SEED_PATH = process.env.US_TYPE_SEED_PATH || DEFAULT_SEED_PATH;
+const CSV_DIR = process.env.US_SEED_CSV_DIR || path.join(__dirname, '..', 'data', 'terapeak');
 const VIABLE_COMPS = 10;
 
-function classify(entry) {
-  if (!entry) return 'pending';
+function classify(entry, csvOnDisk = false) {
+  if (!entry) return csvOnDisk ? 'csv-only' : 'pending';
   const comps = entry.compCount || 0;
   if (comps >= VIABLE_COMPS) return 'viable';
   if (comps > 0) return 'thin';
@@ -40,19 +43,30 @@ function median(values) {
   return sorted[Math.floor(sorted.length / 2)];
 }
 
-function buildStatus(terms, meta) {
+function csvKeySet(dir) {
+  if (!fs.existsSync(dir)) return new Set();
+  return new Set(
+    fs.readdirSync(dir)
+      .filter((f) => f.endsWith('.csv'))
+      .map((f) => normalizeSearchKey(f.slice(0, -4).replace(/_+/g, ' ').trim())),
+  );
+}
+
+function buildStatus(terms, meta, csvKeys = new Set()) {
   const groups = new Map();
   for (const item of terms) {
-    const entry = meta[normalizeSearchKey(item.term)] || null;
-    const status = classify(entry);
+    const key = normalizeSearchKey(item.term);
+    const entry = meta[key] || null;
+    const status = classify(entry, csvKeys.has(key));
     if (!groups.has(item.group)) {
-      groups.set(item.group, { group: item.group, rank: item.rank, terms: 0, pending: 0, noData: 0, thin: 0, viable: 0, comps: [] });
+      groups.set(item.group, { group: item.group, rank: item.rank, terms: 0, pending: 0, noData: 0, thin: 0, viable: 0, csvOnly: 0, comps: [] });
     }
     const g = groups.get(item.group);
     g.terms++;
     if (status === 'pending') g.pending++;
     else if (status === 'no-data') g.noData++;
     else if (status === 'thin') g.thin++;
+    else if (status === 'csv-only') g.csvOnly++;
     else g.viable++;
     if (entry && entry.compCount) g.comps.push(entry.compCount);
   }
@@ -80,17 +94,17 @@ function main() {
   }
   for (const problem of loaded.errors) console.error(`WARNING: ${problem}`);
   const meta = fs.existsSync(META_PATH) ? JSON.parse(fs.readFileSync(META_PATH, 'utf8')) : {};
-  const rows = buildStatus(selectSeedTerms(loaded.terms, phase), meta);
+  const rows = buildStatus(selectSeedTerms(loaded.terms, phase), meta, csvKeySet(CSV_DIR));
 
   if (args.includes('--json')) {
     console.log(JSON.stringify({ phase, groups: rows }, null, 2));
     return;
   }
   console.log(`US type seed status (#334H), terms up to phase ${phase}`);
-  console.log('rank  group                              terms pending no-data thin viable medianComps');
+  console.log('rank  group                              terms pending no-data thin viable csv-only medianComps');
   for (const r of rows) {
     console.log(
-      `${String(r.rank).padStart(4)}  ${r.group.padEnd(34)} ${String(r.terms).padStart(5)} ${String(r.pending).padStart(7)} ${String(r.noData).padStart(7)} ${String(r.thin).padStart(4)} ${String(r.viable).padStart(6)} ${r.medianComps === null ? '-' : r.medianComps}`,
+      `${String(r.rank).padStart(4)}  ${r.group.padEnd(34)} ${String(r.terms).padStart(5)} ${String(r.pending).padStart(7)} ${String(r.noData).padStart(7)} ${String(r.thin).padStart(4)} ${String(r.viable).padStart(6)} ${String(r.csvOnly).padStart(8)} ${r.medianComps === null ? '-' : r.medianComps}`,
     );
   }
 }
