@@ -13,7 +13,7 @@ Before comp acquisition or valuation, `productIdentityResolver.js` resolves the 
 - **Trigger**: `isBullion && spotPrice > 0 && ebayMedian > spotPrice * 0.5 && !skipSpotMath`
 - **Formula**: `FMV = spotPrice * (1 + premiumPct)`
 - **Premium**: derived from `(ebayMedian - spotPrice) / spotPrice`
-- **Premium clamp**: [-5%, +40% gold (>$500/oz), +100% silver]
+- **Premium clamp**: [-5%, +40% gold (>$500/oz), +100% silver]. Bars (#333H): the ceiling is by metal (silver +100%, gold/platinum/palladium +40%), not by total spot value; coins keep the rule above.
 - **Greysheet blend**: if available, 85% spot-premium + 15% wholesale
 - **Why**: tracks metal price moves instantly instead of lagging with 30-day median
 - **#282H -- skipSpotMath gate**: `skipSpotMath = wantsProof || wantsReverseProof`. Proof and reverse-proof intent SKIP this branch entirely (their premiums are decoupled from spot; clamping at silver_spot * 2 / gold_spot * 1.4 silently collapses dozens of dates to one number). Proof traffic flows to certified-blend / raw-blend using the proof-only comp pool.

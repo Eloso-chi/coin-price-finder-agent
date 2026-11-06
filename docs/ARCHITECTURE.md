@@ -94,7 +94,7 @@ server.js                              Express entry point (port 3000)
 │   ├─ mintages.js                     Mintage reference data by series/year/mint
 │   ├─ halfDollarSeries.js             Half Dollar design eras + year-based resolver
 │   ├─ constants.js                    Zodiac cycle + Perth Lunar series helpers
-│   ├─ barSeries.js                    Bar brand/series data (7 brands, 40+ series) + detection helpers
+│   ├─ barSeries.js                    Bar maker registry (BAR_BRANDS, ~20 makers, one list for filters and the market matrix) and series data (7 makers with series, 40+ series) + detection helpers
 │   ├─ dealerPremiums.js               Dealer premium benchmark ranges by bullion series (#196) -- lookupPremiumRange, classifyPremium, computePremium
 |   +- lunarReference.js               Perth / Royal / RAMint lunar comparison
 |   +- specialMarksRegistry.js         Versioned registry of bullion privy/special-mark issues, applicability, and provenance
@@ -105,6 +105,7 @@ server.js                              Express entry point (port 3000)
 │   ├─ stats.js                        Statistical functions (median, MAD, weighted median, etc.)
 │   ├─ filters.js                      Deny-list filtering, denomination & series checks, two-way composition mismatch (silver/clad)
 │   ├─ coinMetalProfile.js             Metal detection + weight detection (detectWeightFromTitle, weightToKeyToken) for bullion
+│   ├─ barIdentity.js                  Bar identity shared by /api/bar-price, /api/price and /api/pricing-batch: parseBarSize, resolveBarSegment (series / brand / generic), applyBarSegment, describeBarSegment, barMaxPremium (#333H)
 │   ├─ coinIntent.js                   Route-layer extractor: canonicalizes {grade, finish, isProof, designation} across coinData / options / pcgs / parsed (#254)
 │   ├─ explicitWeight.js               Shared explicit-ounce parsing and contradictory-key validation for imports and freshness gates
 │   ├─ usTypeSeed.js                   US type seed loader and in-memory injection for the freshness report (#334H)
@@ -334,19 +335,30 @@ Request
 ```
 Request { metal, size, brand?, series?, year?, condition?, askingPrice? }
   │
-  ├── 1. Normalize size (".5 gram" → "0.5 gram", whitespace trim)
-  ├── 2. Detect bar series (barSeries.detectBarSeries(brand, series))
-  │   └─ Matches against BAR_SERIES registry: series name, aliases, regex
-  │      7 brands: Geiger (11), PAMP (22), Perth Mint (5), Scottsdale (3),
-  │      Valcambi (1), Heraeus (1), Credit Suisse (2)
+  ├── 1. Validate: metal must be gold/silver/platinum/palladium; size is parsed by
+  │      utils/barIdentity.parseBarSize (grams, oz incl. fractions, kilo; 0.01 g to 1000 oz;
+  │      never a 1 oz default); brand/series/condition must be strings of at most 60
+  │      characters; year an integer 1800-2100 -- otherwise 400. The normalized size is echoed.
+  ├── 2. Resolve the bar segment (barIdentity.resolveBarSegment, #333H)
+  │   ├─ series  -- recognized maker + recognized series (BAR_SERIES registry)
+  │   ├─ brand   -- maker only (recognized, or user-typed and unknown)
+  │   └─ generic -- no maker; every recognized maker is excluded from the comp pool
+  │      One registry of ~20 makers in barSeries.BAR_BRANDS, shared with the market matrix
   ├── 3. Build eBay keywords (year + brand + series keywords + size + metal + "bar")
-  ├── 4. fetchSoldComps with bar-specific scoring:
+  ├── 4. fetchSoldComps with bar-specific scoring and filters, plus meltPerOz so the
+  │   melt floor and ceiling run:
   │   ├─ Brand match (+20) / mismatch (-25)
   │   ├─ Series match (+10) / mismatch (-15)
   │   ├─ Size match (+15), metal match (+10), bar keyword (+5)
-  │   └─ Relevance gate: 45 (brand specified) vs 20 (generic)
-  ├── 5. computeValuation with pcgs = { _isBar: true }
-  └── Response { keywords, bar, comps stats, valuation, decisions }
+  │   ├─ Relevance gate: 45 (brand specified) vs 20 (generic)
+  │   └─ Segment filters: generic drops named makers (removed.barMakerExcluded); brand
+  │      drops other makers (barBrandMismatch); series also drops other identified
+  │      series (barSeriesMismatch)
+  ├── 5. computeValuation with pcgs = { _isBar: true }, barSegment and metal.
+  │      Premium over spot is capped by metal (silver 100%, others 40%), not by bar size.
+  │      Fewer than 3 comps in the segment returns fmvCore null with
+  │      dataSource.label = insufficient-{series|brand|generic}-comps
+  └── Response { keywords, bar (incl. segment), comps stats, valuation (incl. barSegment), decisions }
 ```
 
 ### Bar Options — `GET /api/bar-price/options`
@@ -531,12 +543,13 @@ POST { text | items | file(.xlsx; currently fails with HTTP 400) }
 
 ```json
 {
-  "bar": { "metal": "gold", "size": "1 oz", "brand": "PAMP", "pureOzt": 1.0 },
+  "bar": { "metal": "gold", "size": "1 oz", "brand": "PAMP", "pureOzt": 1.0,
+           "segment": { "class": "series", "brand": "PAMP", "series": "Fortuna", "label": "PAMP / Fortuna" } },
   "ebay": {
     "keywords": "PAMP Fortuna 1 oz gold bar",
     "us": { "comps": [...], "stats": { "count": 20, "median": 2350 } }
   },
-  "valuation": { "fmvCore": 2360, "confidence": 78, "series": "Fortuna" },
+  "valuation": { "fmvCore": 2360, "confidence": 78, "barSegment": { "class": "series", "brand": "PAMP", "series": "Fortuna", "compCount": 20, "fallback": null } },
   "decisions": { "buy": { "max70": 1652, "max80": 1888 }, "sell": { "normal": 2360 } }
 }
 ```
@@ -771,6 +784,8 @@ When the user provides a free-text description (not a cert number), `resolveFrom
 **Specialty-finish pools (#273W):** `requestedVariantFamily()` recognizes explicit colorized, antiqued, gilded, burnished, and high-relief intent from query, label, or canonical finish. `scoreMatch()` promotes same-family mint-issued comps and penalizes aftermarket or wrong-family results before top-K selection. `applyFilters()` then retains only raw comps from the requested family; plain BU, graded, proof, reverse-proof, and other specialty families cannot enter that FMV.
 
 **Registry-backed special marks (#312H, #313H):** Special marks are orthogonal to finish, mintmark, design type, security features, and certification. `specialMarksRegistry.js` stores provenance-backed issue constraints and aliases under stable `markId` values, plus immutable `issueId`, verification state, and issue-scoped mintage metadata. Structured Entry obtains applicable choices from `GET /api/special-marks`; exact selections carry `specialMarkMode: "exact"` plus `specialMarks`, while explicit standard issues use `specialMarkMode: "standard"` and unlisted marks remain unknown through the bounded legacy `variantDetail` path. Metal-specific Maple Leaf names deterministically resolve silver or gold, while the generic Maple Leaf remains ambiguous. Multiple applicable registered marks return a clarification requirement instead of a blended valuation. `pricingService` resolves the mark into canonical product identity before provider lookup. `scoreMatch()` and `applyFilters()` use registry aliases for exact cohorts; explicit standard requests reject any title positively declaring a privy. Exact marks bypass cross-year composite construction. A mark never determines the strike pool: Proof and Reverse Proof remain strictly isolated. The broader Silver Maple Leaf census is quarantined in `data/research/` and is not imported by runtime pricing code.
+
+**Bar segments (#333H):** Every bar request resolves to one brand class through `src/utils/barIdentity.js`: `series` (maker and series), `brand` (maker only) or `generic` (no recognized maker). `/api/bar-price` builds it from `brand` and `series`; `/api/price` and `/api/pricing-batch` build it from `extractCoinIntent`. A query is a bar request when it uses "bar" as a noun (not "bar code" or "bar-style") and either names a registry maker or has a metal word and no whole-word coin series (a short keyword inside another word, such as "ase" in "in case", does not count; "Franklin Mint" is not the Franklin coin series). All three routes put the segment on `expected` through `barIdentity.applyBarSegment` (`type: 'bar'`, canonical maker as `brand`, coin identity fields year, mint, series, grade and designation cleared with the year kept as `barYear`), so scoring, the relevance gate, the maker filter and the melt floor and ceiling see the same inputs. The general path also treats a bar as bullion (spot-plus-premium), prices it ungraded, and makes no Greysheet lookup for it. A false substring series hit on a bar query (for example "Ase" from "in case") is dropped from the parse so it cannot enter the eBay keywords, and Lunar bars drop comps whose title names only other years (`removed.barYearMismatch`). `applyFilters()` then applies the class: `generic` removes every comp that `detectBarBrands` recognizes (`removed.barMakerExcluded`), `brand` removes other makers, and `series` also removes other identified series. Valuation returns `fmvCore: null` with `dataSource.label = 'insufficient-{series|brand|generic}-comps'` when fewer than three comps remain, and every bar valuation carries `barSegment { class, brand, series, label, compCount, fallback }`. The premium ceiling over spot for bars is set by metal (silver 100%, gold, platinum and palladium 40%) rather than by the bar's total spot value; coins keep the earlier rule. Spot-normalized comps and the fallback ladder are Phase 2 of #333H and are not yet implemented, so `fallback` is always `null`.
 
 **Bar-series filter (#285W):** Coin-route queries that name a cataloged bar brand and product series carry `barBrand` and `barSeries` intent into `scoreMatch()` and `applyFilters()`. Exact series matches receive +10; positively identified competing series are counted under `barSeriesMismatch` and rejected. Titles with no identifiable series remain neutral. If fewer than three correctly isolated comps remain, valuation returns `fmvCore: null` with `dataSource.label = 'insufficient-series-comps'` rather than blending other bar designs.
 

@@ -22,6 +22,7 @@ const { zodiacForYear, perthLunarSeries, getRollQuantity, ALLOWED_LABELS, BULLIO
 const { hasSeriesConflict, detectDenomination } = require('../utils/filters');
 const { getCoinMetalProfile } = require('../utils/coinMetalProfile');
 const { extractCoinIntent, isValidVariantDetailInput, isValidSpecialMarkInput } = require('../utils/coinIntent');
+const { applyBarSegment } = require('../utils/barIdentity');
 const { resolveProductIdentity, assertUnambiguousProductIdentity } = require('../utils/productIdentityResolver');
 const {
   listApplicableMarks,
@@ -338,11 +339,13 @@ async function priceCoin(input, trustedContext = {}) {
     specialMarks: productIdentity.specialMarks,
     barBrand: intent.barBrand,
     barSeries: intent.barSeries,
+    barSegment: intent.barSegment,
     _gradeSource: identification.parsed?._gradeSource || null,
     _exclusions: identification.parsed?._exclusions || null,
     _rawQuery: String(query),
     _productIdentity: productIdentity,
   };
+  if (intent.barSegment) applyBarSegment(expected, intent.barSegment);
 
   // BU bullion grade fix
   const seriesForBullionCheck = (expected.series || '').toLowerCase();
@@ -405,15 +408,17 @@ async function priceCoin(input, trustedContext = {}) {
   }
 
   // ── 9. Valuation ──
-  let userGrade = (isSet || isRoll || productIdentity.pool === 'raw') ? null : productIdentity.grade;
+  let userGrade = (isSet || isRoll || expected.barSegment || productIdentity.pool === 'raw') ? null : productIdentity.grade;
 
   const valuationBullionSeries = (identification.parsed?.series || pcgs.series || '').toLowerCase();
-  const isBullion = BULLION_1OZ_DEFAULT.some(b => valuationBullionSeries.includes(b));
+  const isBullion = BULLION_1OZ_DEFAULT.some(b => valuationBullionSeries.includes(b)) || !!expected.barSegment;
   // Greysheet lookup
   const pcgsNo = pcgs?.pcgsCoinNumber || pcgs?.pcgsNo || coinData?.pcgsNumber || null;
   const gradeNum = userGrade ? parseInt(String(userGrade).replace(/[^\d]/g, ''), 10) || null : null;
-  let greysheet = pcgsNo ? await greysheetService.fetchPriceByPcgsNumber(pcgsNo, gradeNum) : null;
-  if (!greysheet) {
+  // Bars have no coin guide entry: a Greysheet type match would price a bar off a coin.
+  const skipGuides = !!expected.barSegment;
+  let greysheet = (pcgsNo && !skipGuides) ? await greysheetService.fetchPriceByPcgsNumber(pcgsNo, gradeNum) : null;
+  if (!greysheet && !skipGuides) {
     greysheet = await greysheetService.fetchTypePrice(String(query), gradeNum, {
       series: identification.parsed?.series || pcgs.series || '',
       metal: parsedMetal,
@@ -450,6 +455,8 @@ async function priceCoin(input, trustedContext = {}) {
     isBullion,
     isProof: expected.isProof,
     barSeries: expected.barSeries,
+    barSegment: expected.barSegment || undefined,
+    metal: expectedMetal || undefined,
     finish: expected.finish || expected.label,
     greysheet,
     saleContext,
