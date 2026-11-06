@@ -561,7 +561,7 @@ Added `is_barber_nonhalf_term()` filter (regex: `\bbarber\b(?!.*\bhalf\b)`). Bar
 
 ## Pricing Accuracy
 
-### #333H. Bar pricing: segment branded versus generic bars on every route, and normalize sold comps to premium over spot at the sale date [P2 -- PRICING-ACCURACY / DATA-QUALITY] -- PROPOSED 2026-11-04
+### #333H. Bar pricing: segment branded versus generic bars on every route, and normalize sold comps to premium over spot at the sale date [P2 -- PRICING-ACCURACY / DATA-QUALITY] -- PHASE 1 IMPLEMENTED 2026-11-05 (PR #386); phases 2-3 PROPOSED
 
 **Status (2026-11-05):** Phase 1 implemented (one bar identity in `src/utils/barIdentity.js`, brand classes `series`/`brand`/`generic` on every route, melt floor and ceiling on `/api/bar-price`, complete size parsing with 400 on unrecognized sizes, metal-based premium ceiling, merged brand registry with the `jm` and `sunshine` fixes, UI size options). Phases 2 and 3 are not started; the existing -5% / +40% / +100% clamp stays in place.
 

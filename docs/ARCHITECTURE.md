@@ -105,6 +105,7 @@ server.js                              Express entry point (port 3000)
 │   ├─ stats.js                        Statistical functions (median, MAD, weighted median, etc.)
 │   ├─ filters.js                      Deny-list filtering, denomination & series checks, two-way composition mismatch (silver/clad)
 │   ├─ coinMetalProfile.js             Metal detection + weight detection (detectWeightFromTitle, weightToKeyToken) for bullion
+│   ├─ barIdentity.js                  Bar identity shared by /api/bar-price, /api/price and /api/pricing-batch: parseBarSize, resolveBarSegment (series / brand / generic), applyBarSegment, describeBarSegment, barMaxPremium (#333H)
 │   ├─ coinIntent.js                   Route-layer extractor: canonicalizes {grade, finish, isProof, designation} across coinData / options / pcgs / parsed (#254)
 │   ├─ explicitWeight.js               Shared explicit-ounce parsing and contradictory-key validation for imports and freshness gates
 │   ├─ usTypeSeed.js                   US type seed loader and in-memory injection for the freshness report (#334H)
