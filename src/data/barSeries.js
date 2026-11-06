@@ -14,7 +14,7 @@ const BAR_SERIES = {
   // ── Geiger Edelmetalle ────────────────────────────────────
   geiger: [
     { series: 'Square',            re: /\bsquare\b/i,                      keywords: 'square',               aliases: ['square bar'] },
-    { series: 'Original',          re: /\boriginal\b/i,                    keywords: 'original',             aliases: ['original bar'] },
+    { series: 'Original',          re: /(?<!\bin\s)\boriginal\b(?!\s+(?:packaging|package|box|case|capsule|sealed|mint|card|assay|sleeve|wrapper)\b)/i, keywords: 'original',             aliases: ['original bar'] },
     { series: 'Schloss Guldengossa', re: /\bschloss\b|\bguldengossa\b/i,   keywords: 'schloss guldengossa',  aliases: ['schloss', 'guldengossa', 'castle'] },
     { series: 'Security Line',     re: /\bsecurity\s*line\b/i,             keywords: 'security line',        aliases: ['security'] },
     { series: 'Fireworks',         re: /\bfirework/i,                       keywords: 'fireworks',            aliases: ['firework'] },

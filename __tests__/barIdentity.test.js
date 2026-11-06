@@ -220,8 +220,14 @@ describe('private-label, dealer and vintage makers leave the generic pool (#333H
     }
   });
 
-  test('look-alike words do not match', () => {
-    expect(detectBarBrands('Highland Park 1 oz Silver Bar')).toEqual([]);
+  test('"in original packaging" is not the Geiger Original series (listing titles and typed text)', () => {
+    const { detectSeriesFromTitle } = require('../src/data/barSeries');
+    expect(detectSeriesFromTitle('Geiger', '1 oz silver bar in original packaging')).toBeNull();
+    expect(detectSeriesFromTitle('Geiger', '1 oz silver bar Original Box')).toBeNull();
+    expect(detectSeriesFromTitle('Geiger', '1 oz Geiger Original silver bar').series).toBe('Original');
+  });
+
+  test('look-alike words do not match', () => {    expect(detectBarBrands('Highland Park 1 oz Silver Bar')).toEqual([]);
     expect(detectBarBrands('Golden State Warriors Silver Bar')).toEqual([]);
     expect(detectBarBrands('Republic of Texas Silver Bar')).toEqual([]);
     expect(detectBarBrands('opmetals unbranded bar')).toEqual([]);

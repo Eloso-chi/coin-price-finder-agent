@@ -6,7 +6,7 @@
 
 const { detectBarBrands, detectSeriesFromTitle } = require('../data/barSeries');
 const { resolveProductIdentity } = require('./productIdentityResolver');
-const { lookupSpotInEntries } = require('./spotLookup');
+const { createSpotIndex } = require('./spotLookup');
 
 const GRAMS_PER_OZT = 31.1035;
 const OZT_PER_KILO = 32.1507;
@@ -21,11 +21,23 @@ const WEIGHT_BUCKETS = [
   ['10 oz', 10], ['20 oz', 20], ['50 oz', 50], ['100 oz', 100], ['1 kilo', OZT_PER_KILO], ['1000 oz', 1000],
 ];
 const BUCKET_TOLERANCE = 0.02;
-// A bar's price stays within this multiple of its metal, weight bucket and month's pooled median;
-// outside it the weight in the title is wrong.
-const PRICE_BAND = [0.5, 2.0];
+// Price band around the month's pooled median for a metal and weight bucket. Outside it the weight
+// in the title is wrong; 0.6 and 1.7 reject a 2:1 mislabel either way while a maker's premium fits.
+const PRICE_BAND = [0.6, 1.7];
+// With spot history a comp's premium must be plausible: below -15% is under melt, above +100% is not this bar.
+const PREMIUM_BAND = [-0.15, 1.0];
+// Spot is only trusted this close to the sale, and never from a later day.
+const PREMIUM_MAX_GAP_DAYS = 3;
+const MIN_BAND_COMPS = 5;
+const MIN_POOLED_BAND_COMPS = 8;
+const MIN_SPOT_DAYS = 3;
+const MIN_UPLIFT_MONTHS = 2;
 
 const MULTI_ITEM_RE = /\b(?:lot|set|pcs|pieces?|bundle|collection|assortment)\b|\bx\s?\d+\b|\b\d+\s?x\b/i;
+// Molds, holders and other things that merely mention a bar.
+const NON_BAR_RE = /\b(?:molds?|moulds?|graphite|sleeves?|holders?|storage|bowl|glass|copper|bronze|brass|gilded|plated|necklace|pendant|keychain|display|stand|tray|cast iron)\b/i;
+// Phrases whose metal word is not the bar's metal ("Gold Standard", "Istanbul Gold Refinery").
+const METAL_NOISE_RE = /\bgold\s+standard\b|\b(?:[a-z]+\s+)?gold\s+refiner(?:y|ies)\b|\bemirates\s+gold\b/gi;
 
 function bucketForWeight(ozt) {
   if (!Number.isFinite(ozt) || ozt <= 0) return null;
@@ -41,7 +53,11 @@ function classifyBarTitle(title) {
   const t = String(title || '');
   if (!/\b(?:bars?|combibar|kinebar)\b/i.test(t)) return { ok: false, reason: 'not-a-bar' };
   if (MULTI_ITEM_RE.test(t)) return { ok: false, reason: 'multi-item' };
-  const identity = resolveProductIdentity({ text: t });
+  if (NON_BAR_RE.test(t)) return { ok: false, reason: 'non-bar-item' };
+  const metalText = t.replace(METAL_NOISE_RE, ' ');
+  const metalWords = new Set((metalText.match(/\b(?:gold|silver|platinum|palladium)\b/gi) || []).map(m => m.toLowerCase()));
+  if (metalWords.size > 1) return { ok: false, reason: 'multiple-metals' };
+  const identity = resolveProductIdentity({ text: metalText });
   const metal = identity.metal && METAL_SYMBOLS[identity.metal] ? identity.metal : null;
   if (!metal) return { ok: false, reason: 'no-metal' };
   const weight = identity.nominalWeightOz ?? identity.weight ?? null;
@@ -108,9 +124,9 @@ function buildBarPremiumReport(comps, { spotHistory = null, minSample = 10 } = {
 
   const add = (key, meta, premium, price, day) => {
     let s = segs.get(key);
-    if (!s) { s = { ...meta, prices: [], premiums: [], first: day, last: day }; segs.set(key, s); }
+    if (!s) { s = { ...meta, prices: [], premiums: [], spotDays: new Set(), first: day, last: day }; segs.set(key, s); }
     s.prices.push(price);
-    if (premium != null) s.premiums.push(premium);
+    if (premium != null) { s.premiums.push(premium); if (day) s.spotDays.add(day); }
     if (day) {
       if (!s.first || day < s.first) s.first = day;
       if (!s.last || day > s.last) s.last = day;
@@ -126,31 +142,67 @@ function buildBarPremiumReport(comps, { spotHistory = null, minSample = 10 } = {
     if (!(comp.totalUsd > 0)) { excluded['no-price'] = (excluded['no-price'] || 0) + 1; continue; }
     items.push({ comp, cls });
   }
+  // Per metal and weight bucket and month, the prices seen; a month with too few comps borrows its neighbours.
+  const monthOf = (comp) => (comp.soldDate ? String(comp.soldDate).slice(0, 7) : null);
+  const shiftMonth = (month, delta) => {
+    const d = new Date(Date.UTC(+month.slice(0, 4), +month.slice(5, 7) - 1 + delta, 1));
+    return d.toISOString().slice(0, 7);
+  };
   const pooled = new Map();
-  const bandKey = ({ comp, cls }) => (comp.soldDate ? `${cls.metal}|${cls.bucket}|${String(comp.soldDate).slice(0, 7)}` : null);
-  for (const item of items) {
-    const k = bandKey(item);
-    if (k) pooled.set(k, [...(pooled.get(k) || []), item.comp.totalUsd]);
+  for (const { comp, cls } of items) {
+    const m = monthOf(comp);
+    if (!m) continue;
+    const gk = `${cls.metal}|${cls.bucket}`;
+    const months = pooled.get(gk) || new Map();
+    const arr = months.get(m) || [];
+    arr.push(comp.totalUsd);
+    months.set(m, arr);
+    pooled.set(gk, months);
   }
-  const bands = new Map();
-  for (const [k, prices] of pooled) {
-    if (prices.length < 5) continue;
-    const m = quantile([...prices].sort((a, b) => a - b), 0.5);
-    bands.set(k, [m * PRICE_BAND[0], m * PRICE_BAND[1]]);
-  }
+  const bandMemo = new Map();
+  const bandFor = (cls, month) => {
+    if (!month) return null;
+    const mk = `${cls.metal}|${cls.bucket}|${month}`;
+    if (bandMemo.has(mk)) return bandMemo.get(mk);
+    const months = pooled.get(`${cls.metal}|${cls.bucket}`);
+    let prices = months.get(month) || [];
+    if (prices.length < MIN_BAND_COMPS) {
+      prices = [...prices, ...(months.get(shiftMonth(month, -1)) || []), ...(months.get(shiftMonth(month, 1)) || [])];
+    }
+    let band = null;
+    if (prices.length >= (months.get(month)?.length >= MIN_BAND_COMPS ? MIN_BAND_COMPS : MIN_POOLED_BAND_COMPS)) {
+      const m = quantile([...prices].sort((a, b) => a - b), 0.5);
+      band = [m * PRICE_BAND[0], m * PRICE_BAND[1]];
+    }
+    bandMemo.set(mk, band);
+    return band;
+  };
+
+  const spotIndexes = {};
+  const spotFor = (metal, day) => {
+    if (!spotHistory || !day) return null;
+    const sym = METAL_SYMBOLS[metal];
+    if (!spotHistory[sym]) return null;
+    spotIndexes[sym] = spotIndexes[sym] || createSpotIndex(spotHistory[sym], { maxGapDays: PREMIUM_MAX_GAP_DAYS, allowLater: false });
+    return spotIndexes[sym](day);
+  };
 
   for (const item of items) {
     const { comp, cls } = item;
-    const band = bands.get(bandKey(item));
+    const band = bandFor(cls, monthOf(comp));
     if (band && (comp.totalUsd < band[0] || comp.totalUsd > band[1])) {
       excluded['price-outlier'] = (excluded['price-outlier'] || 0) + 1;
       continue;
     }
-    classified++;
     const day = comp.soldDate ? String(comp.soldDate).slice(0, 10) : null;
-    if (day && (!lastDay || day > lastDay)) lastDay = day;
-    const spot = spotHistory && day ? lookupSpotInEntries(spotHistory[METAL_SYMBOLS[cls.metal]], day) : null;
+    const spot = spotFor(cls.metal, day);
     const premium = spot ? comp.totalUsd / (cls.weightOzt * spot) - 1 : null;
+    if (premium != null && (premium < PREMIUM_BAND[0] || premium > PREMIUM_BAND[1])) {
+      excluded['premium-outlier'] = (excluded['premium-outlier'] || 0) + 1;
+      continue;
+    }
+    classified++;
+    if (day && (!lastDay || day > lastDay)) lastDay = day;
     if (premium != null) withSpot++;
 
     // A series comp also counts for its maker (the brand segment admits every series).
@@ -184,7 +236,9 @@ function buildBarPremiumReport(comps, { spotHistory = null, minSample = 10 } = {
       price: summarize(s.prices, 2),
       premium: s.premiums.length ? summarize(s.premiums, 4) : null,
       nWithSpot: s.premiums.length,
-      reliable: s.premiums.length >= minSample,
+      spotDays: s.spotDays.size,
+      // Enough trimmed premiums spread over enough different sale days, not one week of one spot value.
+      reliable: s.premiums.length >= minSample && s.spotDays.size >= MIN_SPOT_DAYS && (summarize(s.premiums, 4)?.n ?? 0) >= minSample,
       firstSold: s.first || null,
       lastSold: s.last || null,
     }))
@@ -198,15 +252,19 @@ function buildBarPremiumReport(comps, { spotHistory = null, minSample = 10 } = {
     const genericMonths = perMonth.get(`${metal}|${bucket}|generic|`);
     if (!genericMonths) continue;
     const ratios = [];
+    let nBrand = 0;
+    let nGeneric = 0;
     for (const [month, prices] of months) {
       const g = genericMonths.get(month);
       if (!g || prices.length < 3 || g.length < 3) continue;
       const med = (arr) => quantile([...arr].sort((a, b) => a - b), 0.5);
       ratios.push(med(prices) / med(g));
+      nBrand += prices.length;
+      nGeneric += g.length;
     }
-    if (!ratios.length) continue;
+    if (ratios.length < MIN_UPLIFT_MONTHS) continue;
     ratios.sort((a, b) => a - b);
-    uplift.push({ metal, weightBucket: bucket, brand, months: ratios.length, priceRatio: +quantile(ratios, 0.5).toFixed(3) });
+    uplift.push({ metal, weightBucket: bucket, brand, months: ratios.length, nBrand, nGeneric, priceRatio: +quantile(ratios, 0.5).toFixed(3) });
   }
   uplift.sort((a, b) => `${a.metal}|${a.weightBucket}|${a.brand}`.localeCompare(`${b.metal}|${b.weightBucket}|${b.brand}`));
 

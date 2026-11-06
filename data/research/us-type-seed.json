@@ -2,7 +2,7 @@
   "version": 1,
   "backlog": "#334H",
   "updated": "2026-11-06",
-  "note": "Seed search terms for US types with no Terapeak dataset. Phase 0 is the probe set (one representative per design group). Raise TERAPEAK_US_SEED_PHASE to queue later phases; see docs/BACKLOG.md #334H. Ranks 22-29 are the bar maker groups from #333H.",
+  "note": "Seed search terms for US types with no Terapeak dataset. Phase 0 is the probe set (one to four representatives per design group). Raise TERAPEAK_US_SEED_PHASE to queue later phases; see docs/BACKLOG.md #334H. Ranks 22-29 are the bar maker groups from #333H.",
   "terms": [
     {"term":"1957 American Proof Set","group":"proof-sets-1950-64","rank":1,"phase":0},
     {"term":"1950 American Proof Set","group":"proof-sets-1950-64","rank":1,"phase":1},

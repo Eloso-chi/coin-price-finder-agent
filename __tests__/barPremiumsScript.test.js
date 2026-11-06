@@ -54,8 +54,9 @@ describe('dataset selection and de-duplication', () => {
 describe('run', () => {
   function seedDataset() {
     const rows = [];
-    for (let i = 0; i < 12; i++) rows.push(row(`1 oz Silver Bar Generic ${i}`, 'Jan 10, 2026', '33.00'));
-    for (let i = 0; i < 12; i++) rows.push(row(`1 oz PAMP Suisse Silver Bar ${i}`, 'Jan 10, 2026', '36.00'));
+    const days = ['Jan 10, 2026', 'Jan 11, 2026', 'Jan 12, 2026'];
+    for (let i = 0; i < 12; i++) rows.push(row(`1 oz Silver Bar Generic ${i}`, days[i % 3], '33.00'));
+    for (let i = 0; i < 12; i++) rows.push(row(`1 oz PAMP Suisse Silver Bar ${i}`, days[i % 3], '36.00'));
     writeCsv('Silver_Bar_1oz_Generic.csv', rows);
   }
 
@@ -72,13 +73,43 @@ describe('run', () => {
   test('with a metals_history file it reports premiums and the spot coverage', () => {
     seedDataset();
     const file = path.join(dir, 'metals_history.json');
-    fs.writeFileSync(file, JSON.stringify({ XAG: { '2026-01-10': 30 }, XAU: { '2026-01-10': 2000 } }));
+    const spot = (price) => ({ '2026-01-09': price, '2026-01-10': price, '2026-01-11': price, '2026-01-12': price });
+    fs.writeFileSync(file, JSON.stringify({ XAG: spot(30), XAU: spot(2000) }));
     const report = script.run({ dir, metalsHistory: file });
-    expect(report.spotHistory).toEqual({ XAG: { days: 1, first: '2026-01-10', last: '2026-01-10' }, XAU: { days: 1, first: '2026-01-10', last: '2026-01-10' } });
+    expect(report.spotHistory).toEqual({ XAG: { days: 4, first: '2026-01-09', last: '2026-01-12' }, XAU: { days: 4, first: '2026-01-09', last: '2026-01-12' } });
     expect(report.spotCoverage).toEqual({ compsWithSpot: 24, compsWithoutSpot: 0 });
     const generic = report.segments.find(s => s.class === 'generic');
     expect(generic.premium.median).toBe(0.1);
     expect(generic.reliable).toBe(true);
+  });
+
+  test('spot entries that are not dated positive numbers are dropped, and a non-object file is rejected', () => {
+    seedDataset();
+    const file = path.join(dir, 'metals_history.json');
+    fs.writeFileSync(file, JSON.stringify({ XAG: { '2026-01-10': 30, 'not-a-date': 31, '2026-01-11': '30', '2026-01-12': -5, '2026-01-13': null } }));
+    expect(script.run({ dir, metalsHistory: file }).spotHistory).toEqual({ XAG: { days: 1, first: '2026-01-10', last: '2026-01-10' } });
+    fs.writeFileSync(file, '[1,2]');
+    expect(() => script.run({ dir, metalsHistory: file })).toThrow(/JSON object/);
+  });
+
+  test('a sale on one day is not reliable however many comps it has', () => {
+    const rows = Array.from({ length: 30 }, (_, i) => row(`1 oz Silver Bar Generic ${i}`, 'Jan 10, 2026', '33.00'));
+    writeCsv('Silver_Bar_1oz_Generic.csv', rows);
+    const file = path.join(dir, 'metals_history.json');
+    fs.writeFileSync(file, JSON.stringify({ XAG: { '2026-01-10': 30 } }));
+    expect(script.run({ dir, metalsHistory: file }).segments[0]).toEqual(expect.objectContaining({ nWithSpot: 30, spotDays: 1, reliable: false }));
+  });
+
+  test('a listing with an item id present in two datasets counts once even if the titles differ', () => {
+    const withId = (title) => `"${title}",555,"Jan 10, 2026",$33.00,$0.00,,,Fixed price,,1`;
+    writeCsv('A_Silver_Bar.csv', [withId('1 oz Silver Bar Generic A')]);
+    writeCsv('B_Silver_Bar.csv', [withId('1 oz Silver Bar Generic B')]);
+    expect(script.collectComps(dir).comps).toHaveLength(1);
+  });
+
+  test('an invalid minSample is rejected', () => {
+    seedDataset();
+    for (const minSample of [0, -1, 2.5, NaN]) expect(() => script.run({ dir, minSample })).toThrow(/minSample/);
   });
 
   test('a metals_history file without a known metal is treated as no history', () => {
@@ -99,6 +130,12 @@ describe('command line', () => {
     expect(script.parseArgs(['--metals-history', 'h.json', '--terapeak-dir', 'd', '--out', 'o.json', '--min-sample', '5', '--all', '--stdout', '--lines']))
       .toEqual({ metalsHistory: 'h.json', dir: 'd', out: 'o.json', minSample: 5, all: true, stdout: true, lines: true });
     expect(() => script.parseArgs(['--bogus'])).toThrow(/Unknown argument/);
+  });
+
+  test('a missing option value and a bad --min-sample are rejected', () => {
+    expect(() => script.parseArgs(['--out'])).toThrow(/needs a value/);
+    expect(() => script.parseArgs(['--out', '--stdout'])).toThrow(/needs a value/);
+    for (const bad of ['abc', '0', '-3', '2.5']) expect(() => script.parseArgs(['--min-sample', bad])).toThrow(/positive integer/);
   });
 
   test('--lines prints candidates and writes nothing', () => {
@@ -138,7 +175,7 @@ describe('committed data/bar-premiums.json', () => {
       expect(s.price.p25).toBeLessThanOrEqual(s.price.median);
       expect(s.price.median).toBeLessThanOrEqual(s.price.p75);
       if (s.premium === null) { expect(s.reliable).toBe(false); expect(s.nWithSpot).toBe(0); }
-      else expect(s.reliable).toBe(s.nWithSpot >= data.minSample);
+      else expect(s.reliable).toBe(s.nWithSpot >= data.minSample && s.spotDays >= 3);
     }
   });
 

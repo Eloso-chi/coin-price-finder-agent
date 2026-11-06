@@ -18,17 +18,39 @@ const path = require('path');
 const { bucketForWeight } = require('../utils/barPremiumStats');
 
 const BAR_PREMIUMS_PATH = path.join(__dirname, '..', '..', 'data', 'bar-premiums.json');
-const _barPremiumCache = new Map();
+const _barPremiumCache = new Map(); // file -> { mtimeMs, data }; only successful reads are kept
+const MIN_SEGMENT_SPOT_DAYS = 3;
+const RANGE_FLOOR = -0.5;
+const RANGE_CEILING = 5;
 
+// `file` is for tests; no request-reachable code passes it.
 function loadBarPremiums(file = BAR_PREMIUMS_PATH) {
-  if (_barPremiumCache.has(file)) return _barPremiumCache.get(file);
-  let data = null;
+  let mtimeMs;
+  try {
+    mtimeMs = fs.statSync(file).mtimeMs;
+  } catch {
+    _barPremiumCache.delete(file);
+    return null;
+  }
+  const hit = _barPremiumCache.get(file);
+  if (hit && hit.mtimeMs === mtimeMs) return hit.data;
   try {
     const parsed = JSON.parse(fs.readFileSync(file, 'utf8'));
-    if (parsed && Array.isArray(parsed.segments)) data = parsed;
-  } catch (_) { /* missing or unreadable: fall back to the static table */ }
-  _barPremiumCache.set(file, data);
-  return data;
+    if (parsed && Array.isArray(parsed.segments)) {
+      _barPremiumCache.set(file, { mtimeMs, data: parsed });
+      return parsed;
+    }
+  } catch { /* unreadable or half-written: fall back to the static table, retry next call */ }
+  _barPremiumCache.delete(file);
+  return null;
+}
+
+/** A segment is usable only if its premium quartiles are finite and ordered and its sample is large enough, judged here rather than trusted from the file. */
+function usableSegment(s, minSample) {
+  const p = s && s.premium;
+  if (!p || !Number.isFinite(p.p25) || !Number.isFinite(p.p75) || p.p25 > p.p75) return false;
+  if (!(s.nWithSpot >= minSample) || !(p.n >= minSample)) return false;
+  return s.spotDays === undefined || s.spotDays >= MIN_SEGMENT_SPOT_DAYS;
 }
 
 // ── Bullion premium ranges by metal + form ─────────────────────────────────
@@ -100,13 +122,14 @@ function lookupBarSegmentRange(parsed, { file } = {}) {
   if (seg.class === 'series' && seg.brand && seg.series) ladder.push(find('series', seg.brand, seg.series));
   if (seg.brand) ladder.push(find('brand', seg.brand, null));
   if (!seg.brand) ladder.push(find('generic', null, null));
-  const hit = ladder.find(s => s && s.reliable && s.premium);
+  const minSample = Number.isInteger(data.minSample) && data.minSample > 0 ? data.minSample : 10;
+  const hit = ladder.find(s => usableSegment(s, minSample));
   if (!hit) return null;
   const iqr = hit.premium.p75 - hit.premium.p25;
   return {
     key: `bar-segment:${hit.key}`,
-    min: +(hit.premium.p25 - 1.5 * iqr).toFixed(4),
-    max: +(hit.premium.p75 + 1.5 * iqr).toFixed(4),
+    min: +Math.max(RANGE_FLOOR, hit.premium.p25 - 1.5 * iqr).toFixed(4),
+    max: +Math.min(RANGE_CEILING, hit.premium.p75 + 1.5 * iqr).toFixed(4),
     source: 'bar-premiums',
     segment: hit.class,
     n: hit.nWithSpot,
