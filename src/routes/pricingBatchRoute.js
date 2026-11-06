@@ -174,6 +174,7 @@ async function _priceOne(item, opts = {}) {
       _productIdentity: productIdentity,
     };
     if (intent.barSegment) applyBarSegment(expected, intent.barSegment);
+    if (intent.barSegment) gradeNum = null;
     if (meltPerOz) expected.meltPerOz = meltPerOz;
     // #162: Null grade in expected for BU bullion to prevent gradeNumMismatch filter
     if (isBullion && parsed._gradeSource === 'bu-term') {
@@ -273,8 +274,10 @@ async function _priceOne(item, opts = {}) {
     // Greysheet wholesale lookup (non-fatal)
     // When no PCGS number (generic / yearless coin), fall back to Type GSID lookup.
     const pcgsNo = pcgs?.pcgsCoinNumber || pcgs?.pcgsNo || null;
-    let greysheet = pcgsNo ? await greysheetService.fetchPriceByPcgsNumber(pcgsNo, gradeNum) : null;
-    if (!greysheet) {
+    // Bars have no coin guide entry: a Greysheet type match would price a bar off a coin.
+    const skipGuides = !!intent.barSegment;
+    let greysheet = (pcgsNo && !skipGuides) ? await greysheetService.fetchPriceByPcgsNumber(pcgsNo, gradeNum) : null;
+    if (!greysheet && !skipGuides) {
       const parsedMetal = parsed?.metal || null;
       greysheet = await greysheetService.fetchTypePrice(query, gradeNum, {
         series,

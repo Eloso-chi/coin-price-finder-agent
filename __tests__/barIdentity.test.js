@@ -216,10 +216,28 @@ describe('the general path builds the same segment as /api/bar-price', () => {
   test.each([
     'Silver Eagle 1 oz bar code',
     'Morgan dollar silver bar cent',
-    'Franklin Mint 1 oz silver bar',
+    'Silver Eagle 1 oz bar',
+    'Morgan dollar silver bar',
     'Silver Eagle in Sunshine Mint bar-style capsule',
   ])('look-alike coin query %p is not a bar request', (query) => {
     expect(intentFor(query).barSegment).toBeNull();
+  });
+
+  test.each([
+    'quarter oz gold bar',
+    '1 oz silver bar like new',
+    '1 oz silver bar in case',
+    '5 oz silver bar percent pure',
+    'Franklin Mint 1 oz silver bar',
+    'JM-Bullion 10 oz silver bar',
+  ])('%p is a generic bar request (short coin keywords inside other words do not count)', (query) => {
+    expect(intentFor(query).barSegment.class).toBe('generic');
+  });
+
+  test('registry edges: hyphenated JM Bullion, Sunshine Mine, and a Perth title without "Mint"', () => {
+    expect(detectBarBrands('JM-Bullion 10 oz Silver Bar')).toEqual([]);
+    expect(detectBarBrands('Sunshine Mine 10 oz Silver Bar')).toEqual(['Sunshine Mining']);
+    expect(detectBarBrands('Perth Lunar Dragon 1 oz Silver Bar')).toEqual(['Perth Mint']);
   });
 
   test('a bar with a coin-series word but a recognized maker is still a bar', () => {

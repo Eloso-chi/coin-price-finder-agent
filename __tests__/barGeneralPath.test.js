@@ -50,6 +50,7 @@ jest.mock('../src/services/auditService', () => ({
 const http = require('http');
 const express = require('express');
 const terapeakService = require('../src/services/terapeakService');
+const greysheetService = require('../src/services/greysheetService');
 const ebayService = require('../src/services/ebayService');
 const { priceCoin } = require('../src/services/pricingService');
 const barPriceRoute = require('../src/routes/barPriceRoute');
@@ -246,7 +247,7 @@ describe('coin queries are not bar requests', () => {
   test.each([
     'Silver Eagle 1 oz bar code',
     'Morgan dollar silver bar cent',
-    'Franklin Mint 1 oz silver bar',
+    'Silver Eagle 1 oz bar',
     'Silver Eagle in Sunshine Mint bar-style capsule',
     '1921 Morgan Dollar',
   ])('%s gets no bar segment', async (query) => {
@@ -256,6 +257,62 @@ describe('coin queries are not bar requests', () => {
     const expectedArg = fetchSpy.mock.calls[0][2];
     expect(expectedArg.type).toBeUndefined();
     expect(expectedArg.barSegment == null).toBe(true);
+  });
+});
+
+describe('a bar request with a year or BU term is a bar on every route (N2)', () => {
+  const YEAR_POOL = [
+    ['2024 1 oz .999 Silver Bar Generic', 34],
+    ['2023 Silver Bar 1 oz .999 Fine', 35],
+    ['1 oz Silver Bar .999 Unbranded Sealed', 36],
+    ['2022 1 oz Silver Bar Plain', 37],
+  ];
+  const yc = { query: '2024 1 oz silver bar BU', route: { metal: 'silver', size: '1 oz', year: 2024 } };
+
+  test('year, grade and mint do not filter bar comps and the comp set matches the bar route', async () => {
+    seed(YEAR_POOL);
+    const a = await viaRoute(yc);
+    ebayService.clearCache(); fetchSpy.mockClear();
+    const b = await viaPriceCoin(yc);
+    ebayService.clearCache(); fetchSpy.mockClear();
+    const d = await viaBatch(yc);
+
+    expect(a.titles).toHaveLength(4);
+    expect(b.titles).toEqual(a.titles);
+    expect(d.titles).toEqual(a.titles);
+  });
+
+  test('the expected object carries no coin identity and keeps the year as barYear', async () => {
+    seed(YEAR_POOL);
+    await priceCoin({ query: yc.query, coinData: {}, options: COMP_OPTS }, { isAdmin: false, audience: 'public' });
+    const expectedArg = fetchSpy.mock.calls[0][2];
+    expect(expectedArg).toEqual(expect.objectContaining({ type: 'bar', year: null, mint: null, series: null, grade: null, barYear: 2024 }));
+  });
+
+  test('a grade term on a bar request does not grade the bar or switch the pool', async () => {
+    seed(YEAR_POOL);
+    const q = '2024 1 oz silver bar MS65';
+    const result = await priceCoin({ query: q, coinData: {}, options: COMP_OPTS }, { isAdmin: false, audience: 'public' });
+    expect(fetchSpy.mock.calls[0][2].grade).toBeNull();
+    expect(result.valuation.gradePool.wantsGraded).toBe(false);
+    ebayService.clearCache();
+    const res = await post('/api/pricing-batch', { items: [{ query: q, options: COMP_OPTS }] });
+    expect(res.body.results[0].gradePool.wantsGraded).toBe(false);
+  });
+
+  test('no Greysheet lookup is made for a bar on /api/price or /api/pricing-batch', async () => {
+    seed(YEAR_POOL);
+    await priceCoin({ query: yc.query, coinData: {}, options: COMP_OPTS }, { isAdmin: false, audience: 'public' });
+    ebayService.clearCache();
+    await post('/api/pricing-batch', { items: [{ query: yc.query, options: COMP_OPTS }] });
+    expect(greysheetService.fetchTypePrice).not.toHaveBeenCalled();
+    expect(greysheetService.fetchPriceByPcgsNumber).not.toHaveBeenCalled();
+  });
+
+  test('a coin query still looks up the guide price', async () => {
+    seed([['Generic coin 1 oz', 40], ['Generic coin 1 oz', 41], ['Generic coin 1 oz', 42]]);
+    await priceCoin({ query: '2024 Silver Eagle', coinData: {}, options: COMP_OPTS }, { isAdmin: false, audience: 'public' });
+    expect(greysheetService.fetchTypePrice).toHaveBeenCalled();
   });
 });
 

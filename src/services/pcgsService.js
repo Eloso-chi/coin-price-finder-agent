@@ -657,7 +657,13 @@ function parseDescription(text) {
   const barBrand = hasBarNoun ? detectBarBrand(t) : null;
   // #333H: a bar request is a bar segment even with no recognized maker
   // (generic). A matched coin series without a bar maker stays a coin query.
-  if (hasBarNoun && (barBrand || (!result.series && /\b(?:gold|silver|platinum|palladium)\b/i.test(t)))) {
+  // A bar request has no named coin series. Only whole-word, non-denomination series
+  // count ("ase" in "in case" or "cent" in "percent" do not); Franklin Mint is a bar maker.
+  const strongSeriesKeywords = seriesKeywords.slice(0, seriesKeywords.indexOf('wheat penny'));
+  const tNoFranklinMint = t.replace(/\bfranklin\s+mint\b/gi, ' ');
+  const namesCoinSeries = hasBarNoun && !barBrand && strongSeriesKeywords.some(kw =>
+    new RegExp(`\\b${kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(tNoFranklinMint));
+  if (hasBarNoun && (barBrand || (!namesCoinSeries && /\b(?:gold|silver|platinum|palladium)\b/i.test(t)))) {
     result.isBar = true;
   }
   if (barBrand) {

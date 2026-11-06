@@ -167,6 +167,13 @@ function describeBarSegment(segment) {
  * `brand` is the canonical maker when recognized, else the user-typed maker.
  */
 function applyBarSegment(expected, segment) {
+  // Coin-only identity fields would filter bar comps by year, mint, grade or series.
+  if (expected.barYear == null && expected.year) expected.barYear = expected.year;
+  expected.year = null;
+  expected.mint = null;
+  expected.series = null;
+  expected.grade = null;
+  expected.designation = null;
   expected.type = 'bar';
   expected.brand = segment.barBrand || segment.requestedBrand || null;
   expected.barBrand = segment.barBrand;
