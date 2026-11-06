@@ -244,6 +244,29 @@ describe('the general path builds the same segment as /api/bar-price', () => {
     expect(intentFor('Perth Mint Lunar Dragon 1 oz silver bar').barSegment.class).toBe('series');
   });
 
+  test('a bar with a false coin-series hit keeps "bar" and the metal in the eBay keywords (NEW-1)', () => {
+    for (const [query, falseSeries] of [
+      ['1 oz silver bar in case', /\bAse\b/],
+      ['2024 1 oz silver bar like new', /\bIke\b/],
+      ['quarter oz gold bar', /\bQuarter\b/],
+      ['99.9 percent pure silver bar', /\bCent\b/],
+      ['Franklin Mint 1 oz silver bar', /\bFranklin\s+(?:Half|1)\b/],
+    ]) {
+      const parsed = parseDescription(query);
+      expect(parsed.isBar).toBe(true);
+      expect(parsed.series).toBeUndefined();
+      const keywords = require('../src/services/ebayService').buildKeywords(parsed, query, parsed.weight || 1);
+      expect(keywords).not.toMatch(falseSeries);
+      expect(keywords).toMatch(/\bbar\b/i);
+      expect(keywords).toMatch(/\b(?:silver|gold)\b/i);
+    }
+  });
+
+  test('a bar that names a real coin series or a maker keeps its series', () => {
+    expect(parseDescription('Perth Mint Lunar Dragon 1 oz silver bar').series).toBe('Perth Mint Lunar');
+    expect(parseDescription('Silver Eagle 1 oz bar').series).toBe('Silver Eagle');
+  });
+
   test('a typed maker the registry does not know stays a brand segment (F10)', () => {
     const intent = extractCoinIntent({ coinData: { barBrand: 'Acme Metals' }, parsed: {} });
     expect(intent.barSegment).toEqual(expect.objectContaining({ class: 'brand', requestedBrand: 'Acme Metals' }));

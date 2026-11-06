@@ -51,6 +51,7 @@ const http = require('http');
 const express = require('express');
 const terapeakService = require('../src/services/terapeakService');
 const greysheetService = require('../src/services/greysheetService');
+const pcgsService = require('../src/services/pcgsService');
 const ebayService = require('../src/services/ebayService');
 const { priceCoin } = require('../src/services/pricingService');
 const barPriceRoute = require('../src/routes/barPriceRoute');
@@ -302,17 +303,76 @@ describe('a bar request with a year or BU term is a bar on every route (N2)', ()
 
   test('no Greysheet lookup is made for a bar on /api/price or /api/pricing-batch', async () => {
     seed(YEAR_POOL);
-    await priceCoin({ query: yc.query, coinData: {}, options: COMP_OPTS }, { isAdmin: false, audience: 'public' });
-    ebayService.clearCache();
-    await post('/api/pricing-batch', { items: [{ query: yc.query, options: COMP_OPTS }] });
+    // A coin number would trigger the guide lookup if bars were not skipped.
+    pcgsService.resolveFromDescription.mockResolvedValue({ verified: false, pcgsCoinNumber: '12345' });
+    try {
+      await priceCoin({ query: yc.query, coinData: {}, options: COMP_OPTS }, { isAdmin: false, audience: 'public' });
+      ebayService.clearCache();
+      await post('/api/pricing-batch', { items: [{ query: yc.query, options: COMP_OPTS }] });
+    } finally {
+      pcgsService.resolveFromDescription.mockResolvedValue({ verified: false });
+    }
     expect(greysheetService.fetchTypePrice).not.toHaveBeenCalled();
     expect(greysheetService.fetchPriceByPcgsNumber).not.toHaveBeenCalled();
   });
+
+  test('a coin with a coin number still looks up the guide price', async () => {
+    seed([['Generic coin 1 oz', 40], ['Generic coin 1 oz', 41], ['Generic coin 1 oz', 42]]);
+    pcgsService.resolveFromDescription.mockResolvedValue({ verified: false, pcgsCoinNumber: '12345' });
+    try {
+      await priceCoin({ query: '2024 Silver Eagle', coinData: {}, options: COMP_OPTS }, { isAdmin: false, audience: 'public' });
+    } finally {
+      pcgsService.resolveFromDescription.mockResolvedValue({ verified: false });
+    }
+    expect(greysheetService.fetchPriceByPcgsNumber).toHaveBeenCalled();
+  });
+
 
   test('a coin query still looks up the guide price', async () => {
     seed([['Generic coin 1 oz', 40], ['Generic coin 1 oz', 41], ['Generic coin 1 oz', 42]]);
     await priceCoin({ query: '2024 Silver Eagle', coinData: {}, options: COMP_OPTS }, { isAdmin: false, audience: 'public' });
     expect(greysheetService.fetchTypePrice).toHaveBeenCalled();
+  });
+});
+
+describe('Lunar bars are year-specific on every route (NEW-2)', () => {
+  const LUNAR_POOL = [
+    ['2024 Perth Mint Lunar Year of the Dragon 1 oz Silver Bar', 40],
+    ['Perth Mint Lunar Dragon 1 oz Silver Bar .999', 41],
+    ['2023 Perth Mint Lunar Year of the Rabbit 1 oz Silver Bar', 39],
+    ['2012 Perth Mint Lunar Dragon 1 oz Silver Bar', 42],
+  ];
+  const KEPT = [
+    '2024 Perth Mint Lunar Year of the Dragon 1 oz Silver Bar',
+    'Perth Mint Lunar Dragon 1 oz Silver Bar .999',
+  ];
+
+  test('/api/bar-price drops comps that name only other years', async () => {
+    seed(LUNAR_POOL);
+    const res = await post('/api/bar-price', { metal: 'silver', size: '1 oz', brand: 'Perth Mint', series: 'lunar', year: 2024, options: COMP_OPTS });
+    expect(res.status).toBe(200);
+    expect(res.body.ebay.us.comps.map(c => c.title).sort()).toEqual([...KEPT].sort());
+    expect(res.body.ebay.us.removed.barYearMismatch).toBe(2);
+  });
+
+  test('/api/price and /api/pricing-batch drop the same comps', async () => {
+    const c = { query: '2024 Perth Mint Lunar Dragon 1 oz silver bar' };
+    seed(LUNAR_POOL);
+    const b = await viaPriceCoin(c);
+    ebayService.clearCache(); fetchSpy.mockClear();
+    const d = await viaBatch(c);
+    expect(b.titles).toEqual([...KEPT].sort());
+    expect(d.titles).toEqual([...KEPT].sort());
+  });
+
+  test('a non-Lunar bar keeps comps from other years', async () => {
+    seed([
+      ['2024 1 oz .999 Silver Bar Generic', 34],
+      ['2023 Silver Bar 1 oz .999 Fine', 35],
+      ['2022 1 oz Silver Bar Plain', 36],
+    ]);
+    const res = await post('/api/bar-price', { metal: 'silver', size: '1 oz', year: 2024, options: COMP_OPTS });
+    expect(res.body.ebay.us.comps).toHaveLength(3);
   });
 });
 

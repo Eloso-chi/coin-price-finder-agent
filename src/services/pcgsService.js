@@ -655,16 +655,17 @@ function parseDescription(text) {
   // "bar" as a product noun, not "bar code", "bar-style", "bar cent" or "bar room".
   const hasBarNoun = /\bbars?\b(?![\s-]*(?:style|code|codes|cent|cents|copper|room|tender)\b)/i.test(t);
   const barBrand = hasBarNoun ? detectBarBrand(t) : null;
-  // #333H: a bar request is a bar segment even with no recognized maker
-  // (generic). A matched coin series without a bar maker stays a coin query.
-  // A bar request has no named coin series. Only whole-word, non-denomination series
-  // count ("ase" in "in case" or "cent" in "percent" do not); Franklin Mint is a bar maker.
+  // #333H: a bar request is a bar segment even with no recognized maker (generic).
+  // Only whole-word, non-denomination series name a coin ("ase" in "in case" or
+  // "cent" in "percent" do not); Franklin Mint is a bar maker.
   const strongSeriesKeywords = seriesKeywords.slice(0, seriesKeywords.indexOf('wheat penny'));
   const tNoFranklinMint = t.replace(/\bfranklin\s+mint\b/gi, ' ');
-  const namesCoinSeries = hasBarNoun && !barBrand && strongSeriesKeywords.some(kw =>
+  const namesCoinSeries = hasBarNoun && strongSeriesKeywords.some(kw =>
     new RegExp(`\\b${kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(tNoFranklinMint));
   if (hasBarNoun && (barBrand || (!namesCoinSeries && /\b(?:gold|silver|platinum|palladium)\b/i.test(t)))) {
     result.isBar = true;
+    // A substring series hit on a bar ("Ase" from "in case") would corrupt the eBay keywords.
+    if (!namesCoinSeries) delete result.series;
   }
   if (barBrand) {
     result.barBrand = barBrand;
