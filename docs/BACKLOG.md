@@ -565,6 +565,8 @@ Added `is_barber_nonhalf_term()` filter (regex: `\bbarber\b(?!.*\bhalf\b)`). Bar
 
 **Status (2026-11-05):** Phase 1 implemented (one bar identity in `src/utils/barIdentity.js`, brand classes `series`/`brand`/`generic` on every route, melt floor and ceiling on `/api/bar-price`, complete size parsing with 400 on unrecognized sizes, metal-based premium ceiling, merged brand registry with the `jm` and `sunshine` fixes, UI size options). Phases 2 and 3 are not started; the existing -5% / +40% / +100% clamp stays in place.
 
+**Deferred from the Phase 1 review (PR #386), not yet scheduled:** `bulkEvaluateService` has its own `isBar` and does not build a segment; `scripts/bar-pricing-health.js` queries without the word "bar" are not segmented; bar versus round form isolation; fineness versus gross weight in `pureOzt`; retailer house brands (APMEX, A-Mark) are treated as makers; unregistered makers (OPM, Highland, Golden State, Baird) count as generic until Phase 3; `Argor-Heraeus Kinebar` titles are not a Heraeus match and need a live-title check; per-comp caching of brand detection and of `resolveProductIdentity` and a sorted-dates cache in `getSpotOnDate`. Small gold bars are capped at +40% over spot until Phase 2 (the old rule allowed +100% for pieces with total spot of 500 or less).
+
 **Origin:** Review of the bar catalog and bar pricing path on 2026-11-04 (H machine), after asking whether brands carry value over generic bars and how the metal price at the time of sale is handled. Related: #285W (bar-series variant filter, coin route), #196 (dealer premium benchmark), #187 (bar pricing health script), #270W (raw-bullion comp signal).
 
 **Problem:**

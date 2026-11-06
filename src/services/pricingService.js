@@ -22,6 +22,7 @@ const { zodiacForYear, perthLunarSeries, getRollQuantity, ALLOWED_LABELS, BULLIO
 const { hasSeriesConflict, detectDenomination } = require('../utils/filters');
 const { getCoinMetalProfile } = require('../utils/coinMetalProfile');
 const { extractCoinIntent, isValidVariantDetailInput, isValidSpecialMarkInput } = require('../utils/coinIntent');
+const { applyBarSegment } = require('../utils/barIdentity');
 const { resolveProductIdentity, assertUnambiguousProductIdentity } = require('../utils/productIdentityResolver');
 const {
   listApplicableMarks,
@@ -344,6 +345,7 @@ async function priceCoin(input, trustedContext = {}) {
     _rawQuery: String(query),
     _productIdentity: productIdentity,
   };
+  if (intent.barSegment) applyBarSegment(expected, intent.barSegment);
 
   // BU bullion grade fix
   const seriesForBullionCheck = (expected.series || '').toLowerCase();
@@ -409,7 +411,7 @@ async function priceCoin(input, trustedContext = {}) {
   let userGrade = (isSet || isRoll || productIdentity.pool === 'raw') ? null : productIdentity.grade;
 
   const valuationBullionSeries = (identification.parsed?.series || pcgs.series || '').toLowerCase();
-  const isBullion = BULLION_1OZ_DEFAULT.some(b => valuationBullionSeries.includes(b));
+  const isBullion = BULLION_1OZ_DEFAULT.some(b => valuationBullionSeries.includes(b)) || !!expected.barSegment;
   // Greysheet lookup
   const pcgsNo = pcgs?.pcgsCoinNumber || pcgs?.pcgsNo || coinData?.pcgsNumber || null;
   const gradeNum = userGrade ? parseInt(String(userGrade).replace(/[^\d]/g, ''), 10) || null : null;

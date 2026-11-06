@@ -171,10 +171,11 @@ function extractCoinIntent({ coinData, options, parsed, pcgs, isSet } = {}) {
   const rawBarBrand = ownString(coinData, 'barBrand') || ownString(parsed, 'barBrand');
   const rawBarSeries = ownString(coinData, 'barSeries') || ownString(parsed, 'barSeries');
   const { barBrand, barSeries } = canonicalizeBarIntent(rawBarBrand, rawBarSeries);
-  // #333H: same segment the bar route builds. Null for non-bar requests.
-  const isBar = !!(barBrand || parsed.isBar === true || coinData.isBar === true);
+  // #333H: same segment the bar route builds, from the raw typed maker so an
+  // unrecognized maker stays a brand segment. Null for non-bar requests.
+  const isBar = !!(rawBarBrand || parsed.isBar === true);
   const barSegment = isBar && !isSet
-    ? resolveBarSegment({ brand: barBrand, series: barSeries })
+    ? resolveBarSegment({ brand: rawBarBrand, series: rawBarSeries })
     : null;
 
   // ── isProof ──

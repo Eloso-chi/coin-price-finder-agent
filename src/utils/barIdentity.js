@@ -7,6 +7,8 @@ const { canonicalizeBarBrand, detectBarSeries } = require('../data/barSeries');
 const GRAMS_PER_OZT = 31.1035;
 const OZT_PER_KILO = 32.1507;
 const MAX_BAR_OZT = 1000;
+const MIN_BAR_OZT = 0.01 / GRAMS_PER_OZT;
+const MAX_BAR_TEXT = 60;
 
 /**
  * Brand classes, from narrowest to broadest:
@@ -75,7 +77,7 @@ function parseBarSize(size) {
   } else if ((m = s.match(new RegExp(`^(?:${num}\\s*)?(?:kilos?|kilograms?|kgs?)$`)))) {
     weightOzt = (m[1] ? _number(m[1]) : 1) * OZT_PER_KILO;
   }
-  if (!Number.isFinite(weightOzt) || weightOzt <= 0 || weightOzt > MAX_BAR_OZT) return null;
+  if (!Number.isFinite(weightOzt) || weightOzt < MIN_BAR_OZT || weightOzt > MAX_BAR_OZT) return null;
   return { weightOzt, size: s };
 }
 
@@ -93,13 +95,15 @@ function parseBarSize(size) {
  *   requestedBrand: string|null, unrecognizedSeries: string|null, label: string }}
  */
 function resolveBarSegment({ brand, series, isLunar = false } = {}) {
-  const typedBrand = typeof brand === 'string' && brand.trim() ? brand.trim() : null;
+  const clip = (v) => (typeof v === 'string' ? v.trim().slice(0, MAX_BAR_TEXT) : '');
+  const typedBrand = clip(brand) || null;
+  const typedSeriesText = clip(series);
   const barBrand = canonicalizeBarBrand(typedBrand);
-  const seriesEntry = (barBrand && !isLunar && typeof series === 'string' && series)
-    ? detectBarSeries(barBrand, series)
+  const seriesEntry = (barBrand && !isLunar && typedSeriesText)
+    ? detectBarSeries(barBrand, typedSeriesText)
     : null;
   const barSeries = seriesEntry ? seriesEntry.series : null;
-  const typedSeries = (!isLunar && typeof series === 'string' && series.trim()) ? series.trim() : null;
+  const typedSeries = (!isLunar && typedSeriesText) ? typedSeriesText : null;
 
   let cls;
   let label;
@@ -152,8 +156,24 @@ function describeBarSegment(segment) {
     class: segment.class,
     brand: segment.barBrand || segment.requestedBrand || null,
     series: segment.barSeries || null,
+    unrecognizedSeries: segment.unrecognizedSeries || null,
     label: segment.label || null,
   };
+}
+
+/**
+ * Put a segment onto an `expected` object the same way for every route, so the
+ * scoring, relevance gate and maker filters see identical inputs.
+ * `brand` is the canonical maker when recognized, else the user-typed maker.
+ */
+function applyBarSegment(expected, segment) {
+  expected.type = 'bar';
+  expected.brand = segment.barBrand || segment.requestedBrand || null;
+  expected.barBrand = segment.barBrand;
+  expected.barSeries = segment.barSeries;
+  expected.barSeriesRe = segment.barSeriesRe;
+  expected.barSegment = segment;
+  return expected;
 }
 
 module.exports = {
@@ -165,6 +185,9 @@ module.exports = {
   resolveBarSegment,
   getBarSegment,
   describeBarSegment,
+  applyBarSegment,
+  MAX_BAR_TEXT,
+  MIN_BAR_OZT,
   GRAMS_PER_OZT,
   OZT_PER_KILO,
 };

@@ -11,7 +11,7 @@ const { getMetalsSpotPrice } = require('../services/metalsSpotPrice');
 const { zodiacForYear, perthLunarSeries } = require('../data/constants');
 const { BAR_SERIES } = require('../data/barSeries');
 const { redactCompsForPublic } = require('../utils/redactForPublic');
-const { normalizeBarSize, parseBarSize, resolveBarSegment, describeBarSegment } = require('../utils/barIdentity');
+const { normalizeBarSize, parseBarSize, resolveBarSegment, describeBarSegment, applyBarSegment, MAX_BAR_TEXT } = require('../utils/barIdentity');
 
 const BAR_METALS = ['gold', 'silver', 'platinum', 'palladium'];
 
@@ -30,7 +30,7 @@ router.get('/options', (_req, res) => {
 router.post('/', async (req, res) => {
   try {
     const body = req.body || {};
-    const { series, year, condition, askingPrice, options } = body;
+    const { askingPrice, options } = body;
     if (!body.metal || !body.size) {
       return res.status(400).json({ error: 'metal and size fields are required' });
     }
@@ -42,8 +42,25 @@ router.post('/', async (req, res) => {
     if (!parsedSize) {
       return res.status(400).json({ error: 'size not recognized; use grams, oz (e.g. 1/10 oz) or kilo' });
     }
+    // Free-text fields are echoed and reach the search keywords and cache key: type and length bound them.
+    for (const field of ['brand', 'series', 'condition']) {
+      const v = body[field];
+      if (v == null) continue;
+      if (typeof v !== 'string' || v.length > MAX_BAR_TEXT) {
+        return res.status(400).json({ error: `${field} must be a string of at most ${MAX_BAR_TEXT} characters` });
+      }
+    }
+    let year = null;
+    if (body.year != null && body.year !== '') {
+      year = Number(body.year);
+      if ((typeof body.year !== 'number' && typeof body.year !== 'string') || !Number.isInteger(year) || year < 1800 || year > 2100) {
+        return res.status(400).json({ error: 'year must be an integer from 1800 to 2100' });
+      }
+    }
     const metal = body.metal.trim().toLowerCase();
-    const size = body.size;
+    const size = parsedSize.size;
+    const series = body.series || undefined;
+    const condition = body.condition || undefined;
     const brand = (typeof body.brand === 'string' && body.brand.trim()) ? body.brand.trim() : null;
 
     const opts = {
@@ -94,11 +111,7 @@ router.post('/', async (req, res) => {
 
     // ── Expected fields for bar match scoring ──
     const resolvedSeriesName = isLunar ? 'Lunar' : (detectedSeries ? detectedSeries.series : null);
-    const expected = {
-      type: 'bar',
-      brand: brand,
-      barBrand: segment.barBrand,
-      barSegment: segment,
+    const expected = applyBarSegment({
       barSize: normalizeBarSize(size),
       metal: metal,
       weight: barWeightOzt,
@@ -107,14 +120,12 @@ router.post('/', async (req, res) => {
       zodiacAnimal: zodiacAnimal,
       isLunar: isLunar,
       perthSeriesNum: perthSeriesNum,
-      barSeries: segment.barSeries,
-      barSeriesRe: segment.barSeriesRe,
       year: null,
       mint: null,
       series: null,
       grade: null,
       designation: null
-    };
+    }, segment);
 
     // ── Fetch spot price for bullion valuation ──
     const METAL_SYM = { gold: 'XAU', silver: 'XAG', platinum: 'XPT', palladium: 'XPD' };

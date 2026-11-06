@@ -17,6 +17,7 @@ const { getCoinMetalProfile } = require('../utils/coinMetalProfile');
 const { zodiacForYear, perthLunarSeries, getRollQuantity, BULLION_1OZ_DEFAULT, ALLOWED_LABELS } = require('../data/constants');
 const { redactCompsForPublic } = require('../utils/redactForPublic');
 const { extractCoinIntent, isValidFinishInput, MAX_FINISH_LENGTH } = require('../utils/coinIntent');
+const { applyBarSegment } = require('../utils/barIdentity');
 const { resolveProductIdentity, assertUnambiguousProductIdentity } = require('../utils/productIdentityResolver');
 
 const MAX_ITEMS = 25;
@@ -112,7 +113,7 @@ async function _priceOne(item, opts = {}) {
     }
 
     // Detect metal and bullion status early — needed for melt cross-check on eBay comps
-    const isBullion = BULLION_1OZ_DEFAULT.some(b => (series || '').toLowerCase().includes(b));
+    const isBullion = BULLION_1OZ_DEFAULT.some(b => (series || '').toLowerCase().includes(b)) || !!intent.barSegment;
     const { metal: detectedMetal } = getCoinMetalProfile(query);
     const METAL_SYM = { silver: 'XAG', gold: 'XAU', platinum: 'XPT', palladium: 'XPD' };
     const metalKey = productIdentity.metal || parsed.metal || detectedMetal || coinData.metal || null;
@@ -172,6 +173,7 @@ async function _priceOne(item, opts = {}) {
       _rawQuery: String(query),
       _productIdentity: productIdentity,
     };
+    if (intent.barSegment) applyBarSegment(expected, intent.barSegment);
     if (meltPerOz) expected.meltPerOz = meltPerOz;
     // #162: Null grade in expected for BU bullion to prevent gradeNumMismatch filter
     if (isBullion && parsed._gradeSource === 'bu-term') {

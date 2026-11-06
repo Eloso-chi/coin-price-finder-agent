@@ -264,9 +264,12 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
   // legacy series-only signal and is treated as a series segment.
   const barSegment = opts.barSegment
     || (opts.barSeries ? { class: 'series', barSeries: opts.barSeries, barBrand: null } : null);
-  const barSegmentInfo = barSegment
-    ? { ...describeBarSegment(barSegment), compCount: usComps.length, fallback: null }
-    : null;
+  // barSegment.compCount repeats the response's own valuation.compCount.
+  const barSegmentInfo = barSegment ? { ...describeBarSegment(barSegment), fallback: null } : null;
+  const segmentFor = (count) => (barSegmentInfo ? { barSegment: { ...barSegmentInfo, compCount: count } } : {});
+  if (barSegment?.unrecognizedSeries) {
+    explanation.push(`Series "${barSegment.unrecognizedSeries}" is not in the catalog; priced against the maker's whole line.`);
+  }
 
   // ── Gather Greysheet wholesale ──
   const gsData = opts.greysheet || null;
@@ -464,7 +467,7 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
         lowData: true,
         compCount: 0,
         explanation,
-        ...(barSegmentInfo ? { barSegment: barSegmentInfo } : {}),
+        ...segmentFor(0),
         // #270W Option #4: null-FMV path still emits the required `dataSource`
         // shape (priceResponse.schema.js declares it required). 'metal-only'
         // signals "no comp data; only metal-level information was available".
@@ -538,7 +541,7 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
         lowData: true,
         compCount: totalComps,
         explanation,
-        ...(barSegmentInfo ? { barSegment: barSegmentInfo } : {}),
+        ...segmentFor(totalComps),
         dataSource: {
           soldCount,
           activeCount,
@@ -749,7 +752,7 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
       lookbackExtended: !!(ebay?.lookback?.extended),
       compCount: soldCount,
       explanation,
-      ...(barSegmentInfo ? { barSegment: barSegmentInfo } : {}),
+      ...segmentFor(soldCount),
       dataSource: {
         soldCount,
         activeCount,

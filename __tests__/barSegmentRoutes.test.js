@@ -146,13 +146,12 @@ describe('brand segment (maker only)', () => {
     const res = await post({ metal: 'silver', size: '1 oz', brand: 'PAMP Suisse', ...REQ });
 
     expect(res.status).toBe(200);
-    const titles = titlesOf(res);
-    expect(titles).toEqual(expect.arrayContaining([
+    expect(titlesOf(res).sort()).toEqual([
+      'PAMP Suisse 1 oz Silver Bar',
       'PAMP Suisse 1 oz Silver Bar Lady Fortuna',
       'PAMP Suisse 1 oz Silver Bar Rosa',
-      'PAMP Suisse 1 oz Silver Bar',
-    ]));
-    expect(titles.some(t => /geiger|johnson|sunshine/i.test(t))).toBe(false);
+    ]);
+    expect(res.body.ebay.us.removed.wrongBrand).toBe(6);
     expect(res.body.bar.segment).toEqual(expect.objectContaining({ class: 'brand', brand: 'PAMP', series: null }));
     expect(res.body.valuation.barSegment.class).toBe('brand');
   });
@@ -179,10 +178,12 @@ describe('series segment (maker and series)', () => {
     const res = await post({ metal: 'silver', size: '1 oz', brand: 'PAMP', series: 'fortuna', ...REQ });
 
     expect(res.status).toBe(200);
-    const titles = titlesOf(res);
-    expect(titles.every(t => /fortuna/i.test(t) || detectBarBrands(t).includes('PAMP'))).toBe(true);
-    expect(titles.some(t => /rosa/i.test(t))).toBe(false);
-    expect(titles.some(t => /geiger|johnson|sunshine/i.test(t))).toBe(false);
+    expect(titlesOf(res).sort()).toEqual([
+      'PAMP Suisse 1 oz Silver Bar',
+      'PAMP Suisse 1 oz Silver Bar Lady Fortuna',
+      'PAMP Suisse 1 oz Silver Bar Lady Fortuna Sealed',
+      'PAMP Suisse Fortuna 1 oz Silver Bar Assay',
+    ]);
     expect(res.body.ebay.us.removed.barSeriesMismatch).toBe(1);
     expect(res.body.bar.segment).toEqual(expect.objectContaining({ class: 'series', brand: 'PAMP', series: 'Fortuna' }));
     expect(res.body.valuation.barSegment.class).toBe('series');
@@ -302,5 +303,57 @@ describe('size handling', () => {
   test('rejects an unsupported metal', async () => {
     const res = await post({ metal: 'copper', size: '1 oz', ...REQ });
     expect(res.status).toBe(400);
+  });
+
+  test('echoes the normalized size, not the raw string', async () => {
+    seedComps([]);
+    const res = await post({ metal: 'silver', size: '   1    OZ  ', ...REQ });
+    expect(res.status).toBe(200);
+    expect(res.body.bar.size).toBe('1 oz');
+    expect(res.body.query.size).toBe('1 oz');
+  });
+
+  test.each(['0.001 gram', '1/999999 oz'])('rejects a weight below the minimum (%s)', async (size) => {
+    const res = await post({ metal: 'silver', size, ...REQ });
+    expect(res.status).toBe(400);
+  });
+});
+
+describe('free-text field validation', () => {
+  test.each([
+    ['brand', 'x'.repeat(61)],
+    ['brand', ['PAMP']],
+    ['brand', { a: 1 }],
+    ['brand', 123],
+    ['series', 'y'.repeat(61)],
+    ['series', 123],
+    ['condition', 'z'.repeat(61)],
+    ['condition', ['sealed']],
+  ])('rejects %s = %p with 400 instead of pricing a different segment', async (field, value) => {
+    const res = await post({ metal: 'silver', size: '1 oz', [field]: value, ...REQ });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(new RegExp(field));
+    expect(terapeakService.lookupComps).not.toHaveBeenCalled();
+  });
+
+  test.each([{}, [2024], 1500, 2500, 2024.5, 'abcd'])('rejects year %p', async (year) => {
+    const res = await post({ metal: 'silver', size: '1 oz', year, ...REQ });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/year/);
+  });
+
+  test('accepts a numeric year and null brand/series', async () => {
+    seedComps([]);
+    const res = await post({ metal: 'silver', size: '1 oz', year: '2024', brand: null, series: null, ...REQ });
+    expect(res.status).toBe(200);
+    expect(res.body.bar.year).toBe(2024);
+  });
+
+  test('an unrecognized series on a known maker is reported, not silent', async () => {
+    seedComps(MIXED_1OZ_SILVER);
+    const res = await post({ metal: 'silver', size: '1 oz', brand: 'PAMP', series: 'nonexistent', ...REQ });
+    expect(res.status).toBe(200);
+    expect(res.body.bar.segment).toEqual(expect.objectContaining({ class: 'brand', unrecognizedSeries: 'nonexistent' }));
+    expect(res.body.valuation.explanation.join(' ')).toMatch(/"nonexistent" is not in the catalog/);
   });
 });

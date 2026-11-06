@@ -982,7 +982,11 @@ function scoreBarMatch(comp, expected) {
   // Brand match (20 pts) / mismatch (-25 pts)
   if (expected.brand) {
     const brandLow = expected.brand.toLowerCase();
-    if (tLow.includes(brandLow)) { score += 20; notes.push('brand-match'); }
+    const recognizedMaker = getBarSegment(expected)?.barBrand || null;
+    const brandHit = recognizedMaker
+      ? detectBarBrands(comp.title).includes(recognizedMaker)
+      : tLow.includes(brandLow);
+    if (brandHit) { score += 20; notes.push('brand-match'); }
     else { score -= 25; notes.push('brand-mismatch'); }
   }
 
@@ -1154,7 +1158,17 @@ function applyFilters(comps, options, expected) {
   // New Zealand Mint Star Wars, etc.) slip through the keyword search and
   // the -25 score penalty alone isn't enough to gate them out.
   if (expected.type === 'bar' && expected.brand) {
-    const tokens = String(expected.brand)
+    const recognizedMaker = getBarSegment(expected)?.barBrand || null;
+    if (recognizedMaker) {
+      // Registry match, so "Sunshine Mint" or "JM" satisfy "Sunshine Minting" / "Johnson Matthey".
+      removed.wrongBrand = 0;
+      kept = kept.filter(c => {
+        if (classifyBarSeriesComp(c, recognizedMaker).brands.includes(recognizedMaker)) return true;
+        removed.wrongBrand++;
+        return false;
+      });
+    }
+    const tokens = recognizedMaker ? [] : String(expected.brand)
       .toLowerCase()
       .split(/\s+/)
       .filter(Boolean)
@@ -1348,7 +1362,8 @@ function applyFilters(comps, options, expected) {
   // metal or a smaller/fractional coin that slipped through weight-mismatch.
   // Uses historical spot price at time of sale when available, so older comps
   // aren't falsely rejected due to recent spot price increases.
-  if (expected.meltPerOz && expected.weight && expected.weight >= 1) {
+  // Bars are checked at every weight; coins only from 1 oz up.
+  if (expected.meltPerOz && expected.weight && (expected.weight >= 1 || expected.type === 'bar')) {
     removed.meltFloor = 0;
     // Resolve metal symbol for historical lookup
     const metalSym = expected.metal ? METAL_SYMBOLS[expected.metal] : null;

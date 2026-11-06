@@ -43,9 +43,13 @@ describe('parseBarSize', () => {
 
   test.each([
     '', '   ', 'oz', '3 stone', '0 oz', '0 gram', '-1 oz', '1/0 oz', '5000 oz', '1 oz extra',
-    '1 oz; drop', 'x'.repeat(60), null, undefined, 5, {}, [],
+    '1 oz; drop', 'x'.repeat(60), null, undefined, 5, {}, [], '0.001 gram', '1/999999 oz', '0.009 g',
   ])('returns null for %p instead of a default weight', (size) => {
     expect(parseBarSize(size)).toBeNull();
+  });
+
+  test('accepts the smallest supported bar (0.01 g)', () => {
+    expect(parseBarSize('0.01 g')).not.toBeNull();
   });
 });
 
@@ -91,9 +95,19 @@ describe('resolveBarSegment', () => {
 
   test('describeBarSegment is a compact, serializable view', () => {
     const view = describeBarSegment(resolveBarSegment({ brand: 'Geiger', series: 'fireworks' }));
-    expect(view).toEqual({ class: 'series', brand: 'Geiger', series: 'Fireworks', label: 'Geiger / Fireworks' });
+    expect(view).toEqual({
+      class: 'series', brand: 'Geiger', series: 'Fireworks', unrecognizedSeries: null, label: 'Geiger / Fireworks',
+    });
     expect(JSON.parse(JSON.stringify(view))).toEqual(view);
     expect(describeBarSegment(null)).toBeNull();
+    expect(describeBarSegment(resolveBarSegment({ brand: 'PAMP', series: 'nope' })).unrecognizedSeries).toBe('nope');
+  });
+
+  test('clips over-long and ignores non-string brand and series text', () => {
+    const long = 'x'.repeat(500);
+    expect(resolveBarSegment({ brand: long }).requestedBrand).toHaveLength(60);
+    expect(resolveBarSegment({ brand: ['PAMP'], series: {} }).class).toBe('generic');
+    expect(resolveBarSegment({ brand: 'PAMP', series: long }).unrecognizedSeries).toHaveLength(60);
   });
 });
 
@@ -133,10 +147,16 @@ describe('one brand registry', () => {
   test('Sunshine Minting and Sunshine Mining are different makers', () => {
     expect(detectBarBrands('Sunshine Mint 1 oz Silver Bar')).toEqual(['Sunshine Minting']);
     expect(detectBarBrands('Sunshine Minting 10 oz Silver Bar')).toEqual(['Sunshine Minting']);
+    expect(detectBarBrands('Sunshine 10 oz Silver Bar')).toEqual(['Sunshine Minting']);
     expect(detectBarBrands('Sunshine Mining Silver Bar')).toEqual(['Sunshine Mining']);
     expect(detectBarBrands('Sunshine State souvenir token')).toEqual([]);
     expect(extractBrand('Sunshine Mint silver bar')).toBe('Sunshine');
     expect(extractBrand('Sunshine Mining silver bar')).toBe('Sunshine Mining');
+  });
+
+  test('a bare JM is Johnson Matthey but JM Bullion is not', () => {
+    expect(detectBarBrands('JM 10 oz Silver Bar')).toEqual(['Johnson Matthey']);
+    expect(detectBarBrands('JM Bullion 10 oz Silver Bar')).toEqual([]);
   });
 
   test('compound makers do not also match their parent maker', () => {
@@ -178,6 +198,8 @@ describe('the general path builds the same segment as /api/bar-price', () => {
     ['PAMP Suisse 1 oz silver bar', { brand: 'PAMP' }, 'brand'],
     ['PAMP Suisse 1 oz silver bar Lady Fortuna', { brand: 'PAMP', series: 'fortuna' }, 'series'],
     ['Geiger 1 oz silver bar Fireworks', { brand: 'Geiger', series: 'fireworks' }, 'series'],
+    ['Sunshine 10 oz silver bar', { brand: 'Sunshine' }, 'brand'],
+    ['JM 10 oz silver bar', { brand: 'JM' }, 'brand'],
   ])('%s', (query, routeInput, cls) => {
     const fromQuery = intentFor(query).barSegment;
     const fromRoute = resolveBarSegment(routeInput);
@@ -189,6 +211,24 @@ describe('the general path builds the same segment as /api/bar-price', () => {
     expect(intentFor('1881-S Morgan Dollar MS65').barSegment).toBeNull();
     expect(intentFor('2024 Perth Mint Kangaroo 1 oz gold coin').barSegment).toBeNull();
     expect(intentFor('1 oz silver round').barSegment).toBeNull();
+  });
+
+  test.each([
+    'Silver Eagle 1 oz bar code',
+    'Morgan dollar silver bar cent',
+    'Franklin Mint 1 oz silver bar',
+    'Silver Eagle in Sunshine Mint bar-style capsule',
+  ])('look-alike coin query %p is not a bar request', (query) => {
+    expect(intentFor(query).barSegment).toBeNull();
+  });
+
+  test('a bar with a coin-series word but a recognized maker is still a bar', () => {
+    expect(intentFor('Perth Mint Lunar Dragon 1 oz silver bar').barSegment.class).toBe('series');
+  });
+
+  test('a typed maker the registry does not know stays a brand segment (F10)', () => {
+    const intent = extractCoinIntent({ coinData: { barBrand: 'Acme Metals' }, parsed: {} });
+    expect(intent.barSegment).toEqual(expect.objectContaining({ class: 'brand', requestedBrand: 'Acme Metals' }));
   });
 
   test('both paths keep the same comps from the same pool', () => {
