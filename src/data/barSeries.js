@@ -120,6 +120,17 @@ const BAR_BRANDS = [
   { brand: 'Apmex', re: /\bapmex\b/i },
   { brand: 'A-Mark', re: /\ba-mark\b|\bamark\b/i },
   { brand: 'Umicore', re: /\bumicore\b/i },
+  // Private-label, dealer and vintage names: recognized so they leave the generic pool.
+  { brand: 'Royal Australian Mint', re: /\broyal\s+australian\s+mint\b/i },
+  { brand: 'JM Bullion', re: /\bjm[\s-]*bullion\b/i },
+  { brand: 'Provident Metals', re: /\bprovident\s+metals\b/i },
+  { brand: 'Golden State Mint', re: /\bgolden\s+state\s+mint\b/i },
+  { brand: 'Highland Mint', re: /\bhighland\s+mint\b/i },
+  { brand: 'NTR Metals', re: /\bntr\s+metals?\b/i },
+  { brand: 'Republic Metals', re: /\brepublic\s+metals\b/i },
+  { brand: 'OPM Metals', re: /\bopm\b/i, aliases: ['opm'] },
+  { brand: 'Handy & Harman', re: /\bhandy\s*(?:(?:&|and)\s*)?harman\b/i, aliases: ['handy harman', 'handy and harman'] },
+  { brand: 'US Assay', re: /\bu\.?s\.?\s+assay\b/i },
 ];
 
 function detectBarBrand(text) {

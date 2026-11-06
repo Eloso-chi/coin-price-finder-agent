@@ -254,7 +254,10 @@ as P2 `initial-fetch` ahead of the P3 fallback tiers, capped at
 `TERAPEAK_US_SEED_MAX_PER_PASS` (default 5) guaranteed slots per pass;
 `scripts/us-type-seed-status.js` reports how each group is doing before the next
 phase is enabled. An empty seeded term is searched twice before it goes dormant,
-and seeds are skipped when the synced meta file has no datasets.
+and seeds are skipped when the synced meta file has no datasets. Ranks 22-29 of
+the seed file are the bar maker groups (#333H): they run with the same phase
+setting, and once their datasets exist `node scripts/bar-premiums.js --lines`
+shows which line names recur in sold titles before any is added to the catalog.
 
 View the ledger with `scripts/show-terapeak-runs.sh`:
 
