@@ -30,6 +30,7 @@ const {
   detectSpecialtyFinishFamilies,
 } = require('../utils/coinIntent');
 const { getConfigVersion } = require('../utils/versionHash');
+const { barMaxPremium, describeBarSegment } = require('../utils/barIdentity');
 
 const ALGORITHM_VERSION = '1.0.0';
 const CONFIG_VERSION = getConfigVersion();
@@ -259,6 +260,14 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
   // ── Spot price for bullion premium calculation ──
   const spotPrice = opts.spotPrice || null;
 
+  // #333H: bar segment (series / brand / generic). `opts.barSeries` alone is the
+  // legacy series-only signal and is treated as a series segment.
+  const barSegment = opts.barSegment
+    || (opts.barSeries ? { class: 'series', barSeries: opts.barSeries, barBrand: null } : null);
+  const barSegmentInfo = barSegment
+    ? { ...describeBarSegment(barSegment), compCount: usComps.length, fallback: null }
+    : null;
+
   // ── Gather Greysheet wholesale ──
   const gsData = opts.greysheet || null;
   // #188: Discard Greysheet values that are clearly nominal or mismatched for bullion.
@@ -302,9 +311,12 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
   // This tracks metal price moves instantly instead of lagging with 30-day median.
   if (isBullion && spotPrice > 0 && ebayMedian != null && ebayMedian > spotPrice * 0.5 && !skipSpotMath) {
     const rawPremium = (ebayMedian - spotPrice) / spotPrice;
-    // Clamp premium to reasonable bounds: -5% to +100% for silver, -5% to +40% for gold
-    // (gold premiums are tighter; silver rounds/bars can carry 20-80% retail premium)
-    const maxPremium = spotPrice > 500 ? 0.40 : 1.00;  // gold threshold ~$500/oz
+    // Clamp premium to reasonable bounds: -5% up to a ceiling.
+    // Coins: +100% when the piece's total spot is 500 or less, +40% above.
+    // Bars (#333H): the ceiling depends on the metal, not on the bar's size.
+    const maxPremium = barSegment
+      ? barMaxPremium(opts.metal)
+      : (spotPrice > 500 ? 0.40 : 1.00);  // gold threshold ~$500/oz
     const premiumPct = Math.max(-0.05, Math.min(rawPremium, maxPremium));
     fmv = spotPrice * (1 + premiumPct);
     method = 'bullion-spot-premium';
@@ -452,6 +464,7 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
         lowData: true,
         compCount: 0,
         explanation,
+        ...(barSegmentInfo ? { barSegment: barSegmentInfo } : {}),
         // #270W Option #4: null-FMV path still emits the required `dataSource`
         // shape (priceResponse.schema.js declares it required). 'metal-only'
         // signals "no comp data; only metal-level information was available".
@@ -461,7 +474,7 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
           totalComps: 0,
           soldRatio: 0,
           browseOnly: false,
-          label: opts.barSeries ? 'insufficient-series-comps' : 'metal-only',
+          label: barSegment ? `insufficient-${barSegment.class}-comps` : 'metal-only',
         },
         // #270W Option #4: emit gradePool telemetry even on the null-FMV
         // path so observability consumers (pricing-health, batch reports)
@@ -510,9 +523,10 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
   const totalComps = usComps.length;
   const soldRatio = totalComps > 0 ? soldCount / totalComps : 0;
 
-  if (opts.barSeries && totalComps < 3) {
-    explanation.push(
-      `NO DATA: only ${totalComps} ${opts.barSeries} comp${totalComps === 1 ? '' : 's'} remained after series isolation; other bar designs were not substituted.`
+  if (barSegment && totalComps < 3) {
+    explanation.push(barSegment.class === 'series'
+      ? `NO DATA: only ${totalComps} ${barSegment.barSeries} comp${totalComps === 1 ? '' : 's'} remained after series isolation; other bar designs were not substituted.`
+      : `NO DATA: only ${totalComps} ${describeBarSegment(barSegment).label || barSegment.class} comp${totalComps === 1 ? '' : 's'} remained after bar segment isolation; other bar segments were not substituted.`
     );
     return {
       valuation: {
@@ -524,13 +538,14 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
         lowData: true,
         compCount: totalComps,
         explanation,
+        ...(barSegmentInfo ? { barSegment: barSegmentInfo } : {}),
         dataSource: {
           soldCount,
           activeCount,
           totalComps,
           soldRatio: +soldRatio.toFixed(2),
           browseOnly: soldCount === 0 && activeCount > 0,
-          label: 'insufficient-series-comps',
+          label: `insufficient-${barSegment.class}-comps`,
         },
         gradePool: {
           wantsGraded,
@@ -734,6 +749,7 @@ function computeValuation(pcgs, ebay, askingPrice = null, userGrade = null, opts
       lookbackExtended: !!(ebay?.lookback?.extended),
       compCount: soldCount,
       explanation,
+      ...(barSegmentInfo ? { barSegment: barSegmentInfo } : {}),
       dataSource: {
         soldCount,
         activeCount,

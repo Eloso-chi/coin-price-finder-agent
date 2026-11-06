@@ -38,6 +38,7 @@ const { detectWeightFromTitle, detectWeightsFromTitle } = require('../utils/coin
 const { resolveProductIdentity } = require('../utils/productIdentityResolver');
 const { isReverseProofFinish } = require('../utils/coinIntent');
 const { detectBarBrands, detectSeriesFromTitle } = require('../data/barSeries');
+const { getBarSegment } = require('../utils/barIdentity');
 const {
   SPECIAL_MARKS_REGISTRY_VERSION, getMarkById, aliasesMatchTitle, detectMarksInTitle,
   markApplies, inferProgramDenomination,
@@ -1171,16 +1172,34 @@ function applyFilters(comps, options, expected) {
     }
   }
 
-  if (expected.barBrand && expected.barSeries) {
+  // Bar segment filters (#285W series isolation, #333H brand classes):
+  //   series  -- drop other makers and other identified series
+  //   brand   -- drop other makers
+  //   generic -- drop every comp that names a recognized maker
+  // A comp whose title names no maker or no series is kept for the series and
+  // brand classes (benefit of doubt), and is the whole pool for generic.
+  const barSegment = getBarSegment(expected);
+  if (barSegment) {
     removed.barBrandMismatch = 0;
     removed.barSeriesMismatch = 0;
+    removed.barMakerExcluded = 0;
     kept = kept.filter(c => {
-      const classification = classifyBarSeriesComp(c, expected.barBrand);
+      if (barSegment.class === 'generic') {
+        if (detectBarBrands(c.title).length) {
+          removed.barMakerExcluded++;
+          return false;
+        }
+        return true;
+      }
+      // A user-typed maker the registry does not know (barBrand null) still
+      // drops comps that name a recognized maker.
+      const classification = classifyBarSeriesComp(c, barSegment.barBrand);
       if (classification.manufacturerMismatch) {
         removed.barBrandMismatch++;
         return false;
       }
-      if (!classification.series || classification.series === expected.barSeries) return true;
+      if (barSegment.class !== 'series') return true;
+      if (!classification.series || classification.series === barSegment.barSeries) return true;
       removed.barSeriesMismatch++;
       return false;
     });
@@ -1811,7 +1830,13 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
              lookback: { requested: requestedDays, used: requestedDays, extended: false } };
   }
 
-  const barIdentity = JSON.stringify([expected.barBrand || null, expected.barSeries || null]);
+  const barSegmentForKey = getBarSegment(expected);
+  const barIdentity = JSON.stringify([
+    expected.barBrand || null,
+    expected.barSeries || null,
+    barSegmentForKey ? barSegmentForKey.class : null,
+    barSegmentForKey ? (barSegmentForKey.requestedBrand || null) : null,
+  ]);
   const specialMarkIdentity = _specialMarkCacheIdentity(expected);
   const cacheKey = `ebay:${keywords}:${expected.metal || ''}:${expected._rawQuery || ''}:${barIdentity}:${specialMarkIdentity}:${JSON.stringify(opts)}`;
   if (cache.has(cacheKey)) return cache.get(cacheKey);

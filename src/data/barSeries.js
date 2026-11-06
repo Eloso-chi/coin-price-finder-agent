@@ -85,14 +85,41 @@ const BAR_SERIES = {
   ],
 };
 
+/**
+ * One registry of recognized bar makers (#333H). Used for series isolation,
+ * generic-segment exclusion, and the market-matrix brand buckets.
+ *   - brand:   canonical display name
+ *   - re:      detects the maker in a listing title
+ *   - aliases: extra lowercase names a user may type (canonicalizeBarBrand only)
+ *   - short:   legacy short label used by the market matrix (optional)
+ * Order matters for detectBarBrand (first match wins).
+ * Compound names are guarded so that one maker does not also match its
+ * parent ("MMTC-PAMP" is not PAMP, "Argor-Heraeus" is not Heraeus), a
+ * retailer ("JM Bullion") is not Johnson Matthey, and "Sunshine Mining" is
+ * not Sunshine Minting.
+ */
 const BAR_BRANDS = [
-  { brand: 'PAMP', re: /\bpamp(?:\s+suisse)?\b/i },
-  { brand: 'Geiger', re: /\bgeiger(?:\s+edelmetalle)?\b/i },
-  { brand: 'Perth Mint', re: /\bperth\s+mint\b/i },
-  { brand: 'Scottsdale', re: /\bscottsdale\b/i },
+  { brand: 'MMTC-PAMP', re: /\bmmtc\b/i },
+  { brand: 'PAMP', re: /(?<!\bmmtc[\s-]{0,3})\bpamp(?:\s+suisse)?\b/i, aliases: ['pamp suisse'] },
+  { brand: 'Geiger', re: /\bgeiger(?:\s+edelmetalle)?\b/i, aliases: ['geiger edelmetalle'] },
+  { brand: 'Perth Mint', re: /\bperth\s+mint\b/i, aliases: ['perth'] },
+  { brand: 'Scottsdale', re: /\bscottsdale(?:\s+mint)?\b/i, aliases: ['scottsdale mint'] },
   { brand: 'Valcambi', re: /\bvalcambi\b/i },
-  { brand: 'Heraeus', re: /\bheraeus\b/i },
+  { brand: 'Argor-Heraeus', re: /\bargor[\s-]*heraeus\b/i, aliases: ['argor heraeus'] },
+  { brand: 'Heraeus', re: /(?<!\bargor[\s-]{0,3})\bheraeus\b/i },
   { brand: 'Credit Suisse', re: /\bcredit\s+suisse\b/i },
+  { brand: 'Royal Canadian Mint', re: /\broyal\s*canadian\b|\brcm\b/i, short: 'RCM', aliases: ['rcm'] },
+  { brand: 'Royal Mint', re: /\broyal\s+mint\b/i },
+  { brand: 'Johnson Matthey', re: /\bjohnson[\s-]*matthey\b/i, short: 'JM', aliases: ['jm'] },
+  { brand: 'Engelhard', re: /\bengelhard\b/i },
+  { brand: 'Sunshine Mining', re: /\bsunshine\s+mining\b/i },
+  { brand: 'Sunshine Minting', re: /\bsunshine\s+min(?:t|ting)\b/i, short: 'Sunshine', aliases: ['sunshine', 'sunshine mint'] },
+  { brand: 'Asahi', re: /\basahi\b/i, aliases: ['asahi refining'] },
+  { brand: 'Metalor', re: /\bmetalor\b/i },
+  { brand: 'SilverTowne', re: /\bsilver\s*towne\b/i },
+  { brand: 'Apmex', re: /\bapmex\b/i },
+  { brand: 'A-Mark', re: /\ba-mark\b|\bamark\b/i },
+  { brand: 'Umicore', re: /\bumicore\b/i },
 ];
 
 function detectBarBrand(text) {
@@ -108,8 +135,15 @@ function canonicalizeBarBrand(brand) {
   if (typeof brand !== 'string') return null;
   const normalized = brand.trim().replace(/\s+/g, ' ').toLowerCase();
   if (!normalized) return null;
-  if (normalized === 'pamp suisse') return 'PAMP';
-  return BAR_BRANDS.find(entry => entry.brand.toLowerCase() === normalized)?.brand || null;
+  const entry = BAR_BRANDS.find(e => e.brand.toLowerCase() === normalized
+    || (e.aliases && e.aliases.includes(normalized)));
+  return entry ? entry.brand : null;
+}
+
+/** Legacy short label for the market matrix ("JM", "RCM"), else the canonical name. */
+function barBrandLabel(brand) {
+  const entry = BAR_BRANDS.find(e => e.brand === brand);
+  return entry ? (entry.short || entry.brand) : brand;
 }
 
 /**
@@ -186,6 +220,8 @@ function canonicalizeBarIntent(brand, series) {
 
 module.exports = {
   BAR_SERIES,
+  BAR_BRANDS,
+  barBrandLabel,
   getSeriesForBrand,
   detectBarBrand,
   detectBarBrands,

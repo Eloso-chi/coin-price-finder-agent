@@ -1541,12 +1541,22 @@
                 <option value="5 gram">5 gram</option>
                 <option value="10 gram">10 gram</option>
                 <option value="20 gram">20 gram</option>
+                <option value="25 gram">25 gram</option>
                 <option value="50 gram">50 gram</option>
                 <option value="100 gram">100 gram</option>
+                <option value="250 gram">250 gram</option>
+                <option value="500 gram">500 gram</option>
+                <option value="1/10 oz">1/10 oz</option>
+                <option value="1/4 oz">1/4 oz</option>
+                <option value="1/2 oz">1/2 oz</option>
                 <option value="1 oz" selected>1 oz</option>
                 <option value="2 oz">2 oz</option>
                 <option value="5 oz">5 oz</option>
                 <option value="10 oz">10 oz</option>
+                <option value="20 oz">20 oz</option>
+                <option value="50 oz">50 oz</option>
+                <option value="100 oz">100 oz</option>
+                <option value="1 kilo">1 kilo</option>
               </select>
             </div>
             <div class="field">
@@ -1825,12 +1835,22 @@
               <option value="5 gram">5 gram</option>
               <option value="10 gram">10 gram</option>
               <option value="20 gram">20 gram</option>
+              <option value="25 gram">25 gram</option>
               <option value="50 gram">50 gram</option>
               <option value="100 gram">100 gram</option>
+              <option value="250 gram">250 gram</option>
+              <option value="500 gram">500 gram</option>
+              <option value="1/10 oz">1/10 oz</option>
+              <option value="1/4 oz">1/4 oz</option>
+              <option value="1/2 oz">1/2 oz</option>
               <option value="1 oz" selected>1 oz</option>
               <option value="2 oz">2 oz</option>
               <option value="5 oz">5 oz</option>
               <option value="10 oz">10 oz</option>
+              <option value="20 oz">20 oz</option>
+              <option value="50 oz">50 oz</option>
+              <option value="100 oz">100 oz</option>
+              <option value="1 kilo">1 kilo</option>
             </select>
           </div>
           <div class="tracker-field">
@@ -3814,6 +3834,10 @@ Silver Libertad 1 oz Proof"></textarea>
       html += (bar.metal === 'gold' ? '\uD83E\uDD47' : '\uD83E\uDD48') + ' ' + _esc((bar.metal || '').toUpperCase()) + ' BAR</div>';
       html += '<div style="font-size:1.4rem;font-weight:800;color:var(--text)">' + _esc(brandLabel) + ' ' + _esc(bar.size) + '</div>';
       html += '<div style="font-size:0.8rem;color:var(--text-muted);margin-top:4px">' + (bar.pureOzt || 0).toFixed(5) + ' troy oz pure</div>';
+      if (bar.segment && bar.segment.label) {
+        const segComps = (v.barSegment && v.barSegment.compCount != null) ? ' \u00B7 ' + v.barSegment.compCount + ' comps' : '';
+        html += '<div style="font-size:0.8rem;color:var(--text-muted);margin-top:2px">Priced against: ' + _esc(bar.segment.label) + _esc(segComps) + '</div>';
+      }
       html += '</div>';
 
       // \u2500\u2500 FMV Hero

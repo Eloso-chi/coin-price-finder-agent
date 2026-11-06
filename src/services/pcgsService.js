@@ -653,6 +653,11 @@ function parseDescription(text) {
   }
 
   const barBrand = /\bbars?\b/i.test(t) ? detectBarBrand(t) : null;
+  // #333H: a bar request is a bar segment even with no recognized maker
+  // (generic), so the general path isolates it like /api/bar-price does.
+  if (/\bbars?\b/i.test(t) && (barBrand || /\b(?:gold|silver|platinum|palladium)\b/i.test(t))) {
+    result.isBar = true;
+  }
   if (barBrand) {
     result.barBrand = barBrand;
     const barSeries = detectSeriesFromQuery(barBrand, t);

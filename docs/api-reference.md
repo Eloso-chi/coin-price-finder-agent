@@ -12,7 +12,7 @@ Comprehensive reference of all HTTP endpoints exposed by the coin-price-finder-a
 | `POST` | `/api/ai/price` | None | Conversational pricing projection with public-safe provenance and structured handoff |
 | `POST` | `/api/ai/collection` | JWT | Authenticated deterministic collection summary or metadata-gap analysis |
 | `POST` | `/api/ai/market` | None | Bounded market coverage, comparison, and year-series analytics |
-| `POST` | `/api/bar-price` | None | Price a bullion bar by metal, size, brand |
+| `POST` | `/api/bar-price` | None | Price a bullion bar by metal, size, brand. Resolves one bar segment (`series`, `brand` or `generic`), applies the melt floor and ceiling, rejects an unrecognized size or metal with 400, and returns `bar.segment` and `valuation.barSegment` |
 | `GET` | `/api/bar-price/options` | None | List available brands and series for bar pricing |
 | `POST` | `/api/pricing-batch` | None | Batch-price up to 25 coins in one request |
 | `GET` | `/api/coin-variant` | None | Design-series metadata (e.g., ASE variants, Proof vs BU) |

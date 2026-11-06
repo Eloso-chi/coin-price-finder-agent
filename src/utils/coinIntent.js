@@ -10,6 +10,7 @@
 'use strict';
 
 const { canonicalizeBarIntent } = require('../data/barSeries');
+const { resolveBarSegment } = require('./barIdentity');
 
 const MAX_FINISH_LENGTH = 100;
 const MAX_VARIANT_DETAIL_LENGTH = 50;
@@ -170,6 +171,11 @@ function extractCoinIntent({ coinData, options, parsed, pcgs, isSet } = {}) {
   const rawBarBrand = ownString(coinData, 'barBrand') || ownString(parsed, 'barBrand');
   const rawBarSeries = ownString(coinData, 'barSeries') || ownString(parsed, 'barSeries');
   const { barBrand, barSeries } = canonicalizeBarIntent(rawBarBrand, rawBarSeries);
+  // #333H: same segment the bar route builds. Null for non-bar requests.
+  const isBar = !!(barBrand || parsed.isBar === true || coinData.isBar === true);
+  const barSegment = isBar && !isSet
+    ? resolveBarSegment({ brand: barBrand, series: barSeries })
+    : null;
 
   // ── isProof ──
   // True if ANY signal indicates a proof strike.  Reverse Proof /
@@ -194,7 +200,7 @@ function extractCoinIntent({ coinData, options, parsed, pcgs, isSet } = {}) {
     parsedGradeIsProof
   );
 
-  return { grade, finish, isProof, designation, barBrand, barSeries };
+  return { grade, finish, isProof, designation, barBrand, barSeries, barSegment };
 }
 
 module.exports = {
