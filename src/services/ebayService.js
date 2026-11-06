@@ -1361,7 +1361,7 @@ function applyFilters(comps, options, expected) {
   // Bars carry the year as barYear (the coin-style year filter above is off for them).
   const lunarBarYear = (expected.type === 'bar' && (expected.isLunar || expected.isLunarCoin))
     ? Number(expected.barYear) : NaN;
-  if (Number.isInteger(lunarBarYear)) {
+  if (Number.isInteger(lunarBarYear) && lunarBarYear > 0) { // Number(null) is 0: no year means no filter
     removed.barYearMismatch = 0;
     kept = kept.filter(c => {
       const years = [...(c.title || '').toLowerCase().matchAll(/\b(1[7-9]\d{2}|20[0-4]\d)\b/g)].map(m => parseInt(m[1], 10));

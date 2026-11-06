@@ -365,6 +365,14 @@ describe('Lunar bars are year-specific on every route (NEW-2)', () => {
     expect(d.titles).toEqual([...KEPT].sort());
   });
 
+  test('a Lunar bar request with no year keeps comps from every year', async () => {
+    seed(LUNAR_POOL);
+    const res = await post('/api/bar-price', { metal: 'silver', size: '1 oz', brand: 'Perth Mint', series: 'lunar', options: COMP_OPTS });
+    expect(res.status).toBe(200);
+    expect(res.body.ebay.us.comps).toHaveLength(4);
+    expect(res.body.ebay.us.removed.barYearMismatch).toBeUndefined();
+  });
+
   test('a non-Lunar bar keeps comps from other years', async () => {
     seed([
       ['2024 1 oz .999 Silver Bar Generic', 34],
