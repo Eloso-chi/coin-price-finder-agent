@@ -201,7 +201,6 @@ describe('segment contents on the general path', () => {
     expect(out.titles).toEqual([
       '1 oz .999 Silver Bar Generic Stackable',
       '1 oz Silver Bar .999 Unbranded Sealed',
-      'JM Bullion 1 oz Silver Bar',
       'Silver Bar 1 oz .999 Fine Hand Poured',
     ]);
   });

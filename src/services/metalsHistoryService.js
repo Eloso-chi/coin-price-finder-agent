@@ -9,6 +9,7 @@ const path = require('path');
 
 const CACHE_DIR  = require('../utils/cachePath').CACHE_DIR;
 const cosmos     = require('../utils/cosmosClient');
+const { lookupSpotInEntries } = require('../utils/spotLookup');
 const STORE_PATH = path.join(CACHE_DIR, 'metals_history.json');
 
 // (CACHE_DIR mkdir handled by cachePath.js)
@@ -140,35 +141,7 @@ function evictOld(maxDays = 400) {
  */
 function getSpotOnDate(metal, dateStr) {
   if (!metal || !dateStr) return null;
-  const store = loadStore();
-  const entries = store[metal];
-  if (!entries || Object.keys(entries).length === 0) return null;
-
-  const targetDate = dateStr.substring(0, 10); // normalize to "YYYY-MM-DD"
-
-  // Exact match
-  if (entries[targetDate] != null) return entries[targetDate];
-
-  // Find the closest prior date (within 7 days tolerance)
-  const dates = Object.keys(entries).sort();
-  let closest = null;
-  for (let i = dates.length - 1; i >= 0; i--) {
-    if (dates[i] <= targetDate) { closest = dates[i]; break; }
-  }
-  if (!closest) {
-    // No prior date — try the first date after target (edge case: data starts after target)
-    for (let i = 0; i < dates.length; i++) {
-      if (dates[i] > targetDate) { closest = dates[i]; break; }
-    }
-  }
-  if (!closest) return null;
-
-  // Only return if within 7 days of target (avoid stale data from gaps)
-  const diffMs = Math.abs(new Date(targetDate) - new Date(closest));
-  const diffDays = diffMs / (1000 * 60 * 60 * 24);
-  if (diffDays > 7) return null;
-
-  return entries[closest];
+  return lookupSpotInEntries(loadStore()[metal], dateStr);
 }
 
 /** Map common metal names to ISO 4217 symbols */

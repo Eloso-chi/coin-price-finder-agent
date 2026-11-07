@@ -13,6 +13,46 @@
 // Backlog: #196 (Dealer Premium Benchmark Table for Bullion Anomaly Detection)
 'use strict';
 
+const fs = require('fs');
+const path = require('path');
+const { bucketForWeight, MIN_SPOT_DAYS } = require('../utils/barPremiumStats');
+
+const BAR_PREMIUMS_PATH = path.join(__dirname, '..', '..', 'data', 'bar-premiums.json');
+const _barPremiumCache = new Map(); // file -> { mtimeMs, data }; only successful reads are kept
+const RANGE_FLOOR = -0.5;
+const RANGE_CEILING = 5;
+const clampRange = (v) => Math.min(RANGE_CEILING, Math.max(RANGE_FLOOR, v));
+
+// `file` is for tests; no request-reachable code passes it.
+function loadBarPremiums(file = BAR_PREMIUMS_PATH) {
+  let mtimeMs;
+  try {
+    mtimeMs = fs.statSync(file).mtimeMs;
+  } catch {
+    _barPremiumCache.delete(file);
+    return null;
+  }
+  const hit = _barPremiumCache.get(file);
+  if (hit && hit.mtimeMs === mtimeMs) return hit.data;
+  try {
+    const parsed = JSON.parse(fs.readFileSync(file, 'utf8'));
+    if (parsed && Array.isArray(parsed.segments)) {
+      _barPremiumCache.set(file, { mtimeMs, data: parsed });
+      return parsed;
+    }
+  } catch { /* unreadable or half-written: fall back to the static table, retry next call */ }
+  _barPremiumCache.delete(file);
+  return null;
+}
+
+/** A segment is usable only if its premium quartiles are finite and ordered and its sample is large enough, judged here rather than trusted from the file. */
+function usableSegment(s, minSample) {
+  const p = s && s.premium;
+  if (!p || !Number.isFinite(p.p25) || !Number.isFinite(p.p75) || p.p25 > p.p75) return false;
+  if (!Number.isFinite(s.nWithSpot) || !Number.isFinite(p.n) || s.nWithSpot < minSample || p.n < minSample) return false;
+  return s.spotDays === undefined || s.spotDays >= MIN_SPOT_DAYS;
+}
+
 // ── Bullion premium ranges by metal + form ─────────────────────────────────
 // Keys are matched in order; the first matching `match(parsed)` predicate wins.
 // `match` receives a normalized `parsed` shape: { metal, weightOz, series, form }
@@ -59,12 +99,57 @@ const PREMIUM_RANGES = [
 ];
 
 /**
+ * Segment-specific bar range from data/bar-premiums.json (scripts/bar-premiums.js).
+ * Tries the series segment, then the maker (generic only for a bar with no maker), and uses the first that
+ * is reliable (enough sold comps with a spot price). The range is the quartiles
+ * widened by 1.5 IQR on each side, matching the table's deliberately wide ranges.
+ * Returns null when the data file has no reliable segment (the caller falls back
+ * to the static table).
+ * @param {{ metal:string, weightOz:number, barSegment:{class:string, brand?:string|null, series?:string|null} }} parsed
+ * @param {{ file?: string }} [opts]
+ * @returns {{ key:string, min:number, max:number, source:'bar-premiums', segment:string, n:number }|null}
+ */
+function lookupBarSegmentRange(parsed, { file } = {}) {
+  const seg = parsed && parsed.barSegment;
+  if (!seg || !parsed.metal) return null;
+  const bucket = bucketForWeight(parsed.weightOz);
+  const data = loadBarPremiums(file);
+  if (!bucket || !data) return null;
+  const metal = String(parsed.metal).toLowerCase();
+  const find = (cls, brand, series) => data.segments.find(s => s.metal === metal && s.weightBucket === bucket.label
+    && s.class === cls && (s.brand || null) === (brand || null) && (s.series || null) === (series || null));
+  const ladder = [];
+  if (seg.class === 'series' && seg.brand && seg.series) ladder.push(find('series', seg.brand, seg.series));
+  if (seg.brand) ladder.push(find('brand', seg.brand, null));
+  if (!seg.brand) ladder.push(find('generic', null, null));
+  const minSample = Number.isInteger(data.minSample) && data.minSample > 0 ? data.minSample : 10;
+  const hit = ladder.find(s => usableSegment(s, minSample));
+  if (!hit) return null;
+  const iqr = hit.premium.p75 - hit.premium.p25;
+  return {
+    key: `bar-segment:${hit.key}`,
+    min: +clampRange(hit.premium.p25 - 1.5 * iqr).toFixed(4),
+    max: +clampRange(hit.premium.p75 + 1.5 * iqr).toFixed(4),
+    source: 'bar-premiums',
+    segment: hit.class,
+    n: hit.nWithSpot,
+  };
+}
+
+/**
  * Look up the expected premium range for a coin/bar.
- * @param {object} parsed - { metal, weightOz, series, form }
+ * A bar with `parsed.barSegment` uses the data-driven segment range when one is
+ * reliable; everything else, and any bar without reliable data, uses the static table.
+ * @param {object} parsed - { metal, weightOz, series, form, barSegment? }
+ * @param {{ barPremiumsFile?: string }} [opts]
  * @returns {{ key:string, min:number, max:number }|null}
  */
-function lookupPremiumRange(parsed) {
+function lookupPremiumRange(parsed, opts = {}) {
   if (!parsed || !parsed.metal) return null;
+  if (parsed.form === 'bar' && parsed.barSegment) {
+    const dataRange = lookupBarSegmentRange(parsed, { file: opts.barPremiumsFile });
+    if (dataRange) return dataRange;
+  }
   const p = {
     metal: String(parsed.metal).toLowerCase(),
     weightOz: typeof parsed.weightOz === 'number' ? parsed.weightOz : null,
@@ -104,6 +189,7 @@ function computePremium(fmv, meltValue) {
 module.exports = {
   PREMIUM_RANGES,
   lookupPremiumRange,
+  lookupBarSegmentRange,
   classifyPremium,
   computePremium,
 };

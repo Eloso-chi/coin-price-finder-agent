@@ -1,4 +1,5 @@
 # scripts/
+| `bar-premiums.js` | #333H bar premium report: classifies sold bar listings by metal, weight and maker, and writes `data/bar-premiums.json` (price and premium-over-spot quartiles per segment, plus maker-over-generic uplift). Premiums need a production `metals_history.json`; without it they stay null. `--lines` lists recurring series words and writes nothing | `node scripts/bar-premiums.js [--metals-history FILE] [--terapeak-dir DIR] [--out FILE] [--min-sample N] [--all] [--stdout] [--lines]` |
 
 Operational scripts for data collection, migration, and maintenance. Most scripts are run manually from the repo root.
 
