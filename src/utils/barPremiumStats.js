@@ -36,8 +36,8 @@ const MIN_UPLIFT_MONTHS = 2;
 const MULTI_ITEM_RE = /\b(?:lot|set|pcs|pieces?|bundle|collection|assortment|box\s+of|pack\s+of)\b|\bx\s?\d+\b|\b\d+\s?x\b|\b\d+\s?-?packs?\b/i;
 // Accessories, molds and things that merely mention a bar. Plural "sleeves" and "holders" are accessories; a
 // collectible bar sold "in assay w/ sleeve" is still a bar.
-const NON_BAR_RE = /\b(?:molds?|moulds?|graphite|cast\s+iron|storage|bowl|sleeves|holders|vinyl|flips?|bezels?|framed?|cover\s+only|plastic\s+cover|accessor(?:y|ies)|replacement|necklace|pendant|keychain|gilded|plated|brass|bronze|display\s+(?:stand|case)|tray)\b/i;
-// A single listing sold in several variations reports one title at many prices.
+const NON_BAR_RE = /\b(?:molds?|moulds?|graphite|cast\s+iron|storage|bowl|glass|copper|sleeves|holders|vinyl|flips?|bezels?|framed?|cover\s+only|plastic\s+cover|accessor(?:y|ies)|replacement|necklace|pendant|keychain|gilded|plated|brass|bronze|display\s+(?:stand|case)|tray)\b/i;
+// A single listing sold in several variations reports one title at many prices; judged on p90/p10 so one stray comp cannot trip it.
 const VARIATION_MIN_COMPS = 3;
 const VARIATION_MAX_SPREAD = 3;
 const DAY_RE = /^\d{4}-\d{2}-\d{2}/;
@@ -167,16 +167,19 @@ function buildBarPremiumReport(comps, { spotHistory = null, minSample = 10 } = {
   const spreads = new Map();
   for (const item of items) {
     const k = titleKey(item);
-    const s = spreads.get(k) || { n: 0, min: Infinity, max: 0 };
-    s.n++;
-    s.min = Math.min(s.min, item.comp.totalUsd);
-    s.max = Math.max(s.max, item.comp.totalUsd);
-    spreads.set(k, s);
+    const prices = spreads.get(k) || [];
+    prices.push(item.comp.totalUsd);
+    spreads.set(k, prices);
+  }
+  const variationTitles = new Set();
+  for (const [k, prices] of spreads) {
+    if (prices.length < VARIATION_MIN_COMPS) continue;
+    const sorted = prices.sort((a, b) => a - b);
+    if (quantile(sorted, 0.9) / quantile(sorted, 0.1) > VARIATION_MAX_SPREAD) variationTitles.add(k);
   }
   const kept = [];
   for (const item of items) {
-    const s = spreads.get(titleKey(item));
-    if (s.n >= VARIATION_MIN_COMPS && s.max / s.min > VARIATION_MAX_SPREAD) {
+    if (variationTitles.has(titleKey(item))) {
       excluded['variation-listing'] = (excluded['variation-listing'] || 0) + 1;
     } else {
       kept.push(item);

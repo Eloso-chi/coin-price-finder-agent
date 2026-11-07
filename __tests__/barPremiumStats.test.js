@@ -77,7 +77,9 @@ describe('classifyBarTitle', () => {
     ['Glass Sugar Bowl 10oz Coffee Bar Storage Gold or Silver', 'non-bar-item'],
     ['Graphite Mold for 10 oz Silver Bar', 'non-bar-item'],
     ['Vinyl Sleeve Holder 1 oz Silver Bar', 'non-bar-item'],
-    ['1 oz Copper Bar', 'no-metal'],
+    ['1 oz Copper Bar', 'non-bar-item'],
+    ['10 oz .999 Fine Copper Bar Red Gold Metaverse Design', 'non-bar-item'],
+    ['Gold Rimmed Glass VTG Bar Barware 10oz', 'non-bar-item'],
     ['10 oz Silver Bar Gold Plated', 'non-bar-item'],
     ['Plastic Cover Only for 100oz Engelhard Silver Bar', 'non-bar-item'],
     ['14k Gold Bezel Pendant for 1 oz Gold Bar', 'non-bar-item'],
@@ -320,6 +322,15 @@ describe('buildBarPremiumReport', () => {
     const report = buildBarPremiumReport([...variation, ...steady, ...two]);
     expect(report.source.excluded['variation-listing']).toBe(3);
     expect(report.source.classified).toBe(5);
+  });
+
+  test('one stray price in a well-sampled listing does not make it a variation listing', () => {
+    const prices = [126, 130, 135, 140, 150, 160, 170, 180, 190, 200, 35, 766];
+    const listing = prices.map(totalUsd => ({ title: '1 oz Silver Bar Lady Fortuna', totalUsd, soldDate: '2026-03-05' }));
+    const report = buildBarPremiumReport(listing);
+    expect(report.source.excluded['variation-listing']).toBeUndefined();
+    expect(report.source.excluded['price-outlier']).toBe(2);
+    expect(report.source.classified).toBe(10);
   });
 
   test('a dominant listing does not move the band when the three-month window has enough comps', () => {
