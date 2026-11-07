@@ -1,5 +1,4 @@
 # scripts/
-| `bar-premiums.js` | #333H bar premium report: classifies sold bar listings by metal, weight and maker, and writes `data/bar-premiums.json` (price and premium-over-spot quartiles per segment, plus maker-over-generic uplift). Premiums need a production `metals_history.json`; without it they stay null. `--lines` lists recurring series words and writes nothing | `node scripts/bar-premiums.js [--metals-history FILE] [--terapeak-dir DIR] [--out FILE] [--min-sample N] [--all] [--stdout] [--lines]` |
 
 Operational scripts for data collection, migration, and maintenance. Most scripts are run manually from the repo root.
 
@@ -65,6 +64,7 @@ Operational scripts for data collection, migration, and maintenance. Most script
 | `lot-estimator-health.js` | Randomized lot parity + consistency health audit (bulk vs individual) | `node scripts/lot-estimator-health.js --lots 8 --seed 18652` |
 | `generate-freshness-report.js` | Dataset freshness triage (5-state + recently-confirmed-stale split); P3 entries carry a `p3Tier` (#330H) and the summary a `p3TierCounts`; adds US type seed terms (#334H) as P2 initial-fetch datasets in memory (`--us-seed-phase N` or `TERAPEAK_US_SEED_PHASE`; off by default) | `node scripts/generate-freshness-report.js [--summary] [--batch N] [--us-seed-phase N]` |
 | `us-type-seed-status.js` | Per-group status of the #334H US type seed terms (pending, no-data, thin, viable, median comps) read from `data/terapeak-meta.json`; use it to decide which seed phase to enable next | `node scripts/us-type-seed-status.js [--phase N] [--json]` |
+| `bar-premiums.js` | #333H bar premium report: classifies sold bar listings by metal, weight and maker, and writes `data/bar-premiums.json` (price and premium-over-spot quartiles per segment, plus maker-over-generic uplift). Premiums need a production `metals_history.json`; without it they stay null. `--lines` lists recurring series words and writes nothing | `node scripts/bar-premiums.js [--metals-history FILE] [--terapeak-dir DIR] [--out FILE] [--min-sample N] [--all] [--stdout] [--lines]` |
 | `analyze-freshness-composition.js` | Cross-tabulate the freshness report by composition (bullion/numismatic/proof/set) to surface structural coverage gaps (#270H) | `node scripts/analyze-freshness-composition.js` |
 | `scan-parallel-key-drift.js` | Silent-drift detector for the #267H class -- flags Terapeak datasets whose normalized key collides with an empty sibling (#272H) | `npm run scan:parallel-key-drift` |
 | `greysheet-refresh.js` | Bulk Greysheet price snapshot collector | `node scripts/greysheet-refresh.js` |
