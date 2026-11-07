@@ -100,7 +100,7 @@ const PREMIUM_RANGES = [
 
 /**
  * Segment-specific bar range from data/bar-premiums.json (scripts/bar-premiums.js).
- * Tries the series segment, then the maker, then generic, and uses the first that
+ * Tries the series segment, then the maker (generic only for a bar with no maker), and uses the first that
  * is reliable (enough sold comps with a spot price). The range is the quartiles
  * widened by 1.5 IQR on each side, matching the table's deliberately wide ranges.
  * Returns null when the data file has no reliable segment (the caller falls back
