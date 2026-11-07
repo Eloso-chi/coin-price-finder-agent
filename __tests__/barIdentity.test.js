@@ -137,10 +137,10 @@ describe('barMaxPremium', () => {
 });
 
 describe('one brand registry', () => {
-  test('JM Bullion is a dealer, not Johnson Matthey', () => {
-    expect(detectBarBrands('JM Bullion 1 oz Silver Bar')).toEqual([]);
+  test('JM Bullion is its own maker, not Johnson Matthey', () => {
+    expect(detectBarBrands('JM Bullion 1 oz Silver Bar')).toEqual(['JM Bullion']);
     expect(detectBarBrand('Johnson Matthey 100 oz Silver Bar')).toBe('Johnson Matthey');
-    expect(extractBrand('JM Bullion 1 oz Silver Bar')).toBe('Generic');
+    expect(extractBrand('JM Bullion 1 oz Silver Bar')).toBe('JM Bullion');
     expect(extractBrand('Johnson Matthey 100oz Silver')).toBe('JM');
   });
 
@@ -156,7 +156,7 @@ describe('one brand registry', () => {
 
   test('a bare JM is Johnson Matthey but JM Bullion is not', () => {
     expect(detectBarBrands('JM 10 oz Silver Bar')).toEqual(['Johnson Matthey']);
-    expect(detectBarBrands('JM Bullion 10 oz Silver Bar')).toEqual([]);
+    expect(detectBarBrands('JM Bullion 10 oz Silver Bar')).toEqual(['JM Bullion']);
   });
 
   test('compound makers do not also match their parent maker', () => {
@@ -183,8 +183,56 @@ describe('one brand registry', () => {
   test('canonicalizeBarBrand accepts canonical names and aliases only', () => {
     expect(canonicalizeBarBrand('Scottsdale Mint')).toBe('Scottsdale');
     expect(canonicalizeBarBrand('rcm')).toBe('Royal Canadian Mint');
-    expect(canonicalizeBarBrand('JM Bullion')).toBeNull();
+    expect(canonicalizeBarBrand('JM Bullion')).toBe('JM Bullion');
+    expect(canonicalizeBarBrand('Totally Unknown Metals')).toBeNull();
     expect(canonicalizeBarBrand('constructor')).toBeNull();
+  });
+});
+
+describe('private-label, dealer and vintage makers leave the generic pool (#333H phase 3)', () => {
+  test.each([
+    ['Golden State Mint 10 oz Silver Bar', 'Golden State Mint'],
+    ['Highland Mint 1 oz Silver Bar', 'Highland Mint'],
+    ['Provident Metals 1 oz Silver Bar', 'Provident Metals'],
+    ['NTR Metals 10 oz Silver Bar', 'NTR Metals'],
+    ['JM Bullion 10 oz Silver Bar', 'JM Bullion'],
+    ['Republic Metals 1 oz Silver Bar', 'Republic Metals'],
+    ['OPM Metals 1 oz Silver Bar', 'OPM Metals'],
+    ['Handy & Harman 10 oz Silver Bar', 'Handy & Harman'],
+    ['Handy Harman 10 oz Silver Bar', 'Handy & Harman'],
+    ['US Assay 10 oz Silver Bar', 'US Assay'],
+    ['U.S. Assay 10 oz Silver Bar', 'US Assay'],
+    ['Royal Australian Mint 1 oz Silver Bar', 'Royal Australian Mint'],
+  ])('%s is %s', (title, maker) => {
+    expect(detectBarBrands(title)).toEqual([maker]);
+    expect(extractBrand(title)).toBe(maker);
+    expect(canonicalizeBarBrand(maker)).toBe(maker);
+  });
+
+  test('each is excluded from a generic request and is its own brand segment', () => {
+    for (const maker of ['Golden State Mint', 'Highland Mint', 'JM Bullion', 'OPM Metals', 'US Assay']) {
+      const segment = resolveBarSegment({ brand: maker });
+      expect(segment.class).toBe('brand');
+      expect(segment.barBrand).toBe(maker);
+      const kept = applyFilters([{ title: `${maker} 10 oz Silver Bar`, totalUsd: 800, matchScore: 70, matchNotes: [], gradeType: 'raw' }], {},
+        { barSegment: { class: 'generic', barBrand: null, barSeries: null } }).kept;
+      expect(kept).toEqual([]);
+    }
+  });
+
+  test('"in original packaging" is not the Geiger Original series (listing titles and typed text)', () => {
+    const { detectSeriesFromTitle } = require('../src/data/barSeries');
+    expect(detectSeriesFromTitle('Geiger', '1 oz silver bar in original packaging')).toBeNull();
+    expect(detectSeriesFromTitle('Geiger', '1 oz silver bar Original Box')).toBeNull();
+    expect(detectSeriesFromTitle('Geiger', '1 oz Geiger Original silver bar').series).toBe('Original');
+  });
+
+  test('look-alike words do not match', () => {
+    expect(detectBarBrands('Highland Park 1 oz Silver Bar')).toEqual([]);
+    expect(detectBarBrands('Golden State Warriors Silver Bar')).toEqual([]);
+    expect(detectBarBrands('Republic of Texas Silver Bar')).toEqual([]);
+    expect(detectBarBrands('opmetals unbranded bar')).toEqual([]);
+    expect(detectBarBrands('Royal Mint 1 oz Silver Bar')).toEqual(['Royal Mint']);
   });
 });
 
@@ -229,13 +277,12 @@ describe('the general path builds the same segment as /api/bar-price', () => {
     '1 oz silver bar in case',
     '5 oz silver bar percent pure',
     'Franklin Mint 1 oz silver bar',
-    'JM-Bullion 10 oz silver bar',
   ])('%p is a generic bar request (short coin keywords inside other words do not count)', (query) => {
     expect(intentFor(query).barSegment.class).toBe('generic');
   });
 
   test('registry edges: hyphenated JM Bullion, Sunshine Mine, and a Perth title without "Mint"', () => {
-    expect(detectBarBrands('JM-Bullion 10 oz Silver Bar')).toEqual([]);
+    expect(detectBarBrands('JM-Bullion 10 oz Silver Bar')).toEqual(['JM Bullion']);
     expect(detectBarBrands('Sunshine Mine 10 oz Silver Bar')).toEqual(['Sunshine Mining']);
     expect(detectBarBrands('Perth Lunar Dragon 1 oz Silver Bar')).toEqual(['Perth Mint']);
   });

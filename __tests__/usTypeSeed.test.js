@@ -210,7 +210,7 @@ describe('committed seed file (data/research/us-type-seed.json)', () => {
     expect(bad.map((t) => t.term)).toEqual([]);
   });
 
-  test('ranks 1-21 are all present and each group has one rank', () => {
+  test('ranks 1-29 are all present and each group has one rank', () => {
     const ranksByGroup = new Map();
     for (const t of loaded.terms) {
       const set = ranksByGroup.get(t.group) || new Set();
@@ -219,7 +219,34 @@ describe('committed seed file (data/research/us-type-seed.json)', () => {
     }
     for (const [group, set] of ranksByGroup) expect([group, [...set].length]).toEqual([group, 1]);
     const ranks = [...new Set(loaded.terms.map((t) => t.rank))].sort((a, b) => a - b);
-    expect(ranks).toEqual(Array.from({ length: 21 }, (_, i) => i + 1));
+    expect(ranks).toEqual(Array.from({ length: 29 }, (_, i) => i + 1));
+  });
+
+  describe('bar maker groups (#333H, ranks 22-29)', () => {
+    const { classifyBarTitle } = require('../src/utils/barPremiumStats');
+    const { detectBarBrands } = require('../src/data/barSeries');
+    const barTerms = loaded.terms.filter((t) => t.rank >= 22);
+
+    test('every bar group is named bar-* and has a phase 0 probe', () => {
+      const groups = [...new Set(barTerms.map((t) => t.group))];
+      expect(groups).toHaveLength(8);
+      expect(groups.every((g) => g.startsWith('bar-'))).toBe(true);
+      for (const g of groups) expect(barTerms.some((t) => t.group === g && t.phase === 0)).toBe(true);
+    });
+
+    test('every term is a bar the premium report can bucket, with the metal its group names', () => {
+      const bad = barTerms.filter((t) => {
+        const c = classifyBarTitle(t.term);
+        const metalOk = c.ok && new RegExp(`-${c.metal}-`).test(t.group);
+        return !c.ok || !metalOk;
+      });
+      expect(bad.map((t) => t.term)).toEqual([]);
+    });
+
+    test('every term names a maker the registry recognizes, and only one', () => {
+      const bad = barTerms.filter((t) => detectBarBrands(t.term).length !== 1);
+      expect(bad.map((t) => t.term)).toEqual([]);
+    });
   });
 
   test('phase 0 probes every group except the deprioritized gold group', () => {

@@ -302,7 +302,7 @@ with `--focus`, `--coin-type`, `--filter`, `--priority-include` or
   use the default, so set the variable in the env file to change it.
 - US type seed (#334H): `data/research/us-type-seed.json` lists search terms for
   US types and Mint sets with no dataset. Seeding is off until a machine opts in
-  with `TERAPEAK_US_SEED_PHASE` (0 = the 36-term probe set, up to 3; `off` or
+  with `TERAPEAK_US_SEED_PHASE` (0 = the 56-term probe set, up to 3; `off` or
   unset disables), so W and H never probe the same terms at once. The freshness
   report adds the terms whose phase is at most that value as missing datasets,
   which queue as P2 `initial-fetch` ahead of the P3 fallback tiers. The exporter
