@@ -9,8 +9,13 @@ const path = require('path');
 
 const CACHE_DIR  = require('../utils/cachePath').CACHE_DIR;
 const cosmos     = require('../utils/cosmosClient');
-const { lookupSpotInEntries } = require('../utils/spotLookup');
+const { lookupSpotInEntries, isCalendarDay } = require('../utils/spotLookup');
 const STORE_PATH = path.join(CACHE_DIR, 'metals_history.json');
+
+// Terapeak sold comps reach back about two years, and premium-over-spot needs spot on each sale date.
+const RETENTION_DAYS = 800;
+const METAL_CODES = ['XAU', 'XAG', 'XPT', 'XPD'];
+const MAX_IMPORT_DAYS_PER_METAL = 1500;
 
 // (CACHE_DIR mkdir handled by cachePath.js)
 
@@ -147,4 +152,94 @@ function getSpotOnDate(metal, dateStr) {
 /** Map common metal names to ISO 4217 symbols */
 const METAL_SYMBOLS = { silver: 'XAG', gold: 'XAU', platinum: 'XPT', palladium: 'XPD' };
 
-module.exports = { recordDaily, getHistory, getSpotOnDate, evictOld, METAL_SYMBOLS };
+/** A price read from a live provider just now: not a stale copy and not the hardcoded last resort. */
+function isLiveReading(data) {
+  return !!data && !!data.price && !data.stale && data.source !== 'hardcoded-fallback';
+}
+
+/**
+ * Record one daily snapshot per metal from a getMetalsSpotPrices() result, skipping anything that is not a live reading.
+ * @returns {{ offered: number, skipped: number }}
+ */
+function recordSpotReadings(result) {
+  let offered = 0;
+  let skipped = 0;
+  for (const [metal, data] of Object.entries(result || {})) {
+    if (!isLiveReading(data)) { skipped++; continue; }
+    recordDaily(metal, data.price, data.timestamp);
+    offered++;
+  }
+  return { offered, skipped };
+}
+
+function importError(message) {
+  const err = new Error(message);
+  err.name = 'ImportError';
+  return err;
+}
+
+/**
+ * Merge daily prices from an operator-supplied backfill. Everything is validated before anything is written.
+ * Existing days are kept unless listed in `replaceDays`; days older than the retention window are skipped.
+ *
+ * @param {Object<string, Object<string, number>>} history - { XAU: { 'YYYY-MM-DD': price } }
+ * @param {{ replaceDays?: string[] }} [opts]
+ * @returns {Object<string, { added: number, replaced: number, kept: number, skippedOld: number }>}
+ */
+function importHistory(history, { replaceDays = [] } = {}) {
+  if (!history || typeof history !== 'object' || Array.isArray(history)) throw importError('history must be an object keyed by metal');
+  if (!Array.isArray(replaceDays) || replaceDays.length > 400 || !replaceDays.every(isCalendarDay)) {
+    throw importError('replaceDays must be a list of YYYY-MM-DD dates');
+  }
+  const replace = new Set(replaceDays);
+  const today = new Date().toISOString().substring(0, 10);
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - RETENTION_DAYS);
+  const cutoffStr = cutoff.toISOString().substring(0, 10);
+
+  const incoming = [];
+  for (const [metal, days] of Object.entries(history)) {
+    if (!METAL_CODES.includes(metal)) throw importError('unknown metal in history');
+    if (!days || typeof days !== 'object' || Array.isArray(days)) throw importError(`${metal} must be an object keyed by day`);
+    const entries = Object.entries(days);
+    if (entries.length > MAX_IMPORT_DAYS_PER_METAL) throw importError(`${metal} has more than ${MAX_IMPORT_DAYS_PER_METAL} days`);
+    for (const [day, price] of entries) {
+      const ok = isCalendarDay(day) && day <= today && typeof price === 'number' && Number.isFinite(price) && price > 0 && price < 1e7;
+      if (!ok) throw importError(`invalid entry in ${metal}`);
+    }
+    incoming.push([metal, entries]);
+  }
+
+  const store = loadStore();
+  const summary = {};
+  const changed = [];
+  for (const [metal, entries] of incoming) {
+    if (!store[metal]) store[metal] = {};
+    const current = store[metal];
+    const s = { added: 0, replaced: 0, kept: 0, skippedOld: 0 };
+    for (const [day, raw] of entries) {
+      const price = Math.round(raw * 100) / 100;
+      if (day < cutoffStr) { s.skippedOld++; continue; }
+      if (!Object.prototype.hasOwnProperty.call(current, day)) { current[day] = price; s.added++; }
+      else if (replace.has(day) && current[day] !== price) { current[day] = price; s.replaced++; }
+      else s.kept++;
+    }
+    summary[metal] = s;
+    if (s.added || s.replaced) changed.push(metal);
+  }
+
+  if (changed.length) {
+    _store = store;
+    saveStore();
+    if (cosmos.isEnabled()) {
+      for (const metal of changed) {
+        cosmos.container('metals-history').items.upsert({ id: metal, metal, prices: store[metal] }).catch(err => {
+          if (process.env.NODE_ENV !== 'test') console.error('[metalsHistory] Cosmos write-through failed:', err.message);
+        });
+      }
+    }
+  }
+  return summary;
+}
+
+module.exports = { recordDaily, getHistory, getSpotOnDate, evictOld, recordSpotReadings, importHistory, METAL_SYMBOLS, RETENTION_DAYS };

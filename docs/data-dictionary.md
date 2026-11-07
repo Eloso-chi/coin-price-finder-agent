@@ -367,6 +367,12 @@ Local store replacement and live persistence share `<store>.reclassify.lock`. Lo
 Daily price snapshots written by `greysheetHistoryService` and
 `metalsHistoryService`. Partition keys are `/coinKey` and `/metal`
 respectively. Local JSON cache files remain the synchronous fallback.
+`metals_history.json` holds one price per metal (XAU, XAG, XPT, XPD) per UTC day,
+kept for 800 days (Terapeak sold comps reach back about two years). Only live
+provider readings are recorded: a stale copy or the hardcoded last-resort price
+is never written, because its timestamp is not the day it would be filed under.
+`POST /api/admin/metals-history/import` merges backfilled days (existing days
+win unless listed in `replaceDays`).
 The local `greysheet_history.json` store includes `_lastRefresh`, a full ISO
 completion timestamp used by the scheduler. Legacy `YYYY-MM-DD` values remain
 valid and are interpreted as midnight UTC.

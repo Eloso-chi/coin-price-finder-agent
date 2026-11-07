@@ -129,6 +129,7 @@ Both import endpoints and `POST /api/terapeak/report-no-data` reject malformed o
 |--------|----------|------|-------------|
 | `GET` | `/api/health` | None | Health check + uptime |
 | `GET` | `/api/health?deep=1` | 🔒 | Downstream status for Cosmos, metals, PCGS, and Terapeak; Key Vault is reported as `not_probed` |
+| `POST` | `/api/admin/metals-history/import` | 🔒 | Merge backfilled daily spot prices `{ history: { XAU: { 'YYYY-MM-DD': price } }, replaceDays?: [...] }`; existing days are kept unless listed in `replaceDays`, days older than the 800-day retention are skipped, the whole body is validated before any write (400 on a bad entry); returns per-metal `added`, `replaced`, `kept`, `skippedOld` |
 | `GET` | `/api/admin/dashboard` | 🔒 | System overview: user count, dataset count, quota, uptime |
 | `GET` | `/api/admin/stale-datasets` | 🔒 | Datasets older than N days (filters dormant/thin via freshness classifier) |
 | `GET` | `/api/admin/data-health` | 🔒 | Total files, empty files, date ranges |

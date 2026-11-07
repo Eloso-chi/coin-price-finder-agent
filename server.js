@@ -340,7 +340,7 @@ const server = app.listen(PORT, '0.0.0.0', async () => {
   const METALS_POLL_MS = parseInt(process.env.METALS_POLL_MS, 10) || 30 * 60 * 1000; // 30 min
 
   // Evict metals history entries older than 400 days on startup
-  metalsHistory.evictOld(400);
+  metalsHistory.evictOld(metalsHistory.RETENTION_DAYS);
 
   let _metalsConsecFailures = 0;
   async function refreshMetalsPrices() {
@@ -349,10 +349,8 @@ const server = app.listen(PORT, '0.0.0.0', async () => {
       const sources = [...new Set(Object.values(result).map(r => r.source))];
       console.log(`  [metals] Background refresh ok — sources: ${sources.join(', ')}`);
       _metalsConsecFailures = 0;
-      // Record daily history snapshot for charting
-      for (const [sym, data] of Object.entries(result)) {
-        if (data.price) metalsHistory.recordDaily(sym, data.price, data.timestamp);
-      }
+      // Record daily history snapshot for charting; stale and hardcoded fallback prices are not readings
+      metalsHistory.recordSpotReadings(result);
     } catch (err) {
       _metalsConsecFailures++;
       console.warn(`  [metals] Background refresh failed (${_metalsConsecFailures}x): ${err.message}`);

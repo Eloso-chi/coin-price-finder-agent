@@ -6,6 +6,7 @@
 const express = require('express');
 const router = express.Router();
 const adminService = require('../services/adminService');
+const metalsHistory = require('../services/metalsHistoryService');
 
 // All routes are protected by requireAdmin middleware (applied in server.js mount)
 
@@ -152,6 +153,24 @@ router.post('/auction-fetch', async (req, res) => {
 const fs = require('fs');
 const path = require('path');
 const META_PATH = path.join(__dirname, '..', '..', 'data', 'terapeak-meta.json');
+
+/**
+ * POST /api/admin/metals-history/import
+ * Body: { history: { XAU: { 'YYYY-MM-DD': price } }, replaceDays?: ['YYYY-MM-DD'] }
+ * Merge backfilled daily spot prices (existing days are kept unless listed in replaceDays).
+ * The whole body is validated before anything is written.
+ */
+router.post('/metals-history/import', (req, res) => {
+  try {
+    const { history, replaceDays } = req.body || {};
+    const summary = metalsHistory.importHistory(history, { replaceDays: replaceDays === undefined ? [] : replaceDays });
+    res.json({ ok: true, summary });
+  } catch (err) {
+    if (err.name === 'ImportError') return res.status(400).json({ error: err.message });
+    console.error('[admin] Metals history import error:', err.message);
+    res.status(500).json({ error: 'Failed to import metals history' });
+  }
+});
 
 /**
  * GET /api/admin/terapeak-meta
