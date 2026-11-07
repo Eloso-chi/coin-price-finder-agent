@@ -339,7 +339,7 @@ const server = app.listen(PORT, '0.0.0.0', async () => {
   const metalsHistory = require('./src/services/metalsHistoryService');
   const METALS_POLL_MS = parseInt(process.env.METALS_POLL_MS, 10) || 30 * 60 * 1000; // 30 min
 
-  // Evict metals history entries older than 400 days on startup
+  // Evict metals history entries older than the retention window (800 days) on startup
   metalsHistory.evictOld(metalsHistory.RETENTION_DAYS);
 
   let _metalsConsecFailures = 0;

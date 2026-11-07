@@ -111,9 +111,9 @@ function getHistory(metal, rangeDays) {
 
 /**
  * Evict entries older than maxDays to keep the file from growing forever.
- * @param {number} [maxDays=400]
+ * @param {number} [maxDays=RETENTION_DAYS]
  */
-function evictOld(maxDays = 400) {
+function evictOld(maxDays = RETENTION_DAYS) {
   const store = loadStore();
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - maxDays);
