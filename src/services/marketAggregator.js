@@ -10,6 +10,7 @@ const stats = require('../utils/stats');
 const { zodiacForYear, perthLunarSeries } = require('../data/constants');
 const { getMetalsSpotPrice } = require('./metalsSpotPrice');
 const { BULLION_DENY_DENOM_RE, BULLION_OK_RE } = require('../utils/filters');
+const { detectBarBrand, barBrandLabel } = require('../data/barSeries');
 
 // ── In-memory cache (5-minute TTL, not persisted to disk) ────
 const _cache = new TTLCache({ defaultTTL: 5 * 60 * 1000 });
@@ -403,40 +404,16 @@ function buildGradeMatrix({
   };
 }
 
-/* ── Known brand tokens for bar listing classification ── */
-const BAR_BRAND_TOKENS = [
-  { re: /\bpamp\b/i,              brand: 'PAMP' },
-  { re: /\bvalcambi\b/i,          brand: 'Valcambi' },
-  { re: /\bcredit\s*suisse\b/i,   brand: 'Credit Suisse' },
-  { re: /\bperth\s*mint\b/i,      brand: 'Perth Mint' },
-  { re: /\broyal\s*canadian\b/i,  brand: 'RCM' },
-  { re: /\bjohnson\s*matthey\b|\bjm\b/i, brand: 'JM' },
-  { re: /\bengelhard\b/i,         brand: 'Engelhard' },
-  { re: /\bsunshine\b/i,          brand: 'Sunshine' },
-  { re: /\basahi\b/i,             brand: 'Asahi' },
-  { re: /\bscottsdale\b/i,        brand: 'Scottsdale' },
-  { re: /\bgeiger\b/i,            brand: 'Geiger' },
-  { re: /\bargor[\s-]*heraeus\b/i,brand: 'Argor-Heraeus' },
-  { re: /\bmetalor\b/i,           brand: 'Metalor' },
-  { re: /\bheraeus\b/i,           brand: 'Heraeus' },
-  { re: /\bsilvertowne\b/i,       brand: 'SilverTowne' },
-  { re: /\bapmex\b/i,             brand: 'Apmex' },
-  { re: /\ba[\s-]*mark\b/i,       brand: 'A-Mark' },
-  { re: /\bmmtc\b/i,              brand: 'MMTC-PAMP' },
-  { re: /\broyal\s*mint\b/i,      brand: 'Royal Mint' },
-  { re: /\bumicore\b/i,           brand: 'Umicore' },
-];
-
 /**
- * Extract brand from a bar listing title.
- * Returns the first matched known brand, or 'Generic'.
+ * Extract brand from a bar listing title (#333H: shared registry in
+ * src/data/barSeries.js, so the market matrix and the comp filters agree on
+ * which makers exist). Returns the legacy short label ("JM", "RCM") when one
+ * exists, else the canonical maker name, or 'Generic'.
  */
 function extractBrand(title) {
   if (!title) return 'Generic';
-  for (const { re, brand } of BAR_BRAND_TOKENS) {
-    if (re.test(title)) return brand;
-  }
-  return 'Generic';
+  const brand = detectBarBrand(title);
+  return brand ? barBrandLabel(brand) : 'Generic';
 }
 
 /**

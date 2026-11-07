@@ -38,6 +38,7 @@ const { detectWeightFromTitle, detectWeightsFromTitle } = require('../utils/coin
 const { resolveProductIdentity } = require('../utils/productIdentityResolver');
 const { isReverseProofFinish } = require('../utils/coinIntent');
 const { detectBarBrands, detectSeriesFromTitle } = require('../data/barSeries');
+const { getBarSegment } = require('../utils/barIdentity');
 const {
   SPECIAL_MARKS_REGISTRY_VERSION, getMarkById, aliasesMatchTitle, detectMarksInTitle,
   markApplies, inferProgramDenomination,
@@ -981,7 +982,11 @@ function scoreBarMatch(comp, expected) {
   // Brand match (20 pts) / mismatch (-25 pts)
   if (expected.brand) {
     const brandLow = expected.brand.toLowerCase();
-    if (tLow.includes(brandLow)) { score += 20; notes.push('brand-match'); }
+    const recognizedMaker = getBarSegment(expected)?.barBrand || null;
+    const brandHit = recognizedMaker
+      ? detectBarBrands(comp.title).includes(recognizedMaker)
+      : tLow.includes(brandLow);
+    if (brandHit) { score += 20; notes.push('brand-match'); }
     else { score -= 25; notes.push('brand-mismatch'); }
   }
 
@@ -1153,7 +1158,17 @@ function applyFilters(comps, options, expected) {
   // New Zealand Mint Star Wars, etc.) slip through the keyword search and
   // the -25 score penalty alone isn't enough to gate them out.
   if (expected.type === 'bar' && expected.brand) {
-    const tokens = String(expected.brand)
+    const recognizedMaker = getBarSegment(expected)?.barBrand || null;
+    if (recognizedMaker) {
+      // Registry match, so "Sunshine Mint" or "JM" satisfy "Sunshine Minting" / "Johnson Matthey".
+      removed.wrongBrand = 0;
+      kept = kept.filter(c => {
+        if (classifyBarSeriesComp(c, recognizedMaker).brands.includes(recognizedMaker)) return true;
+        removed.wrongBrand++;
+        return false;
+      });
+    }
+    const tokens = recognizedMaker ? [] : String(expected.brand)
       .toLowerCase()
       .split(/\s+/)
       .filter(Boolean)
@@ -1171,16 +1186,34 @@ function applyFilters(comps, options, expected) {
     }
   }
 
-  if (expected.barBrand && expected.barSeries) {
+  // Bar segment filters (#285W series isolation, #333H brand classes):
+  //   series  -- drop other makers and other identified series
+  //   brand   -- drop other makers
+  //   generic -- drop every comp that names a recognized maker
+  // A comp whose title names no maker or no series is kept for the series and
+  // brand classes (benefit of doubt), and is the whole pool for generic.
+  const barSegment = getBarSegment(expected);
+  if (barSegment) {
     removed.barBrandMismatch = 0;
     removed.barSeriesMismatch = 0;
+    removed.barMakerExcluded = 0;
     kept = kept.filter(c => {
-      const classification = classifyBarSeriesComp(c, expected.barBrand);
+      if (barSegment.class === 'generic') {
+        if (detectBarBrands(c.title).length) {
+          removed.barMakerExcluded++;
+          return false;
+        }
+        return true;
+      }
+      // A user-typed maker the registry does not know (barBrand null) still
+      // drops comps that name a recognized maker.
+      const classification = classifyBarSeriesComp(c, barSegment.barBrand);
       if (classification.manufacturerMismatch) {
         removed.barBrandMismatch++;
         return false;
       }
-      if (!classification.series || classification.series === expected.barSeries) return true;
+      if (barSegment.class !== 'series') return true;
+      if (!classification.series || classification.series === barSegment.barSeries) return true;
       removed.barSeriesMismatch++;
       return false;
     });
@@ -1324,12 +1357,27 @@ function applyFilters(comps, options, expected) {
     }
   }
 
+  // Lunar bars are defined by their year: drop comps whose title names only other years.
+  // Bars carry the year as barYear (the coin-style year filter above is off for them).
+  const lunarBarYear = (expected.type === 'bar' && (expected.isLunar || expected.isLunarCoin))
+    ? Number(expected.barYear) : NaN;
+  if (Number.isInteger(lunarBarYear) && lunarBarYear > 0) { // Number(null) is 0: no year means no filter
+    removed.barYearMismatch = 0;
+    kept = kept.filter(c => {
+      const years = [...(c.title || '').toLowerCase().matchAll(/\b(1[7-9]\d{2}|20[0-4]\d)\b/g)].map(m => parseInt(m[1], 10));
+      if (years.length === 0 || years.includes(lunarBarYear)) return true;
+      removed.barYearMismatch++;
+      return false;
+    });
+  }
+
   // Melt-floor sanity check for bullion: if the price is well below expected
   // melt for the searched weight, the listing is almost certainly a different
   // metal or a smaller/fractional coin that slipped through weight-mismatch.
   // Uses historical spot price at time of sale when available, so older comps
   // aren't falsely rejected due to recent spot price increases.
-  if (expected.meltPerOz && expected.weight && expected.weight >= 1) {
+  // Bars are checked at every weight; coins only from 1 oz up.
+  if (expected.meltPerOz && expected.weight && (expected.weight >= 1 || expected.type === 'bar')) {
     removed.meltFloor = 0;
     // Resolve metal symbol for historical lookup
     const metalSym = expected.metal ? METAL_SYMBOLS[expected.metal] : null;
@@ -1811,7 +1859,13 @@ async function fetchSoldComps(keywords, options = {}, expected = {}) {
              lookback: { requested: requestedDays, used: requestedDays, extended: false } };
   }
 
-  const barIdentity = JSON.stringify([expected.barBrand || null, expected.barSeries || null]);
+  const barSegmentForKey = getBarSegment(expected);
+  const barIdentity = JSON.stringify([
+    expected.barBrand || null,
+    expected.barSeries || null,
+    barSegmentForKey ? barSegmentForKey.class : null,
+    barSegmentForKey ? (barSegmentForKey.requestedBrand || null) : null,
+  ]);
   const specialMarkIdentity = _specialMarkCacheIdentity(expected);
   const cacheKey = `ebay:${keywords}:${expected.metal || ''}:${expected._rawQuery || ''}:${barIdentity}:${specialMarkIdentity}:${JSON.stringify(opts)}`;
   if (cache.has(cacheKey)) return cache.get(cacheKey);

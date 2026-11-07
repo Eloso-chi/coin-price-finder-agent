@@ -9,8 +9,11 @@ const ebayService = require('../services/ebayService');
 const { computeValuation } = require('../services/valuationService');
 const { getMetalsSpotPrice } = require('../services/metalsSpotPrice');
 const { zodiacForYear, perthLunarSeries } = require('../data/constants');
-const { BAR_SERIES, detectBarSeries } = require('../data/barSeries');
+const { BAR_SERIES } = require('../data/barSeries');
 const { redactCompsForPublic } = require('../utils/redactForPublic');
+const { normalizeBarSize, parseBarSize, resolveBarSegment, describeBarSegment, applyBarSegment, MAX_BAR_TEXT } = require('../utils/barIdentity');
+
+const BAR_METALS = ['gold', 'silver', 'platinum', 'palladium'];
 
 // ── GET /api/bar-options — return available brands + series for dropdowns ──
 router.get('/options', (_req, res) => {
@@ -24,47 +27,41 @@ router.get('/options', (_req, res) => {
   res.json({ brands: options });
 });
 
-// ── Size normalization helpers ──────────────────────────────
-/**
- * Normalize a user-supplied size string for eBay search and matching.
- * ".5 gram" → "0.5 gram", "  1  OZ " → "1 oz"
- */
-function normalizeSize(raw) {
-  if (!raw) return raw;
-  let s = raw.trim().toLowerCase();
-  // ".5" → "0.5"
-  s = s.replace(/^\.(\d)/, '0.$1');
-  // collapse whitespace
-  s = s.replace(/\s+/g, ' ');
-  return s;
-}
-
-/**
- * Parse a size string into troy oz for weight-mismatch filtering.
- * Supports grams, oz, and kilo.
- */
-function parseBarWeight(size) {
-  if (!size) return null;
-  const s = size.trim().toLowerCase();
-  // Grams: "0.5 gram", "1 gram", "100 gram", etc.
-  const gMatch = s.match(/^(\d+(?:\.\d+)?)\s*(?:gram|g)\b/);
-  if (gMatch) return parseFloat(gMatch[1]) / 31.1035;
-  // ".5 gram" variant
-  const gMatch2 = s.match(/^\.(\d+)\s*(?:gram|g)\b/);
-  if (gMatch2) return parseFloat('0.' + gMatch2[1]) / 31.1035;
-  // Oz: "1 oz", "10 oz"
-  const ozMatch = s.match(/^(\d+(?:\.\d+)?)\s*oz/);
-  if (ozMatch) return parseFloat(ozMatch[1]);
-  // Kilo
-  if (/kilo/i.test(s)) return 32.1507;
-  return null;
-}
 router.post('/', async (req, res) => {
   try {
-    const { metal, size, brand, series, year, condition, askingPrice, options } = req.body || {};
-    if (!metal || !size) {
+    const body = req.body || {};
+    const { askingPrice, options } = body;
+    if (!body.metal || !body.size) {
       return res.status(400).json({ error: 'metal and size fields are required' });
     }
+    if (typeof body.metal !== 'string' || !BAR_METALS.includes(body.metal.trim().toLowerCase())) {
+      return res.status(400).json({ error: `metal must be one of: ${BAR_METALS.join(', ')}` });
+    }
+    // An unrecognized size is rejected, never defaulted to 1 oz.
+    const parsedSize = parseBarSize(body.size);
+    if (!parsedSize) {
+      return res.status(400).json({ error: 'size not recognized; use grams, oz (e.g. 1/10 oz) or kilo' });
+    }
+    // Free-text fields are echoed and reach the search keywords and cache key: type and length bound them.
+    for (const field of ['brand', 'series', 'condition']) {
+      const v = body[field];
+      if (v == null) continue;
+      if (typeof v !== 'string' || v.length > MAX_BAR_TEXT) {
+        return res.status(400).json({ error: `${field} must be a string of at most ${MAX_BAR_TEXT} characters` });
+      }
+    }
+    let year = null;
+    if (body.year != null && body.year !== '') {
+      year = Number(body.year);
+      if ((typeof body.year !== 'number' && typeof body.year !== 'string') || !Number.isInteger(year) || year < 1800 || year > 2100) {
+        return res.status(400).json({ error: 'year must be an integer from 1800 to 2100' });
+      }
+    }
+    const metal = body.metal.trim().toLowerCase();
+    const size = parsedSize.size;
+    const series = body.series || undefined;
+    const condition = body.condition || undefined;
+    const brand = (typeof body.brand === 'string' && body.brand.trim()) ? body.brand.trim() : null;
 
     const opts = {
       timeWindowDays: options?.timeWindowDays || 120,
@@ -82,12 +79,16 @@ router.post('/', async (req, res) => {
     // Perth Mint Lunar series number from year
     const { num: perthSeriesNum } = (isLunar && isPerth) ? perthLunarSeries(year) : { num: null };
 
-    // ── Bar series detection (Geiger Edelmetalle, PAMP Fortuna, etc.) ──
-    const detectedSeries = (!isLunar && series) ? detectBarSeries(brand, series) : null;
+    // One bar segment (generic / brand / series), shared with the general path
+    // Lunar bars match by animal and year, not by catalog series.
+    const segment = resolveBarSegment({ brand, series, isLunar });
+    const detectedSeries = segment.barSeries
+      ? { series: segment.barSeries, re: segment.barSeriesRe, keywords: segment.barSeriesKeywords }
+      : null;
 
     // ── Build eBay search keywords ──
     // Normalize size for eBay: ".5 gram" -> "0.5 gram", add alternates
-    const sizeForSearch = normalizeSize(size);
+    const sizeForSearch = normalizeBarSize(size);
     const parts = [];
     if (year) parts.push(String(year));
     if (brand) parts.push(brand);
@@ -106,14 +107,12 @@ router.post('/', async (req, res) => {
     const keywords = parts.join(' ');
 
     // ── Parse weight in troy oz from size string for weight-mismatch filtering ──
-    const barWeightOzt = parseBarWeight(size);
+    const barWeightOzt = parsedSize.weightOzt;
 
     // ── Expected fields for bar match scoring ──
     const resolvedSeriesName = isLunar ? 'Lunar' : (detectedSeries ? detectedSeries.series : null);
-    const expected = {
-      type: 'bar',
-      brand: brand || null,
-      barSize: normalizeSize(size),
+    const expected = applyBarSegment({
+      barSize: normalizeBarSize(size),
       metal: metal,
       weight: barWeightOzt,
       condition: condition || null,
@@ -121,14 +120,12 @@ router.post('/', async (req, res) => {
       zodiacAnimal: zodiacAnimal,
       isLunar: isLunar,
       perthSeriesNum: perthSeriesNum,
-      barSeries: resolvedSeriesName,
-      barSeriesRe: detectedSeries ? detectedSeries.re : null,
       year: null,
       mint: null,
       series: null,
       grade: null,
       designation: null
-    };
+    }, segment);
 
     // ── Fetch spot price for bullion valuation ──
     const METAL_SYM = { gold: 'XAU', silver: 'XAG', platinum: 'XPT', palladium: 'XPD' };
@@ -140,39 +137,25 @@ router.post('/', async (req, res) => {
         spotPrice = spot.price;
       } catch (_) { /* non-fatal -- valuation falls back to raw comps */ }
     }
+    // Enables the melt floor and ceiling comp filters, as on the general path.
+    if (spotPrice) expected.meltPerOz = spotPrice;
 
     // ── Fetch eBay comps ──
     const ebay = await ebayService.fetchSoldComps(keywords, opts, expected);
 
     // ── Compute valuation (no PCGS data, mark as bar) ──
     const pcgsStub = { verified: false, _isBar: true };
-    const barWeightForSpot = parseBarWeight(size) || 1;
     const { valuation, decisions } = computeValuation(pcgsStub, ebay, askingPrice || null, null, {
       isBullion: true,
-      spotPrice: spotPrice ? spotPrice * barWeightForSpot : null,
+      metal,
+      barSegment: segment,
+      barSeries: segment.barSeries,
+      spotPrice: spotPrice ? spotPrice * barWeightOzt : null,
       // #232 -- gate Greysheet/CPG dollar amounts to admins.
       audience: req.isAdmin ? 'admin' : 'public',
     });
 
-    // ── Melt value calculation ──
-    const sizeMap = {
-      '0.5 gram': 0.5 / 31.1035,
-      '.5 gram':  0.5 / 31.1035,
-      '1 gram':   1 / 31.1035,
-      '2 gram':   2 / 31.1035,
-      '2.5 gram': 2.5 / 31.1035,
-      '5 gram':   5 / 31.1035,
-      '10 gram':  10 / 31.1035,
-      '20 gram':  20 / 31.1035,
-      '50 gram':  50 / 31.1035,
-      '100 gram': 100 / 31.1035,
-      '1 oz':     1,
-      '2 oz':     2,
-      '5 oz':     5,
-      '10 oz':    10,
-      '1 kilo':   32.1507,
-    };
-    const pureOzt = sizeMap[size] || sizeMap[normalizeSize(size)] || 1;
+    const pureOzt = barWeightOzt;
 
     return res.json(redactCompsForPublic({
       query: { metal, size, brand: brand || null, condition: condition || null, askingPrice: askingPrice || null, options: opts },
@@ -180,6 +163,7 @@ router.post('/', async (req, res) => {
         metal,
         size,
         brand: brand || 'Generic',
+        segment: describeBarSegment(segment),
         series: resolvedSeriesName,
         perthSeriesNum,
         year: year || null,
