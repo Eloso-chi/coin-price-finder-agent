@@ -33,9 +33,15 @@ const MIN_POOLED_BAND_COMPS = 8;
 const MIN_SPOT_DAYS = 3;
 const MIN_UPLIFT_MONTHS = 2;
 
-const MULTI_ITEM_RE = /\b(?:lot|set|pcs|pieces?|bundle|collection|assortment)\b|\bx\s?\d+\b|\b\d+\s?x\b/i;
-// Molds, holders and other things that merely mention a bar.
-const NON_BAR_RE = /\b(?:molds?|moulds?|graphite|sleeves?|holders?|storage|bowl|glass|copper|bronze|brass|gilded|plated|necklace|pendant|keychain|display|stand|tray|cast iron)\b/i;
+const MULTI_ITEM_RE = /\b(?:lot|set|pcs|pieces?|bundle|collection|assortment|box\s+of|pack\s+of)\b|\bx\s?\d+\b|\b\d+\s?x\b|\b\d+\s?-?packs?\b/i;
+// Accessories, molds and things that merely mention a bar. Plural "sleeves" and "holders" are accessories; a
+// collectible bar sold "in assay w/ sleeve" is still a bar.
+const NON_BAR_RE = /\b(?:molds?|moulds?|graphite|cast\s+iron|storage|bowl|sleeves|holders|vinyl|flips?|bezels?|framed?|cover\s+only|plastic\s+cover|accessor(?:y|ies)|replacement|necklace|pendant|keychain|gilded|plated|brass|bronze|display\s+(?:stand|case)|tray)\b/i;
+// A single listing sold in several variations reports one title at many prices.
+const VARIATION_MIN_COMPS = 3;
+const VARIATION_MAX_SPREAD = 3;
+const DAY_RE = /^\d{4}-\d{2}-\d{2}/;
+const MONTH_RE = /^\d{4}-\d{2}/;
 // Phrases whose metal word is not the bar's metal ("Gold Standard", "Istanbul Gold Refinery").
 const METAL_NOISE_RE = /\bgold\s+standard\b|\b(?:[a-z]+\s+)?gold\s+refiner(?:y|ies)\b|\bemirates\s+gold\b/gi;
 
@@ -143,11 +149,41 @@ function buildBarPremiumReport(comps, { spotHistory = null, minSample = 10 } = {
     items.push({ comp, cls });
   }
   // Per metal and weight bucket and month, the prices seen; a month with too few comps borrows its neighbours.
-  const monthOf = (comp) => (comp.soldDate ? String(comp.soldDate).slice(0, 7) : null);
+  const monthOf = (comp) => {
+    const m = comp.soldDate ? String(comp.soldDate).match(MONTH_RE) : null;
+    return m ? m[0] : null;
+  };
+  const dayOf = (comp) => {
+    const m = comp.soldDate ? String(comp.soldDate).match(DAY_RE) : null;
+    return m ? m[0] : null;
+  };
   const shiftMonth = (month, delta) => {
     const d = new Date(Date.UTC(+month.slice(0, 4), +month.slice(5, 7) - 1 + delta, 1));
     return d.toISOString().slice(0, 7);
   };
+
+  // One title at widely different prices in the same month is a variation listing, not one product.
+  const titleKey = ({ comp, cls }) => `${cls.metal}|${cls.bucket}|${monthOf(comp) || ''}|${String(comp.title).toLowerCase().replace(/\s+/g, ' ').trim()}`;
+  const spreads = new Map();
+  for (const item of items) {
+    const k = titleKey(item);
+    const s = spreads.get(k) || { n: 0, min: Infinity, max: 0 };
+    s.n++;
+    s.min = Math.min(s.min, item.comp.totalUsd);
+    s.max = Math.max(s.max, item.comp.totalUsd);
+    spreads.set(k, s);
+  }
+  const kept = [];
+  for (const item of items) {
+    const s = spreads.get(titleKey(item));
+    if (s.n >= VARIATION_MIN_COMPS && s.max / s.min > VARIATION_MAX_SPREAD) {
+      excluded['variation-listing'] = (excluded['variation-listing'] || 0) + 1;
+    } else {
+      kept.push(item);
+    }
+  }
+  items.length = 0;
+  items.push(...kept);
   const pooled = new Map();
   for (const { comp, cls } of items) {
     const m = monthOf(comp);
@@ -165,12 +201,12 @@ function buildBarPremiumReport(comps, { spotHistory = null, minSample = 10 } = {
     const mk = `${cls.metal}|${cls.bucket}|${month}`;
     if (bandMemo.has(mk)) return bandMemo.get(mk);
     const months = pooled.get(`${cls.metal}|${cls.bucket}`);
-    let prices = months.get(month) || [];
-    if (prices.length < MIN_BAND_COMPS) {
-      prices = [...prices, ...(months.get(shiftMonth(month, -1)) || []), ...(months.get(shiftMonth(month, 1)) || [])];
-    }
+    const own = months.get(month) || [];
+    const window = [...own, ...(months.get(shiftMonth(month, -1)) || []), ...(months.get(shiftMonth(month, 1)) || [])];
+    // The three-month window steadies the median when one listing dominates a month.
+    const prices = window.length >= MIN_POOLED_BAND_COMPS ? window : (own.length >= MIN_BAND_COMPS ? own : null);
     let band = null;
-    if (prices.length >= (months.get(month)?.length >= MIN_BAND_COMPS ? MIN_BAND_COMPS : MIN_POOLED_BAND_COMPS)) {
+    if (prices) {
       const m = quantile([...prices].sort((a, b) => a - b), 0.5);
       band = [m * PRICE_BAND[0], m * PRICE_BAND[1]];
     }
@@ -194,7 +230,7 @@ function buildBarPremiumReport(comps, { spotHistory = null, minSample = 10 } = {
       excluded['price-outlier'] = (excluded['price-outlier'] || 0) + 1;
       continue;
     }
-    const day = comp.soldDate ? String(comp.soldDate).slice(0, 10) : null;
+    const day = dayOf(comp);
     const spot = spotFor(cls.metal, day);
     const premium = spot ? comp.totalUsd / (cls.weightOzt * spot) - 1 : null;
     if (premium != null && (premium < PREMIUM_BAND[0] || premium > PREMIUM_BAND[1])) {
@@ -326,4 +362,5 @@ module.exports = {
   trimOutliers,
   buildBarPremiumReport,
   buildLineCandidates,
+  MIN_SPOT_DAYS,
 };

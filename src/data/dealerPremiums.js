@@ -15,13 +15,13 @@
 
 const fs = require('fs');
 const path = require('path');
-const { bucketForWeight } = require('../utils/barPremiumStats');
+const { bucketForWeight, MIN_SPOT_DAYS } = require('../utils/barPremiumStats');
 
 const BAR_PREMIUMS_PATH = path.join(__dirname, '..', '..', 'data', 'bar-premiums.json');
 const _barPremiumCache = new Map(); // file -> { mtimeMs, data }; only successful reads are kept
-const MIN_SEGMENT_SPOT_DAYS = 3;
 const RANGE_FLOOR = -0.5;
 const RANGE_CEILING = 5;
+const clampRange = (v) => Math.min(RANGE_CEILING, Math.max(RANGE_FLOOR, v));
 
 // `file` is for tests; no request-reachable code passes it.
 function loadBarPremiums(file = BAR_PREMIUMS_PATH) {
@@ -49,8 +49,8 @@ function loadBarPremiums(file = BAR_PREMIUMS_PATH) {
 function usableSegment(s, minSample) {
   const p = s && s.premium;
   if (!p || !Number.isFinite(p.p25) || !Number.isFinite(p.p75) || p.p25 > p.p75) return false;
-  if (!(s.nWithSpot >= minSample) || !(p.n >= minSample)) return false;
-  return s.spotDays === undefined || s.spotDays >= MIN_SEGMENT_SPOT_DAYS;
+  if (!Number.isFinite(s.nWithSpot) || !Number.isFinite(p.n) || s.nWithSpot < minSample || p.n < minSample) return false;
+  return s.spotDays === undefined || s.spotDays >= MIN_SPOT_DAYS;
 }
 
 // ── Bullion premium ranges by metal + form ─────────────────────────────────
@@ -128,8 +128,8 @@ function lookupBarSegmentRange(parsed, { file } = {}) {
   const iqr = hit.premium.p75 - hit.premium.p25;
   return {
     key: `bar-segment:${hit.key}`,
-    min: +Math.max(RANGE_FLOOR, hit.premium.p25 - 1.5 * iqr).toFixed(4),
-    max: +Math.min(RANGE_CEILING, hit.premium.p75 + 1.5 * iqr).toFixed(4),
+    min: +clampRange(hit.premium.p25 - 1.5 * iqr).toFixed(4),
+    max: +clampRange(hit.premium.p75 + 1.5 * iqr).toFixed(4),
     source: 'bar-premiums',
     segment: hit.class,
     n: hit.nWithSpot,

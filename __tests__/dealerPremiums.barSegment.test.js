@@ -96,6 +96,8 @@ describe('lookupBarSegmentRange does not trust the file', () => {
     ['a premium sample below the minimum', { premium: { n: 4, p25: 0.1, median: 0.15, p75: 0.2 } }],
     ['too few spot-matched comps although flagged reliable', { nWithSpot: 4, reliable: true }],
     ['spot comps from fewer than three sale days although flagged reliable', { spotDays: 2, reliable: true }],
+    ['a sample count that is not a number', { nWithSpot: '40' }],
+    ['a premium sample that is not a number', { premium: { n: '40', p25: 0.1, median: 0.15, p75: 0.2 } }],
   ])('%s is not used', (_label, over) => {
     expect(lookupBarSegmentRange(parsed, { file: dataFile([seg(over)]) })).toBeNull();
   });
@@ -109,6 +111,13 @@ describe('lookupBarSegmentRange does not trust the file', () => {
   test('a range is clamped to -50% and +500%', () => {
     const file = dataFile([seg({ premium: { n: 40, p25: -0.4, median: 1, p75: 9 } })]);
     expect(lookupBarSegmentRange(parsed, { file })).toEqual(expect.objectContaining({ min: -0.5, max: 5 }));
+  });
+
+  test('quartiles beyond the clamp never give a range with min above max', () => {
+    const high = lookupBarSegmentRange(parsed, { file: dataFile([seg({ premium: { n: 40, p25: 8, median: 8.5, p75: 9 } })]) });
+    expect(high).toEqual(expect.objectContaining({ min: 5, max: 5 }));
+    const low = lookupBarSegmentRange(parsed, { file: dataFile([seg({ premium: { n: 40, p25: -9, median: -8.5, p75: -8 } })]) });
+    expect(low).toEqual(expect.objectContaining({ min: -0.5, max: -0.5 }));
   });
 });
 

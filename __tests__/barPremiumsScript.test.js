@@ -7,6 +7,7 @@ const path = require('path');
 const { execFileSync } = require('child_process');
 
 const script = require('../scripts/bar-premiums');
+const { MIN_SPOT_DAYS } = require('../src/utils/barPremiumStats');
 
 const HEADER = 'Item Title,Item ID,Sold Date,Sold Price,Shipping,Condition,Seller,Format,Item URL,Quantity Sold';
 const row = (title, date, price, shipping = '$0.00') => `"${title}",,"${date}",$${price},${shipping},,,Fixed price,,1`;
@@ -81,6 +82,10 @@ describe('run', () => {
     const generic = report.segments.find(s => s.class === 'generic');
     expect(generic.premium.median).toBe(0.1);
     expect(generic.reliable).toBe(true);
+    for (const s of report.segments) {
+      expect(s.premium).not.toBeNull();
+      expect(s.reliable).toBe(s.nWithSpot >= report.minSample && s.spotDays >= MIN_SPOT_DAYS);
+    }
   });
 
   test('spot entries that are not dated positive numbers are dropped, and a non-object file is rejected', () => {

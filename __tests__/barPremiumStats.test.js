@@ -57,6 +57,9 @@ describe('classifyBarTitle', () => {
   });
 
   test('CombiBar and Kinebar names count as bars', () => {
+    expect(classifyBarTitle('PAMP 1 oz Silver Bar In Assay w/ Sleeve').ok).toBe(true);
+    expect(classifyBarTitle('Silver Bar 1 oz Capsule & Sleeve').ok).toBe(true);
+    expect(classifyBarTitle('1 oz Silver Bar in a Plastic Holder').ok).toBe(true);
     expect(classifyBarTitle('Valcambi CombiBar 50 gram gold').ok).toBe(true);
     expect(classifyBarTitle('1 oz Heraeus Kinebar gold').ok).toBe(true);
   });
@@ -74,8 +77,16 @@ describe('classifyBarTitle', () => {
     ['Glass Sugar Bowl 10oz Coffee Bar Storage Gold or Silver', 'non-bar-item'],
     ['Graphite Mold for 10 oz Silver Bar', 'non-bar-item'],
     ['Vinyl Sleeve Holder 1 oz Silver Bar', 'non-bar-item'],
-    ['1 oz Copper Bar', 'non-bar-item'],
+    ['1 oz Copper Bar', 'no-metal'],
     ['10 oz Silver Bar Gold Plated', 'non-bar-item'],
+    ['Plastic Cover Only for 100oz Engelhard Silver Bar', 'non-bar-item'],
+    ['14k Gold Bezel Pendant for 1 oz Gold Bar', 'non-bar-item'],
+    ['1 oz Silver Bar w/ Frame', 'non-bar-item'],
+    ['Display Case for 10 oz Silver Bars', 'non-bar-item'],
+    ['10 Silver Bar Sleeves 1 oz', 'non-bar-item'],
+    ['Silver Bar Holders 1 oz', 'non-bar-item'],
+    ['Box of 20 Silver Bars 1 oz', 'multi-item'],
+    ['5 Pack 1 oz Silver Bar', 'multi-item'],
     ['1 oz Gold and Silver Bar Set Collector', 'multi-item'],
     ['1 oz Gold Silver Bar', 'multiple-metals'],
     ['', 'not-a-bar'],
@@ -300,6 +311,38 @@ describe('buildBarPremiumReport', () => {
     expect(cheap.source.excluded['premium-outlier']).toBe(8);
     const fair = buildBarPremiumReport(comps('1 oz Silver Bar Generic', 33, '2026-01-10', 8), { spotHistory });
     expect(fair.source.classified).toBe(8);
+  });
+
+  test('a title sold at widely different prices in one month is a variation listing and is dropped', () => {
+    const variation = [30, 100, 300].map(totalUsd => ({ title: '1 oz Silver Bar Choose Your Style', totalUsd, soldDate: '2026-03-05' }));
+    const steady = [30, 33, 36].map(totalUsd => ({ title: '1 oz Silver Bar Same Listing', totalUsd, soldDate: '2026-03-05' }));
+    const two = [95, 8274].map(totalUsd => ({ title: '1 oz Silver Bar Two Only', totalUsd, soldDate: '2026-06-05' }));
+    const report = buildBarPremiumReport([...variation, ...steady, ...two]);
+    expect(report.source.excluded['variation-listing']).toBe(3);
+    expect(report.source.classified).toBe(5);
+  });
+
+  test('a dominant listing does not move the band when the three-month window has enough comps', () => {
+    const dominated = [
+      ...comps('1 oz Silver Bar Generic', 100, '2026-02-05', 6),
+      ...comps('1 oz Silver Bar Dear', 200, '2026-03-05', 5),
+      ...comps('1 oz Silver Bar Generic', 100, '2026-04-05', 6),
+    ];
+    const report = buildBarPremiumReport(dominated);
+    expect(report.source.excluded['price-outlier']).toBe(5);
+    expect(report.source.classified).toBe(12);
+  });
+
+  test('a sold date that is not a plain date is treated as undated, not an error', () => {
+    const odd = [
+      ...comps('1 oz Silver Bar Generic', 33, '2026-01-10', 8),
+      { title: '1 oz Silver Bar Far Future', totalUsd: 10, soldDate: '+010000-01-01T00:00:00.000Z' },
+      { title: '1 oz Silver Bar Garbage', totalUsd: 10, soldDate: 'soon' },
+      { title: '1 oz Silver Bar Prefixed', totalUsd: 10, soldDate: 'sold on 2026-01-10' },
+    ];
+    const report = buildBarPremiumReport(odd, { spotHistory });
+    expect(report.source.classified).toBe(11);
+    expect(report.spotCoverage).toEqual({ compsWithSpot: 8, compsWithoutSpot: 3 });
   });
 
   test('exclusion reasons are counted and the report is deterministic', () => {

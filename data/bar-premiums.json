@@ -5,17 +5,18 @@
   "source": {
     "datasets": 50,
     "comps": 3537,
-    "classified": 2181,
+    "classified": 1944,
     "excluded": {
-      "multi-item": 137,
-      "multiple-makers": 30,
-      "multiple-metals": 28,
-      "no-metal": 43,
-      "no-weight": 79,
-      "non-bar-item": 268,
+      "multi-item": 207,
+      "multiple-makers": 28,
+      "multiple-metals": 25,
+      "no-metal": 47,
+      "no-weight": 78,
+      "non-bar-item": 192,
       "not-a-bar": 288,
       "odd-weight": 55,
-      "price-outlier": 428
+      "price-outlier": 194,
+      "variation-listing": 479
     },
     "lastSold": "2026-11-02"
   },
@@ -51,7 +52,7 @@
       "class": "brand",
       "brand": "PAMP",
       "series": null,
-      "n": 119,
+      "n": 118,
       "price": {
         "n": 109,
         "p25": 136.8,
@@ -429,12 +430,12 @@
       "class": "brand",
       "brand": "Geiger",
       "series": null,
-      "n": 207,
+      "n": 175,
       "price": {
-        "n": 203,
-        "p25": 168.7,
-        "median": 199,
-        "p75": 214.92
+        "n": 172,
+        "p25": 165.04,
+        "median": 200.24,
+        "p75": 215.84
       },
       "premium": null,
       "nWithSpot": 0,
@@ -450,12 +451,12 @@
       "class": "brand",
       "brand": "PAMP",
       "series": null,
-      "n": 168,
+      "n": 161,
       "price": {
-        "n": 156,
-        "p25": 172.91,
-        "median": 184,
-        "p75": 203.25
+        "n": 148,
+        "p25": 174.04,
+        "median": 184.03,
+        "p75": 205.57
       },
       "premium": null,
       "nWithSpot": 0,
@@ -555,12 +556,12 @@
       "class": "series",
       "brand": "Geiger",
       "series": "Edelmetalle",
-      "n": 67,
+      "n": 51,
       "price": {
-        "n": 67,
-        "p25": 140.88,
-        "median": 186,
-        "p75": 204.71
+        "n": 51,
+        "p25": 138.53,
+        "median": 187.41,
+        "p75": 205.55
       },
       "premium": null,
       "nWithSpot": 0,
@@ -618,18 +619,18 @@
       "class": "series",
       "brand": "Geiger",
       "series": "Square",
-      "n": 90,
+      "n": 74,
       "price": {
-        "n": 84,
-        "p25": 199.86,
-        "median": 210.05,
-        "p75": 224.99
+        "n": 67,
+        "p25": 205,
+        "median": 215,
+        "p75": 225.25
       },
       "premium": null,
       "nWithSpot": 0,
       "spotDays": 0,
       "reliable": false,
-      "firstSold": "2025-12-04",
+      "firstSold": "2026-02-04",
       "lastSold": "2026-09-22"
     },
     {
@@ -681,7 +682,7 @@
       "class": "series",
       "brand": "PAMP",
       "series": "Fortuna",
-      "n": 46,
+      "n": 45,
       "price": {
         "n": 33,
         "p25": 171.95,
@@ -765,19 +766,19 @@
       "class": "series",
       "brand": "PAMP",
       "series": "Rosa",
-      "n": 44,
+      "n": 38,
       "price": {
-        "n": 35,
-        "p25": 174.13,
-        "median": 184,
-        "p75": 187.23
+        "n": 30,
+        "p25": 175.06,
+        "median": 184.25,
+        "p75": 185.5
       },
       "premium": null,
       "nWithSpot": 0,
       "spotDays": 0,
       "reliable": false,
       "firstSold": "2026-02-04",
-      "lastSold": "2026-08-06"
+      "lastSold": "2026-07-15"
     },
     {
       "key": "gold|1 oz|brand|Apmex|",
@@ -786,18 +787,18 @@
       "class": "brand",
       "brand": "Apmex",
       "series": null,
-      "n": 13,
+      "n": 3,
       "price": {
-        "n": 11,
-        "p25": 195.02,
-        "median": 336.5,
-        "p75": 453.61
+        "n": 3,
+        "p25": 1062.2,
+        "median": 1980.62,
+        "p75": 3317.7
       },
       "premium": null,
       "nWithSpot": 0,
       "spotDays": 0,
       "reliable": false,
-      "firstSold": "2024-11-23",
+      "firstSold": "2025-08-10",
       "lastSold": "2026-08-25"
     },
     {
@@ -807,18 +808,18 @@
       "class": "brand",
       "brand": "Argor-Heraeus",
       "series": null,
-      "n": 16,
+      "n": 11,
       "price": {
-        "n": 16,
-        "p25": 2773.54,
-        "median": 3063.71,
-        "p75": 3837.81
+        "n": 8,
+        "p25": 2855.29,
+        "median": 3038.71,
+        "p75": 3077.69
       },
       "premium": null,
       "nWithSpot": 0,
       "spotDays": 0,
       "reliable": false,
-      "firstSold": "2026-01-29",
+      "firstSold": "2026-02-07",
       "lastSold": "2026-08-16"
     },
     {
@@ -849,12 +850,12 @@
       "class": "brand",
       "brand": "PAMP",
       "series": null,
-      "n": 76,
+      "n": 70,
       "price": {
-        "n": 65,
-        "p25": 4430.45,
-        "median": 4749.1,
-        "p75": 5000.19
+        "n": 62,
+        "p25": 4345,
+        "median": 4701.05,
+        "p75": 4951
       },
       "premium": null,
       "nWithSpot": 0,
@@ -870,18 +871,18 @@
       "class": "brand",
       "brand": "Perth Mint",
       "series": null,
-      "n": 65,
+      "n": 46,
       "price": {
-        "n": 58,
-        "p25": 2728.71,
-        "median": 3055.62,
-        "p75": 3480.57
+        "n": 44,
+        "p25": 2896.35,
+        "median": 3105.62,
+        "p75": 3731.27
       },
       "premium": null,
       "nWithSpot": 0,
       "spotDays": 0,
       "reliable": false,
-      "firstSold": "2025-07-13",
+      "firstSold": "2025-08-04",
       "lastSold": "2026-10-11"
     },
     {
@@ -891,12 +892,12 @@
       "class": "brand",
       "brand": "Royal Canadian Mint",
       "series": null,
-      "n": 2,
+      "n": 1,
       "price": {
-        "n": 2,
-        "p25": 2040.75,
-        "median": 2068.83,
-        "p75": 2096.91
+        "n": 1,
+        "p25": 2125,
+        "median": 2125,
+        "p75": 2125
       },
       "premium": null,
       "nWithSpot": 0,
@@ -954,18 +955,18 @@
       "class": "generic",
       "brand": null,
       "series": null,
-      "n": 39,
+      "n": 32,
       "price": {
-        "n": 38,
-        "p25": 3670.32,
-        "median": 4515,
-        "p75": 4784.34
+        "n": 32,
+        "p25": 3640.93,
+        "median": 4478.81,
+        "p75": 4750
       },
       "premium": null,
       "nWithSpot": 0,
       "spotDays": 0,
       "reliable": false,
-      "firstSold": "2025-02-14",
+      "firstSold": "2024-11-10",
       "lastSold": "2026-07-23"
     },
     {
@@ -975,18 +976,18 @@
       "class": "series",
       "brand": "PAMP",
       "series": "Fortuna",
-      "n": 32,
+      "n": 34,
       "price": {
-        "n": 28,
-        "p25": 4409.09,
-        "median": 4681.97,
-        "p75": 4954.63
+        "n": 31,
+        "p25": 4322.5,
+        "median": 4631.63,
+        "p75": 4921.49
       },
       "premium": null,
       "nWithSpot": 0,
       "spotDays": 0,
       "reliable": false,
-      "firstSold": "2025-12-03",
+      "firstSold": "2025-11-17",
       "lastSold": "2026-06-21"
     },
     {
@@ -1017,12 +1018,12 @@
       "class": "series",
       "brand": "PAMP",
       "series": "Lunar",
-      "n": 20,
+      "n": 14,
       "price": {
-        "n": 20,
-        "p25": 599.4,
-        "median": 824.1,
-        "p75": 4770.03
+        "n": 14,
+        "p25": 768.99,
+        "median": 1901.5,
+        "p75": 4533.95
       },
       "premium": null,
       "nWithSpot": 0,
@@ -1080,18 +1081,18 @@
       "class": "series",
       "brand": "Perth Mint",
       "series": "Minted",
-      "n": 14,
+      "n": 1,
       "price": {
-        "n": 12,
-        "p25": 2972.83,
-        "median": 3305.3,
-        "p75": 3504.89
+        "n": 1,
+        "p25": 6192.25,
+        "median": 6192.25,
+        "p75": 6192.25
       },
       "premium": null,
       "nWithSpot": 0,
       "spotDays": 0,
       "reliable": false,
-      "firstSold": "2026-01-10",
+      "firstSold": "2026-04-06",
       "lastSold": "2026-04-06"
     },
     {
@@ -1164,12 +1165,12 @@
       "class": "generic",
       "brand": null,
       "series": null,
-      "n": 8,
+      "n": 6,
       "price": {
-        "n": 8,
-        "p25": 523.14,
-        "median": 540,
-        "p75": 573.43
+        "n": 6,
+        "p25": 495.89,
+        "median": 551.72,
+        "p75": 586.94
       },
       "premium": null,
       "nWithSpot": 0,
@@ -1206,12 +1207,12 @@
       "class": "brand",
       "brand": "PAMP",
       "series": null,
-      "n": 15,
+      "n": 14,
       "price": {
-        "n": 15,
-        "p25": 1466.82,
-        "median": 2471.54,
-        "p75": 2538.27
+        "n": 10,
+        "p25": 2458.3,
+        "median": 2491.46,
+        "p75": 2551.98
       },
       "premium": null,
       "nWithSpot": 0,
@@ -1269,12 +1270,12 @@
       "class": "series",
       "brand": "PAMP",
       "series": "Rosa",
-      "n": 5,
+      "n": 4,
       "price": {
-        "n": 5,
-        "p25": 195,
-        "median": 206,
-        "p75": 633.65
+        "n": 4,
+        "p25": 193.75,
+        "median": 200.5,
+        "p75": 833.69
       },
       "premium": null,
       "nWithSpot": 0,
@@ -1290,12 +1291,12 @@
       "class": "brand",
       "brand": "Geiger",
       "series": null,
-      "n": 40,
+      "n": 31,
       "price": {
-        "n": 40,
-        "p25": 1156.68,
-        "median": 1352.74,
-        "p75": 1701
+        "n": 31,
+        "p25": 1149.83,
+        "median": 1304.76,
+        "p75": 1691.69
       },
       "premium": null,
       "nWithSpot": 0,
@@ -1311,12 +1312,12 @@
       "class": "brand",
       "brand": "PAMP",
       "series": null,
-      "n": 120,
+      "n": 108,
       "price": {
-        "n": 120,
-        "p25": 1077.74,
-        "median": 1448.95,
-        "p75": 1633.63
+        "n": 108,
+        "p25": 1051.88,
+        "median": 1390.26,
+        "p75": 1606.58
       },
       "premium": null,
       "nWithSpot": 0,
@@ -1374,11 +1375,11 @@
       "class": "series",
       "brand": "Geiger",
       "series": "Original",
-      "n": 10,
+      "n": 5,
       "price": {
-        "n": 10,
-        "p25": 1629.59,
-        "median": 1829.87,
+        "n": 5,
+        "p25": 1304.76,
+        "median": 1905.2,
         "p75": 1969.87
       },
       "premium": null,
@@ -1386,7 +1387,7 @@
       "spotDays": 0,
       "reliable": false,
       "firstSold": "2025-11-16",
-      "lastSold": "2026-02-16"
+      "lastSold": "2026-02-11"
     },
     {
       "key": "gold|10 g|series|Geiger|Square",
@@ -1416,12 +1417,12 @@
       "class": "series",
       "brand": "PAMP",
       "series": "Fortuna",
-      "n": 72,
+      "n": 66,
       "price": {
-        "n": 72,
-        "p25": 1110.26,
-        "median": 1484.8,
-        "p75": 1568.37
+        "n": 66,
+        "p25": 1109.72,
+        "median": 1419.45,
+        "p75": 1557.86
       },
       "premium": null,
       "nWithSpot": 0,
@@ -1458,19 +1459,19 @@
       "class": "generic",
       "brand": null,
       "series": null,
-      "n": 5,
+      "n": 8,
       "price": {
-        "n": 5,
-        "p25": 1046.15,
-        "median": 3250,
-        "p75": 6200
+        "n": 7,
+        "p25": 76.41,
+        "median": 572.49,
+        "p75": 2148.07
       },
       "premium": null,
       "nWithSpot": 0,
       "spotDays": 0,
       "reliable": false,
       "firstSold": "2025-10-24",
-      "lastSold": "2026-01-20"
+      "lastSold": "2026-03-19"
     },
     {
       "key": "gold|100 g|brand|PAMP|",
@@ -1492,27 +1493,6 @@
       "reliable": false,
       "firstSold": "2026-03-21",
       "lastSold": "2026-03-21"
-    },
-    {
-      "key": "gold|100 g|generic||",
-      "metal": "gold",
-      "weightBucket": "100 g",
-      "class": "generic",
-      "brand": null,
-      "series": null,
-      "n": 2,
-      "price": {
-        "n": 2,
-        "p25": 613.55,
-        "median": 1192.35,
-        "p75": 1771.15
-      },
-      "premium": null,
-      "nWithSpot": 0,
-      "spotDays": 0,
-      "reliable": false,
-      "firstSold": "2025-12-03",
-      "lastSold": "2026-03-02"
     },
     {
       "key": "gold|100 g|series|PAMP|Rosa",
@@ -1563,19 +1543,19 @@
       "class": "brand",
       "brand": "PAMP",
       "series": null,
-      "n": 70,
+      "n": 48,
       "price": {
-        "n": 64,
-        "p25": 155.89,
-        "median": 392.59,
-        "p75": 448.87
+        "n": 48,
+        "p25": 400,
+        "median": 435.38,
+        "p75": 480.16
       },
       "premium": null,
       "nWithSpot": 0,
       "spotDays": 0,
       "reliable": false,
-      "firstSold": "2024-11-15",
-      "lastSold": "2026-08-16"
+      "firstSold": "2026-03-09",
+      "lastSold": "2026-05-09"
     },
     {
       "key": "gold|2.5 g|generic||",
@@ -1626,19 +1606,19 @@
       "class": "series",
       "brand": "PAMP",
       "series": "Fortuna",
-      "n": 58,
+      "n": 30,
       "price": {
-        "n": 52,
-        "p25": 150.96,
-        "median": 375,
-        "p75": 406.63
+        "n": 28,
+        "p25": 385.64,
+        "median": 400.24,
+        "p75": 425.29
       },
       "premium": null,
       "nWithSpot": 0,
       "spotDays": 0,
       "reliable": false,
-      "firstSold": "2024-11-15",
-      "lastSold": "2026-08-16"
+      "firstSold": "2026-04-24",
+      "lastSold": "2026-05-09"
     },
     {
       "key": "gold|2.5 g|series|PAMP|Lady of Liberty",
@@ -1668,19 +1648,19 @@
       "class": "series",
       "brand": "PAMP",
       "series": "Rosa",
-      "n": 7,
+      "n": 6,
       "price": {
-        "n": 7,
-        "p25": 476.34,
+        "n": 6,
+        "p25": 474.51,
         "median": 480,
-        "p75": 488.79
+        "p75": 480.48
       },
       "premium": null,
       "nWithSpot": 0,
       "spotDays": 0,
       "reliable": false,
       "firstSold": "2026-03-09",
-      "lastSold": "2026-05-27"
+      "lastSold": "2026-05-07"
     },
     {
       "key": "gold|2.5 g|series|PAMP|Veriscan",
@@ -1710,18 +1690,18 @@
       "class": "brand",
       "brand": "PAMP",
       "series": null,
-      "n": 4,
+      "n": 1,
       "price": {
-        "n": 4,
-        "p25": 220.26,
-        "median": 325.5,
-        "p75": 1163.9
+        "n": 1,
+        "p25": 3365.4,
+        "median": 3365.4,
+        "p75": 3365.4
       },
       "premium": null,
       "nWithSpot": 0,
       "spotDays": 0,
       "reliable": false,
-      "firstSold": "2026-01-09",
+      "firstSold": "2026-04-05",
       "lastSold": "2026-04-05"
     },
     {
@@ -1731,18 +1711,18 @@
       "class": "series",
       "brand": "PAMP",
       "series": "Rosa",
-      "n": 4,
+      "n": 1,
       "price": {
-        "n": 4,
-        "p25": 220.26,
-        "median": 325.5,
-        "p75": 1163.9
+        "n": 1,
+        "p25": 3365.4,
+        "median": 3365.4,
+        "p75": 3365.4
       },
       "premium": null,
       "nWithSpot": 0,
       "spotDays": 0,
       "reliable": false,
-      "firstSold": "2026-01-09",
+      "firstSold": "2026-04-05",
       "lastSold": "2026-04-05"
     },
     {
@@ -1815,12 +1795,12 @@
       "class": "brand",
       "brand": "Geiger",
       "series": null,
-      "n": 41,
+      "n": 35,
       "price": {
-        "n": 40,
-        "p25": 864.01,
-        "median": 946.5,
-        "p75": 1010.25
+        "n": 34,
+        "p25": 881.5,
+        "median": 934,
+        "p75": 995.5
       },
       "premium": null,
       "nWithSpot": 0,
@@ -1836,12 +1816,12 @@
       "class": "brand",
       "brand": "PAMP",
       "series": null,
-      "n": 137,
+      "n": 143,
       "price": {
-        "n": 131,
-        "p25": 748.4,
-        "median": 858,
-        "p75": 951.18
+        "n": 125,
+        "p25": 805.75,
+        "median": 876.66,
+        "p75": 957.01
       },
       "premium": null,
       "nWithSpot": 0,
@@ -1899,12 +1879,12 @@
       "class": "series",
       "brand": "Geiger",
       "series": "Original",
-      "n": 36,
+      "n": 30,
       "price": {
-        "n": 36,
-        "p25": 862.87,
-        "median": 949.95,
-        "p75": 1014
+        "n": 30,
+        "p25": 881.5,
+        "median": 949.48,
+        "p75": 1006.5
       },
       "premium": null,
       "nWithSpot": 0,
@@ -1962,12 +1942,12 @@
       "class": "series",
       "brand": "PAMP",
       "series": "Coca-Cola",
-      "n": 6,
+      "n": 9,
       "price": {
-        "n": 6,
-        "p25": 837.55,
-        "median": 917.42,
-        "p75": 1001.9
+        "n": 9,
+        "p25": 898.41,
+        "median": 956.49,
+        "p75": 1008.78
       },
       "premium": null,
       "nWithSpot": 0,
@@ -2004,18 +1984,18 @@
       "class": "series",
       "brand": "PAMP",
       "series": "Lunar",
-      "n": 33,
+      "n": 28,
       "price": {
-        "n": 27,
+        "n": 24,
         "p25": 858,
-        "median": 881.26,
-        "p75": 936.96
+        "median": 874.88,
+        "p75": 930.35
       },
       "premium": null,
       "nWithSpot": 0,
       "spotDays": 0,
       "reliable": false,
-      "firstSold": "2025-08-11",
+      "firstSold": "2025-07-02",
       "lastSold": "2026-04-29"
     },
     {
@@ -2025,12 +2005,12 @@
       "class": "series",
       "brand": "PAMP",
       "series": "Rosa",
-      "n": 20,
+      "n": 15,
       "price": {
-        "n": 20,
-        "p25": 518.97,
-        "median": 638.24,
-        "p75": 827.49
+        "n": 14,
+        "p25": 497.5,
+        "median": 691.86,
+        "p75": 830
       },
       "premium": null,
       "nWithSpot": 0,
@@ -2172,19 +2152,19 @@
       "class": "brand",
       "brand": "Apmex",
       "series": null,
-      "n": 22,
+      "n": 14,
       "price": {
-        "n": 18,
-        "p25": 99.53,
-        "median": 107.22,
-        "p75": 110.77
+        "n": 10,
+        "p25": 107.21,
+        "median": 109.06,
+        "p75": 110.83
       },
       "premium": null,
       "nWithSpot": 0,
       "spotDays": 0,
       "reliable": false,
-      "firstSold": "2025-09-28",
-      "lastSold": "2026-05-12"
+      "firstSold": "2025-11-28",
+      "lastSold": "2026-05-20"
     },
     {
       "key": "silver|1 oz|brand|Geiger|",
@@ -2193,12 +2173,12 @@
       "class": "brand",
       "brand": "Geiger",
       "series": null,
-      "n": 98,
+      "n": 101,
       "price": {
-        "n": 98,
-        "p25": 104.67,
-        "median": 135.03,
-        "p75": 167.5
+        "n": 101,
+        "p25": 102.83,
+        "median": 135,
+        "p75": 160.51
       },
       "premium": null,
       "nWithSpot": 0,
@@ -2214,12 +2194,12 @@
       "class": "brand",
       "brand": "Johnson Matthey",
       "series": null,
-      "n": 11,
+      "n": 9,
       "price": {
-        "n": 11,
+        "n": 7,
         "p25": 43.51,
-        "median": 49.88,
-        "p75": 83.84
+        "median": 44.68,
+        "p75": 50.58
       },
       "premium": null,
       "nWithSpot": 0,
@@ -2235,18 +2215,18 @@
       "class": "brand",
       "brand": "PAMP",
       "series": null,
-      "n": 298,
+      "n": 245,
       "price": {
-        "n": 296,
-        "p25": 93.65,
-        "median": 129.65,
-        "p75": 156.24
+        "n": 245,
+        "p25": 89.63,
+        "median": 125.35,
+        "p75": 150
       },
       "premium": null,
       "nWithSpot": 0,
       "spotDays": 0,
       "reliable": false,
-      "firstSold": "2024-11-21",
+      "firstSold": "2024-11-23",
       "lastSold": "2026-09-24"
     },
     {
@@ -2277,18 +2257,18 @@
       "class": "brand",
       "brand": "SilverTowne",
       "series": null,
-      "n": 3,
+      "n": 4,
       "price": {
-        "n": 3,
+        "n": 4,
         "p25": 92.64,
-        "median": 92.65,
-        "p75": 94.43
+        "median": 94.43,
+        "p75": 96.21
       },
       "premium": null,
       "nWithSpot": 0,
       "spotDays": 0,
       "reliable": false,
-      "firstSold": "2026-04-07",
+      "firstSold": "2026-03-19",
       "lastSold": "2026-04-30"
     },
     {
@@ -2319,12 +2299,12 @@
       "class": "generic",
       "brand": null,
       "series": null,
-      "n": 79,
+      "n": 78,
       "price": {
-        "n": 72,
-        "p25": 88.48,
-        "median": 95.77,
-        "p75": 105.6
+        "n": 73,
+        "p25": 88.35,
+        "median": 94.7,
+        "p75": 105.17
       },
       "premium": null,
       "nWithSpot": 0,
@@ -2340,12 +2320,12 @@
       "class": "series",
       "brand": "Geiger",
       "series": "Edelmetalle",
-      "n": 31,
+      "n": 33,
       "price": {
-        "n": 31,
-        "p25": 69.13,
+        "n": 33,
+        "p25": 65.76,
         "median": 91.52,
-        "p75": 134.44
+        "p75": 129.87
       },
       "premium": null,
       "nWithSpot": 0,
@@ -2361,12 +2341,12 @@
       "class": "series",
       "brand": "Geiger",
       "series": "Love",
-      "n": 4,
+      "n": 3,
       "price": {
-        "n": 4,
-        "p25": 179.52,
-        "median": 190.37,
-        "p75": 206.17
+        "n": 3,
+        "p25": 176.55,
+        "median": 182.5,
+        "p75": 190.37
       },
       "premium": null,
       "nWithSpot": 0,
@@ -2382,18 +2362,18 @@
       "class": "series",
       "brand": "Geiger",
       "series": "Schloss Guldengossa",
-      "n": 10,
+      "n": 11,
       "price": {
-        "n": 10,
-        "p25": 97.85,
-        "median": 132.75,
-        "p75": 152.08
+        "n": 11,
+        "p25": 104.18,
+        "median": 140.5,
+        "p75": 149.35
       },
       "premium": null,
       "nWithSpot": 0,
       "spotDays": 0,
       "reliable": false,
-      "firstSold": "2025-12-19",
+      "firstSold": "2025-11-17",
       "lastSold": "2026-04-27"
     },
     {
@@ -2403,12 +2383,12 @@
       "class": "series",
       "brand": "Geiger",
       "series": "Square",
-      "n": 42,
+      "n": 41,
       "price": {
-        "n": 42,
+        "n": 41,
         "p25": 120.5,
-        "median": 146.41,
-        "p75": 170.5
+        "median": 142.88,
+        "p75": 167.5
       },
       "premium": null,
       "nWithSpot": 0,
@@ -2427,16 +2407,16 @@
       "n": 9,
       "price": {
         "n": 9,
-        "p25": 105.54,
-        "median": 113.5,
-        "p75": 130
+        "p25": 111.84,
+        "median": 129.99,
+        "p75": 141.48
       },
       "premium": null,
       "nWithSpot": 0,
       "spotDays": 0,
       "reliable": false,
       "firstSold": "2025-12-14",
-      "lastSold": "2026-09-04"
+      "lastSold": "2026-05-08"
     },
     {
       "key": "silver|1 oz|series|PAMP|Fortuna",
@@ -2445,12 +2425,12 @@
       "class": "series",
       "brand": "PAMP",
       "series": "Fortuna",
-      "n": 146,
+      "n": 105,
       "price": {
-        "n": 146,
-        "p25": 105.97,
-        "median": 132.33,
-        "p75": 159.91
+        "n": 105,
+        "p25": 90,
+        "median": 125,
+        "p75": 147.5
       },
       "premium": null,
       "nWithSpot": 0,
@@ -2487,12 +2467,12 @@
       "class": "series",
       "brand": "PAMP",
       "series": "Lunar",
-      "n": 78,
+      "n": 69,
       "price": {
-        "n": 78,
-        "p25": 86.39,
-        "median": 135.24,
-        "p75": 162.59
+        "n": 69,
+        "p25": 81.58,
+        "median": 129.93,
+        "p75": 153.12
       },
       "premium": null,
       "nWithSpot": 0,
@@ -2508,18 +2488,18 @@
       "class": "series",
       "brand": "PAMP",
       "series": "Rosa",
-      "n": 28,
+      "n": 24,
       "price": {
-        "n": 28,
-        "p25": 55.88,
-        "median": 71.89,
-        "p75": 116.66
+        "n": 24,
+        "p25": 61.88,
+        "median": 84.24,
+        "p75": 123.97
       },
       "premium": null,
       "nWithSpot": 0,
       "spotDays": 0,
       "reliable": false,
-      "firstSold": "2024-11-21",
+      "firstSold": "2024-12-04",
       "lastSold": "2026-09-19"
     },
     {
@@ -2718,18 +2698,18 @@
       "class": "brand",
       "brand": "Geiger",
       "series": null,
-      "n": 5,
+      "n": 3,
       "price": {
-        "n": 5,
-        "p25": 182.5,
-        "median": 839,
-        "p75": 945.55
+        "n": 3,
+        "p25": 892.27,
+        "median": 945.55,
+        "p75": 972.77
       },
       "premium": null,
       "nWithSpot": 0,
       "spotDays": 0,
       "reliable": false,
-      "firstSold": "2026-01-21",
+      "firstSold": "2026-02-11",
       "lastSold": "2026-07-31"
     },
     {
@@ -2804,10 +2784,10 @@
       "series": null,
       "n": 41,
       "price": {
-        "n": 34,
-        "p25": 816.88,
-        "median": 830,
-        "p75": 928.03
+        "n": 40,
+        "p25": 809.68,
+        "median": 833.25,
+        "p75": 955.57
       },
       "premium": null,
       "nWithSpot": 0,
@@ -2886,12 +2866,12 @@
       "class": "generic",
       "brand": null,
       "series": null,
-      "n": 88,
+      "n": 81,
       "price": {
-        "n": 84,
-        "p25": 603.71,
-        "median": 743.98,
-        "p75": 836.37
+        "n": 79,
+        "p25": 580.16,
+        "median": 735,
+        "p75": 825.12
       },
       "premium": null,
       "nWithSpot": 0,
@@ -2920,27 +2900,6 @@
       "reliable": false,
       "firstSold": "2026-02-11",
       "lastSold": "2026-07-31"
-    },
-    {
-      "key": "silver|10 oz|series|Geiger|Security Line",
-      "metal": "silver",
-      "weightBucket": "10 oz",
-      "class": "series",
-      "brand": "Geiger",
-      "series": "Security Line",
-      "n": 2,
-      "price": {
-        "n": 2,
-        "p25": 143.46,
-        "median": 156.47,
-        "p75": 169.49
-      },
-      "premium": null,
-      "nWithSpot": 0,
-      "spotDays": 0,
-      "reliable": false,
-      "firstSold": "2026-01-21",
-      "lastSold": "2026-01-26"
     },
     {
       "key": "silver|10 oz|series|Geiger|Square",
@@ -2991,11 +2950,11 @@
       "class": "series",
       "brand": "PAMP",
       "series": "Lady of Liberty",
-      "n": 19,
+      "n": 24,
       "price": {
-        "n": 16,
-        "p25": 809.68,
-        "median": 819.99,
+        "n": 20,
+        "p25": 787.74,
+        "median": 818.75,
         "p75": 829.99
       },
       "premium": null,
@@ -3012,18 +2971,18 @@
       "class": "series",
       "brand": "PAMP",
       "series": "Lunar",
-      "n": 17,
+      "n": 11,
       "price": {
-        "n": 17,
-        "p25": 169,
-        "median": 912.98,
-        "p75": 974.25
+        "n": 11,
+        "p25": 913.51,
+        "median": 954.99,
+        "p75": 988.63
       },
       "premium": null,
       "nWithSpot": 0,
       "spotDays": 0,
       "reliable": false,
-      "firstSold": "2026-01-24",
+      "firstSold": "2026-04-30",
       "lastSold": "2026-07-09"
     },
     {
@@ -3054,18 +3013,18 @@
       "class": "brand",
       "brand": "Geiger",
       "series": null,
-      "n": 10,
+      "n": 2,
       "price": {
-        "n": 10,
-        "p25": 226.97,
+        "n": 2,
+        "p25": 475.2,
         "median": 475.2,
-        "p75": 876.21
+        "p75": 475.2
       },
       "premium": null,
       "nWithSpot": 0,
       "spotDays": 0,
       "reliable": false,
-      "firstSold": "2025-12-04",
+      "firstSold": "2026-04-12",
       "lastSold": "2026-04-12"
     },
     {
@@ -3130,27 +3089,6 @@
       "reliable": false,
       "firstSold": "2026-03-22",
       "lastSold": "2026-03-29"
-    },
-    {
-      "key": "silver|100 g|series|Geiger|Security Line",
-      "metal": "silver",
-      "weightBucket": "100 g",
-      "class": "series",
-      "brand": "Geiger",
-      "series": "Security Line",
-      "n": 8,
-      "price": {
-        "n": 8,
-        "p25": 210.82,
-        "median": 544.42,
-        "p75": 888.46
-      },
-      "premium": null,
-      "nWithSpot": 0,
-      "spotDays": 0,
-      "reliable": false,
-      "firstSold": "2025-12-04",
-      "lastSold": "2026-01-04"
     },
     {
       "key": "silver|100 g|series|Geiger|Square",
@@ -3243,18 +3181,18 @@
       "class": "brand",
       "brand": "Engelhard",
       "series": null,
-      "n": 53,
+      "n": 40,
       "price": {
-        "n": 53,
-        "p25": 3543.3,
-        "median": 4708.5,
-        "p75": 7650
+        "n": 40,
+        "p25": 3547.61,
+        "median": 5163.55,
+        "p75": 7558.23
       },
       "premium": null,
       "nWithSpot": 0,
       "spotDays": 0,
       "reliable": false,
-      "firstSold": "2024-11-06",
+      "firstSold": "2024-12-01",
       "lastSold": "2026-06-18"
     },
     {
@@ -3495,18 +3433,18 @@
       "class": "brand",
       "brand": "Geiger",
       "series": null,
-      "n": 10,
+      "n": 2,
       "price": {
-        "n": 9,
-        "p25": 104.13,
-        "median": 120,
-        "p75": 144
+        "n": 2,
+        "p25": 33.49,
+        "median": 36.98,
+        "p75": 40.48
       },
       "premium": null,
       "nWithSpot": 0,
       "spotDays": 0,
       "reliable": false,
-      "firstSold": "2026-01-29",
+      "firstSold": "2026-05-07",
       "lastSold": "2026-05-08"
     },
     {
@@ -3516,18 +3454,18 @@
       "class": "series",
       "brand": "Geiger",
       "series": "Square",
-      "n": 10,
+      "n": 2,
       "price": {
-        "n": 9,
-        "p25": 104.13,
-        "median": 120,
-        "p75": 144
+        "n": 2,
+        "p25": 33.49,
+        "median": 36.98,
+        "p75": 40.48
       },
       "premium": null,
       "nWithSpot": 0,
       "spotDays": 0,
       "reliable": false,
-      "firstSold": "2026-01-29",
+      "firstSold": "2026-05-07",
       "lastSold": "2026-05-08"
     },
     {
@@ -3642,12 +3580,12 @@
       "class": "brand",
       "brand": "Geiger",
       "series": null,
-      "n": 19,
+      "n": 16,
       "price": {
-        "n": 18,
-        "p25": 62.94,
-        "median": 76.08,
-        "p75": 191.48
+        "n": 16,
+        "p25": 61.28,
+        "median": 127.56,
+        "p75": 385.93
       },
       "premium": null,
       "nWithSpot": 0,
@@ -3663,12 +3601,12 @@
       "class": "series",
       "brand": "Geiger",
       "series": "Security Line",
-      "n": 19,
+      "n": 16,
       "price": {
-        "n": 18,
-        "p25": 62.94,
-        "median": 76.08,
-        "p75": 191.48
+        "n": 16,
+        "p25": 61.28,
+        "median": 127.56,
+        "p75": 385.93
       },
       "premium": null,
       "nWithSpot": 0,
@@ -3701,55 +3639,55 @@
       "metal": "gold",
       "weightBucket": "1 oz",
       "brand": "Argor-Heraeus",
-      "months": 3,
-      "nBrand": 14,
-      "nGeneric": 13,
-      "priceRatio": 0.833
+      "months": 2,
+      "nBrand": 9,
+      "nGeneric": 6,
+      "priceRatio": 0.709
     },
     {
       "metal": "gold",
       "weightBucket": "1 oz",
       "brand": "PAMP",
-      "months": 5,
-      "nBrand": 47,
-      "nGeneric": 22,
-      "priceRatio": 1.109
+      "months": 3,
+      "nBrand": 30,
+      "nGeneric": 11,
+      "priceRatio": 1.011
     },
     {
       "metal": "gold",
       "weightBucket": "1 oz",
       "brand": "Perth Mint",
-      "months": 3,
-      "nBrand": 36,
-      "nGeneric": 15,
-      "priceRatio": 0.868
+      "months": 2,
+      "nBrand": 19,
+      "nGeneric": 8,
+      "priceRatio": 0.741
     },
     {
       "metal": "silver",
       "weightBucket": "1 oz",
       "brand": "Apmex",
-      "months": 3,
-      "nBrand": 17,
-      "nGeneric": 58,
-      "priceRatio": 1.019
+      "months": 2,
+      "nBrand": 13,
+      "nGeneric": 48,
+      "priceRatio": 1.091
     },
     {
       "metal": "silver",
       "weightBucket": "1 oz",
       "brand": "Geiger",
-      "months": 5,
-      "nBrand": 51,
-      "nGeneric": 69,
-      "priceRatio": 1.453
+      "months": 6,
+      "nBrand": 53,
+      "nGeneric": 71,
+      "priceRatio": 1.434
     },
     {
       "metal": "silver",
       "weightBucket": "1 oz",
       "brand": "PAMP",
-      "months": 5,
-      "nBrand": 150,
-      "nGeneric": 69,
-      "priceRatio": 1.291
+      "months": 6,
+      "nBrand": 155,
+      "nGeneric": 71,
+      "priceRatio": 1.394
     },
     {
       "metal": "silver",
@@ -3757,8 +3695,8 @@
       "brand": "Sunshine Minting",
       "months": 2,
       "nBrand": 8,
-      "nGeneric": 49,
-      "priceRatio": 1.107
+      "nGeneric": 48,
+      "priceRatio": 1.12
     },
     {
       "metal": "silver",
@@ -3774,9 +3712,9 @@
       "weightBucket": "10 oz",
       "brand": "PAMP",
       "months": 3,
-      "nBrand": 27,
+      "nBrand": 28,
       "nGeneric": 41,
-      "priceRatio": 1.21
+      "priceRatio": 1.223
     },
     {
       "metal": "silver",
