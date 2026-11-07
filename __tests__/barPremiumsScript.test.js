@@ -180,7 +180,7 @@ describe('committed data/bar-premiums.json', () => {
       expect(s.price.p25).toBeLessThanOrEqual(s.price.median);
       expect(s.price.median).toBeLessThanOrEqual(s.price.p75);
       if (s.premium === null) { expect(s.reliable).toBe(false); expect(s.nWithSpot).toBe(0); }
-      else expect(s.reliable).toBe(s.nWithSpot >= data.minSample && s.spotDays >= 3);
+      else expect(s.reliable).toBe(s.nWithSpot >= data.minSample && s.premium.n >= data.minSample && s.spotDays >= 3);
     }
   });
 

@@ -21,11 +21,12 @@ const WEIGHT_BUCKETS = [
   ['10 oz', 10], ['20 oz', 20], ['50 oz', 50], ['100 oz', 100], ['1 kilo', OZT_PER_KILO], ['1000 oz', 1000],
 ];
 const BUCKET_TOLERANCE = 0.02;
-// Price band around the month's pooled median for a metal and weight bucket. Outside it the weight
-// in the title is wrong; 0.6 and 1.7 reject a 2:1 mislabel either way while a maker's premium fits.
+// Price band around the month's pooled median for a metal and weight bucket, used only for comps with no spot price.
+// Outside it the weight in the title is wrong; 0.6 and 1.7 reject a 2:1 mislabel either way while a maker's premium fits.
 const PRICE_BAND = [0.6, 1.7];
-// With spot history a comp's premium must be plausible: below -15% is under melt, above +100% is not this bar.
-const PREMIUM_BAND = [-0.15, 1.0];
+// With spot history, a sale this far under the metal value is a variation or wrong-weight listing. There is no ceiling:
+// a collectible bar's premium is the minted product's price, not an error.
+const PREMIUM_FLOOR = -0.15;
 // Spot is only trusted this close to the sale, and never from a later day.
 const PREMIUM_MAX_GAP_DAYS = 3;
 const MIN_BAND_COMPS = 5;
@@ -33,7 +34,9 @@ const MIN_POOLED_BAND_COMPS = 8;
 const MIN_SPOT_DAYS = 3;
 const MIN_UPLIFT_MONTHS = 2;
 
-const MULTI_ITEM_RE = /\b(?:lot|set|pcs|pieces?|bundle|collection|assortment|box\s+of|pack\s+of)\b|\bx\s?\d+\b|\b\d+\s?x\b|\b\d+\s?-?packs?\b/i;
+const MULTI_ITEM_RE = /\b(?:lot|set|pcs|pieces?|bundle|collection|assortment|box\s+of|pack\s+of)\b|\bx\s?\d+\b|\b\d+\s?x\b|\b\d+\s?-?packs?\b|\(\s*(?:[2-9]|\d{2,})\s*\)/i;
+// "2 1/2 Gram" is two and a half grams; the weight parser reads the 1/2 alone.
+const MIXED_FRACTION_RE = /\b\d+\s+\d+\/\d+\s*(?:g|gr|gm|gram|grams|oz|ozt|ounce|ounces)\b/i;
 // Accessories, molds and things that merely mention a bar. Plural "sleeves" and "holders" are accessories; a
 // collectible bar sold "in assay w/ sleeve" is still a bar.
 const NON_BAR_RE = /\b(?:molds?|moulds?|graphite|cast\s+iron|storage|bowl|glass|copper|sleeves|holders|vinyl|flips?|bezels?|framed?|cover\s+only|plastic\s+cover|accessor(?:y|ies)|replacement|necklace|pendant|keychain|gilded|plated|brass|bronze|display\s+(?:stand|case)|tray)\b/i;
@@ -63,6 +66,7 @@ function classifyBarTitle(title) {
   const metalText = t.replace(METAL_NOISE_RE, ' ');
   const metalWords = new Set((metalText.match(/\b(?:gold|silver|platinum|palladium)\b/gi) || []).map(m => m.toLowerCase()));
   if (metalWords.size > 1) return { ok: false, reason: 'multiple-metals' };
+  if (MIXED_FRACTION_RE.test(t)) return { ok: false, reason: 'odd-weight' };
   const identity = resolveProductIdentity({ text: metalText });
   const metal = identity.metal && METAL_SYMBOLS[identity.metal] ? identity.metal : null;
   if (!metal) return { ok: false, reason: 'no-metal' };
@@ -120,7 +124,7 @@ function segmentKey(c, level) {
  * @param {number} [opts.minSample=10] - spot-matched comps needed to call a segment reliable
  * @returns {{ segments: object[], uplift: object[], source: object, spotCoverage: object|null }}
  */
-function buildBarPremiumReport(comps, { spotHistory = null, minSample = 10 } = {}) {
+function buildBarPremiumReport(comps, { spotHistory = null, minSample = 10, premiumFloor = PREMIUM_FLOOR } = {}) {
   const excluded = {};
   const segs = new Map();
   const perMonth = new Map(); // metal|bucket|level|brand -> month -> prices
@@ -228,17 +232,20 @@ function buildBarPremiumReport(comps, { spotHistory = null, minSample = 10 } = {
 
   for (const item of items) {
     const { comp, cls } = item;
-    const band = bandFor(cls, monthOf(comp));
-    if (band && (comp.totalUsd < band[0] || comp.totalUsd > band[1])) {
-      excluded['price-outlier'] = (excluded['price-outlier'] || 0) + 1;
-      continue;
-    }
     const day = dayOf(comp);
     const spot = spotFor(cls.metal, day);
     const premium = spot ? comp.totalUsd / (cls.weightOzt * spot) - 1 : null;
-    if (premium != null && (premium < PREMIUM_BAND[0] || premium > PREMIUM_BAND[1])) {
-      excluded['premium-outlier'] = (excluded['premium-outlier'] || 0) + 1;
-      continue;
+    if (premium != null) {
+      if (premium < premiumFloor) {
+        excluded['below-melt'] = (excluded['below-melt'] || 0) + 1;
+        continue;
+      }
+    } else {
+      const band = bandFor(cls, monthOf(comp));
+      if (band && (comp.totalUsd < band[0] || comp.totalUsd > band[1])) {
+        excluded['price-outlier'] = (excluded['price-outlier'] || 0) + 1;
+        continue;
+      }
     }
     classified++;
     if (day && (!lastDay || day > lastDay)) lastDay = day;

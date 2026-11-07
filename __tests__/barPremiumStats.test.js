@@ -57,6 +57,9 @@ describe('classifyBarTitle', () => {
   });
 
   test('CombiBar and Kinebar names count as bars', () => {
+    expect(classifyBarTitle('PAMP 1/2 Gram Gold Bar Zodiac').ok).toBe(true);
+    expect(classifyBarTitle('PAMP 1 oz Silver Bar (1) In Assay').ok).toBe(true);
+    expect(classifyBarTitle('PAMP Lady Fortuna 1 oz Silver Bar (In Assay)').ok).toBe(true);
     expect(classifyBarTitle('PAMP 1 oz Silver Bar In Assay w/ Sleeve').ok).toBe(true);
     expect(classifyBarTitle('Silver Bar 1 oz Capsule & Sleeve').ok).toBe(true);
     expect(classifyBarTitle('1 oz Silver Bar in a Plastic Holder').ok).toBe(true);
@@ -72,6 +75,11 @@ describe('classifyBarTitle', () => {
     ['PAMP Geiger 1 oz Silver Bar', 'multiple-makers'],
     ['Silver Bar .999 Fine', 'no-weight'],
     ['3.5 oz Silver Bar', 'odd-weight'],
+    ['Pamp Swiss .9999 Gold 2 1/2 Gram Bar Sealed in Assay Card', 'odd-weight'],
+    ['(5)Pamp Suisse 1 Oz Silver Bar - Lady Fortuna', 'multi-item'],
+    ['(2) 2026 PAMP 10 Oz Silver Bar Year of the Horse', 'multi-item'],
+    ['(10) 1 oz Silver Bars', 'multi-item'],
+    ['1 1/2 oz Silver Bar', 'odd-weight'],
     ['1 oz Bar Fine', 'no-metal'],
     ['100 oz Cast Iron Silver Gold Ingot Mold Bar', 'non-bar-item'],
     ['Glass Sugar Bowl 10oz Coffee Bar Storage Gold or Silver', 'non-bar-item'],
@@ -304,15 +312,30 @@ describe('buildBarPremiumReport', () => {
     expect(buildBarPremiumReport(moved).source.classified).toBe(12);
   });
 
-  test('with spot history a month priced far from spot is dropped even when the median band cannot catch it', () => {
-    // Every comp agrees with the month's median, so only the premium band can see the problem.
-    const dear = buildBarPremiumReport(comps('1 oz Silver Bar Generic', 80, '2026-01-10', 8), { spotHistory });
-    expect(dear.source.excluded['premium-outlier']).toBe(8);
-    expect(dear.source.classified).toBe(0);
+  test('with spot history only a sale far below the metal value is dropped; a high premium is kept', () => {
     const cheap = buildBarPremiumReport(comps('1 oz Silver Bar Generic', 20, '2026-01-10', 8), { spotHistory });
-    expect(cheap.source.excluded['premium-outlier']).toBe(8);
-    const fair = buildBarPremiumReport(comps('1 oz Silver Bar Generic', 33, '2026-01-10', 8), { spotHistory });
-    expect(fair.source.classified).toBe(8);
+    expect(cheap.source.excluded['below-melt']).toBe(8);
+    expect(cheap.source.classified).toBe(0);
+    const justAbove = buildBarPremiumReport(comps('1 oz Silver Bar Generic', 26, '2026-01-10', 8), { spotHistory });
+    expect(justAbove.source.classified).toBe(8);
+    const collectible = buildBarPremiumReport(comps('1 oz Silver Bar Lunar Series Dragon', 300, '2026-01-10', 8), { spotHistory });
+    expect(collectible.source.excluded['below-melt']).toBeUndefined();
+    expect(collectible.source.classified).toBe(8);
+    expect(collectible.segments[0].premium.median).toBe(9);
+  });
+
+  test('with spot history the price band is not applied, so a series priced at several times its bucket median stays', () => {
+    const mixed = [...comps('1 oz Silver Bar Generic', 33, '2026-01-10', 10), ...comps('1 oz PAMP Suisse Lunar Silver Bar', 150, '2026-01-10', 6)];
+    const withSpot = buildBarPremiumReport(mixed, { spotHistory });
+    expect(withSpot.source.classified).toBe(16);
+    expect(withSpot.source.excluded['price-outlier']).toBeUndefined();
+    const noSpot = buildBarPremiumReport(mixed);
+    expect(noSpot.source.excluded['price-outlier']).toBe(6);
+  });
+
+  test('a premium floor can be passed in', () => {
+    const report = buildBarPremiumReport(comps('1 oz Silver Bar Generic', 20, '2026-01-10', 8), { spotHistory, premiumFloor: -0.5 });
+    expect(report.source.classified).toBe(8);
   });
 
   test('a title sold at widely different prices in one month is a variation listing and is dropped', () => {
