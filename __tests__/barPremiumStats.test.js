@@ -132,6 +132,14 @@ describe('lookupSpotInEntries', () => {
     expect(lookupSpotInEntries(Object.create({ '2026-01-10': 30 }), '2026-01-10')).toBeNull();
   });
 
+  test('only real calendar days count, as keys and as the lookup date', () => {
+    expect(lookupSpotInEntries(JSON.parse('{"__proto__": 5}'), '2024-01-01')).toBeNull();
+    expect(lookupSpotInEntries({ '2020-01-01': 10, '2024-99-99': 7 }, '2025-01-01', { allowLater: false, maxGapDays: 3 })).toBeNull();
+    expect(lookupSpotInEntries({ '2020-01-01': 10 }, '2025-99-99', { allowLater: false, maxGapDays: 3 })).toBeNull();
+    expect(lookupSpotInEntries({ '2026-02-30': 10 }, '2026-02-28')).toBeNull();
+    expect(lookupSpotInEntries({ '2026-02-27': 10 }, '2026-02-28')).toBe(10);
+  });
+
   test('createSpotIndex gives the same answers with the dates sorted once', () => {
     const index = createSpotIndex(entries, { maxGapDays: 7 });
     expect(index('2026-01-15')).toBe(30);

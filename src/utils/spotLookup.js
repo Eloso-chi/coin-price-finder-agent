@@ -5,8 +5,15 @@
 const MAX_GAP_DAYS = 7;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+/** A real calendar day written YYYY-MM-DD (rejects 2024-99-99 and non-date keys such as __proto__). */
+function isCalendarDay(day) {
+  if (typeof day !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(day)) return false;
+  const d = new Date(`${day}T00:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === day;
+}
+
 function ownPrice(entries, day) {
-  if (!Object.prototype.hasOwnProperty.call(entries, day)) return null;
+  if (!isCalendarDay(day) || !Object.prototype.hasOwnProperty.call(entries, day)) return null;
   const v = entries[day];
   return typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : null;
 }
@@ -24,7 +31,7 @@ function ownPrice(entries, day) {
 function lookupSpotInEntries(entries, dateStr, { maxGapDays = MAX_GAP_DAYS, allowLater = true, sortedDates } = {}) {
   if (!entries || typeof entries !== 'object' || typeof dateStr !== 'string' || !dateStr) return null;
   const targetDate = dateStr.substring(0, 10);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(targetDate)) return null;
+  if (!isCalendarDay(targetDate)) return null;
   const exact = ownPrice(entries, targetDate);
   if (exact != null) return exact;
 
@@ -41,7 +48,7 @@ function lookupSpotInEntries(entries, dateStr, { maxGapDays = MAX_GAP_DAYS, allo
   if (!closest) return null;
 
   const diffDays = Math.abs(new Date(targetDate) - new Date(closest)) / DAY_MS;
-  return diffDays > maxGapDays ? null : entries[closest];
+  return Number.isFinite(diffDays) && diffDays <= maxGapDays ? entries[closest] : null;
 }
 
 /** A lookup bound to one metal's entries with the dates sorted once. */
