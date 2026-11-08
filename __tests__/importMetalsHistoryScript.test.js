@@ -23,6 +23,12 @@ describe('cleanHistory', () => {
     expect(dropped).toBe(4);
   });
 
+  test('today and later days are left out, because the server records today itself', () => {
+    const { history, dropped } = script.cleanHistory({ XAU: { '2026-05-01': 1, '2026-05-02': 2, '2026-05-03': 3 } }, '2026-05-02');
+    expect(history).toEqual({ XAU: { '2026-05-01': 1 } });
+    expect(dropped).toBe(2);
+  });
+
   test.each([[null], [[]], [{}], [{ XYZ: { '2026-01-01': 1 } }]])('%j is rejected', (raw) => {
     expect(() => script.cleanHistory(raw)).toThrow();
   });
@@ -50,7 +56,8 @@ describe('importHistory', () => {
       expect(config.headers['x-api-key']).toBe('test-key');
       expect(JSON.parse(config.data)).toEqual({ history: { XAU: { '2026-01-01': 5 } }, replaceDays: ['2026-01-01'] });
       expect(config.url).not.toContain('test-key');
-      return [200, { ok: true, summary: { XAU: { added: 1, replaced: 0, kept: 0, skippedOld: 0 } } }];
+      expect(config.maxRedirects).toBe(0);
+      return [200, { ok: true, summary: { XAU: { added: 1, replaced: 0, kept: 0, skippedOld: 0, previous: {} } }, persisted: { file: 'ok', cosmos: 'disabled' } }];
     });
     const out = await script.importHistory({ origin: 'https://app.example.test', key: 'test-key', history: { XAU: { '2026-01-01': 5 } }, replaceDays: ['2026-01-01'] });
     expect(out.ok).toBe(true);

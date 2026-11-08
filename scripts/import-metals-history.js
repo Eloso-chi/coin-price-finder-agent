@@ -22,8 +22,8 @@ const METALS = ['XAU', 'XAG', 'XPT', 'XPD'];
 
 const fail = (message) => { throw new Error(message); };
 
-/** Keep only known metals and valid day/price pairs; report how many rows were left out. */
-function cleanHistory(raw) {
+/** Keep only known metals and valid past day/price pairs (the server records today itself); report how many rows were left out. */
+function cleanHistory(raw, today = new Date().toISOString().substring(0, 10)) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) fail('the file must be a JSON object keyed by metal');
   const history = {};
   let dropped = 0;
@@ -31,7 +31,7 @@ function cleanHistory(raw) {
     if (!Object.prototype.hasOwnProperty.call(raw, metal)) continue;
     history[metal] = {};
     for (const [day, price] of Object.entries(raw[metal] || {})) {
-      if (isCalendarDay(day) && typeof price === 'number' && Number.isFinite(price) && price > 0) history[metal][day] = price;
+      if (isCalendarDay(day) && day < today && typeof price === 'number' && Number.isFinite(price) && price > 0) history[metal][day] = price;
       else dropped++;
     }
   }
@@ -54,6 +54,7 @@ async function importHistory({ origin, key, history, replaceDays }) {
       headers: { 'x-api-key': key, 'Content-Type': 'application/json' },
       timeout: 60000,
       maxBodyLength: 5 * 1024 * 1024,
+      maxRedirects: 0, // a redirect would carry the key to wherever it points
     });
     return res.data;
   } catch (err) {
@@ -98,8 +99,10 @@ async function main(argv) {
   if (!key) fail('ADMIN_API_KEY is not set (use the environment or --env FILE)');
   const result = await importHistory({ origin, key, history, replaceDays: opts.replaceDays });
   for (const [metal, s] of Object.entries(result.summary || {})) {
-    console.log(`  ${metal}: ${s.added} added, ${s.replaced} replaced, ${s.kept} kept, ${s.skippedOld} older than retention`);
+    const prev = Object.entries(s.previous || {}).map(([day, p]) => `${day} was ${p}`).join(', ');
+    console.log(`  ${metal}: ${s.added} added, ${s.replaced} replaced${prev ? ` (${prev})` : ''}, ${s.kept} kept, ${s.skippedOld} older than retention`);
   }
+  if (result.persisted) console.log(`  stored: file ${result.persisted.file}, cosmos ${result.persisted.cosmos}`);
 }
 
 if (require.main === module) {

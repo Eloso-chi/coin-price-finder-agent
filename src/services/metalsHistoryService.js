@@ -11,28 +11,66 @@ const CACHE_DIR  = require('../utils/cachePath').CACHE_DIR;
 const cosmos     = require('../utils/cosmosClient');
 const { lookupSpotInEntries, isCalendarDay } = require('../utils/spotLookup');
 const STORE_PATH = path.join(CACHE_DIR, 'metals_history.json');
+const BACKUP_PATH = `${STORE_PATH}.bak`;
+const TMP_PATH = `${STORE_PATH}.tmp`;
 
 // Terapeak sold comps reach back about two years, and premium-over-spot needs spot on each sale date.
 const RETENTION_DAYS = 800;
 const METAL_CODES = ['XAU', 'XAG', 'XPT', 'XPD'];
 const MAX_IMPORT_DAYS_PER_METAL = 1500;
+const MAX_REPLACE_DAYS = 60;
+// Per-metal USD/oz bounds an imported price must sit inside, and how far from the median of the days within a week it may be.
+const PLAUSIBLE_PRICE = { XAU: [100, 20000], XAG: [1, 1000], XPT: [100, 10000], XPD: [100, 10000] };
+const NEIGHBOUR_WINDOW_DAYS = 7;
+const MAX_NEIGHBOUR_JUMP = 0.4;
 
 // (CACHE_DIR mkdir handled by cachePath.js)
 
 let _store = null;
+let _writeChain = Promise.resolve();
+const _sortedDates = new Map(); // metal -> sorted day keys, rebuilt after any change to that metal
+
+function readStoreFile(file) {
+  const parsed = JSON.parse(fs.readFileSync(file, 'utf8'));
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('not an object');
+  return parsed;
+}
 
 function loadStore() {
   if (_store) return _store;
-  try {
-    if (fs.existsSync(STORE_PATH)) {
-      _store = JSON.parse(fs.readFileSync(STORE_PATH, 'utf8'));
-    } else {
-      _store = {};
+  _store = {};
+  _sortedDates.clear();
+  for (const file of [STORE_PATH, BACKUP_PATH]) {
+    if (!fs.existsSync(file)) continue;
+    try {
+      _store = readStoreFile(file);
+      break;
+    } catch {
+      if (process.env.NODE_ENV !== 'test') console.error(`[metalsHistory] ${path.basename(file)} is unreadable`);
     }
-  } catch {
-    _store = {};
   }
   return _store;
+}
+
+// Temp file then rename, keeping the last good file as .bak, so a crash mid-write cannot truncate the history.
+async function writeStoreAtomic() {
+  await fs.promises.writeFile(TMP_PATH, JSON.stringify(_store, null, 2));
+  try {
+    readStoreFile(STORE_PATH);
+    await fs.promises.copyFile(STORE_PATH, BACKUP_PATH);
+  } catch { /* no readable current file to keep */ }
+  await fs.promises.rename(TMP_PATH, STORE_PATH);
+}
+
+/** Write the store now (cancelling any pending debounced write); rejects if the write fails. */
+function flushStore() {
+  if (saveStore._pending) {
+    clearTimeout(saveStore._pending);
+    saveStore._pending = null;
+  }
+  const run = _writeChain.then(writeStoreAtomic);
+  _writeChain = run.catch(() => {});
+  return run;
 }
 
 function saveStore() {
@@ -40,9 +78,8 @@ function saveStore() {
   if (saveStore._pending) clearTimeout(saveStore._pending);
   saveStore._pending = setTimeout(() => {
     saveStore._pending = null;
-    const data = JSON.stringify(_store, null, 2);
-    fs.writeFile(STORE_PATH, data, (err) => {
-      if (err && process.env.NODE_ENV !== 'test') {
+    flushStore().catch((err) => {
+      if (process.env.NODE_ENV !== 'test') {
         console.error('[metalsHistory] Failed to save store:', err.message);
       }
     });
@@ -67,6 +104,7 @@ function recordDaily(metal, price, timestamp) {
   // Only record once per day (first snapshot wins — avoids churn)
   if (!store[metal][dateKey]) {
     store[metal][dateKey] = Math.round(price * 100) / 100;
+    _sortedDates.delete(metal);
     _store = store;
     saveStore();
 
@@ -130,6 +168,7 @@ function evictOld(maxDays = RETENTION_DAYS) {
   }
 
   if (evicted > 0) {
+    _sortedDates.clear();
     _store = store;
     saveStore();
   }
@@ -146,7 +185,14 @@ function evictOld(maxDays = RETENTION_DAYS) {
  */
 function getSpotOnDate(metal, dateStr) {
   if (!metal || !dateStr) return null;
-  return lookupSpotInEntries(loadStore()[metal], dateStr);
+  const entries = loadStore()[metal];
+  if (!entries || typeof entries !== 'object') return null;
+  let sorted = _sortedDates.get(metal);
+  if (!sorted) {
+    sorted = Object.keys(entries).sort();
+    _sortedDates.set(metal, sorted);
+  }
+  return lookupSpotInEntries(entries, dateStr, { sortedDates: sorted });
 }
 
 /** Map common metal names to ISO 4217 symbols */
@@ -178,18 +224,29 @@ function importError(message) {
   return err;
 }
 
+const shiftDay = (day, delta) => new Date(Date.parse(`${day}T00:00:00Z`) + delta * 86400000).toISOString().substring(0, 10);
+
+function median(values) {
+  const s = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(s.length / 2);
+  return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
+}
+
 /**
- * Merge daily prices from an operator-supplied backfill. Everything is validated before anything is written.
- * Existing days are kept unless listed in `replaceDays`; days older than the retention window are skipped.
+ * Merge daily prices from an operator-supplied backfill. Everything is validated before anything is changed:
+ * known metals, real past days (never today, which the live poll records), a plausible price for the metal, and a price
+ * within 40% of the median of the days around it. Existing days are kept unless listed in `replaceDays`; days older
+ * than the retention window are skipped. Replaced days are reported with their previous price.
  *
  * @param {Object<string, Object<string, number>>} history - { XAU: { 'YYYY-MM-DD': price } }
  * @param {{ replaceDays?: string[] }} [opts]
- * @returns {Object<string, { added: number, replaced: number, kept: number, skippedOld: number }>}
+ * @returns {Promise<{ summary: Object<string, { added: number, replaced: number, kept: number, skippedOld: number, previous: Object<string, number> }>,
+ *   persisted: { file: 'ok'|'failed'|'unchanged', cosmos: 'ok'|'failed'|'disabled'|'unchanged' } }>}
  */
-function importHistory(history, { replaceDays = [] } = {}) {
+async function importHistory(history, { replaceDays = [] } = {}) {
   if (!history || typeof history !== 'object' || Array.isArray(history)) throw importError('history must be an object keyed by metal');
-  if (!Array.isArray(replaceDays) || replaceDays.length > 400 || !replaceDays.every(isCalendarDay)) {
-    throw importError('replaceDays must be a list of YYYY-MM-DD dates');
+  if (!Array.isArray(replaceDays) || replaceDays.length > MAX_REPLACE_DAYS || !replaceDays.every(isCalendarDay)) {
+    throw importError(`replaceDays must be a list of at most ${MAX_REPLACE_DAYS} YYYY-MM-DD dates`);
   }
   const replace = new Set(replaceDays);
   const today = new Date().toISOString().substring(0, 10);
@@ -203,43 +260,79 @@ function importHistory(history, { replaceDays = [] } = {}) {
     if (!days || typeof days !== 'object' || Array.isArray(days)) throw importError(`${metal} must be an object keyed by day`);
     const entries = Object.entries(days);
     if (entries.length > MAX_IMPORT_DAYS_PER_METAL) throw importError(`${metal} has more than ${MAX_IMPORT_DAYS_PER_METAL} days`);
+    const [lo, hi] = PLAUSIBLE_PRICE[metal];
+    const rounded = [];
     for (const [day, price] of entries) {
-      const ok = isCalendarDay(day) && day <= today && typeof price === 'number' && Number.isFinite(price) && price > 0 && price < 1e7;
-      if (!ok) throw importError(`invalid entry in ${metal}`);
+      if (!isCalendarDay(day) || typeof price !== 'number' || !Number.isFinite(price)) throw importError(`invalid entry in ${metal}`);
+      if (day >= today) throw importError(`${metal} has a day that is today or later; the live poll records today`);
+      const cents = Math.round(price * 100) / 100;
+      if (cents < lo || cents > hi) throw importError(`implausible ${metal} price on ${day}`);
+      rounded.push([day, cents]);
     }
-    incoming.push([metal, entries]);
+    incoming.push([metal, rounded]);
   }
 
+  // Plan every change against the current store without touching it.
   const store = loadStore();
-  const summary = {};
-  const changed = [];
+  const plans = [];
   for (const [metal, entries] of incoming) {
-    if (!store[metal]) store[metal] = {};
-    const current = store[metal];
-    const s = { added: 0, replaced: 0, kept: 0, skippedOld: 0 };
-    for (const [day, raw] of entries) {
-      const price = Math.round(raw * 100) / 100;
-      if (day < cutoffStr) { s.skippedOld++; continue; }
-      if (!Object.prototype.hasOwnProperty.call(current, day)) { current[day] = price; s.added++; }
-      else if (replace.has(day) && current[day] !== price) { current[day] = price; s.replaced++; }
-      else s.kept++;
+    const current = store[metal] || {};
+    const plan = { metal, adds: [], replaces: [], kept: 0, skippedOld: 0, previous: {} };
+    for (const [day, price] of entries) {
+      if (day < cutoffStr) { plan.skippedOld++; continue; }
+      if (!Object.prototype.hasOwnProperty.call(current, day)) plan.adds.push([day, price]);
+      else if (replace.has(day) && current[day] !== price) { plan.replaces.push([day, price]); plan.previous[day] = current[day]; }
+      else plan.kept++;
     }
-    summary[metal] = s;
-    if (s.added || s.replaced) changed.push(metal);
+    plans.push(plan);
   }
 
-  if (changed.length) {
-    _store = store;
-    saveStore();
-    if (cosmos.isEnabled()) {
-      for (const metal of changed) {
-        cosmos.container('metals-history').items.upsert({ id: metal, metal, prices: store[metal] }).catch(err => {
-          if (process.env.NODE_ENV !== 'test') console.error('[metalsHistory] Cosmos write-through failed:', err.message);
-        });
+  // A changed day must sit near the days around it, judged on the store as it would be after the import.
+  for (const plan of plans) {
+    const after = Object.assign(Object.create(null), store[plan.metal] || {});
+    const changedDays = [...plan.adds, ...plan.replaces];
+    for (const [day, price] of changedDays) after[day] = price;
+    for (const [day, price] of changedDays) {
+      const near = [];
+      for (let d = -NEIGHBOUR_WINDOW_DAYS; d <= NEIGHBOUR_WINDOW_DAYS; d++) {
+        const v = d === 0 ? undefined : after[shiftDay(day, d)];
+        if (typeof v === 'number' && v > 0) near.push(v);
+      }
+      if (near.length && Math.abs(price / median(near) - 1) > MAX_NEIGHBOUR_JUMP) {
+        throw importError(`${plan.metal} price on ${day} is more than ${MAX_NEIGHBOUR_JUMP * 100}% from the days around it`);
       }
     }
   }
-  return summary;
+
+  const summary = {};
+  const changed = [];
+  for (const plan of plans) {
+    if (!store[plan.metal]) store[plan.metal] = {};
+    for (const [day, price] of [...plan.adds, ...plan.replaces]) store[plan.metal][day] = price;
+    summary[plan.metal] = { added: plan.adds.length, replaced: plan.replaces.length, kept: plan.kept, skippedOld: plan.skippedOld, previous: plan.previous };
+    if (plan.adds.length || plan.replaces.length) changed.push(plan.metal);
+  }
+
+  const persisted = { file: 'unchanged', cosmos: 'unchanged' };
+  if (changed.length) {
+    _sortedDates.clear();
+    _store = store;
+    try {
+      await flushStore();
+      persisted.file = 'ok';
+    } catch (err) {
+      persisted.file = 'failed';
+      if (process.env.NODE_ENV !== 'test') console.error('[metalsHistory] Import write failed:', err.message);
+    }
+    if (cosmos.isEnabled()) {
+      const results = await Promise.allSettled(changed.map((metal) => cosmos.container('metals-history').items.upsert({ id: metal, metal, prices: store[metal] })));
+      persisted.cosmos = results.every((r) => r.status === 'fulfilled') ? 'ok' : 'failed';
+      if (persisted.cosmos === 'failed' && process.env.NODE_ENV !== 'test') console.error('[metalsHistory] Cosmos write-through failed for the import');
+    } else {
+      persisted.cosmos = 'disabled';
+    }
+  }
+  return { summary, persisted };
 }
 
-module.exports = { recordDaily, getHistory, getSpotOnDate, evictOld, recordSpotReadings, importHistory, METAL_SYMBOLS, RETENTION_DAYS };
+module.exports = { recordDaily, getHistory, getSpotOnDate, evictOld, recordSpotReadings, importHistory, flushStore, METAL_SYMBOLS, RETENTION_DAYS };
