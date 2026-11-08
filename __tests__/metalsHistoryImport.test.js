@@ -6,12 +6,16 @@ const path = require('path');
 
 const mockUpsert = jest.fn(() => Promise.resolve());
 let mockCosmosEnabled = false;
+let mockContainerThrows = false;
 let mockCacheDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'metals-import-'));
 
 jest.mock('../src/utils/cachePath', () => ({ get CACHE_DIR() { return mockCacheDir; } }));
 jest.mock('../src/utils/cosmosClient', () => ({
   isEnabled: () => mockCosmosEnabled,
-  container: () => ({ items: { upsert: mockUpsert } }),
+  container: () => {
+    if (mockContainerThrows) throw new Error('container lookup failed');
+    return { items: { upsert: mockUpsert } };
+  },
 }));
 
 const daysAgo = (n) => new Date(Date.now() - n * 86400000).toISOString().substring(0, 10);
@@ -35,6 +39,7 @@ function load({ keepFiles = false } = {}) {
 beforeEach(() => {
   mockUpsert.mockClear();
   mockCosmosEnabled = false;
+  mockContainerThrows = false;
 });
 
 describe('retention', () => {
@@ -212,12 +217,23 @@ describe('importHistory', () => {
     expect(JSON.parse(fs.readFileSync(storeFile, 'utf8')).XPT[daysAgo(6)]).toBe(1234.5);
   });
 
-  test('a store file that cannot be written is reported as failed, not ok', async () => {
+  test('a store file that cannot be written is reported as failed, then written by the retry once it can be', async () => {
     const { service, storeFile } = load();
     fs.mkdirSync(storeFile); // a directory where the file should go makes the rename fail
     const out = await service.importHistory({ XPT: { [daysAgo(6)]: 1234.5 } });
     expect(out.persisted.file).toBe('failed');
     fs.rmSync(storeFile, { recursive: true, force: true });
+    await new Promise((resolve) => setTimeout(resolve, 1200));
+    expect(JSON.parse(fs.readFileSync(storeFile, 'utf8')).XPT[daysAgo(6)]).toBe(1234.5);
+  });
+
+  test('a Cosmos client that throws is reported as failed and the import still returns its summary', async () => {
+    mockCosmosEnabled = true;
+    mockContainerThrows = true;
+    const { service } = load();
+    const out = await service.importHistory({ XAU: { [daysAgo(6)]: 4000 } });
+    expect(out.persisted).toEqual({ file: 'ok', cosmos: 'failed' });
+    expect(out.summary.XAU.added).toBe(1);
   });
 
   test('Cosmos is written only for the metals that changed, and its failure is reported', async () => {

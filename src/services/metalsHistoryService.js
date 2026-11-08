@@ -322,10 +322,11 @@ async function importHistory(history, { replaceDays = [] } = {}) {
       persisted.file = 'ok';
     } catch (err) {
       persisted.file = 'failed';
+      saveStore(); // one retry after the debounce, so the data is not left only in memory
       if (process.env.NODE_ENV !== 'test') console.error('[metalsHistory] Import write failed:', err.message);
     }
     if (cosmos.isEnabled()) {
-      const results = await Promise.allSettled(changed.map((metal) => cosmos.container('metals-history').items.upsert({ id: metal, metal, prices: store[metal] })));
+      const results = await Promise.allSettled(changed.map(async (metal) => cosmos.container('metals-history').items.upsert({ id: metal, metal, prices: store[metal] })));
       persisted.cosmos = results.every((r) => r.status === 'fulfilled') ? 'ok' : 'failed';
       if (persisted.cosmos === 'failed' && process.env.NODE_ENV !== 'test') console.error('[metalsHistory] Cosmos write-through failed for the import');
     } else {
