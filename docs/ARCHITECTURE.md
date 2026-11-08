@@ -63,7 +63,7 @@ server.js                              Express entry point (port 3000)
 │   ├─ bulkEvaluateService.js           Bulk lot evaluator engine (per-coin FMV + lot summary)
 │   ├─ metalsSpotPrice.js              Multi-provider spot price (round-robin)
 │   ├─ MetalsSpotPriceError.js         Custom error class
-│   ├─ metalsHistoryService.js         Daily spot price history snapshots + getSpotOnDate()
+│   ├─ metalsHistoryService.js         Daily spot price history snapshots (live readings only, 800-day retention, atomic write with .bak) + getSpotOnDate() + validated backfill import (plausibility, audited)
 │   ├─ marketAggregator.js             Year x mint market matrix builder + caching
 │   ├─ numistaService.js               Numista API -- search, mintages, rarity
 │   ├─ pcgsQuotaService.js             PCGS API quota tracking service

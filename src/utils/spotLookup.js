@@ -57,4 +57,4 @@ function createSpotIndex(entries, defaults = {}) {
   return (dateStr, opts = {}) => lookupSpotInEntries(entries, dateStr, { ...defaults, ...opts, sortedDates });
 }
 
-module.exports = { lookupSpotInEntries, createSpotIndex, MAX_GAP_DAYS };
+module.exports = { lookupSpotInEntries, createSpotIndex, isCalendarDay, MAX_GAP_DAYS };

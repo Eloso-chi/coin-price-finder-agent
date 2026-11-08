@@ -6,6 +6,8 @@
 const express = require('express');
 const router = express.Router();
 const adminService = require('../services/adminService');
+const metalsHistory = require('../services/metalsHistoryService');
+const auditService = require('../services/auditService');
 
 // All routes are protected by requireAdmin middleware (applied in server.js mount)
 
@@ -152,6 +154,34 @@ router.post('/auction-fetch', async (req, res) => {
 const fs = require('fs');
 const path = require('path');
 const META_PATH = path.join(__dirname, '..', '..', 'data', 'terapeak-meta.json');
+
+/**
+ * POST /api/admin/metals-history/import
+ * Body: { history: { XAU: { 'YYYY-MM-DD': price } }, replaceDays?: ['YYYY-MM-DD'] }
+ * Merge backfilled daily spot prices (existing days are kept unless listed in replaceDays).
+ * The whole body is validated before anything is changed; replaced days come back with their previous price.
+ * Responds 500 when the store file could not be written. Every import is audited.
+ */
+router.post('/metals-history/import', async (req, res) => {
+  const actor = (req.admin && req.admin.actor) || { userId: 'unknown', username: 'unknown' };
+  const { history, replaceDays } = req.body || {};
+  const days = replaceDays === undefined ? [] : replaceDays;
+  try {
+    const { summary, persisted } = await metalsHistory.importHistory(history, { replaceDays: days });
+    const counts = Object.fromEntries(Object.entries(summary).map(([m, s]) => [m, { added: s.added, replaced: s.replaced, kept: s.kept, skippedOld: s.skippedOld }]));
+    auditService.audit({ action: 'metals-history-import', actor, meta: { counts, replaceDays: Array.isArray(days) ? days : [], persisted, previous: Object.fromEntries(Object.entries(summary).map(([m, s]) => [m, s.previous])) }, req })
+      .catch(() => { /* audit must not block */ });
+    const ok = persisted.file !== 'failed';
+    res.status(ok ? 200 : 500).json({ ok, ...(ok ? {} : { error: 'Imported in memory but the store file could not be written' }), summary, persisted });
+  } catch (err) {
+    if (err.name === 'ImportError') {
+      auditService.audit({ action: 'metals-history-import-rejected', actor, meta: { reason: err.message }, req }).catch(() => { /* audit must not block */ });
+      return res.status(400).json({ error: err.message });
+    }
+    console.error('[admin] Metals history import error:', err.message);
+    res.status(500).json({ error: 'Failed to import metals history' });
+  }
+});
 
 /**
  * GET /api/admin/terapeak-meta
