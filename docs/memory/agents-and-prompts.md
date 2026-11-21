@@ -56,6 +56,39 @@ for current counts instead of carrying volatile suite totals.
 
 ## Skills
 
+### Explicit-invocation workflow skills (Copilot Agent Host)
+
+Copilot Agent Host does not load `.github/prompts/*.prompt.md`. The six
+workflows below have matching workspace skills in the harness-supported
+`.github/skills/` folder. Each has `disable-model-invocation: true` to retain
+explicit invocation. The original prompts remain for VS Code compatibility;
+the two copies do not synchronize.
+
+| Skill | Invocation | Source prompt |
+|---|---|---|
+| `.github/skills/apply-approved/SKILL.md` | `/apply-approved` | `apply-approved.prompt.md` |
+| `.github/skills/onboard/SKILL.md` | `/onboard` | `onboard.prompt.md` |
+| `.github/skills/pre-commit/SKILL.md` | `/pre-commit` | `pre-commit.prompt.md` |
+| `.github/skills/pricing-health/SKILL.md` | `/pricing-health` | `pricing-health.prompt.md` |
+| `.github/skills/review-deep/SKILL.md` | `/review-deep` | `review-deep.prompt.md` |
+| `.github/skills/test-coverage/SKILL.md` | `/test-coverage` | `test-coverage.prompt.md` |
+
+Migration preserves descriptions and prompt bodies, with explicit agent
+instructions replacing prompt `agent` selection for Pricing Health and
+Test Coverage. Skills do not preserve the prompts' `tools` frontmatter as an
+enforced tool restriction; read-only instructions remain, and delegated agents
+retain their own restrictions. These compatibility limitations require review
+when changing either copy.
+
+Structural validation is not proof of harness discovery or invocation.
+After migration, confirm discovery in Agent Customizations with Copilot
+selected and exercise representative workflows in a new Copilot Agent Host
+session before source cleanup. Source deletion and location-setting cleanup
+require separate approval. VS Code's private recovery bundle restores original
+sources, not destination files; retain it until the skills work.
+
+### Shared reference skills
+
 | Path | Purpose |
 |---|---|
 | `.github/skills/code-review/SKILL.md` | Shared review framework (severity defs, finding schema, report structure) |
