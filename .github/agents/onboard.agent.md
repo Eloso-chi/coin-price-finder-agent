@@ -137,6 +137,7 @@ Read these project docs:
 30. `docs/adrs/ADR-001-fmv-pool-isolation.md` through `ADR-005-terapeak-anti-bot-state-machine.md` -- accepted load-bearing decisions
 31. `PR-168-ALIGNMENT-REPORT.md` -- historical operator alignment evidence; verify its banner points readers to current canonical runbooks/workflow
 32. `docs/AI-EXTERNAL-EXPOSURE-EVALUATION.md` -- decision to keep AI tools behind existing Express route trust boundaries and defer external OpenAPI/MCP exposure
+33. `.github/skills/apply-approved/SKILL.md`, `.github/skills/onboard/SKILL.md`, `.github/skills/pre-commit/SKILL.md`, `.github/skills/pricing-health/SKILL.md`, `.github/skills/review-deep/SKILL.md`, and `.github/skills/test-coverage/SKILL.md` -- explicit-invocation workflow skills for Copilot Agent Host; compare with retained `.github/prompts/` sources and the compatibility/validation notes in `docs/memory/agents-and-prompts.md`. Reading these workflows does not authorize executing them.
 
 ### Phase 3: Key Source Files (scan exports/structure only)
 
