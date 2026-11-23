@@ -39,7 +39,7 @@ bash scripts/terapeak-operator.sh
 For looped freshness-only operation with existing cookies:
 
 ```bash
-bash scripts/terapeak-operator.sh --no-login --loop --pause-between 600 --page1-batch 25
+bash scripts/terapeak-operator.sh --no-login --loop
 ```
 
 ### W machine (Codespace)
@@ -71,7 +71,14 @@ When the user says to follow the runbook, quote the runbook step number before e
   file is missing, stop and ask the user to create it in their own terminal
   with `mkdir -p ~/.vnc && chmod 700 ~/.vnc && vncpasswd` followed by
   `chmod 600 ~/.vnc/passwd`. Never request or handle the password.
-4. H: run the H launcher. It completes preflight and Cooldown gates before
+4. H on Windows: have the coordinating assistant launch the checked-in VS Code
+  task `process: Terapeak: H operator (visible login and loop)` for a continuous
+  run. Use `process: Terapeak: verify visible terminal (no services)` to verify
+  visible keyboard input before first use. Never run interactive H startup in
+  a noninteractive command tool or substitute a separate Command Prompt.
+  If the task interface is unavailable, stop and report that exact limitation.
+  H in an existing supported interactive WSL terminal: run the H launcher.
+  It completes preflight and Cooldown gates before
   starting/checking the display, prints the noVNC URL, and pauses. Open that
   exact URL in the coordinating assistant's browser and confirm the page is
   ready before allowing the launcher to continue. W: for a requested
@@ -83,7 +90,12 @@ When the user says to follow the runbook, quote the runbook step number before e
   and confirm the noVNC page, stop and report the URL; do not ask the user to
   sign in or solve a challenge. Once the coordinator confirms noVNC is open,
   allow the launcher/login command to continue and wait for the user to
-  complete sign-in and the research-access check. Do not retry challenged
+  complete sign-in and the research-access check. The user presses Enter in
+  the visible terminal at the display gate, and again after eBay sign-in;
+  chat forms do not advance these prompts. Leave Chromium open: the guarded
+  helper waits up to 600s for confirmed Research UI, handles permitted manual
+  challenges without refresh/retry, and closes the browser itself. Hard
+  warnings persist Cooldown and exit 2. Do not retry challenged
   sessions or bypass risk-state Cooldown.
 6. Confirm login completed or report why the gate stopped before collection.
 7. Report startup state:
@@ -97,6 +109,8 @@ When the user says to follow the runbook, quote the runbook step number before e
 - Never run on unsupported distro targets (Ubuntu 26.04). The preflight handles this.
 - Never bypass preflight.
 - Never start interactive login until the noVNC page has been opened and confirmed.
+- HTTP/RFB readiness is not proof of a responsive framebuffer. If the remote
+  display freezes, stop at that stage and diagnose; do not loop through restarts.
 - VNC must use the authenticated loopback display managed by `terapeak-display.sh`;
   never use `SecurityTypes None` or forward port 5901.
 - Never start deep pagination unless explicitly requested.

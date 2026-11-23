@@ -23,7 +23,7 @@ Usage: bash scripts/terapeak-display.sh start|check|url
 
   start  Start localhost-only VNC with VncAuth and a noVNC proxy; fail if
          a port is already owned by a process not verified as this display.
-  check  Verify DISPLAY, VNC loopback binding/auth command, and noVNC HTTP.
+  check  Verify DISPLAY, VNC loopback/auth settings, RFB response, and noVNC HTTP.
   url    Print the noVNC URL for the local forwarded port.
 
 Set a VNC password first with `mkdir -p ~/.vnc && chmod 700 ~/.vnc && vncpasswd`.
@@ -204,7 +204,34 @@ check_ready() {
   check_novnc_listener
   curl --fail --silent --show-error --max-time 3 "http://127.0.0.1:$NOVNC_PORT/vnc.html" >/dev/null || \
     fail "noVNC is not reachable on 127.0.0.1:$NOVNC_PORT; run '$0 start'"
-  printf '[terapeak-display:READY] authenticated VNC and noVNC are ready\n'
+  command -v python3 >/dev/null 2>&1 || fail 'python3 is required to verify VNC responsiveness'
+  if ! python3 - "$VNC_PORT" <<'PY'
+import re
+import socket
+import sys
+import time
+
+try:
+    deadline = time.monotonic() + 2
+    with socket.create_connection(("127.0.0.1", int(sys.argv[1])), timeout=2) as connection:
+        banner = b""
+        while len(banner) < 12:
+            connection.settimeout(max(0.001, deadline - time.monotonic()))
+            part = connection.recv(12 - len(banner))
+            if not part:
+                raise ValueError("VNC closed before its RFB greeting")
+            banner += part
+        if not re.fullmatch(rb"RFB 003\.(003|007|008)\n", banner):
+            raise ValueError("VNC returned an invalid RFB greeting")
+except (OSError, ValueError) as error:
+    print(f"[terapeak-display:FAIL] VNC protocol check: {error}", file=sys.stderr)
+    sys.exit(1)
+PY
+  then
+    fail 'VNC did not provide a valid RFB greeting within 2 seconds; the display may be frozen. Stop and inspect it; do not retry login.'
+  fi
+  printf '[terapeak-display:READY] VncAuth-configured RFB listener and noVNC HTTP are ready\n'
+  printf 'Confirm the remote display responds in the browser before continuing.\n'
   display_url
 }
 

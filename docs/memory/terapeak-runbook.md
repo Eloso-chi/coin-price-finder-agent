@@ -84,8 +84,10 @@ curl -s -X POST http://localhost:3000/api/terapeak/quota/reset \
 cd "$(git rev-parse --show-toplevel)" && DISPLAY=":${TERAPEAK_VNC_DISPLAY:-1}" python3 scripts/terapeak-export.py --login
 # Run only after the noVNC page is open and confirmed
 # Solve CAPTCHA/2FA and log in in the noVNC browser
-# Script auto-detects login, then opens /sh/research in the same visible browser
-# so you can solve a second challenge before cookies are saved.
+# Press Enter in the launching terminal after signing in; leave the browser open.
+# The helper opens Research at most once if needed, then waits up to 600s for
+# confirmed Research UI, allowing permitted manual login challenges to clear.
+# No cookies are saved on timeout/unconfirmed access; no compulsory second login.
 # A hard bot-warning stops with exit 2; do not retry or bypass it.
 ```
 

@@ -157,6 +157,181 @@ ADMIN_API_KEY=test-key-12345
   });
 
   describe('script syntax and availability', () => {
+    test('guarded login waits for manual Research clearance and isolates cookie/Cooldown writes', () => {
+      const result = runPython(`
+import ast
+import contextlib
+import io
+import json
+import os
+from pathlib import Path
+import tempfile
+import types
+from urllib.parse import urlsplit
+
+from _terapeak_risk import load_state, write_state
+
+source_path = Path(os.environ["PYTHONPATH"]) / "terapeak-export.py"
+source = ast.parse(source_path.read_text(encoding="utf-8"))
+names = {
+    "manual_research_access_state", "wait_for_manual_research_access",
+    "do_login", "persist_hard_challenge_cooldown", "save_cookies",
+    "CooldownPersistenceError",
+}
+definitions = [
+    node for node in source.body
+    if isinstance(node, (ast.FunctionDef, ast.ClassDef)) and node.name in names
+]
+for node in source.body:
+    if isinstance(node, ast.Assign) and any(
+        isinstance(target, ast.Name) and target.id == "_RESEARCH_PAGE_SELECTOR"
+        for target in node.targets
+    ):
+        definitions.append(node)
+namespace = {
+    "Path": Path, "json": json, "os": os, "urlsplit": urlsplit,
+    "random": types.SimpleNamespace(randint=lambda *_: 0),
+    "has_display": lambda: True,
+    "EBAY_LOGIN_URL": "https://signin.ebay.com/ws/eBayISAPI.dll?SignIn",
+    "EBAY_RESEARCH_URL": "https://www.ebay.com/sh/research",
+    "write_state": write_state,
+}
+exec(compile(ast.Module(body=definitions, type_ignores=[]), str(source_path), "exec"), namespace)
+
+class BrowserError(Exception): pass
+class BrowserTimeout(BrowserError): pass
+sync_api = types.ModuleType("playwright.sync_api")
+sync_api.Error = BrowserError
+sync_api.TimeoutError = BrowserTimeout
+import sys
+sys.modules["playwright"] = types.ModuleType("playwright")
+sys.modules["playwright.sync_api"] = sync_api
+namespace["PlaywrightTimeout"] = BrowserTimeout
+
+results = {}
+for scenario in (
+    "manual_challenge", "already_ready", "missing_ui", "hard_warning",
+    "http_block", "lookalike_host", "closed", "persistence_failure",
+):
+  with tempfile.TemporaryDirectory() as directory:
+    root = Path(directory)
+    cookie_file = root / "cookies.json"
+    cookie_file.write_text("original-cookie-jar", encoding="utf-8")
+    risk_file = root / "risk.json"
+    clock = {"now": 0}
+    calls = {"goto": [], "close": 0, "input": 0}
+
+    class Page:
+        url = namespace["EBAY_LOGIN_URL"]
+        visible = False
+        body = "Sign in"
+        closed = False
+        first = None
+        def goto(self, url, **_kwargs):
+            calls["goto"].append(url)
+            self.url = url
+            self.body = "Sign in" if "signin." in url else "Research"
+            if "signin." in url and scenario == "already_ready":
+                self.url = namespace["EBAY_RESEARCH_URL"]
+                self.visible = True
+            elif "signin." not in url:
+                if scenario == "manual_challenge":
+                    self.url = "https://www.ebay.com/captcha?private=do-not-log"
+                    self.body = "Are you a human?"
+                elif scenario in ("hard_warning", "persistence_failure"):
+                    self.body = "Security measure"
+                elif scenario == "lookalike_host":
+                    self.url = "https://www.ebay.com.invalid/sh/research"
+                    self.visible = True
+            return types.SimpleNamespace(
+                status=429 if scenario == "http_block" and "signin." not in url else 200,
+            )
+        def inner_text(self, *_args, **_kwargs): return self.body
+        def locator(self, _selector):
+            self.first = self
+            return self
+        def is_visible(self): return self.visible
+        def is_closed(self): return self.closed
+
+    page = Page()
+    class Context:
+        def add_init_script(self, _script): pass
+        def new_page(self): return page
+        def cookies(self): return [{"name": "test-session", "value": "placeholder"}]
+    context = Context()
+    class Browser:
+        def new_context(self, **_kwargs): return context
+        def close(self): calls["close"] += 1
+    browser = Browser()
+    class Playwright:
+        chromium = types.SimpleNamespace(launch=lambda **_kwargs: browser)
+        def __enter__(self): return self
+        def __exit__(self, *_args): pass
+
+    def terminal_input(_prompt):
+        calls["input"] += 1
+        if scenario == "closed":
+            page.closed = True
+        elif scenario != "already_ready":
+            page.url = "https://www.ebay.com/"
+            page.body = "Signed in"
+        return ""
+    def sleep(seconds):
+        clock["now"] += seconds
+        if scenario == "manual_challenge":
+            page.url = namespace["EBAY_RESEARCH_URL"]
+            page.body = "Research keywords"
+            page.visible = True
+    def persist(path, state, reason, run_id):
+        assert Path(path) == risk_file
+        if scenario == "persistence_failure":
+            raise OSError("test storage unavailable")
+        return write_state(path, state, reason, run_id)
+
+    namespace.update({
+        "COOKIE_FILE": cookie_file,
+        "scraper_risk_state_path": lambda: risk_file,
+        "write_state": persist,
+        "time": types.SimpleNamespace(monotonic=lambda: clock["now"], sleep=sleep),
+        "sync_playwright": Playwright,
+        "input": terminal_input,
+    })
+    output = io.StringIO()
+    with contextlib.redirect_stdout(output):
+        try:
+            status = namespace["do_login"]()
+        except SystemExit as error:
+            status = error.code
+        except namespace["CooldownPersistenceError"]:
+            status = "persistence_error"
+    assert "private=do-not-log" not in output.getvalue(), output.getvalue()
+    saved = cookie_file.read_text(encoding="utf-8") != "original-cookie-jar"
+    if saved:
+        assert json.loads(cookie_file.read_text()) == [
+            {"name": "test-session", "value": "placeholder"}
+        ]
+    assert not (root / "terapeak_export_progress.json").exists()
+    results[scenario] = {
+        "status": status, "saved": saved, "closed": calls["close"],
+        "researchNavigations": calls["goto"].count(namespace["EBAY_RESEARCH_URL"]),
+        "risk": load_state(str(risk_file))["state"] if risk_file.exists() else None,
+        "elapsed": clock["now"],
+    }
+print(json.dumps(results))
+`);
+      expect({ status: result.status, stderr: result.stderr }).toEqual({ status: 0, stderr: '' });
+      expect(JSON.parse(result.stdout)).toEqual({
+        manual_challenge: { status: true, saved: true, closed: 1, researchNavigations: 1, risk: null, elapsed: 2 },
+        already_ready: { status: true, saved: true, closed: 1, researchNavigations: 0, risk: null, elapsed: 0 },
+        missing_ui: { status: false, saved: false, closed: 1, researchNavigations: 1, risk: null, elapsed: 600 },
+        hard_warning: { status: 2, saved: false, closed: 1, researchNavigations: 1, risk: 'Cooldown', elapsed: 0 },
+        http_block: { status: 2, saved: false, closed: 1, researchNavigations: 1, risk: 'Cooldown', elapsed: 0 },
+        lookalike_host: { status: false, saved: false, closed: 1, researchNavigations: 1, risk: null, elapsed: 0 },
+        closed: { status: false, saved: false, closed: 1, researchNavigations: 0, risk: null, elapsed: 0 },
+        persistence_failure: { status: 'persistence_error', saved: false, closed: 1, researchNavigations: 1, risk: null, elapsed: 0 },
+      });
+    });
+
     test('interactive H login requires an authenticated, verified noVNC handoff', () => {
       const operator = fs.readFileSync(OPERATOR_SCRIPT, 'utf8');
       const display = fs.readFileSync(path.join(PROJECT_ROOT, 'scripts', 'terapeak-display.sh'), 'utf8');

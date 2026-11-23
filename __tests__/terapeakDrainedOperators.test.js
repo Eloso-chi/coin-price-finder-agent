@@ -247,8 +247,148 @@ describe('#330H pass record carries fallback fill, tier yield and drained', () =
 
 const MARKER = '@@CPF@@';
 
+const TWO_PASS_PACING_SETUP = String.raw`
+mkdir -p "$T/clock"
+printf '0' > "$T/clock-seconds"
+: > "$T/clock-events.jsonl"
+: > "$T/login.log"
+unset VIRTUAL_ENV
+export PYTHONPATH="$T/clock:$T/scripts" TERAPEAK_RUNS_DIR="$T/cache/terapeak-runs"
+export TERAPEAK_RISK_STATE_ENABLED=1 TERAPEAK_ELEVATED_PAUSE_SECONDS=900
+export TERAPEAK_PACING_PROFILE=baseline TERAPEAK_PACING_PILOT_ID=""
+cat > "$T/clock/sitecustomize.py" <<'PY'
+import datetime
+import json
+import os
+from pathlib import Path
+import time
+
+root = Path(os.environ["T"])
+clock = root / "clock-seconds"
+epoch = 1767225600
+original_datetime = datetime.datetime
+
+class SharedDatetime(original_datetime):
+    @classmethod
+    def now(cls, tz=None):
+        return cls.fromtimestamp(epoch + float(clock.read_text()), tz)
+
+def early_sleep(seconds):
+    before = float(clock.read_text())
+    after = before + float(seconds) / 2
+    clock.write_text(str(after))
+    with (root / "clock-events.jsonl").open("a") as log:
+        log.write(json.dumps({
+            "event": "sleep", "before": before, "after": after,
+            "requested": seconds,
+        }) + "\n")
+
+datetime.datetime = SharedDatetime
+time.sleep = early_sleep
+PY
+cat > "$T/bin/date" <<'SH'
+#!/usr/bin/env bash
+exec "$REAL_PY" -c 'from datetime import datetime, timezone; import sys; print(datetime.now(timezone.utc).strftime(sys.argv[-1].removeprefix("+")))' "$@"
+SH
+cat > "$T/bin/sleep" <<'SH'
+#!/usr/bin/env bash
+exec "$REAL_PY" -c 'import sys, time; time.sleep(float(sys.argv[1]))' "$@"
+SH
+cat > "$T/scripts/terapeak-display.sh" <<'SH'
+printf 'display %s\n' "$1" >> "$T/login.log"
+SH
+cat > "$T/simulated-exporter.py" <<'PY'
+import ast
+from datetime import datetime, timezone
+import fcntl
+import json
+import os
+from pathlib import Path
+import sys
+from types import SimpleNamespace
+
+from _terapeak_risk import load_state
+
+root = Path(os.environ["T"])
+clock = root / "clock-seconds"
+state_path = root / "cache/terapeak-risk-state-H.json"
+
+def event(name, **details):
+    with (root / "clock-events.jsonl").open("a") as log:
+        log.write(json.dumps({
+            "event": name, "time": float(clock.read_text()), **details,
+        }) + "\n")
+
+if "--login" in sys.argv:
+    input("Simulated login: press Enter (no browser or network).")
+    with (root / "login.log").open("a") as log:
+        log.write("login confirmed\n")
+    sys.exit(0)
+
+tree = ast.parse((root / "scripts/terapeak-export.py").read_text(encoding="utf-8"))
+guard = next(node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == "guard_scraper_action")
+exec(compile(ast.Module(body=[guard], type_ignores=[]), "guard", "exec"))
+
+def check_gate(extra):
+    args = SimpleNamespace(
+        backlog="simulated-report.json", mixed_p01_fixed=15,
+        mixed_extra_min=extra, mixed_extra_max=extra,
+    )
+    guard_scraper_action("run", state_path=state_path, args=args)
+
+if "--assert-early-gate" in sys.argv:
+    assert load_state(str(state_path))["state"] == "Elevated"
+    try:
+        check_gate(0)
+    except RuntimeError as error:
+        assert "900s between passes; 900s remain" in str(error), str(error)
+        assert not Path(str(state_path) + ".last-run").exists()
+        event("early-gate-rejected")
+    else:
+        raise AssertionError("Elevated gate admitted the next pass before waiting")
+    sys.exit(0)
+
+counter = root / "pass-count"
+number = int(counter.read_text()) + 1 if counter.exists() else 1
+counter.write_text(str(number))
+assert number <= 3, "operator did not stop after the final drained pass"
+extra = int(sys.argv[sys.argv.index("--mixed-extra-min") + 1])
+check_gate(extra)
+event("pass-admitted", number=number, state=load_state(str(state_path))["state"])
+with Path(os.environ["ARGS_LOG"]).open("a") as log:
+    log.write(" ".join(sys.argv[1:]) + "\n")
+if number == 1:
+    print("Exporting 4 coins...")
+    print("  [ 25%] Test A... OK (1 new, 0 dups)")
+    for percent, name in ((50, "B"), (75, "C"), (100, "D")):
+        print(f"  [{percent}%] Test {name}...")
+        print("NO EXPORT (no results or button not found)")
+elif number == 2:
+    print("Exporting 1 coins...")
+    print("  [100%] Test E... OK (2 new, 0 dups)")
+else:
+    print("DRAINED: no eligible dataset in P0-P2 or any fallback tier")
+    sys.exit(20)
+PY
+cat > "$T/scripts/run-surface-freshness-loop.sh" <<'SH'
+exec "$REAL_PY" "$T/simulated-exporter.py" "$@"
+SH
+cat > "$T/bin/python3" <<'SH'
+#!/usr/bin/env bash
+if [[ "$1" == scripts/terapeak-export.py ]]; then
+  exec "$REAL_PY" "$T/simulated-exporter.py" "$@"
+fi
+if [[ "$1" == scripts/_terapeak_risk.py && "$2" == wait-elevated-pause ]]; then
+  "$REAL_PY" "$T/simulated-exporter.py" --assert-early-gate || exit 1
+fi
+exec "$REAL_PY" "$@"
+SH
+chmod +x "$T/bin/date" "$T/bin/sleep" "$T/bin/python3"
+`;
+
 function runOperatorHarness({
   operator, args = [], stubRc, stubOutput, riskFile, riskState = 'Elevated', env = {},
+  twoPassPacing = false,
 }) {
   const stateFile = operator === 'h' ? 'cache/terapeak-startup-state.json' : 'cache/terapeak-operator-codespace.state.json';
   const operatorScript = operator === 'h' ? 'terapeak-operator.sh' : 'terapeak-operator-codespace.sh';
@@ -300,9 +440,12 @@ chmod +x "$T/bin/node" "$T/bin/curl" "$T/bin/python3"
 export T REAL_PY ARGS_LOG="$T/args.log" STUB_OUTPUT="$T/stub-output.txt" STUB_RC='${stubRc}'
 export ADMIN_API_KEY=placeholder-test-key HOME="$T/home"
 ${Object.entries(env).map(([key, value]) => `export ${key}='${value}'`).join('\n')}
+${twoPassPacing ? TWO_PASS_PACING_SETUP : ''}
 cd "$T"
 set +e
-PATH="$T/bin:$PATH" timeout 60 bash scripts/${operatorScript} ${args.map(arg => `'${arg}'`).join(' ')} --env-file "$T/env" > "$T/operator.out" 2>&1
+${twoPassPacing
+    ? `printf '\\n\\n' | PATH="$T/bin:$PATH" timeout 60 script -q -e -c "bash scripts/${operatorScript} --loop --env-file $T/env" /dev/null > "$T/operator.out" 2>&1`
+    : `PATH="$T/bin:$PATH" timeout 60 bash scripts/${operatorScript} ${args.map(arg => `'${arg}'`).join(' ')} --env-file "$T/env" > "$T/operator.out" 2>&1`}
 STATUS=$?
 emit() { printf '\n%s\n' "${MARKER}$1"; shift; "$@" 2>/dev/null || true; }
 emit status echo "$STATUS"
@@ -311,6 +454,10 @@ emit state cat "$T/${stateFile}"
 emit args cat "$T/args.log"
 emit passes cat "$T/cache/terapeak-runs/passes.jsonl"
 emit risk cat "$T/cache/${riskFile}"
+emit events cat "$T/clock-events.jsonl"
+emit login cat "$T/login.log"
+emit clock cat "$T/clock-seconds"
+emit lastRun cat "$T/cache/${riskFile}.last-run"
 `;
   const harnessFile = path.join(os.tmpdir(), `cpf-drained-${process.pid}-${Math.random().toString(36).slice(2)}.sh`);
   fs.writeFileSync(harnessFile, harness.replace(/\r\n/g, '\n'), 'utf8');
@@ -339,6 +486,10 @@ emit risk cat "$T/cache/${riskFile}"
       calls: text('args').split('\n').filter(Boolean),
       passes: jsonLines('passes'),
       risk: text('risk') ? JSON.parse(text('risk')) : null,
+      events: jsonLines('events'),
+      login: text('login').split('\n').filter(Boolean),
+      clock: text('clock') ? Number(text('clock')) : null,
+      lastRun: text('lastRun'),
     };
   } finally {
     fs.rmSync(harnessFile, { force: true });
@@ -363,6 +514,52 @@ const INITIAL_RISK = { state: 'Elevated', reason: 'soft_risk_cluster', run_id: '
 
 describe('#330H terapeak-operator.sh (H): drained handling, executed end to end', () => {
   const baseArgs = ['--no-login', '--pause-between', '0'];
+
+  test('two consecutive productive passes transition Normal -> Elevated -> Normal on one sleep/gate clock', () => {
+    const run = runOperatorHarness({
+      operator: 'h', riskFile: 'terapeak-risk-state-H.json',
+      riskState: 'Normal', stubRc: 0, stubOutput: '', twoPassPacing: true,
+    });
+    expect({ status: run.harnessStatus, stderr: run.harnessStderr }).toEqual({ status: 0, stderr: '' });
+    expect(run.status).toBe(0);
+    expect(run.login).toEqual(['display start', 'display check', 'login confirmed']);
+    expect(run.passes.map(pass => ({
+      pass: pass.pass, before: pass.state_before, after: pass.state_after,
+      attempted: pass.attempted, succeeded: pass.succeeded,
+      soft: pass.soft_risk_signal_count, exit: pass.pass_exit_code, drained: pass.drained,
+    }))).toEqual([
+      { pass: 1, before: 'Normal', after: 'Elevated', attempted: 4, succeeded: 1, soft: 3, exit: 0, drained: false },
+      { pass: 2, before: 'Elevated', after: 'Normal', attempted: 1, succeeded: 1, soft: 0, exit: 0, drained: false },
+      { pass: 3, before: 'Normal', after: 'Normal', attempted: 0, succeeded: 0, soft: 0, exit: 0, drained: true },
+    ]);
+    expect(run.passes[0].batch_size).toBeGreaterThanOrEqual(30);
+    expect(run.passes[0].batch_size).toBeLessThanOrEqual(35);
+    expect(run.passes[1].batch_size).toBeGreaterThanOrEqual(15);
+    expect(run.passes[1].batch_size).toBeLessThanOrEqual(20);
+    const admitted = run.events.filter(event => event.event === 'pass-admitted');
+    expect(admitted).toEqual([
+      { event: 'pass-admitted', number: 1, state: 'Normal', time: 0 },
+      { event: 'pass-admitted', number: 2, state: 'Elevated', time: 900.5 },
+      { event: 'pass-admitted', number: 3, state: 'Normal', time: 1200.5 },
+    ]);
+    expect(run.events.filter(event => event.event === 'early-gate-rejected')).toEqual([
+      { event: 'early-gate-rejected', time: 0 },
+    ]);
+    const sleeps = run.events.filter(event => event.event === 'sleep');
+    expect(sleeps[0]).toEqual({ event: 'sleep', before: 0, after: 451, requested: 902 });
+    expect(sleeps[sleeps.length - 1]).toEqual({
+      event: 'sleep', before: 900.5, after: 1200.5, requested: 600,
+    });
+    expect(sleeps.slice(0, -1).reduce((total, sleep) => total + sleep.after - sleep.before, 0)).toBe(900.5);
+    expect(run.lastRun).toBe('2026-01-01T00:15:00.500000Z');
+    expect(run.passes.slice(0, 2).map(pass => pass.started_at)).toEqual([
+      '2026-01-01T00:00:00Z', '2026-01-01T00:15:00Z',
+    ]);
+    expect(run.clock).toBe(1200.5);
+    expect(run.risk.state).toBe('Normal');
+    expect(run.state).toEqual(expect.objectContaining({ stage: 'drained', status: 'ok', exitCode: 0 }));
+    expect(run.calls).toHaveLength(3);
+  }, 150000);
 
   test('a drained pass exits 0, records a drained state, and leaves the risk state untouched', () => {
     const run = runOperatorHarness({

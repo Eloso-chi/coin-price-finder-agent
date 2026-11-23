@@ -62,10 +62,14 @@ invariant in rollback mode.
   personal information in logs or telemetry.
 - A visible, user-solvable CAPTCHA encountered during the interactive VNC
    login flow may be solved manually by the authorized user. The login helper
-   waits for the visible `/sh/research` page to clear before saving cookies.
+   waits up to 600 seconds after terminal confirmation for an HTTPS eBay
+   `/sh/research` page with a visible Research search input before saving cookies.
+   It opens Research at most once when needed; it never refreshes a challenge.
    This does not authorize automated solving, retries, or bypasses. An
    unusual-activity/security-measure page or other hard bot-warning remains a
-   non-bypassable stop and preserves Cooldown.
+   non-bypassable stop, persists Cooldown, and exits 2. Splash/block paths and
+   HTTP 403/429 are hard stops, including during manual login. Closed browsers,
+   timeouts, and unconfirmed access do not overwrite the cookie jar.
 - A workflow change affecting challenge detection, identity, pacing, or retry
   behavior requires the scraper risk/compliance PR checklist.
 
@@ -76,6 +80,11 @@ invariant in rollback mode.
 | H local WSL2 | `bash scripts/terapeak-operator.sh --loop` | `api` | 30-35 / 600s | Interactive `--login` in the operator |
 | W Codespace | `bash scripts/terapeak-operator-codespace.sh` | Existing exporter environment | 30-35 / 600s +/- jitter | Cookie file modification after incident |
 | Explicit bulk backfill | Purpose-built direct command | `blob` | Operator-defined, non-looping | Not a Cooldown bypass |
+
+The H visible VS Code task runs the same `--loop` command, not a separate
+operator. Normal's 600-second pause, Elevated's 900-second minimum pacing gate,
+and hard-challenge Cooldown's 7200-second minimum are distinct; a configured
+Normal pause does not change the latter gates.
 
 Both operators emit pass records to `cache/terapeak-runs/passes.jsonl` and
 coin records to `cache/terapeak-runs/coins.jsonl`.
