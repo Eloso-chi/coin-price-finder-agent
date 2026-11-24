@@ -212,6 +212,16 @@ results = {}
 for scenario in (
     "manual_challenge", "already_ready", "missing_ui", "hard_warning",
     "http_block", "lookalike_host", "closed", "persistence_failure",
+    *(
+        f"{stage}_{status}"
+        for stage in (
+            "signin_transient", "terminal", "terminal_transient",
+            "wait", "wait_transient", "state_transient",
+            "terminal_subresource", "wait_subresource", "terminal_iframe",
+            "terminal_timeout", "cookie_handoff", "terminal_persistence_failure",
+        )
+        for status in (403, 429)
+    ),
 ):
   with tempfile.TemporaryDirectory() as directory:
     root = Path(directory)
@@ -219,7 +229,28 @@ for scenario in (
     cookie_file.write_text("original-cookie-jar", encoding="utf-8")
     risk_file = root / "risk.json"
     clock = {"now": 0}
-    calls = {"goto": [], "close": 0, "input": 0}
+    calls = {"goto": [], "close": 0, "input": 0, "cookies": 0}
+    response_handlers = []
+    pending_responses = []
+
+    def emit_response(status, navigation=True, main_frame=True):
+        response = types.SimpleNamespace(
+            status=status,
+            request=types.SimpleNamespace(is_navigation_request=lambda: navigation),
+            frame=page.main_frame if main_frame else object(),
+        )
+        for handler in response_handlers:
+            handler(response)
+        return response
+
+    def queue_manual_responses():
+        pending_responses.append((
+            int(scenario.rsplit("_", 1)[1]),
+            "subresource" not in scenario,
+            "iframe" not in scenario,
+        ))
+        if "transient" in scenario:
+            pending_responses.append((200, True, True))
 
     class Page:
         url = namespace["EBAY_LOGIN_URL"]
@@ -227,6 +258,16 @@ for scenario in (
         body = "Sign in"
         closed = False
         first = None
+        main_frame = object()
+        def on(self, event, handler):
+            assert event == "response"
+            response_handlers.append(handler)
+        def wait_for_timeout(self, milliseconds):
+            assert milliseconds == 0
+            while pending_responses:
+                emit_response(*pending_responses.pop(0))
+            if scenario.startswith("terminal_timeout_"):
+                raise BrowserTimeout("test navigation timed out")
         def goto(self, url, **_kwargs):
             calls["goto"].append(url)
             self.url = url
@@ -234,8 +275,12 @@ for scenario in (
             if "signin." in url and scenario == "already_ready":
                 self.url = namespace["EBAY_RESEARCH_URL"]
                 self.visible = True
+            elif "signin." in url and scenario.startswith("signin_transient_"):
+                emit_response(int(scenario.rsplit("_", 1)[1]))
+                self.url = namespace["EBAY_RESEARCH_URL"]
+                self.visible = True
             elif "signin." not in url:
-                if scenario == "manual_challenge":
+                if scenario == "manual_challenge" or scenario.startswith("wait_"):
                     self.url = "https://www.ebay.com/captcha?private=do-not-log"
                     self.body = "Are you a human?"
                 elif scenario in ("hard_warning", "persistence_failure"):
@@ -243,10 +288,15 @@ for scenario in (
                 elif scenario == "lookalike_host":
                     self.url = "https://www.ebay.com.invalid/sh/research"
                     self.visible = True
-            return types.SimpleNamespace(
-                status=429 if scenario == "http_block" and "signin." not in url else 200,
+            return emit_response(
+                429 if scenario == "http_block" and "signin." not in url else 200,
             )
-        def inner_text(self, *_args, **_kwargs): return self.body
+        def inner_text(self, *_args, **_kwargs):
+            if scenario.startswith("state_transient_") and calls["input"]:
+                queue_manual_responses()
+                while pending_responses:
+                    emit_response(*pending_responses.pop(0))
+            return self.body
         def locator(self, _selector):
             self.first = self
             return self
@@ -257,7 +307,11 @@ for scenario in (
     class Context:
         def add_init_script(self, _script): pass
         def new_page(self): return page
-        def cookies(self): return [{"name": "test-session", "value": "placeholder"}]
+        def cookies(self):
+            calls["cookies"] += 1
+            if scenario.startswith("cookie_handoff_"):
+                emit_response(int(scenario.rsplit("_", 1)[1]))
+            return [{"name": "test-session", "value": "placeholder"}]
     context = Context()
     class Browser:
         def new_context(self, **_kwargs): return context
@@ -275,16 +329,24 @@ for scenario in (
         elif scenario != "already_ready":
             page.url = "https://www.ebay.com/"
             page.body = "Signed in"
+        if scenario.startswith(("terminal_", "state_transient_", "cookie_handoff_")):
+            if scenario.startswith("terminal_"):
+                queue_manual_responses()
+            page.url = namespace["EBAY_RESEARCH_URL"]
+            page.body = "Research keywords"
+            page.visible = True
         return ""
     def sleep(seconds):
         clock["now"] += seconds
-        if scenario == "manual_challenge":
+        if scenario == "manual_challenge" or scenario.startswith("wait_"):
+            if scenario.startswith("wait_"):
+                queue_manual_responses()
             page.url = namespace["EBAY_RESEARCH_URL"]
             page.body = "Research keywords"
             page.visible = True
     def persist(path, state, reason, run_id):
         assert Path(path) == risk_file
-        if scenario == "persistence_failure":
+        if scenario == "persistence_failure" or scenario.startswith("terminal_persistence_failure_"):
             raise OSError("test storage unavailable")
         return write_state(path, state, reason, run_id)
 
@@ -310,6 +372,10 @@ for scenario in (
         assert json.loads(cookie_file.read_text()) == [
             {"name": "test-session", "value": "placeholder"}
         ]
+    if status == 2:
+        assert calls["cookies"] == (1 if scenario.startswith("cookie_handoff_") else 0)
+        assert cookie_file.read_text(encoding="utf-8") == "original-cookie-jar"
+        assert load_state(str(risk_file))["reason"] == "hard_challenge_signal"
     assert not (root / "terapeak_export_progress.json").exists()
     results[scenario] = {
         "status": status, "saved": saved, "closed": calls["close"],
@@ -329,6 +395,24 @@ print(json.dumps(results))
         lookalike_host: { status: false, saved: false, closed: 1, researchNavigations: 1, risk: null, elapsed: 0 },
         closed: { status: false, saved: false, closed: 1, researchNavigations: 0, risk: null, elapsed: 0 },
         persistence_failure: { status: 'persistence_error', saved: false, closed: 1, researchNavigations: 1, risk: null, elapsed: 0 },
+        ...Object.fromEntries([403, 429].flatMap(status => [
+          ...['signin_transient', 'terminal', 'terminal_transient', 'state_transient', 'terminal_timeout', 'cookie_handoff'].map(stage => [
+            `${stage}_${status}`,
+            { status: 2, saved: false, closed: 1, researchNavigations: 0, risk: 'Cooldown', elapsed: 0 },
+          ]),
+          ...['wait', 'wait_transient'].map(stage => [
+            `${stage}_${status}`,
+            { status: 2, saved: false, closed: 1, researchNavigations: 1, risk: 'Cooldown', elapsed: 2 },
+          ]),
+          ...['terminal_subresource', 'terminal_iframe'].map(stage => [
+            `${stage}_${status}`,
+            { status: true, saved: true, closed: 1, researchNavigations: 0, risk: null, elapsed: 0 },
+          ]),
+          [`wait_subresource_${status}`,
+            { status: true, saved: true, closed: 1, researchNavigations: 1, risk: null, elapsed: 2 }],
+          [`terminal_persistence_failure_${status}`,
+            { status: 'persistence_error', saved: false, closed: 1, researchNavigations: 0, risk: null, elapsed: 0 }],
+        ])),
       });
     });
 

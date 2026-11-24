@@ -381,10 +381,12 @@ def human_type(element, text, page=None):
 
 
 # ── Cookie Management ───────────────────────────────────────
-def save_cookies(context):
+def save_cookies(context, before_write=None):
     """Save browser cookies to disk."""
     COOKIE_FILE.parent.mkdir(parents=True, exist_ok=True)
     cookies = context.cookies()
+    if before_write is not None:
+        before_write()
     with open(COOKIE_FILE, "w") as f:
         json.dump(cookies, f, indent=2)
     print(f"  Saved {len(cookies)} cookies to {COOKIE_FILE}")
@@ -1090,7 +1092,7 @@ def manual_research_access_state(page):
     return "pending"
 
 
-def wait_for_manual_research_access(page, timeout_seconds=600):
+def wait_for_manual_research_access(page, timeout_seconds=600, has_http_block=None):
     """Allow manual resolution without refreshing or retrying a challenge."""
     from playwright.sync_api import Error as PlaywrightError
 
@@ -1101,6 +1103,10 @@ def wait_for_manual_research_access(page, timeout_seconds=600):
     while time.monotonic() < deadline:
         if page.is_closed():
             return "closed"
+        if has_http_block is not None:
+            page.wait_for_timeout(0)
+            if has_http_block():
+                return "hard_challenge"
         try:
             state = manual_research_access_state(page)
         except PlaywrightTimeout:
@@ -1109,6 +1115,8 @@ def wait_for_manual_research_access(page, timeout_seconds=600):
             if "Execution context was destroyed" not in str(error):
                 raise
             state = "navigating"
+        if has_http_block is not None and has_http_block():
+            return "hard_challenge"
         if state in ("ready", "hard_challenge", "unconfirmed"):
             return state
         if state == "pending" and not research_requested:
@@ -1169,22 +1177,41 @@ def do_login():
         context.add_init_script("""
             Object.defineProperty(navigator, 'webdriver', { get: () => false });
         """)
+        http_blocked = False
+
+        def observe_login_response(response):
+            nonlocal http_blocked
+            if response.status in (403, 429) and (
+                response.request.is_navigation_request()
+                and response.frame == page.main_frame
+            ):
+                http_blocked = True
+
+        def stop_on_http_block():
+            if http_blocked:
+                persist_hard_challenge_cooldown()
+                print("[risk:FAIL] HTTP 403/429 during login; Cooldown persisted. Stop.")
+                raise SystemExit(2)
+
         try:
             page = context.new_page()
+            page.on("response", observe_login_response)
             print("Opening eBay login page...")
             response = page.goto(
                 EBAY_LOGIN_URL, wait_until="domcontentloaded", timeout=30000,
             )
             if (response is not None and response.status in (403, 429)) or (
                 manual_research_access_state(page) == "hard_challenge"
-            ):
+            ) or http_blocked:
                 persist_hard_challenge_cooldown()
                 print("[risk:FAIL] Hard login warning or HTTP 403/429; Cooldown persisted. Stop.")
                 raise SystemExit(2)
 
             input("\n>>> Log in to eBay, then press ENTER in this terminal. Leave the browser open... ")
-            outcome = wait_for_manual_research_access(page)
-            if outcome == "hard_challenge":
+            outcome = wait_for_manual_research_access(
+                page, has_http_block=lambda: http_blocked,
+            )
+            if outcome == "hard_challenge" or http_blocked:
                 persist_hard_challenge_cooldown()
                 print("[risk:FAIL] Hard login warning; Cooldown persisted. Do not retry or bypass it.")
                 raise SystemExit(2)
@@ -1192,10 +1219,11 @@ def do_login():
                 print(f"ERROR: Research access not confirmed ({outcome}); cookies were not saved.")
                 return False
 
-            save_cookies(context)
+            save_cookies(context, before_write=stop_on_http_block)
             print("\nLogin complete. Research access confirmed and cookies saved.")
             return True
         except PlaywrightTimeout:
+            stop_on_http_block()
             print("ERROR: Login browser timed out; cookies were not saved. Stop and inspect the display.")
             return False
         finally:
