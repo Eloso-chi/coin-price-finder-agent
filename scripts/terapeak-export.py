@@ -51,6 +51,7 @@ import shutil
 import sys
 import time
 from datetime import datetime, timedelta, timezone
+from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -1068,23 +1069,77 @@ def _is_no_valid_comps_error(msg):
 
 
 # ── Login Flow ──────────────────────────────────────────────
-def manual_research_access_state(page):
-    """Distinguish a visible login challenge from confirmed Research access."""
-    location = urlsplit(page.url)
+def manual_login_page_state(url, body):
+    """Keep human verification distinct from an explicit login access denial."""
+    location = urlsplit(url)
     if location.scheme != "https" or location.hostname not in (
         "www.ebay.com", "ebay.com", "signin.ebay.com",
     ):
         return "unconfirmed"
     path = location.path.lower()
-    body = page.inner_text("body", timeout=1000)[:12000].lower()
-    if any(marker in path for marker in ("/splashui/", "distil", "block")) or any(
+    body = body.lower()
+    if any(marker in path for marker in ("distil", "block")) or any(
+        marker in body for marker in (
+            "access denied", "access has been denied", "request denied",
+            "request blocked", "request has been blocked", "you have been blocked",
+            "you've been blocked", "temporarily blocked",
+            "temporarily restricted", "too many requests", "try again later",
+            "account locked", "account suspended",
+        )
+    ):
+        return "hard_challenge"
+    challenge_path = path.rstrip("/") in ("/captcha", "/splashui/captcha")
+    manual_prompt = any(marker in body for marker in (
+        "are you a human", "verify you are human", "verify you're human",
+        "verify yourself", "press and hold", "press & hold",
+        "complete the captcha", "enter the captcha",
+    ))
+    if manual_prompt or (
+        challenge_path and any(marker in body for marker in ("captcha", "human"))
+    ):
+        return "solvable_challenge"
+    if "/splashui/" in path or any(
         marker in body for marker in ("unusual activity", "security measure")
     ):
         return "hard_challenge"
-    if "signin" in location.hostname or any(
-        marker in path for marker in ("captcha", "signin")
-    ) or any(marker in body for marker in ("captcha", "hcaptcha", "are you a human")):
-        return "solvable_challenge"
+    if "signin" in location.hostname or "signin" in path:
+        return "signin"
+    return "pending"
+
+
+class ManualLoginResponseText(HTMLParser):
+    """Read completed response text without mistaking scripts for a challenge."""
+    def __init__(self):
+        super().__init__()
+        self.ignored = []
+        self.fragments = []
+        self.remaining = 12000
+
+    def handle_starttag(self, tag, attrs):
+        if tag in ("head", "script", "style", "template", "noscript"):
+            self.ignored.append(tag)
+
+    def handle_endtag(self, tag):
+        if tag in self.ignored:
+            del self.ignored[self.ignored.index(tag):]
+
+    def handle_data(self, data):
+        if not self.ignored and self.remaining > 0:
+            self.fragments.append(data[:self.remaining])
+            self.remaining -= len(self.fragments[-1])
+
+
+class ManualLoginPageChanged(RuntimeError):
+    """Research access changed before the cookie file could be written."""
+
+
+def manual_research_access_state(page):
+    """Distinguish a visible login challenge from confirmed Research access."""
+    body = page.inner_text("body", timeout=1000)[:12000]
+    state = manual_login_page_state(page.url, body)
+    if state != "pending":
+        return state
+    path = urlsplit(page.url).path.lower()
     if path.rstrip("/") == "/sh/research" and page.locator(
         _RESEARCH_PAGE_SELECTOR
     ).first.is_visible():
@@ -1092,12 +1147,13 @@ def manual_research_access_state(page):
     return "pending"
 
 
-def wait_for_manual_research_access(page, timeout_seconds=600, has_http_block=None):
+def wait_for_manual_research_access(page, timeout_seconds=600, has_http_block=None, navigation_state=None):
     """Allow manual resolution without refreshing or retrying a challenge."""
     from playwright.sync_api import Error as PlaywrightError
 
     deadline = time.monotonic() + timeout_seconds
-    research_requested = False
+    if navigation_state is None:
+        navigation_state = {"research_requested": False}
     print(f"Waiting up to {timeout_seconds}s for visible Research access.")
     print("Solve permitted login CAPTCHA/2FA yourself in noVNC; leave the browser open.")
     while time.monotonic() < deadline:
@@ -1119,15 +1175,21 @@ def wait_for_manual_research_access(page, timeout_seconds=600, has_http_block=No
             return "hard_challenge"
         if state in ("ready", "hard_challenge", "unconfirmed"):
             return state
-        if state == "pending" and not research_requested:
-            research_requested = True
+        if state == "pending" and not navigation_state["research_requested"]:
+            navigation_state["research_requested"] = True
             print("Opening Research once to confirm access; no automatic challenge retries.")
             remaining_ms = max(1, int((deadline - time.monotonic()) * 1000))
             response = page.goto(
                 EBAY_RESEARCH_URL, wait_until="domcontentloaded",
                 timeout=min(30000, remaining_ms),
             )
-            if response is not None and response.status in (403, 429):
+            if response is not None and (
+                response.status == 429 or (
+                    response.status == 403 and (
+                        has_http_block is None or has_http_block()
+                    )
+                )
+            ):
                 return "hard_challenge"
             continue
         remaining = deadline - time.monotonic()
@@ -1138,6 +1200,8 @@ def wait_for_manual_research_access(page, timeout_seconds=600, has_http_block=No
 
 def do_login():
     """Open a visible browser for manual eBay login. Save cookies when done."""
+    from playwright.sync_api import Error as PlaywrightError
+
     if not has_display():
         print("\nERROR: No display available (running in a container/Codespace).")
         print("Use --login-manual instead to paste cookies from your own browser.")
@@ -1177,51 +1241,114 @@ def do_login():
         context.add_init_script("""
             Object.defineProperty(navigator, 'webdriver', { get: () => false });
         """)
-        http_blocked = False
+        http_blocks = set()
+        pending_forbidden = {}
+        completed_forbidden = set()
+        navigation_revision = 0
 
         def observe_login_response(response):
-            nonlocal http_blocked
-            if response.status in (403, 429) and (
+            nonlocal navigation_revision
+            if (
                 response.request.is_navigation_request()
                 and response.frame == page.main_frame
             ):
-                http_blocked = True
+                navigation_revision += 1
+                if response.status == 429:
+                    http_blocks.add(429)
+                elif response.status == 403:
+                    pending_forbidden[id(response.request)] = response
+
+        def observe_login_navigation(frame):
+            nonlocal navigation_revision
+            if frame == page.main_frame:
+                navigation_revision += 1
+
+        def complete_login_response(request):
+            if id(request) in pending_forbidden:
+                completed_forbidden.add(id(request))
+
+        def has_http_block():
+            # Body reads can yield to Playwright; keep unresolved evidence until classified.
+            for request_id, response in list(pending_forbidden.items()):
+                if request_id not in completed_forbidden:
+                    continue
+                try:
+                    text = ManualLoginResponseText()
+                    text.feed(response.text())
+                except PlaywrightError:
+                    http_blocks.add(403)
+                    print("[risk:FAIL] Could not classify the completed login HTTP 403 response.")
+                else:
+                    state = manual_login_page_state(response.url, " ".join(text.fragments))
+                    if state == "solvable_challenge":
+                        print("Manual login verification is required; leave the browser open and complete it yourself.")
+                    else:
+                        http_blocks.add(403)
+                del pending_forbidden[request_id]
+                completed_forbidden.remove(request_id)
+            return bool(http_blocks or pending_forbidden)
 
         def stop_on_http_block():
-            if http_blocked:
+            if has_http_block():
+                statuses = sorted(http_blocks | ({403} if pending_forbidden else set()))
                 persist_hard_challenge_cooldown()
-                print("[risk:FAIL] HTTP 403/429 during login; Cooldown persisted. Stop.")
+                print(f"[risk:FAIL] Main-document HTTP {statuses} denial or unconfirmed response during login; Cooldown persisted. Stop.")
                 raise SystemExit(2)
+
+        def confirm_cookie_write():
+            stop_on_http_block()
+            ready = not page.is_closed() and manual_research_access_state(page) == "ready"
+            stop_on_http_block()
+            if (
+                not ready or navigation_revision != snapshot_revision
+                or page.url != snapshot_url or time.monotonic() >= deadline
+            ):
+                raise ManualLoginPageChanged()
 
         try:
             page = context.new_page()
             page.on("response", observe_login_response)
+            page.on("requestfinished", complete_login_response)
+            page.on("framenavigated", observe_login_navigation)
             print("Opening eBay login page...")
-            response = page.goto(
+            page.goto(
                 EBAY_LOGIN_URL, wait_until="domcontentloaded", timeout=30000,
             )
-            if (response is not None and response.status in (403, 429)) or (
-                manual_research_access_state(page) == "hard_challenge"
-            ) or http_blocked:
+            stop_on_http_block()
+            if manual_research_access_state(page) == "hard_challenge":
                 persist_hard_challenge_cooldown()
-                print("[risk:FAIL] Hard login warning or HTTP 403/429; Cooldown persisted. Stop.")
+                print("[risk:FAIL] Explicit login denial or unrecognized security page; Cooldown persisted. Stop.")
                 raise SystemExit(2)
 
             input("\n>>> Log in to eBay, then press ENTER in this terminal. Leave the browser open... ")
-            outcome = wait_for_manual_research_access(
-                page, has_http_block=lambda: http_blocked,
-            )
-            if outcome == "hard_challenge" or http_blocked:
-                persist_hard_challenge_cooldown()
-                print("[risk:FAIL] Hard login warning; Cooldown persisted. Do not retry or bypass it.")
-                raise SystemExit(2)
-            if outcome != "ready":
-                print(f"ERROR: Research access not confirmed ({outcome}); cookies were not saved.")
-                return False
+            deadline = time.monotonic() + 600
+            navigation_state = {"research_requested": False}
+            while time.monotonic() < deadline:
+                outcome = wait_for_manual_research_access(
+                    page, timeout_seconds=deadline - time.monotonic(),
+                    has_http_block=has_http_block,
+                    navigation_state=navigation_state,
+                )
+                stop_on_http_block()
+                if outcome == "hard_challenge":
+                    persist_hard_challenge_cooldown()
+                    print("[risk:FAIL] Hard login warning; Cooldown persisted. Do not retry or bypass it.")
+                    raise SystemExit(2)
+                if outcome != "ready":
+                    print(f"ERROR: Research access not confirmed ({outcome}); cookies were not saved.")
+                    return False
 
-            save_cookies(context, before_write=stop_on_http_block)
-            print("\nLogin complete. Research access confirmed and cookies saved.")
-            return True
+                try:
+                    snapshot_revision = navigation_revision
+                    snapshot_url = page.url
+                    save_cookies(context, before_write=confirm_cookie_write)
+                except ManualLoginPageChanged:
+                    print("Research access changed before saving cookies; waiting for manual verification.")
+                    continue
+                print("\nLogin complete. Research access confirmed and cookies saved.")
+                return True
+            print("ERROR: Research verification timed out; cookies were not saved.")
+            return False
         except PlaywrightTimeout:
             stop_on_http_block()
             print("ERROR: Login browser timed out; cookies were not saved. Stop and inspect the display.")

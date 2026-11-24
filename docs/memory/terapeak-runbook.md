@@ -87,6 +87,9 @@ cd "$(git rev-parse --show-toplevel)" && DISPLAY=":${TERAPEAK_VNC_DISPLAY:-1}" p
 # Press Enter in the launching terminal after signing in; leave the browser open.
 # The helper opens Research at most once if needed, then waits up to 600s for
 # confirmed Research UI, allowing permitted manual login challenges to clear.
+# Recognized manual verification (including /splashui/captcha) stays open.
+# Login-only HTTP 403 requires completed, trusted eBay challenge evidence;
+# explicit denials, unknown/unreadable responses and HTTP 429 still stop.
 # No cookies are saved on timeout/unconfirmed access; no compulsory second login.
 # A hard bot-warning stops with exit 2; do not retry or bypass it.
 ```

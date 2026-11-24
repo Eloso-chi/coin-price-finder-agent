@@ -985,8 +985,16 @@ task verifies keyboard input. Chrome hosts noVNC, not the operator control
 process. The user advances the display and sign-in Enter gates. Guarded login
 opens Research at most once when needed, then allows up to 600 seconds for
 permitted manual challenge resolution and verifies both the eBay Research URL
-and visible Research UI before saving cookies. Hard warnings/HTTP 403/429 persist
-Cooldown and exit 2; timeout/unconfirmed access leaves cookies unchanged.
+and visible Research UI before saving cookies. Recognized manual verification,
+including `/splashui/captcha`, is distinct from an access denial. During login
+only, completed main-document HTTP 403 bodies may establish a human-verification
+page on an allowed HTTPS eBay host; status evidence is retained until classified
+outside response callbacks. Explicit denials, HTTP 429, unknown security pages,
+and denied/incomplete/unreadable HTTP 403 responses persist Cooldown and exit 2.
+Cookie writing rechecks Research access after retrieval and waits/resnapshots
+within the original deadline if verification intervenes. Timeout/unconfirmed
+access leaves cookies unchanged. Collection hard stops and existing Cooldown
+recovery are unchanged.
 
 ### Chain Aggregation -- `scripts/chain-aggregate.sh`
 

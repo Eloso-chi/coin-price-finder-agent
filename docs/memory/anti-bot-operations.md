@@ -10,7 +10,7 @@ different state names or transitions.
 |---|---|---|
 | Normal | Cookies are healthy and no risk cluster is present. | Use the configured randomized batch and pause range. |
 | Elevated | One pass contains at least three soft signals such as timeouts, browser crashes, or `NO EXPORT` outcomes (a `HEADLESS` fallback skip is not a soft signal). | Use 15-20 terms and at least a 900-second pause, measured on the wall clock the exporter gate uses (the H operator, `terapeak-operator.sh`, waits via `_terapeak_risk.py wait-elevated-pause`; the W Codespace operator still uses a fixed sleep, tracked as #329H). One clean pass (exit 0 and at least one coin attempted) returns to Normal; a pass that attempted nothing or exited non-zero leaves Elevated unchanged. |
-| Challenged | A hard signal was observed: explicit bot block, unusual-activity page, CAPTCHA/hCaptcha, splash challenge, or HTTP 403/429. | Transient decision state only. Stop the pass immediately; do not retry. |
+| Challenged | Collection encounters an explicit bot block, unusual-activity page, CAPTCHA/hCaptcha, splash challenge, or HTTP 403/429. Interactive login has the narrowly scoped human-verification exception below. | Transient decision state only. Stop the pass immediately; do not retry. |
 | Cooldown | Persisted stop state entered from Challenged. | Launch no scraper browser until the wait, re-login, and live-probe gates all pass. |
 
 The executable hard-signal transition is logged as `state_after=Cooldown` with
@@ -64,12 +64,24 @@ invariant in rollback mode.
    login flow may be solved manually by the authorized user. The login helper
    waits up to 600 seconds after terminal confirmation for an HTTPS eBay
    `/sh/research` page with a visible Research search input before saving cookies.
-   It opens Research at most once when needed; it never refreshes a challenge.
-   This does not authorize automated solving, retries, or bypasses. An
-   unusual-activity/security-measure page or other hard bot-warning remains a
-   non-bypassable stop, persists Cooldown, and exits 2. Splash/block paths and
-   HTTP 403/429 are hard stops, including during manual login. Closed browsers,
-   timeouts, and unconfirmed access do not overwrite the cookie jar.
+   Recognizable human-verification prompts, including `/splashui/captcha`,
+   stay open rather than becoming hard stops solely because they mention a
+   security measure or unusual activity. During this login-only handoff, a
+   main-document HTTP 403 is permitted only when its completed response text
+   identifies a manual challenge on an allowed HTTPS eBay host. A sign-in URL
+   alone is not proof; script/head text does not establish a manual challenge.
+   Explicit access denials override challenge wording. HTTP 429, unrecognized
+   security pages, and denied, incomplete, or unreadable HTTP 403 responses
+   still persist Cooldown and exit 2, including transient denials followed by
+   a ready page.
+   The helper opens Research at most once when needed and never refreshes a
+   challenge. The user may operate the visible verification page manually;
+   this does not authorize automated solving, refreshes, retries, or bypasses.
+   Cookie saving rechecks Research access after cookie retrieval; if a manual
+   challenge intervenes, it waits within the same deadline and retrieves fresh
+   cookies only after Research is confirmed again. Closed browsers, timeouts,
+   and unconfirmed access do not overwrite the cookie jar. This exception does
+   not change collection detection, pacing, or an already persisted Cooldown.
 - A workflow change affecting challenge detection, identity, pacing, or retry
   behavior requires the scraper risk/compliance PR checklist.
 
