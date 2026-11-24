@@ -857,7 +857,11 @@ VS Code task for a dedicated visible control terminal and ordinary Chrome/noVNC
 for private sign-in. A harmless **Terapeak: verify visible terminal (no services)**
 task verifies the Enter handoff first. Research access is positively verified
 before cookies are saved; permitted manual challenges remain visible for up to
-600 seconds after terminal confirmation, while hard warnings stop in Cooldown.
+600 seconds after terminal confirmation. Recognized human-verification pages
+(including `/splashui/captcha` and verified login-only HTTP 403 challenges)
+are left for you to handle manually; explicit denials, unknown HTTP 403
+responses, and rate limits still stop in Cooldown. Collection stops and an
+already persisted Cooldown are unchanged.
 Display checks include a bounded RFB greeting but still require visible client
 confirmation. See [the H startup runbook](docs/runbooks/local-scraper-wsl2.md#visible-windowsvs-code-handoff).
 

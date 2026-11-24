@@ -179,11 +179,22 @@ A real Chromium window will appear in noVNC. Sign in to eBay manually, resolve
 permitted login CAPTCHA/2FA, then press Enter in the launching terminal.
 Leave the browser open: the helper opens Research once if necessary and waits
 up to 600 seconds for a visible Research search input on the eBay Research
-page. A permitted manual challenge stays visible; the helper does not refresh
-or retry it. A splash/block/security warning or HTTP 403/429 persists Cooldown
-and stops with exit 2. Unconfirmed access times out without saving cookies.
+page. A recognizable manual verification page, including `/splashui/captcha`,
+stays visible even when it mentions a security measure or unusual activity.
+During interactive login only, a completed HTTP 403 response is allowed when
+its text identifies human verification on an allowed HTTPS eBay host; an
+ordinary sign-in URL is not sufficient. You may operate that page manually;
+the helper does not solve, refresh, or retry it. Explicit access denials,
+HTTP 429, unrecognized security pages, and denied/incomplete/unreadable HTTP
+403 responses still persist Cooldown and stop with exit 2. A denied response
+remains a stop even if a later page looks ready.
+Unconfirmed access times out without saving cookies. If verification returns
+during cookie retrieval, it must clear within the same 600-second deadline
+and cookies are retrieved again before writing.
 Only confirmed Research access writes `$COOKIE_FILE`; the helper then closes
 the browser itself. There is no mandatory second login or second CAPTCHA.
+This login-only distinction does not relax collection-time bot detection or
+clear a previously persisted Cooldown.
 
 Direct exporter entrypoints enforce the persisted risk state: ad-hoc collection
 is allowed only in `Normal`; `Elevated` collection requires the canonical H/W

@@ -167,6 +167,7 @@ import os
 from pathlib import Path
 import tempfile
 import types
+from html.parser import HTMLParser
 from urllib.parse import urlsplit
 
 from _terapeak_risk import load_state, write_state
@@ -176,7 +177,8 @@ source = ast.parse(source_path.read_text(encoding="utf-8"))
 names = {
     "manual_research_access_state", "wait_for_manual_research_access",
     "do_login", "persist_hard_challenge_cooldown", "save_cookies",
-    "CooldownPersistenceError",
+    "CooldownPersistenceError", "manual_login_page_state",
+    "ManualLoginResponseText", "ManualLoginPageChanged",
 }
 definitions = [
     node for node in source.body
@@ -190,6 +192,7 @@ for node in source.body:
         definitions.append(node)
 namespace = {
     "Path": Path, "json": json, "os": os, "urlsplit": urlsplit,
+    "HTMLParser": HTMLParser,
     "random": types.SimpleNamespace(randint=lambda *_: 0),
     "has_display": lambda: True,
     "EBAY_LOGIN_URL": "https://signin.ebay.com/ws/eBayISAPI.dll?SignIn",
@@ -212,13 +215,21 @@ results = {}
 for scenario in (
     "manual_challenge", "already_ready", "missing_ui", "hard_warning",
     "http_block", "lookalike_host", "closed", "persistence_failure",
+    "splash_challenge", "signin_security_prompt", "signin_manual_403",
+    "signin_manual_429", "terminal_manual_403", "wait_manual_403",
+    "cookie_manual_403", "signin_denial_403", "signin_unknown_403",
+    "signin_incomplete_403", "signin_untrusted_403", "signin_unreadable_403",
+    "signin_script_only_403", "signin_blocked_prompt_403", "signin_manual_timeout_403",
+    "cookie_homepage_timeout", "cookie_homepage_manual_return",
+    "cookie_visibility_manual_403", "cookie_visibility_timeout_403",
+    "cookie_navigation_return",
     *(
         f"{stage}_{status}"
         for stage in (
             "signin_transient", "terminal", "terminal_transient",
             "wait", "wait_transient", "state_transient",
             "terminal_subresource", "wait_subresource", "terminal_iframe",
-            "terminal_timeout", "cookie_handoff", "terminal_persistence_failure",
+            "terminal_timeout", "cookie_handoff", "cookie_inspection", "terminal_persistence_failure",
         )
         for status in (403, 429)
     ),
@@ -230,25 +241,50 @@ for scenario in (
     risk_file = root / "risk.json"
     clock = {"now": 0}
     calls = {"goto": [], "close": 0, "input": 0, "cookies": 0}
-    response_handlers = []
+    response_handlers = {"response": [], "requestfinished": [], "framenavigated": []}
     pending_responses = []
+    manual_cases = {
+        "splash_challenge", "signin_security_prompt", "signin_manual_403",
+        "terminal_manual_403", "wait_manual_403", "cookie_manual_403",
+        "signin_manual_timeout_403",
+        "cookie_homepage_timeout", "cookie_homepage_manual_return",
+        "cookie_visibility_manual_403", "cookie_visibility_timeout_403",
+        "cookie_navigation_return",
+    }
 
-    def emit_response(status, navigation=True, main_frame=True):
+    def emit_response(status, navigation=True, main_frame=True, body=None, url=None, finished=True):
+        body_text = page.body if body is None else body
+        def response_text():
+            if scenario == "signin_unreadable_403":
+                raise BrowserError("test response body unavailable")
+            return body_text
+        request = types.SimpleNamespace(is_navigation_request=lambda: navigation)
         response = types.SimpleNamespace(
             status=status,
-            request=types.SimpleNamespace(is_navigation_request=lambda: navigation),
+            request=request,
             frame=page.main_frame if main_frame else object(),
+            url=page.url if url is None else url,
+            text=response_text,
         )
-        for handler in response_handlers:
+        for handler in response_handlers["response"]:
             handler(response)
+        if finished:
+            for handler in response_handlers["requestfinished"]:
+                handler(request)
         return response
 
     def queue_manual_responses():
-        pending_responses.append((
+        values = (
             int(scenario.rsplit("_", 1)[1]),
             "subresource" not in scenario,
             "iframe" not in scenario,
-        ))
+        )
+        if scenario in ("terminal_manual_403", "wait_manual_403"):
+            values += (
+                "<body>Security measure: are you a human?</body>",
+                "https://www.ebay.com/splashui/captcha?private=do-not-log",
+            )
+        pending_responses.append(values)
         if "transient" in scenario:
             pending_responses.append((200, True, True))
 
@@ -259,9 +295,10 @@ for scenario in (
         closed = False
         first = None
         main_frame = object()
+        inspection_interrupted = False
         def on(self, event, handler):
-            assert event == "response"
-            response_handlers.append(handler)
+            assert event in response_handlers
+            response_handlers[event].append(handler)
         def wait_for_timeout(self, milliseconds):
             assert milliseconds == 0
             while pending_responses:
@@ -272,7 +309,27 @@ for scenario in (
             calls["goto"].append(url)
             self.url = url
             self.body = "Sign in" if "signin." in url else "Research"
-            if "signin." in url and scenario == "already_ready":
+            if "signin." in url and (
+                scenario == "splash_challenge" or scenario.startswith("signin_")
+                and not scenario.startswith("signin_transient_")
+            ):
+                self.url = "https://www.ebay.com/splashui/captcha?private=do-not-log"
+                self.body = "Security measure: please verify yourself. Are you a human?"
+                if scenario == "signin_security_prompt":
+                    self.url = url
+                elif scenario == "signin_denial_403":
+                    self.body = "Access denied. Are you a human?"
+                elif scenario == "signin_blocked_prompt_403":
+                    self.body = "Your request has been blocked. Please verify yourself."
+                elif scenario == "signin_unknown_403":
+                    self.body = "Security measure"
+                elif scenario == "signin_untrusted_403":
+                    self.url = "https://www.ebay.com.invalid/splashui/captcha"
+                elif scenario == "signin_script_only_403":
+                    self.body = "<body>Service unavailable</body><script>please verify yourself</script>"
+                status = int(scenario.rsplit("_", 1)[1]) if scenario.endswith(("_403", "_429")) else 200
+                return emit_response(status, finished=scenario != "signin_incomplete_403")
+            elif "signin." in url and scenario == "already_ready":
                 self.url = namespace["EBAY_RESEARCH_URL"]
                 self.visible = True
             elif "signin." in url and scenario.startswith("signin_transient_"):
@@ -288,10 +345,15 @@ for scenario in (
                 elif scenario == "lookalike_host":
                     self.url = "https://www.ebay.com.invalid/sh/research"
                     self.visible = True
+                elif scenario in manual_cases:
+                    self.visible = True
             return emit_response(
-                429 if scenario == "http_block" and "signin." not in url else 200,
+                429 if scenario == "http_block" and "signin." not in url else
+                403 if scenario == "wait_manual_403" and "signin." not in url else 200,
             )
         def inner_text(self, *_args, **_kwargs):
+            if scenario.startswith("cookie_inspection_") and calls["cookies"]:
+                emit_response(int(scenario.rsplit("_", 1)[1]), body="<body>Access denied</body>")
             if scenario.startswith("state_transient_") and calls["input"]:
                 queue_manual_responses()
                 while pending_responses:
@@ -300,7 +362,17 @@ for scenario in (
         def locator(self, _selector):
             self.first = self
             return self
-        def is_visible(self): return self.visible
+        def is_visible(self):
+            visible = self.visible
+            if scenario.startswith("cookie_visibility_") and calls["cookies"] == 1 and not self.inspection_interrupted:
+                self.inspection_interrupted = True
+                assert visible
+                clock["now"] = 594
+                self.url = "https://www.ebay.com/splashui/captcha"
+                self.body = "Are you a human?"
+                self.visible = False
+                emit_response(403)
+            return visible
         def is_closed(self): return self.closed
 
     page = Page()
@@ -309,8 +381,22 @@ for scenario in (
         def new_page(self): return page
         def cookies(self):
             calls["cookies"] += 1
+            if scenario == "cookie_navigation_return" and calls["cookies"] == 1:
+                for handler in response_handlers["framenavigated"]:
+                    handler(page.main_frame)
+                return [{"name": "test-session", "value": "stale-placeholder"}]
+            if scenario.startswith("cookie_visibility_") and calls["cookies"] == 1:
+                return [{"name": "test-session", "value": "stale-placeholder"}]
             if scenario.startswith("cookie_handoff_"):
                 emit_response(int(scenario.rsplit("_", 1)[1]))
+            elif (scenario == "cookie_manual_403" or scenario.startswith("cookie_homepage_")) and calls["cookies"] == 1:
+                if scenario.startswith("cookie_homepage_"):
+                    clock["now"] = 594
+                page.url = "https://www.ebay.com/splashui/captcha"
+                page.body = "Are you a human?"
+                page.visible = False
+                emit_response(403)
+                return [{"name": "test-session", "value": "stale-placeholder"}]
             return [{"name": "test-session", "value": "placeholder"}]
     context = Context()
     class Browser:
@@ -324,12 +410,14 @@ for scenario in (
 
     def terminal_input(_prompt):
         calls["input"] += 1
+        if scenario == "signin_manual_timeout_403":
+            return ""
         if scenario == "closed":
             page.closed = True
         elif scenario != "already_ready":
             page.url = "https://www.ebay.com/"
             page.body = "Signed in"
-        if scenario.startswith(("terminal_", "state_transient_", "cookie_handoff_")):
+        if scenario.startswith(("terminal_", "state_transient_", "cookie_handoff_", "cookie_inspection_")):
             if scenario.startswith("terminal_"):
                 queue_manual_responses()
             page.url = namespace["EBAY_RESEARCH_URL"]
@@ -337,8 +425,25 @@ for scenario in (
             page.visible = True
         return ""
     def sleep(seconds):
+        if scenario.startswith(("cookie_homepage_", "cookie_visibility_")):
+            assert cookie_file.read_text(encoding="utf-8") == "original-cookie-jar"
+        if scenario == "signin_manual_timeout_403":
+            assert calls["close"] == 0
+            assert cookie_file.read_text(encoding="utf-8") == "original-cookie-jar"
         clock["now"] += seconds
-        if scenario == "manual_challenge" or scenario.startswith("wait_"):
+        if scenario == "cookie_visibility_manual_403":
+            page.url = namespace["EBAY_RESEARCH_URL"]
+            page.body = "Research keywords"
+            page.visible = True
+        if scenario.startswith("cookie_homepage_"):
+            page.url = "https://www.ebay.com/"
+            page.body = "Signed in"
+            page.visible = False
+            if scenario == "cookie_homepage_manual_return" and clock["now"] >= 598:
+                page.url = namespace["EBAY_RESEARCH_URL"]
+                page.body = "Research keywords"
+                page.visible = True
+        if scenario == "manual_challenge" or scenario.startswith("wait_") or scenario == "cookie_manual_403":
             if scenario.startswith("wait_"):
                 queue_manual_responses()
             page.url = namespace["EBAY_RESEARCH_URL"]
@@ -373,9 +478,24 @@ for scenario in (
             {"name": "test-session", "value": "placeholder"}
         ]
     if status == 2:
-        assert calls["cookies"] == (1 if scenario.startswith("cookie_handoff_") else 0)
+        assert calls["cookies"] == (1 if scenario.startswith(("cookie_handoff_", "cookie_inspection_")) else 0)
         assert cookie_file.read_text(encoding="utf-8") == "original-cookie-jar"
         assert load_state(str(risk_file))["reason"] == "hard_challenge_signal"
+    if scenario in manual_cases:
+        assert calls["input"] == 1
+        assert not risk_file.exists()
+    if scenario.startswith("signin_") and scenario not in manual_cases and not scenario.startswith("signin_transient_"):
+        assert calls["input"] == 0
+    if scenario == "cookie_manual_403":
+        assert calls["cookies"] == 2
+    if scenario.startswith("cookie_homepage_"):
+        assert calls["cookies"] == (2 if scenario.endswith("manual_return") else 1)
+        assert calls["goto"].count(namespace["EBAY_RESEARCH_URL"]) <= 1
+        assert clock["now"] <= 600
+    if scenario.startswith("cookie_visibility_") or scenario == "cookie_navigation_return":
+        assert calls["cookies"] == (1 if scenario == "cookie_visibility_timeout_403" else 2)
+        assert calls["goto"].count(namespace["EBAY_RESEARCH_URL"]) <= 1
+        assert clock["now"] <= 600
     assert not (root / "terapeak_export_progress.json").exists()
     results[scenario] = {
         "status": status, "saved": saved, "closed": calls["close"],
@@ -395,8 +515,28 @@ print(json.dumps(results))
         lookalike_host: { status: false, saved: false, closed: 1, researchNavigations: 1, risk: null, elapsed: 0 },
         closed: { status: false, saved: false, closed: 1, researchNavigations: 0, risk: null, elapsed: 0 },
         persistence_failure: { status: 'persistence_error', saved: false, closed: 1, researchNavigations: 1, risk: null, elapsed: 0 },
+        splash_challenge: { status: true, saved: true, closed: 1, researchNavigations: 1, risk: null, elapsed: 0 },
+        signin_security_prompt: { status: true, saved: true, closed: 1, researchNavigations: 1, risk: null, elapsed: 0 },
+        signin_manual_403: { status: true, saved: true, closed: 1, researchNavigations: 1, risk: null, elapsed: 0 },
+        signin_manual_429: { status: 2, saved: false, closed: 1, researchNavigations: 0, risk: 'Cooldown', elapsed: 0 },
+        terminal_manual_403: { status: true, saved: true, closed: 1, researchNavigations: 0, risk: null, elapsed: 0 },
+        wait_manual_403: { status: true, saved: true, closed: 1, researchNavigations: 1, risk: null, elapsed: 2 },
+        cookie_manual_403: { status: true, saved: true, closed: 1, researchNavigations: 1, risk: null, elapsed: 2 },
+        signin_denial_403: { status: 2, saved: false, closed: 1, researchNavigations: 0, risk: 'Cooldown', elapsed: 0 },
+        signin_unknown_403: { status: 2, saved: false, closed: 1, researchNavigations: 0, risk: 'Cooldown', elapsed: 0 },
+        signin_incomplete_403: { status: 2, saved: false, closed: 1, researchNavigations: 0, risk: 'Cooldown', elapsed: 0 },
+        signin_untrusted_403: { status: 2, saved: false, closed: 1, researchNavigations: 0, risk: 'Cooldown', elapsed: 0 },
+        signin_unreadable_403: { status: 2, saved: false, closed: 1, researchNavigations: 0, risk: 'Cooldown', elapsed: 0 },
+        signin_script_only_403: { status: 2, saved: false, closed: 1, researchNavigations: 0, risk: 'Cooldown', elapsed: 0 },
+        signin_blocked_prompt_403: { status: 2, saved: false, closed: 1, researchNavigations: 0, risk: 'Cooldown', elapsed: 0 },
+        signin_manual_timeout_403: { status: false, saved: false, closed: 1, researchNavigations: 0, risk: null, elapsed: 600 },
+        cookie_homepage_timeout: { status: false, saved: false, closed: 1, researchNavigations: 1, risk: null, elapsed: 600 },
+        cookie_homepage_manual_return: { status: true, saved: true, closed: 1, researchNavigations: 1, risk: null, elapsed: 598 },
+        cookie_visibility_manual_403: { status: true, saved: true, closed: 1, researchNavigations: 1, risk: null, elapsed: 596 },
+        cookie_visibility_timeout_403: { status: false, saved: false, closed: 1, researchNavigations: 1, risk: null, elapsed: 600 },
+        cookie_navigation_return: { status: true, saved: true, closed: 1, researchNavigations: 1, risk: null, elapsed: 0 },
         ...Object.fromEntries([403, 429].flatMap(status => [
-          ...['signin_transient', 'terminal', 'terminal_transient', 'state_transient', 'terminal_timeout', 'cookie_handoff'].map(stage => [
+          ...['signin_transient', 'terminal', 'terminal_transient', 'state_transient', 'terminal_timeout', 'cookie_handoff', 'cookie_inspection'].map(stage => [
             `${stage}_${status}`,
             { status: 2, saved: false, closed: 1, researchNavigations: 0, risk: 'Cooldown', elapsed: 0 },
           ]),
