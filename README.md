@@ -852,6 +852,15 @@ The `data/terapeak/` directory contains real sold-comp CSV data collected from e
 
 **Stage 1: Page 1 Collection** -- the canonical H/W operators wrap `scripts/terapeak-export.py` with preflight, cookie health, persisted risk states, hard-challenge stops, Cooldown recovery, randomized batches, and pass telemetry. The exporter saves local CSVs and defaults to immediate API upload (`UPLOAD_MODE=api`); explicit `blob` mode uploads to Blob Storage, while legacy `auto` prefers Blob when configured and otherwise falls back to API. Browser recycling defaults to 80 coins. See `docs/memory/terapeak-runbook.md` for supported launch options and the optional fail-closed #280H pacing pilot.
 
+On Windows/Ubuntu-24.04, use the **Terapeak: H operator (visible login and loop)**
+VS Code task for a dedicated visible control terminal and ordinary Chrome/noVNC
+for private sign-in. A harmless **Terapeak: verify visible terminal (no services)**
+task verifies the Enter handoff first. Research access is positively verified
+before cookies are saved; permitted manual challenges remain visible for up to
+600 seconds after terminal confirmation, while hard warnings stop in Cooldown.
+Display checks include a bounded RFB greeting but still require visible client
+confirmation. See [the H startup runbook](docs/runbooks/local-scraper-wsl2.md#visible-windowsvs-code-handoff).
+
 **Dual-path runtime (#250)** -- the scraper is designed to run from two environments:
 
 - **Preferred:** a personal laptop on a residential IP (e.g. Surface + WSL2 Ubuntu). Akamai's bot-management trusts residential fingerprints longer, so cookie jars survive 1-7 days between forced re-logins. Setup: [docs/runbooks/local-scraper-wsl2.md](docs/runbooks/local-scraper-wsl2.md).

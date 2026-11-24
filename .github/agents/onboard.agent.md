@@ -120,7 +120,7 @@ Read these project docs:
 13. `.github/skills/process-discipline/SKILL.md` -- hot-file -> INC mapping + WASTE-LEDGER author guide -- added under #271W F9
 14. `.github/skills/valuation/SKILL.md` -- FMV / confidence / buy-sell decision engine routing reference (pool routing, FMV modes, confidence scoring, buy/sell tiers) -- added under #271W F7
 15. `.github/skills/comp-data/SKILL.md` -- eBay 3-tier cascade + Terapeak ingestion / lookup (cascade, scoring, attrition, lookupComps guard chain, CSV format) -- added under #271W F8
-16. `docs/runbooks/local-scraper-wsl2.md` -- Surface laptop + WSL2 setup for the preferred scraper path, including authenticated noVNC login confirmation (#250)
+16. `docs/runbooks/local-scraper-wsl2.md` and `.vscode/tasks.json` -- Surface/WSL setup, visible operator/terminal-check process tasks, authenticated noVNC handoffs, bounded manual Research verification, and display-freeze stop/diagnosis rules
 17. `docs/runbooks/scraper-travel-mode.md` -- Codespace fallback scraper workflow, host-browser cookie export, per-machine `COOKIE_FILE` discipline (#250)
 18. `CONTRIBUTING.md` -- contributor workflow, setup, testing rules, branching strategy, PR process, required reviews
 19. `SECURITY.md` -- vulnerability reporting policy, response SLAs, coordinated disclosure, safe harbor

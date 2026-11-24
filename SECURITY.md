@@ -128,6 +128,8 @@ If you act in good faith, avoid privacy violations/destructive testing, and repo
 - In Codespaces, forward only the noVNC port and keep its visibility `private`; private forwarding is part of the security boundary, not a convenience setting.
 - The helper verifies the owning process, effective listener/security options, and noVNC readiness before interactive login. If listener identity cannot be verified, stop rather than killing an unknown process.
 - Treat the browser session and cookie jar as credentials. Do not copy cookies between H and W machines, and do not use the legacy standalone display bootstrap for sensitive sessions.
+- A two-second RFB greeting check detects a nonresponsive VNC listener before login; it does not replace visible client confirmation or authenticate the client. Never respond to a failed check by weakening VNC authentication or automatically restarting an existing display.
+- Guarded login saves cookies only after an HTTPS eBay Research URL and visible Research UI are confirmed. Permitted manual login challenges get a bounded 600-second wait without automatic refresh/retry. Hard warning/splash/block pages and HTTP 403/429 persist Cooldown and exit 2; they are not an invitation to solve or bypass a hard block.
 
 ## Related References
 

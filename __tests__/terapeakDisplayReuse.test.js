@@ -79,7 +79,9 @@ server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 server.bind(('127.0.0.1', port))
 server.listen()
 while True:
-    time.sleep(1)
+    connection, _ = server.accept()
+    with connection:
+        connection.sendall(b"RFB 003.008\n")
 PY
 cat > "$temp_dir/bin/websockify" <<'PY'
 #!/usr/bin/python3

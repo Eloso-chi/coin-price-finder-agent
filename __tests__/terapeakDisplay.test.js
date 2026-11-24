@@ -83,7 +83,12 @@ server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 server.bind(('127.0.0.1', port))
 server.listen()
 while True:
-    time.sleep(1)
+    connection, _ = server.accept()
+    with connection:
+        if not os.path.exists(os.environ["FAKE_VNC_UNRESPONSIVE_FILE"]):
+            connection.sendall(b"RFB 003.008\n")
+        else:
+            time.sleep(3)
 PY
 cat > "$temp_dir/bin/websockify" <<'PY'
 #!/usr/bin/python3
@@ -119,6 +124,7 @@ export TERAPEAK_WEBSOCKIFY_BIN="$temp_dir/bin/websockify"
 export TERAPEAK_NOVNC_WEB_DIR="$temp_dir/www"
 export FAKE_PROXY_FAIL_FILE="$temp_dir/fail-proxy-once"
 export FAKE_VNC_PID_FILE="$temp_dir/vnc.pid"
+export FAKE_VNC_UNRESPONSIVE_FILE="$temp_dir/vnc-unresponsive"
 export FAKE_PROXY_PID_FILE="$temp_dir/proxy.pid"
 export FAKE_PROXY_UNRESPONSIVE_FILE="$temp_dir/proxy-unresponsive"
 export DISPLAY=:91
@@ -140,6 +146,21 @@ bash "${helperPath}" start > "$temp_dir/retry.log" 2>&1 || { cat "$temp_dir/retr
 grep -q '\[terapeak-display:READY\]' "$temp_dir/retry.log"
 grep -q "http://localhost:$web_port/vnc.html?host=localhost&port=$web_port" "$temp_dir/retry.log"
 cat "$temp_dir/retry.log"
+vnc_pid="$(cat "$temp_dir/vnc.pid")"
+: > "$temp_dir/vnc-unresponsive"
+if bash "${helperPath}" check > "$temp_dir/frozen.log" 2>&1; then
+  echo 'frozen VNC unexpectedly passed readiness while HTTP was healthy'
+  exit 1
+fi
+grep -q 'VNC did not provide a valid RFB greeting within 2 seconds' "$temp_dir/frozen.log"
+if grep -q '\[terapeak-display:READY\]' "$temp_dir/frozen.log"; then
+  echo 'frozen VNC emitted a success-shaped readiness result'
+  exit 1
+fi
+kill -0 "$vnc_pid"
+kill -0 "$(cat "$temp_dir/proxy.pid")"
+cat "$temp_dir/frozen.log"
+rm "$temp_dir/vnc-unresponsive"
 proxy_pid="$(cat "$temp_dir/proxy.pid")"
 kill "$proxy_pid"
 for _ in {1..20}; do
@@ -165,6 +186,7 @@ cat "$temp_dir/timeout.log"
     );
     expect(result.stdout).toContain('[terapeak-display:READY]');
     expect(result.stdout).toContain(`http://localhost:${webPort}/vnc.html?host=localhost&port=${webPort}`);
+    expect(result.stdout).toContain('VNC did not provide a valid RFB greeting within 2 seconds');
   });
 
   test('noVNC readiness timeout is bounded to the documented startup window', () => {

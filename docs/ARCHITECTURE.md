@@ -972,9 +972,21 @@ VNC lifecycle has the same authentication guarantees.
 | Login helper | `scripts/terapeak-display.sh` + `scripts/terapeak-export.py --login` |
 
 The helper verifies the owning executable, user, effective security options,
-loopback binding, and noVNC readiness. It can start a missing proxy for a
+loopback binding, noVNC HTTP, and a valid RFB greeting within two seconds.
+This is not browser-client authentication or framebuffer verification; visible
+client confirmation remains required, and a failed protocol check stops login
+without restarting an existing display. It can start a missing proxy for a
 verified VNC session and cleans up only child processes it started if startup
 fails. Codespace port forwarding does not itself start either service.
+
+Windows H orchestration uses `.vscode/tasks.json` process tasks with an explicit
+Ubuntu-24.04 distro and a dedicated visible terminal; a harmless terminal-check
+task verifies keyboard input. Chrome hosts noVNC, not the operator control
+process. The user advances the display and sign-in Enter gates. Guarded login
+opens Research at most once when needed, then allows up to 600 seconds for
+permitted manual challenge resolution and verifies both the eBay Research URL
+and visible Research UI before saving cookies. Hard warnings/HTTP 403/429 persist
+Cooldown and exit 2; timeout/unconfirmed access leaves cookies unchanged.
 
 ### Chain Aggregation -- `scripts/chain-aggregate.sh`
 

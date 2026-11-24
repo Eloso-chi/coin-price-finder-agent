@@ -171,14 +171,19 @@ cd ~/cpf/coin-price-finder-agent
 source .venv/bin/activate
 set -a; source .env.surface; set +a
 bash scripts/terapeak-display.sh start
-export DISPLAY="${TERAPEAK_VNC_DISPLAY:-1}"
+export DISPLAY=":${TERAPEAK_VNC_DISPLAY:-1}"
 python3 scripts/terapeak-export.py --login
 ```
 
-A real Chromium window will appear in noVNC. Sign in to eBay manually (solve any
-CAPTCHA), navigate once to `https://www.ebay.com/sh/research` to confirm
-Terapeak loads, then close the window. The script writes the jar to
-`$COOKIE_FILE`.
+A real Chromium window will appear in noVNC. Sign in to eBay manually, resolve
+permitted login CAPTCHA/2FA, then press Enter in the launching terminal.
+Leave the browser open: the helper opens Research once if necessary and waits
+up to 600 seconds for a visible Research search input on the eBay Research
+page. A permitted manual challenge stays visible; the helper does not refresh
+or retry it. A splash/block/security warning or HTTP 403/429 persists Cooldown
+and stops with exit 2. Unconfirmed access times out without saving cookies.
+Only confirmed Research access writes `$COOKIE_FILE`; the helper then closes
+the browser itself. There is no mandatory second login or second CAPTCHA.
 
 Direct exporter entrypoints enforce the persisted risk state: ad-hoc collection
 is allowed only in `Normal`; `Elevated` collection requires the canonical H/W
@@ -207,16 +212,43 @@ The wrapper auto-resolves Python in this order:
 It also enforces a single-instance lock (`cache/terapeak-operator.lock`) so
 you cannot accidentally launch overlapping operator runs.
 
+#### Visible Windows/VS Code handoff
+
+Use the checked-in `.vscode/tasks.json` tasks on Windows with `Ubuntu-24.04`:
+
+1. For a first handoff check, run **Tasks: Run Task** ->
+   **Terapeak: verify visible terminal (no services)**. It must print
+   `TERMINAL_INPUT_READY_PRESS_ENTER`; press Enter in that terminal and verify
+   `TERMINAL_HANDOFF_OK`. This starts no services or login.
+2. For an authorized run, select **Terapeak: H operator (visible login and loop)**.
+   It runs the canonical launcher with `--loop` from the open checkout in one
+   dedicated, revealed terminal. Do not start a second copy.
+3. Open its exact printed noVNC URL in ordinary Chrome. Enter the VNC password
+   privately and confirm the remote display responds, not just that the web
+   page loads. The first terminal Enter opens eBay inside noVNC; after signing
+   in, the second terminal Enter begins the bounded Research verification.
+   Neither chat confirmation nor a tool's task-launch result sends Enter.
+
+The coordinating assistant uses the VS Code task API, not a noninteractive
+shell call or a separate Command Prompt. With the task tools, the IDs are
+`process: Terapeak: verify visible terminal (no services)` and
+`process: Terapeak: H operator (visible login and loop)`. The assistant opens
+Chrome and observes stage output; the user handles passwords and terminal
+Enter prompts. If a visible interactive terminal or connected browser cannot
+be verified, stop at that named stage rather than inventing another launcher.
+Other supported Ubuntu installations must explicitly select their own distro;
+do not silently substitute the default WSL distro.
+
 ```bash
 # One pass, interactive login included
 bash scripts/terapeak-operator.sh
 
-# Continuous freshness-only loop using existing cookies
-bash scripts/terapeak-operator.sh --no-login --loop --pause-between 600 --page1-batch 25
+# Normal continuous freshness-only operation, with interactive login
+bash scripts/terapeak-operator.sh --loop
 
-# Continuous loop with randomized total picks per pass (default window 30..35).
+# Explicit cookie reuse; only when login is not requested and risk gates permit.
 # Each pass blends fixed 15x P0.1 + randomized 15-20x non-P0.1.
-bash scripts/terapeak-operator.sh --no-login --loop --pause-between 600 --batch-min 30 --batch-max 35
+bash scripts/terapeak-operator.sh --no-login --loop
 
 # Smoke-test blended queue selection only (no scraping):
 node scripts/generate-freshness-report.js --stale 15
@@ -233,6 +265,46 @@ The wrapper always does:
 3. `terapeak-startup-preflight.sh --mode loop`
 4. `run-surface-freshness-loop.sh --skip-deep --skip-probe --fallback-tiers all --exit-on-drained`
    (the last two flags are omitted with `--no-fallback`)
+
+Normal defaults are 30-35 terms and a 600-second post-pass pause. Elevated
+uses 15-20 terms and a minimum 900-second wall-clock pacing gate, not necessarily
+900 additional seconds after pass completion. Hard-challenge Cooldown defaults
+to 7200 seconds plus guarded recovery. `--pause-between 900` explicitly selects
+a 900-second Normal pause; it is not the default and does not replace Cooldown.
+
+Display readiness verifies ownership/authentication configuration, HTTP, and a
+valid RFB greeting within two seconds. It does not authenticate a browser client
+or prove framebuffer responsiveness; the visible confirmation remains required.
+If HTTP works but the RFB check fails, stop before login and preserve the display
+for diagnosis. Do not repeatedly restart it or alter bindings/authentication.
+The November 2026 freeze was confirmed as an Xtigervnc user-space CPU spin
+before its RFB greeting; that symptom alone does not establish its cause.
+Stack diagnosis requires an explicitly approved, bounded debugger attachment,
+with no frame arguments, locals, credential reads, or memory dumps.
+
+#### Offline consecutive-pass acceptance
+
+From the checkout in Ubuntu-24.04, run:
+
+```bash
+npm test -- --runInBand --runTestsByPath __tests__/terapeakDrainedOperators.test.js
+```
+
+The consecutive-pass case runs the real H launcher, pass parser, risk-state
+transitions, Elevated wait, and exporter gate against a temporary project.
+Display/login and external collection actions are simulated; no real service,
+browser, cookie jar, operator cache, or network is used. One shared virtual
+wall clock controls timestamps, sleep, and gate calculations across processes.
+Sleep deliberately advances only half its requested duration.
+
+The first productive pass moves Normal to Elevated on three soft signals.
+The exporter gate rejects an immediate second pass, then the operator's wait
+converges on 900.5 virtual seconds before admitting the second productive
+pass. Its clean result returns Elevated to Normal. A third, empty/drained
+pass terminates the otherwise continuous loop cleanly. The test checks the
+pass ledger, batch bounds, gate reservation timestamp, and final state.
+This is simulated operational acceptance evidence, not proof that the real
+VNC freeze or live eBay login is repaired.
 
 #### P3 fallback and the `drained` exit (#330H)
 
@@ -334,10 +406,13 @@ pip install playwright requests
 python3 -m playwright install chromium
 ```
 
-### Fast path: `scripts/cpf-go` (#258)
+### Legacy alternative: `scripts/cpf-go` (#258)
 
-One command handles login, dependency checks, freshness report, scraper run,
-and optional looping. Recommended for almost all daily use.
+Historical bootstrap/alternative tooling, not the canonical daily operator.
+It is not an alias for `terapeak-operator.sh`: it may switch to a home-directory
+clone, update/install dependencies, and use different defaults. Do not substitute
+it for the guarded visible-terminal procedure above. The examples below document
+legacy options, not the recommended startup or a Cooldown recovery path.
 
 > **Meta sidecar auto-sync (#259; merge commit reads #253):** before each freshness pass,
 > `run-surface-freshness-loop.sh` pulls the canonical

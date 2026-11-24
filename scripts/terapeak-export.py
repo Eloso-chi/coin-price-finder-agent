@@ -52,6 +52,7 @@ import sys
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from urllib.parse import urlsplit
 
 SCRIPT_MODULE_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_MODULE_DIR) not in sys.path:
@@ -380,10 +381,12 @@ def human_type(element, text, page=None):
 
 
 # ── Cookie Management ───────────────────────────────────────
-def save_cookies(context):
+def save_cookies(context, before_write=None):
     """Save browser cookies to disk."""
     COOKIE_FILE.parent.mkdir(parents=True, exist_ok=True)
     cookies = context.cookies()
+    if before_write is not None:
+        before_write()
     with open(COOKIE_FILE, "w") as f:
         json.dump(cookies, f, indent=2)
     print(f"  Saved {len(cookies)} cookies to {COOKIE_FILE}")
@@ -1065,6 +1068,74 @@ def _is_no_valid_comps_error(msg):
 
 
 # ── Login Flow ──────────────────────────────────────────────
+def manual_research_access_state(page):
+    """Distinguish a visible login challenge from confirmed Research access."""
+    location = urlsplit(page.url)
+    if location.scheme != "https" or location.hostname not in (
+        "www.ebay.com", "ebay.com", "signin.ebay.com",
+    ):
+        return "unconfirmed"
+    path = location.path.lower()
+    body = page.inner_text("body", timeout=1000)[:12000].lower()
+    if any(marker in path for marker in ("/splashui/", "distil", "block")) or any(
+        marker in body for marker in ("unusual activity", "security measure")
+    ):
+        return "hard_challenge"
+    if "signin" in location.hostname or any(
+        marker in path for marker in ("captcha", "signin")
+    ) or any(marker in body for marker in ("captcha", "hcaptcha", "are you a human")):
+        return "solvable_challenge"
+    if path.rstrip("/") == "/sh/research" and page.locator(
+        _RESEARCH_PAGE_SELECTOR
+    ).first.is_visible():
+        return "ready"
+    return "pending"
+
+
+def wait_for_manual_research_access(page, timeout_seconds=600, has_http_block=None):
+    """Allow manual resolution without refreshing or retrying a challenge."""
+    from playwright.sync_api import Error as PlaywrightError
+
+    deadline = time.monotonic() + timeout_seconds
+    research_requested = False
+    print(f"Waiting up to {timeout_seconds}s for visible Research access.")
+    print("Solve permitted login CAPTCHA/2FA yourself in noVNC; leave the browser open.")
+    while time.monotonic() < deadline:
+        if page.is_closed():
+            return "closed"
+        if has_http_block is not None:
+            page.wait_for_timeout(0)
+            if has_http_block():
+                return "hard_challenge"
+        try:
+            state = manual_research_access_state(page)
+        except PlaywrightTimeout:
+            state = "navigating"
+        except PlaywrightError as error:
+            if "Execution context was destroyed" not in str(error):
+                raise
+            state = "navigating"
+        if has_http_block is not None and has_http_block():
+            return "hard_challenge"
+        if state in ("ready", "hard_challenge", "unconfirmed"):
+            return state
+        if state == "pending" and not research_requested:
+            research_requested = True
+            print("Opening Research once to confirm access; no automatic challenge retries.")
+            remaining_ms = max(1, int((deadline - time.monotonic()) * 1000))
+            response = page.goto(
+                EBAY_RESEARCH_URL, wait_until="domcontentloaded",
+                timeout=min(30000, remaining_ms),
+            )
+            if response is not None and response.status in (403, 429):
+                return "hard_challenge"
+            continue
+        remaining = deadline - time.monotonic()
+        if remaining > 0:
+            time.sleep(min(2, remaining))
+    return "challenge_timeout"
+
+
 def do_login():
     """Open a visible browser for manual eBay login. Save cookies when done."""
     if not has_display():
@@ -1106,32 +1177,57 @@ def do_login():
         context.add_init_script("""
             Object.defineProperty(navigator, 'webdriver', { get: () => false });
         """)
-        page = context.new_page()
+        http_blocked = False
 
-        print("Opening eBay login page...")
-        page.goto(EBAY_LOGIN_URL, wait_until="domcontentloaded")
+        def observe_login_response(response):
+            nonlocal http_blocked
+            if response.status in (403, 429) and (
+                response.request.is_navigation_request()
+                and response.frame == page.main_frame
+            ):
+                http_blocked = True
 
-        input("\n>>> Log in to eBay in the browser, then press ENTER here to continue... ")
+        def stop_on_http_block():
+            if http_blocked:
+                persist_hard_challenge_cooldown()
+                print("[risk:FAIL] HTTP 403/429 during login; Cooldown persisted. Stop.")
+                raise SystemExit(2)
 
-        # Verify we're logged in by checking for the Research page
-        print("Verifying login by navigating to Research tab...")
-        page.goto(EBAY_RESEARCH_URL, wait_until="domcontentloaded")
-        wait_for_research_page(page)  # #198: selector-bounded, sleep(3) fallback
+        try:
+            page = context.new_page()
+            page.on("response", observe_login_response)
+            print("Opening eBay login page...")
+            response = page.goto(
+                EBAY_LOGIN_URL, wait_until="domcontentloaded", timeout=30000,
+            )
+            if (response is not None and response.status in (403, 429)) or (
+                manual_research_access_state(page) == "hard_challenge"
+            ) or http_blocked:
+                persist_hard_challenge_cooldown()
+                print("[risk:FAIL] Hard login warning or HTTP 403/429; Cooldown persisted. Stop.")
+                raise SystemExit(2)
 
-        # Check if we landed on the research page or got redirected to login
-        current_url = page.url
-        if "signin" in current_url.lower() or "SignIn" in current_url:
-            print("ERROR: Still on login page. Login may have failed.")
-            print(f"Current URL: {current_url}")
-            browser.close()
+            input("\n>>> Log in to eBay, then press ENTER in this terminal. Leave the browser open... ")
+            outcome = wait_for_manual_research_access(
+                page, has_http_block=lambda: http_blocked,
+            )
+            if outcome == "hard_challenge" or http_blocked:
+                persist_hard_challenge_cooldown()
+                print("[risk:FAIL] Hard login warning; Cooldown persisted. Do not retry or bypass it.")
+                raise SystemExit(2)
+            if outcome != "ready":
+                print(f"ERROR: Research access not confirmed ({outcome}); cookies were not saved.")
+                return False
+
+            save_cookies(context, before_write=stop_on_http_block)
+            print("\nLogin complete. Research access confirmed and cookies saved.")
+            return True
+        except PlaywrightTimeout:
+            stop_on_http_block()
+            print("ERROR: Login browser timed out; cookies were not saved. Stop and inspect the display.")
             return False
-
-        print(f"Logged in successfully. Current URL: {current_url}")
-        save_cookies(context)
-
-        browser.close()
-        print("\nLogin complete. Cookies saved. You can now run --run to export data.")
-        return True
+        finally:
+            browser.close()
 
 
 def do_login_manual():
@@ -1408,9 +1504,8 @@ def challenge_indicators(page, response=None):
     return indicators
 
 
-def record_hard_challenge(progress, term):
-    """Persist the failed term and Cooldown before another action can start."""
-    progress.setdefault("failed", []).append(term)
+def persist_hard_challenge_cooldown():
+    """Share the fail-closed Cooldown boundary between login and collection."""
     risk_path = scraper_risk_state_path()
     run_id = os.environ.get("TERAPEAK_RUN_ID", f"exporter-{os.getpid()}")
     try:
@@ -1419,6 +1514,12 @@ def record_hard_challenge(progress, term):
         raise CooldownPersistenceError(
             "Hard challenge detected but Cooldown could not be persisted; stopping immediately"
         ) from error
+
+
+def record_hard_challenge(progress, term):
+    """Persist the failed term and Cooldown before another action can start."""
+    progress.setdefault("failed", []).append(term)
+    persist_hard_challenge_cooldown()
     save_progress(progress)
     return True
 

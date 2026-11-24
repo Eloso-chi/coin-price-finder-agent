@@ -123,6 +123,9 @@ bash scripts/terapeak-display.sh start
 
 # 3. Complete guarded interactive login
 DISPLAY=":${TERAPEAK_VNC_DISPLAY:-1}" python3 scripts/terapeak-export.py --login
+# After sign-in, press Enter in the launching terminal and leave Chromium open.
+# Research verification waits up to 600s; no cookies on unconfirmed access.
+# Hard warnings persist Cooldown and exit 2; never retry a challenged session.
 
 # 4. Start the server if UPLOAD_MODE=api uses local APP_URL, or if auto may
 #    fall back to API and APP_URL is local. API uploads require ADMIN_API_KEY.
